@@ -1,0 +1,1 @@
+AA subsamples used = 2^12

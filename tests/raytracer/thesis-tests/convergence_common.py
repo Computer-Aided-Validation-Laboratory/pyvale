@@ -1396,20 +1396,20 @@ def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blend
         print(f"Error plotting the results: {e}.\nLikely from missing sufficient data for some elements. Plotting skipped.")
 
 
-#fill_all_convergence_logs(TestCase.AIR_UNLIT, Resolution.LOW, blender=True)
+#fill_all_convergence_logs(TestCase.TANK, Resolution.HIGH, blender=True)
 #fill_convergence_log(Elements.QUAD8, TestCase.TANK, Resolution.LOW, 131072, 2097152, False)
 
 #get_roi(TestCase.AIR_UNLIT)
 
 #plot_results_subplots_patch(TestCase.TANK, Resolution.LOW, plot_time = False, save = True, show = False)
 
-#plot_results_all(TestCase.TANK, Resolution.LOW, True, True)
-#plot_results_subplots(TestCase.AIR_UNLIT, Resolution.HIGH, True, True)
+#plot_results_all(TestCase.AIR_DIFFUSE, Resolution.HIGH, True,False)
+#plot_results_subplots(TestCase.AIR_DIFFUSE, Resolution.HIGH, False, True, False) # Max AE plot
 
 #check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 524288, 1048576)
 
 #plot_results_blender(TestCase.TANK, Resolution.LOW, False, True, True)
-#plot_results_blender_rt_single(TestCase.AIR_UNLIT, Resolution.LOW, save=True, show=True, rmse=False)
+#plot_results_blender_rt_single(TestCase.AIR_DIFFUSE, Resolution.LOW, save=True, show=True, rmse=True)
 
 
 # From 2**14 (16k) to 2**18 (262k) for Blender

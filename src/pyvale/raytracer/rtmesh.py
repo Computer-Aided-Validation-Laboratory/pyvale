@@ -2788,6 +2788,8 @@ def simdata_csv_to_rtmesh(directory: Path,
     rtmesh = create_rtmesh(rtmesh, render_mesh = None)
     # Manually set the extracted values for node displacements and custom UVs
     if nodal_displacements is not None:
+        print(f"Nodal displacements shape: {nodal_displacements.shape}")
+        print(f"Element count: {rtmesh.element_count}; node count: {rtmesh.node_coords.shape[0]}")
         rtmesh.add_temporal_displacement(nodal_displacements) # Add extracted displacements
     rtmesh.set_custom_uvs(uvs)
     return rtmesh

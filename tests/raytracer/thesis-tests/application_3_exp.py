@@ -252,8 +252,8 @@ def create_mean_and_std_heatmap(mean_u_map, std_u_map, output_path, tick_jump=8,
     ax0 = sns.heatmap(mean_u_map,center=0.0, cmap="coolwarm", square=True, ax=axs[0],cbar_kws={"shrink": 0.6})
     ax1 = sns.heatmap(std_u_map, cmap="viridis", square=True, ax=axs[1], cbar_kws={"shrink": 0.6})
 
-    axs[0].set_title("$\overline{U_{x}} \ [px]$", fontsize=FONT_SIZES["axis_labels"])
-    axs[1].set_title("$SD(U_{x}) \ [px]$", fontsize=FONT_SIZES["axis_labels"])
+    axs[0].set_title("$\overline{u_{x}} \ [px]$", fontsize=FONT_SIZES["axis_labels"])
+    axs[1].set_title("$SD(u_{x}) \ [px]$", fontsize=FONT_SIZES["axis_labels"])
 
     for ax in axs:
         ax.invert_yaxis()
@@ -291,8 +291,8 @@ def create_mean_xy_heatmap(mean_u_map, mean_v_map, output_path, tick_jump=8, tit
         vmin=cbar_min, vmax=cbar_max, center=0.0,
         cmap="coolwarm", square=True, ax=axs[1], cbar_ax=axs[2])
 
-    axs[0].set_title("$\overline{U_{x}} \ [px]$", fontsize=FONT_SIZES["axis_labels"])
-    axs[1].set_title("$\overline{U_{y}} \ [px]$", fontsize=FONT_SIZES["axis_labels"])
+    axs[0].set_title("$\overline{u_{x}} \ [px]$", fontsize=FONT_SIZES["axis_labels"])
+    axs[1].set_title("$\overline{u_{y}} \ [px]$", fontsize=FONT_SIZES["axis_labels"])
 
     for ax in axs[:2]:
         ax.invert_yaxis()
@@ -371,13 +371,13 @@ def plot_dic_noise_floor_heatmaps(stats_df, output_dir, output_prefix, tick_jump
         output_path=os.path.join(output_dir, f"{output_prefix}_v_std_heatmap.png"),
         tick_jump=tick_jump,
         title="Temporal noise floor in $y$",
-        cbar_label="$SD(U_{y}) \ [px]$")
+        cbar_label="$SD(u_{y}) \ [px]$")
 
     create_single_heatmap(data_map=std_mag_map,
         output_path=os.path.join(output_dir, f"{output_prefix}_mag_std_heatmap.png"),
         tick_jump=tick_jump,
         title="Temporal noise floor\nin displacement magnitude",
-        cbar_label="$SD(|U{x}|) \ [px]$")
+        cbar_label="$SD(|u{x}|) \ [px]$")
         
 def run_dic_experimental_noise_floor():
     test = ExpTests.STATIC
@@ -565,8 +565,8 @@ def run_dic_experimental(test: ExpTest, save_plot: bool = True, convert_to_mm: b
 
     # Titles
     fig.suptitle(f"Experimental DIC results\nTest case: {test.label_plot}", fontsize=FONT_SIZES["suptitle"])
-    axes[0].set_title(f"$U_x$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Horizontal displacement
-    axes[1].set_title(f"$U_y$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Vertical displacement
+    axes[0].set_title(f"$u_x$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Horizontal displacement
+    axes[1].set_title(f"$u_y$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Vertical displacement
 
     for aa in axes:
         aa.set_aspect('equal')
@@ -693,9 +693,7 @@ def render_exp_images(test: RTTest):
     #SceneVisualiser([pipe, tank, beam])
     #SceneVisualiser([pipe, tank, water_pipe])
     #SceneVisualiser([pipe, tank, water_tank])
-    #SceneVisualiser([pipe, tank, water_pipe, water_tank])
-
-    # 3. Set camera data
+    #SceneVisualiser([pipe, tank, water_pipe, water_t
     # Data for Photron Nova S6
     anti_alias = 1
     image_width = image_width_phs6

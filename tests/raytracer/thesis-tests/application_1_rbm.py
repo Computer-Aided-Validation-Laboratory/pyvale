@@ -310,27 +310,33 @@ def mesh_svg(svg_path, element, target_length=TARGET_LENGTH, edge_fraction=EDGE_
 
 
 # Unwrap the mesh to avoid Blender dependency in the main test
-def uv_unwrap():
+def uv_unwrap(fallback=False):
     from pyvale.raytracer.rtblender import BlenderUnwrapper
     blender_uv = BlenderUnwrapper()
-    object_path = full_path("thesis-data/app1_rbm/{pet_name}_TRI3/{pet_name}_TRI3.vtk")   
+    object_path = full_path(f"thesis-data/app1_rbm/{pet_name}_TRI3/{pet_name}_TRI3.vtk")
+    save_path = full_path(f"thesis-data/app1_rbm/{pet_name}_TRI3/{pet_name}_TRI3_uvs.csv")
+    if fallback:
+         object_path = full_path("thesis-data/app1_rbm/cube_QUAD9/hex27_cube.vtk")
+         save_path = full_path("thesis-data/app1_rbm/cube_QUAD9/cube_QUAD9_uvs.csv")
     object = any_mesh_to_rtmesh(object_path, world_position = np.array([0.0, 0.0, 0.0]), anchor = Anchor.CENTER,
                                 target_size=50, size_axis = Axis.Y) # Shark 50 mm long => 30 mm wide
     blender_uv.add_rtmesh(object)
     blender_uv.smart_unwrap()
-    object.export_uvs(full_path(f"thesis-data/app1_rbm/{pet_name}_TRI3/{pet_name}_TRI3_uvs.csv"))
+    object.export_uvs(save_path)
    
-#uv_unwrap()
+#uv_unwrap(True)
 
 # ================================================================================
 # Rigid body motion image render
 # ================================================================================
 #calplate_dict_names = ["quad4_calplate3d", "quad8_calplate3d", "quad9_calplate3d", "tri3_calplate3d", "tri6_calplate3d"]
 
-def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
+def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False):
     # 1. Camera and output settings
     pet_height = 51 # mm
     pet_displacement = 2 # mm; we don't really use it in practice, but it is to mock some tiny experimental ROI
+    if fallback:
+        pet_height = 29 # now it will be sphere diameter
     # Swap height and width ("rotated" camera) as our ROI is more vertical than horizontal
     # Then scale down by 10 - we still see something, but the image is small
     image_width = int(image_height_cx5 / 10)
@@ -350,7 +356,9 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
     camera_center = np.array([0, 0, camera_distance])
     cam = Camera(image_width, image_height, camera_center, camera_target, angle_vertical_view)
     # Output directory for the renders
-    base_data_dir = f"app1_rmb/renders/{test_case.value}"
+    base_data_dir = f"app1_rmb/{test_case.value}"
+    if fallback:
+        base_data_dir = f"app1_rmb/fallback/{test_case.value}"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
     # Output format
     output_format = output_format_cx5
@@ -363,6 +371,8 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
     # 2. Paths and access to all data used in the scene
     # Object = main mesh that moves
     object_path = full_path(f"thesis-data/app1_rbm/{pet_name}_TRI3/{pet_name}_TRI3.vtk")
+    if fallback:
+        object_path = full_path(f"thesis-data/app1_rbm/cube_QUAD9/hex27_cube.vtk")
     # Pipe and water - as in convergence_rt, but shorter and wider to reduce unnecessary computations
     pipe_access = "thesis-data/pipe_shark"
     pipe_path = get_tank_path(pipe_access, Elements.TRI6) # TRI3 or TRI6 only for pipe
@@ -370,14 +380,17 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
 
     # 3. Set up the meshes
     scene = Scene()
+    obj_size = 29
+    if fallback:
+        obj_size=20
     object = any_mesh_to_rtmesh(object_path, world_position = np.array([0.0, 0.0, 0.0]), anchor = Anchor.CENTER, 
-                                target_size=29, size_axis = Axis.Y) # Shark 50 mm long => 30 mm wide (hammer); 32 mm (fatshark); pipe is 35 mm ID
+                                target_size=obj_size, size_axis = Axis.Y) # Shark 50 mm long => 30 mm wide (hammer); 32 mm (fatshark); pipe is 35 mm ID
     object.rotate(rotation=Rotation.from_euler('z', 90, degrees=True))
     print(object.get_size())
     pipe = any_mesh_to_rtmesh(pipe_path)
     water = any_mesh_to_rtmesh(water_path)
 
-    #SceneVisualiser([object, pipe], cam) # Helper display
+    #SceneVisualiser([object, pipe]) # Helper display
 
     if test_case == TestCaseApp.AIR_DIFFUSE:
         print(f"--------------------------------\nTESTED CASE: AIR DIFFUSE\n--------------------------------")
@@ -395,6 +408,8 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
     # 4. Create mock displacement for the object
     frame_count = 10 # How many frames we want to render
     # We need 0.1 px displacement per frame, so get the spatial scale first
+    #Total displacement over 10 frames is 0.22131147540983606 mm
+    #Scaling: 0.1 px = 0.022131147540983605 mm
     scale = spatial_scale(fov_height, image_height) # mm/px, so 1 px = this in mm
     disp_per_frame = scale / 10 # We get 0.1 px = yyy mm = our delta y per frame
     total_displacement = disp_per_frame * frame_count
@@ -407,7 +422,10 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
     # This is huge compared to the target resolution, so we need to change it or the speckles will be just noise
     # We could downsample the texture OR, since we're scaling down and the UV's will not go over the [0,1] range
     # simply rescale those without altering the image
-    object.import_uvs(Path.with_name(object_path, f"{pet_name}_TRI3_uvs.csv")) # Load pre-processed UVs
+    if fallback:
+        object.import_uvs(Path.with_name(object_path, f"cube_QUAD9_uvs.csv")) # Load pre-processed UVs
+    else:
+        object.import_uvs(Path.with_name(object_path, f"{pet_name}_TRI3_uvs.csv"))
     object_texture = ImageTools.load_image_greyscale(dic_pattern_5mpx_path())
     object.set_surface(SurfType.TEXTURE, surface_fill=object_texture, material_type=MaterialType.DIFFUSE)
     # Scale the UVs to get 3.5 px speckles in the rendered images
@@ -417,7 +435,117 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1):
 
     # 6. Render
     scene.add_camera(cam)
-    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.DYNAMIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
 
 
-rmb_test(TestCaseApp.PIPE, aa_samples=1)
+#rmb_test(TestCaseApp.AIR_DIFFUSE, aa_samples=2**12, fallback=False)
+
+# ================================================================================
+# DIC
+# ================================================================================
+ROI_FILENAME = "roi.dat"
+DIC_RESULTS_PREFIX = "dic_results_"
+# These params ran succesfully in Zeiss Correlate
+SUBSET_SIZE = 7
+STEP_SIZE = 4
+
+def run_dic_rmb(test_case: TestCaseApp, save_plot: bool = True, convert_to_mm: bool = False):
+    """
+    Runs DIC on the experimental images.
+    """
+    import pyvale.dic as dic
+    # Unscaled max displacement: 9.999999999621423e-06 mm, which is less than the scale 1 px = 0.0390625 mm
+    #Scaled max displacement: 0.0390625 mm, 1.0 px
+    SCALE_PX_MM = 0.022131147540983605 # from rmb_test
+
+    # Open the reference image
+    base_data_dir = f"app1_rmb/{test_case.value}"
+    target_path = test_dir(BASE_TEST_DIR, base_data_dir)
+    image_basename = "rtimage_"
+    suffix = "_cam0.tiff"
+    ref_img_path = target_path / f"{image_basename}0{suffix}"
+    ref_img = ImageTools.load_image_greyscale(ref_img_path)
+    def_img_count = 10
+
+    # Define ROI
+    print(f"target path: {target_path}")
+    roi = dic.RegionOfInterest(ref_image=ref_img)
+    roi_file = target_path / f"{test_case.value}_{ROI_FILENAME}"
+    dic_results_prefix = f"{test_case.value}_{DIC_RESULTS_PREFIX}"
+    if not os.path.exists(roi_file):
+        # Select and save ROI if file doesn't exist
+        roi.interactive_selection(subset_size=SUBSET_SIZE)
+        roi.save_array(filename=roi_file,binary=False)
+    
+    dic_files = target_path / f"{dic_results_prefix}*.csv"
+    # The above is a wildcard, so it will not work for the os.path.exists condition below
+    dic_filename_check = target_path / f"{dic_results_prefix}def_img_0000.csv"
+
+    if not os.path.exists(dic_filename_check):
+        # Run DIC analysis if it doesn't exist 
+        roi.read_array(filename=roi_file, binary=False)
+        # Go over frames 1-9 (inclusive) and do DIC on them
+        def_images = np.ndarray((def_img_count, ref_img.shape[0], ref_img.shape[1]))
+        for i in range(1, def_img_count):
+            def_img_path = target_path / f"{image_basename}{i}{suffix}"
+            def_img = ImageTools.load_image_greyscale(def_img_path)
+            def_images[i] = def_img
+        dic.calculate_2d(reference=ref_img,
+                        deformed=def_images,
+                        roi_mask=roi.mask,
+                        seed=[123, 99],
+                        subset_size=SUBSET_SIZE,
+                        subset_step=STEP_SIZE,
+                        shape_function="AFFINE",
+                        correlation_criteria="ZNSSD",
+                        output_basepath=target_path,
+                        output_delimiter=",",
+                        output_prefix=dic_results_prefix,
+                        max_displacement=2,
+                        method="IMAGE_SCAN")
+            
+    # Plotting
+    # Read data
+    
+    dicdata = dic.import_2d(data=dic_files, delimiter=",", binary=False)
+
+    for i in range(def_img_count):
+        # Data for this deformation image
+        horizontal_displacement = dicdata.u[i]
+        vertical_displacement = dicdata.v[i]
+        unit = "[px]"
+        figure_filename = f"{test_case.value}_rmb_dic_plot_px_{i}.png"
+        if convert_to_mm:
+            horizontal_displacement /= SCALE_PX_MM
+            vertical_displacement /= SCALE_PX_MM
+            unit = "[mm]"
+            figure_filename = f"{test_case.value}_rmb_dic_plot_mm_{i}.png"
+
+        # Plot data
+        fig, axes = plt.subplots(1, 2, figsize=(15, 10))
+        axes = axes.flatten()
+        cmap = "magma"
+
+        # First deformation image
+        im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, horizontal_displacement, cmap=cmap)
+        im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, vertical_displacement, cmap=cmap)
+
+        # Titles
+        fig.suptitle(f"2D DIC results for frame {i}\nTest case: {test_case.value}", fontsize=FONT_SIZES["suptitle"])
+        axes[0].set_title(f"$u_x$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Horizontal displacement
+        axes[1].set_title(f"$u_y$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Vertical displacement
+
+        for aa in axes:
+            aa.set_aspect('equal')
+            aa.invert_yaxis() # Flip upside down because duck points the wrong way
+
+        # Colorbars
+        fig.colorbar(im1, ax=axes[0])
+        fig.colorbar(im2, ax=axes[1])
+
+        plt.tight_layout()
+        #plt.show()
+        if save_plot:
+            fig.savefig(target_path  / figure_filename, dpi=300, bbox_inches="tight")
+        
+#run_dic_rmb(TestCaseApp.AIR_DIFFUSE, True, False)

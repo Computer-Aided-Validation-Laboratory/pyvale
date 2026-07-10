@@ -68,8 +68,12 @@ def iter_elements_plot_order():
 FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22, "ticks": 13, "subplot_labels": 16, "legend": 15}
 FIGURE_SIZE = (12, 10)
 FIGURE_SIZE_STACKED_HOR = (12, 16)
+FIGURE_SIZE_DOUBLE_CMAP = (15,10)
+FIGURE_SIZE_SINGLE_CMAP = (8,10)
 RESIZE_PLOT_FACTOR = 50
 SUBPLOT_SPACING = 0.3
+
+CMAP_DIC_FEA = "coolwarm"
 
 # ================================================================================
 # CAMERA DATA: Photron Nova S6, pinhole
