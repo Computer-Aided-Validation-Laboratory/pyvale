@@ -208,7 +208,7 @@ def plot_node_disp_component(plate_rtmesh: RTMesh,
 # Rendering images and plotting combined
 # ================================================================================
 
-def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = False, plot: bool = False):
+def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = False, plot: bool = False, crop_px: bool = False):
     # 1. Paths and access to all data used in the scene
     # Object = main mesh that moves
     object_access = "thesis-data/plate_hole/platehole3d_2mr_63f"
@@ -245,10 +245,21 @@ def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = Fa
     # Derived camera parameters
     fov_height = object.get_size()[1] + 5 # See the entire height of the plate + some extra to get the edges
     camera_distance = camera_working_distance(focal_length, fov_height, sensor_height_mm)
-    camera_y_position = pipe_bottom_inner_y + object.get_size()[1]/2 # Lower the y-position of the camera to match that of the plate
     target_distance = camera_distance - focal_length
-    camera_target = np.array([0, camera_y_position, target_distance])
-    camera_center = np.array([0, camera_y_position, camera_distance])
+    camera_y_position = pipe_bottom_inner_y + object.get_size()[1]/2 # Lower the y-position of the camera to match that of the plate
+    if not crop_px:
+        camera_target = np.array([0, camera_y_position, target_distance])
+        camera_center = np.array([0, camera_y_position, camera_distance])
+    else:
+        # We need to move the camera if we chop the image to keep our sample centered
+        # Offset calculations:
+        # y offset: shift by 40 px down * 0.0390625 (px/mm scale) = 1.5625
+        # x offset: shift 160 px right * 0.0390625 (px/mm scale) = 6.25
+        # Texture and everything else remain scaled exactly the same way. Win-win
+        camera_y_position = camera_y_position - 1.5625 # Lower the y-position of the camera to match that of the plate
+        camera_target = np.array([6.25, camera_y_position, target_distance])
+        camera_center = np.array([6.25, camera_y_position, camera_distance])
+
     angle_vertical_view = vertical_fov_from_sensor(sensor_height=sensor_height_mm, focal_length=focal_length)
     cam = Camera(image_width, image_height, camera_center, camera_target, angle_vertical_view)
 
@@ -271,6 +282,7 @@ def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = Fa
     # The loaded texture is 2464 x 2056 px (5MPx), 8-bit .tiff; speckles sampled by 5 pixels
     # Rescale the texture since we're using 1024 x 1024 px res, so speckle size will be too small
     object.set_surface(SurfType.TEXTURE, surface_fill=object_texture, material_type=MaterialType.DIFFUSE)
+    #uv_scale = speckle_scaling(image_width, image_height, 2464, 2056, 5, 5) # Aim to have 5 px speckles again
     uv_scale = speckle_scaling(image_width, image_height, 2464, 2056, 5, 5) # Aim to have 5 px speckles again
     object.uvs *= uv_scale
     # But if scaling is needed refer to application_1_rbm
@@ -317,6 +329,10 @@ def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = Fa
     fresh_filename = "rtimage_0_cam0.bmp"
     # Render undeformed image
     if render:
+        if crop_px:
+            # Adjust rendered image size (but none of the scene dimensions) to chop a few px off to save on render time, while getting the same exact output for ROI
+            image_width = image_width_phs6 - 2 * 160 # px
+            image_height = image_width_phs6 - 2 * 40# px;
         render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
         new_filename = "rtimage_frame0.bmp"
         os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
@@ -360,4 +376,4 @@ def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = Fa
                     convert_to_mm=True, ux_limits=ux_limits, uy_limits=uy_limits)
 
 # Run 3 cases, then shove them into DIC engine, that's it
-plate_test(TestCaseApp.AIR_DIFFUSE, 2**12, render = False, plot = True)
+#plate_test(TestCaseApp.PIPE, 2**0, render = True, plot = False, crop_px=True)

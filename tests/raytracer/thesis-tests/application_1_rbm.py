@@ -331,7 +331,7 @@ def uv_unwrap(fallback=False):
 # ================================================================================
 #calplate_dict_names = ["quad4_calplate3d", "quad8_calplate3d", "quad9_calplate3d", "tri3_calplate3d", "tri6_calplate3d"]
 
-def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False):
+def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False, crop_px: bool = False):
     # 1. Camera and output settings
     pet_height = 51 # mm
     pet_displacement = 2 # mm; we don't really use it in practice, but it is to mock some tiny experimental ROI
@@ -434,11 +434,21 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False)
     scene.add_rtmesh(object)
 
     # 6. Render
+    if crop_px:
+        vertical_crop_px = 30 # per side
+        horizontal_crop_px = 25 # per side
+        y_offset = scale * vertical_crop_px
+        x_offset = scale * horizontal_crop_px
+        camera_target = np.array([x_offset, -y_offset, target_distance])
+        camera_center = np.array([x_offset, -y_offset, camera_distance])
+        cam = Camera(image_width, image_height, camera_center, camera_target, angle_vertical_view)
+        image_height = image_height - 2 * vertical_crop_px
+        image_width = image_width - 2 * horizontal_crop_px
     scene.add_camera(cam)
     render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.DYNAMIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
 
 
-#rmb_test(TestCaseApp.AIR_DIFFUSE, aa_samples=2**12, fallback=False)
+#rmb_test(TestCaseApp.PIPE, aa_samples=2**0, fallback=False, crop_px=True)
 
 # ================================================================================
 # DIC
@@ -454,8 +464,6 @@ def run_dic_rmb(test_case: TestCaseApp, save_plot: bool = True, convert_to_mm: b
     Runs DIC on the experimental images.
     """
     import pyvale.dic as dic
-    # Unscaled max displacement: 9.999999999621423e-06 mm, which is less than the scale 1 px = 0.0390625 mm
-    #Scaled max displacement: 0.0390625 mm, 1.0 px
     SCALE_PX_MM = 0.022131147540983605 # from rmb_test
 
     # Open the reference image

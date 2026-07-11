@@ -59,6 +59,7 @@ void render_scene(const int image_height,
     const int texture_sampler,
     const int shading_type,
     const int max_depth,
+    const int min_refractive_depth,
     const bool grayscale_flag,
     const int output_format,
     const int bit_depth,
@@ -95,6 +96,7 @@ void render_scene(const int image_height,
     const int last_index = scene_refractive_indices.size() - 1;
     const float scene_ri = scene_refractive_indices[last_index]; // Scene RI is always stored at the last position
     materials::set_scene_ri(scene_ri);
+    materials::set_dielectric_rr_depth(min_refractive_depth);
 
     for (int timestep = 0; timestep < timestep_count; ++timestep){
         //std::chrono::time_point t1_build = std::chrono::high_resolution_clock::now();

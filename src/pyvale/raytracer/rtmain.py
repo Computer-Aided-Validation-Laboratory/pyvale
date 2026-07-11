@@ -7,7 +7,7 @@
 from pathlib import Path
 from pyvale.raytracer.rtscene import *
 from pyvale.raytracer.rtoutputformat import *
-from pyvale.raytracer.rtmesh import SurfType, MaterialType
+from pyvale.raytracer.rtmesh import SurfType, MaterialType, MeshType
 
 from pyvale.raytracer.rtmaincpp import cpp_render_scene # Import C++ backend
 
@@ -50,7 +50,7 @@ def check_uniform_elements(scene: Scene):
     elements_detected = set(scene.nodes_per_element) # Remove duplicates
     return len(elements_detected) == 1 # True if all element types are the same
 
-def set_max_depth(scene: Scene, max_depth: int | None) -> int:
+def set_depths(scene: Scene, max_depth: int | None, min_refractive_depth: int | None) -> int:
     """
     Checks and sets the maximum depth for secondary rays.
 
@@ -60,6 +60,8 @@ def set_max_depth(scene: Scene, max_depth: int | None) -> int:
         The scene to set the maximum depth for.
     max_depth: int | None
         The maximum depth for secondary rays.
+    min_refractive_depth: int | None
+         Minimum depth for refractive materials to track rays deterministically.
 
     Returns:
     --------
@@ -69,30 +71,66 @@ def set_max_depth(scene: Scene, max_depth: int | None) -> int:
     Raises:
     -------
     ValueError:
-        If the maximum depth is less than 1 or greater than 2147483647.
+        If the depth is less than 1 or greater than 2147483647 or the maximum depth is greater than the minimum refractive depth.
 
     """
-    if max_depth is None:
-        # Refractive materials => We need more depth
-        if MaterialType.REFRACTIVE.as_int in scene.materials:
-            # More than 3 different priority (nestedness) values => Likely highely nested scenario => Need more depth
-            if len(set(scene.mesh_priorities)) > 3:
-                max_depth = 50
-            # No high nestedness - we should be fine with less
-            else:
-                max_depth = 30
-        # If scene only contains specular and/or diffuse materials, we usually can get away with way less
-        else:
-            max_depth = 15
-        print(f"Maximum depth not set. Automatically set value to {max_depth}.")
-    else: # Check user-defined values
-        if max_depth < 1:
+    dielectric_count = scene.materials.count(MaterialType.REFRACTIVE.as_int)
+    solid_count = scene.mesh_object_types.count(MeshType.SOLID) # Solids can have thick walls, so they will need more bounces
+    if max_depth is not None and min_refr_depth_base is not None: # Check user-defined values
+        # Max depth
+        if max_depth < 1 or min_refractive_depth < 0:
             raise ValueError("Maximum depth cannot be less than 1.")
-        if max_depth >= 2147483646:
+        if max_depth >= 2147483646 or min_refractive_depth >= 2147483646:
             raise ValueError("Maximum depth cannot be greater than 2147483646 as it will overflow the integer.")
-        if max_depth > 500: # Warn but do not throw an error, maybe it is a legitimate use (although unlikely)
-            print(f"Maximum depth exceeds 500 - this is very high. Proceed at your own risk.")
-    return max_depth
+        if max_depth > 500 or min_refractive_depth > 500: # Warn but do not throw an error, maybe it is a legitimate use (although unlikely)
+            print(f"Depth exceeds 500 - this is very high. Proceed at your own risk.")
+        # If there are dielectrics and they're not shells
+        if min_refractive_depth < 4 and dielectric_count > 0 and (dielectric_count - solid_count) > 0:
+            print("WARNING: Setting minimum refractive depth below 4 will likely lead to incorrect renders and missing reflections.")
+    else:
+        min_refr_depth_base = 4 # This is our default starting refractive value, regardless of the case
+        nested_dielectric_count = len(set(scene.mesh_priorities))
+        if max_depth is None:
+            # Refractive materials => We need more depth
+            if dielectric_count > 0:
+                # More than 3 different priority (nestedness) values => Likely highely nested scenario => Need more depth
+                if nested_dielectric_count > 3:
+                    max_depth = 50
+                    min_refractive_depth = min_refr_depth_base + 2 * nested_dielectric_count # add 2 bounces (in&out) for each dielectric
+                # No high nestedness - we should be fine with less
+                else:
+                    max_depth = 30
+            # If scene only contains specular and/or diffuse materials, we usually can get away with way less
+            else:
+                max_depth = 15
+            print(f"Maximum depth not set. Automatically set value to {max_depth}.")
+        if min_refractive_depth is None:
+            if MaterialType.REFRACTIVE.as_int in scene.materials:
+                # More than 3 different priority (nestedness) values => Likely highely nested scenario => Need more depth
+                if nested_dielectric_count >= 3:
+                    max_depth = 50
+                    # Add 2 bounces (in&out) for each nested dielectric beyond priorities 0 and 1
+                    min_refractive_depth = min_refr_depth_base + 2 * (nested_dielectric_count - 2) 
+                # No high nestedness - we should be fine with less... usually
+                else:
+                    if dielectric_count > 2 and solid_count > 2: # More than 2 dielectrics and solids
+                        max_depth = 50
+                    # Check if any of them are nested
+                        if nested_dielectric_count > 1: # At least 2 are nested (priority 0 (default) and 1)
+                            min_refractive_depth = min_refr_depth_base + 2 * (nested_dielectric_count  - 1)
+                    else:
+                        max_depth = 30
+                        min_refractive_depth = min_refr_depth_base
+            # If scene only contains specular and/or diffuse materials, we usually can get away with way less
+            else:
+                min_refractive_depth = min_refr_depth_base
+            print(f"Minimum refractive depth not set. Automatically set value to {min_refractive_depth}.")
+            
+    # Checking this here also to make sure the automatic assigning didn't do anything incorrect
+    if max_depth < min_refractive_depth:
+        raise ValueError("Maximum depth cannot be greater than the minimum refractive depth.")
+    
+    return max_depth, min_refractive_depth
 
 # ================================================================================
 # MAIN DISPATCHER
@@ -109,6 +147,7 @@ def render_scene(image_height: int,
                  shading_type: ShadingType | None = None,
                  image_format: ImageFormat | None = None,
                  max_depth: int | None = None,
+                 min_refractive_depth: int | None = None,
                  omp_thread_count: int | None = None):
     """
     Performs checks and dispatches the scene to the C++ rendering backend.
@@ -138,6 +177,9 @@ def render_scene(image_height: int,
         The format of the output image. Defaults to an 8-bit single-channel BMP image (grayscale by default).
     max_depth: int | None
         Maximum depth for secondary rays. Higher value is recommended for refractive materials. Defaults to None.
+    min_refractive_depth: int | None
+        Minimum depth for refractive materials to track rays deterministically before they can get terminated by Russian roulette. Generally, this will have to increase
+        as you add more nested dielectrics or dielectrics that have thick walls. Warning: this greatly increases render time.
     omp_thread_count: int | None
         Optional. Allows the user to set the number of cores used by OpenMP to parallelise the renderer.
 
@@ -210,7 +252,7 @@ def render_scene(image_height: int,
         print("Please note that colorful textures are currently not supported and they will still be sampled in grayscale.")
 
     # Check and set max depth
-    max_depth = set_max_depth(scene, max_depth)
+    max_depth, min_refractive_depth = set_depths(scene, max_depth, min_refractive_depth)
 
     if omp_thread_count is not None:
         if omp_thread_count <= 0:
@@ -259,6 +301,7 @@ def render_scene(image_height: int,
                      texture_sampler,
                      shading_type,
                      max_depth,
+                     min_refractive_depth,
                      grayscale,
                      image_format.output_format,
                      image_format.bit_depth,

@@ -588,10 +588,10 @@ def run_dic_experimental(test: ExpTest, save_plot: bool = True, convert_to_mm: b
 # ================================================================================
 from convergence_common import * # Some functions for path, and tank positioning
 
-def render_exp_images(test: RTTest):
+def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int = 4, crop_px: bool = False):
     # 1. Paths to data, etc.
-    pipe_access = "thesis-data/" + Tank.PIPE + "/" + Refinement.COARSE # Point the correct mesh locatrions
-    tank_access = "thesis-data/" + Tank.RECTANGLE + "/" + Refinement.COARSE # Point the correct mesh locatrions
+    pipe_access = "thesis-data/" + Tank.PIPE + "/" + Refinement.COARSE # Point the correct mesh locations
+    tank_access = "thesis-data/" + Tank.RECTANGLE + "/" + Refinement.COARSE # Point the correct mesh locations
     pipe_path = get_tank_path(pipe_access, Elements.TRI6)
     tank_path = get_tank_path(tank_access, Elements.TRI6)
     water_tank_path = get_fill_path(tank_access, Elements.TRI6)
@@ -678,7 +678,7 @@ def render_exp_images(test: RTTest):
         # Add water fills
         water_pipe = any_mesh_to_rtmesh(water_pipe_path, world_position = WATER_POSITION)
         water_pipe.translate(PIPE_SHIFT_FLUID)
-        water_pipe.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+        water_pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.HONEY_LIQUID,
                           material_type = MaterialType.REFRACTIVE,
                           mesh_type = MeshType.SOLID,
                           priority = 0) # Pipe is open-ended => Water needs to have higher priority
@@ -693,19 +693,18 @@ def render_exp_images(test: RTTest):
     #SceneVisualiser([pipe, tank, beam])
     #SceneVisualiser([pipe, tank, water_pipe])
     #SceneVisualiser([pipe, tank, water_tank])
-    #SceneVisualiser([pipe, tank, water_pipe, water_t
     # Data for Photron Nova S6
-    anti_alias = 1
     image_width = image_width_phs6
     image_height = image_width_phs6
-    output_format = output_format_phs6
+    output_format = output_format_cx5 # Not a mistake. 8-bit TIFF, seeing as I mistakenly exported my experimental data in this format instead of 12-bit :')
+    #output_format = output_format_test_diel # TEST
     focal_length = 100 # mm
-    CAMERA_DISTANCE = 1800 # mm; 1800 gives similar-ish scaling, but in reality it was more like 240
-    TARGET_DISTANCE = CAMERA_DISTANCE - focal_length #mm
+    CAMERA_Z = 280 + TANK_MID_Z # Camera was about 280 mm away from the beam, but beam isn't at z=0, so we need to account for that to get camera z
+    TARGET_Z = CAMERA_Z - focal_length #mm
     beam_center_coords = beam._get_bounding_box()["center"]
     beam_center_y = beam_center_coords[1]
-    camera_center = np.array([0.0, beam_center_y+2, CAMERA_DISTANCE])
-    camera_target = np.array([0.0, beam_center_y+2, TARGET_DISTANCE])
+    CAMERA_Y = beam_center_y+1.5
+
     #target_distance = camera_distance - focal_length
     #camera_distance = camera_working_distance(focal_length, fov_height, sensor_height_phs6)
     # Sanity check for camera distance by reverse engineering it based on the beam size from experimental data
@@ -716,15 +715,10 @@ def render_exp_images(test: RTTest):
     #print(f"Estimated camera distance: {est_cam_dist}")
     # Beam was at line 280 mm on the table
     # Lens finished slightly before the 100 mm line
-
-    # Angle vfov is in degrees
-    angle_vfov = vertical_fov_from_resolution(image_height, SCALE_PX_MM, CAMERA_DISTANCE)
+    beam_front_z = beam._get_bounding_box()["max_corner"][2] # -23.55 (face nearest to camera)
+    camera_to_beam_dist = CAMERA_Z - beam_front_z # 256 - (-23.55) = 279.55 # Distance from camera to beam
+    angle_vfov = vertical_fov_from_resolution(image_height, SCALE_PX_MM, camera_to_beam_dist)
     print(f"Angle vfov with LV calibration: {angle_vfov}")
-    angle_vfov = vertical_fov_from_resolution(image_height, 20.4789, CAMERA_DISTANCE)
-    print(f"Angle vfov from beam width (manual): {angle_vfov}")
-    #angle_vfov = 20
-    cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
-    scene.add_camera(cam)
 
     #SceneVisualiser([pipe, tank, beam], cam)
 
@@ -740,12 +734,34 @@ def render_exp_images(test: RTTest):
     beam.import_uvs(sample_uv_path(sample_path, sample_element)) # Load pre-processed UVs
     beam.set_surface(SurfType.TEXTURE, beam_texture, MaterialType.DIFFUSE)
     # Scale the UVs to get 3.5 px speckles in the rendered images
-    uv_scale = speckle_scaling(image_width, image_height, 2464, 2056, 5, 3.5) # Returns [delta_u, delta_v] array
+    uv_scale = speckle_scaling(image_width, image_height, 2464, 2056, 5, 3) # Returns [delta_u, delta_v] array
     beam.uvs = beam.uvs * uv_scale
     scene.add_rtmesh(beam)
 
     target_path = test.output_save_dir
-    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    if not target_path.is_dir():
+        target_path.mkdir(parents=True, exist_ok=True)
+    if not crop_px:
+        camera_center = np.array([0.0, CAMERA_Y, CAMERA_Z])
+        camera_target = np.array([0.0, CAMERA_Y, TARGET_Z])
+        cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
+    else:
+        # Adjust rendered image size (but none of the scene dimensions) to chop a few px off to save on render time, while getting the same exact output for ROI
+        side_crop = 240 # px, per side
+        top_crop = 20 # px, cropped from the top
+        bottom_crop = 445 # px, cropped from the bottom <- no need to offset camera for this
+        scale_mm_px = 1/SCALE_PX_MM # To convert these offsets into actual camera shifts, so our image still shows the desired FOV
+        cam_y_offset = top_crop * scale_mm_px
+        cam_x_offset = side_crop * scale_mm_px # Offset to the right
+        camera_target = np.array([cam_x_offset, CAMERA_Y - cam_y_offset, CAMERA_Z])
+        camera_center = np.array([cam_x_offset, CAMERA_Y - cam_y_offset, TARGET_Z])
+        cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
+        image_width = image_width_phs6 - 2 * side_crop # px
+        image_height = image_width_phs6 - bottom_crop - top_crop
+        cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
+    scene.add_camera(cam)
+    render_scene(image_height, image_width, scene, aa_samples, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None, min_refractive_depth=min_refr_depth)
 
-
-render_exp_images(RTTests.AIR)
+#render_exp_images(RTTests.BOTH, aa_samples=1, min_refr_depth=8)
+#render_exp_images(RTTests.FLUID_PIPE, aa_samples=1, min_refr_depth=8)
+render_exp_images(RTTests.FLUID, aa_samples=1, min_refr_depth=4)

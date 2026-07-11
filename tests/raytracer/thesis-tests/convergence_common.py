@@ -368,7 +368,9 @@ debug_image_stats(blender_img)
 # Post-processing: Convergence log
 # ================================================================================
 
-def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resolution, start_subsamples: int, end_subsamples: int, blender: bool = False):
+def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resolution,
+                         start_subsamples: int, end_subsamples: int, blender: bool = False,
+                         eight_bit: bool = False):
     """
     Fills the convergence log; useful if the rendering was interrupted or split across machines, etc.
     to get the data in the same csv effortlessly.
@@ -379,11 +381,19 @@ def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resol
         roi_path_access = f"thesis-data/roi_1024_{test_case.value}.csv" 
         roi_path = full_path(roi_path_access)
 
-    base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
-    bit_depth = BitDepth.BIT_12
+    if eight_bit:
+        base_data_dir = "convergence_rt/8bit/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        bit_depth = BitDepth.BIT_8
+    else:
+        base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        bit_depth = BitDepth.BIT_12
     if blender:
-        base_data_dir = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
-        bit_depth = BitDepth.BIT_16
+        if eight_bit:
+            base_data_dir = "convergence_blender/8bit/res_" + str(resolution.value) + "/" + test_case.value + "/"
+            bit_depth = BitDepth.BIT_8
+        else:
+            base_data_dir = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
+            bit_depth = BitDepth.BIT_16
     elem_dir_name = base_data_dir + element.label
     data_path = test_dir(BASE_TEST_DIR, elem_dir_name)
     csv_path = data_path / "convergence_log.csv" # Full path to the csv with all numerical data
@@ -424,15 +434,19 @@ def fill_convergence_log(element: Element, test_case:TestCase, resolution: Resol
 # Post-processing: Plotters for RT convergence
 # ================================================================================
 
-def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False):
+def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = False, show: bool = False,
+                     eight_bit: bool = False):
     """
     Plots all convergence results on the same plot.
     """
     # Get the address of the directory with the data (assuming we haven't changed it)
-    base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    if eight_bit:
+        base_data_dir = "convergence_rt/8bit/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        filename = f"8b_{test_case.value}_{resolution.value}_convergence_plot.png"
+    else:
+        base_data_dir = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        filename = f"{test_case.value}_{resolution.value}_convergence_plot.png"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
-    filename = f"{test_case.value}_{resolution.value}_convergence_plot.png"
-
 
     # Create plot
     fig, (ax, ax_bottom) = plt.subplots(2, 1, figsize=FIGURE_SIZE_STACKED_HOR, sharex=True)
@@ -506,14 +520,21 @@ def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = F
     if save:
         fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
 
-def plot_results_subplots(test_case: TestCase, resolution: Resolution, rmse: bool = False, save: bool = False, show: bool = False):
+def plot_results_subplots(test_case: TestCase, resolution: Resolution, rmse: bool = False, save: bool = False,
+                          show: bool = False, eight_bit: bool = False):
     """
     Plots convergence results for all elements on separate subplots in one figure.
 
     """
-    base_data_dir = f"convergence_rt/res_{resolution.value}/{test_case.value}/"
+    if eight_bit:
+        base_data_dir = f"convergence_rt/8bit/res_{resolution.value}/{test_case.value}/"
+        filename = f"8b_{test_case.value}_{resolution.value}_convergence_subplots"
+    else:
+        base_data_dir = f"convergence_rt/res_{resolution.value}/{test_case.value}/"
+        filename = f"{test_case.value}_{resolution.value}_convergence_subplots"
+
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
-    filename = f"{test_case.value}_{resolution.value}_convergence_subplots"
+    
     if rmse:
         data_index = 2 # Index corresponding to this data in elem_data
         y_label = "RMSE [GL]"
@@ -785,17 +806,27 @@ def check_difference(element: Element, test_case:TestCase, resolution: Resolutio
 # ================================================================================
 # Post-processing: Plotters for Blender/ Blender vs RT comparison
 # ================================================================================
-def plot_results_blender(test_case: TestCase, resolution: Resolution, time: bool = False, save: bool = False, show: bool = False):
+def plot_results_blender(test_case: TestCase, resolution: Resolution, time: bool = False, save: bool = False,
+                         show: bool = False, eight_bit: bool = False):
     """
     Plots Blender convergence plot with RMSE on the left and render time on the right.
     """
     # All access paths
-    base_data_dir = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    if eight_bit:
+        base_data_dir = "convergence_blender/8bit/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        filename = f"8b_{test_case.value}_{resolution.value}_blender_convergence_plot.png"
+    else:
+        base_data_dir = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        filename = f"8b_{test_case.value}_{resolution.value}_blender_convergence_plot.png"
+
     elem_dir_name = base_data_dir + Elements.TRI3.label
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
     data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "convergence_log.csv"
-    time_data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "cpu_render_time_log.csv"
-    filename = f"{test_case.value}_{resolution.value}_blender_convergence_plot.png"
+    try:
+        time_data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "cpu_render_time_log.csv"
+    except:
+        print("CPU time data not found.")
+        time = False
 
     # Load data
     # Convergence data: [iteration, subsamples, rmse, sim_score_rmse, sim_score_identical]
@@ -910,7 +941,7 @@ def format_spp_as_power_of_2(spp):
     return rf"$2^{{{int(np.log2(spp))}}}$"
 
 def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, save: bool = False,
-    show: bool = False, as_percent: bool = False, rmse: bool = False):
+    show: bool = False, as_percent: bool = False, rmse: bool = False, eight_bit: bool = False):
     """
     Plots ray tracer and Blender convergence on a single plot, using
     NRMSE (RMSE normalized by each source's full-scale maximum) so the
@@ -925,22 +956,32 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     as_percent : if True, plot NRMSE as a percentage of full scale (x100).
     rmse: whether to plot RMSE or MaxAE. If rmse, do not apply as_percent.
     """
-    # Full-scale maxima for normalization
-    RT_MAX = 4095.0        # 12-bit ray tracer
-    BLENDER_MAX = 65535.0  # 16-bit Blender
+    if eight_bit:
+        # Data paths
+        base_data_dir_b = "convergence_blender/8bit/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        base_data_dir_rt = "convergence_rt/8bit/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    else:
+        # Data paths
+        base_data_dir_b = "convergence_blender/8bit/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        base_data_dir_rt = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    
+    # Full-scale maxima for normalization (if not 8-bit)
+    RT_MAX = 4095.0 # 12-bit ray tracer
+    BLENDER_MAX = 65535.0 # 16-bit Blender
 
     # Output directory
-    base_data_dir_b = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
     target_path = test_dir(BASE_TEST_DIR, base_data_dir_b)
     suffix = "_pct" if as_percent else ""
-    filename = f"{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot{suffix}.png"
+    if eight_bit:
+        filename = f"8b_{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot{suffix}.png"
+    else:
+        filename = f"{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot{suffix}.png"
 
     # Blender data path
     elem_dir_name_b = base_data_dir_b + Elements.TRI3.label
     data_path_b = test_dir(BASE_TEST_DIR, elem_dir_name_b) / "convergence_log.csv"
 
-    # Ray tracer data path
-    base_data_dir_rt = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
+    # Ray tracer
     elem_dir_name_rt = base_data_dir_rt + Elements.TRI3.label
     data_path_rt = test_dir(BASE_TEST_DIR, elem_dir_name_rt) / "convergence_log.csv"
 
@@ -957,26 +998,27 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     fig, ax = plt.subplots(figsize=FIGURE_SIZE)
     
     if rmse:
-        # Normalize RMSE (column 2) to NRMSE in [0, 1] (or %)
         data_index = 2 # Position of data in elem_data
-        scale = 100.0 if as_percent else 1.0
-        elem_data_rt[data_index] = elem_data_rt[data_index] / RT_MAX * scale
-        elem_data_b[data_index] = elem_data_b[data_index] / BLENDER_MAX * scale
-        y_unit = "%" if as_percent else "fraction of full scale"
-        ax.set_ylabel(f"NRMSE [{y_unit}]", fontsize=FONT_SIZES["axis_labels"])
+        if eight_bit:
+            # For 8-bit we don't normalise and get to compare full values as they are
+            ax.set_ylabel(f"RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
+        else:
+        # Normalize RMSE (column 2) to NRMSE in [0, 1] (or %)
+            scale = 100.0 if as_percent else 1.0
+            elem_data_rt[data_index] = elem_data_rt[data_index] / RT_MAX * scale
+            elem_data_b[data_index] = elem_data_b[data_index] / BLENDER_MAX * scale
+            y_unit = "%" if as_percent else "fraction of full scale"
+            ax.set_ylabel(f"NRMSE [{y_unit}]", fontsize=FONT_SIZES["axis_labels"])
     else:
         data_index = 3
         ax.set_ylabel(f"Maximum absolute error [GL]", fontsize=FONT_SIZES["axis_labels"])
         # No scaling here (we care if it's within 1 bit or not), so display ceiling instead
         #ax.axhline(y=BLENDER_MAX, color=blender_color, linestyle="--", linewidth=2)
         #ax.axhline(y=RT_MAX, color=rt_color, linestyle="--", linewidth=2)
-        
-    
-
     # Shared x ticks
     label_x = np.unique(np.concatenate((elem_data_rt[1], elem_data_b[1])))
 
-    # Minimum NRMSE values
+    # Minimum NRMSE/RMSE values
     min_val_rt = np.min(elem_data_rt[data_index])
     min_val_b = np.min(elem_data_b[data_index ])
 
@@ -1055,7 +1097,7 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
         child=stats_box,
         pad=0.3,
         frameon=True,
-        bbox_to_anchor=(1.0, 0.9),
+        bbox_to_anchor=(1.0, 0.88),
         bbox_transform=ax.transAxes,
         borderpad=0.6)
 
@@ -1367,37 +1409,43 @@ def _get_min_max_subsamples(elem_dir: Path, base_prefix: str) -> Tuple[Optional[
 
     return min(counts), max(counts)
 
-def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blender: bool = False):
+def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blender: bool = False, eight_bit: bool = False):
     # Need to detect these from image names
     base_image_file = "rtimage_subsamples_"
 
     if blender:
-        base_data_dir = f"thesis-output/convergence_blender/res_{resolution.value}/{test_case.value}/"
+        if eight_bit:
+            base_data_dir = f"thesis-output/8bit/convergence_blender/res_{resolution.value}/{test_case.value}/"
+        else:
+            base_data_dir = f"thesis-output/convergence_blender/res_{resolution.value}/{test_case.value}/"
         elem_path = full_path(base_data_dir + Elements.TRI3.label)
         subsamples_min, subsamples_max = _get_min_max_subsamples(elem_path, base_image_file)
-        fill_convergence_log(Elements.TRI3, test_case, resolution, subsamples_min, subsamples_max, True)
+        fill_convergence_log(Elements.TRI3, test_case, resolution, subsamples_min, subsamples_max, True, eight_bit)
         try:
-            plot_results_blender(test_case, resolution, False, True, False)
+            plot_results_blender(test_case, resolution, False, True, False, eight_bit)
         except Exception as e: # Likely missing enough data for plots, so we just skip them
             print(f"Error plotting the results: {e}.\nLikely from missing sufficient data for some elements. Plotting skipped.")
         return
     
-    base_data_dir = f"thesis-output/convergence_rt/res_{resolution.value}/{test_case.value}/"
+    if eight_bit:
+        base_data_dir = f"thesis-output/convergence_rt/8bit/res_{resolution.value}/{test_case.value}/"
+    else:
+        base_data_dir = f"thesis-output/convergence_rt/res_{resolution.value}/{test_case.value}/"
     for name, element in iter_elements():
         # Detect the min/max subsamples in
         elem_path = full_path(base_data_dir + element.label)
         subsamples_min, subsamples_max = _get_min_max_subsamples(elem_path, base_image_file)
-        fill_convergence_log(element, test_case, resolution, subsamples_min, subsamples_max, False)
+        fill_convergence_log(element, test_case, resolution, subsamples_min, subsamples_max, False, eight_bit)
     try:
-        plot_results_all(test_case, resolution, True, False)
-        plot_results_subplots(test_case, resolution, True, True, False) # RMSE plot
-        plot_results_subplots(test_case, resolution, False, True, False) # Max AE plot
+        plot_results_all(test_case, resolution, True, False, eight_bit)
+        plot_results_subplots(test_case, resolution, True, True, False, eight_bit) # RMSE plot
+        plot_results_subplots(test_case, resolution, False, True, False, eight_bit) # Max AE plot
     except Exception as e: # Likely missing enough data for plots, so we just skip them
         print(f"Error plotting the results: {e}.\nLikely from missing sufficient data for some elements. Plotting skipped.")
 
 
-#fill_all_convergence_logs(TestCase.TANK, Resolution.HIGH, blender=True)
-#fill_convergence_log(Elements.QUAD8, TestCase.TANK, Resolution.LOW, 131072, 2097152, False)
+#fill_all_convergence_logs(TestCase.TRI3, Resolution.LOW, blender=False)
+#fill_convergence_log(Elements.TRI3, TestCase.TANK, Resolution.LOW, 1, 16384, False, True)
 
 #get_roi(TestCase.AIR_UNLIT)
 
@@ -1409,7 +1457,7 @@ def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blend
 #check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 524288, 1048576)
 
 #plot_results_blender(TestCase.TANK, Resolution.LOW, False, True, True)
-#plot_results_blender_rt_single(TestCase.AIR_DIFFUSE, Resolution.LOW, save=True, show=True, rmse=True)
+#plot_results_blender_rt_single(TestCase.TANK, Resolution.LOW, save=True, show=True, rmse=False, eight_bit=True)
 
 
 # From 2**14 (16k) to 2**18 (262k) for Blender

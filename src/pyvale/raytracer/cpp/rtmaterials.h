@@ -20,8 +20,6 @@
 // Base offset used for the t_min of of spawned rays. Used to reduce self-intersections when spawning secondary rays from a surface.
 static constexpr double SPAWNED_T_MIN_BASE = 1e-7;
 // RR delay for dielectrics
-// We trace the first few rays deterministically and push both reflected and refracted rays, then use RR to avoid exponential blow-up
-static constexpr uint16_t RR_MIN_DEPTH_DIELECTRIC = 4u; 
 
 // ================================================================================
 // Materials namespace — scene-level ambient medium
@@ -32,6 +30,7 @@ namespace materials {
     /// @brief Refractive index of the ambient scene medium (air, vacuum, etc.).
     /// Set once from main via set_scene_ri() before any rendering begins.
     inline double scene_ri {1.0003};
+    inline uint16_t rr_min_depth_dielectric {4u};
 
     /**
      * @brief Sets the ambient refractive index for the entire scene.
@@ -39,6 +38,15 @@ namespace materials {
      */
     inline void set_scene_ri(double ri){
         scene_ri = ri;
+    }
+
+    /**
+     * @brief Sets the minimum depth for dielectrics before allowing the RR kick in for termination.
+     * This is KEY for very nested and refractive scenes.
+     * @param[in] min_dielectric_depth (int) Minimum dielectric depth
+     */
+    inline void set_dielectric_rr_depth(int min_dielectric_depth){
+        rr_min_depth_dielectric = static_cast<uint16_t>(min_dielectric_depth);
     }
 
 }
@@ -480,6 +488,8 @@ void ray_refractive(const RayState& current_state,
     // Depends on: surface normal, refractive indices, sometimes wavelength (TO DO: ADD WAVELENGTHS)
     // This is a bit convoluted with shell/solid split and nested dielectrics, so this is sectioned
 
+    // We trace the first few rays deterministically and push both reflected and refracted rays, then use RR to avoid exponential blow-up
+    static uint16_t RR_MIN_DEPTH_DIELECTRIC = materials::rr_min_depth_dielectric;
     //---------------------------------------------------------------------------------
     // 1. Retrieve data and pre-calculate baseline for the next bounces
     //---------------------------------------------------------------------------------
