@@ -15,17 +15,27 @@ class KnownSpatialParameterisation(ISpatialParameterisation):
     def get_num_degrees_of_freedom(self) -> int:
         return 0
 
-    def update_from_constitutive_parameter(
+    def initialise_from_constitutive_parameter(
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
-        self.value = constitutive_parameter.value
+        self.value = constitutive_parameter.map
 
     def to_map(
         self,
         size: npt.NDArray[np.uint32]
     ) -> npt.NDArray[np.float64]:
-        # TODO: value error if param value not the right size
+        if self.value is None:
+            raise RuntimeError(
+                "self.value is None, initialise_from_constitutive_parameter"
+                "must be called before to_map"
+            )
+
+        if self.value.shape != (size[0], size[1]):
+            raise ValueError(
+                f"parameter map shape {self.value.shape} does not match "
+                f"expected size ({size[0]}, {size[1]})"
+            )
 
         return self.value
 

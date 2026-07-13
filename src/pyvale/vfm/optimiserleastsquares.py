@@ -6,7 +6,10 @@ from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.metric import IMetric
 from pyvale.vfm.normalisation import normalise_degrees_of_freedom
-from pyvale.vfm.objectivefunc import IObjectiveFunction
+from pyvale.vfm.objectivefunc import (
+    IObjectiveFunction,
+    IVectorObjectiveFunction,
+)
 from pyvale.vfm.optimiser import (
     IOptimiser,
     evaluate_candidate,
@@ -25,6 +28,9 @@ from pyvale.vfm.spatialparam import (
 #   if we need these, should treat the below as a dataclass and
 #   take these options as inputs in construction
 class LeastSquares(IOptimiser):
+    def get_required_objective_function_type(self) -> type:
+        return IVectorObjectiveFunction
+
     def optimise(
         self,
         constitutive_law: IConstitutiveLaw,
