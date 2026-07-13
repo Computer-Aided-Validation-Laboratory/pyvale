@@ -27,10 +27,16 @@ def run_identification(
             )
 
             for phase in identification.phases:
+                # Initialise spatial parameterisation from constitutive
+                # parameter maps
                 for param_name, sp in phase.spatial_parameterisations.items():
-                    sp.update_from_constitutive_parameter(identification.parameters[param_name])
+                    sp.update_from_constitutive_parameter(
+                        identification.parameters[param_name]
+                    )
 
-                optimised_spatial_parameterisations = phase.optimiser.optimise(
+                # Optimise the degrees of freedom of the spatial
+                # parameterisations
+                opt_spatial_parameterisations = phase.optimiser.optimise(
                     identification.constitutive_law,
                     parameter_map_size,
                     phase.spatial_parameterisations,
@@ -39,7 +45,9 @@ def run_identification(
                     experiment_data
                 )
 
-                for param_name, sp in optimised_spatial_parameterisations.items():
+                # Update constitutive parameter maps from optimised spatial
+                # parameterisations
+                for param_name, sp in opt_spatial_parameterisations.items():
                     identification.parameters[param_name].value = (
                         sp.to_map(parameter_map_size)
                     )

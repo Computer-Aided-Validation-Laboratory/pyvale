@@ -9,10 +9,7 @@ from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 
-# TODO: How do I flag whether value should be a dof or fixed?
-#   Maybe a constructor with a is_value_fixed var which informs
-#   how we should construct
-@dataclass(slots=True, init=False)
+@dataclass(slots=True)
 class HomogeneousSpatialParameterisation(ISpatialParameterisation):
     value: float | DegreeOfFreedom | None = None
 
@@ -26,14 +23,14 @@ class HomogeneousSpatialParameterisation(ISpatialParameterisation):
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
-        if isinstance(self.value, DegreeOfFreedom):
+        if self.value is None or isinstance(self.value, DegreeOfFreedom):
             self.value =  DegreeOfFreedom(
-                float(np.mean(constitutive_parameter.value)),
+                float(np.nanmean(constitutive_parameter.value)),
                 constitutive_parameter.lower_bound,
                 constitutive_parameter.upper_bound,
             )
         else:
-            self.value = float(np.mean(constitutive_parameter.value))
+            self.value = float(np.nanmean(constitutive_parameter.value))
 
     def to_map(
         self,

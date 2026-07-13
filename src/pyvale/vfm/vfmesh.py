@@ -1110,7 +1110,7 @@ def plot_virtual_fields_mesh(
 def generate_virtual_fields_mesh(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
-    specimen_mask: npt.NDArray[np.uint32],
+    specimen_mask: npt.NDArray[np.bool_],
     edge_conditions: EdgeConditions,
     mesh_size: npt.NDArray[np.uint32],
     use_nlgeom: bool = False,

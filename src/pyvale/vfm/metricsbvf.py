@@ -18,6 +18,7 @@ from pyvale.vfm.normalisation import (
 )
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.vfmesh import (
+    GlobalVirtualFields,
     VirtualFieldsMesh,
     generate_virtual_fields_from_mesh,
     generate_virtual_fields_mesh,
@@ -41,14 +42,27 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
     virtual_fields_mesh: VirtualFieldsMesh
     vf_scaling_fraction: float | None
 
+    # Internal and external virtual work vectors computed by the most recent
+    # call to evaluate, stacked per virtual field with shape
+    # (num_virtual_fields, timesteps). Both are None until evaluate has run.
+    _internal_virtual_work: npt.NDArray[np.float64] | None
+    _external_virtual_work: npt.NDArray[np.float64] | None
+
+    # Cached sensitivity-based virtual fields. They are (re)computed when the
+    # cache is None or when _recompute_virtual_fields is True, and otherwise
+    # reused across evaluations to avoid recomputing the stress sensitivities.
+    _sensitivity_based_virtual_fields: list[GlobalVirtualFields] | None
+    _recompute_virtual_fields: bool
+
     def __init__(
         self,
         x: npt.NDArray[np.float64],
         y: npt.NDArray[np.float64],
-        region_of_interest: npt.NDArray[np.uint32],
+        region_of_interest: npt.NDArray[np.bool_],
         edge_conditions: EdgeConditions,
         mesh_size: npt.NDArray[np.uint32],
-        # TODO: option to adjust fraction of largest timesteps used for calculating VF scaling factor
+        # TODO: option to adjust fraction of largest timesteps used for
+        #   calculating VF scaling factor
         vf_scaling_fraction: float | None = None
     ) -> None:
 
@@ -62,6 +76,12 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
 
         self.vf_scaling_fraction = vf_scaling_fraction
 
+        self._internal_virtual_work = None
+        self._external_virtual_work = None
+
+        self._sensitivity_based_virtual_fields = None
+        self._recompute_virtual_fields = True
+
     def evaluate(
         self,
         stress: npt.NDArray[np.float64],
@@ -71,26 +91,34 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         experiment_data: ExperimentData,
     ) -> npt.NDArray[np.float64]:
 
-        # Compute stress sensitivites for each DOF or constitutive parameter (depending on perturbation type)
-        stress_sensitivities = self.calculate_stress_sensitivities(
-            experiment_data.strain,
-            stress,
-            constitutive_law,
-            parameter_map_size,
-            spatial_parameterisations,
-            experiment_data.delta_timesteps,
-            perturbation_type = "constitutive_parameter",
-        )
-        
-        # Generate sensitivity-based virtual fields (SBVF) from stress sensitivities
-        sensitivity_based_virtual_fields = []
-        for stress_sensitivity in stress_sensitivities:
-            sensitivity_based_virtual_fields.append(
-                generate_virtual_fields_from_mesh(
-                    stress_sensitivity.total,  # TODO: option to use incremental stress sensitivities
-                    self.virtual_fields_mesh
-                )
+        if (
+            self._sensitivity_based_virtual_fields is None
+            or self._recompute_virtual_fields
+        ):
+            # Compute stress sensitivites for each DOF or constitutive parameter (depending on perturbation type)
+            stress_sensitivities = self.calculate_stress_sensitivities(
+                experiment_data.strain,
+                stress,
+                constitutive_law,
+                parameter_map_size,
+                spatial_parameterisations,
+                experiment_data.delta_timesteps,
+                perturbation_type = "constitutive_parameter",
             )
+
+            # Generate sensitivity-based virtual fields (SBVF) from stress sensitivities
+            sensitivity_based_virtual_fields = []
+            for stress_sensitivity in stress_sensitivities:
+                sensitivity_based_virtual_fields.append(
+                    generate_virtual_fields_from_mesh(
+                        stress_sensitivity.total,  # TODO: option to use incremental stress sensitivities
+                        self.virtual_fields_mesh
+                    )
+                )
+
+            self._sensitivity_based_virtual_fields = sensitivity_based_virtual_fields
+        else:
+            sensitivity_based_virtual_fields = self._sensitivity_based_virtual_fields
 
         # Reshape pixel area to be broadcastable with stress and virtual strain arrays
         pixel_area = experiment_data.specimen_geometry.pixel_area[np.newaxis, np.newaxis, :, :]
@@ -113,15 +141,19 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         traction_edge_index = edge_to_index[traction_edge_name]
 
 
+        # Store per-virtual-field IVW/EVW vectors so they can be accessed later
+        internal_virtual_work_vectors = []
+        external_virtual_work_vectors = []
+
         residual_vector = []
+
         # Compute PVW residuals for each SBVF and concatenate into single residual vector
         for sbvf in sensitivity_based_virtual_fields:
-            
             # Compute 4d IVW term for current SBVF
             internal_virtual_work_4d = (
                 stress
                 * sbvf.virtual_strain
-                * pixel_area
+                * pixel_area * 1e6
                 * experiment_data.specimen_geometry.thickness
             )
 
@@ -141,11 +173,15 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
             # force_x * virtual_displacement_x + force_y * virtual_displacement_y on traction edge 
             # summed to get single EVW scalar for each timestep
             external_virtual_work_vector = (
-                experiment_data.boundary_conditions.force[:, 0]   
+                experiment_data.boundary_conditions.force[:, 0]
                 * sbvf.virtual_displacement_edge[:, 0, traction_edge_index]
                 + experiment_data.boundary_conditions.force[:, 1]
                 * sbvf.virtual_displacement_edge[:, 1, traction_edge_index]
             )
+
+            # Store the (unscaled) IVW/EVW vectors for the current virtual field
+            internal_virtual_work_vectors.append(internal_virtual_work_vector)
+            external_virtual_work_vectors.append(external_virtual_work_vector)
 
             if self.vf_scaling_fraction is not None:
                 # Compute number of timesteps to use for scaling based on the chosen fraction (1 step min).
@@ -179,8 +215,13 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
                 )
 
 
+        # Stack per-virtual-field vectors into (num_virtual_fields, timesteps)
+        # arrays and store them for later access.
+        self._internal_virtual_work = np.array(internal_virtual_work_vectors)
+        self._external_virtual_work = np.array(external_virtual_work_vectors)
+
         return np.concatenate(residual_vector)
-    
+
 
     def calculate_stress_sensitivities(
         self,
