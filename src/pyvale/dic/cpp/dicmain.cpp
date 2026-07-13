@@ -62,8 +62,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
     // loop over deformed images and perform DIC
     // -----------------------------------------------------------------------
     if (g_debug_level>0){
-        std::cout << std::endl;
-        common_util::title("DIC Engine Setup");
+        common_util::title("Starting Correlation");
     }
 
 
@@ -145,12 +144,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC
     // -----------------------------------------------------------------------
-    if (g_debug_level>0){
-        std::cout << std::endl;
-        common_util::title("Starting Correlation");
-    }
-
-    // loop over deformed images. They start at index 1 in the stack
     for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
 
         int img_num_def_l = img_num;

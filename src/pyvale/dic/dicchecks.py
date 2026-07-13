@@ -624,7 +624,7 @@ def print_config_summary(image_width: int,
     if debug_level <= 0:
         return
 
-    print_title("Config")
+    common_py_util.print_title("Config")
     common_py_util.info_out("Width of Images: ", f"{image_width} [px]")
     common_py_util.info_out("Height of Images: ", f"{image_height} [px]")
     common_py_util.info_out("Number of Deformed Images: ", num_def_img)
@@ -655,15 +655,4 @@ def print_config_summary(image_width: int,
             common_py_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
 
 
-def print_title(a: str):
-    line_width = 80
-    half_width = 39
 
-    print('-' * line_width)
-
-    # Center the title between dashes
-    left_dashes = '-' * (half_width - len(a) // 2)
-    right_dashes = '-' * (half_width - len(a) // 2)
-    print(f"{left_dashes} {a} {right_dashes}")
-
-    print('-' * line_width)

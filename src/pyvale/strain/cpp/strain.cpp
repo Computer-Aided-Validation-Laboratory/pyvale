@@ -11,6 +11,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <signal.h>
 
 // pybind header files
 #include <pybind11/pybind11.h>
@@ -20,6 +21,7 @@
 #include <Eigen/Dense>
 
 // common_cpp header files
+#include "../../common_cpp/dicsignalhandler.hpp"
 #include "../../common_cpp/progressbar.hpp"
 #include "../../common_cpp/defines.hpp"
 #include "../../common_cpp/util.hpp"
@@ -45,15 +47,12 @@ namespace strain {
                 const int nimg, const int sw_size, 
                 const int q, const std::string &form,
                 const std::vector<std::string> &filenames,
-                const common_util::SaveConfig &strain_save_conf){
+                const common_util::SaveConfig &strain_save_conf,
+                const int debug_level){
 
-        TITLE("Strain Config");
-        INFO_OUT("Number of Images:", nimg)
-        INFO_OUT("Strain window size:", sw_size)
-        INFO_OUT("Strain element (4 = bilinear, 9 is biquadratic):", q);
-        INFO_OUT("Strain formulation:", form);
-        INFO_OUT("Saving data to folder:", strain_save_conf.basepath)
-        INFO_OUT("Saving data as binary ", strain_save_conf.binary)
+        // Register signal handler for Ctrl+C and set debug_level
+        signal(SIGINT, signalHandler);
+        g_debug_level = debug_level;
 
 
         const int nwindows = nss_x*nss_y;
@@ -73,14 +72,16 @@ namespace strain {
         strain::Results results(nwindows);
 
 
-        TITLE("Deformation Gradient and Strain Calculation")
+        // TITLE("Deformation Gradient and Strain Calculation")
 
         // loop over the displacement images
         for (int img_num = 0; img_num < nimg; img_num++) {
 
             ProgressBar pbar(filenames[img_num], nwindows);
+            std::atomic<int> current_progress(0);
 
             // loop over strain windows within the image
+            #pragma omp parallel for schedule(static)
             for (int sw = 0; sw < nwindows; sw++){
 
                 int x0 = ss_x[sw];
@@ -114,12 +115,17 @@ namespace strain {
                                    deform_grad, eps, nwindows, img_num);
                 }
 
-                if (omp_get_thread_num() == 0) pbar.update(sw+1);
+                if (g_debug_level>0){
+                    int progress = current_progress.fetch_add(1);
+                    if (omp_get_thread_num() == 0) pbar.update(progress+1);
+                }
 
             }
 
             // finish up progress bar
-            pbar.finish();
+            if(g_debug_level>0){
+                pbar.finish();
+            }
 
             strain::save_to_disk(img_num, results, strain_save_conf, nwindows, nimg, filenames);
         }

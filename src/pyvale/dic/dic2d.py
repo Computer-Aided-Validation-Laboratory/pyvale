@@ -194,7 +194,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     if (debug_level>0):
         common_py_util.print_pyvale_banner()
-        dicchecks.print_title("Initial Checks")
+        common_py_util.print_title("Initial Checks")
 
     # make sure ROI is in the correct format
     roi_c = np.ascontiguousarray(roi_mask)
@@ -323,7 +323,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
     )
 
     # calling the c++ dic engine
-    diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+    with diccpp.ostream_redirect(stdout=True, stderr=True):
+        diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
 
 
     # if there's a temp dir and the reference and deformed are np.ndarray

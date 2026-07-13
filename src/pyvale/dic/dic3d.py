@@ -194,7 +194,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     if (debug_level>0):
         common_py_util.print_pyvale_banner()
-        dicchecks.print_title("Initial Checks")
+        common_py_util.print_title("Initial Checks")
 
     # make sure ROI is in the correct format
     roi_c = np.ascontiguousarray(roi_mask)

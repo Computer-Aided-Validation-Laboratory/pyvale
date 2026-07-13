@@ -15,6 +15,7 @@ from pyvale.dic.dicresults import Results as dicResults
 from pyvale.common_py.util import check_output_directory
 import pyvale.strain.strain_cpp as strain_cpp
 import pyvale.common_cpp.common_cpp as common_cpp
+import pyvale.common_py.util as common_py_util
 
 def calculate_3d(data: dicResults | str | Path | list[Path],
               window_size: int=5, 
@@ -25,7 +26,9 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
               output_binary: bool=False,
               output_prefix: str="strain_",
               output_delimiter: str=",",
-              strain_formulation: Literal["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"] = "HENCKY"):
+              num_threads: int | None = None,
+              strain_formulation: Literal["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"] = "HENCKY",
+              debug_level: int=1):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
@@ -89,20 +92,20 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
 
         # Load data if a file path is given
         dicresults = import_3d(layout="matrix", data=data, 
-                            binary=input_binary, delimiter=input_delimiter)
+                            binary=input_binary, delimiter=input_delimiter, debug_level=debug_level)
 
     elif isinstance(data, dicResults):
         dicresults = data
-        print(dicresults.ss_x.shape, dicresults.ss_y.shape, dicresults.u.shape,dicresults.v.shape)
+        print(dicresults.ss_x.shape, dicresults.ss_y.shape, dicresults.u_px.shape,dicresults.v_px.shape)
         assert dicresults.ss_x.ndim == 2 and dicresults.ss_y.ndim == 2, "ss_x and ss_y must be 2D"
         assert dicresults.ss_x.shape == dicresults.ss_y.shape, "ss_x and ss_y must have the same shape"
-        assert dicresults.u.ndim == 3 and dicresults.v.ndim == 3, "u and v must be 3D"
-        assert dicresults.u.shape == dicresults.v.shape, "u and v must have the same shape"
-        assert dicresults.u.shape[1:] == dicresults.ss_x.shape, "Spatial dimensions of u must match ss_x"
+        assert dicresults.u_px.ndim == 3 and dicresults.v_px.ndim == 3, "u and v must be 3D"
+        assert dicresults.u_px.shape == dicresults.v_px.shape, "u and v must have the same shape"
+        assert dicresults.u_px.shape[1:] == dicresults.ss_x.shape, "Spatial dimensions of u must match ss_x"
 
         # need to make dummy filenames
         filenames = []
-        for f in range(0,dicresults.u.shape[0]):
+        for f in range(0,dicresults.u_px.shape[0]):
             filenames.append(f"strain_data_{f:04d}")
 
     else: 
@@ -111,7 +114,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
     # Extract dimensions from the validated object
     nss_x = dicresults.ss_x.shape[1]
     nss_y = dicresults.ss_x.shape[0]
-    nimg = dicresults.u.shape[0]
+    nimg = dicresults.u_px.shape[0]
 
 
     check_output_directory(str(output_basepath), output_prefix, 0)
@@ -123,15 +126,32 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
     strain_save_conf.prefix = output_prefix
     strain_save_conf.delimiter = output_delimiter
 
-    print(type(filenames))
+    #set the number of OMP threads
+    if num_threads is not None:
+        common_cpp.set_num_threads(num_threads)
+    else:
+        num_threads = common_cpp.get_num_threads()
+
+    # print the config
+    if debug_level>0:
+        common_py_util.print_title("Starting Strain Calculation")
+        common_py_util.info_out("Number of images: ", nimg)
+        common_py_util.info_out("Number of spatial points in x: ", nss_x)
+        common_py_util.info_out("Number of spatial points in y: ", nss_y)
+        common_py_util.info_out("Window size: ", window_size)
+        common_py_util.info_out("Window element type: ", window_element)
+        common_py_util.info_out("Strain formulation: ", strain_formulation)
+        common_py_util.info_out("Number of Threads: ", num_threads)
 
     # Call to C++ backend
-    strain_cpp.strain_engine(dicresults.ss_x, dicresults.ss_y,
-                           dicresults.stereo.u_mm, dicresults.stereo.v_mm, dicresults.stereo.w_mm,
-                           nss_x, nss_y, nimg,
-                           window_size, window_element, 
-                           strain_formulation, filenames,
-                           strain_save_conf)
+    with strain_cpp.ostream_redirect(stdout=True, stderr=True):
+        strain_cpp.strain_engine(dicresults.ss_x, dicresults.ss_y,
+                                 dicresults.stereo.u_mm, dicresults.stereo.v_mm, dicresults.stereo.w_mm,
+                                 nss_x, nss_y, nimg,
+                                 window_size, window_element, 
+                                 strain_formulation, filenames,
+                                 strain_save_conf,
+                                 debug_level)
 
 
 

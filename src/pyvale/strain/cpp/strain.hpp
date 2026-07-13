@@ -76,7 +76,8 @@ namespace strain {
                 const int nimg, const int sw_size, 
                 const int q, const std::string &form,
                 const std::vector<std::string> &filenames,
-                const common_util::SaveConfig &strain_save_conf);
+                const common_util::SaveConfig &strain_save_conf,
+                const int debug_level);
 
     /**
      * @brief Fills the strain window with the subset coordinates 
