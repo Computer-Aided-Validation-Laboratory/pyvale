@@ -29,7 +29,7 @@ class ConstitutiveParameter:
         value: int | float | npt.NDArray[np.float64],
         lower_bound: float,
         upper_bound: float,
-        map_size: npt.NDArray[np.float64] | None = None,
+        map_size: npt.NDArray[np.uint32] | None = None,
     ) -> None:
         """
         Parameters
@@ -41,7 +41,7 @@ class ConstitutiveParameter:
             Lower bound for the parameter
         upper_bound : float
             Upper bound for the parameter
-        map_size : npt.NDArray[np.float64] | None, optional
+        map_size : npt.NDArray[np.uint32] | None, optional
             Shape ``(y, x)`` of the spatial parameterisation when ``value``
             is a scalar.  Ignored when ``value`` is already an array
 
@@ -65,7 +65,7 @@ class ConstitutiveParameter:
                     "parameter value is int or float"
                 )
 
-            self.map = np.full((map_size[0], map_size[1]), value)
+            self.map = np.full(map_size, value)
 
         else:
             self.map = value
