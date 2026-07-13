@@ -24,6 +24,9 @@ from pyvale.vfm.identificationconfig import (
 from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import LeastSquares
+from pyvale.vfm.spatialparam import (
+    initialise_parameterisations_from_constitutive_parameter,
+)
 from pyvale.vfm.spatialparamhomogeneous import (
     HomogeneousSpatialParameterisation,
 )
@@ -63,20 +66,22 @@ def test_sbvf_metric_with_vfs_locked():
     # ahead of identification with known values of parameters
     # and stress
     metric_spatial_parameterisations = {
-        name: HomogeneousSpatialParameterisation()
+        name: [HomogeneousSpatialParameterisation()]
         for name in KNOWN_PARAMETERS
     }
 
-    for name, spatial_parameterisation in metric_spatial_parameterisations.items():
-        spatial_parameterisation.initialise_from_constitutive_parameter(
+    parameter_map_size = np.array([GRID_DIVS, GRID_DIVS], dtype=np.uint32)
+
+    for name, spatial_parameterisations in metric_spatial_parameterisations.items():
+        initialise_parameterisations_from_constitutive_parameter(
+            spatial_parameterisations,
             ConstitutiveParameter(
                 known_parameter_maps[name],
                 ident_config.parameters[name].lower_bound,
                 ident_config.parameters[name].upper_bound,
-            )
+            ),
+            parameter_map_size,
         )
-
-    parameter_map_size = np.array([GRID_DIVS, GRID_DIVS], dtype=np.uint32)
 
     sbvf_metric.initialise(experiment_data)
 
@@ -102,17 +107,13 @@ def test_sbvf_metric_with_vfs_locked():
     print("Running identification...")
     identified_parameters = run_identification(experiment_data, ident_config)
 
+    for name, param in identified_parameters.items():
+        print(f"{name} = {np.nanmean(param.map):.6f}")
+
     # Copy the internal/external virtual work from the metric's final evaluation
     # during the identification (i.e. at the identified parameters).
     ivw_identified = sbvf_metric._internal_virtual_work.copy()
     evw_identified = sbvf_metric._external_virtual_work.copy()
-
-    identified_maps = {
-        name: param.map for name, param in identified_parameters.items()
-    }
-
-    for name, param in identified_parameters.items():
-        print(f"{name} = {np.nanmean(param.map):.6f}")
 
     # ------------------------------------------------------------------
     # Test the performance of the metric: compare the SBVF metric evaluated with
@@ -167,20 +168,22 @@ def test_sbvf_metric_with_vfs_free():
     # ahead of identification with known values of parameters
     # and stress
     metric_spatial_parameterisations = {
-        name: HomogeneousSpatialParameterisation()
+        name: [HomogeneousSpatialParameterisation()]
         for name in KNOWN_PARAMETERS
     }
 
-    for name, spatial_parameterisation in metric_spatial_parameterisations.items():
-        spatial_parameterisation.initialise_from_constitutive_parameter(
+    parameter_map_size = np.array([GRID_DIVS, GRID_DIVS], dtype=np.uint32)
+
+    for name, spatial_parameterisations in metric_spatial_parameterisations.items():
+        initialise_parameterisations_from_constitutive_parameter(
+            spatial_parameterisations,
             ConstitutiveParameter(
                 known_parameter_maps[name],
                 ident_config.parameters[name].lower_bound,
                 ident_config.parameters[name].upper_bound,
-            )
+            ),
+            parameter_map_size,
         )
-
-    parameter_map_size = np.array([GRID_DIVS, GRID_DIVS], dtype=np.uint32)
 
     sbvf_metric.initialise(experiment_data)
 
@@ -203,17 +206,13 @@ def test_sbvf_metric_with_vfs_free():
     print("Running identification...")
     identified_parameters = run_identification(experiment_data, ident_config)
 
+    for name, param in identified_parameters.items():
+        print(f"{name} = {np.nanmean(param.map):.6f}")
+
     # Copy the internal/external virtual work from the metric's final evaluation
     # during the identification (i.e. at the identified parameters).
     ivw_identified = sbvf_metric._internal_virtual_work.copy()
     evw_identified = sbvf_metric._external_virtual_work.copy()
-
-    identified_maps = {
-        name: param.map for name, param in identified_parameters.items()
-    }
-
-    for name, param in identified_parameters.items():
-        print(f"{name} = {np.nanmean(param.map):.6f}")
 
     # ------------------------------------------------------------------
     # Test the performance of the metric: compare the SBVF metric evaluated with
@@ -315,10 +314,10 @@ def _setup_identification_config() -> IdentificationConfig:
     phases = [
         IdentificationPhase(
             {
-                "elastic_modulus": HomogeneousSpatialParameterisation(),
-                "poissons_ratio": HomogeneousSpatialParameterisation(),
-                "yield_strength": HomogeneousSpatialParameterisation(),
-                "hardening_modulus": HomogeneousSpatialParameterisation(),
+                "elastic_modulus": [HomogeneousSpatialParameterisation()],
+                "poissons_ratio": [HomogeneousSpatialParameterisation()],
+                "yield_strength": [HomogeneousSpatialParameterisation()],
+                "hardening_modulus": [HomogeneousSpatialParameterisation()],
             },
             [metric],
             VectorFirstResultPassthrough(),

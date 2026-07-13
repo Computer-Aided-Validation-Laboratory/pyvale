@@ -16,6 +16,8 @@ from pyvale.vfm.optimiser import (
 )
 from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
+    collect_degrees_of_freedom,
+    get_num_degrees_of_freedom,
     unpack_spatial_parameterisations,
 )
 
@@ -35,18 +37,18 @@ class LeastSquares(IOptimiser):
         self,
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         metrics: list[IMetric],
         objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
-    ) -> dict[str, ISpatialParameterisation]:
+    ) -> dict[str, list[ISpatialParameterisation]]:
         normalised_degrees_of_freedom = []
 
-        for sp in spatial_parameterisations.values():
-            if sp.get_num_degrees_of_freedom() == 0:
+        for sps in spatial_parameterisations.values():
+            if get_num_degrees_of_freedom(sps) == 0:
                 continue
 
-            degrees_of_freedom = sp.collect_degrees_of_freedom()
+            degrees_of_freedom = collect_degrees_of_freedom(sps)
 
             normalised_degrees_of_freedom.append(
                 normalise_degrees_of_freedom(degrees_of_freedom)

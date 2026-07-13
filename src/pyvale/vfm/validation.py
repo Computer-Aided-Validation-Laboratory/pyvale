@@ -188,13 +188,28 @@ def validate_identification_config(
                 f"got {type(phase.objective_function).__name__}"
             )
 
+        # A KnownSpatialParameterisation fully specifies a parameter, so if
+        # one appears in a list it must be the only parameterisation in it.
+        for param_name, sps in phase.spatial_parameterisations.items():
+            has_known = any(
+                isinstance(sp, KnownSpatialParameterisation) for sp in sps
+            )
+            if has_known and len(sps) > 1:
+                raise ValueError(
+                    f"phase {i} parameter '{param_name}': a "
+                    f"KnownSpatialParameterisation must be the only spatial "
+                    f"parameterisation in its list"
+                )
+
+        # At least one parameter must be identifiable (i.e. not fully
+        # specified by a KnownSpatialParameterisation).
         if all(
-            isinstance(sp, KnownSpatialParameterisation)
-            for sp in phase.spatial_parameterisations.values()
+            any(isinstance(sp, KnownSpatialParameterisation) for sp in sps)
+            for sps in phase.spatial_parameterisations.values()
         ):
             raise ValueError(
-                f"phase {i}: all spatial parameterisations are "
-                f"KnownSpatialParameterisation; at least one"
+                f"phase {i}: all parameters are specified by a "
+                f"KnownSpatialParameterisation; at least one parameter "
                 f"must be identifiable"
             )
 

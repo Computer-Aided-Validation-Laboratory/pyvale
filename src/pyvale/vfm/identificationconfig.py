@@ -17,9 +17,11 @@ class IdentificationPhase:
     function, and optimiser
     """
 
-    spatial_parameterisations: dict[str, ISpatialParameterisation]
+    spatial_parameterisations: dict[str, list[ISpatialParameterisation]]
     """
-    Mapping from constitutive parameter name to its spatial parameterisation
+    Mapping from constitutive parameter name to its list of spatial
+    parameterisations. The parameter map is the sum of each parameterisation's
+    map, evaluated in list (definition) order
     """
 
     metrics: list[IMetric]

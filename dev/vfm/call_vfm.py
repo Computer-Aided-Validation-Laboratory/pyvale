@@ -84,10 +84,10 @@ def main():
     phases = [
         IdentificationPhase(
             {
-                "elastic_modulus": KnownSpatialParameterisation(),
-                "poissons_ratio": KnownSpatialParameterisation(),
-                "yield_strength": HomogeneousSpatialParameterisation(),
-                "hardening_modulus": HomogeneousSpatialParameterisation(),
+                "elastic_modulus": [KnownSpatialParameterisation()],
+                "poissons_ratio": [KnownSpatialParameterisation()],
+                "yield_strength": [HomogeneousSpatialParameterisation()],
+                "hardening_modulus": [HomogeneousSpatialParameterisation()],
             },
             [
                 SensitivityBasedVirtualFieldsMetric(np.array([5, 10]))

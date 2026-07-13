@@ -8,6 +8,10 @@ from pyvale.vfm.validation import (
     validate_identification_config,
 )
 from pyvale.vfm.identificationconfig import IdentificationConfig
+from pyvale.vfm.spatialparam import (
+    evaluate_parameterisations_to_map,
+    initialise_parameterisations_from_constitutive_parameter,
+)
 
 
 def run_identification(
@@ -30,8 +34,12 @@ def run_identification(
             for phase in identification_config.phases:
                 # Initialise spatial parameterisation from constitutive
                 # parameter maps
-                for param_name, sp in phase.spatial_parameterisations.items():
-                    sp.initialise_from_constitutive_parameter(identification_config.parameters[param_name])
+                for param_name, sps in phase.spatial_parameterisations.items():
+                    initialise_parameterisations_from_constitutive_parameter(
+                        sps,
+                        identification_config.parameters[param_name],
+                        parameter_map_size,
+                    )
 
                 for metric in phase.metrics:
                     metric.initialise(experiment_data)
@@ -49,9 +57,12 @@ def run_identification(
 
                 # Update constitutive parameter maps from optimised spatial
                 # parameterisations
-                for param_name, sp in opt_spatial_parameterisations.items():
+                for param_name, sps in opt_spatial_parameterisations.items():
                     identification_config.parameters[param_name].map = (
-                        sp.to_map(parameter_map_size)
+                        evaluate_parameterisations_to_map(
+                            sps,
+                            parameter_map_size
+                        )
                     )
 
     return identification_config.parameters

@@ -9,6 +9,7 @@ from pyvale.vfm.metric import IMetric
 from pyvale.vfm.objectivefunc import IObjectiveFunction
 from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
+    evaluate_parameterisations_to_map,
     unpack_spatial_parameterisations,
 )
 
@@ -39,11 +40,11 @@ class IOptimiser(ABC):
         self,
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         metrics: list[IMetric],
         objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
-    ) -> dict[str, ISpatialParameterisation]:
+    ) -> dict[str, list[ISpatialParameterisation]]:
         """
         Run the optimisation loop for one identification phase.
 
@@ -53,7 +54,7 @@ class IOptimiser(ABC):
             Constitutive model whose parameters are being identified
         parameter_map_size : npt.NDArray[np.uint32]
             Spatial dimensions ``(y, x)`` of the parameter maps
-        spatial_parameterisations : dict[str, ISpatialParameterisation]
+        spatial_parameterisations : dict[str, list[ISpatialParameterisation]]
             Initial parameter distributions keyed by parameter name
         metrics : list[IMetric]
             Virtual-work metrics to evaluate candidate stress fields
@@ -64,7 +65,7 @@ class IOptimiser(ABC):
 
         Returns
         -------
-        dict[str, ISpatialParameterisation]
+        dict[str, list[ISpatialParameterisation]]
             Optimised spatial parameterisations after convergence
         """
         pass
@@ -74,7 +75,7 @@ def evaluate_candidate(
     degrees_of_freedom: npt.NDArray[np.float64],
     constitutive_law: IConstitutiveLaw,
     parameter_map_size: npt.NDArray[np.uint32],
-    spatial_parameterisations: dict[str, ISpatialParameterisation],
+    spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
     metrics: list[IMetric],
     objective_function: IObjectiveFunction,
     experiment_data: ExperimentData,
@@ -94,7 +95,7 @@ def evaluate_candidate(
         Constitutive model
     parameter_map_size : npt.NDArray[np.uint32]
         Spatial dimensions ``(y, x)`` of the parameter maps
-    spatial_parameterisations : dict[str, ISpatialParameterisation]
+    spatial_parameterisations : dict[str, list[ISpatialParameterisation]]
         Reference spatial parameterisations (cloned internally)
     metrics : list[IMetric]
         Virtual-work metrics
@@ -116,8 +117,8 @@ def evaluate_candidate(
     )
 
     updated_constitutive_parameter_maps = {
-        param_name: sp.to_map(parameter_map_size)
-        for (param_name, sp) in updated_spatial_parameterisations.items()
+        param_name: evaluate_parameterisations_to_map(sps, parameter_map_size)
+        for (param_name, sps) in updated_spatial_parameterisations.items()
     }
 
     updated_stress = constitutive_law.calculate_stress(

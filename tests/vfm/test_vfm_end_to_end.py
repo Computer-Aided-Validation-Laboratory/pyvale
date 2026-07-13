@@ -70,10 +70,10 @@ def test_end_to_end_homogeneous() -> None:
     phases = [
         IdentificationPhase(
             {
-                "elastic_modulus": HomogeneousSpatialParameterisation(),
-                "poissons_ratio": HomogeneousSpatialParameterisation(),
-                "yield_strength": HomogeneousSpatialParameterisation(),
-                "hardening_modulus": HomogeneousSpatialParameterisation(),
+                "elastic_modulus": [HomogeneousSpatialParameterisation()],
+                "poissons_ratio": [HomogeneousSpatialParameterisation()],
+                "yield_strength": [HomogeneousSpatialParameterisation()],
+                "hardening_modulus": [HomogeneousSpatialParameterisation()],
             },
             [metric],
             VectorFirstResultPassthrough(),

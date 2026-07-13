@@ -40,7 +40,7 @@ class IMetric(ABC):
         stress: npt.NDArray[np.float64],
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         experiment_data: ExperimentData,
     ) -> npt.NDArray[np.float64]:
         """
@@ -54,7 +54,7 @@ class IMetric(ABC):
             Constitutive law used to produce the stress
         parameter_map_size : npt.NDArray[np.uint32]
             Spatial dimensions ``(y, x)`` of the parameter maps
-        spatial_parameterisations : dict[str, ISpatialParameterisation]
+        spatial_parameterisations : dict[str, list[ISpatialParameterisation]]
             Current spatial parameterisations keyed by parameter name
         experiment_data : ExperimentData
             Measured DIC data

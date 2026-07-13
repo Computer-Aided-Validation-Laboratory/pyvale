@@ -15,7 +15,13 @@ from pyvale.vfm.normalisation import (
     denormalise_degree_of_freedom,
     normalise_degree_of_freedom,
 )
-from pyvale.vfm.spatialparam import ISpatialParameterisation
+from pyvale.vfm.spatialparam import (
+    ISpatialParameterisation,
+    collect_degrees_of_freedom,
+    evaluate_parameterisations_to_map,
+    get_num_degrees_of_freedom,
+    update_from_degrees_of_freedom,
+)
 from pyvale.vfm.vfmesh import (
     GlobalVirtualFields,
     VirtualFieldsMesh,
@@ -93,7 +99,7 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         stress: npt.NDArray[np.float64],
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         experiment_data: ExperimentData,
     ) -> npt.NDArray[np.float64]:
         if self._virtual_fields_mesh is None:
@@ -249,7 +255,7 @@ class SensitivityBasedVirtualFieldsMetric(IMetric):
         stress_reference: npt.NDArray[np.float64],
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         delta_timesteps: npt.NDArray[np.float64],
         perturbation_type: str = "constitutive_parameter",   #TODO better as enum? 
         perturbation_factor_param: float = 0.15,   #TODO: single perturbation factor or separate for param and dof? 
@@ -311,7 +317,7 @@ def _calculate_stress_sensitivities_dof(
         stress_reference: npt.NDArray[np.float64],
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         delta_timesteps: npt.NDArray[np.float64],
         perturbation_factor: float,
     ) -> list[StressSensitivity]:
@@ -329,8 +335,8 @@ def _calculate_stress_sensitivities_dof(
 
     stress_sensitivities = []
     # Loop through each constitutive parameter
-    for param_name, sp in spatial_parameterisations.items():
-        dofs =  sp.collect_degrees_of_freedom()
+    for param_name, sps in spatial_parameterisations.items():
+        dofs = collect_degrees_of_freedom(sps)
 
         # Loop through each DOF of the current parameter
         for i, dof in enumerate(dofs):
@@ -360,15 +366,16 @@ def _calculate_stress_sensitivities_dof(
 
 
             # Update spatial parameterisation using perturbed DOF
-            perturbed_spatial_parameterisations[
-                param_name
-            ].update_from_degrees_of_freedom(perturbed_dofs)
+            update_from_degrees_of_freedom(
+                perturbed_spatial_parameterisations[param_name],
+                perturbed_dofs,
+            )
 
             # Update spatial parameter maps using perturbed spatial parameterisation
             # TODO: can we just update the relevant parameter map for current dof?
             perturbed_spatial_parameter_maps = {
-                parameter_name: sp.to_map(parameter_map_size)
-                for parameter_name, sp
+                parameter_name: evaluate_parameterisations_to_map(sps, parameter_map_size)
+                for parameter_name, sps
                 in perturbed_spatial_parameterisations.items()
             }
 
@@ -448,7 +455,7 @@ def _calculate_stress_sensitivities_parameter(
         stress_reference: npt.NDArray[np.float64],
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         delta_timesteps: npt.NDArray[np.float64],
         perturbation_factor: float,
     ) -> list[StressSensitivity]:
@@ -462,22 +469,22 @@ def _calculate_stress_sensitivities_parameter(
 
     stress_sensitivities = []
     # Loop through each constitutive parameter
-    for param_name, sp in spatial_parameterisations.items():
+    for param_name, sps in spatial_parameterisations.items():
 
         # If constitutive parameter is not being identified: skip
-        if sp.get_num_degrees_of_freedom() == 0:
+        if get_num_degrees_of_freedom(sps) == 0:
             continue
 
         # get parameter map for current spatial parameterisation
-        map = sp.to_map(parameter_map_size)  
+        map = evaluate_parameterisations_to_map(sps, parameter_map_size)
 
         # Perturb parameter map by multiplying by (1 - perturbation_factor)
         perturbed_map = map * (1 - perturbation_factor)
 
         # Create copy of original spatial parameterisation maps
         perturbed_spatial_parameter_maps = {
-            parameter_name: sp.to_map(parameter_map_size)
-            for parameter_name, sp
+            parameter_name: evaluate_parameterisations_to_map(sps, parameter_map_size)
+            for parameter_name, sps
             in spatial_parameterisations.items()
         }
 
