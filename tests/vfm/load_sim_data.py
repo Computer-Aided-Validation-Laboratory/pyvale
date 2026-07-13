@@ -6,11 +6,101 @@ import pyvista as pv
 
 from pyvale import mooseherder, sensorsim
 
+# TODO: Currently requires the vfmverif repo to exist as a sibling
+#   directory, when we have test data in the pyvale repe this should
+#   be updated
 PYVALE_ROOT = Path(__file__).resolve().parent.parent.parent
 VFMVERIF_ROOT = PYVALE_ROOT.parent / "vfmverif_meshref_1"
 
-PLATE_HEIGHT = 35e-3    # m
-PLATE_WIDTH = 25e-3     # m
+PLATE_HEIGHT = 35e-3 # m
+PLATE_WIDTH = 25e-3 # m
+
+
+def load_strain(
+    exodus_file_name: str,
+    grid_divs: int,
+) -> tuple[
+    npt.NDArray[np.float64],  # x_grid, shape (y, x)
+    npt.NDArray[np.float64],  # y_grid, shape (y, x)
+    npt.NDArray[np.float64],  # strain, shape (timesteps, components, y, x)
+]:
+    component_keys = (
+        "strain_xx",
+        "strain_yy",
+        "strain_xy",
+    )
+
+    (x_grid, y_grid, grid_data) = _load_sim_data_to_grid(
+        exodus_file_name,
+        component_keys,
+        grid_divs,
+    )
+
+    (x_grid, y_grid, grid_data) = _enforce_conventions(
+        x_grid,
+        y_grid,
+        grid_data
+    )
+
+    return (
+        x_grid,
+        y_grid,
+        grid_data
+    )
+
+
+def load_stress(
+    exodus_file_name: str,
+    grid_divs: int,
+) -> tuple[
+    npt.NDArray[np.float64],  # x_grid, shape (y, x)
+    npt.NDArray[np.float64],  # y_grid, shape (y, x)
+    npt.NDArray[np.float64],  # stress, MPa, shape (timesteps, components, y, x)
+]:
+    component_keys = (
+        "stress_xx",
+        "stress_yy",
+        "stress_xy",
+    )
+
+    (x_grid, y_grid, grid_data) = _load_sim_data_to_grid(
+        exodus_file_name,
+        component_keys,
+        grid_divs,
+    )
+
+    (x_grid, y_grid, grid_data) = _enforce_conventions(
+        x_grid,
+        y_grid,
+        grid_data
+    )
+
+
+    # Stress should be in MPa, convert from Pa to MPa
+    grid_data *= 1e-6
+
+    return (
+        x_grid,
+        y_grid,
+        grid_data
+    )
+
+# Output shape: (timesteps, components) [Fx, Fy]
+def load_force(
+    exodus_file_name: str
+) -> npt.NDArray[np.float64]:
+    exodus_file_path = VFMVERIF_ROOT / exodus_file_name
+    sim_data = mooseherder.ExodusLoader(exodus_file_path).load_all_sim_data()
+    force = sim_data.glob_vars["react_y_top"]
+    return np.column_stack((np.zeros_like(force), force))
+
+# Output shape: (timesteps)
+def load_timesteps(
+    exodus_file_name: str
+) -> npt.NDArray[np.float64]:
+    exodus_file_path = VFMVERIF_ROOT / exodus_file_name
+    sim_data = mooseherder.ExodusLoader(exodus_file_path).load_all_sim_data()
+    return sim_data.time
 
 
 def _load_sim_data_to_grid(
@@ -21,8 +111,6 @@ def _load_sim_data_to_grid(
     npt.NDArray[np.float64],  # x_grid, shape (x, y, z)
     npt.NDArray[np.float64],  # y_grid, shape (x, y, z)
     npt.NDArray[np.float64],  # grid_data, shape (x, y, z, components, timesteps)
-    npt.NDArray[np.float64],  # force, shape (timesteps)
-    npt.NDArray[np.float64],  # time, shape (timesteps)
 ]:
     exodus_file_path = VFMVERIF_ROOT / exodus_file_name
 
@@ -74,6 +162,39 @@ def _load_sim_data_to_grid(
         x_grid,
         y_grid,
         grid_data,
-        sim_data.glob_vars["react_y_top"],
-        sim_data.time,
+    )
+
+
+def _enforce_conventions(
+    x_grid: npt.NDArray[np.float64],  # shape (x, y, z)
+    y_grid: npt.NDArray[np.float64],  # shape (x, y, z)
+    grid_data: npt.NDArray[np.float64],  # shape (x, y, z, components, timesteps)
+) -> tuple[
+    npt.NDArray[np.float64],  # x_grid, shape (y, x)
+    npt.NDArray[np.float64],  # y_grid, shape (y, x)
+    npt.NDArray[np.float64],  # grid_data, shape (timesteps, components, y, x)
+]:
+    # remove redundant z component
+    x_grid = x_grid[:, :, 0]  # shape: (x, y)
+    y_grid = y_grid[:, :, 0]  # shape: (x, y)
+    grid_data = grid_data[:, :, 0, :, :]  # shape: (x, y, components, timesteps)
+
+    # reshape the grid and data to use our conventions
+    x_grid = x_grid.transpose(1, 0)  # shape: (y, x)
+    y_grid = y_grid.transpose(1, 0)  # shape: (y, x)
+    grid_data = grid_data.transpose(3, 2, 1, 0)  # shape: (timesteps, components, y, x)
+
+    # x increases with column number, is constant in each column, always positive
+    x_grid = np.fliplr(x_grid)
+    x_grid += np.nanmax(x_grid)
+    grid_data = np.flip(grid_data, axis=2)
+
+    # y increases with row number, is constant in each row, always positive
+    y_grid = np.flipud(y_grid)
+    grid_data = np.flip(grid_data, axis=3)
+
+    return (
+        x_grid,
+        y_grid,
+        grid_data
     )
