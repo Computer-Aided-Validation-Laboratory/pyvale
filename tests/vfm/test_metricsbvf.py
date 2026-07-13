@@ -16,14 +16,17 @@ from pyvale.vfm.experimentdata import (
     SpecimenGeometry,
 )
 from pyvale.vfm.hardening import LinearHardening
-from pyvale.vfm.identification import Identification, IdentificationPhase
+from pyvale.vfm.identification import run_identification
+from pyvale.vfm.identificationconfig import (
+    IdentificationConfig,
+    IdentificationPhase,
+)
 from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import LeastSquares
 from pyvale.vfm.spatialparamhomogeneous import (
     HomogeneousSpatialParameterisation,
 )
-from pyvale.vfm.vfm import run_identification
 
 EXODUS_FILE_NAME = "out_hole2d_plas_32f.e"
 GRID_DIVS = 101
@@ -46,9 +49,9 @@ def test_sbvf_metric_with_vfs_locked():
     (_, _, stress_fe) = load_stress(EXODUS_FILE_NAME, GRID_DIVS)
 
     experiment_data = _setup_experiment_data()
-    ident = _setup_identification(experiment_data)
+    ident_config = _setup_identification_config()
 
-    sbvf_metric = ident.phases[0].metrics[0]
+    sbvf_metric = ident_config.phases[0].metrics[0]
 
     # Known homogeneous constitutive parameter maps.
     known_parameter_maps = {
@@ -65,11 +68,11 @@ def test_sbvf_metric_with_vfs_locked():
     }
 
     for name, spatial_parameterisation in metric_spatial_parameterisations.items():
-        spatial_parameterisation.update_from_constitutive_parameter(
+        spatial_parameterisation.initialise_from_constitutive_parameter(
             ConstitutiveParameter(
                 known_parameter_maps[name],
-                ident.parameters[name].lower_bound,
-                ident.parameters[name].upper_bound,
+                ident_config.parameters[name].lower_bound,
+                ident_config.parameters[name].upper_bound,
             )
         )
 
@@ -79,7 +82,7 @@ def test_sbvf_metric_with_vfs_locked():
 
     sbvf_metric.evaluate(
         stress_fe,
-        ident.constitutive_law,
+        ident_config.constitutive_law,
         parameter_map_size,
         metric_spatial_parameterisations,
         experiment_data,
@@ -97,7 +100,7 @@ def test_sbvf_metric_with_vfs_locked():
     # homogeneous.
     # ------------------------------------------------------------------
     print("Running identification...")
-    identified_parameters = run_identification(experiment_data, ident)
+    identified_parameters = run_identification(experiment_data, ident_config)
 
     # Copy the internal/external virtual work from the metric's final evaluation
     # during the identification (i.e. at the identified parameters).
@@ -105,11 +108,11 @@ def test_sbvf_metric_with_vfs_locked():
     evw_identified = sbvf_metric._external_virtual_work.copy()
 
     identified_maps = {
-        name: param.value for name, param in identified_parameters.items()
+        name: param.map for name, param in identified_parameters.items()
     }
 
     for name, param in identified_parameters.items():
-        print(f"{name} = {np.nanmean(param.value):.6f}")
+        print(f"{name} = {np.nanmean(param.map):.6f}")
 
     # ------------------------------------------------------------------
     # Test the performance of the metric: compare the SBVF metric evaluated with
@@ -150,9 +153,9 @@ def test_sbvf_metric_with_vfs_free():
     (_, _, stress_fe) = load_stress(EXODUS_FILE_NAME, GRID_DIVS)
 
     experiment_data = _setup_experiment_data()
-    ident = _setup_identification(experiment_data)
+    ident_config = _setup_identification_config()
 
-    sbvf_metric = ident.phases[0].metrics[0]
+    sbvf_metric = ident_config.phases[0].metrics[0]
 
     # Known homogeneous constitutive parameter maps.
     known_parameter_maps = {
@@ -169,11 +172,11 @@ def test_sbvf_metric_with_vfs_free():
     }
 
     for name, spatial_parameterisation in metric_spatial_parameterisations.items():
-        spatial_parameterisation.update_from_constitutive_parameter(
+        spatial_parameterisation.initialise_from_constitutive_parameter(
             ConstitutiveParameter(
                 known_parameter_maps[name],
-                ident.parameters[name].lower_bound,
-                ident.parameters[name].upper_bound,
+                ident_config.parameters[name].lower_bound,
+                ident_config.parameters[name].upper_bound,
             )
         )
 
@@ -183,7 +186,7 @@ def test_sbvf_metric_with_vfs_free():
 
     sbvf_metric.evaluate(
         stress_fe,
-        ident.constitutive_law,
+        ident_config.constitutive_law,
         parameter_map_size,
         metric_spatial_parameterisations,
         experiment_data,
@@ -198,7 +201,7 @@ def test_sbvf_metric_with_vfs_free():
     # homogeneous.
     # ------------------------------------------------------------------
     print("Running identification...")
-    identified_parameters = run_identification(experiment_data, ident)
+    identified_parameters = run_identification(experiment_data, ident_config)
 
     # Copy the internal/external virtual work from the metric's final evaluation
     # during the identification (i.e. at the identified parameters).
@@ -206,11 +209,11 @@ def test_sbvf_metric_with_vfs_free():
     evw_identified = sbvf_metric._external_virtual_work.copy()
 
     identified_maps = {
-        name: param.value for name, param in identified_parameters.items()
+        name: param.map for name, param in identified_parameters.items()
     }
 
     for name, param in identified_parameters.items():
-        print(f"{name} = {np.nanmean(param.value):.6f}")
+        print(f"{name} = {np.nanmean(param.map):.6f}")
 
     # ------------------------------------------------------------------
     # Test the performance of the metric: compare the SBVF metric evaluated with
@@ -287,8 +290,7 @@ def _setup_experiment_data() -> ExperimentData:
     )
 
 
-def _setup_identification(experiment_data: ExperimentData) -> Identification:
-
+def _setup_identification_config() -> IdentificationConfig:
     constitutive_law = IsotropicVonMisesElastoplasticity(LinearHardening())
 
     parameter_map_size = np.array([GRID_DIVS, GRID_DIVS], dtype=np.uint32)
@@ -324,4 +326,4 @@ def _setup_identification(experiment_data: ExperimentData) -> Identification:
         )
     ]
 
-    return Identification(constitutive_law, parameters, phases)
+    return IdentificationConfig(constitutive_law, parameters, phases)

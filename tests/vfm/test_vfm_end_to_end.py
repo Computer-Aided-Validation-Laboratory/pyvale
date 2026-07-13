@@ -91,10 +91,10 @@ def test_end_to_end_homogeneous() -> None:
     identified_parameters = run_identification(experiment_data, ident_config)
 
     for name, param in identified_parameters.items():
-        print(f"{name} = {np.nanmean(param.value):.6f}")
+        print(f"{name} = {np.nanmean(param.map):.6f}")
 
     identified_maps = {
-        name: param.value for name, param in identified_parameters.items()
+        name: param.map for name, param in identified_parameters.items()
     }
 
     known_parameter_maps = {
