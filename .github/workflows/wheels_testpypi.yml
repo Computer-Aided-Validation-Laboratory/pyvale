@@ -26,7 +26,7 @@ jobs:
           brew install libomp
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v4.0.0
         with:
           package-dir: .
           output-dir: wheelhouse
