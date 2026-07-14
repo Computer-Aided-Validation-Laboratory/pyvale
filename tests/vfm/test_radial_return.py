@@ -28,7 +28,7 @@
 #     """Build a simple linear-hardening material for the radial-return tests."""
 
 #     return MechanicalProperties(
-#         EConstituitiveLaw.LinearHardening,
+#         EConstituitiveLaw.HardeningLinear,
 #         {
 #             EParameterName.ElasticModulus: HomogeneousParameter(
 #                 bounds=ParameterBounds(1.0, 1.0e9),

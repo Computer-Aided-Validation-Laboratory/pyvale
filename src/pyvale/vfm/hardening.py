@@ -41,7 +41,7 @@ class IHardeningFunction(ABC):
 
 
 @dataclass(slots=True)
-class LinearHardening(IHardeningFunction):
+class HardeningLinear(IHardeningFunction):
     yield_strength_label: str
     hardening_modulus_label: str
 
@@ -84,7 +84,7 @@ class LinearHardening(IHardeningFunction):
 
 
 @dataclass(slots=True)
-class SwiftHardening(IHardeningFunction):
+class HardeningSwift(IHardeningFunction):
     strength_coefficient_label: str
     strain_offset_label: str
     hardening_exponent_label: str
@@ -150,7 +150,7 @@ class SwiftHardening(IHardeningFunction):
 
 
 @dataclass(slots=True)
-class VoceHardening(IHardeningFunction):
+class HardeningVoce(IHardeningFunction):
     yield_strength_label: str
     hardening_modulus_label: str
     saturation_stress_label: str
@@ -229,7 +229,7 @@ class VoceHardening(IHardeningFunction):
 
 
 @dataclass(slots=True)
-class LudwikHardening(IHardeningFunction):
+class HardeningLudwik(IHardeningFunction):
     yield_strength_label: str
     strength_coefficient_label: str
     hardening_exponent_label: str

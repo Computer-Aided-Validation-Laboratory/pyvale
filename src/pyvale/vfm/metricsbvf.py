@@ -43,7 +43,7 @@ class StressSensitivity:
 
 
 @dataclass(slots=True)
-class SensitivityBasedVirtualFieldsMetric(IMetric):
+class MetricSBVF(IMetric):
     mesh_size: npt.NDArray[np.uint32]
     # TODO: option to adjust fraction of largest timesteps used for
     #   calculating VF scaling factor

@@ -15,17 +15,17 @@ from pyvale.vfm.experimentdata import (
     ExperimentData,
     SpecimenGeometry,
 )
-from pyvale.vfm.hardening import LinearHardening
+from pyvale.vfm.hardening import HardeningLinear
 from pyvale.vfm.identification import run_identification
 from pyvale.vfm.identificationconfig import (
     IdentificationConfig,
     IdentificationPhase,
 )
-from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
+from pyvale.vfm.metricsbvf import MetricSBVF
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
-from pyvale.vfm.optimiserleastsquares import LeastSquares
+from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
 from pyvale.vfm.spatialparamhomogeneous import (
-    HomogeneousSpatialParameterisation,
+    SpatialParameterisationHomogeneous,
 )
 
 EXODUS_FILE_NAME = "out_hole2d_plas_32f.e"
@@ -46,7 +46,7 @@ PLOT_IDENTIFICATION_DIFF = False
 def test_end_to_end_homogeneous() -> None:
     experiment_data = _setup_experiment_data()
 
-    constitutive_law = IsotropicVonMisesElastoplasticity(LinearHardening())
+    constitutive_law = IsotropicVonMisesElastoplasticity(HardeningLinear())
 
     parameter_map_size = np.array([GRID_DIVS, GRID_DIVS], dtype=np.uint32)
 
@@ -65,19 +65,19 @@ def test_end_to_end_homogeneous() -> None:
         ),
     }
 
-    metric = SensitivityBasedVirtualFieldsMetric(np.array([15, 15]))
+    metric = MetricSBVF(np.array([15, 15]))
 
     phases = [
         IdentificationPhase(
             {
-                "elastic_modulus": [HomogeneousSpatialParameterisation()],
-                "poissons_ratio": [HomogeneousSpatialParameterisation()],
-                "yield_strength": [HomogeneousSpatialParameterisation()],
-                "hardening_modulus": [HomogeneousSpatialParameterisation()],
+                "elastic_modulus": [SpatialParameterisationHomogeneous()],
+                "poissons_ratio": [SpatialParameterisationHomogeneous()],
+                "yield_strength": [SpatialParameterisationHomogeneous()],
+                "hardening_modulus": [SpatialParameterisationHomogeneous()],
             },
             [metric],
             VectorFirstResultPassthrough(),
-            LeastSquares(),
+            OptimiserLeastSquares(),
         )
     ]
 

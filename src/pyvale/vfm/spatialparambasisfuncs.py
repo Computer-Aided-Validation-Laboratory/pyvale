@@ -33,7 +33,7 @@ class IBasisFunctionKernel(ABC):
 
 
 @dataclass(slots=True)
-class UnivariateBasisFunctionKernel(IBasisFunctionKernel):
+class BasisFunctionKernelUnivariate(IBasisFunctionKernel):
     x: float | DegreeOfFreedom
     y: float | DegreeOfFreedom
     height: float | DegreeOfFreedom
@@ -112,7 +112,7 @@ class UnivariateBasisFunctionKernel(IBasisFunctionKernel):
 
 
 @dataclass(slots=True)
-class BivariateBasisFunctionKernel(IBasisFunctionKernel):
+class BasisFunctionKernelBivariate(IBasisFunctionKernel):
     x: float | DegreeOfFreedom
     y: float | DegreeOfFreedom
     height: float | DegreeOfFreedom
@@ -223,7 +223,7 @@ class BivariateBasisFunctionKernel(IBasisFunctionKernel):
 #   prev parameter map
 # TODO: need a global floor term dof
 @dataclass(slots=True)
-class BasisFunctionSpatialParameterisation(ISpatialParameterisation):
+class SpatialParameterisationBasisFunction(ISpatialParameterisation):
     floor: float | DegreeOfFreedom | None = None
     kernels: list[IBasisFunctionKernel] = field(default_factory=list)
 

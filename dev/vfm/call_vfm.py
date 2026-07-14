@@ -12,19 +12,19 @@ from pyvale.vfm.experimentdata import (
     ExperimentData,
     SpecimenGeometry,
 )
-from pyvale.vfm.hardening import LinearHardening
+from pyvale.vfm.hardening import HardeningLinear
 from pyvale.vfm.identification import run_identification
 from pyvale.vfm.identificationconfig import (
     IdentificationConfig,
     IdentificationPhase,
 )
-from pyvale.vfm.metricsbvf import SensitivityBasedVirtualFieldsMetric
+from pyvale.vfm.metricsbvf import MetricSBVF
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
-from pyvale.vfm.optimiserleastsquares import LeastSquares
+from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
 from pyvale.vfm.spatialparamhomogeneous import (
-    HomogeneousSpatialParameterisation,
+    SpatialParameterisationHomogeneous,
 )
-from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
+from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 
 inputs_path = Path(__file__).resolve().parent / "inputs"
 
@@ -84,22 +84,22 @@ def main():
     phases = [
         IdentificationPhase(
             {
-                "elastic_modulus": [KnownSpatialParameterisation()],
-                "poissons_ratio": [KnownSpatialParameterisation()],
-                "yield_strength": [HomogeneousSpatialParameterisation()],
-                "hardening_modulus": [HomogeneousSpatialParameterisation()],
+                "elastic_modulus": [SpatialParameterisationKnown()],
+                "poissons_ratio": [SpatialParameterisationKnown()],
+                "yield_strength": [SpatialParameterisationHomogeneous()],
+                "hardening_modulus": [SpatialParameterisationHomogeneous()],
             },
             [
-                SensitivityBasedVirtualFieldsMetric(np.array([5, 10]))
+                MetricSBVF(np.array([5, 10]))
             ],
             VectorFirstResultPassthrough(),
-            LeastSquares(),
+            OptimiserLeastSquares(),
         )
     ]
 
     identification_config = IdentificationConfig(
         IsotropicVonMisesElastoplasticity(
-            LinearHardening()
+            HardeningLinear()
         ),
         parameters,
         phases

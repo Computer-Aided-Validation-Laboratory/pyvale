@@ -7,7 +7,7 @@ from plots import (
 )
 
 from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
-from pyvale.vfm.hardening import LinearHardening
+from pyvale.vfm.hardening import HardeningLinear
 
 PLOT_STRESS_RECON_ABS_DIFF = False
 PLOT_STRESS_RECON_ABS_PERC_DIFF = False
@@ -26,7 +26,7 @@ def test_stress_reconstruction():
     (x_grid, y_grid, strain) = load_strain(exodus_file_name, grid_divs)
     (x_grid, y_grid, stress_fe) = load_stress(exodus_file_name, grid_divs)
 
-    constitutive_law = IsotropicVonMisesElastoplasticity(LinearHardening())
+    constitutive_law = IsotropicVonMisesElastoplasticity(HardeningLinear())
 
     known_parameter_maps = {
         name: np.full((grid_divs, grid_divs), value)

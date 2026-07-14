@@ -29,7 +29,7 @@ from pyvale.vfm.spatialparam import (
 #   - max_nfev
 #   if we need these, should treat the below as a dataclass and
 #   take these options as inputs in construction
-class LeastSquares(IOptimiser):
+class OptimiserLeastSquares(IOptimiser):
     def get_required_objective_function_type(self) -> type:
         return IVectorObjectiveFunction
 
