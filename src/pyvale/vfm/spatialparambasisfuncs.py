@@ -15,6 +15,20 @@ from pyvale.vfm.normalisation import (
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 
+# Lower bound on a kernel's Gaussian feature size, expressed as a number of
+# data points. This sets the minimum allowed kernel variance. Exposed here as a
+# tunable knob (TODO: tune).
+MIN_FEATURE_SIZE_POINTS = 3
+
+# Upper bound on a kernel's Gaussian feature size, expressed as a multiple of
+# the domain diagonal. This sets the maximum allowed kernel variance. Exposed
+# here as a tunable knob (TODO: tune).
+MAX_FEATURE_SIZE_DOMAIN_MULTIPLE = 2.0
+
+CONVERGENCE_THRESHOLD = 0.01
+MAX_ADDITIONAL_KERNELS = 10
+
+
 @dataclass(slots=True)
 class BasisFunctionKernelUnivariate:
     x: float | DegreeOfFreedom
@@ -239,185 +253,48 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
     ) -> None:
         target_map = constitutive_parameter.map
 
-        # place initial basis function kernel in the center of the map
-        min_x = np.min(self.x)
-        max_x = np.max(self.x)
-        min_y = np.min(self.y)
-        max_y = np.max(self.y)
-
-        range_x = max_x - min_x
-        range_y = max_y - min_y
-
-        centre_x = min_x + (range_x / 2.0)
-        centre_y = min_y + (range_y / 2.0)
-
-        dof_x = DegreeOfFreedom(
-            centre_x,
-            min_x - (0.5 * range_x),
-            max_x + (0.5 * range_x)
-        )
-        dof_y = DegreeOfFreedom(
-            centre_y,
-            min_y - (0.5 * range_y),
-            max_y + (0.5 * range_y)
-        )
-
         constitutive_parameter_range = (
             constitutive_parameter.upper_bound
             - constitutive_parameter.lower_bound
         )
 
-        dof_height = DegreeOfFreedom(
-            float(np.mean(np.abs(target_map))),
-            -constitutive_parameter_range,
-            constitutive_parameter_range
-        )
-
-        variance_range = _compute_variance_range(self.x, self.y)
-
-        dof_variance = DegreeOfFreedom(
-            float(np.mean(variance_range)),
-            variance_range[0],
-            variance_range[1]
-        )
-
         self.kernels.append(
-            BasisFunctionKernelUnivariate(
-                dof_x,
-                dof_y,
-                dof_height,
-                dof_variance
-            )
-        )
-
-        prev_outer_rmspes = []
-        convergence_threshold_percentage = 1.0
-        max_additional_kernels = 10
-
-        for _ in range(max_additional_kernels):
-            # perform fitting on the existing kernels
-            updated_dofs = self.collect_degrees_of_freedom()
-            normalised_dofs = normalise_degrees_of_freedom(updated_dofs)
-
-            prev_rmspes = []
-            best_dofs = normalised_dofs.copy()
-            best_rmspe = _calc_rmspe_from_dofs(normalised_dofs, target_map, self)
-
-            def opt_callback(xk: npt.NDArray[np.float64]) -> None:
-                nonlocal best_rmspe, best_dofs
-                current_rmspe = _calc_rmspe_from_dofs(xk, target_map, self)
-
-                if prev_rmspes:
-                    percentage_change = (
-                        abs(current_rmspe - prev_rmspes[-1])
-                        / prev_rmspes[-1]
-                        * 100.0
-                    )
-                    if percentage_change < convergence_threshold_percentage:
-                        prev_rmspes.append(current_rmspe)
-
-                        if current_rmspe < best_rmspe:
-                            best_rmspe = current_rmspe
-                            best_dofs = xk.copy()
-
-                        raise StopIteration()
-
-                prev_rmspes.append(current_rmspe)
-
-                if current_rmspe < best_rmspe:
-                    best_rmspe = current_rmspe
-                    best_dofs = xk.copy()
-
-            try:
-                # TODO: maybe move to pattern search, or Powell
-                res = minimize(
-                    lambda x: _calc_rmspe_from_dofs(x, target_map, self),
-                    normalised_dofs,
-                    method="L-BFGS-B",
-                    bounds=Bounds(0.0, 1.0),
-                    callback=opt_callback
-                )
-                optimised_dofs = res.x
-            except StopIteration:
-                optimised_dofs = best_dofs
-
-            rmspe = _calc_rmspe_from_dofs(optimised_dofs, target_map, self)
-
-            if prev_outer_rmspes:
-                percentage_change = (
-                    abs(rmspe - prev_outer_rmspes[-1])
-                    / prev_outer_rmspes[-1]
-                    * 100.0
-                )
-                if percentage_change < convergence_threshold_percentage:
-                    prev_outer_rmspes.append(rmspe)
-                    break
-
-            prev_outer_rmspes.append(rmspe)
-
-            lower_bounds = []
-            upper_bounds = []
-
-            for dof in self.collect_degrees_of_freedom():
-                lower_bounds.append(dof.lower_bound)
-                upper_bounds.append(dof.upper_bound)
-
-            updated_dofs = denormalise_degrees_of_freedom(
-                optimised_dofs,
-                np.array(lower_bounds),
-                np.array(upper_bounds)
-            )
-
-            self.update_from_degrees_of_freedom(updated_dofs)
-
-            map = self.to_map(np.array(target_map.shape))
-
-            error_map = map - target_map
-
-            # TODO: what is the behaviour of this at the edges?
-            smoothed_error_map = uniform_filter(error_map, size=5)
-
-            abs_smoothed_error = np.abs(smoothed_error_map)
-            max_idx = np.unravel_index(
-                np.argmax(abs_smoothed_error), abs_smoothed_error.shape
-            )
-
-            # place a new univariate basis function at the centre
-            # of the highest error
-            centre_x = self.x[max_idx]
-            centre_y = self.y[max_idx]
-
-            dof_x = DegreeOfFreedom(
-                centre_x,
-                min_x - (0.5 * range_x),
-                max_x + (0.5 * range_x)
-            )
-            dof_y = DegreeOfFreedom(
-                centre_y,
-                min_y - (0.5 * range_y),
-                max_y + (0.5 * range_y)
-            )
-
-            dof_height = DegreeOfFreedom(
-                float(-error_map[max_idx]),
-                -constitutive_parameter_range,
+            self._initialise_kernal(
+                target_map,
                 constitutive_parameter_range
             )
+        )
 
-            dof_variance = DegreeOfFreedom(
-                float(np.mean(variance_range)),
-                variance_range[0],
-                variance_range[1]
-            )
+        self._fit_kernels(target_map)
 
+        rmse = _calc_rmse(
+            self.to_map(np.array(target_map.shape)),
+            target_map
+        )
+
+        if rmse < CONVERGENCE_THRESHOLD:
+            return
+
+        prev_rmses = []
+        for _ in range(MAX_ADDITIONAL_KERNELS):
             self.kernels.append(
-                BasisFunctionKernelUnivariate(
-                    dof_x,
-                    dof_y,
-                    dof_height,
-                    dof_variance
+                self._initialise_kernal(
+                    target_map,
+                    constitutive_parameter_range
                 )
             )
+
+            self._fit_kernels(target_map)
+
+            rmse = _calc_rmse(
+                self.to_map(np.array(target_map.shape)),
+                target_map
+            )
+
+            prev_rmses.append(rmse)
+
+            if rmse < CONVERGENCE_THRESHOLD:
+                return
 
         print("done")
 
@@ -426,12 +303,6 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         self,
         size: npt.NDArray[np.uint32]
     ) -> npt.NDArray[np.float64]:
-        if not self.kernels:
-            raise RuntimeError(
-                "self.kernels is empty, initialise_from_constitutive_parameter"
-                "must be called before to_map"
-            )
-
         parameter_map = np.zeros((size[0], size[1]), dtype=np.float64)
 
         for kernel in self.kernels:
@@ -537,48 +408,182 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
     def should_perform_refinement(self) -> bool:
         return False
 
+    def _fit_kernels(self, target_map: npt.NDArray[np.float64]) -> None:
+        dofs = self.collect_degrees_of_freedom()
+        normalised_dofs = normalise_degrees_of_freedom(dofs)
 
-def _calc_rmspe(
+        prev_rmses = []
+        converged_dofs = np.zeros_like(normalised_dofs)
+
+        def callback(xk: npt.NDArray[np.float64]) -> None:
+            if np.array_equal(xk, converged_dofs):
+                raise StopIteration()
+
+        try:
+            # TODO: maybe move to pattern search, or Powell
+            res = minimize(
+                lambda x: self._evaluate_dofs(
+                    x,
+                    target_map,
+                    prev_rmses,
+                    converged_dofs
+                ),
+                normalised_dofs,
+                method="L-BFGS-B",
+                bounds=Bounds(0.0, 1.0),
+                callback=callback
+            )
+            fitted_dofs = res.x
+        except StopIteration:
+            fitted_dofs = converged_dofs
+
+        lower_bounds = []
+        upper_bounds = []
+
+        for dof in self.collect_degrees_of_freedom():
+            lower_bounds.append(dof.lower_bound)
+            upper_bounds.append(dof.upper_bound)
+
+        updated_dofs = denormalise_degrees_of_freedom(
+            fitted_dofs,
+            np.array(lower_bounds),
+            np.array(upper_bounds)
+        )
+
+        self.update_from_degrees_of_freedom(updated_dofs)
+
+    def _evaluate_dofs(
+        self,
+        normalised_dofs: npt.NDArray[np.float64],
+        target_map: npt.NDArray[np.float64],
+        prev_rmses: list[float],
+        converged_dofs: npt.NDArray[np.float64],
+    ) -> float:
+        rmse = self._calc_rmse_from_dofs(normalised_dofs, target_map)
+
+        if prev_rmses:
+            reached_convergence_threshold = (
+                rmse
+                < (CONVERGENCE_THRESHOLD * prev_rmses[-1])
+            )
+
+            if reached_convergence_threshold:
+                converged_dofs[:] = normalised_dofs
+
+        prev_rmses.append(rmse)
+
+        return rmse
+
+    def _initialise_kernal(
+        self,
+        target_map: npt.NDArray[np.float64],
+        const_param_range: float,
+    ) -> BasisFunctionKernel:
+            min_x = np.min(self.x)
+            max_x = np.max(self.x)
+
+            min_y = np.min(self.y)
+            max_y = np.max(self.y)
+
+            range_x = max_x - min_x
+            range_y = max_y - min_y
+
+            map = self.to_map(np.array(target_map.shape))
+            diff_map = target_map - map
+
+            smoothed_diff_map = uniform_filter(diff_map, size=5)
+            abs_smoothed_diff_map = np.abs(smoothed_diff_map)
+
+            peak_idx = np.unravel_index(
+                np.argmax(abs_smoothed_diff_map), abs_smoothed_diff_map.shape
+            )
+
+            # Place kernel at the location of the peak map value
+            centre_x = self.x[peak_idx]
+            centre_y = self.y[peak_idx]
+
+            dof_x = DegreeOfFreedom(
+                centre_x,
+                min_x - (0.5 * range_x),
+                max_x + (0.5 * range_x)
+            )
+
+            dof_y = DegreeOfFreedom(
+                centre_y,
+                min_y - (0.5 * range_y),
+                max_y + (0.5 * range_y)
+            )
+
+            dof_height = DegreeOfFreedom(
+                float(diff_map[peak_idx]),
+                -const_param_range,
+                const_param_range
+            )
+
+            variance_range = _compute_variance_range(self.x, self.y)
+
+            # seed the variance from the small end of the range so kernels start
+            # narrow and grow only as needed
+            dof_variance = DegreeOfFreedom(
+                float(variance_range[0]),
+                variance_range[0],
+                variance_range[1]
+            )
+
+            return BasisFunctionKernelUnivariate(
+                dof_x,
+                dof_y,
+                dof_height,
+                dof_variance
+            )
+
+    def _calc_rmse_from_dofs(
+        self,
+        degrees_of_freedom: npt.NDArray[np.float64],
+        target_map: npt.NDArray[np.float64],
+    ) -> float:
+        lower_bounds = []
+        upper_bounds = []
+
+        for dof in self.collect_degrees_of_freedom():
+            lower_bounds.append(dof.lower_bound)
+            upper_bounds.append(dof.upper_bound)
+
+        dofs = denormalise_degrees_of_freedom(
+            degrees_of_freedom,
+            np.array(lower_bounds),
+            np.array(upper_bounds)
+        )
+
+        updated_parameterisation = deepcopy(self)
+        updated_parameterisation.update_from_degrees_of_freedom(dofs)
+
+        map = updated_parameterisation.to_map(
+            np.array(target_map.shape)
+        )
+
+        return _calc_rmse(map, target_map)
+
+
+def _calc_rmse(
     map: npt.NDArray[np.float64],
     target_map: npt.NDArray[np.float64]
 ) -> float:
-    return np.sqrt(np.mean(((target_map - map) / target_map) ** 2))
-
-
-def _calc_rmspe_from_dofs(
-    degrees_of_freedom: npt.NDArray[np.float64],
-    target_map: npt.NDArray[np.float64],
-    spatial_parameterisation: ISpatialParameterisation,
-) -> float:
-    lower_bounds = []
-    upper_bounds = []
-
-    for dof in spatial_parameterisation.collect_degrees_of_freedom():
-        lower_bounds.append(dof.lower_bound)
-        upper_bounds.append(dof.upper_bound)
-
-    dofs = denormalise_degrees_of_freedom(
-        degrees_of_freedom,
-        np.array(lower_bounds),
-        np.array(upper_bounds)
-    )
-
-    updated_parameterisation = deepcopy(spatial_parameterisation)
-    updated_parameterisation.update_from_degrees_of_freedom(dofs)
-
-    map = updated_parameterisation.to_map(
-        np.array(target_map.shape)
-    )
-
-    return _calc_rmspe(map, target_map)
+    # Normalise by the peak magnitude of the target rather than by the
+    # per-point target value. A per-point relative error is dominated by the
+    # near-zero background between features, which drives the optimiser to park
+    # kernels outside the domain (where they contribute nothing) instead of
+    # placing them on the features.
+    scale = np.max(np.abs(target_map))
+    if scale == 0.0:
+        scale = 1.0
+    return np.sqrt(np.mean(((target_map - map) / scale) ** 2))
 
 
 def _compute_variance_range(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64]
 ) -> npt.NDArray[np.float64]:
-    min_feature_size_pts = 3
-    max_feature_size_fraction = 0.5
     feature_threshold = 0.1
 
     dx = x[0, 1] - x[0, 0]
@@ -586,14 +591,17 @@ def _compute_variance_range(
 
     point_spacing = np.hypot(dx, dy)
 
-    min_feature_size = min_feature_size_pts * point_spacing
+    # smallest feature spans at least MIN_FEATURE_SIZE_POINTS data points
+    min_feature_size = MIN_FEATURE_SIZE_POINTS * point_spacing
 
     domain_diagonal = np.hypot(
         np.max(x) - np.min(x),
         np.max(y) - np.min(y)
     )
 
-    max_feature_size = max_feature_size_fraction * domain_diagonal
+    # largest feature can span several times the domain, allowing very broad
+    # (near-flat) kernels
+    max_feature_size = MAX_FEATURE_SIZE_DOMAIN_MULTIPLE * domain_diagonal
 
     threshold_factor = np.sqrt(-2.0 * np.log(feature_threshold))
 
