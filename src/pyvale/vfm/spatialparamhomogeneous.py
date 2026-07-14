@@ -74,3 +74,5 @@ class SpatialParameterisationHomogeneous(ISpatialParameterisation):
             if isinstance(self.value, DegreeOfFreedom):
                 self.value.value = degrees_of_freedom[0]
 
+    def should_perform_refinement(self) -> bool:
+        return False

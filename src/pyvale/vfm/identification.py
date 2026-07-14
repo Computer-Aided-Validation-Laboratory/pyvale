@@ -55,6 +55,14 @@ def run_identification(
                     experiment_data
                 )
 
+                # Optionally perform post-optimisation refinement of spatial
+                # parameterisation degrees of freedom on any spatial
+                # parameterisations that support it
+                for sps in phase.spatial_parameterisations.values():
+                    for sp in sps:
+                        if sp.should_perform_refinement():
+                            sp.perform_refinement()
+
                 # Update constitutive parameter maps from optimised spatial
                 # parameterisations
                 for param_name, sps in opt_spatial_parameterisations.items():

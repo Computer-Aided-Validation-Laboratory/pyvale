@@ -49,3 +49,6 @@ class SpatialParameterisationKnown(ISpatialParameterisation):
         degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64]
     ) -> None:
         return
+
+    def should_perform_refinement(self) -> bool:
+        return False

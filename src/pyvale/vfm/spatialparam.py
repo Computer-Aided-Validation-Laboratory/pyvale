@@ -95,7 +95,38 @@ class ISpatialParameterisation(ABC):
         ----------
         degrees_of_freedom : list[DegreeOfFreedom] | npt.NDArray[np.float64]
             New values for each degree of freedom, in the same order as
-            returned by `collect_degrees_of_freedom()`.
+            returned by `collect_degrees_of_freedom()`
+        """
+        pass
+
+    @abstractmethod
+    def should_perform_refinement(self) -> bool:
+        """
+        Evaluate whether refinement should be performed for this spatial
+        parameterisation.
+
+        Refinement is optional, so if a spatial parameterisation doesn't
+        support refinement this should return False.
+
+        Returns
+        -------
+        bool
+            True if refinement should be performed, False otherwise
+        """
+        pass
+
+    def perform_refinement(self) -> None:
+        """
+        Perform refinement on the spatial parameterisation's degrees of freedom.
+
+        Implementing this function is optional, hence it isn't marked as an
+        abstractmethod.
+
+        If this function is not implemented, `should_perform_refinement()`
+        should return False.
+
+        If this function is implemented, it will only be run if
+        `should_perform_refinement()` returns True.
         """
         pass
 
