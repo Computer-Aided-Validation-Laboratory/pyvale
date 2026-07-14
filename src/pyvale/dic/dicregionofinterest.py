@@ -146,10 +146,21 @@ class RegionOfInterest:
 
         # Create sidebar
         sidebar = self._create_sidebar(fill_array, temp_mask)
+        sidebar_widget = QtWidgets.QWidget()
+        sidebar_widget.setLayout(sidebar)
+        sidebar_widget.setFixedWidth(370)
+        sidebar_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Fixed,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
+        self.graphics_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
         
         # Create graphics widget
-        main_layout.addLayout(sidebar)
-        main_layout.addWidget(self.graphics_widget)
+        main_layout.addWidget(sidebar_widget)
+        main_layout.addWidget(self.graphics_widget, stretch=1)
 
         return fill_array, temp_mask
 
