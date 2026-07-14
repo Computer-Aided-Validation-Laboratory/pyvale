@@ -151,7 +151,7 @@ void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
         }
 
         // either use max_num_neigh or size of list if less than max_num_neigh
-        int num_neigh = std::min(max_num_neigh, dist_index_list.size());
+        size_t num_neigh = std::min(max_num_neigh, dist_index_list.size());
 
         // can't find any neighbours.
         if (num_neigh == 0){
@@ -166,9 +166,14 @@ void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
             continue;
         }
 
-        num_neigh_list[ss] = num_neigh;
-        std::nth_element(dist_index_list.begin(), dist_index_list.begin() + num_neigh, dist_index_list.end());
-        dist_index_list.resize(num_neigh);
+        if (dist_index_list.size() > num_neigh) {
+            std::nth_element(dist_index_list.begin(),
+                             dist_index_list.begin() + num_neigh,
+                             dist_index_list.end());
+            dist_index_list.resize(num_neigh);
+        }
+
+        num_neigh_list[ss] = static_cast<int>(num_neigh);
 
         // Store neighbours indices into neighlist
         for (size_t i = 0; i < num_neigh; ++i) {
@@ -213,6 +218,10 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         // consts
         const int num_ss = layout.num;
 
+        if (layout.num == 0 || layout.active_total == 0) {
+            return;
+        }
+
         // set all displacements for multiwindow level to 0
         std::fill(u.begin(), u.end(), 0.0);
         std::fill(v.begin(), v.end(), 0.0);
@@ -224,7 +233,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
 
 
         auto run_fft_loop = [&](auto &fft) {
-            #pragma omp for schedule(dynamic,10)
+            #pragma omp for
             for (int ss = 0; ss < layout.num; ss++){
 
                 // exit when ctrl+C
@@ -409,6 +418,10 @@ void WindowLevel::remove_outliers_vector(
     double corr_power,
     double eps)
 {
+    if (max_val.empty() || u.empty() || v.empty()) {
+        return;
+    }
+
     std::vector<double> u_new = u;
     std::vector<double> v_new = v;
 
