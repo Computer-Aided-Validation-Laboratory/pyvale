@@ -280,9 +280,9 @@ def read_binary_3d(file: str, delimiter: str, debug_level: int = 1):
         raw = f.read()
 
     row_size = (
-        4 * 4 +   # int32: ss_x, ss_y, stereo uses same grid (2 ints total here actually but packed in 4 ints total due to second block)
-        2 * 1 +   # uint8: conv, stereo.conv
-        22 * 8    # all doubles
+        4 * 4 +   # int32: ss_x, ss_y, niter, stereo_niter
+        2 * 1 +   # uint8: conv, stereo_conv
+        18 * 8    # double fields written by ResultArrays::write_to_disk_stereo
     )
 
     file_size = len(raw)

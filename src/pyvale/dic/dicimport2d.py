@@ -143,72 +143,50 @@ def import_2d(data: str | Path | list[Path],
 
 def read_binary(file: str, delimiter: str, debug_level: int=1):
     """
-    Read a binary DIC result file and extract DIC fields.
+    Read a binary 2D DIC result file and extract DIC fields.
 
-    Assumes a fixed binary structure with each row containing:
-    - 2 × int32 (subset coordinates)
-    - 6 × float64 (u, v, match quality, cost, ftol, xtol)
-    - 1 × int32 (number of iterations)
-    - 1 × uint8 (convergence flag) 
-    - 2 or 6 × float64 (shape parameters)
-
-    Parameters
-    ----------
-    file : str
-        Path to the binary result file.
-
-    delimiter : str
-        Ignored for binary data (included for API consistency).
-
-    Returns
-    -------
-    tuple of np.ndarray
-        Arrays corresponding to:
-        (ss_x, ss_y, u, v, m, cost, ftol, xtol, niter)
-
-    Raises
-    ------
-    ValueError
-        If the binary file size does not align with expected row size.
+    Supports rows written by ``ResultArrays::write_to_disk_2d`` with or without
+    optional shape parameters. Shape parameters are currently ignored by the
+    public ``Results`` dataclass.
     """
-   
+
+    del delimiter
+
     if debug_level>0:
         common_py_util.info(f"Reading binary DIC result file: {file}")
 
-    # row size can either be 3×4 + 6×8 + 1 = 61 bytes (without shape params)
-    # or 3×4 + 6×8 + 1 + 6×8 = 109 bytes (with shape params)
     with open(file, "rb") as f:
         raw = f.read()
 
-    row_size_basic = 3 * 4 + 6 * 8 + 1           # 61 bytes
+    row_size_basic = 2 * 4 + 3 * 8 + 1 + 3 * 8 + 4
+    row_sizes = [row_size_basic + nparams * 8 for nparams in (12, 6, 2, 0)]
 
-    file_size = len(raw)
-
-    if file_size % row_size_basic != 0:
+    row_size = next((size for size in row_sizes if len(raw) % size == 0), None)
+    if row_size is None:
         raise ValueError(
             f"Binary file has incomplete rows: {file}. "
-            f"Expected row size: 61, "
-            f"Actual size: {len(raw)} bytes."
+            f"Expected row size one of {row_sizes}, actual size: {len(raw)} bytes."
         )
 
-    rows = file_size // row_size_basic
-    arr = np.frombuffer(raw, dtype=np.uint8).reshape(rows, row_size_basic)
+    rows = len(raw) // row_size
+    arr = np.frombuffer(raw, dtype=np.uint8).reshape(rows, row_size)
 
-    def extract(col, dtype, start):
-        return np.frombuffer(arr[:, start:start+col].copy(), dtype=dtype)
+    def extract(width, dtype, start):
+        return np.frombuffer(arr[:, start:start + width].copy(), dtype=dtype)
 
-    ss_x  = extract(4, np.int32, 0)
-    ss_y  = extract(4, np.int32, 4)
-    u     = extract(8, np.float64, 8)
-    v     = extract(8, np.float64, 16)
-    m     = extract(8, np.float64, 24)
-    conv  = extract(1, np.uint8, 32).astype(bool)
-    cost  = extract(8, np.float64, 33)
-    ftol  = extract(8, np.float64, 41)
-    xtol  = extract(8, np.float64, 49)
-    niter = extract(4, np.int32, 57)
+    offset = 0
+    ss_x = extract(4, np.int32, offset); offset += 4
+    ss_y = extract(4, np.int32, offset); offset += 4
+    u = extract(8, np.float64, offset); offset += 8
+    v = extract(8, np.float64, offset); offset += 8
+    mag = extract(8, np.float64, offset); offset += 8
+    conv = extract(1, np.uint8, offset).astype(bool); offset += 1
+    cost = extract(8, np.float64, offset); offset += 8
+    ftol = extract(8, np.float64, offset); offset += 8
+    xtol = extract(8, np.float64, offset); offset += 8
+    niter = extract(4, np.int32, offset)
 
-    return ss_x, ss_y, u, v, m, conv, cost, ftol, xtol, niter
+    return ss_x, ss_y, u, v, mag, conv, cost, ftol, xtol, niter
 
 
 
