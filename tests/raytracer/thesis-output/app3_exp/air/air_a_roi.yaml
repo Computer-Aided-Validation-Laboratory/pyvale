@@ -1,0 +1,8 @@
+- type: RectROI
+  pos:
+  - 364
+  - 55
+  size:
+  - 236
+  - 527
+  add: true

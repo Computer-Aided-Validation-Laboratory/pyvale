@@ -331,7 +331,7 @@ def uv_unwrap(fallback=False):
 # ================================================================================
 #calplate_dict_names = ["quad4_calplate3d", "quad8_calplate3d", "quad9_calplate3d", "tri3_calplate3d", "tri6_calplate3d"]
 
-def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False, crop_px: bool = False):
+def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False, crop_px: bool = False, frame_idx: int | None = None):
     # 1. Camera and output settings
     pet_height = 51 # mm
     pet_displacement = 2 # mm; we don't really use it in practice, but it is to mock some tiny experimental ROI
@@ -435,20 +435,32 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False,
 
     # 6. Render
     if crop_px:
-        vertical_crop_px = 30 # per side
-        horizontal_crop_px = 25 # per side
-        y_offset = scale * vertical_crop_px
+        if test_case == TestCaseApp.WATER:
+            vertical_crop_top_px = 20 # per side
+            vertical_crop_bottom_px = 35 # per side
+            horizontal_crop_px = 10 # per side
+        else:
+            vertical_crop_top_px = 30 # per side
+            vertical_crop_bottom_px = 35 # per side
+            horizontal_crop_px = 25 # per side
+        y_offset = scale * vertical_crop_top_px
         x_offset = scale * horizontal_crop_px
         camera_target = np.array([x_offset, -y_offset, target_distance])
         camera_center = np.array([x_offset, -y_offset, camera_distance])
         cam = Camera(image_width, image_height, camera_center, camera_target, angle_vertical_view)
-        image_height = image_height - 2 * vertical_crop_px
+        image_height = image_height - vertical_crop_top_px - vertical_crop_bottom_px
         image_width = image_width - 2 * horizontal_crop_px
     scene.add_camera(cam)
-    render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.DYNAMIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    if frame_idx is None:
+        render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.DYNAMIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+    else:
+        target_path = test_dir(BASE_TEST_DIR, base_data_dir + f"/frame_{frame_idx}")
+        if frame_idx <= 9:
+            render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, frames_to_render=frame_idx, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
+        else:
+            raise ValueError(f"Wrong frame index: {frame_idx}")
 
-
-#rmb_test(TestCaseApp.PIPE, aa_samples=2**0, fallback=False, crop_px=True)
+#rmb_test(TestCaseApp.WATER, aa_samples=2**0, fallback=False, crop_px=True, frame_idx = 2)
 
 # ================================================================================
 # DIC
@@ -501,7 +513,7 @@ def run_dic_rmb(test_case: TestCaseApp, save_plot: bool = True, convert_to_mm: b
         dic.calculate_2d(reference=ref_img,
                         deformed=def_images,
                         roi_mask=roi.mask,
-                        seed=[123, 99],
+                        seed=[123, 99], # Works for both pipe and air
                         subset_size=SUBSET_SIZE,
                         subset_step=STEP_SIZE,
                         shape_function="AFFINE",
@@ -556,4 +568,4 @@ def run_dic_rmb(test_case: TestCaseApp, save_plot: bool = True, convert_to_mm: b
         if save_plot:
             fig.savefig(target_path  / figure_filename, dpi=300, bbox_inches="tight")
         
-#run_dic_rmb(TestCaseApp.AIR_DIFFUSE, True, False)
+#run_dic_rmb(TestCaseApp.WATER, True, False)

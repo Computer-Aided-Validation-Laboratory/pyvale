@@ -162,7 +162,8 @@ class SceneVisualiser:
         """
         if not isinstance(rtmesh, RTMesh):
             raise TypeError("Meshes must be of type RTMesh")
-        v_mesh = vedo.Mesh(rtmesh.pyvista_surface).c("silver").lw(0.1)
+        random_color = list(np.random.random(size=3) * 256)  # Random color to distinguish between different saved edges
+        v_mesh = vedo.Mesh(rtmesh.pyvista_surface).c(random_color).lw(0.1)
         self.vmeshes.append(v_mesh) # List of Vedo meshes, so we can always erase the scene if we want to
         self.plotter.add(v_mesh)
         v_mesh.lighting('off')
@@ -352,9 +353,11 @@ class SceneVisualiser:
                 f"  Translation vector : {self.translation_vector}\n"
                 f"────────────────────────────────────────────────")
             # Translate the RTMesh
+            old_color = self.vmeshes[moved_mesh_idx].color()
             self.rtmeshes[moved_mesh_idx].translate(self.translation_vector)
             # This updates the pyvista surface used to create the vedo vmesh, so we need to update it
-            new_vmesh = vedo.Mesh(self.rtmeshes[moved_mesh_idx].pyvista_surface).c("silver").lw(0.1)
+            new_vmesh = vedo.Mesh(self.rtmeshes[moved_mesh_idx].pyvista_surface).c(old_color).lw(0.1)
+            new_vmesh.lighting("off")
             self.plotter.remove(self.vmeshes[moved_mesh_idx]) # Remove old vedo mesh
             self.plotter.add(new_vmesh) # Add new vedo mesh to the plotter
             self.vmeshes[moved_mesh_idx] = new_vmesh # Replace with new vedo mesh

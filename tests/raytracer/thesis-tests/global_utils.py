@@ -67,6 +67,7 @@ def iter_elements_plot_order():
 # Plot settings
 FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22, "ticks": 13, "subplot_labels": 16, "legend": 15}
 FIGURE_SIZE = (12, 10)
+FIGURE_SIZE_LONG = (12, 14)
 FIGURE_SIZE_STACKED_HOR = (12, 16)
 FIGURE_SIZE_DOUBLE_CMAP = (15,10)
 FIGURE_SIZE_SINGLE_CMAP = (8,10)

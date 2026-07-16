@@ -200,7 +200,7 @@ def plot_node_disp_component(plate_rtmesh: RTMesh,
     plotter.view_xy()
     plotter.enable_parallel_projection()
 
-    fname = output_path / f"node_disp_{component}_t{timestep}.svg"
+    fname = output_path / f"node_disp_{component}_t{timestep}.pdf"
     plotter.save_graphic(fname, title=f"FEA {component} {unit}", raster=True)
     plotter.close()
 
@@ -251,14 +251,20 @@ def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = Fa
         camera_target = np.array([0, camera_y_position, target_distance])
         camera_center = np.array([0, camera_y_position, camera_distance])
     else:
-        # We need to move the camera if we chop the image to keep our sample centered
-        # Offset calculations:
-        # y offset: shift by 40 px down * 0.0390625 (px/mm scale) = 1.5625
-        # x offset: shift 160 px right * 0.0390625 (px/mm scale) = 6.25
+        if test_case == TestCaseApp.WATER:
+            crop_vertical = 20
+            crop_horizontal = 20
+        else:
+            crop_vertical = 40
+            crop_horizontal = 160
+        # y offset: shift by n px down * 0.0390625 (px/mm scale)
+        camera_y_offset = crop_vertical * 0.0390625
+        # x offset: shift m px right * 0.0390625 (px/mm scale)
+        camera_x = crop_horizontal * 0.0390625
         # Texture and everything else remain scaled exactly the same way. Win-win
-        camera_y_position = camera_y_position - 1.5625 # Lower the y-position of the camera to match that of the plate
-        camera_target = np.array([6.25, camera_y_position, target_distance])
-        camera_center = np.array([6.25, camera_y_position, camera_distance])
+        camera_y_position = camera_y_position - camera_y_offset # Lower the y-position of the camera to match that of the plate
+        camera_target = np.array([camera_x, camera_y_position, target_distance])
+        camera_center = np.array([camera_x, camera_y_position, camera_distance])
 
     angle_vertical_view = vertical_fov_from_sensor(sensor_height=sensor_height_mm, focal_length=focal_length)
     cam = Camera(image_width, image_height, camera_center, camera_target, angle_vertical_view)
@@ -331,8 +337,8 @@ def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = Fa
     if render:
         if crop_px:
             # Adjust rendered image size (but none of the scene dimensions) to chop a few px off to save on render time, while getting the same exact output for ROI
-            image_width = image_width_phs6 - 2 * 160 # px
-            image_height = image_width_phs6 - 2 * 40# px;
+            image_width = image_width_phs6 - 2 * crop_horizontal
+            image_height = image_width_phs6 - 2 * crop_vertical
         render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
         new_filename = "rtimage_frame0.bmp"
         os.rename(target_path.joinpath(fresh_filename), target_path.joinpath(new_filename))
@@ -376,4 +382,4 @@ def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = Fa
                     convert_to_mm=True, ux_limits=ux_limits, uy_limits=uy_limits)
 
 # Run 3 cases, then shove them into DIC engine, that's it
-#plate_test(TestCaseApp.PIPE, 2**0, render = True, plot = False, crop_px=True)
+plate_test(TestCaseApp.PIPE, 2**0, render = False, plot = True, crop_px=True)

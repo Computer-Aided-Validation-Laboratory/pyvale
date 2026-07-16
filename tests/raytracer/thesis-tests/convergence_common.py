@@ -453,7 +453,7 @@ def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = F
     #ax.set_title("Subsampling for high resolution/low resolution", fontsize=FONT_SIZES["suptitle"]) # If you want a title
     ax_bottom.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
     ax.set_ylabel("RMSE [GL]", fontsize=FONT_SIZES["axis_labels"])
-    ax_bottom.set_ylabel("Maximum absolute error [GL]", fontsize=FONT_SIZES["axis_labels"])
+    ax_bottom.set_ylabel("Maximum absolute error (MaxAE) [GL]", fontsize=FONT_SIZES["axis_labels"])
     # Format the y-axis as by default it just shows orders of magnitude
     ax.yaxis.set_major_formatter(mticker.NullFormatter())
     ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
@@ -541,7 +541,7 @@ def plot_results_subplots(test_case: TestCase, resolution: Resolution, rmse: boo
         filename = filename + "_rmse.png"
     else:
         data_index = 3
-        y_label = "Maximum absolute error [GL]"
+        y_label = "Maximum absolute error (MaxAE) [GL]"
         filename = filename + "_maxae.png"
 
     # Define subplot layout
@@ -817,7 +817,7 @@ def plot_results_blender(test_case: TestCase, resolution: Resolution, time: bool
         filename = f"8b_{test_case.value}_{resolution.value}_blender_convergence_plot.png"
     else:
         base_data_dir = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
-        filename = f"8b_{test_case.value}_{resolution.value}_blender_convergence_plot.png"
+        filename = f"{test_case.value}_{resolution.value}_blender_convergence_plot.png"
 
     elem_dir_name = base_data_dir + Elements.TRI3.label
     target_path = test_dir(BASE_TEST_DIR, base_data_dir)
@@ -962,7 +962,7 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
         base_data_dir_rt = "convergence_rt/8bit/res_" + str(resolution.value) + "/" + test_case.value + "/"
     else:
         # Data paths
-        base_data_dir_b = "convergence_blender/8bit/res_" + str(resolution.value) + "/" + test_case.value + "/"
+        base_data_dir_b = "convergence_blender/res_" + str(resolution.value) + "/" + test_case.value + "/"
         base_data_dir_rt = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value + "/"
     
     # Full-scale maxima for normalization (if not 8-bit)
@@ -973,9 +973,14 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     target_path = test_dir(BASE_TEST_DIR, base_data_dir_b)
     suffix = "_pct" if as_percent else ""
     if eight_bit:
-        filename = f"8b_{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot{suffix}.png"
+        filename = f"8b_{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot"
     else:
-        filename = f"{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot{suffix}.png"
+        filename = f"{test_case.value}_{resolution.value}_blender_rt_single_convergence_plot"
+
+    if rmse:
+        filename = filename + f"_rmse{suffix}.png"
+    else:
+        filename = filename + f"_maxae{suffix}.png"
 
     # Blender data path
     elem_dir_name_b = base_data_dir_b + Elements.TRI3.label
@@ -1008,10 +1013,13 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
             elem_data_rt[data_index] = elem_data_rt[data_index] / RT_MAX * scale
             elem_data_b[data_index] = elem_data_b[data_index] / BLENDER_MAX * scale
             y_unit = "%" if as_percent else "fraction of full scale"
-            ax.set_ylabel(f"NRMSE [{y_unit}]", fontsize=FONT_SIZES["axis_labels"])
+            if eight_bit:
+                ax.set_ylabel(f"RMSE [{y_unit}]", fontsize=FONT_SIZES["axis_labels"])
+            else:
+                ax.set_ylabel(f"NRMSE [{y_unit}]", fontsize=FONT_SIZES["axis_labels"])
     else:
         data_index = 3
-        ax.set_ylabel(f"Maximum absolute error [GL]", fontsize=FONT_SIZES["axis_labels"])
+        ax.set_ylabel(f"Maximum absolute error (MaxAE) [GL]", fontsize=FONT_SIZES["axis_labels"])
         # No scaling here (we care if it's within 1 bit or not), so display ceiling instead
         #ax.axhline(y=BLENDER_MAX, color=blender_color, linestyle="--", linewidth=2)
         #ax.axhline(y=RT_MAX, color=rt_color, linestyle="--", linewidth=2)
@@ -1028,13 +1036,13 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     min_x_rt = elem_data_rt[1][min_idx_rt]
     min_x_b = elem_data_b[1][min_idx_b]
 
-    title = (f"Ray tracer and Blender convergence for TRI3\n"
+    title = (f"RayTracer and Blender convergence for TRI3\n"
         f"Test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution")
     ax.set_title(title, fontsize=FONT_SIZES["suptitle"])
 
     ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
     
-    ax.yaxis.set_major_formatter(mticker.NullFormatter())
+    #ax.yaxis.set_major_formatter(mticker.NullFormatter())
     ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
     ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"])
 
@@ -1043,9 +1051,9 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     ax.xaxis.set_minor_locator(mticker.NullLocator())
     ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
 
-    # Ray tracer
+    # RayTracer
     ax.plot(elem_data_rt[1], elem_data_rt[data_index],
-        label="Ray tracer",
+        label="RayTracer",
         color=rt_color,
         marker="o",
         linestyle="-",
@@ -1069,14 +1077,15 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
 
     # Report the minimum values on the plot
     unit_str = "%" if as_percent and rmse else ""
-    quantity_str = "Min NRMSE:" if rmse else "Min MaxAE:"
+    rmse_str = "Min RMSE:" if eight_bit else "Min NRMSE:"
+    quantity_str = rmse_str if rmse else "Min MaxAE:"
 
     line1 = TextArea(quantity_str,
         textprops=dict(color="black", fontsize=FONT_SIZES["legend"], ha="left"))
 
     line2 = HPacker(
         children=[
-            TextArea("Ray tracer: ", textprops=dict(color=rt_color, fontsize=FONT_SIZES["legend"])),
+            TextArea("RayTracer: ", textprops=dict(color=rt_color, fontsize=FONT_SIZES["legend"])),
             TextArea(f"{min_val_rt:.3g}{unit_str} at {format_spp_as_power_of_2(min_x_rt)} spp",
                      textprops=dict(color="black", fontsize=FONT_SIZES["legend"])),
         ],
@@ -1115,6 +1124,96 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     if save:
         fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
 
+
+def plot_results_blender_rt_time(save: bool = False, show: bool = False):
+    test_cases = [TestCase.AIR_DIFFUSE, TestCase.AIR_UNLIT]
+    resolutions = [Resolution.LOW, Resolution.HIGH]
+
+    filename = "8b_blender_rt_time_plot.png"
+
+    fig, axs = plt.subplots(2, 2, figsize=FIGURE_SIZE_LONG, sharex=True, sharey=False, squeeze=False)
+
+    rt_color = Elements.TRI3.color
+    blender_color = Elements.TRI6.color
+
+    for i, resolution in enumerate(resolutions):
+        for j, test_case in enumerate(test_cases):
+            ax = axs[i, j]
+
+            base_data_dir_b = (f"convergence_blender/8bit/res_{resolution.value}/{test_case.value}/")
+            base_data_dir_rt = (f"convergence_rt/8bit/res_{resolution.value}/{test_case.value}/")
+
+            elem_dir_name_b = base_data_dir_b + Elements.TRI3.label
+            elem_dir_name_rt = base_data_dir_rt + Elements.TRI3.label
+
+            data_path_b = test_dir(BASE_TEST_DIR, elem_dir_name_b) / "cpu_render_time_log.csv"
+            data_path_rt = test_dir(BASE_TEST_DIR, elem_dir_name_rt) / "render_time_log.csv"
+
+            elem_data_b = np.loadtxt(data_path_b, delimiter=",", skiprows=1, unpack=True)
+            elem_data_rt = np.loadtxt(data_path_rt, delimiter=",", skiprows=1, unpack=True)
+
+            ax.plot(elem_data_rt[0], elem_data_rt[1],
+                label="RayTracer",
+                color=rt_color,
+                marker="o",
+                linestyle="-",
+                linewidth=3,
+                markersize=10)
+
+            ax.plot(elem_data_b[0], elem_data_b[1],
+                label="Blender Cycles",
+                color=blender_color,
+                marker="s",
+                linestyle="-",
+                linewidth=3,
+                markersize=10)
+
+            ax.set_xscale("log")
+            ax.xaxis.set_minor_locator(mticker.NullLocator())
+            ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+            ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+            ax.tick_params(axis="y", which="both", labelsize=FONT_SIZES["ticks"])
+            ax.grid(visible=True, which="both", axis="both")
+
+            # Use subsamples for x ticks, not render times
+            label_x = np.unique(np.concatenate((elem_data_rt[0], elem_data_b[0])))
+            ax.set_xticks(label_x)
+            ax.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+
+            # Column titles on top row only
+            if i == 0:
+                ax.set_title(test_case.value, fontsize=FONT_SIZES["suptitle"])
+
+            # Row labels on left column only
+            #if j == 0:
+                #ax.set_ylabel(f"{resolution.value}\nRender time (s)", fontsize=FONT_SIZES["axis_labels"])
+
+            # Only bottom row gets x-labels if you prefer local labels
+            #if i == len(resolutions) - 1:
+                #ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+
+            ax.label_outer()
+
+    fig.suptitle("RayTracer and Blender render time for TRI3", fontsize=FONT_SIZES["suptitle"])
+    fig.supxlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"], y=0.07, x=0.55)
+    fig.supylabel("CPU render time [s]", fontsize=FONT_SIZES["axis_labels"], x=0.07)
+
+    handles, labels = axs[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper right", ncol=1, fontsize=FONT_SIZES["legend"], frameon=True)
+
+    fig.text(1.01, 0.73, "128 x 128 px", va="center", rotation="vertical",
+         fontsize=FONT_SIZES["axis_labels"])
+    fig.text(1.01, 0.29, "1024 x 1024 px", va="center", rotation="vertical",
+            fontsize=FONT_SIZES["axis_labels"])
+
+    plt.tight_layout(rect=[0.04, 0.04, 1.0, 0.98])
+
+    target_path = test_dir(BASE_TEST_DIR,f"convergence_blender/8bit")
+
+    if show:
+        plt.show()
+    if save:
+        fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
 
 # ================================================================================
 # Relative error distributions
@@ -1422,7 +1521,7 @@ def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blend
         subsamples_min, subsamples_max = _get_min_max_subsamples(elem_path, base_image_file)
         fill_convergence_log(Elements.TRI3, test_case, resolution, subsamples_min, subsamples_max, True, eight_bit)
         try:
-            plot_results_blender(test_case, resolution, False, True, False, eight_bit)
+            plot_results_blender(test_case, resolution, False, True, False,  eight_bit)
         except Exception as e: # Likely missing enough data for plots, so we just skip them
             print(f"Error plotting the results: {e}.\nLikely from missing sufficient data for some elements. Plotting skipped.")
         return
@@ -1444,8 +1543,7 @@ def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blend
         print(f"Error plotting the results: {e}.\nLikely from missing sufficient data for some elements. Plotting skipped.")
 
 
-#fill_all_convergence_logs(TestCase.TRI3, Resolution.LOW, blender=False)
-#fill_convergence_log(Elements.TRI3, TestCase.TANK, Resolution.LOW, 1, 16384, False, True)
+#fill_all_convergence_logs(TestCase.WATER, Resolution.HIGH, blender=False, eight_bit=False)
 
 #get_roi(TestCase.AIR_UNLIT)
 
@@ -1457,10 +1555,15 @@ def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blend
 #check_difference(Elements.QUAD9, TestCase.AIR_DIFFUSE, Resolution.HIGH, 524288, 1048576)
 
 #plot_results_blender(TestCase.TANK, Resolution.LOW, False, True, True)
-#plot_results_blender_rt_single(TestCase.TANK, Resolution.LOW, save=True, show=True, rmse=False, eight_bit=True)
+#plot_results_blender_rt_single(TestCase.AIR_DIFFUSE, Resolution.HIGH, save=True, show=True, rmse=False, eight_bit=False)
+#plot_results_blender_rt_single(TestCase.AIR_DIFFUSE, Resolution.HIGH, save=True, show=True, rmse=True, eight_bit=False)
+
 
 
 # From 2**14 (16k) to 2**18 (262k) for Blender
 #plot_relative_error_distribution(TestCase.AIR_UNLIT, Resolution.HIGH, subsamples_1 = 2**14, subsamples_2=2**15, blender=True, save=True, show=True)
 
 #plot_relative_error_distribution(TestCase.AIR_DIFFUSE, Resolution.HIGH, subsamples_1 = 2**17, subsamples_2=2**18, blender=False, save=True, show=True, element=Elements.TRI3)
+
+
+plot_results_blender_rt_time(True, False)
