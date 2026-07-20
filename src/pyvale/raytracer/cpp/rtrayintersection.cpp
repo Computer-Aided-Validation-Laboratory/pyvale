@@ -555,10 +555,10 @@ IntersectionOutput intersect_bvh_quad9(const Ray& ray,
         }
     }
 
-    // Pack output: (u, v, 0) with u = (xi+1)/2, v = (eta+1)/2
+    // Pack output: (xi, eta, 0)
     Eigen::ArrayXXd quad_coords = Eigen::ArrayXXd::Zero(bvh_node_quad_count, NODE_COORDINATES);
-    quad_coords.col(0) = 0.5 * (xi_values.col(0)  + 1.0);
-    quad_coords.col(1) = 0.5 * (eta_values.col(0) + 1.0);
+    quad_coords.col(0) = xi_values.col(0);
+    quad_coords.col(1) = eta_values.col(0) + 1.0;
     // Column 2 left at 0
 
     return IntersectionOutput{ quad_coords, geometric_normals, t_values };
@@ -777,8 +777,8 @@ IntersectionOutput intersect_bvh_quad8(const Ray& ray,
     }
 
     Eigen::ArrayXXd quad_coords = Eigen::ArrayXXd::Zero(bvh_node_quad_count, NODE_COORDINATES);
-    quad_coords.col(0) = 0.5 * (xi_values.col(0)  + 1.0);
-    quad_coords.col(1) = 0.5 * (eta_values.col(0) + 1.0);
+    quad_coords.col(0) = xi_values.col(0);
+    quad_coords.col(1) = eta_values.col(0);
 
     return IntersectionOutput{ quad_coords, geometric_normals, t_values };
 }

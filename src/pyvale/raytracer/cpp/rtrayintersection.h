@@ -163,12 +163,9 @@ void overwrite_intersection_quad8(HitRecord& intersection_record,
     const Texture& texture,
     Eigen::Index min_row_idx) 
 {
-    // Interpolation coordinates from the ray-quad intersection; u,v in [0,1]
-    const double u = intersection_record.elem_interp_coords(0);
-    const double v = intersection_record.elem_interp_coords(1); 
-    // Map from [0,1] (typical for (u,v)) to [-1, 1] (typical for FEM shape functions)
-    const double xi = 2.0 * u - 1.0;
-    const double eta = 2.0 * v - 1.0;
+    // Interpolation coordinates from the ray-quad intersection; xi, eta in [-1, 1]
+    const double xi = intersection_record.elem_interp_coords(0);
+    const double eta = intersection_record.elem_interp_coords(1); 
      // Shape functions (weights) for QUAD8
     std::array<double, ElementNodeCount::QUAD8> shape_weights = shapefuncs::compute_shape_quad8(xi, eta);
     
@@ -259,13 +256,10 @@ void overwrite_intersection_quad9(HitRecord& intersection_record,
     const Texture& texture,
     Eigen::Index min_row_idx) 
 {
-    // Interpolation coordinates from the ray-quad intersection; u,v in [0,1]
-    const double u = intersection_record.elem_interp_coords(0);
-    const double v = intersection_record.elem_interp_coords(1); 
-    // Map from [0,1] (typical for (u,v)) to [-1, 1] (typical for FEM shape functions)
-    const double xi = 2.0 * u - 1.0;
-    const double eta = 2.0 * v - 1.0;
-     // Shape functions (weights) for QUAD8
+    // Interpolation coordinates from the ray-quad intersection; xi, eta in [-1, 1]
+    const double xi = intersection_record.elem_interp_coords(0);
+    const double eta = intersection_record.elem_interp_coords(1); 
+     // Shape functions (weights) for QUAD9
     std::array<double, ElementNodeCount::QUAD9> shape_weights = shapefuncs::compute_shape_quad9(xi, eta);
     
     // Get node normals if the shading type calls for them
