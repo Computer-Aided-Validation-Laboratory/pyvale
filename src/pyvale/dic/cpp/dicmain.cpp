@@ -76,12 +76,12 @@ void engine(const py::array_t<bool>& img_roi_arr,
     // ------------------------------------------------------------------------
     std::vector<WindowLevel> multiwindow_l;
     subset::Grid ss_grid_l;
-    subset::Grid ss_grid_l_inc;
+    subset::Grid ss_grid_l_0;
 
     if (conf.scan_method == util::ScanMethod::MULTIWINDOW_RG || conf.scan_method == util::ScanMethod::MULTIWINDOW) {
         multiwindow_init(multiwindow_l, img_roi, conf, mwconf, saveconf);
         ss_grid_l = multiwindow_l.back().layout;
-        ss_grid_l_inc = ss_grid_l;
+        ss_grid_l_0 = ss_grid_l;
     }
     else if (conf.scan_method == util::ScanMethod::SINGLEWINDOW_RG ||
              conf.scan_method == util::ScanMethod::RASTER) {
@@ -90,6 +90,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
         ss_grid_l = subset::create_grid(img_roi, conf.ss_step,
                                         conf.ss_size, conf.ss_size,
                                         conf.px_hori, conf.px_vert, false);
+        ss_grid_l_0 = ss_grid_l;
     }
     else {
         throw std::invalid_argument("Unsupported scan method");
@@ -165,6 +166,9 @@ void engine(const py::array_t<bool>& img_roi_arr,
         if (conf.scan_method == util::ScanMethod::RASTER) {
             if (conf.stereo) 
                 throw std::invalid_argument("Unsupported scan method");
+
+            if (conf.incremental)
+                throw std::invalid_argument("Raster scan does not support incremental DIC");
 
             results_def_l.reset();
             results_def_r.reset();
@@ -279,6 +283,15 @@ void engine(const py::array_t<bool>& img_roi_arr,
                     ss_grid_l.active_total = std::count(ss_grid_l.active_ss.begin(),
                                                         ss_grid_l.active_ss.end(), true);
                 }
+
+                for (int i = 0; i < ss_grid_l.num; i++) {
+                    if (ss_grid_l.active_ss[i]) {
+                        ss_grid_l.coords[2*i]   += results_ref_l.u[i];
+                        ss_grid_l.coords[2*i+1] += results_ref_l.v[i];
+                    }
+                }
+
+
             }
 
             results_def_l.reset();
@@ -311,7 +324,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                 "stereo",
                                 stereo_geom.F);
 
-                stereo::pixel_to_world(ss_grid_l,
+                stereo::pixel_to_world(ss_grid_l_0,
                                     calib,
                                     results_def_l,
                                     results_ref_r,
@@ -438,7 +451,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                                 stereo_geom.F,
                                 results_def_l);
 
-                stereo::pixel_to_world(multiwindow_l.back().layout,
+                stereo::pixel_to_world(ss_grid_l_0,
                                     calib,
                                     results_def_l,
                                     results_ref_r,

@@ -236,10 +236,8 @@ void singlewindow_rg(const Interpolator &interp_ref,
                     }
 
                     // add deformation from reference image to new results
-                    if (img_num_ref > 0){
-                        nres.u += results_ref.u[nidx];
-                        nres.v += results_ref.v[nidx];
-                    }
+                    nres.u += results_ref.u[nidx];
+                    nres.v += results_ref.v[nidx];
 
 
                     // append the results for the current subset to result vectors

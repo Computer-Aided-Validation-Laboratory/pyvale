@@ -107,9 +107,13 @@ namespace stereo {
                 stereo_def.w_world[ss] = 0.0;
             }
             else {
-                stereo_def.u_world[ss] = X_mm - stereo_ref.x_world[ss];
-                stereo_def.v_world[ss] = Y_mm - stereo_ref.y_world[ss];
-                stereo_def.w_world[ss] = Z_mm - stereo_ref.z_world[ss];
+                // compute delta relative to the provided stereo_ref world coords
+                // and add any previously-accumulated world displacement stored in
+                // stereo_ref.*_world. This ensures cumulative displacements are
+                // preserved when the reference is updated incrementally.
+                stereo_def.u_world[ss] = (X_mm - stereo_ref.x_world[ss]) + stereo_ref.u_world[ss];
+                stereo_def.v_world[ss] = (Y_mm - stereo_ref.y_world[ss]) + stereo_ref.v_world[ss];
+                stereo_def.w_world[ss] = (Z_mm - stereo_ref.z_world[ss]) + stereo_ref.w_world[ss];
             }
         }
         if (first_frame) stereo_ref = stereo_def;

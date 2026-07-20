@@ -75,7 +75,11 @@ void raster(const Interpolator &interp_ref,
 
             // get the reference subset
             subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-
+            for (int px = 0; px < ss_ref.num_px; px++) {
+                ss_ref.x[px] -= cx;
+                ss_ref.y[px] -= cy;
+            }
+            
             for (int i = 0; i < opt.num_params; i++){
                 opt.p[i] = 0.0;
             }
