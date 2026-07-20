@@ -225,7 +225,7 @@ def read_text(file: str, delimiter: str, debug_level: int=1):
     data = np.loadtxt(file, delimiter=delimiter, skiprows=1)
     
     if data.shape[1] != 10:
-        raise ValueError("Input DIC data must have exactly 10 columns.")
+        raise ValueError(f"Input DIC data must have exactly 10 columns. Num cols = {data.shape[1]}")
 
     return ( 
         data[:, 0].astype(np.int32),  # ss_x

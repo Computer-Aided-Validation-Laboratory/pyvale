@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-
+import os
 from logging import debug
 import numpy as np
 from pathlib import Path
@@ -200,13 +200,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     roi_c = np.ascontiguousarray(roi_mask)
 
     # do checks on vars in python land
-    if (isinstance(reference[0], (str, Path)) and isinstance(deformed[0], (str, Path)) and 
-        isinstance(reference[1], (str, Path)) and isinstance(deformed[1], (str, Path))):
-
-        basenames0, fullpaths0, w0, h0, temp_dir = dicchecks.check_images(reference[0],deformed[0],roi_mask,debug_level)
-        basenames1, fullpaths1, w1, h1, temp_dir = dicchecks.check_images(reference[1],deformed[1],roi_mask,debug_level)
-    else:
-        raise ValueError("Currently only file paths are accepted for reference and deformed images. Please provide paths to the images you want to analyze.")
+    basenames0, fullpaths0, w0, h0, temp_dir = dicchecks.check_images(reference[0],deformed[0],roi_mask,debug_level)
+    basenames1, fullpaths1, w1, h1, temp_dir = dicchecks.check_images(reference[1],deformed[1],roi_mask,debug_level)
 
     assert(w0 == w1)
     assert(h0 == h1)
