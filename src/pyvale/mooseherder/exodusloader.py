@@ -726,7 +726,16 @@ class ExodusLoader(IOutputLoader):
         if read_config.time:
             data.time = self.get_time(read_config.time_inds)
         if read_config.coords:
-            (data.coords,data.num_spat_dims) = self.get_coords()
+            coords, _ = self.get_coords()
+            data.coords = coords
+            num_spat_dims = 0
+            if self.get_var('coordx').shape[0] > 0:
+                num_spat_dims += 1
+            if self.get_var('coordy').shape[0] > 0:
+                num_spat_dims += 1
+            if self.get_var('coordz').shape[0] > 0:
+                num_spat_dims += 1
+            data.num_spat_dims = num_spat_dims
         if read_config.connect:
             data.connect = self.get_connectivity()
 

@@ -265,11 +265,97 @@ def enforce_ccw_winding(mesh_in: SimData) -> SimData:
     return _copy_sim_data(mesh_in, connect=connect_out)
 
 
+def is_mesh_2d(mesh_in: SimData) -> bool:
+    if mesh_in.coords is None or mesh_in.connect is None:
+        return False
+
+    # 1. Check coordinate flatness
+    coord_ranges = np.ptp(mesh_in.coords, axis=0)
+    if np.any(coord_ranges < 1e-12):
+        return True
+
+    # 2. Check elements in connectivity tables
+    for name, connect_raw in mesh_in.connect.items():
+        connect = np.asarray(connect_raw, dtype=np.int64)
+        if _should_transpose_connectivity(connect, name, mesh_in):
+            connect = connect.T
+
+        # Normalize 1-based indexing if present to avoid out-of-bounds errors
+        shift_all = _infer_mesh_zero_based_shift(
+            mesh_in, mesh_in.coords.shape[0]
+        )
+        legacy_connect = _table_needs_zero_based_shift(
+            connect,
+            mesh_in.coords.shape[0],
+            shift_all,
+        )
+        if legacy_connect:
+            connect = connect - 1
+
+        nodes_per_elem = connect.shape[1]
+        if nodes_per_elem in (3, 6, 7, 9):
+            return True
+        if nodes_per_elem in (10, 20, 27):
+            return False
+
+        if nodes_per_elem == 4:
+            # Check if elements are TET4 (3D) or QUAD4 (2D)
+            try:
+                num_check = min(10, connect.shape[0])
+                is_tet = False
+                for i in range(num_check):
+                    elem = connect[i]
+                    v = mesh_in.coords[elem]
+                    vol = np.abs(
+                        np.dot(
+                            v[1] - v[0],
+                            np.cross(v[2] - v[0], v[3] - v[0]),
+                        )
+                    )
+                    if vol > 1e-10:
+                        is_tet = True
+                        break
+                if not is_tet:
+                    return True
+            except IndexError:
+                pass
+
+        if nodes_per_elem == 8:
+            # Check if elements are HEX8 (3D) or QUAD8 (2D)
+            try:
+                num_check = min(10, connect.shape[0])
+                is_hex = False
+                for i in range(num_check):
+                    elem = connect[i]
+                    v = mesh_in.coords[elem]
+                    vol = np.abs(
+                        np.dot(
+                            v[1] - v[0],
+                            np.cross(v[2] - v[0], v[4] - v[0]),
+                        )
+                    )
+                    if vol > 1e-10:
+                        is_hex = True
+                        break
+                if not is_hex:
+                    return True
+            except IndexError:
+                pass
+
+    return False
+
+
 def extract_surf_mesh(
     mesh_in: SimData,
     enforce_convention: bool = True,
 ) -> SimData:
     """Extracts the external surface mesh from supported 3D volume elements."""
+
+    if is_mesh_2d(mesh_in):
+        raise ValueError(
+            "Surface extraction is only supported for 3D meshes. "
+            "The provided mesh appears to be 2D."
+        )
 
     if mesh_in.connect is None:
         raise ValueError("Surface extraction requires connectivity tables.")
@@ -309,9 +395,12 @@ def extract_surf_mesh(
     surf_node_inds = np.array([], dtype=np.int64)
 
     for name, connect in connect_norm.items():
-        surf_faces = _extract_surface_faces_from_table(connect)
+        (surf_faces, surf_parent_elem_inds) = _extract_surface_faces_from_table(
+            connect,
+            mesh_in.coords,
+        )
         surf_connect_global[name] = surf_faces
-        surf_elem_sources[name] = _extract_parent_elem_inds(connect)
+        surf_elem_sources[name] = surf_parent_elem_inds
         if surf_faces.size:
             surf_node_inds = np.union1d(surf_node_inds, np.unique(surf_faces))
 
@@ -349,7 +438,7 @@ def extract_surf_mesh(
         )
         return surf_mesh
 
-    return enforce_mesh_convention(surf_mesh)
+    return surf_mesh
 
 
 def _copy_sim_data(mesh_in: SimData, 
@@ -572,6 +661,17 @@ def _get_corner_indices(nodes_per_elem: int) -> np.ndarray:
     return np.arange(nodes_per_elem, dtype=np.int64)
 
 
+def _get_volume_corner_indices(nodes_per_elem: int) -> np.ndarray:
+    _supported_nodes_per_elem(nodes_per_elem)
+    if nodes_per_elem in (4, 10):
+        return np.array((0, 1, 2, 3), dtype=np.int64)
+    if nodes_per_elem in (8, 20, 27):
+        return np.array((0, 1, 2, 3, 4, 5, 6, 7), dtype=np.int64)
+    raise NotImplementedError(
+        f"Volume corner extraction is not implemented for {nodes_per_elem}-node elements."
+    )
+
+
 def _active_coord_axes(coords: np.ndarray) -> np.ndarray:
     axis_range = np.ptp(coords, axis=0)
     active = np.flatnonzero(axis_range > _TOL)
@@ -708,6 +808,123 @@ def _reverse_handedness_row(connect_row: np.ndarray) -> np.ndarray:
     return connect_row[perms[nodes_per_elem]]
 
 
+def _get_face_corner_coords(face_coords: np.ndarray) -> np.ndarray:
+    nodes_per_face = face_coords.shape[0]
+    if nodes_per_face in (3, 6, 7):
+        return face_coords[:3, :]
+    if nodes_per_face in (4, 8, 9):
+        return face_coords[:4, :]
+    raise NotImplementedError(
+        f"Surface face corner extraction is not implemented for {nodes_per_face}-node faces."
+    )
+
+
+def _calc_face_normal(face_coords: np.ndarray) -> np.ndarray:
+    face_corners = _get_face_corner_coords(face_coords)
+    face_normal = np.cross(
+        face_corners[1] - face_corners[0],
+        face_corners[2] - face_corners[0],
+    )
+    normal_mag = np.linalg.norm(face_normal)
+
+    if normal_mag <= _TOL and face_corners.shape[0] == 4:
+        face_normal = np.cross(
+            face_corners[2] - face_corners[0],
+            face_corners[3] - face_corners[0],
+        )
+        normal_mag = np.linalg.norm(face_normal)
+
+    if normal_mag <= _TOL:
+        raise ValueError("Degenerate face detected while extracting the surface mesh.")
+
+    return face_normal / normal_mag
+
+
+def _orient_surface_face_outward(
+    face_connect: np.ndarray,
+    parent_connect: np.ndarray,
+    coords: np.ndarray,
+) -> np.ndarray:
+    face_coords = coords[face_connect]
+    face_centroid = np.mean(_get_face_corner_coords(face_coords), axis=0)
+
+    parent_corners = _get_volume_corner_indices(parent_connect.shape[0])
+    parent_centroid = np.mean(coords[parent_connect[parent_corners]], axis=0)
+
+    face_normal = _calc_face_normal(face_coords)
+    outward_dir = face_centroid - parent_centroid
+
+    if np.dot(face_normal, outward_dir) < 0.0:
+        return _reverse_surface_row(face_connect)
+    return face_connect
+
+
+def _normalise_surface_face_node_order(
+    face_connect: np.ndarray,
+    coords: np.ndarray,
+) -> np.ndarray:
+    nodes_per_face = face_connect.shape[0]
+    face_out = np.copy(face_connect)
+    face_coords = coords[face_out]
+
+    if nodes_per_face in (6, 7):
+        corner_inds = np.array((0, 1, 2), dtype=np.int64)
+        midside_pool = np.arange(3, nodes_per_face, dtype=np.int64)
+        edge_corner_pairs = ((0, 1), (1, 2), (2, 0))
+    elif nodes_per_face in (8, 9):
+        corner_inds = np.array((0, 1, 2, 3), dtype=np.int64)
+        midside_pool = np.arange(4, nodes_per_face, dtype=np.int64)
+        edge_corner_pairs = ((0, 1), (1, 2), (2, 3), (3, 0))
+    else:
+        return face_out
+
+    face_centroid = np.mean(face_coords[corner_inds, :], axis=0)
+    mid_pool_coords = face_coords[midside_pool, :]
+
+    if nodes_per_face in (7, 9):
+        centroid_dists = np.linalg.norm(mid_pool_coords - face_centroid, axis=1)
+        center_pool_ind = int(np.argmin(centroid_dists))
+        center_local_ind = int(midside_pool[center_pool_ind])
+        edge_pool_mask = np.ones(midside_pool.shape[0], dtype=bool)
+        edge_pool_mask[center_pool_ind] = False
+        edge_pool_local_inds = midside_pool[edge_pool_mask]
+        edge_pool_coords = face_coords[edge_pool_local_inds, :]
+    else:
+        center_local_ind = -1
+        edge_pool_local_inds = midside_pool
+        edge_pool_coords = mid_pool_coords
+
+    edge_midpoints = np.array(
+        [
+            0.5 * (
+                face_coords[start_ind, :] +
+                face_coords[end_ind, :]
+            )
+            for (start_ind, end_ind) in edge_corner_pairs
+        ],
+        dtype=np.float64,
+    )
+    edge_dists = np.linalg.norm(
+        edge_pool_coords[:, None, :] - edge_midpoints[None, :, :],
+        axis=2,
+    )
+    edge_order = np.argmin(edge_dists, axis=0)
+    reordered_edge_inds = edge_pool_local_inds[edge_order]
+
+    if nodes_per_face == 6:
+        face_out[3:6] = face_out[reordered_edge_inds]
+    elif nodes_per_face == 7:
+        face_out[3:6] = face_out[reordered_edge_inds]
+        face_out[6] = face_out[center_local_ind]
+    elif nodes_per_face == 8:
+        face_out[4:8] = face_out[reordered_edge_inds]
+    elif nodes_per_face == 9:
+        face_out[4:8] = face_out[reordered_edge_inds]
+        face_out[8] = face_out[center_local_ind]
+
+    return face_out
+
+
 def _enforce_ccw_winding_table(connect: np.ndarray, coords: np.ndarray) -> np.ndarray:
     connect_out = np.copy(connect)
     for idx, row in enumerate(connect_out):
@@ -775,7 +992,10 @@ def _get_surface_map(nodes_per_elem: int) -> np.ndarray:
     )
 
 
-def _extract_surface_faces_from_table(connect: np.ndarray) -> np.ndarray:
+def _extract_surface_faces_from_table(
+    connect: np.ndarray,
+    coords: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
     nodes_per_elem = connect.shape[1]
     face_map = _get_surface_map(nodes_per_elem)
     faces_wound = connect[:, face_map]
@@ -789,7 +1009,25 @@ def _extract_surface_faces_from_table(connect: np.ndarray) -> np.ndarray:
         return_counts=True,
     )
     ext_face_inds = unique_inds[unique_counts == 1]
-    return np.ascontiguousarray(faces_flat_wound[ext_face_inds], dtype=np.int64)
+    ext_parent_elem_inds = np.ascontiguousarray(
+        ext_face_inds // face_map.shape[0],
+        dtype=np.int64,
+    )
+    ext_faces = np.copy(faces_flat_wound[ext_face_inds])
+
+    for ff, parent_elem_ind in enumerate(ext_parent_elem_inds):
+        ext_faces[ff, :] = _orient_surface_face_outward(
+            ext_faces[ff, :],
+            connect[parent_elem_ind, :],
+            coords,
+        )
+        ext_faces[ff, :] = _normalise_surface_face_node_order(
+            ext_faces[ff, :],
+            coords,
+        )
+
+    ext_faces = np.ascontiguousarray(ext_faces, dtype=np.int64)
+    return ext_faces, ext_parent_elem_inds
 
 
 def _extract_parent_elem_inds(connect: np.ndarray) -> np.ndarray:
@@ -1018,4 +1256,3 @@ def extract_surf_between(
         return surf_mesh
 
     return enforce_mesh_convention(surf_mesh)
-
