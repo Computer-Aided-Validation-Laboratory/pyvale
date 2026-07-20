@@ -21,6 +21,9 @@ from pyvale.vfm.identificationconfig import (
 from pyvale.vfm.metricsbvf import MetricSBVF
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
+from pyvale.vfm.spatialparambasisfuncs import (
+    SpatialParameterisationBasisFunction,
+)
 from pyvale.vfm.spatialparamhomogeneous import (
     SpatialParameterisationHomogeneous,
 )
@@ -66,9 +69,35 @@ def main():
         np.load(inputs_path / "time.npy"),
     )
 
+
+    h, w = 113, 316
+
+    i, j = np.indices((h, w))
+
+    sigma = 20.0
+    amplitude = 100
+
+    # normalize coordinates to physical grid
+    # line from (h-1, 0) → (0, w-1)
+
+    # direction vector of diagonal
+    di = -(h - 1)
+    dj = (w - 1)
+
+    # point on line (bottom-left)
+    i0, j0 = h - 1, 0
+
+    # perpendicular distance from each grid point to line
+    dist = np.abs(dj*(i - i0) - di*(j - j0)) / np.sqrt(di**2 + dj**2)
+
+    y = amplitude * np.exp(-(dist**2) / (2 * sigma**2))
+
     parameters = {
+        # "elastic_modulus": ConstitutiveParameter(
+        #     190_000, 150_000, 250_000, np.array([113, 316])
+        # ),
         "elastic_modulus": ConstitutiveParameter(
-            190_000, 150_000, 250_000, np.array([113, 316])
+            y, 150_000, 250_000
         ),
         "poissons_ratio": ConstitutiveParameter(
             0.28, 0.2, 0.4, np.array([113, 316])
@@ -85,6 +114,12 @@ def main():
         IdentificationPhase(
             {
                 "elastic_modulus": [SpatialParameterisationKnown()],
+                "elastic_modulus": [
+                    SpatialParameterisationBasisFunction(
+                        experiment_data.specimen_geometry.x,
+                        experiment_data.specimen_geometry.y,
+                    )
+                ],
                 "poissons_ratio": [SpatialParameterisationKnown()],
                 "yield_strength": [SpatialParameterisationHomogeneous()],
                 "hardening_modulus": [SpatialParameterisationHomogeneous()],

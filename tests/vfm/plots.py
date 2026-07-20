@@ -188,6 +188,54 @@ def _plot_metric_virtual_work(
     plt.show()
 
 
+def _plot_map_comparison(
+    x_grid: npt.NDArray[np.float64],
+    y_grid: npt.NDArray[np.float64],
+    reference_map: npt.NDArray[np.float64],
+    comparison_map: npt.NDArray[np.float64],
+    reference_label: str,
+    comparison_label: str,
+) -> None:
+    """Compare two parameter maps defined on the same grid.
+
+    Draws four panels in a single row: the reference map, the comparison map,
+    the absolute difference ``|comparison - reference|`` and the absolute
+    percentage difference ``|comparison - reference| / |reference| * 100``.
+    The percentage difference is left as NaN wherever the reference is zero so
+    those points are skipped in the plot.
+    """
+    abs_diff = np.abs(comparison_map - reference_map)
+    abs_perc_diff = np.divide(
+        abs_diff * 100.0,
+        np.abs(reference_map),
+        out=np.full_like(abs_diff, np.nan),
+        where=reference_map != 0.0,
+    )
+
+    panels = (
+        (reference_map, reference_label, reference_label),
+        (comparison_map, comparison_label, comparison_label),
+        (abs_diff, "abs diff", f"|{comparison_label} - {reference_label}|"),
+        (abs_perc_diff, "abs % diff", "|diff| / |reference| [%]"),
+    )
+
+    fig, axes = plt.subplots(1, 4, figsize=(18, 4), constrained_layout=True)
+    for ax, (field, title, colorbar_label) in zip(axes, panels, strict=True):
+        image = ax.pcolormesh(x_grid, y_grid, field)
+        fig.colorbar(image, ax=ax, label=colorbar_label)
+        # Clip the colour scale for the percentage panel so a few large values
+        # near zero-reference regions don't wash out the rest.
+        if title == "abs % diff":
+            image.set_clim(
+                np.nanpercentile(field, 5), np.nanpercentile(field, 95)
+            )
+        ax.set_title(title)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.invert_yaxis()
+    plt.show()
+
+
 def _plot_identification_diff(
     x_grid: npt.NDArray[np.float64],
     y_grid: npt.NDArray[np.float64],
