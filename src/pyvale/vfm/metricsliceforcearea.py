@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -31,12 +31,6 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
     """
 
     slice_partition: SliceAreaPartition
-    _slice_force_point_indices: tuple[npt.NDArray[np.int64], ...] = field(init=False, repr=False)
-    _slice_force_point_weights: tuple[npt.NDArray[np.float64], ...] = field(init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        self._slice_force_point_indices = self.slice_partition.slice_force_point_indices
-        self._slice_force_point_weights = self.slice_partition.slice_force_point_weights
 
     def evaluate(
         self,
@@ -62,12 +56,14 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
         if slice_index < 0 or slice_index >= self.slice_partition.num_slices:
             raise IndexError(f"Slice index {slice_index} is out of range.")
 
+        # extract global applied force in longitudinal direction
         target_force = _extract_force_component(experiment_data.boundary_conditions.force, self.slice_partition.axis)
+        # best to apply weighting in cost function instead??
         temporal_weights = _normalise_weights(np.abs(target_force))
         spatial_weights = _normalise_weights(self.slice_partition.widths)
 
-        point_indices = self._slice_force_point_indices[slice_index]
-        point_weights = self._slice_force_point_weights[slice_index]
+        point_indices = self.slice_partition.slice_force_point_indices[slice_index]
+        point_weights = self.slice_partition.slice_force_point_weights[slice_index]
         finite_strain_points = np.all(np.isfinite(experiment_data.strain), axis=(0, 1)).ravel()
         if point_indices.size > 0:
             valid_operator_points = finite_strain_points[point_indices]
@@ -153,7 +149,11 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
         thickness = float(experiment_data.specimen_geometry.thickness)
 
         for slice_index, (point_indices, point_weights) in enumerate(
-            zip(self._slice_force_point_indices, self._slice_force_point_weights, strict=True)
+            zip(
+                self.slice_partition.slice_force_point_indices,
+                self.slice_partition.slice_force_point_weights,
+                strict=True,
+            )
         ):
             if point_indices.size == 0 or point_weights.size == 0:
                 continue
