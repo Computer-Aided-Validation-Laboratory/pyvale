@@ -150,7 +150,6 @@ def conv_test_rt(test_case: TestCase,
     #test_scene.add_camera(cam)
     #render_scene(image_height, image_width, test_scene, 1, test_target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.BLENDED, image_format = output_format_phs6)
 
-
     # ------------------------------------------------
     # ACTUAL ITERATIVE TESTS FOR ALL ELEMENTS
     # ------------------------------------------------

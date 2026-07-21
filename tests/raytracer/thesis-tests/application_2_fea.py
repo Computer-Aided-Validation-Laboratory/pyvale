@@ -332,6 +332,8 @@ def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = Fa
     scene.add_camera(cam)
     scene_deformed = deepcopy(scene)
 
+    #SceneVisualiser([object, pipe], cam)
+
     fresh_filename = "rtimage_0_cam0.bmp"
     # Render undeformed image
     if render:
@@ -382,4 +384,4 @@ def plate_test(test_case: TestCaseApp, aa_subsamples: int = 1, render: bool = Fa
                     convert_to_mm=True, ux_limits=ux_limits, uy_limits=uy_limits)
 
 # Run 3 cases, then shove them into DIC engine, that's it
-plate_test(TestCaseApp.PIPE, 2**0, render = False, plot = True, crop_px=True)
+#plate_test(TestCaseApp.PIPE, 2**0, render = False, plot = True, crop_px=True)

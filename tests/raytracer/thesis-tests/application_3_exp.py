@@ -114,22 +114,28 @@ class RTTest:
 class RTTests:
     AIR = RTTest(label_file = "air_rt", label_plot = "air (RT)", color = "#53424c",
                  output_save_dir = ExpTests.AIR_A.output_save_dir / "rt")
-    AIR_PIPE = RTTest(label_file = "air_pipe_rt", label_plot = "empty pipe (RT)", color = "#c99fb6",
+    AIR_PIPE_STAT = RTTest(label_file = "air_pipe_stat_rt", label_plot = "empty pipe (RT)", color = "#c99fb6",
+                 output_save_dir = OUTPUT_DIR_PATH / "rt_air_pipe_stat")
+    AIR_TANK_STAT = RTTest(label_file = "air_tank_stat_rt", label_plot = "empty tank (RT)", color = "#826f99",
+                 output_save_dir = OUTPUT_DIR_PATH / "rt_air_tank_stat")
+    AIR_PIPE_DYN = RTTest(label_file = "air_pipe_dyn_rt", label_plot = "empty tank and pipe (RT)", color = "#ead6c2",
                  output_save_dir = ExpTests.AIR_PIPE_A.output_save_dir / "rt")
-    AIR_TANK = RTTest(label_file = "air_tank_rt", label_plot = "empty tank (RT)", color = "#826f99",
+    AIR_TANK_DYN = RTTest(label_file = "air_tank_dyn_rt", label_plot = "RI-matching fluid in pipe, air in tank (RT)", color = "#b9e1d8",
                  output_save_dir = ExpTests.AIR_TANK_A.output_save_dir / "rt")
-    AIR_BOTH = RTTest(label_file = "air_both_rt", label_plot = "empty tank and pipe (RT)", color = "#ead6c2",
-                 output_save_dir = ExpTests.AIR_BOTH_A.output_save_dir / "rt")
-    FLUID_PIPE = RTTest(label_file = "fluid_pipe_rt", label_plot = "RI-matching fluid in pipe, air in tank (RT)", color = "#b9e1d8",
-                 output_save_dir = ExpTests.FLUID_PIPE_A.output_save_dir / "rt")
-    FLUID = RTTest(label_file = "fluid_rt", label_plot = "RI-matching fluid in tank and pipe (RT)", color = "#5f9ea0",
-                 output_save_dir = ExpTests.FLUID_A.output_save_dir / "rt")
+    FLUID_PIPE_STAT = RTTest(label_file = "fluid_pipe_stat_rt", label_plot = "RI-matching fluid in tank and pipe (RT)", color = "#5f9ea0",
+                 output_save_dir = OUTPUT_DIR_PATH / "rt_fluid_pipe_stat")
+    FLUID_TANK_STAT = RTTest(label_file = "fluid_tank_stat_rt", label_plot = "RI-matching fluid in tank and pipe (RT)", color = "#5f9ea0",
+                 output_save_dir = OUTPUT_DIR_PATH / "rt_fluid_tank_stat")
+    FLUID_PIPE_DYN = RTTest(label_file = "fluid_pipe_dyn_rt", label_plot = "RI-matching fluid in tank and pipe (RT)", color = "#5f9ea0",
+                 output_save_dir = OUTPUT_DIR_PATH / "rt_fluid_pipe_dyn")
+    FLUID_TANK_DYN = RTTest(label_file = "fluid_pipe_dyn_rt", label_plot = "RI-matching fluid in tank and pipe (RT)", color = "#5f9ea0",
+                 output_save_dir = OUTPUT_DIR_PATH / "rt_fluid_tank_dyn")
         
 # DIC params
 SUBSET_SIZE = 29 # px
 STEP_SIZE = 19 # px
 SCALE_PX_MM = 20.24 # px/mm scaling factor for this particular test; 20.24 px/mm <=>  20.24 px = 1 mm; what I got out of real data
-SCALE_PX_MM = 19.6 # what I need to set this to to get identical beam widths in pixels BUT then the displacements are much worse than real
+#SCALE_PX_MM = 19.6 # what I need to set this to to get identical beam widths in pixels BUT then the displacements are much worse than real
 # From experimental tests
 OUTPUT_FORMAT = ImageFormat(output_format=OutputFormat.IMG_TIFF_8BIT, bit_depth = BitDepth.BIT_8, channel_count = ChannelCount.MONO, grayscale=True)
 ri_matching_fluid = Material(np.zeros(3), 1.49) # Optimistically assuming it hasn't turned yellow yet
@@ -187,7 +193,8 @@ def read_and_match_histogram():
     plt.savefig(OUTPUT_DIR_PATH / "unmatched_histograms.png")
 
     # New texture hist after matching
-    hist_tex, bin_edges_tex = np.histogram(tex_matched.ravel(), bins=256, range=(0, 255))
+    # range (0,254) to avoid spike at 255 and saturation
+    hist_tex, bin_edges_tex = np.histogram(tex_matched.ravel(), bins=256, range=(0, 254))
 
     plt.figure()
     plt.plot(bin_edges_roi[:-1], hist_roi / hist_roi.sum(), label="ROI")
@@ -717,21 +724,93 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
     beam.add_temporal_displacement(beam_nodal_displacements)
     pipe_temporal_displacements = create_rigid_linear_translation(pipe.node_count, frame_count, total_displacement, Axis.X)
     tank_temporal_displacements = create_rigid_linear_translation(tank.node_count, frame_count, total_displacement, Axis.X)
-    tank.add_temporal_displacement(tank_temporal_displacements)
+    pipe_right_shift = np.array([1.0, 0.0, 0.0]) # Shift pipe for static cases, else beam hits its wall
     # Pipe will have to get the displacements added after being translated, which is case specific to model the dielectrics correctly
     
-    if test == RTTests.AIR_PIPE:
-        print(f"--------------------------------\nTESTED CASE: AIR PIPE\n--------------------------------")
+    if test == RTTests.AIR_PIPE_DYN: # Pipe moves with beam
+        print(f"--------------------------------\nTESTED CASE: AIR PIPE MOVING\n--------------------------------")
         #pipe.translate(PIPE_SHIFT_DRY)
         pipe.add_temporal_displacement(pipe_temporal_displacements)
         pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
                          material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID)
         scene.add_rtmesh(pipe)
-    elif test == RTTests.AIR_TANK:
-        print(f"--------------------------------\nTESTED CASE: AIR TANK\n--------------------------------")
+    elif test == RTTests.AIR_TANK_DYN: # Tank static
+        print(f"--------------------------------\nTESTED CASE: AIR TANK MOVING\n--------------------------------")
+        tank.add_temporal_displacement(tank_temporal_displacements)
         tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
                          material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID)
         scene.add_rtmesh(tank)
+    elif test == RTTests.AIR_PIPE_STAT: # Pipe static
+        print(f"--------------------------------\nTESTED CASE: AIR PIPE STATIC\n--------------------------------")
+        pipe.translate(pipe_right_shift)
+        pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID)
+        scene.add_rtmesh(pipe)
+    elif test == RTTests.AIR_TANK_STAT:
+        print(f"--------------------------------\nTESTED CASE: AIR TANK STATIC\n--------------------------------")
+        tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID)
+        scene.add_rtmesh(tank)
+    elif test == RTTests.FLUID_PIPE_DYN: # Pipe moves with beam
+        print(f"--------------------------------\nTESTED CASE: FLUID PIPE MOVING\n--------------------------------")
+        pipe.add_temporal_displacement(pipe_temporal_displacements)
+        pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID, priority = 1)
+        scene.add_rtmesh(pipe)
+         # Add water fill to the pipe only
+        water_pipe = any_mesh_to_rtmesh(water_pipe_path)
+        water_pipe.translate(z_translation)
+        water_pipe_temporal_displacements = create_rigid_linear_translation(water_pipe.node_count, frame_count, total_displacement, Axis.X)
+        water_pipe.add_temporal_displacement(water_pipe_temporal_displacements)
+        water_pipe.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+                          material_type = MaterialType.REFRACTIVE,
+                          mesh_type = MeshType.SOLID,
+                          priority = 0) # Pipe is open-ended => Water needs to have higher priority
+        scene.add_rtmesh(water_pipe)
+    elif test == RTTests.FLUID_TANK_DYN: # Tank static
+        print(f"--------------------------------\nTESTED CASE: AIR TANK MOVING\n--------------------------------")
+        tank.add_temporal_displacement(tank_temporal_displacements)
+        tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID)
+        scene.add_rtmesh(tank)
+        water_tank = any_mesh_to_rtmesh(water_tank_path)
+        water_tank.translate(z_translation)
+        water_tank_temporal_displacements = create_rigid_linear_translation(water_tank.node_count, frame_count, total_displacement, Axis.X)
+        water_tank.add_temporal_displacement(water_tank_temporal_displacements)
+        water_tank.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+                          material_type = MaterialType.REFRACTIVE,
+                          mesh_type = MeshType.SOLID,
+                          priority = 0) # Pipe is open-ended => Water needs to have higher priority
+        scene.add_rtmesh(water_tank)
+    elif test == RTTests.FLUID_PIPE_STAT: # Pipe static
+        print(f"--------------------------------\nTESTED CASE: FLUID PIPE STATIC\n--------------------------------")
+        pipe.translate(pipe_right_shift)
+        pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID, priority = 1)
+        scene.add_rtmesh(pipe)
+        water_pipe = any_mesh_to_rtmesh(water_pipe_path)
+        water_pipe.translate(z_translation)
+        water_pipe.translate(pipe_right_shift)
+        water_pipe.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+                          material_type = MaterialType.REFRACTIVE,
+                          mesh_type = MeshType.SOLID,
+                          priority = 0) # Pipe is open-ended => Water needs to have higher priority
+        scene.add_rtmesh(water_pipe)
+    elif test == RTTests.FLUID_TANK_STAT:
+        print(f"--------------------------------\nTESTED CASE: FLUID TANK STATIC\n--------------------------------")
+        tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID, priority=1)
+        scene.add_rtmesh(tank)
+        water_tank = any_mesh_to_rtmesh(water_tank_path)
+        water_tank.translate(z_translation)
+        water_tank.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+                          material_type = MaterialType.REFRACTIVE,
+                          mesh_type = MeshType.SOLID,
+                          priority = 0) # Pipe is open-ended => Water needs to have higher priority
+        scene.add_rtmesh(water_tank)
+
+
+    """
     elif test == RTTests.AIR_BOTH:
         print(f"--------------------------------\nTESTED CASE: AIR BOTH\n--------------------------------")
         # No nested dielectrics yet because there is air separating tank and pipe
@@ -800,6 +879,8 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
                           mesh_type = MeshType.SOLID,
                           priority = 2) # Pipe is open-ended => Water needs to have higher priority
         scene.add_rtmesh([pipe, tank, water_pipe, water_tank])
+    """
+
 
     # Check positioning - VERY IMPORTANT HERE
     #SceneVisualiser([water_tank, pipe, water_pipe, tank, beam])
@@ -856,13 +937,13 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
         cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
     else:
         # Adjust rendered image size (but none of the scene dimensions) to chop a few px off to save on render time, while getting the same exact output for ROI
-        if test == RTTests.FLUID_PIPE:
+        if test == RTTests.FLUID_PIPE_DYN or test == RTTests.FLUID_PIPE_STAT:
             #In pipe, the beam gets much wider, so the side crop must be less to preserve the ROI
             # Horizontal crop can remain unchanged (still captures the ROI from experimental data)
             left_crop = 240 # px
             right_crop = 240
             top_crop = 15 # px, cropped from the top
-        elif test == RTTests.FLUID:
+        elif test == RTTests.FLUID_TANK_STAT or RTTests.FLUID_TANK_DYN:
             left_crop = 300 # px
             right_crop = 240
             top_crop = 15 # px, cropped from the top
@@ -880,9 +961,12 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
         cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
         image_width = image_width_phs6 - left_crop - right_crop
         image_height = image_width_phs6 - bottom_crop - top_crop
-    #SceneVisualiser([pipe, tank, beam], cam)
+
+    #SceneVisualiser([tank, beam], cam)
     scene.add_camera(cam)
+    #scene.set_background(np.array([0.0, 0.0, 0.0])) # Black background
     # Render both images at once or one at a time (option mostly for fluid cases that might take ages otherwise)
+    
     if frame_idx is None:
         render_scene(image_height, image_width, scene, aa_samples, target_path, RenderType.DYNAMIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None, min_refractive_depth=min_refr_depth)
     else:
@@ -907,16 +991,15 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
                 os.rename(target_path.joinpath(temp_filename), target_path.joinpath(fresh_filename)) # Restore the name of frame 0
         else:
             raise ValueError(f"Wrong frame index: {frame_idx}")
-
+    
 #render_exp_images(RTTests.BOTH, aa_samples=1, min_refr_depth=8) # This RR depth works best
 #render_exp_images(RTTests.FLUID_PIPE, aa_samples=1, min_refr_depth=8) # This RR depth works best
 #render_exp_images(RTTests.FLUID, aa_samples=1, min_refr_depth=4) # <= Looks kinda good, but need to fix modeling of water in tank. Awfully slow even at RR=4 and aa=1
 #render_exp_images(RTTests.FLUID, aa_samples=1, min_refr_depth=4, crop_px = True)
 #render_exp_images(RTTests.FLUID, aa_samples=1, min_refr_depth=2, crop_px = True, frame_idx = 0)
 
-# Note to self (14.07):
-# VERIFY THE CROP_PX FOR ALL CASES AFTER FIXING DIELECTRIC SCENE POSITIONING TO MAKE SURE THE BEAM STAYS VISIBLE
-#render_exp_images(RTTests.FLUID, aa_samples=1, min_refr_depth=4, crop_px = False, frame_idx = 0)
+# Note to self 14.07: fix tank water because it has hole in it for nested dielectrics
+#render_exp_images(RTTests.FLUID_PIPE_STAT, aa_samples=1, min_refr_depth=4, crop_px = False, frame_idx = None)
 
 # ================================================================================
 # Ray tracer DIC

@@ -1,0 +1,40 @@
+Sanity check:
+Render in colour to see the honey -> Easiest giveaway if nested dielectrics weren't resolved correctly
+
+Tank is filled with RI-Matching fluid (transparent)
+Pipe filled with honey
+Size, overlaps, positioning are in the attached file
+
+Render time with params (1024 x 1024 px) on my personal laptop
+render_exp_images(RTTests.FLUID, aa_samples=1, min_refr_depth=4, crop_px = False, frame_idx = 0)
+Time taken:10564.615225364001 s i.e., about 3 hours
+
+Priorities:
+pipe.add_temporal_displacement(pipe_temporal_displacements)
+        pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                         material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID,
+                         priority = 1)
+        tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.PLASTIC_ACRYLIC,
+                        material_type = MaterialType.REFRACTIVE, mesh_type = MeshType.SOLID,
+                        priority = 3)
+        # Add water fills
+        #water_pipe = any_mesh_to_rtmesh(water_pipe_path, world_position = WATER_POSITION)
+        water_pipe = any_mesh_to_rtmesh(water_pipe_path)
+        water_pipe.translate(z_translation)
+        #water_pipe.translate(PIPE_SHIFT_FLUID)
+        water_pipe_temporal_displacements = create_rigid_linear_translation(water_pipe.node_count, frame_count, total_displacement, Axis.X)
+        water_pipe.add_temporal_displacement(water_pipe_temporal_displacements)
+        water_pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.HONEY_LIQUID,
+                          material_type = MaterialType.REFRACTIVE,
+                          mesh_type = MeshType.SOLID,
+                          priority = 0) # Pipe is open-ended => Water needs to have higher priority
+        #water_tank = any_mesh_to_rtmesh(water_tank_path, world_position = WATER_POSITION)
+        water_tank = any_mesh_to_rtmesh(water_tank_path)
+        water_tank.translate(z_translation)
+        water_tank_temporal_displacements = create_rigid_linear_translation(water_tank.node_count, frame_count, total_displacement, Axis.X)
+        water_tank.add_temporal_displacement(water_tank_temporal_displacements)
+        water_tank.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+                          material_type = MaterialType.REFRACTIVE,
+                          mesh_type = MeshType.SOLID,
+                          priority = 2) # Pipe is open-ended => Water needs to have higher priority
+        scene.add_rtmesh([pipe, tank, water_pipe, water_tank])

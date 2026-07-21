@@ -65,7 +65,7 @@ def iter_elements_plot_order():
 
 
 # Plot settings
-FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 22, "ticks": 13, "subplot_labels": 16, "legend": 15}
+FONT_SIZES = {"suptitle": 25, "subtitle": 20, "axis_labels": 30, "ticks": 20, "subplot_labels": 25, "legend": 25}
 FIGURE_SIZE = (12, 10)
 FIGURE_SIZE_LONG = (12, 14)
 FIGURE_SIZE_STACKED_HOR = (12, 16)
@@ -184,3 +184,29 @@ class TestCaseApp(StrEnum):
     AIR_DIFFUSE = "air_diffuse"
     PIPE = "pipe"
     WATER = "water"
+
+
+# ================================================================================
+# LaTeX formatting
+# ================================================================================
+import matplotlib.pyplot as plt
+fig_width_in = 5.95393
+inches_per_pt = 1.0 / 72.27
+fig_width_pt = fig_width_in / inches_per_pt  
+fig_height_in = fig_width_in * 0.75 # Adjust ratio
+
+# LaTeX document font size (e.g., 10pt, 11pt, or 12pt)
+doc_font_size = 11 
+
+plt.rcParams.update({
+    'figure.figsize': (fig_width_in, fig_height_in),
+    'font.size': doc_font_size,
+    'axes.titlesize': doc_font_size,
+    'axes.labelsize': doc_font_size,
+    'xtick.labelsize': doc_font_size - 2, # Slightly smaller for ticks
+    'ytick.labelsize': doc_font_size - 2,
+    'legend.fontsize': doc_font_size - 2,
+    # Optional: Render text using LaTeX so fonts match perfectly
+    'text.usetex': True, 
+    'font.family': 'serif'
+})

@@ -11,7 +11,7 @@ import cv2
 import csv
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import FormatStrFormatter, ScalarFormatter
 from matplotlib.offsetbox import TextArea, HPacker, VPacker, AnchoredOffsetbox
 
 import smplotlib # For nicer figures (imo), but no need to install if you don't want it
@@ -514,11 +514,80 @@ def plot_results_all(test_case: TestCase, resolution: Resolution, save: bool = F
     ax_bottom.grid(visible=True, which='both', axis='both')
     plt.tight_layout()
 
-
     if show:
      plt.show()
     if save:
         fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
+
+def plot_results_all_time(save: bool = False, show: bool = False):
+    """
+    Plots all render time results on the same plot
+    """
+    test_cases = [TestCase.AIR_DIFFUSE, TestCase.AIR_UNLIT, TestCase.TANK, TestCase.WATER]
+    resolutions = [Resolution.LOW, Resolution.HIGH]
+
+    for resolution in resolutions:
+        for test_case in test_cases:
+            base_data_dir = (f"convergence_rt_8bit_timed_allhpthreads/"f"res_{resolution.value}/{test_case.value}/")
+            filename = f"8bit_{test_case.value}_{resolution.value}_multithreaded_time_plot.png"
+            target_path = test_dir(BASE_TEST_DIR, "multithreading")
+
+            fig, ax = plt.subplots(1, 1, figsize=FIGURE_SIZE)
+
+            ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+            ax.set_ylabel("CPU render time [s]", fontsize=FONT_SIZES["axis_labels"])
+            ax.set_xscale("log")
+            ax.xaxis.set_minor_locator(mticker.NullLocator())
+
+            sci_formatter = ScalarFormatter(useMathText=True)
+            sci_formatter.set_scientific(True)
+            sci_formatter.set_powerlimits((0, 0))
+            ax.yaxis.set_major_formatter(sci_formatter)
+            ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+
+            ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+            ax.tick_params(axis="y", which="both", labelsize=FONT_SIZES["ticks"])
+            ax.grid(visible=True, which="both", axis="both")
+
+            label_x = None
+
+            for name, element in iter_elements():
+                elem_dir_name = base_data_dir + element.label
+                data_path = test_dir(BASE_TEST_DIR, elem_dir_name) / "render_time_log.csv"
+
+                elem_data = np.loadtxt(data_path, delimiter=",", skiprows=1, unpack=True)
+
+                #if element == Elements.QUAD4:
+                #    elem_data = elem_data[:, :-1]
+
+                x = elem_data[0] # subsamples
+                y = elem_data[1] # render time [s]
+
+                if label_x is None:
+                    label_x = x
+                else:
+                    label_x = np.union1d(label_x, x)
+
+                ax.plot(x, y, label=element.label, color=element.color,
+                    marker="o", linestyle="-", linewidth=3, markersize=8)
+
+            ax.set_xticks(label_x)
+            ax.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+
+            #ax.set_title(f"Render time for {test_case.value.replace('_', ' ')} at {resolution.value}x{resolution.value} px",fontsize=FONT_SIZES["suptitle"])
+
+            ax.legend(loc="best", fontsize=FONT_SIZES["legend"], frameon=True)
+
+            plt.tight_layout()
+
+            if show:
+                plt.show()
+            if save:
+                fig.savefig(target_path / filename, dpi=300, bbox_inches="tight")
+            if not show:
+                plt.close(fig)
+
+
 
 def plot_results_subplots(test_case: TestCase, resolution: Resolution, rmse: bool = False, save: bool = False,
                           show: bool = False, eight_bit: bool = False):
@@ -553,7 +622,7 @@ def plot_results_subplots(test_case: TestCase, resolution: Resolution, rmse: boo
         figsize=(14, 14),
         constrained_layout=True)
 
-    fig.suptitle(f"Convergence for test case: {test_case.value} at {resolution.value} px resolution", fontsize=FONT_SIZES["suptitle"])
+    fig.suptitle(f"Convergence for test case: {test_case.value.replace('_', ' ')} at {resolution.value} px resolution", fontsize=FONT_SIZES["suptitle"])
 
     for name, element in iter_elements_plot_order():
         ax = axes[name]
@@ -837,7 +906,7 @@ def plot_results_blender(test_case: TestCase, resolution: Resolution, time: bool
 
     label_x = np.unique(elem_data[1])
 
-    title = f"Blender convergence for test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution"
+    title = f"Blender convergence for test case: {test_case.value.replace('_', ' ')} at {resolution.value}x{resolution.value} px resolution"
 
     # Create two side-by-side plots with shared x-axis if plotting CPU render time
     if time:
@@ -1037,7 +1106,7 @@ def plot_results_blender_rt_single(test_case: TestCase, resolution: Resolution, 
     min_x_b = elem_data_b[1][min_idx_b]
 
     title = (f"RayTracer and Blender convergence for TRI3\n"
-        f"Test case: {test_case.value} at {resolution.value}x{resolution.value} px resolution")
+        f"Test case: {test_case.value.replace('_', ' ')} at {resolution.value}x{resolution.value} px resolution")
     ax.set_title(title, fontsize=FONT_SIZES["suptitle"])
 
     ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
@@ -1182,7 +1251,7 @@ def plot_results_blender_rt_time(save: bool = False, show: bool = False):
 
             # Column titles on top row only
             if i == 0:
-                ax.set_title(test_case.value, fontsize=FONT_SIZES["suptitle"])
+                ax.set_title(test_case.value.replace('_', ' '), fontsize=FONT_SIZES["suptitle"])
 
             # Row labels on left column only
             #if j == 0:
@@ -1214,6 +1283,7 @@ def plot_results_blender_rt_time(save: bool = False, show: bool = False):
         plt.show()
     if save:
         fig.savefig(Path.joinpath(target_path, filename), dpi=300, bbox_inches="tight")
+
 
 # ================================================================================
 # Relative error distributions
@@ -1276,7 +1346,7 @@ def plot_relative_error_distribution(
 
     fig, ax = plt.subplots(figsize=FIGURE_SIZE)
 
-    title = (f"Relative error for test case {test_case.value} at {resolution.value}x{resolution.value} px\n"
+    title = (f"Relative error for test case {test_case.value.replace('_', ' ')} at {resolution.value}x{resolution.value} px\n"
         f"Between {subsamples_1} and {subsamples_2} subsamples for {element.label}")
     if blender:
         title += " (Blender)"
@@ -1385,7 +1455,7 @@ def plot_results_subplots_patch(test_case: TestCase,
 
     if not plot_time:
         filename = f"{test_case.value}_{resolution.value}_rconv_subplots.png"
-        suptitle = f"Convergence for test case: {test_case.value} at {resolution.value} px resolution"
+        suptitle = f"Convergence for test case: {test_case.value.replace('_', ' ')} at {resolution.value} px resolution"
         csv_name = "convergence_log.csv"
         y_label = "RMSE [GL]"
 
@@ -1489,6 +1559,240 @@ def plot_results_subplots_patch(test_case: TestCase,
     if save:
         fig.savefig(patch_results_dir / filename, dpi=300, bbox_inches="tight")
 
+
+# ================================================================================
+# Others
+# ================================================================================
+
+def plot_results_tex_comparison(save: bool = False, show: bool = False, time: bool = False):
+    # These were run on Sunbird with 40 nodes
+    test_case = TestCase.AIR_UNLIT
+    resolution = Resolution.HIGH
+
+    tex_list = [TextureSampler.NEAREST_NEIGHBOUR, TextureSampler.LANCZOS_2, TextureSampler.LANCZOS_3, TextureSampler.CATMULL_ROM, TextureSampler.MITCHELL_NETRAVALI,
+                TextureSampler.BSPLINE, TextureSampler.QUINTIC_SPLINE]
+
+    base_data_dir = (f"tex_rt/8bit/res_{resolution.value}/{test_case.value}/")
+
+    tex_code_map = {TextureSampler.NEAREST_NEIGHBOUR: "nearest_neighbour",
+        TextureSampler.LANCZOS_2: "lanczos_2",
+        TextureSampler.LANCZOS_3: "lanczos_3",
+        TextureSampler.CATMULL_ROM: "catmull_rom",
+        TextureSampler.MITCHELL_NETRAVALI: "mitchell_netravali",
+        TextureSampler.BSPLINE: "bspline",
+        TextureSampler.QUINTIC_SPLINE: "quintic_spline"}
+    
+    tex_label_map = {TextureSampler.NEAREST_NEIGHBOUR: "Nearest neighbour",
+        TextureSampler.LANCZOS_2: "Lanczos 2",
+        TextureSampler.LANCZOS_3: "Lanczos 3",
+        TextureSampler.CATMULL_ROM: "Catmull-Rom",
+        TextureSampler.MITCHELL_NETRAVALI: "Mitchell-Netravali",
+        TextureSampler.BSPLINE: "B-spline",
+        TextureSampler.QUINTIC_SPLINE: "Quintic spline"}
+    
+    pastel_colors = {
+    TextureSampler.NEAREST_NEIGHBOUR: "#fbb4ae", # soft pink
+    TextureSampler.LANCZOS_2:         "#b3cde3", # pastel blue
+    TextureSampler.LANCZOS_3:         "#b9e1d8", # mint
+    TextureSampler.CATMULL_ROM:       "#826f99", # purple
+    TextureSampler.MITCHELL_NETRAVALI:"#fed9a6", # peach
+    TextureSampler.BSPLINE:           "#ead6c2", # golden
+    TextureSampler.QUINTIC_SPLINE:    "#c99fb6", # cool pink
+    }
+
+    data_output_dir = test_dir(BASE_TEST_DIR, base_data_dir)
+    for name, element in iter_elements():
+        fig, ax = plt.subplots(figsize=FIGURE_SIZE)
+        for texture_interp in tex_list:
+            tex_code = tex_code_map[texture_interp]
+        
+            data_path_dir = test_dir(BASE_TEST_DIR, base_data_dir + tex_code + "/" + element.label)
+            if time:
+                data_path_file = data_path_dir / "render_time_log.csv" # Columns: subsamples,time (s)
+                data_path_output = data_output_dir / f"tex_{element.label}_time_plot.png"
+            else:
+                data_path_file = data_path_dir / "convergence_log.csv" # Colums: iteration,subsamples,rmse,max_ae,99p_abs_error,identical_px_count,tot_px_roi; we want subsamples and rmse
+                data_path_output = data_output_dir / f"tex_{element.label}_rmse_plot.png"
+        
+            # Nb4 for QUAD4 we should trim the last data row in all cases
+            elem_data = np.loadtxt(data_path_file, delimiter=",", skiprows=1, unpack=True)
+
+            # Special-case trims because these ran for one extra turn for some reason
+            if element == Elements.QUAD4 or texture_interp == TextureSampler.NEAREST_NEIGHBOUR:
+                if element == Elements.QUAD4 and texture_interp == TextureSampler.NEAREST_NEIGHBOUR:
+                    elem_data = elem_data[:, :-2]
+                else:
+                    elem_data = elem_data[:, :-1]
+
+            if time:
+                x = elem_data[0]   # subsamples
+                y = elem_data[1]   # render time
+                ylabel = "CPU render time [s]"
+                output_filename = f"tex_{element.label}_time_plot.png"
+            else:
+                x = elem_data[1]   # subsamples
+                y = elem_data[2]   # rmse
+                ylabel = "RMSE"
+                output_filename = f"tex_{element.label}_rmse_plot.png"
+
+            ax.plot(x,y, label=tex_label_map[texture_interp], color=pastel_colors[texture_interp],
+                marker="o", linestyle="-", linewidth=3, markersize=8)
+
+            #ax.plot(x,y, label=texture_interp.name.replace("_", " ").title(),
+            #    marker="o", linestyle="-", linewidth=3, markersize=8)
+
+        ax.set_xscale("log")
+        ax.xaxis.set_minor_locator(mticker.NullLocator())
+        ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+        ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+        ax.tick_params(axis="y", which="both", labelsize=FONT_SIZES["ticks"])
+        ax.grid(visible=True, which="both", axis="both")
+
+        all_xticks = sorted({int(v) for line in ax.get_lines() for v in line.get_xdata()})
+        ax.set_xticks(all_xticks)
+        ax.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in all_xticks])
+
+        ax.set_title(f"{test_case.value.replace('_', ' ').title()}: {element.label}",fontsize=FONT_SIZES["suptitle"])
+        ax.set_xlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"])
+        ax.set_ylabel(ylabel, fontsize=FONT_SIZES["axis_labels"])
+
+        ax.legend(loc="best", fontsize=FONT_SIZES["legend"], frameon=True,ncol=1)
+
+        plt.tight_layout()
+
+        if show:
+            plt.show()
+        if save:
+            fig.savefig(data_path_output, dpi=300, bbox_inches="tight")
+            print(f"Texture comparison figure saved to {data_path_output}")
+        else:
+            plt.close(fig)
+
+
+def plot_results_time_threads(save: bool = False, show: bool = False):
+    # Plotted on HP with Intel i5-1235U GHz; 12 threads
+    test_cases = [TestCase.AIR_DIFFUSE, TestCase.AIR_UNLIT, TestCase.TANK, TestCase.WATER]
+    resolutions = [Resolution.LOW, Resolution.HIGH]
+
+    single_color = Elements.TRI3.color
+    multi_color = Elements.TRI6.color
+
+    subplot_pos = {TestCase.AIR_DIFFUSE: (0, 0),
+        TestCase.AIR_UNLIT: (0, 1),
+        TestCase.TANK: (1, 0),
+        TestCase.WATER: (1, 1),}
+
+    trim_cases = {TestCase.WATER, TestCase.TANK}
+
+    for name, element in iter_elements():
+        # For debug to plot only one element
+        #if element != Elements.QUAD4:
+        #    continue
+        for resolution in resolutions:
+            fig, axs = plt.subplots(2, 2,figsize=FIGURE_SIZE_LONG, sharex=True, sharey=False,squeeze=False)
+
+            filename = f"rt_{element.label}_plot_multithread_res{resolution.value}.png"
+
+            for test_case in test_cases:
+                i, j = subplot_pos[test_case]
+                ax = axs[i, j]
+
+                base_data_dir_single = (f"convergence_rt_8bit_timed_singlethread/"f"res_{resolution.value}/{test_case.value}/")
+                base_data_dir_multi = (f"convergence_rt_8bit_timed_allhpthreads/"f"res_{resolution.value}/{test_case.value}/")
+
+                elem_dir_name_single = base_data_dir_single + element.label
+                elem_dir_name_multi = base_data_dir_multi + element.label
+
+                data_path_single = test_dir(BASE_TEST_DIR, elem_dir_name_single) / "render_time_log.csv"
+                data_path_multi = test_dir(BASE_TEST_DIR, elem_dir_name_multi) / "render_time_log.csv"
+
+                elem_data_single = np.loadtxt(data_path_single, delimiter=",", skiprows=1, unpack=True)
+                elem_data_multi = np.loadtxt(data_path_multi, delimiter=",", skiprows=1, unpack=True)
+
+                #if element == Elements.QUAD4:
+                #    elem_data_single = elem_data_single[:, :-1]
+                #    elem_data_multi = elem_data_multi[:, :-1]
+
+                x_single = elem_data_single[0]
+                y_single = elem_data_single[1]
+                x_multi = elem_data_multi[0]
+                y_multi = elem_data_multi[1]
+
+                # For WATER and TANK, keep only 12-thread samples that exist in 1-thread data.
+                if test_case in trim_cases:
+                    mask_multi = np.isin(x_multi, x_single)
+                    x_multi = x_multi[mask_multi]
+                    y_multi = y_multi[mask_multi]
+
+                    # Optional extra safety: align single-thread to common x set too
+                    mask_single = np.isin(x_single, x_multi)
+                    x_single = x_single[mask_single]
+                    y_single = y_single[mask_single]
+
+                ax.plot(x_single, y_single,
+                    label="1 thread",
+                    color=single_color,
+                    marker="o",
+                    linestyle="-",
+                    linewidth=3,
+                    markersize=10)
+
+                ax.plot(x_multi, y_multi,
+                    label="12 threads",
+                    color=multi_color,
+                    marker="s",
+                    linestyle="-",
+                    linewidth=3,
+                    markersize=10)
+
+                ax.set_xscale("log")
+                ax.xaxis.set_minor_locator(mticker.NullLocator())
+                ax.yaxis.set_minor_locator(mticker.NullLocator())
+
+                sci_formatter = ScalarFormatter(useMathText=True)
+                sci_formatter.set_scientific(True)
+                sci_formatter.set_powerlimits((0, 0))
+                ax.yaxis.set_major_formatter(sci_formatter)
+                ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+                ax.yaxis.set_minor_formatter(FormatStrFormatter("%.3g"))
+
+                ax.tick_params(axis="x", which="both", labelsize=FONT_SIZES["ticks"])
+                ax.tick_params(axis="y", which="major", labelsize=FONT_SIZES["ticks"])
+                #ax.tick_params(axis="y", which="minor", labelsize=FONT_SIZES["ticks"]-5)
+                ax.grid(visible=True, which="both", axis="both")
+
+                label_x = np.unique(np.concatenate((x_single, x_multi)))
+                ax.set_xticks(label_x)
+                ax.set_xticklabels([rf"$2^{{{int(np.log2(x))}}}$" for x in label_x])
+
+                ax.set_title(test_case.value.replace("_", " ").title(), fontsize=FONT_SIZES["legend"],pad=6)
+
+                ax.label_outer()
+
+            #fig.suptitle(f"RayTracer multithread scaling for {element.label}, {resolution.value}", fontsize=FONT_SIZES["suptitle"])
+            fig.supxlabel("Subsamples per pixel", fontsize=FONT_SIZES["axis_labels"], y=0.07, x=0.55)
+            fig.supylabel("CPU render time [s]", fontsize=FONT_SIZES["axis_labels"], x=0.07)
+
+            handles, labels = axs[0, 0].get_legend_handles_labels()
+            fig.legend(handles, labels,
+                #loc="lower center",
+                loc="center",
+                ncol=1,
+                fontsize=FONT_SIZES["legend"],
+                frameon=True)
+
+            plt.tight_layout(rect=[0.04, 0.04, 1.0, 0.96])
+
+            target_path = test_dir(BASE_TEST_DIR, "multithreading")
+
+            if show:
+                plt.show()
+            if save:
+                fig.savefig(target_path / filename, dpi=300, bbox_inches="tight")
+            if not show:
+                plt.close(fig)
+
+
 # ================================================================================
 # Convenience for data plotting/updating in one go
 # ================================================================================
@@ -1566,4 +1870,8 @@ def fill_all_convergence_logs(test_case: TestCase, resolution: Resolution, blend
 #plot_relative_error_distribution(TestCase.AIR_DIFFUSE, Resolution.HIGH, subsamples_1 = 2**17, subsamples_2=2**18, blender=False, save=True, show=True, element=Elements.TRI3)
 
 
-plot_results_blender_rt_time(True, False)
+#plot_results_blender_rt_time(True, False)
+
+#plot_results_time_threads(True, False)
+
+#plot_results_all_time(True, False)

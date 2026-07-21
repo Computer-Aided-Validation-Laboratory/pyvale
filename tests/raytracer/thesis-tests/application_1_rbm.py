@@ -390,7 +390,7 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False,
     pipe = any_mesh_to_rtmesh(pipe_path)
     water = any_mesh_to_rtmesh(water_path)
 
-    #SceneVisualiser([object, pipe]) # Helper display
+    SceneVisualiser([object, pipe]) # Helper display
 
     if test_case == TestCaseApp.AIR_DIFFUSE:
         print(f"--------------------------------\nTESTED CASE: AIR DIFFUSE\n--------------------------------")
@@ -434,6 +434,7 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False,
     scene.add_rtmesh(object)
 
     # 6. Render
+    """
     if crop_px:
         if test_case == TestCaseApp.WATER:
             vertical_crop_top_px = 20 # per side
@@ -459,6 +460,7 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False,
             render_scene(image_height, image_width, scene, anti_alias, target_path, RenderType.STATIC, frames_to_render=frame_idx, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format, omp_thread_count = None)
         else:
             raise ValueError(f"Wrong frame index: {frame_idx}")
+    """
 
 #rmb_test(TestCaseApp.WATER, aa_samples=2**0, fallback=False, crop_px=True, frame_idx = 2)
 
@@ -468,8 +470,8 @@ def rmb_test(test_case: TestCaseApp, aa_samples: int = 1, fallback:bool = False,
 ROI_FILENAME = "roi.dat"
 DIC_RESULTS_PREFIX = "dic_results_"
 # These params ran succesfully in Zeiss Correlate
-SUBSET_SIZE = 7
-STEP_SIZE = 4
+SUBSET_SIZE = 21
+STEP_SIZE = 5
 
 def run_dic_rmb(test_case: TestCaseApp, save_plot: bool = True, convert_to_mm: bool = False):
     """
@@ -558,6 +560,7 @@ def run_dic_rmb(test_case: TestCaseApp, save_plot: bool = True, convert_to_mm: b
         for aa in axes:
             aa.set_aspect('equal')
             aa.invert_yaxis() # Flip upside down because duck points the wrong way
+            aa.tick_params(axis='both', labelsize=25) 
 
         # Colorbars
         fig.colorbar(im1, ax=axes[0])
@@ -568,4 +571,4 @@ def run_dic_rmb(test_case: TestCaseApp, save_plot: bool = True, convert_to_mm: b
         if save_plot:
             fig.savefig(target_path  / figure_filename, dpi=300, bbox_inches="tight")
         
-#run_dic_rmb(TestCaseApp.WATER, True, False)
+#run_dic_rmb(TestCaseApp.AIR_DIFFUSE, True, False)
