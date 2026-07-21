@@ -130,7 +130,6 @@ def load_fe_point_cloud_data(
 
 def interpolate_fe_data_to_grid(
     element_data_path: str | Path,
-    *,
     component_columns: Sequence[str],
     mesh_path: str | Path | None = None,
     upsample_factor: float = 2.0,
