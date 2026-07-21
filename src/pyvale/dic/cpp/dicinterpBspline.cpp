@@ -32,9 +32,10 @@ Bspline::Bspline(const Image &img) {
         x = std::clamp(x, 0, px_hori - 1);
         y = std::clamp(y, 0, px_vert - 1);
         if (img.type == PixelType::UINT8)  return img.data8 [y * px_hori + x];
-        if (img.type == PixelType::UINT16) return img.data16[y * px_hori + x];
-        if (img.type == PixelType::UINT32) return img.data32[y * px_hori + x];
-        throw std::runtime_error("Unsupported pixel type");
+        else if (img.type == PixelType::UINT16) return img.data16[y * px_hori + x];
+        else if (img.type == PixelType::UINT32) return img.data32[y * px_hori + x];
+        else if (img.type == PixelType::UINT32F) return img.data32f[y * px_hori + x];
+        else throw std::runtime_error("Unsupported pixel type");
     };
 
     // Fill entire padded array using clamped reads — handles interior, edges, and corners

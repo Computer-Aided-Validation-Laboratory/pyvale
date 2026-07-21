@@ -24,7 +24,7 @@
 // common_cpp header files
 #include "./defines.hpp"
 
-enum class PixelType { UINT8, UINT16, UINT32};
+enum class PixelType { UINT8, UINT16, UINT32, UINT32F};
 
 struct Image {
     std::string filename;
@@ -34,6 +34,7 @@ struct Image {
     std::vector<uint8_t>  data8;
     std::vector<uint16_t> data16;
     std::vector<uint32_t> data32;
+    std::vector<float>    data32f;
 };
 
 namespace common_util {

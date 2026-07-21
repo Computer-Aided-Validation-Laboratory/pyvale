@@ -29,6 +29,15 @@ def print_pyvale_banner():
     print("     #####       #####                                                #+.-#     ##       ")
     print("                                                                        ##               ")
 
+
+def print_title(title: str):
+    line_width = 80
+
+    print("-" * line_width)
+    print(f" {title} ".center(line_width, "-"))
+    print("-" * line_width)
+
+
 def info(msg: str) -> None:
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     print(f"[{timestamp}] {msg}")

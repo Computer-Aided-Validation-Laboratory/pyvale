@@ -566,7 +566,7 @@ def check_images(reference: np.ndarray | str | Path,
             print(f"Saving array images to temporary directory: {temp_dir}\n")
 
         # Save reference image
-        ref_filename = "ref_img.bmp"
+        ref_filename = "ref_img.tiff"
         ref_path = temp_dir / ref_filename
         Image.fromarray(ref_arr).save(ref_path)
         basename.append(ref_filename)
@@ -580,9 +580,9 @@ def check_images(reference: np.ndarray | str | Path,
                     print(f"Deformed array [{i}] has {frame.shape[2]} channels. Using channel 0.")
                 frame = frame[:, :, 0]
 
-            def_filename = f"def_img_{i:04d}.bmp"
+            def_filename = f"def_img_{i:04d}.tiff"
             def_path = temp_dir / def_filename
-            Image.fromarray(frame).convert("L").save(def_path)
+            Image.fromarray(frame).save(def_path)
             basename.append(def_filename)
             fullpath.append(str(def_path))
 

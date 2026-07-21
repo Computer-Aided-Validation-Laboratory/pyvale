@@ -158,8 +158,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
             interp_def_r = make_interp(conf.interp_routine, conf.fullpaths[img_num_def_r]);
         }
 
-        // clear the image buffers. Dont need them anymore
-
         // ----------------------------------------------------------------------------------------
         // raster scan
         // ----------------------------------------------------------------------------------------

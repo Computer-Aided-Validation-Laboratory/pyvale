@@ -424,6 +424,14 @@ void fill_fft_window_with_subset_at_corner(FFTPixels<Real> &ss_ref,
                 window_size_x, window_size_y);
             break;
 
+        case PixelType::UINT32F:
+            fill_fft_window_with_subset_at_corner_impl(
+                ss_ref, img_ref.data32f,
+                corner_x, corner_y, px_hori, px_vert,
+                ss_size_x, ss_size_y,
+                window_size_x, window_size_y);
+            break;
+
         default:
             throw std::runtime_error("Unsupported pixel type");
     }

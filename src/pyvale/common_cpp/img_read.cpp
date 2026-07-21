@@ -50,6 +50,7 @@ Image read_img(const std::string& fullpath) {
 
 Image read_tiff(const std::string &fullpath) {
 
+
     TIFF* tif = TIFFOpen(fullpath.c_str(), "r");
     if (!tif) throw std::runtime_error("Failed to open: " + fullpath);
     uint32_t width = 0, height = 0;
@@ -58,12 +59,17 @@ Image read_tiff(const std::string &fullpath) {
     uint16_t bps = 8, spp = 1;
     TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bps);
     TIFFGetField(tif, TIFFTAG_SAMPLESPERPIXEL, &spp);
+
+    // check whether tiff is int, uint, or f32
+    uint16_t format;
+    int found = TIFFGetFieldDefaulted(tif, TIFFTAG_SAMPLEFORMAT, &format);
+
     Image img;
     img.filename = std::filesystem::path(fullpath).filename().string();
     img.width = width;
     img.height = height;
     std::vector<uint8_t> scanline(TIFFScanlineSize(tif));
-    if (bps == 8) {
+    if (format == SAMPLEFORMAT_UINT && bps == 8) {
         img.type = PixelType::UINT8;
         img.data8.resize(width * height);
         for (uint32_t row = 0; row < height; ++row) {
@@ -80,7 +86,7 @@ Image read_tiff(const std::string &fullpath) {
             }
         }
     } 
-    else if (bps == 16) {
+    else if (format == SAMPLEFORMAT_UINT && bps == 16) {
         img.type = PixelType::UINT16;
         img.data16.resize((size_t)width * height);
         for (uint32_t row = 0; row < height; ++row) {
@@ -98,7 +104,7 @@ Image read_tiff(const std::string &fullpath) {
             }
         }
     }
-    else if (bps == 32) {
+    else if (format == SAMPLEFORMAT_UINT && bps == 32) {
         img.type = PixelType::UINT32;
         img.data32.resize((size_t)width * height);
         for (uint32_t row = 0; row < height; ++row) {
@@ -116,10 +122,41 @@ Image read_tiff(const std::string &fullpath) {
             }
         }
     }
-    else {
-        TIFFClose(tif);
-        throw std::runtime_error("Unsupported bit depth: " + std::to_string(bps));
+    else if (format == SAMPLEFORMAT_IEEEFP && bps == 32) {
+        img.type = PixelType::UINT32F;
+        img.data32f.resize((size_t)width * height);
+        for (uint32_t row = 0; row < height; ++row) {
+            if (TIFFReadScanline(tif, scanline.data(), row) < 0)
+                throw std::runtime_error("Failed to read row " + std::to_string(row));
+            auto *p = reinterpret_cast<uint32_t*>(scanline.data());
+            if (spp == 1) {
+                std::memcpy(img.data32f.data() + static_cast<size_t>(row) * width,
+                            scanline.data(),
+                            static_cast<size_t>(width) * sizeof(uint32_t));
+            }
+            else {
+                for (uint32_t x = 0; x < width; ++x)
+                    img.data32[row * width + x] = p[x * spp];
+            }
+        }
     }
+    else {
+        const char* format_name = "unknown";
+        switch (format) {
+            case SAMPLEFORMAT_UINT:   format_name = "unsigned integer"; break;
+            case SAMPLEFORMAT_INT:    format_name = "signed integer"; break;
+            case SAMPLEFORMAT_IEEEFP: format_name = "IEEE float"; break;
+            case SAMPLEFORMAT_VOID:   format_name = "undefined"; break;
+        }
+
+        TIFFClose(tif);
+        throw std::runtime_error(
+            "Unsupported TIFF pixel type: " +
+            std::to_string(bps) + "-bit " + format_name +
+            " (SampleFormat=" + std::to_string(format) +
+            ", SamplesPerPixel=" + std::to_string(spp) + ").");
+    }
+
     TIFFClose(tif);
     return img;
 }
