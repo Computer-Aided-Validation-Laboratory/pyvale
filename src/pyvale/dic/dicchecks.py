@@ -582,7 +582,7 @@ def check_images(reference: np.ndarray | str | Path,
 
             def_filename = f"def_img_{i:04d}.tiff"
             def_path = temp_dir / def_filename
-            Image.fromarray(frame).save(def_path)
+            Image.fromarray(frame).convert("L").save(def_path)
             basename.append(def_filename)
             fullpath.append(str(def_path))
 
