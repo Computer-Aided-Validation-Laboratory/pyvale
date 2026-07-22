@@ -197,7 +197,11 @@ namespace strain {
                 }
 
                 strain::save_to_disk(img_num, results, strain_save_conf, nwindows, nimg, filenames);
+                
+                if (stop_request) break;
             }
+            
+            raise_on_interrupt();
         }
     }
 

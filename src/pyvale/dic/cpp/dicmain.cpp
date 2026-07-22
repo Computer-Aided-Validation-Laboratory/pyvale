@@ -475,6 +475,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
 
         if (stop_request) break;
     }
+
+    raise_on_interrupt();
 }
 
 
