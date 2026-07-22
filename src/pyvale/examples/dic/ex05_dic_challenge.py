@@ -35,8 +35,8 @@ import pyvale.dic as dic
 # %%
 # There's a pair of DIC challenge images that come as part of the Pyvale install. 
 # We can preload them with:
-ref_pattern = dataset.dic_challenge_ref()
-def_pattern = dataset.dic_challenge_def()
+ref_pattern = dataset.dic_chal_2d_ref()
+def_pattern = dataset.dic_chal_2d_def()
 subset_size = 17
 
 
@@ -86,7 +86,7 @@ data_path = output_path / "dic_results_DIC_Challenge*.csv"
 dicdata = dic.import_2d(data=data_path, layout='column', 
                                  binary=False, delimiter=",")
 
-# &&
+# %%
 # Finally a simple plot of the calculated displacements at y=2500. This could be
 # extended and compared to other DIC engines used in the 2.0 DIC challenge. A
 # link to the dataset can be found under '2D-DIC Challenge 2.0' can be found

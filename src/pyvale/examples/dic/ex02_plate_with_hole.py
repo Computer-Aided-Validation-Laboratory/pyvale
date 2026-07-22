@@ -32,11 +32,11 @@ import pyvale.dic as dic
 # The images used here are included in the `data <https://github.com/Computer-Aided-Validation-Laboratory/pyvale/tree/main/src/pyvale/data>`_ folder.
 # We've provided helper functions to load them regardless of your installation path.
 subset_size = 31
-ref_img = dataset.dic_plate_with_hole_ref()
-def_img = dataset.dic_plate_with_hole_def()
+ref_img = dataset.dic_plate_with_hole_cam0_ref()
+def_img = dataset.dic_plate_with_hole_cam0_def()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output"
+output_path = Path.cwd() / "pyvale-output" / "ex02"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -46,7 +46,8 @@ if not output_path.is_dir():
 # as input. This image will be shown as the underlay during any ROI selection or
 # visualization.
 roi = dic.RegionOfInterest(ref_img)
-roi.interactive_selection()
+roi.read_yaml("./ex10_roi.yaml")
+#roi.interactive_selection()
 
 # %%
 # Once you've closed the ROI interactive window, a mask and seed location coordinates
@@ -117,14 +118,14 @@ fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 axes = axes.flatten()
 
 # First deformation image
-im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[0])
-im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[0])
-im3 = axes[2].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[0])
+im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u_px[1])
+im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v_px[1])
+im3 = axes[2].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[1])
 
 # Second deformation image
-im4 = axes[3].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[1])
-im5 = axes[4].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[1])
-im6 = axes[5].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[1])
+im4 = axes[3].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u_px[2])
+im5 = axes[4].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v_px[2])
+im6 = axes[5].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[2])
 
 # Titles
 axes[0].set_title('u component (def0000.tiff)')

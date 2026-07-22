@@ -6,7 +6,7 @@
 #Copyright (C) 2024 The Computer Aided Validation Team
 #================================================================================
 """
-Stereo DIC
+Stereo DIC rigid body motion of a plate
 ---------------------
 
 This example demonstrates how to perform stereo DIC using pyvale. The example
@@ -29,7 +29,7 @@ import pyvale.dataset as dataset
 # Load in the ground truth calibration parameters. These are the parameters
 # that were used to generate the synthetic images:
 
-calib_params = calib.loadtxt("./stereo_calibration.txt", delimiter=",")
+calib_params = calib.loadtxt("./ex09_stereo_calibration.txt", delimiter=",")
 
 
 # %%
@@ -49,7 +49,7 @@ roi = dic.RegionOfInterest(ref0)
 roi.rect_boundary(50,50,50,50)
 
 # create an output directory 
-output_path = Path.cwd() / "pyvale-output" / "ex9"
+output_path = Path.cwd() / "pyvale-output" / "ex09"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 

@@ -73,7 +73,7 @@ dots0, dots1, grid, filenames0, filenames1 = calib.detect_dots(
 # to reperform a stereo calibration.
 
 # make the output directory
-output_dir = Path.cwd() / "pyvale-output" / "ex8"
+output_dir = Path.cwd() / "pyvale-output" / "ex08"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # save the detected points to plain text files

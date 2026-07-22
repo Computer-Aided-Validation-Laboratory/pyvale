@@ -26,12 +26,12 @@ import pyvale.strain as strain
 # We'll start by importing the DIC data from the previous example.
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output"
+output_path = Path.cwd() / "pyvale-output" / "ex03"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 # specify where our input data is
-input_data = output_path / "dic_results_*.csv"
+input_data = Path.cwd() / "pyvale-output" / "ex02" / "dic_results_*.csv"
 
 # %%
 # You can calculate strain directly from the DIC results.
@@ -50,7 +50,7 @@ input_data = output_path / "dic_results_*.csv"
 # gradient tensor. If you also specify a `strain_formulation`, the corresponding
 # 2D strain tensor will be included in the output.
 strain.calculate_2d(data=input_data, window_size=5, window_element=4,
-                    output_basepath=output_path)
+                    output_basepath=output_path, strain_formulation="ALMANSI")
 
 # %%
 # Once the strain calculation is complete, you can import the results using
@@ -69,10 +69,10 @@ fig, axes = plt.subplots(2, 2, figsize=(10, 10))
 axes = axes.flatten()
 fig.suptitle('Deformation Gradient for ' + straindata.filenames[0])
 
-im1 = axes[0].pcolor(straindata.window_x, straindata.window_y, straindata.def_xx[0])
-im2 = axes[1].pcolor(straindata.window_x, straindata.window_y, straindata.def_xy[0])
-im3 = axes[2].pcolor(straindata.window_x, straindata.window_y, straindata.def_yx[0])
-im4 = axes[3].pcolor(straindata.window_x, straindata.window_y, straindata.def_yy[0])
+im1 = axes[0].pcolor(straindata.window_x, straindata.window_y, straindata.def_xx[1])
+im2 = axes[1].pcolor(straindata.window_x, straindata.window_y, straindata.def_xy[1])
+im3 = axes[2].pcolor(straindata.window_x, straindata.window_y, straindata.def_yx[1])
+im4 = axes[3].pcolor(straindata.window_x, straindata.window_y, straindata.def_yy[1])
 
 # titles
 axes[0].set_title('deformation gradient xx')
