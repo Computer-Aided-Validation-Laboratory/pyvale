@@ -354,7 +354,7 @@ def element_case_output_path(elem_type: EElemTest) -> Path:
                 .joinpath(f"case00_{elem_type.value}_out.e"))
 
 
-def dic_plate_with_hole_ref() -> Path:
+def dic_plate_with_hole_cam0_ref() -> Path:
     """
     Path to the reference image for the plate with hole example.
     1040x1540 image in .tiff format.
@@ -370,10 +370,28 @@ def dic_plate_with_hole_ref() -> Path:
         Path to the reference image (``.tiff``).
     """
     return Path(files("pyvale.data")
-                .joinpath("plate_hole_ref0000.tiff"))
+                .joinpath("hole_cam0_frame00.tiff"))
+
+def dic_plate_with_hole_cam1_ref() -> Path:
+    """
+    Path to the reference image for the plate with hole example.
+    1040x1540 image in .tiff format.
+
+    Parameters
+    ----------
+    elem_type : EElemTest
+        Enumeration specifying the element type for this test case.
+
+    Returns
+    -------
+    Path
+        Path to the reference image (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("hole_cam1_frame00.tiff"))
 
 
-def dic_plate_with_hole_def() -> Path:
+def dic_plate_with_hole_cam0_def() -> Path:
     """
     Path to the deformed images for the plate with hole example.
     1040x1540 image in .tiff format.
@@ -389,12 +407,11 @@ def dic_plate_with_hole_def() -> Path:
         Path to the reference image (``.tiff``).
     """
     return Path(files("pyvale.data")
-                .joinpath("plate_hole_def*.tiff"))
+                .joinpath("hole_cam0_frame*.tiff"))
 
-
-def dic_plate_rigid_ref() -> Path:
+def dic_plate_with_hole_cam1_def() -> Path:
     """
-    Path to the reference image for the rigid deformation example.
+    Path to the deformed images for the plate with hole example.
     1040x1540 image in .tiff format.
 
     Parameters
@@ -408,12 +425,107 @@ def dic_plate_rigid_ref() -> Path:
         Path to the reference image (``.tiff``).
     """
     return Path(files("pyvale.data")
-                .joinpath("plate_rigid_ref0000.tiff"))
+                .joinpath("hole_cam1_frame*.tiff"))
 
 
-def dic_plate_rigid_def() -> Path:
+
+def dic_plate_with_hydro_cam0_ref() -> Path:
     """
-    Path to the rigid deformation example images.
+    Path to the reference image for the plate with hydro example.
+    1040x1540 image in .tiff format.
+
+    Parameters
+    ----------
+    elem_type : EElemTest
+        Enumeration specifying the element type for this test case.
+
+    Returns
+    -------
+    Path
+        Path to the reference image (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("hydro_cam0_frame00.tiff"))
+
+def dic_plate_with_hydro_cam1_ref() -> Path:
+    """
+    Path to the reference image for the plate with hydro example.
+    1040x1540 image in .tiff format.
+
+    Parameters
+    ----------
+    elem_type : EElemTest
+        Enumeration specifying the element type for this test case.
+
+    Returns
+    -------
+    Path
+        Path to the reference image (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("hydro_cam1_frame00.tiff"))
+
+
+def dic_plate_with_hydro_cam0_def() -> Path:
+    """
+    Path to the deformed images for the plate with hydro example.
+    1040x1540 image in .tiff format.
+
+    Parameters
+    ----------
+    elem_type : EElemTest
+        Enumeration specifying the element type for this test case.
+
+    Returns
+    -------
+    Path
+        Path to the reference image (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("hydro_cam0_frame*.tiff"))
+
+def dic_plate_with_hydro_cam1_def() -> Path:
+    """
+    Path to the deformed images for the plate with hydro example.
+    1040x1540 image in .tiff format.
+
+    Parameters
+    ----------
+    elem_type : EElemTest
+        Enumeration specifying the element type for this test case.
+
+    Returns
+    -------
+    Path
+        Path to the reference image (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("hydro_cam1_frame*.tiff"))
+
+
+
+def dic_plate_rigid_cam0_ref() -> Path:
+    """
+    Path to the reference image for the rigid deformation example from camera 1 perspective.
+    1040x1540 image in .tiff format.
+
+    Parameters
+    ----------
+    elem_type : EElemTest
+        Enumeration specifying the element type for this test case.
+
+    Returns
+    -------
+    Path
+        Path to the reference image (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("rigid_cam0_frame00.tiff"))
+
+
+def dic_plate_rigid_cam0_def() -> Path:
+    """
+    Path to the rigid deformation example images from camera 0 perspective.
     1040x1540 image in .tiff format.
 
     Returns
@@ -422,10 +534,64 @@ def dic_plate_rigid_def() -> Path:
         Path to the deformation images (``.tiff``).
     """
     return Path(files("pyvale.data")
-                .joinpath("plate_rigid_def0*.tiff"))
+                .joinpath("rigid_cam0_frame*.tiff"))
 
 
-def dic_plate_rigid_def_25px() -> Path:
+def dic_plate_rigid_cam1_ref() -> Path:
+    """
+    Path to the reference image for the rigid deformation example from camera 1 perspective.
+    1040x1540 image in .tiff format.
+
+    Parameters
+    ----------
+    elem_type : EElemTest
+        Enumeration specifying the element type for this test case.
+
+    Returns
+    -------
+    Path
+        Path to the reference image (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("rigid_cam1_frame00.tiff"))
+
+
+def dic_plate_rigid_cam1_def() -> Path:
+    """
+    Path to the rigid deformation example images from camera 1 perspective.
+    1040x1540 image in .tiff format.
+
+    Returns
+    -------
+    Path
+        Path to the deformation images (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("rigid_cam1_frame*.tiff"))
+
+def dic_plate_rigid_cam0_def_small() -> list[Path]:
+    """
+    Returns rigid_cam0_frame0000.tiff to rigid_cam1_frame0010.tiff.
+    """
+    data_dir = files("pyvale.data")
+
+    return [
+        Path(data_dir.joinpath(f"rigid_cam0_frame{i:02d}.tiff"))
+        for i in range(11)
+    ]
+
+def dic_plate_rigid_cam1_def_small() -> list[Path]:
+    """
+    Returns rigid_cam1_frame0000.tiff to rigid_cam1_frame0010.tiff.
+    """
+    data_dir = files("pyvale.data")
+
+    return [
+        Path(data_dir.joinpath(f"rigid_cam1_frame{i:02d}.tiff"))
+        for i in range(11)
+    ]
+
+def dic_plate_rigid_cam0_def_10px() -> Path:
     """
     Path to the 25px rigid deformation image.
     1040x1540 image in .tiff format.
@@ -435,10 +601,23 @@ def dic_plate_rigid_def_25px() -> Path:
     Path
         Path to the 25 px deformed image (``.tiff``).
     """
-    return Path(files("pyvale.data").joinpath("plate_rigid_def_25px.tiff"))
+    return Path(files("pyvale.data").joinpath("rigid_cam0_frame11.tiff"))
 
 
-def dic_plate_rigid_def_50px() -> Path:
+def dic_plate_rigid_cam0_def_25px() -> Path:
+    """
+    Path to the 25px rigid deformation image.
+    1040x1540 image in .tiff format.
+
+    Returns
+    -------
+    Path
+        Path to the 25 px deformed image (``.tiff``).
+    """
+    return Path(files("pyvale.data").joinpath("rigid_cam0_frame12.tiff"))
+
+
+def dic_plate_rigid_cam0_def_50px() -> Path:
     """
     Path to the 50px rigid deformation image.
     1040x1540 image in .tiff format.
@@ -448,12 +627,15 @@ def dic_plate_rigid_def_50px() -> Path:
     Path
         Path to the 50px deformed image (``.tiff``).
     """
-    return Path(files("pyvale.data").joinpath("plate_rigid_def_50px.tiff"))
+    return Path(files("pyvale.data").joinpath("rigid_cam0_frame13.tiff"))
 
 
-def dic_challenge_ref() -> Path:
+def dic_chal_2d_ref() -> Path:
     """
-    Path to the reference images for the 2D DIC challenge.
+    Path to the reference images for the 2D-DIC Challenge 2.0.
+    Images are openly available at:
+
+    https://idics.org/challenge/
 
     Returns
     -------
@@ -464,9 +646,12 @@ def dic_challenge_ref() -> Path:
                 .joinpath("DIC_Challenge_Star_Noise_Ref.tiff"))
 
 
-def dic_challenge_def() -> Path:
+def dic_chal_2d_def() -> Path:
     """
-    Path to the reference images for the 2D DIC challenge.
+    Path to the deformed images for the 2D-DIC Challenge 2.0.
+    Images are openly available at:
+
+    https://idics.org/challenge/
 
     Returns
     -------
@@ -475,6 +660,50 @@ def dic_challenge_def() -> Path:
     """
     return Path(files("pyvale.data")
                 .joinpath("DIC_Challenge_Star_Noise_Def.tiff"))
+
+
+def dic_chal_3d_cam0() -> Path:
+    """
+    Path to the reference images for cam0 from the Stereo DIC challenge 1.0.
+
+    Figures reproduced from:
+
+    Ahmad, W., Helm, J., Bossuyt, S., et al.
+    "Stereo-DIC Challenge 1.0 – Rigid Body Motion of a Complex Shape",
+    Experimental Mechanics, 2024.
+
+    Licensed under CC BY 4.0:
+    https://creativecommons.org/licenses/by/4.0/
+
+    Returns
+    -------
+    Path
+        Path to the reference image (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("Step01_00,00-sys1-0000_0.tif"))
+
+
+def dic_chal_3d_cam1() -> Path:
+    """
+    Path to the reference images for cam1 from the Stereo DIC challenge 1.0.
+
+    Figures reproduced from:
+
+    Ahmad, W., Helm, J., Bossuyt, S., et al.
+    "Stereo-DIC Challenge 1.0 – Rigid Body Motion of a Complex Shape",
+    Experimental Mechanics, 2024.
+
+    Licensed under CC BY 4.0:
+    https://creativecommons.org/licenses/by/4.0/
+
+    Returns
+    -------
+    Path
+        Path to the deformed image (``.tiff``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("Step01_00,00-sys1-0000_1.tif"))
 
 def cal_target() -> Path:
     """

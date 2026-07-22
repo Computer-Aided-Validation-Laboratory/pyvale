@@ -14,6 +14,7 @@ os.environ["OMP_NUM_THREADS"] = "1"
 
 from PIL import Image
 import numpy as np
+import matplotlib.pyplot as plt
 import pyvale.dic as dic
 import pyvale.dataset as dataset
 import pyvale.calib as calib
@@ -25,6 +26,11 @@ ref0 = dataset.dic_plate_rigid_cam0_ref()
 ref1 = dataset.dic_plate_rigid_cam1_ref()
 def0 = dataset.dic_plate_rigid_cam0_def_small()
 def1 = dataset.dic_plate_rigid_cam1_def_small()
+
+ref0_hydro = dataset.dic_plate_with_hydro_cam0_ref()
+ref1_hydro = dataset.dic_plate_with_hydro_cam1_ref()
+def0_hydro = dataset.dic_plate_with_hydro_cam0_def()
+def1_hydro = dataset.dic_plate_with_hydro_cam1_def()
 
 def0_10px = dataset.dic_plate_rigid_cam0_def_10px()
 def0_25px = dataset.dic_plate_rigid_cam0_def_25px()
@@ -71,7 +77,7 @@ def_arr_scaled_offset = (def_arr_float * scale + offset).astype(original_dtype)
 # ------------------------------------------------------------------------------
 
 u = [0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
-v = [0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
+u_short = [0.0,0.5,1.0]
 
 
 # ------------------------------------------------------------------------------
@@ -120,6 +126,96 @@ def validate(output_pattern, gt, atol, rtol=0.0, atol_stereo=0.001,stereo=False)
     for files in (output_files):
         os.remove(files)
 
+
+def validate_hydro(output_pattern, gt, atol, rtol=0.0):
+
+    output_files = sorted(glob.glob(output_pattern))
+
+    assert len(output_files) == len(gt), (
+        f"Expected {len(gt)} output files but found {len(output_files)}"
+    )
+
+    for edge_disp, output_file in zip(gt, output_files):
+
+        dic_data = np.loadtxt(output_file, skiprows=1, delimiter=",")
+
+        x = dic_data[:, 0]
+        y = dic_data[:, 1]
+
+        u = dic_data[:, 2]
+        v = dic_data[:, 3]
+
+        cx = (20 + 1019) / 2.0
+        cy = (20 + 1519) / 2.0
+
+        width = 999.0
+        height = 1499.0
+
+        u_gt = 2.0 * edge_disp * (x - cx) / width
+        v_gt = 2.0 * edge_disp * (y - cy) / height
+
+        try:
+            np.testing.assert_allclose(
+                u,
+                u_gt,
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"Horizontal displacement mismatch ({edge_disp} px)"
+            )
+
+            np.testing.assert_allclose(
+                v,
+                v_gt,
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"Vertical displacement mismatch ({edge_disp} px)"
+            )
+
+        except AssertionError:
+
+            # xs = np.unique(x)
+            # ys = np.unique(y)
+            # nx = len(xs)
+            # ny = len(ys)
+            #
+            # err_u = (u - u_gt).reshape(ny, nx)
+            # err_v = (v - v_gt).reshape(ny, nx)
+            # err_mag = np.sqrt(err_u**2 + err_v**2)
+            #
+            # fig, ax = plt.subplots(1, 3, figsize=(15, 4))
+            #
+            # im = ax[0].imshow(
+            #     err_u,
+            #     origin="lower",
+            #     extent=[xs.min(), xs.max(), ys.min(), ys.max()],
+            # )
+            # ax[0].set_title("u error")
+            # plt.colorbar(im, ax=ax[0])
+            #
+            # im = ax[1].imshow(
+            #     err_v,
+            #     origin="lower",
+            #     extent=[xs.min(), xs.max(), ys.min(), ys.max()],
+            # )
+            # ax[1].set_title("v error")
+            # plt.colorbar(im, ax=ax[1])
+            #
+            # im = ax[2].imshow(
+            #     err_mag,
+            #     origin="lower",
+            #     extent=[xs.min(), xs.max(), ys.min(), ys.max()],
+            # )
+            # ax[2].set_title("Error magnitude")
+            # plt.colorbar(im, ax=ax[2])
+            #
+            # plt.tight_layout()
+            # plt.savefig(f"hydro_error_{edge_disp:.1f}.png")
+            # plt.close(fig)
+
+            raise
+
+    for output_file in output_files:
+        os.remove(output_file)
 
 # ------------------------------------------------------------------------------
 # SSD
@@ -521,18 +617,71 @@ def test_2d_singlewindow_fft_large():
         )
 
 
+# ------------------------------------------------------------------------------
+# Multiwindow RG
+# ------------------------------------------------------------------------------
 
+def test_2d_hydro_rg_znssd_affine():
+
+    dic.calculate_2d(
+        reference=ref0_hydro,
+        deformed=def0_hydro,
+        roi_mask=roi.mask,
+        seed=[250, 250],
+        subset_size=21,
+        subset_step=10,
+        max_displacement=2,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=test_dir,
+        output_prefix="test_hydro_",
+    )
+
+    validate_hydro(
+        os.path.join(
+            test_dir,
+            "test_hydro_*.csv",
+        ),
+        u_short,
+        atol=0.005,
+    )
+
+# ------------------------------------------------------------------------------
+# Multiwindow RG
+# ------------------------------------------------------------------------------
+
+def test_2d_hydro_rg_znssd_quad():
+
+    dic.calculate_2d(
+        reference=ref0_hydro,
+        deformed=def0_hydro,
+        roi_mask=roi.mask,
+        seed=[250, 250],
+        subset_size=21,
+        subset_step=10,
+        max_displacement=2,
+        correlation_criteria="ZNSSD",
+        shape_function="QUAD",
+        method="MULTIWINDOW_RG",
+        output_basepath=test_dir,
+        output_prefix="test_hydro_",
+    )
+
+    validate_hydro(
+        os.path.join(
+            test_dir,
+            "test_hydro_*.csv",
+        ),
+        u_short,
+        atol=0.008, # more noise for quad
+    )
 
 # ------------------------------------------------------------------------------
 # STEREO
 # ------------------------------------------------------------------------------
 
 def test_3d_rg_znssd_affine():
-
-    print(ref0)
-    print(ref1)
-    print(def0)
-    print(def1)
 
     dic.calculate_3d(
         reference=[ref0, ref1],
