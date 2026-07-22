@@ -128,6 +128,74 @@ def load_fe_point_cloud_data(
     )
 
 
+def load_fe_point_cloud_from_txt_files(
+    *,
+    x_coordinates_path: str | Path,
+    y_coordinates_path: str | Path,
+    time_values_path: str | Path,
+    component_paths: dict[str, str | Path],
+    element_ids_path: str | Path | None = None,
+) -> FePointCloudData:
+    """Load an ANSYS FE point cloud from separate per-component txt files.
+
+    Each component file has shape (n_points, n_timesteps); the coordinate and
+    element-id files have shape (n_points,); the time file has shape
+    (n_timesteps,). ``component_paths`` maps each component name (e.g.
+    "strain_xx") to its txt file, in the desired component order.
+    """
+    coordinates_x = np.atleast_1d(
+        np.asarray(np.genfromtxt(x_coordinates_path), dtype=np.float64)
+    )
+    coordinates_y = np.atleast_1d(
+        np.asarray(np.genfromtxt(y_coordinates_path), dtype=np.float64)
+    )
+    time_values = np.atleast_1d(
+        np.asarray(np.genfromtxt(time_values_path), dtype=np.float64)
+    )
+
+    point_count = coordinates_x.size
+    timestep_count = time_values.size
+
+    if coordinates_y.size != point_count:
+        raise ValueError(
+            f"x ({point_count}) and y ({coordinates_y.size}) coordinate files "
+            "have different numbers of points."
+        )
+
+    if element_ids_path is not None:
+        element_ids = np.atleast_1d(
+            np.asarray(np.genfromtxt(element_ids_path), dtype=np.int64)
+        )
+    else:
+        element_ids = np.arange(point_count, dtype=np.int64)
+
+    component_names = tuple(component_paths.keys())
+    component_arrays: list[np.ndarray] = []
+    for name, path in component_paths.items():
+        arr = np.asarray(np.genfromtxt(path), dtype=np.float64)
+        # A single-timestep file loads as 1D; treat it as (n_points, 1).
+        if arr.ndim == 1:
+            arr = arr[:, None]
+        if arr.shape != (point_count, timestep_count):
+            raise ValueError(
+                f"Component '{name}' has shape {arr.shape}, expected "
+                f"{(point_count, timestep_count)} (n_points, n_timesteps)."
+            )
+        component_arrays.append(arr)
+
+    # shape (point, component, timestep)
+    component_values = np.stack(component_arrays, axis=1)
+
+    return FePointCloudData(
+        element_ids=element_ids,
+        time_values=time_values,
+        coordinates_x=coordinates_x,
+        coordinates_y=coordinates_y,
+        component_names=component_names,
+        component_values=component_values,
+    )
+
+
 def interpolate_fe_data_to_grid(
     element_data_path: str | Path,
     component_columns: Sequence[str],
@@ -141,6 +209,27 @@ def interpolate_fe_data_to_grid(
         element_data_path,
         component_columns=component_columns,
     )
+
+    return interpolate_fe_point_cloud_to_grid(
+        point_cloud,
+        mesh_path=mesh_path,
+        upsample_factor=upsample_factor,
+        target_spacing=target_spacing,
+        source_path=element_data_path,
+    )
+
+
+def interpolate_fe_point_cloud_to_grid(
+    point_cloud: FePointCloudData,
+    *,
+    mesh_path: str | Path | None = None,
+    upsample_factor: float = 2.0,
+    target_spacing: float | None = None,
+    source_path: str | Path | None = None,
+) -> FeInterpolatedGrid:
+    """Interpolate a pre-loaded FE point cloud onto a regular physical grid."""
+
+    component_columns = list(point_cloud.component_names)
 
     points_xy = np.column_stack((point_cloud.coordinates_x, point_cloud.coordinates_y))
     geometry = build_surface_geometry_from_gmsh(mesh_path) if mesh_path is not None else None
@@ -162,7 +251,7 @@ def interpolate_fe_data_to_grid(
             specimen_mask=np.ones((1, 1), dtype=bool),
             total_specimen_area=float(geometry.area) if geometry is not None else None,
             metadata={
-                "element_data_path": str(element_data_path),
+                "element_data_path": str(source_path) if source_path is not None else None,
                 "component_columns": list(component_columns),
                 "raw_point_count": 1,
                 "time_count": int(point_cloud.time_values.size),
@@ -248,7 +337,7 @@ def interpolate_fe_data_to_grid(
         specimen_mask=specimen_mask,
         total_specimen_area=float(geometry.area) if geometry is not None else None,
         metadata={
-            "element_data_path": str(element_data_path),
+            "element_data_path": str(source_path) if source_path is not None else None,
             "component_columns": list(component_columns),
             "raw_point_count": int(points_xy.shape[0]),
             "time_count": int(point_cloud.time_values.size),

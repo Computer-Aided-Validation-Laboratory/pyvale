@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pyvale.vfm.inputdatafiles import InputDataFile, NpyFile
 from pyvale.vfm.experimentdata import EdgeConditions
@@ -6,6 +6,57 @@ import enum
 
 import numpy.typing as npt
 import numpy as np
+
+
+class EFeDataSource(enum.Enum):
+    ANSYS = enum.auto()
+    MOOSE = enum.auto()
+
+
+def _default_strain_component_files() -> dict[str, str]:
+    # Maps component name -> txt filename, in [xx, yy, xy] order.
+    return {
+        "strain_xx": "eps_xx.txt",
+        "strain_yy": "eps_yy.txt",
+        "strain_xy": "eps_xy.txt",
+    }
+
+
+@dataclass(slots=True)
+class AnsysConfig:
+    """Inputs for interpolating ANSYS FE centroid data onto a regular grid.
+
+    Strain components are read from separate per-component txt files (e.g.
+    eps_xx.txt) since a combined element_data.csv may not exist. All file
+    names are resolved relative to ``fe_data_dir``.
+    """
+    fe_data_dir: str
+    strain_component_files: dict[str, str] = field(
+        default_factory=_default_strain_component_files
+    )
+    x_coordinates_file: str = "x_coordinates.txt"
+    y_coordinates_file: str = "y_coordinates.txt"
+    time_values_file: str = "time_values.txt"
+    element_ids_file: str | None = "element_ids.txt"
+    mesh_file: str | None = None
+    upsample_factor: float = 2.0
+    target_spacing: float | None = None
+
+
+@dataclass(slots=True)
+class MooseConfig:
+    """Inputs for loading MOOSE exodus data and interpolating onto a grid."""
+    exodus_file_path: str
+    grid_divs: int
+    plate_height: float
+    plate_width: float
+    strain_component_keys: tuple[str, str, str] = (
+        "strain_xx",
+        "strain_yy",
+        "strain_xy",
+    )
+    force_key: str = "react_y_top"
+
 
 @dataclass(slots=True)
 class CoordConfig:
@@ -111,13 +162,17 @@ class ROIConfig:
 class InputDataConfig:
     x: CoordConfig
     y: CoordConfig
-    strain: StrainConfig
     force: ForceConfig
     time: TimeConfig
-    region_of_interest: ROIConfig
     thickness: float
     # computed from x and y?
     # pixel_area: float = None
     edge_conditions: EdgeConditions
+
+    # Which FE solver produced the data. ANSYS data is interpolated onto a
+    # grid from element centroids; MOOSE data is loaded from an exodus file.
+    data_source: EFeDataSource
+    ansys: AnsysConfig | None = None
+    moose: MooseConfig | None = None
 
 
