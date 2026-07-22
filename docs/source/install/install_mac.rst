@@ -13,7 +13,7 @@ Install via Homebrew
 =====================
 Simple installation instructions for Homebrew itself be found at `<https://brew.sh/>`_.
 
-After you have homebrew setup, you can install python3.11 with:
+After you have homebrew setup, you can install python3.13 with:
 
 .. code-block::
    
@@ -28,7 +28,7 @@ To verify the installation you can try the command:
 Install via Python.org
 ======================
 
-To install python3.11 from `<https://python.org>`_ hover over the “Downloads” link in the navigation. Select macOS.
+To install python3.13 from `<https://python.org>`_ hover over the “Downloads” link in the navigation. Select macOS.
 You'll then need to select 3.13 (or whatever the latest version of 3.13 is).
 This should download the installer which you can then run through.
 
@@ -72,7 +72,7 @@ Installation from PyPI
 
    pip install pyvale
 
-You should now be able to start a python 3.11 interpreter in your terminal using (again make sure your pyvale-env is active):
+You should now be able to start a python 3.13 interpreter in your terminal using (again make sure your pyvale-env is active):
 
 .. code-block:: bash
 
