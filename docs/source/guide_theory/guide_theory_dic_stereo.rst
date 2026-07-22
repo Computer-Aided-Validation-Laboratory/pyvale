@@ -284,13 +284,28 @@ Practical Notes
 Stereo DIC is more sensitive to calibration quality than 2D DIC. A poor
 intrinsic calibration, stereo rotation, or translation vector will give poor
 epipolar lines and therefore poor initial guesses. It will also directly affect
-the triangulated world coordinates.
+the triangulated world coordinates. Spend time ensuring your calibration is of
+good quality - a lot of stereo DIC issues stem from a poor camera calibration.
 
 Good speckle texture remains important. The left and right cameras see the same
 surface from different viewpoints, so subsets should have enough unique texture
-to match reliably even when perspective and lighting change slightly.
+to match reliably even when perspective and lighting change slightly. Avoid
+regions with repetitive patterns that may cause ambiguous left-to-right matches.
 
 The epipolar FFT estimate is used to get close to the correct match, but the
 final result still depends on the nonlinear subset optimizer. As with standard
 DIC, the threshold, subset size, subset step, shape function, and interpolation
-routine all influence the final result.
+routine all influence the final result. Parameters may need to be adjusted
+differently for stereo DIC compared to 2D DIC due to the additional complexity
+of the stereo matching process.
+
+When using ``calculate_3d()``, ensure that the :code:`epi_distance` parameter is
+set appropriately for your stereo baseline and resolution. This parameter controls
+the search distance along epipolar lines and affects both computation time and 
+matching robustness. The default value of 300 pixels is suitable for typical stereo 
+setups, but may need adjustment for very wide or very narrow baselines.
+
+For incremental stereo DIC, Pyvale carries forward the previous stereo match as
+the updated reference for 3D reconstruction. This helps maintain accuracy across
+large deformation sequences while ensuring displacements remain relative to the
+original reference position.

@@ -67,8 +67,7 @@ dic.calculate_3d(reference=[ref0, ref1],
                  seed=roi.seed,
                  subset_size=31,
                  subset_step=10,
-                 output_basepath=output_path,
-                 debug_level=2)
+                 output_basepath=output_path)
 
 
 # %%
@@ -105,3 +104,9 @@ cloud.plot(
     scalars="eps_xx",
     eye_dome_lighting=True,
 )
+
+# %%
+# .. image:: ../../../../_static/dic_ex10_3d.png
+#    :alt: ROI
+#    :width: 100%
+#    :align: center

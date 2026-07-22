@@ -255,6 +255,20 @@ For 2D DIC, text output files contain the following columns:
 - ``num_iter``:
   The number of iterations the algorithm took to converge for this subset.
 
+When a calibration is provided, additional physical-unit columns may be included:
+
+- ``disp_u_mm``:
+  Displacement in the X-direction in millimetres in the camera 0 world coordinate system.
+
+- ``disp_v_mm``:
+  Displacement in the Y-direction in millimetres in the camera 0 world coordinate system.
+
+- ``coord_x_mm``:
+  X-coordinate in millimetres in the camera 0 world coordinate system.
+
+- ``coord_y_mm``:
+  Y-coordinate in millimetres in the camera 0 world coordinate system.
+
 For stereo DIC, output files contain the same 2D temporal DIC columns followed
 by stereo matching and 3D reconstruction columns. The additional stereo columns are:
 
@@ -320,16 +334,18 @@ create a simple plot of the displacement:
 
    import matplotlib.pyplot as plt
 
-   dic_data = dic.import_2d(data="./dic_results_*")
+   dic_data = dic.import_2d(data="./dic_results_*", delimiter=",")
 
    # plot of vertical displacement for first deformation image.
    plt.pcolor(dic_data.ss_x, 
            dic_data.ss_y, 
-           dic_data.u_y[0]) # [image, y, x]
+           dic_data.v_px[0]) # [image, y, x]
 
 The import will find all files in the current working directory with that
 filname prefix. If you have changed :code:`output_delimiter` prior to the
-correlation you will also need to specify the delimiter when importing the data.
+correlation you will also need to specify the same delimiter when importing the data.
+To read binary files (with ``.dic2d`` or ``.dic3d`` extension), pass :code:`binary=True`
+to the import function.
 
 Strain Calculation
 ^^^^^^^^^^^^^^^^^^^
@@ -373,16 +389,34 @@ in the users current working directory in human readable .CSV format with a file
 
 **The output will have the following columns:**
 
-* ``window_x``: X-coordinate of the strain window center.
-* ``window_y``: Y-coordinate of the strain window center.
-* ``def_grad_00``: Deformation gradient component, :math:`F_{00}`.
-* ``def_grad_01``: Deformation gradient component, :math:`F_{01}`.
-* ``def_grad_10``: Deformation gradient component, :math:`F_{10}`.
-* ``def_grad_11``: Deformation gradient component, :math:`F_{11}`.
-* ``eps_00``: Strain tensor component :math:`\eps_{00} (normal strain in x-direction).
-* ``eps_01``: Strain tensor component :math:`\eps_{01} (shear strain xy).
-* ``eps_10``: Strain tensor component :math:`\eps_{10} (shear strain yx).
-* ``eps_11``: Strain tensor component :math:`\eps_{11} (normal strain in y-direction).
+* ``window_x``: X-coordinate of the strain window center (pixels).
+* ``window_y``: Y-coordinate of the strain window center (pixels).
+
+**Deformation Gradient Components** (3×2 matrix for 2D surface strain):
+
+* ``def_grad_00``: Deformation gradient component, :math:`F_{00} = 1 + \partial u / \partial x`.
+* ``def_grad_01``: Deformation gradient component, :math:`F_{01} = \partial u / \partial y`.
+* ``def_grad_10``: Deformation gradient component, :math:`F_{10} = \partial v / \partial x`.
+* ``def_grad_11``: Deformation gradient component, :math:`F_{11} = 1 + \partial v / \partial y`.
+* ``def_grad_20``: Deformation gradient component, :math:`F_{20} = \partial w / \partial x` (3D-aware).
+* ``def_grad_21``: Deformation gradient component, :math:`F_{21} = \partial w / \partial y` (3D-aware).
+
+**Strain Tensor Components** (2×2 in-plane strain):
+
+* ``eps_xx``: Strain tensor component, :math:`\varepsilon_{xx}` (normal strain in x-direction).
+* ``eps_xy``: Strain tensor component, :math:`\varepsilon_{xy}` (shear strain).
+* ``eps_yx``: Strain tensor component, :math:`\varepsilon_{yx}` (shear strain).
+* ``eps_yy``: Strain tensor component, :math:`\varepsilon_{yy}` (normal strain in y-direction).
+
+**Optional Physical Coordinates** (when stereo DIC calibration is available):
+
+* ``coord_x_mm``: X-coordinate of the strain window center in millimetres in the camera 0 world coordinate system.
+* ``coord_y_mm``: Y-coordinate of the strain window center in millimetres in the camera 0 world coordinate system.
+* ``coord_z_mm``: Z-coordinate of the strain window center in millimetres in the camera 0 world coordinate system.
+
+The strain formulation (e.g., Hencky, Green-Lagrange, Almansi) can be selected using the 
+:code:`strain_formulation` parameter in :code:`strain.calculate_2d()`. See the theory guide 
+for details on available strain formulations.
 
 You can alter the path, delimiter and filename prefix of the output file using the arguments
 :code:`output_basepath`, :code:`output_delimiter` and :code:`output_prefix`. You
@@ -392,7 +426,9 @@ can also opt to save results in binary format. This can be done by setting
 
 Importing Strain Data
 ^^^^^^^^^^^^^^^^^^^^^^^^
-Importing Strain data is done with the ``strain.import_2d`` command. 
+Importing Strain data is done with the ``strain.import_2d`` or ``strain.import_3d`` commands. 
+The ``import_2d`` function imports legacy strain data and can accept data with or without 
+3D coordinates. The ``import_3d`` function requires 3D coordinates to be present.
 The below highlights how to import data and
 create a simple plot of the normal strain in the x-direction:
 
@@ -400,22 +436,20 @@ create a simple plot of the normal strain in the x-direction:
 
    import matplotlib.pyplot as plt
 
-   strain_data = strain.import_2d(data="./dic_results_*")
+   strain_data = strain.import_2d(data="./strain_*", delimiter=",")
 
-   # plot of vertical displacement for first deformation image.
+   # plot of normal strain in x-direction for first deformation image.
    plt.pcolor(strain_data.window_x, 
               strain_data.window_y, 
               strain_data.eps_xx[0]) # [image, y, x]
 
 The import will find all files in the current working directory with that
-filname prefix. If you have changed :code:`output_delimiter` prior to the
-correlation you will also need to specify the delimiter when importing the data.
-
-DIC with Large Images/Displacements
-------------------------------------
+filename prefix. If you have changed :code:`output_delimiter` prior to the
+strain calculation you will also need to specify the same delimiter when importing the data.
+To read binary files, pass :code:`binary=True` to the import function.
 
 Incremental DIC
-^^^^^^^^^^^^^^^^
+----------------
 
 By default Pyvale performs all temporal DIC calculations against the original
 reference image. This is usually the simplest interpretation of the results, but
@@ -467,6 +501,45 @@ previous frame are removed from the active subset set for later frames. For
 stereo DIC, the same temporal reference update is applied to the left camera
 stream; Pyvale also carries the previous right-camera stereo result as the
 updated stereo reference used for reconstructing 3D displacements.
+
+Performing Stereo DIC
+----------------------
+
+Stereo Digital Image Correlation extends 2D DIC by using two synchronised cameras 
+to triangulate 3D positions of material points. To perform stereo DIC, you will need 
+calibrated camera intrinsics and the relative pose (rotation and translation) between 
+the left and right cameras. Stereo DIC uses the ``dic.calculate_3d`` function instead 
+of ``dic.calculate_2d``:
+
+.. code-block:: Python
+
+   dic.calculate_3d(
+       reference=[left_ref_image, right_ref_image],
+       deformed=[left_def_images, right_def_images],
+       roi_mask=roi_mask,
+       seed=seed,
+       calibration=calib,  # Calib dataclass from pyvale.calib
+       subset_size=31,
+       subset_step=15,
+       ...
+   )
+
+The key differences from 2D DIC are:
+
+- ``reference`` and ``deformed`` are lists of image pairs ``[left_image, right_image]``.
+- A ``calibration`` parameter (of type ``Calib``) must be provided with camera intrinsics and stereo geometry.
+- An additional ``epi_distance`` parameter controls the search distance along epipolar lines (default: 300 pixels).
+
+Stereo DIC output includes all standard 2D columns for the left camera temporal correlation,
+plus stereo-specific columns for the left-to-right matching and 3D reconstruction. 
+See "Understanding Output files" above for a complete list of stereo output columns.
+
+For details on the stereo DIC theory including camera calibration, epipolar geometry, 
+and triangulation, see the :ref:`Stereo DIC theory guide <guide_theory_dic_stereo>`.
+
+DIC with Large Images/Displacements
+------------------------------------
+
 
 Setting a Maximum Displacement
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
