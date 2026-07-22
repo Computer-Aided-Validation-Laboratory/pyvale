@@ -17,15 +17,18 @@
 namespace smooth {
 
     // bilinear lagrange polynomials
-    Eigen::VectorXd q4(std::vector<int> &x, std::vector<int> &y, 
-                       std::vector<double>& disp_vals){
+    Eigen::VectorXd q4(const std::vector<double> &x, const std::vector<double> &y, 
+                       const std::vector<double>& disp_vals){
 
         Eigen::MatrixXd A(disp_vals.size(), 4);
         Eigen::VectorXd b(disp_vals.size());
+        const size_t centre_idx = x.size() / 2;
+        const double x0 = x[centre_idx];
+        const double y0 = y[centre_idx];
         
         for (size_t i = 0; i < x.size(); ++i) {
-            double ss_x = x[i];
-            double ss_y = y[i];
+            double ss_x = x[i] - x0;
+            double ss_y = y[i] - y0;
             A(i, 0) = 1.0;
             A(i, 1) = ss_x;
             A(i, 2) = ss_y;
@@ -39,15 +42,18 @@ namespace smooth {
     }
 
     // biquadratic lagrange polynomials
-    Eigen::VectorXd q9(std::vector<int>& x, std::vector<int>& y,
-                       std::vector<double>& disp_vals) {
+    Eigen::VectorXd q9(const std::vector<double>& x, const std::vector<double>& y,
+                       const std::vector<double>& disp_vals) {
 
         Eigen::MatrixXd A(disp_vals.size(), 9);
         Eigen::VectorXd b(disp_vals.size());
+        const size_t centre_idx = x.size() / 2;
+        const double x0 = x[centre_idx];
+        const double y0 = y[centre_idx];
 
         for (size_t i = 0; i < x.size(); ++i) {
-            double ss_x = x[i];
-            double ss_y = y[i];
+            double ss_x = x[i] - x0;
+            double ss_y = y[i] - y0;
             A(i, 0) = 1.0;
             A(i, 1) = ss_x;
             A(i, 2) = ss_y;

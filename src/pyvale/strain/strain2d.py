@@ -97,13 +97,16 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
 
     elif isinstance(data, dicResults):
         dicresults = data
-        print(dicresults.ss_x.shape, dicresults.ss_y.shape, dicresults.u.shape,dicresults.v.shape)
         assert dicresults.ss_x.ndim == 2 and dicresults.ss_y.ndim == 2, "ss_x and ss_y must be 2D"
         assert dicresults.ss_x.shape == dicresults.ss_y.shape, "ss_x and ss_y must have the same shape"
-        assert dicresults.u.ndim == 3 and dicresults.v.ndim == 3, "u and v must be 3D"
-        assert dicresults.u.shape == dicresults.v.shape, "u and v must have the same shape"
-        assert dicresults.u.shape[1:] == dicresults.ss_x.shape, "Spatial dimensions of u must match ss_x"
-        filenames = check_strain_files(data.filenames)
+        assert dicresults.u_px.ndim == 3 and dicresults.v_px.ndim == 3, "u_px and v_px must be 3D"
+        assert dicresults.u_px.shape == dicresults.v_px.shape, "u_px and v_px must have the same shape"
+        assert dicresults.u_px.shape[1:] == dicresults.ss_x.shape, "Spatial dimensions of u_px must match ss_x"
+
+        # need to make dummy filenames
+        filenames = []
+        for f in range(0,dicresults.u_px.shape[0]):
+            filenames.append(f"strain_data_{f:04d}")
 
     else: 
         raise TypeError(f"Unexpected displacement data type: {type(data)}")
@@ -123,8 +126,16 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
     strain_save_conf.prefix = output_prefix
     strain_save_conf.delimiter = output_delimiter
 
-    # make an empty array for w 
+    # make empty arrays for optional 3D fields
     w_dummy = np.zeros_like(dicresults.u_px)
+    x_mm = np.full_like(dicresults.u_px, np.nan, dtype=np.float64)
+    y_mm = np.full_like(dicresults.u_px, np.nan, dtype=np.float64)
+    z_mm = np.full_like(dicresults.u_px, np.nan, dtype=np.float64)
+
+    if dicresults.stereo is not None:
+        x_mm = dicresults.stereo.x_mm
+        y_mm = dicresults.stereo.y_mm
+        z_mm = dicresults.stereo.z_mm
 
     #set the number of OMP threads
     if num_threads is not None:
@@ -145,7 +156,8 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
 
     # Call to C++ backend
     with strain_cpp.ostream_redirect(stdout=True, stderr=True):
-        strain_cpp.strain_engine(dicresults.ss_x, dicresults.ss_y,
+        strain_cpp.strain_engine_2d(dicresults.ss_x, dicresults.ss_y,
+                            x_mm, y_mm, z_mm,
                             dicresults.u_px, dicresults.v_px, w_dummy,
                             nss_x, nss_y, nimg,
                             window_size, window_element, 

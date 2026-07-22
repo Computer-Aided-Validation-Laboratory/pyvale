@@ -33,15 +33,21 @@ namespace strain {
      * 
      */
     struct Window {
-        std::vector<int> x;
-        std::vector<int> y;
+        std::vector<double> x;
+        std::vector<double> y;
+        std::vector<double> x_mm;
+        std::vector<double> y_mm;
+        std::vector<double> z_mm;
         std::vector<double> u;
         std::vector<double> v;
         std::vector<double> w;
 
-        Window(int sw_size) 
+        Window(int sw_size)
             : x(sw_size * sw_size, 0.0),
               y(sw_size * sw_size, 0.0),
+              x_mm(sw_size * sw_size, 0.0),
+              y_mm(sw_size * sw_size, 0.0),
+              z_mm(sw_size * sw_size, 0.0),
               u(sw_size * sw_size, 0.0),
               v(sw_size * sw_size, 0.0),
               w(sw_size * sw_size, 0.0)
@@ -52,28 +58,67 @@ namespace strain {
     struct Results {
         std::vector<int> x;
         std::vector<int> y;
-        std::vector<double> def_grad;
+        std::vector<double> x_mm;
+        std::vector<double> y_mm;        
+        std::vector<double> z_mm;
+        std::vector<double> F;
         std::vector<double> strain;
         std::vector<bool> valid_window;
 
         Results(int nwindows) 
             : x(nwindows, 0),
               y(nwindows, 0),
-              def_grad(nwindows*9, std::nan("")),
-              strain(nwindows*9, std::nan("")),
+              x_mm(nwindows, std::nan("")),
+              y_mm(nwindows, std::nan("")),
+              z_mm(nwindows, std::nan("")),
+              F(nwindows*6, std::nan("")),
+              strain(nwindows*4, std::nan("")),
               valid_window(nwindows, false)
         {}
     };
 
 
 
+    void engine_2d(const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &strain_save_conf,
+                   const int debug_level);
+
+    void engine_3d(const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &strain_save_conf,
+                   const int debug_level);
+
     void engine(const py::array_t<int> &ss_x_arr,
                 const py::array_t<int> &ss_y_arr,
+                const py::array_t<double> &x_mm_arr,
+                const py::array_t<double> &y_mm_arr,
+                const py::array_t<double> &z_mm_arr,
                 const py::array_t<double> &u_arr,
                 const py::array_t<double> &v_arr,
                 const py::array_t<double> &w_arr,
-                const int nss_x, const int nss_y, 
-                const int nimg, const int sw_size, 
+                const int nss_x, const int nss_y,
+                const int nimg, const int sw_size,
                 const int q, const std::string &form,
                 const std::vector<std::string> &filenames,
                 const common_util::SaveConfig &strain_save_conf,
@@ -97,18 +142,29 @@ namespace strain {
      * @return true if the strain window is filled successfully
      * @return false if the strain window is out of bounds
      */
-    bool fill_window(int *ss_x, int *ss_y, double *u, double *v, double *w,
-                            int img, int sw, Window &window,
-                            int nss_x, int nss_y, int sw_size);
+    bool fill_window_2d(int *ss_x, int *ss_y, double *u, double *v, double *w,
+                        int img, int sw, Window &window,
+                        int nss_x, int nss_y, int sw_size);
+
+    bool fill_window_3d(int *ss_x, int *ss_y, double *x_mm, double *y_mm, double *z_mm,
+                        double *u, double *v, double *w,
+                        int img, int sw, Window &window,
+                        int nss_x, int nss_y, int sw_size);
 
 
 
-    Eigen::Matrix3d compute_def_grad(const int q, 
-                                     const Eigen::VectorXd &uc, 
-                                     const Eigen::VectorXd &vc, 
-                                     const Eigen::VectorXd &wc, 
-                                     const double x0, 
-                                     const double y0);
+    Eigen::Matrix3d compute_F_2d(const int q,
+                                        const Eigen::VectorXd &uc,
+                                        const Eigen::VectorXd &vc,
+                                        const Eigen::VectorXd &wc,
+                                        const double x0,
+                                        const double y0);
+
+    Eigen::Matrix3d compute_surface_F_3d(const int q,
+                                                const Eigen::VectorXd &uc,
+                                                const Eigen::VectorXd &vc,
+                                                const Eigen::VectorXd &wc,
+                                                const Eigen::Matrix3d &tangent_basis);
 
 
     Eigen::Matrix3d compute_strain(const std::string& form, 
@@ -121,7 +177,7 @@ namespace strain {
                         const int x0, const int y0, 
                         const Eigen::Matrix3d &deform_grad, 
                         const Eigen::Matrix3d &eps, 
-                        const int nwindows, const int img);
+                        const int nwindows);
 
 
     /**

@@ -96,7 +96,6 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
 
     elif isinstance(data, dicResults):
         dicresults = data
-        print(dicresults.ss_x.shape, dicresults.ss_y.shape, dicresults.u_px.shape,dicresults.v_px.shape)
         assert dicresults.ss_x.ndim == 2 and dicresults.ss_y.ndim == 2, "ss_x and ss_y must be 2D"
         assert dicresults.ss_x.shape == dicresults.ss_y.shape, "ss_x and ss_y must have the same shape"
         assert dicresults.u_px.ndim == 3 and dicresults.v_px.ndim == 3, "u and v must be 3D"
@@ -126,6 +125,13 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
     strain_save_conf.prefix = output_prefix
     strain_save_conf.delimiter = output_delimiter
 
+    if dicresults.stereo is None:
+        raise ValueError("3D strain calculation requires DIC Results with stereo data.")
+
+    x_mm = dicresults.stereo.x_mm
+    y_mm = dicresults.stereo.y_mm
+    z_mm = dicresults.stereo.z_mm
+
     #set the number of OMP threads
     if num_threads is not None:
         common_cpp.set_num_threads(num_threads)
@@ -145,7 +151,8 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
 
     # Call to C++ backend
     with strain_cpp.ostream_redirect(stdout=True, stderr=True):
-        strain_cpp.strain_engine(dicresults.ss_x, dicresults.ss_y,
+        strain_cpp.strain_engine_3d(dicresults.ss_x, dicresults.ss_y,
+                                 x_mm, y_mm, z_mm,
                                  dicresults.stereo.u_mm, dicresults.stereo.v_mm, dicresults.stereo.w_mm,
                                  nss_x, nss_y, nimg,
                                  window_size, window_element, 
