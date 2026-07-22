@@ -219,9 +219,9 @@ Understanding Output files
 
 The next step is to understand the output. By default the results will be saved
 in the users current working directory in human readable .CSV format with a filename prefix of
-``dic_results_`` followed by the name of the deformed image. 
+``dic_results_`` followed by the name of the deformed image.
 
-**The output will have the following columns:**
+For 2D DIC, text output files contain the following columns:
 
 - ``subset_x``:
   X-coordinate of the center of the subset (or window) used in displacement tracking or correlation analysis.
@@ -229,22 +229,22 @@ in the users current working directory in human readable .CSV format with a file
 - ``subset_y``:
   Y-coordinate of the center of the subset used in displacement tracking or correlation analysis.
 
-- ``displacement_u``:
+- ``disp_u``:
   Displacement in the X-direction (horizontal) calculated for the subset.
 
-- ``displacement_v``:
+- ``disp_v``:
   Displacement in the Y-direction (vertical) calculated for the subset.
 
-- ``displacement_mag``:
+- ``disp_mag``:
   Magnitude of the displacement vector.
 
 - ``converged``:
   Boolean flag indicating whether the displacement calculation algorithm converged for this subset.
 
-- ``cost``:
+- ``cost_zncc``:
   The final value of the cost function used during the displacement calculation.
   The reported value is always given as the ZNCC value no matter if the SSD, NSSD or ZNSSD has been chosen as the correlation function.
-  The ZNCC is calculated with the final parameter values from the last optimizer iteration. 
+  The ZNCC is calculated with the final parameter values from the last optimizer iteration.
 
 - ``ftol``:
   The final value of the function tolerance, a measure of how much the cost function changed between iterations at convergence.
@@ -252,13 +252,59 @@ in the users current working directory in human readable .CSV format with a file
 - ``xtol``:
   The final value of the solution tolerance, a measure of how much the solution (displacement) changed between iterations at convergence.
 
-- ``num_iterations``:
+- ``num_iter``:
   The number of iterations the algorithm took to converge for this subset.
+
+For stereo DIC, output files contain the same 2D temporal DIC columns followed
+by stereo matching and 3D reconstruction columns. The additional stereo columns are:
+
+- ``stereo_disp_u_px``:
+  Horizontal pixel displacement from the left image subset to the corresponding right image subset.
+
+- ``stereo_disp_v_px``:
+  Vertical pixel displacement from the left image subset to the corresponding right image subset.
+
+- ``stereo_disp_mag_px``:
+  Magnitude of the left-to-right stereo pixel displacement.
+
+- ``stereo_disp_u_mm``:
+  Reconstructed X-direction displacement in millimetres in the camera 0 world coordinate system.
+
+- ``stereo_disp_v_mm``:
+  Reconstructed Y-direction displacement in millimetres in the camera 0 world coordinate system.
+
+- ``stereo_disp_w_mm``:
+  Reconstructed Z-direction displacement in millimetres in the camera 0 world coordinate system.
+
+- ``stereo_x_mm``:
+  Reconstructed X-coordinate in millimetres in the camera 0 world coordinate system.
+
+- ``stereo_y_mm``:
+  Reconstructed Y-coordinate in millimetres in the camera 0 world coordinate system.
+
+- ``stereo_z_mm``:
+  Reconstructed Z-coordinate in millimetres in the camera 0 world coordinate system.
+
+- ``stereo_converged``:
+  Boolean flag indicating whether the stereo left-to-right subset match converged.
+
+- ``stereo_cost_zncc``:
+  Final ZNCC value for the stereo left-to-right subset match.
+
+- ``stereo_ftol``:
+  Final function tolerance value for the stereo optimizer.
+
+- ``stereo_xtol``:
+  Final solution tolerance value for the stereo optimizer.
+
+- ``stereo_num_iter``:
+  Number of optimizer iterations used by the stereo subset match.
 
 You can alter the path, delimiter and filename prefix of the output file using the arguments
 :code:`output_basepath`, :code:`output_delimiter` and :code:`output_prefix`. You
 can also opt to save results in binary format. This can be done by setting
-:code:`output_binary=True`.
+:code:`output_binary=True`. Binary 2D DIC files use the ``.dic2d`` extension and
+binary stereo DIC files use the ``.dic3d`` extension.
 
 Importing DIC Results
 ^^^^^^^^^^^^^^^^^^^^^
@@ -368,6 +414,60 @@ correlation you will also need to specify the delimiter when importing the data.
 DIC with Large Images/Displacements
 ------------------------------------
 
+Incremental DIC
+^^^^^^^^^^^^^^^^
+
+By default Pyvale performs all temporal DIC calculations against the original
+reference image. This is usually the simplest interpretation of the results, but
+it can become unreliable when the deformation between the reference image and a
+later image is too large for a robust subset match.
+
+Incremental DIC changes the reference image during a sequence:
+
+.. code-block:: Python
+   :emphasize-lines: 3-5
+
+   dic.calculate_2d(
+        ...,
+        incremental=True,
+        incremental_update_condition="IMAGE",
+        incremental_update_value=1,
+        ...,
+   )
+
+When ``incremental=True``, Pyvale may replace the active reference image with
+the previous deformed image before processing the next frame. This reduces the
+image-to-image deformation that the optimizer has to solve. The displacement
+values written to disk are still accumulated relative to the first reference
+image, so ``disp_u`` and ``disp_v`` remain total temporal displacements rather
+than only frame-to-frame increments. The correlation quality fields, such as
+``cost_zncc``, ``ftol``, ``xtol`` and ``num_iter``, describe the match against
+the active, possibly updated reference image.
+
+The update rule is controlled with ``incremental_update_condition`` and
+``incremental_update_value``:
+
+- ``"IMAGE"``:
+  Update after every ``N`` deformed images, where ``N`` is
+  ``incremental_update_value``. For example, ``incremental_update_value=1``
+  updates the reference at every available opportunity after the first deformed
+  image.
+
+- ``"ITER"``:
+  Update when the average ``num_iter`` value from the previous image is greater
+  than ``incremental_update_value``.
+
+- ``"COST"``:
+  Update when the average ``cost_zncc`` value from the previous image is greater
+  than ``incremental_update_value``.
+
+The first deformed image is always matched against the original reference image.
+When the reference is updated, subsets that failed the threshold check in the
+previous frame are removed from the active subset set for later frames. For
+stereo DIC, the same temporal reference update is applied to the left camera
+stream; Pyvale also carries the previous right-camera stereo result as the
+updated stereo reference used for reconstructing 3D displacements.
+
 Setting a Maximum Displacement
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -403,28 +503,30 @@ sometimes be problematic when multiple windows are involved as incorrect
 estimates can be propogated through the smaller windows, leading to a wildly
 incorrect initial rigid estimate for the displacements.
 
-Pyvale has a Median Absolute Deviation (MAD) outlier removal
-flag that, when enabled, will kill likely incorrect spikes in the rigid
-estimates or each FFTCC window size. This can be enabled with the following
+Pyvale has an FFT displacement outlier removal filter
+that, when enabled, will kill likely incorrect spikes in the rigid
+estimates for each FFTCC window size. This can be enabled with the following
 arguments when calling the DIC engine:
 
 .. code-block:: Python
-   :emphasize-lines: 3-4
+   :emphasize-lines: 3-6
 
    dic.calculate_2d(
         ...,
-        fft_mad=True,
-        fft_mad_scale=3.0, # <-- Default value
+        fft_filter=True,
+        fft_filter_threshold=3.0, # <-- Default value
+        fft_filter_radius=3,
+        fft_filter_corr_power=2.0,
         ...
    )
 
-The MAD outlier removal works in the following way:
+The FFT displacement outlier removal works in the following way:
 
 #. Looks at nearby subsets in a 2D neighborhood
-#. Computes the median of their shifts
-#. Computes the MAD (median absolute deviation)
-#. A value is replaced if the the condition :math:`| x − \mathrm{median}| > \mathrm{fft\_mad\_scale} \times \mathrm{MAD}` is met.
-   A larger :code:`fft_mad_scale` is therefore more *tolerant*, while a smaller value kills larger deviations.
+#. Computes a correlation-weighted vector median of their shifts
+#. Computes a weighted median vector residual
+#. A vector is replaced if its normalized residual is larger than the adaptive threshold.
+   A larger :code:`fft_filter_threshold` is therefore more *tolerant*, while a smaller value kills larger deviations.
 
 
 Sequential Image Loading

@@ -1,6 +1,6 @@
 .. _guide_theory_dic:
 
-DIC Theory Overview
+DIC
 ======================================
 
 Digital Image Correlation (DIC) is a technique for measuring
