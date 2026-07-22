@@ -6,7 +6,7 @@ Windows 11
 Installing python
 -----------------
 
-To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.11. To install python 3.11 for windows grab the correct installer for your system (most likely windows 64 bit) from the python website here: https://www.python.org/downloads/release/python-3119/.
+To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.13. To install python 3.13 for windows grab the correct installer for your system (most likely windows 64 bit) from the python website here: https://www.python.org/downloads/release/python-3130/.
 
 Launch the installer, select 'custom installation' and make sure the 'py launcher' option is checked. Then click next and finish the installation. If you are prompted to disable the maximum path length then click this to confirm you want to disable the path length.
 
@@ -17,9 +17,9 @@ To confirm your installation has worked you should open a windows command line u
 
 .. code-block:: batch
 
-   py -3.11
+   py -3.13
 
-If you see prompt with Python 3.11.9 in the header and the starting cursor has '>>>' then everything has worked. If you install other python versions on windows you can start them using the py launcher using this syntax ``py -#.#``. Where the '\#' is the version you want to start. For pyvale we will stick with python 3.11.
+If you see prompt with Python 3.13 in the header and the starting cursor has '>>>' then everything has worked. If you install other python versions on windows you can start them using the py launcher using this syntax ``py -#.#``. Where the '\#' is the version you want to start. For pyvale we will stick with python 3.13.
 
 Troubleshooting the py launcher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -41,7 +41,7 @@ We recommend installing ``pyvale`` in a virtual environment using ``venv`` or ``
 
 .. code-block:: batch
 
-   py -3.11 -m venv pyvale-env
+   py -3.13 -m venv pyvale-env
 
 This will create a virtual environment called 'pyvale-env' in a folder of the same name. To activate the virtual environment from your current location type this into the command prompt:
 

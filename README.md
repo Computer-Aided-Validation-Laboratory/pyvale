@@ -25,7 +25,7 @@ The code to run the simulated experiments and produce the output shown here come
 pip install pyvale
 ```
 
-We recommend installing `pyvale` into a virtual environment of your choice as `pyvale` requires python 3.11. If you need help setting up your virtual environment and installing `pyvale` head over to the [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html) in our docs.
+We recommend installing `pyvale` into a virtual environment of your choice as `pyvale` requires python 3.13. If you need help setting up your virtual environment and installing `pyvale` head over to the [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html) in our docs.
 
 ## Contributors
 The Computer Aided Validation Team at UKAEA:
@@ -40,7 +40,7 @@ The Computer Aided Validation Team at UKAEA:
 - Michael Atkinson ([mikesmic](https://github.com/mikesmic)), UK Atomic Energy Authority
 - Adel Tayeb ([3adelTayeb](https://github.com/3adelTayeb)), UK Atomic Energy Authority
 - Alex Marsh ([alexmarsh2](https://github.com/alexmarsh2)), UK Atomic Energy Authority
-- Rory Spencer ([fusmatrs](https://github.com/orgs/Computer-Aided-Validation-Laboratory/people/fusmatrs)), UK Atomic Energy Authority
+- Rory Spencer ([fusmatrs](https://github.com/fusmatrs)), UK Atomic Energy Authority
 - John Charlton ([coolmule0](https://github.com/coolmule0)), UK Atomic Energy Authority
 
 
