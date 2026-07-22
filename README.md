@@ -18,7 +18,7 @@ Below is a really quick example for setting up a DIC calculation. It's highly li
 
 Define the Region of Interest (ROI):
 
-```
+```python
 import pyvale.dic as dic
 
 roi = dic.RegionOfInterest(ref_image="image0000.tiff")
@@ -26,7 +26,7 @@ roi.interactive_selection()
 ```
 run the DIC:
 
-```
+```python
 dic.calculate_2d(reference="image0000.tiff",
                  deformed="image*.tiff,
                  roi_mask=roi.mask, # built using ROI tool
@@ -36,13 +36,15 @@ dic.calculate_2d(reference="image0000.tiff",
 ```
 Import the results for any analysis/plotting:
 
-```
+```python
 dicdata = dic.import_2d(data="./dic_results*.csv", # default result files prefix
-                            delimiter=",")
+                        delimiter=",")
 
 
 import matplotlib.pyplot as plt
-plt.pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u_px[0]) # horizontal displacement for 0th image
+plt.pcolor(dicdata.ss_x, 
+           dicdata.ss_y, 
+           dicdata.u_px[0]) # horizontal displacement for 0th image
 plt.show()
 ```
 
