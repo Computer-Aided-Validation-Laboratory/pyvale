@@ -51,7 +51,7 @@ For the computationally expensive modules in pyvale such as the simulation of im
 How do I get started with pyvale?
 ---------------------------------
 
-You can install pyvale from PyPI using ``pip install pyvale``. We recommend a virtual environment with python 3.11. If you are a new python user and need help setting up the correct python version and your virtual environment then go to our detailed :ref:`install guide <install_all>`.
+You can install pyvale from PyPI using ``pip install pyvale``. We recommend a virtual environment with python 3.13. If you are a new python user and need help setting up the correct python version and your virtual environment then go to our detailed :ref:`install guide <install_all>`.
 
 Once you have pyvale installed you should get familiar with the core concepts of pyvale starting with the :ref:`basic examples <examples_sensorsim_basics>`. These examples come with some pre-packaged simulation data so you will not need to provide your own simulation to get started. With the core functionality of pyvale you will have everything you need to be able to build any custom sensor array that samples scalar (e.g. temperature), vector (e.g. displacement, velocity) or tensor fields (e.g. strain).
 
