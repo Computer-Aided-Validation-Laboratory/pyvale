@@ -46,6 +46,10 @@ test-input/
 !tests/mooseherder/output_gold/sim-workdir-*/*.json
 !tests/mooseherder/txt_gold/*.csv
 !tests/mooseherder/txt_gold/*.npy
+!tests/dataio/txt_gold/*.csv
+!tests/dataio/txt_gold/*.npy
+!tests/blender/2D_gold/*.npy
+!tests/blender/3D_gold/*.npy
 
 # Image deformation test cases
 *.pkl
@@ -78,8 +82,10 @@ docs/source/doxygen
 src/pyvale/cython/rastercyth.c
 src/pyvale/cython/rastercyth.html
 
-# Ruff linting cache
 .ruff_cache/
+.antigravitycli/
+/.*/
+uv.lock
 
 #-------------------------------------------------------------------------------
 # Python Standard Ignore
@@ -259,3 +265,4 @@ docs/source/examples/
 # doxygen folder generated when compiling docs
 docs/source/doxygen
 
+.DS_Store

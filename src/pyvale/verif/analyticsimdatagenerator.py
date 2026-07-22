@@ -12,7 +12,7 @@ underlying physical fields. Useful for testing pyvale.
 from dataclasses import dataclass
 import numpy as np
 import sympy
-import pyvale.mooseherder as mh
+import pyvale.dataio as io
 from pyvale.verif.analyticmeshgen import rectangle_mesh_2d, fill_dims_2d
 
 
@@ -302,16 +302,16 @@ class AnalyticSimDataGen:
         return self.field_eval
 
 
-    def generate_sim_data(self) -> mh.SimData:
+    def generate_sim_data(self) -> io.SimData:
         """Creates a SimData object using the analytic case geometry, mesh
         parameters and the underlying physical fields.
 
         Returns
         -------
-        mh.SimData
+        io.SimData
             SimData object built from the analytic case data.
         """
-        sim_data = mh.SimData()
+        sim_data = io.SimData()
         sim_data.num_spat_dims = 2
         sim_data.time = self.case_data.time_steps
         sim_data.coords = self.coords

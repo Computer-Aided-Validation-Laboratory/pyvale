@@ -29,6 +29,14 @@ MOOSE_INPUT = BASE_DIR/"moose"/"moose-test.i"
 GMSH_APP_PATH = Path().home() / 'gmsh/bin/gmsh'
 GMSH_INPUT = BASE_DIR/"gmsh/gmsh-test.geo"
 
+moose_present = (
+    MOOSE_PATH.is_dir()
+    and MOOSE_APP_PATH.is_dir()
+    and (MOOSE_APP_PATH / MOOSE_APP_NAME).is_file()
+)
+
+gmsh_present = GMSH_APP_PATH.is_file()
+
 OUTPUT_GOLD_PATH = BASE_DIR/"output_gold"
 TXT_GOLD_PATH = BASE_DIR/"txt_gold"
 

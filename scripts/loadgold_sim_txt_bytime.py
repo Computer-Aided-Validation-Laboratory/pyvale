@@ -6,6 +6,7 @@
 
 from pathlib import Path
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
 import pyvale.dataset as dataset
 import pyvale.mooseherder as mh
 import pyvale.verif.matchsimdata as verif
@@ -13,13 +14,13 @@ import pyvale.verif.matchsimdata as verif
 
 def main() -> None:
     data_path: Path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-    sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+    sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
     project_root: Path = Path(__file__).resolve().parents[1]
-    gold_path: Path = project_root/"tests"/"mooseherder"/"txt_gold"
+    gold_path: Path = project_root/"tests"/"dataio"/"txt_gold"
 
-    load_opts = mh.SimLoadOpts()
-    save_opts = mh.SimDataSaveOpts(sim_tag="hex20")
+    load_opts = io.SimLoadOpts()
+    save_opts = io.SimDataSaveOpts(sim_tag="hex20")
 
     suffix: str = ".npy"
     coords_file: str = save_opts.get_coord_name() + suffix
@@ -48,7 +49,7 @@ def main() -> None:
                    "react_y_top":slice(4,5),}
 
     
-    sim_loader = mh.SimLoaderByTime(load_dir=gold_path,
+    sim_loader = io.SimLoaderByTime(load_dir=gold_path,
                                     coords_file=coords_file,
                                     time_step_file=time_step_file,
                                     node_files=field_pattern,

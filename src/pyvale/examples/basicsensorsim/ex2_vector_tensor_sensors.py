@@ -23,8 +23,9 @@ from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
 import pyvale.dataset as dataset
 
 #%%
@@ -36,13 +37,13 @@ import pyvale.dataset as dataset
 # visualisation tools are based on unit scaling by default.
 
 data_path: Path = dataset.mechanical_2d_path()
-sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
 disp_keys = ("disp_x","disp_y")
 strain_norm_keys = ("strain_xx","strain_yy",)
 strain_dev_keys = ("strain_xy",)
 
-sim_data: mh.SimData  = sens.scale_length_units(scale=1000.0,
+sim_data: io.SimData  = sens.scale_length_units(scale=1000.0,
                                                 sim_data=sim_data,
                                                 disp_keys=disp_keys)
 
