@@ -8,28 +8,25 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import pandas as pd
-from pyvale.mooseherder.outputloader import IOutputLoader
-from pyvale.mooseherder.simdata import SimData, SimLoadConfig
-from pyvale.mooseherder.simloadtools import (str_to_path,
-                                          load_array,
-                                          load_connectivity,
-                                          load_field_files,
-                                          check_sim_data_consistency,
-                                          load_glob_vars)
-from pyvale.mooseherder.simloadopts import SimLoadOpts
-from pyvale.mooseherder.exceptions import SimLoadErr
+from pyvale.dataio.simdata import SimData, SimLoadConfig
+from pyvale.dataio.meshtools import enforce_mesh_convention
+from pyvale.dataio.loadtools import (str_to_path,
+                                     load_array,
+                                     load_connectivity,
+                                     load_field_files,
+                                     check_sim_data_consistency,
+                                     load_glob_vars)
+from pyvale.dataio.loadopts import SimLoadOpts
+from pyvale.dataio.exceptions import SimLoadErr
 
 
-class SimLoaderByTime(IOutputLoader):
+class SimLoaderByTime:
     """Class for loading simulation data (i.e. a `SimData` object) from a series
     of plain text delimited files or binary numpy npy files.
-
-    Implements the `IOutputLoader` interface.
     """
 
-    __slots__ = ("_coords","_time_steps","_load_dir","_file_patterns",
-                 "_field_slices","_load_opts","_connect","_glob_file",
-                 "_glob_slices")
+    __slots__ = ("_load_dir","_node_file_pattern","_node_slices","_glob_file",
+                 "_glob_slices","_load_opts","_coords","_time_steps","_connect")
 
     def __init__(self,
                  load_dir: Path,
@@ -38,7 +35,7 @@ class SimLoaderByTime(IOutputLoader):
                  node_files: str | None,
                  node_slices: dict[str, slice] | None,
                  connect_files: str | list[str] | None = None,
-                 glob_file: str | None = None,
+                 glob_file: str | Path | None = None,
                  glob_slices: dict[str,slice] | None = None,
                  load_opts: SimLoadOpts | None = None) -> None:
         """
@@ -51,31 +48,31 @@ class SimLoaderByTime(IOutputLoader):
             no coordinates are loaded and they can be manually specified in the
             SimData object.
         time_step_file : str | Path | None
-            String or full path to the file containing the simulation time 
+            String or full path to the file containing the simulation time
             steps. If None then no time step file is loaded and the time steps
-            can be manually specified in the SimData object. 
+            can be manually specified in the SimData object.
         node_files : str | None
             Wildcard pattern for identifying node field data files in the load
-            directory. For example: 'node_field_frame*'. If None then no nodal 
+            directory. For example: 'node_field_frame*'. If None then no nodal
             field variables are loaded.
         node_slices : dict[str, slice] | None
             Dictionary specifying slices for which columns in the simulation
             nodel field time step files correspond to specific variable names.
             If None then no nodal field variables are loaded.
         connect_files : str | list[str] | None, optional
-            Wildcard pattern specifying how to identify connectivity files in 
-            the load directory or list of strings for the connectivity files, 
+            Wildcard pattern specifying how to identify connectivity files in
+            the load directory or list of strings for the connectivity files,
             by default None. If None then no connectivity tables are loaded.
-        glob_file : str | None, optional
-            File name for the global variables file in the load directory, by 
+        glob_file : str | Path | None, optional
+            File for the global variables file in the load directory, by
             default None. If None then global variables are not loaded.
         glob_slices : dict[str,slice] | None, optional
-            Dictionary keyed with the global variable names with slices 
-            specifying which columns to extract for the given global variable, 
+            Dictionary keyed with the global variable names with slices
+            specifying which columns to extract for the given global variable,
             by default None. If None then no global variables are loaded.
         load_opts : SimLoadOpts | None, optional
-            Options for loading the simulation data including the number of 
-            threads for using multi-processing to load field files, by default 
+            Options for loading the simulation data including the number of
+            threads for using multi-processing to load field files, by default
             None. If None then a default load options dataclass is created.
 
         Raises
@@ -161,9 +158,9 @@ class SimLoaderByTime(IOutputLoader):
 
         #-----------------------------------------------------------------------
         # 3. Load node field variables as a time series
-        if (self._node_file_pattern is not None 
+        if (self._node_file_pattern is not None
             and self._node_slices is not None):
-            
+
             sim_data.node_vars = load_field_files(
                 self._load_dir,
                 self._node_file_pattern,
@@ -175,6 +172,11 @@ class SimLoaderByTime(IOutputLoader):
             )
 
             check_sim_data_consistency(sim_data)
+
+        if (load_config.enforce_convention
+            and sim_data.connect is not None
+            and sim_data.coords is not None):
+            sim_data = enforce_mesh_convention(sim_data)
 
         return sim_data
 

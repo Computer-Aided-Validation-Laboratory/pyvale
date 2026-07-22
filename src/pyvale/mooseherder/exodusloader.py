@@ -24,7 +24,8 @@
 from pathlib import Path
 import netCDF4 as nc
 import numpy as np
-from pyvale.mooseherder.simdata import SimData, SimLoadConfig
+from pyvale.dataio.simdata import SimData, SimLoadConfig
+from pyvale.dataio.meshtools import enforce_mesh_convention
 from pyvale.mooseherder.outputloader import IOutputLoader
 
 
@@ -36,9 +37,11 @@ class ExodusLoader(IOutputLoader):
     read_all_sim_data() specified at the bottom of the class.
     """
 
-    __slots__ = ("_exodus_path","_data")
+    __slots__ = ("_exodus_path","_data","_enforce_convention")
 
-    def __init__(self, output_file: Path) -> None:
+    def __init__(self,
+                 output_file: Path,
+                 enforce_convention: bool = True) -> None:
         """
         Parameters
         ----------
@@ -57,6 +60,7 @@ class ExodusLoader(IOutputLoader):
 
         self._exodus_path = output_file
         self._data = nc.Dataset(str(self._exodus_path))
+        self._enforce_convention = enforce_convention
 
 
     def get_names(self, key: str | None) -> np.ndarray | None:
@@ -81,7 +85,7 @@ class ExodusLoader(IOutputLoader):
         if key not in self._data.variables or key is None:
             return None
 
-        return nc.chartostring(np.array(self._data.variables[key]))
+        return nc.chartostring(np.array(self._data.variables[key][:]))
 
 
     def get_var(self, key: str, time_inds: np.ndarray | None = None
@@ -107,7 +111,7 @@ class ExodusLoader(IOutputLoader):
         if key not in self._data.variables:
             return np.array([])
 
-        data = np.array(self._data.variables[key]).T
+        data = np.array(self._data.variables[key][:]).T
 
         if time_inds is None:
             return data
@@ -657,7 +661,9 @@ class ExodusLoader(IOutputLoader):
         time_steps = np.array([]
                               )
         if 'time_whole' in self._data.variables:
-            time_steps = np.array(self._data.variables['time_whole'])
+            time_steps = np.array(
+                self._data.variables['time_whole'][:]
+            )
 
             if time_inds is not None:
                 time_steps = time_steps[time_inds]
@@ -720,7 +726,16 @@ class ExodusLoader(IOutputLoader):
         if read_config.time:
             data.time = self.get_time(read_config.time_inds)
         if read_config.coords:
-            (data.coords,data.num_spat_dims) = self.get_coords()
+            coords, _ = self.get_coords()
+            data.coords = coords
+            num_spat_dims = 0
+            if self.get_var('coordx').shape[0] > 0:
+                num_spat_dims += 1
+            if self.get_var('coordy').shape[0] > 0:
+                num_spat_dims += 1
+            if self.get_var('coordz').shape[0] > 0:
+                num_spat_dims += 1
+            data.num_spat_dims = num_spat_dims
         if read_config.connect:
             data.connect = self.get_connectivity()
 
@@ -732,6 +747,11 @@ class ExodusLoader(IOutputLoader):
                                             read_config.time_inds)
         data.glob_vars = self.get_glob_vars(read_config.glob_vars,
                                             read_config.time_inds)
+
+        if (read_config.enforce_convention
+            and data.connect is not None
+            and data.coords is not None):
+            data = enforce_mesh_convention(data)
 
         return data
 
@@ -748,15 +768,6 @@ class ExodusLoader(IOutputLoader):
             data class containing the data from the simulation.
 
         """
-        data = SimData()
-
-        data.time = self.get_time()
-        (data.coords,data.num_spat_dims) = self.get_coords()
-        data.connect = self.get_connectivity()
-        data.side_sets = self.get_all_sidesets()
-        data.node_vars = self.get_all_node_vars()
-        data.elem_vars = self.get_all_elem_vars()
-        data.glob_vars = self.get_all_glob_vars()
-
-        return data
-
+        read_config = self.get_read_config()
+        read_config.enforce_convention = self._enforce_convention
+        return self.load_sim_data(read_config)

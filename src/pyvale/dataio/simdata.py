@@ -90,4 +90,4 @@ class SimLoadConfig:
     elem_vars: Iterable[tuple[str,int]] | None = None
     glob_vars: Iterable[str] | None = None
     time_inds: Iterable[int] | slice | None = None
-
+    enforce_convention: bool = True

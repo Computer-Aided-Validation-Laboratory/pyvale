@@ -14,7 +14,8 @@ from dataclasses import dataclass
 from itertools import product
 from multiprocessing.pool import Pool
 import numpy as np
-import pyvale.mooseherder as mh
+
+from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.exceptions import ExpSimError
 
@@ -112,7 +113,7 @@ class ExperimentSimulator:
     __slots__ = ("_sim_dict","_sens_dict","_exp_sim_opts","_save_keys")
 
     def __init__(self,
-                 sim_dict: dict[str,mh.SimData],
+                 sim_dict: dict[str,SimData],
                  sensor_arrays: dict[str,ISensorArray],
                  exp_sim_opts: ExpSimOpts | None = None,
                  exp_save_keys: ExpSimSaveKeys | None = None,
@@ -120,7 +121,7 @@ class ExperimentSimulator:
         """
         Parameters
         ----------
-        sim_dict : dict[str,mh.SimData]
+        sim_dict : dict[str,SimData]
             The simulations
         sensor_arrays : dict[str,ISensorArray]
             The sensor arrays that will be applied to each simulation to
@@ -153,12 +154,12 @@ class ExperimentSimulator:
         """
         return self._save_keys
 
-    def get_sim_dict(self) -> dict[str,mh.SimData]:
+    def get_sim_dict(self) -> dict[str,SimData]:
         """Gets the dicitionary of simulations to run simulated experiments for.
 
         Returns
         -------
-        dict[str,mh.SimData]
+        dict[str,SimData]
             Dictionary of simulation data objects.
         """
         return self._sim_dict
@@ -483,7 +484,7 @@ class ExperimentSimulator:
 #-------------------------------------------------------------------------------
 def _run_one_sim(sim_key: str,
                  sens_key: str,
-                 sim_data: mh.SimData,
+                 sim_data: SimData,
                  sens_array: ISensorArray,
                  sens_funcs: list[tuple[str,str]],
                  sens_vars: list[tuple[str,str]],
@@ -497,7 +498,7 @@ def _run_one_sim(sim_key: str,
         String key identifying the input physics simulation.
     sens_key : str
         String key identifying the sensor array.
-    sim_data : mh.SimData
+    sim_data : SimData
         Simulation data object for the simulation.
     sens_array : ISensorArray
         Sensor array object to apply to the simulation.
@@ -537,7 +538,7 @@ def _run_one_sim(sim_key: str,
 def _run_all_sims(num_exp: int,
                   sim_key: str,
                   sens_key: str,
-                  sim_data: mh.SimData,
+                  sim_data: SimData,
                   sens_array: ISensorArray,
                   sens_funcs: list[tuple[str,str]],
                   sens_vars: list[tuple[str,str]]
@@ -554,7 +555,7 @@ def _run_all_sims(num_exp: int,
         String key identifying the input physics simulation.
     sens_key : str
         String key identifying the sensor array.
-    sim_data : mh.SimData
+    sim_data : SimData
         Simulation data object for the simulation.
     sens_array : ISensorArray
         Sensor array object to apply to the simulation.
