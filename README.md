@@ -13,8 +13,10 @@ pip install pyvale
 
 We recommend installing `pyvale` into a virtual environment of your choice as `pyvale` requires python 3.11. If you need help setting up your virtual environment and installing `pyvale` head over to the [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html) in our docs.
 
-## Quick Demo: 2D Digital Image Correlation
-Below is a really quick example for setting up a DIC calculation. It's highly likely that your case will require a more tailored calculation configuration.  **For further details please see the DIC [examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_dic.html), [theory guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_theory/guide_theory_dic.html),  [user guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_dic.html)  and [API](https://computer-aided-validation-laboratory.github.io/pyvale/pyvale.dic.html).**
+## Quick Demo: Digital Image Correlation
+Below is a really quick example for setting up a DIC calculation. It's highly likely that your case will require a more tailored calculation configuration.  
+
+**For further details please see the DIC [examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_dic.html), [theory guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_theory/guide_theory_dic.html),  [user guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_dic.html)  and [API](https://computer-aided-validation-laboratory.github.io/pyvale/pyvale.dic.html).**
 
 Define the Region of Interest (ROI):
 
@@ -27,17 +29,18 @@ roi.interactive_selection()
 run the DIC:
 
 ```python
+# use dic.calculate_3d for stereo
 dic.calculate_2d(reference="image0000.tiff",
-                 deformed="image*.tiff,
+                 deformed="image*.tiff",
                  roi_mask=roi.mask, # built using ROI tool
                  seed=roi.seed, # built using ROI tool
-                 subset_size=31,
-                 subset_step=30)
+                 subset_size=21,
+                 subset_step=10)
 ```
 Import the results for any analysis/plotting:
 
 ```python
-dicdata = dic.import_2d(data="./dic_results*.csv", # default result files prefix
+dicdata = dic.import_2d(data="dic_results*.csv", # default result files prefix
                         delimiter=",")
 
 
