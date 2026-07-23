@@ -15,6 +15,7 @@ point sensors.
 """
 
 import numpy as np
+import platform
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataio as io
@@ -116,12 +117,12 @@ def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint],
 
         print(ss.lower())
 
-        if any(case in ss.lower() for case in MACOS_GOLD_CASES):           
+        if (any(case in ss.lower() for case in MACOS_GOLD_CASES) and (platform.system()=='Darwin')):           
             load_path = (pointsensconst.GOLD_PATH / "macos" / f"{ss.lower()}.npy")
         else:
             load_path = (pointsensconst.GOLD_PATH / f"{ss.lower()}.npy")
 
-        
+
         if load_path.is_file():
             gold = np.load(load_path)
 
