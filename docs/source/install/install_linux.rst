@@ -3,28 +3,28 @@
 Ubuntu Linux
 ############
 
-Configuring Python3.11
+Configuring Python3.13
 ------------------------
 
-To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.11. To install python 3.11 without corrupting your operating systems python installation first add the deadsnakes repository to apt:
+To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.13. To install python 3.13 without corrupting your operating systems python installation first add the deadsnakes repository to apt:
 
 .. code-block:: bash
 
    sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt update
 
-Install python 3.11:
+Install python 3.13:
 
 .. code-block:: bash
 
-   sudo apt install python3.11 python3.11-dev python3.11-venv
+   sudo apt install python3.13 python3.13-dev python3.13-venv
 
-Check your python 3.11 install is working using the following command which should open an interactive python interpreter:
+Check your python 3.13 install is working using the following command which should open an interactive python interpreter:
 
 .. code-block:: bash
 
-   python3.11
+   python3.13
 
-If everything has worked you should see an interactive python console with Python 3.11.xx in the header. You can now exit the interpreter using ``quit()``.
+If everything has worked you should see an interactive python console with Python 3.13.xx in the header. You can now exit the interpreter using ``quit()``.
 
 Interactive ROI Dependencies
 ----------------------------
@@ -43,7 +43,7 @@ We recommend installing ``pyvale`` in a virtual environment using ``venv`` or ``
 
 .. code-block:: bash
 
-   python3.11 -m venv pyvale-env
+   python3.13 -m venv pyvale-env
 
 Now activate the virtual environment:
 
@@ -61,7 +61,7 @@ Installation from PyPI
 
    pip install pyvale
 
-You should now be able to start a python 3.11 interpreter in your terminal using (again make sure your pyvale-env is active):
+You should now be able to start a python 3.13 interpreter in your terminal using (again make sure your pyvale-env is active):
 
 .. code-block:: bash
 

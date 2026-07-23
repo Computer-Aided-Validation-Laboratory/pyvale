@@ -68,7 +68,7 @@ Use the following command in the pyvale directory to install pyvale for developm
 pip install pyvale -e .
 ```
 
-We recommend installing Pyvale into a virtual environment of your choice as pyvale requires python 3.11.  If you need help setting up your virtual environment and installing pyvale head over to our [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html).
+We recommend installing Pyvale into a virtual environment of your choice as pyvale requires python 3.13.  If you need help setting up your virtual environment and installing pyvale head over to our [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html).
 
 ### Make a Branch
 
