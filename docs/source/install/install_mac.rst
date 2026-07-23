@@ -3,38 +3,38 @@
 MacOS
 ######
 
-Configuring Python 3.11
+Configuring Python 3.13
 ***********************
 
-To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` requires python 3.11. 
+To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` requires python 3.13. 
 Homebrew is a free and open-source commonly used package manager for macOS that often simplifies the process of installing, updating, and managing software. 
 
 Install via Homebrew
 =====================
 Simple installation instructions for Homebrew itself be found at `<https://brew.sh/>`_.
 
-After you have homebrew setup, you can install python3.11 with:
+After you have homebrew setup, you can install python3.13 with:
 
 .. code-block::
    
-    brew install python@3.11
+    brew install python@3.13
 
 To verify the installation you can try the command:
 
 .. code-block::
 
-   which python3.11
+   which python3.13
 
 Install via Python.org
 ======================
 
-To install python3.11 from `<https://python.org>`_ hover over the “Downloads” link in the navigation. Select macOS.
-You'll then need to select 3.11.9 (or whatever the latest version of 3.11 is).
+To install python3.13 from `<https://python.org>`_ hover over the “Downloads” link in the navigation. Select macOS.
+You'll then need to select 3.13 (or whatever the latest version of 3.13 is).
 This should download the installer which you can then run through.
 
 If you have multiple python version the above instructions should put python in
-location ``/Library/Frameworks/Python.framework/Versions/3.11/bin/``. In that
-folder there should be a ``python3``, which is really a link to ``python3.11``.
+location ``/Library/Frameworks/Python.framework/Versions/3.13/bin/``. In that
+folder there should be a ``python3``, which is really a link to ``python3.13``.
 
 
 Virtual Environment
@@ -45,7 +45,7 @@ To create a specific virtual environment for ``pyvale`` first open a terminal Th
 
 .. code-block:: batch
 
-   python3.11 -m venv pyvale-env
+   python3.13 -m venv pyvale-env
 
 This will create a virtual environment called 'pyvale-env' in a folder of the same name. To activate the virtual environment from your current location type this into your terminal:
 
@@ -72,7 +72,7 @@ Installation from PyPI
 
    pip install pyvale
 
-You should now be able to start a python 3.11 interpreter in your terminal using (again make sure your pyvale-env is active):
+You should now be able to start a python 3.13 interpreter in your terminal using (again make sure your pyvale-env is active):
 
 .. code-block:: bash
 
