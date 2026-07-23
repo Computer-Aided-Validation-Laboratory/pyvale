@@ -10,7 +10,7 @@ from pyvale.vfm.experimentdata import (
     EEdgeCondition,
     ExperimentData,
 )
-from pyvale.vfm.metric import IMetric
+from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.normalisation import (
     denormalise_degree_of_freedom,
     normalise_degree_of_freedom,
@@ -106,7 +106,7 @@ class MetricSBVF(IMetric):
         parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         experiment_data: ExperimentData,
-    ) -> npt.NDArray[np.float64]:
+    ) -> MetricResult:
         if self._virtual_fields_mesh is None:
             raise RuntimeError(
                 "Virtual fields mesh has not been generated. "
@@ -251,7 +251,9 @@ class MetricSBVF(IMetric):
         self._internal_virtual_work = np.array(internal_virtual_work_vectors)
         self._external_virtual_work = np.array(external_virtual_work_vectors)
 
-        return np.concatenate(residual_vector)
+        residual = np.concatenate(residual_vector)
+
+        return MetricResult(residual)
 
 
     def calculate_stress_sensitivities(

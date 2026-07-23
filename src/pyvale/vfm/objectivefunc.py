@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.vfm.metric import MetricResult
+
 
 class IScalarObjectiveFunction(ABC):
     """
@@ -15,14 +17,14 @@ class IScalarObjectiveFunction(ABC):
     @abstractmethod
     def evaluate(
         self,
-        metric_results: list[npt.NDArray[np.float64]],
+        metric_results: list[MetricResult],
     ) -> float:
         """
         Aggregate metric results into a scalar cost
 
         Parameters
         ----------
-        metric_results : list[npt.NDArray[np.float64]]
+        metric_results : list[MetricResult]
             One array per metric, each with the metric's output
 
         Returns
@@ -43,14 +45,14 @@ class IVectorObjectiveFunction(ABC):
     @abstractmethod
     def evaluate(
         self,
-        metric_results: list[npt.NDArray[np.float64]],
+        metric_results: list[MetricResult],
     ) -> npt.NDArray[np.float64]:
         """
         Aggregate metric results into a residual vector.
 
         Parameters
         ----------
-        metric_results : list[npt.NDArray[np.float64]]
+        metric_results : list[MetricResult]
             One array per metric, each with the metric's output
 
         Returns

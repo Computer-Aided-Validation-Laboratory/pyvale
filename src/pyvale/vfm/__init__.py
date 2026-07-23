@@ -20,7 +20,6 @@ from .spatialparamknown import *
 from .spatialparamhomogeneous import *
 from .spatialparambasisfuncs import *
 from .spatialparamslicewise import *
-from .spatialparamslicewisearea import *
 
 from .optimiser import *
 from .optimiserleastsquares import *
@@ -28,7 +27,6 @@ from .optimiserleastsquares import *
 from .metric import *
 from .metricsbvf import *
 from .metricsliceforce import *
-from .metricsliceforcearea import *
 from .vfmesh import *
 
 from .objectivefunc import *

@@ -6,7 +6,7 @@ import numpy.typing as npt
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.metric import IMetric
-from pyvale.vfm.objectivefunc import IObjectiveFunction
+from pyvale.vfm.objectivefunc import IObjectiveFunction, MetricResult
 from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
     evaluate_parameterisations_to_map,
@@ -125,7 +125,7 @@ def evaluate_candidate(
         experiment_data.strain, updated_constitutive_parameter_maps,
     )
 
-    metric_results = []
+    metric_results: list[MetricResult] = []
     for metric in metrics:
         metric_results.append(
             metric.evaluate(

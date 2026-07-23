@@ -15,12 +15,15 @@ from pyvale.vfm.experimentdata import (
 )
 from pyvale.vfm.hardening import LinearHardening
 from pyvale.vfm.identification import Identification, IdentificationPhase
-from pyvale.vfm.metricsliceforcearea import SliceWiseAreaForceReconstructionMetric
-from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.objectivefuncvector import VectorWeightedObjective
 from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
 from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
-from pyvale.vfm.spatialparamslicewise import SliceConfig, SliceWiseSpatialParameterisation
-from pyvale.vfm.spatialparamslicewisearea import build_slice_area_partition
+from pyvale.vfm.spatialparamslicewise import (
+    SliceConfig,
+    SliceWiseSpatialParameterisation,
+    build_slice_partition,
+)
 from pyvale.vfm.vfm import run_identification
 from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
@@ -101,7 +104,7 @@ def main() -> None:
         ),
     }
 
-    slice_partition = build_slice_area_partition(
+    slice_partition = build_slice_partition(
         specimen_geometry,
         slice_config=SliceConfig(axis=SLICE_AXIS, num_slices=NUM_SLICES),
         plot_diagnostic=PLOT_SLICE_PARTITION,
@@ -118,9 +121,9 @@ def main() -> None:
                 "hardening_modulus": SliceWiseSpatialParameterisation(slice_partition),
             },
             metrics=[
-                SliceWiseAreaForceReconstructionMetric(slice_partition),
+                SliceWiseForceReconstructionMetric(slice_partition),
             ],
-            objective_function=VectorFirstResultPassthrough(),
+            objective_function=VectorWeightedObjective(),
             optimiser=SliceWiseIndependentLeastSquares(),
         )
     ]

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from copy import copy
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Protocol
 
 import numpy as np
 import numpy.typing as npt
-from shapely.geometry import GeometryCollection, LineString, MultiLineString, box
+from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
 from pyvale.vfm.constparam import ConstitutiveParameter
@@ -14,6 +14,7 @@ from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.experimentdata import SpecimenGeometry
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.vfmregionofinterest import build_roi_geometry
+from pyvale.vfm.vfmesh import _generate_data_mesh_nodal_coord
 
 
 SliceAxis = Literal["x", "y"]
@@ -48,416 +49,11 @@ class SliceConfig:
                 raise ValueError("num_slices must match len(boundaries) - 1 when both are provided.")
 
 
-@dataclass(slots=True, frozen=True)
-class SliceCrossSection:
-    """Precomputed line-integral data for one cross-section within a slice."""
+class SliceAssignmentPartition(Protocol):
+    """Minimal partition interface required by slice-wise parameter maps."""
 
-    position: float
-    width_weight: float
-    line_length: float
-    segment_bounds: tuple[tuple[float, float], ...]
-    point_coordinates: npt.NDArray[np.float64]
-    point_cell_bounds: npt.NDArray[np.float64]
-    point_indices: npt.NDArray[np.int64]
-    point_area_integral_weights: npt.NDArray[np.float64]
-    point_segment_ids: npt.NDArray[np.int32]
-
-
-@dataclass(slots=True, frozen=True)
-class SlicePartition:
-    """Partition of the specimen into slice regions.
-
-    The slice geometry is defined from the ROI as a geometric object, then
-    discretised into a weighted set of cross-sectional line integrals. This
-    means the reconstructed slice force is formed from the weighted average of
-    cross-sectional line integrals rather than by directly summing all stress
-    points inside the slice area.
-    """
-
-    axis: SliceAxis
-    boundaries: npt.NDArray[np.float64]
-    centres: npt.NDArray[np.float64]
-    spans: npt.NDArray[np.float64]
-    widths: npt.NDArray[np.float64]
-    areas: npt.NDArray[np.float64]
-    cross_centres: npt.NDArray[np.float64]
-    cross_bounds: npt.NDArray[np.float64]
-    point_counts: npt.NDArray[np.int64]
+    num_slices: int
     slice_id_map: npt.NDArray[np.int32]
-    valid_point_mask: npt.NDArray[np.bool_]
-    slice_point_indices: tuple[npt.NDArray[np.int64], ...]
-    cross_sections: tuple[tuple[SliceCrossSection, ...], ...]
-
-    @property
-    def num_slices(self) -> int:
-        return int(self.spans.size)
-
-    def get_slice_mask(self, slice_index: int) -> npt.NDArray[np.bool_]:
-        return self.slice_id_map == slice_index
-
-
-def build_slice_partition(
-    specimen_geometry: SpecimenGeometry,
-    slice_config: SliceConfig | None = None,
-    plot_diagnostic: bool = False,
-) -> SlicePartition:
-    """Build the slice geometry and DIC point associations.
-
-    The slice boundaries are resolved along the chosen axis, the ROI is
-    converted to a geometric object, and each slice is represented by a
-    weighted collection of cross-sectional line integrals through the ROI.
-    """
-
-    if slice_config is None:
-        raise ValueError("slice_config must be provided explicitly for slice-wise parameterisation.")
-    config = slice_config
-
-    #TODO: x,y,pixel area should always be finite so may be redunant
-    valid_point_mask = (
-        specimen_geometry.specimen_mask
-        & np.isfinite(specimen_geometry.x)
-        & np.isfinite(specimen_geometry.y)
-        & np.isfinite(specimen_geometry.pixel_area)
-    )
-    if not np.any(valid_point_mask):
-        raise ValueError("No valid specimen points were available to build the slice partition.")
-
-    # Resolve coordinates along slicing axis
-    coordinate_along = specimen_geometry.x if config.axis == "x" else specimen_geometry.y
-    valid_coordinates_along = coordinate_along[valid_point_mask]
-
-    # Resolve either explicit boundaries or evenly spaced boundaries from num_slices.
-    boundaries = _resolve_slice_boundaries(
-        valid_coordinates_along,
-        config.boundaries,
-        config.num_slices,
-    )
-
-    # Compute slice centres and spans along slicing axis
-    spans = np.diff(boundaries)
-    centres = 0.5 * (boundaries[:-1] + boundaries[1:])
-
-    # Convert the ROI definition into a geometric object for exact slice intersections.
-    roi_geometry = build_roi_geometry(specimen_geometry.region_of_interest.roi_definition)
-
-    # Precompute support lines from the input data (DIC data) rows/columns for width averaging.
-    # support positions: mean coordinate along cross-section axis for each row/column
-    # support bounds: min and max coordinates along cross-section axis for each row/column
-    # support indices: row/column indices corresponding to the support positions and bounds
-    support_positions, support_bounds, support_indices = _resolve_cross_section_supports(
-        specimen_geometry,
-        axis=config.axis,
-    )
-
-    # Resolve slice geometry and weighted cross-sections from ROI intersections.
-    cross_sections, widths, areas, cross_centres, cross_bounds = _build_slice_geometry_from_roi(
-        specimen_geometry,
-        roi_geometry=roi_geometry,
-        axis=config.axis,
-        boundaries=boundaries,
-        valid_point_mask=valid_point_mask,
-        support_positions=support_positions,
-        support_bounds=support_bounds,
-        support_indices=support_indices,
-    )
-
-    # Associate each valid DIC point with a slice for the constitutive map update.
-    slice_id_map, slice_point_indices, point_counts = _associate_points_to_slices(
-        specimen_geometry,
-        axis=config.axis,
-        boundaries=boundaries,
-        valid_point_mask=valid_point_mask,
-    )
-
-    # Build the slice partition object with all computed properties and associations.
-    partition = SlicePartition(
-        axis=config.axis,
-        boundaries=boundaries,
-        centres=centres,
-        spans=spans,
-        widths=widths,
-        areas=areas,
-        cross_centres=cross_centres,
-        cross_bounds=cross_bounds,
-        point_counts=point_counts,
-        slice_id_map=slice_id_map,
-        valid_point_mask=valid_point_mask,
-        slice_point_indices=slice_point_indices,
-        cross_sections=cross_sections,
-    )
-
-    if plot_diagnostic:
-        plot_slice_partition_diagnostic(specimen_geometry, partition)
-    return partition
-
-
-def plot_slice_partition_diagnostic(
-    specimen_geometry: SpecimenGeometry,
-    slice_partition: SlicePartition,
-) -> None:
-    """Plot slice rectangles using the average width of each slice."""
-
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Rectangle
-
-    fig, ax = plt.subplots()
-    valid_points = slice_partition.valid_point_mask
-    ax.scatter(
-        specimen_geometry.x[valid_points],
-        specimen_geometry.y[valid_points],
-        s=3,
-        c="0.75",
-        marker="s",
-        linewidths=0.0,
-        alpha=0.2,
-    )
-
-    colours = ("#4C78A8", "#F58518", "#54A24B", "#E45756")
-    for slice_index in range(slice_partition.num_slices):
-        colour = colours[slice_index % len(colours)]
-        if slice_partition.axis == "y":
-            rectangle = Rectangle(
-                (slice_partition.cross_bounds[slice_index, 0], slice_partition.boundaries[slice_index]),
-                slice_partition.widths[slice_index],
-                slice_partition.spans[slice_index],
-                facecolor=colour,
-                edgecolor=colour,
-                alpha=0.5,
-                linewidth=2,
-            )
-            text_x = float(slice_partition.cross_centres[slice_index])
-            text_y = float(slice_partition.centres[slice_index])
-        else:
-            rectangle = Rectangle(
-                (slice_partition.boundaries[slice_index], slice_partition.cross_bounds[slice_index, 0]),
-                slice_partition.spans[slice_index],
-                slice_partition.widths[slice_index],
-                facecolor=colour,
-                edgecolor=colour,
-                alpha=0.5,
-                linewidth=2,
-            )
-            text_x = float(slice_partition.centres[slice_index])
-            text_y = float(slice_partition.cross_centres[slice_index])
-
-        ax.add_patch(rectangle)
-        ax.text(text_x, text_y, str(slice_index), ha="center", va="center", fontsize=9, color="black")
-
-    ax.set_aspect("equal", adjustable="box")
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_title("Slice partition diagnostic (rectangles use average slice width)")
-    fig.tight_layout()
-
-
-def _build_slice_geometry_from_roi(
-    specimen_geometry: SpecimenGeometry,
-    *,
-    roi_geometry: BaseGeometry,
-    axis: SliceAxis,
-    boundaries: npt.NDArray[np.float64],
-    valid_point_mask: npt.NDArray[np.bool_],
-    support_positions: npt.NDArray[np.float64],
-    support_bounds: npt.NDArray[np.float64],
-    support_indices: npt.NDArray[np.int64],
-) -> tuple[
-    tuple[tuple[SliceCrossSection, ...], ...],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.float64],
-]:
-    """Build slice geometry from ROI intersections and native DIC support lines."""
-
-    # Compute the min and max coords across cross-section lines
-    cross_field = specimen_geometry.x if axis == "y" else specimen_geometry.y
-    cross_values = cross_field[valid_point_mask]
-    cross_min = float(np.min(cross_values))
-    cross_max = float(np.max(cross_values))
-
-    # Compute small padding that will be added to the cross-section lines to ensure they fully intersect the ROI
-    cross_pad = max(0.05 * (cross_max - cross_min), 1.0)
-
-    # Compute slice spans along slicing axis
-    spans = np.diff(boundaries)
-    
-    # Initialize arrays to hold slice properties and cross-section data
-    widths = np.zeros(spans.size, dtype=np.float64)
-    areas = np.zeros(spans.size, dtype=np.float64)
-    cross_centres = np.zeros(spans.size, dtype=np.float64)
-    cross_bounds = np.zeros((spans.size, 2), dtype=np.float64)
-    slice_cross_sections: list[tuple[SliceCrossSection, ...]] = []
-
-    default_cross_centre = 0.5 * (cross_min + cross_max)
-    for slice_index, span in enumerate(spans):
-        # Build a rectangular slice band (shapely polygon object) that spans the ROI cross-section
-        slice_band =_build_slice_band(
-                axis=axis,
-                along_min=float(boundaries[slice_index]),
-                along_max=float(boundaries[slice_index + 1]),
-                cross_min=cross_min,
-                cross_max=cross_max,
-                cross_pad=cross_pad,
-            )
-        
-        # Compute the polygon of the overlapping region between the ROI and the slice band #NEED TO CHECK THIS WITH HOLE (MULTIPLE POLYGONS?)
-        slice_geometry = roi_geometry.intersection(slice_band)
-
-
-        # Initise accumulators for area and cross-moment calculations
-        area_accumulator = 0.0
-        cross_moment_accumulator = 0.0
-        cross_sections_for_slice: list[SliceCrossSection] = []
-        slice_min = float(boundaries[slice_index])
-        slice_max = float(boundaries[slice_index + 1])
-
-        # Iterate over each support line and compute the weighted cross-section for the current slice
-        for support_idx in range(support_positions.size):
-            line_position = float(support_positions[support_idx])
-            line_support = support_bounds[support_idx]
-            line_index = int(support_indices[support_idx])
-
-            support_min = float(line_support[0])
-            support_max = float(line_support[1])
-            # Assign weight to the cross-section based on the overlap between the support line and the slice band
-            width_weight = _interval_overlap(support_min, support_max, slice_min, slice_max)
-            # If the weight is negligible, skip this support line
-            if width_weight <= _GEOMETRY_TOLERANCE:
-                continue
-
-            cross_section = _build_cross_section(
-                specimen_geometry,
-                slice_geometry=slice_geometry,
-                axis=axis,
-                line_position=line_position,
-                line_index=line_index,
-                cross_min=cross_min,
-                cross_max=cross_max,
-                cross_pad=cross_pad,
-                width_weight=width_weight,
-                valid_point_mask=valid_point_mask,
-            )
-            if cross_section is None:
-                continue
-
-            cross_sections_for_slice.append(cross_section)
-
-            weighted_length = cross_section.width_weight * cross_section.line_length
-            area_accumulator += weighted_length
-
-            for segment_min, segment_max in cross_section.segment_bounds:
-                segment_length = segment_max - segment_min
-                segment_centre = 0.5 * (segment_min + segment_max)
-                cross_moment_accumulator += (
-                    cross_section.width_weight * segment_length * segment_centre
-                )
-
-        slice_cross_sections.append(tuple(cross_sections_for_slice))
-        areas[slice_index] = area_accumulator
-        widths[slice_index] = area_accumulator / span if span > 0.0 else 0.0
-
-        # determine cross-centre from the weighted average of cross-sectional line integrals
-        # centroid = (sum of area * centroid) / total area
-        if area_accumulator > _GEOMETRY_TOLERANCE:
-            cross_centre = cross_moment_accumulator / area_accumulator
-        else:
-            cross_centre = default_cross_centre
-
-        cross_centres[slice_index] = cross_centre
-        cross_bounds[slice_index, 0] = cross_centre - 0.5 * widths[slice_index]
-        cross_bounds[slice_index, 1] = cross_centre + 0.5 * widths[slice_index]
-
-    return tuple(slice_cross_sections), widths, areas, cross_centres, cross_bounds
-
-
-def _build_cross_section(
-    specimen_geometry: SpecimenGeometry,
-    *,
-    slice_geometry: BaseGeometry,
-    axis: SliceAxis,
-    line_position: float,
-    line_index: int,
-    cross_min: float,
-    cross_max: float,
-    cross_pad: float,
-    width_weight: float,
-    valid_point_mask: npt.NDArray[np.bool_],
-) -> SliceCrossSection | None:
-    """Build one weighted cross-section line from the geometric ROI intersection."""
-
-    # build a line geometry for the cross-section at the specified position along the slicing axis
-    line_geometry = _build_cross_section_line(
-        axis=axis,
-        line_position=line_position,
-        cross_min=cross_min,
-        cross_max=cross_max,
-        cross_pad=cross_pad,
-    )
-    # compute segment bounds from the intersection of the slice geometry with the cross-section line
-    segment_bounds = _extract_line_segments(slice_geometry.intersection(line_geometry), axis=axis)
-    if len(segment_bounds) == 0:
-        return None
-
-    # resolve ordered point supports along the cross section line
-    point_coordinates, point_cell_bounds, point_indices, point_valid = _resolve_line_point_supports(
-        specimen_geometry,
-        axis=axis,
-        line_index=line_index,
-        valid_point_mask=valid_point_mask,
-    )
-
-    point_index_list: list[int] = []
-    point_coordinate_list: list[float] = []
-    point_cell_bound_list: list[tuple[float, float]] = []
-    point_weight_list: list[float] = []
-    point_segment_id_list: list[int] = []
-
-    # Iterate over each segment in the cross-section and associate valid DIC points with the segment
-    for segment_id, (segment_min, segment_max) in enumerate(segment_bounds):
-        segment_has_valid_point = False
-        for point_idx in range(point_indices.size):
-            point_index = int(point_indices[point_idx])
-            point_coordinate = float(point_coordinates[point_idx])
-            point_cell_min = float(point_cell_bounds[point_idx, 0])
-            point_cell_max = float(point_cell_bounds[point_idx, 1])
-            is_valid = bool(point_valid[point_idx])
-
-            overlap_length = _interval_overlap(
-                point_cell_min,
-                point_cell_max,
-                segment_min,
-                segment_max,
-            )
-            if overlap_length <= _GEOMETRY_TOLERANCE or not is_valid:
-                continue
-
-            point_index_list.append(point_index)
-            point_coordinate_list.append(point_coordinate)
-            point_cell_bound_list.append((point_cell_min, point_cell_max))
-            point_weight_list.append(overlap_length)
-            point_segment_id_list.append(segment_id)
-            segment_has_valid_point = True
-
-        if not segment_has_valid_point and (segment_max - segment_min) > _GEOMETRY_TOLERANCE:
-            raise ValueError(
-                "A slice cross-section intersects the ROI but no valid DIC points were available on that "
-                "material segment. Refine the slice definition or check the ROI/data alignment."
-            )
-
-    if len(point_index_list) == 0:
-        return None
-
-    return SliceCrossSection(
-        position=line_position,
-        width_weight=width_weight,
-        line_length=float(sum(segment_max - segment_min for segment_min, segment_max in segment_bounds)),
-        segment_bounds=segment_bounds,
-        point_coordinates=np.asarray(point_coordinate_list, dtype=np.float64),
-        point_cell_bounds=np.asarray(point_cell_bound_list, dtype=np.float64),
-        point_indices=np.asarray(point_index_list, dtype=np.int64),
-        point_area_integral_weights=np.asarray(point_weight_list, dtype=np.float64),
-        point_segment_ids=np.asarray(point_segment_id_list, dtype=np.int32),
-    )
 
 
 def _associate_points_to_slices(
@@ -467,23 +63,20 @@ def _associate_points_to_slices(
     boundaries: npt.NDArray[np.float64],
     valid_point_mask: npt.NDArray[np.bool_],
 ) -> tuple[npt.NDArray[np.int32], tuple[npt.NDArray[np.int64], ...], npt.NDArray[np.int64]]:
-    """Associate each valid DIC point with a slice for constitutive updates."""
+    """Associate each valid DIC point with the slice containing its centre."""
 
     coordinate_along = specimen_geometry.x if axis == "x" else specimen_geometry.y
     valid_coordinates_along = coordinate_along[valid_point_mask]
-    # Use searchsorted to find the slice index for each valid coordinate along the slicing axis
     slice_indices = np.searchsorted(boundaries, valid_coordinates_along, side="right") - 1
     slice_indices = np.clip(slice_indices, 0, boundaries.size - 2)
 
     if np.any(valid_coordinates_along < boundaries[0]) or np.any(valid_coordinates_along > boundaries[-1]):
         raise ValueError("Slice boundaries do not fully cover the valid ROI extent.")
 
-    # Build a map of slice indices for all points in the specimen geometry, initializing with -1 for invalid points
     slice_id_map = np.full(specimen_geometry.x.shape, -1, dtype=np.int32)
     valid_flat_indices = np.flatnonzero(valid_point_mask)
     slice_id_map.ravel()[valid_flat_indices] = slice_indices.astype(np.int32)
 
-    # Count the number of valid points in each slice and collect their indices
     point_counts = np.zeros(boundaries.size - 1, dtype=np.int64)
     slice_point_indices: list[npt.NDArray[np.int64]] = []
     for slice_index in range(boundaries.size - 1):
@@ -494,72 +87,6 @@ def _associate_points_to_slices(
     return slice_id_map, tuple(slice_point_indices), point_counts
 
 
-def _resolve_cross_section_supports(
-    specimen_geometry: SpecimenGeometry,
-    *,
-    axis: SliceAxis,
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.int64]]:
-    """Resolve the native DIC row/column centres and their support intervals.
-       The support intervals are used to compute the average slice width from the
-       weighted average of cross-sectional line integrals.
-    """
-
-    if axis == "y":
-        # Compute the mean y-coordinate for each row (axis=1) to get the support coordinates.
-        support_coordinates = _nanmean_without_warnings(specimen_geometry.y, axis=1)
-    else:
-        # Compute the mean x-coordinate for each column (axis=0) to get the support coordinates.
-        support_coordinates = _nanmean_without_warnings(specimen_geometry.x, axis=0)
-
-    valid_support_indices = np.flatnonzero(np.isfinite(support_coordinates))
-    positions = support_coordinates[valid_support_indices]
-    order = np.argsort(positions)
-    ordered_positions = positions[order]
-    ordered_indices = valid_support_indices[order].astype(np.int64, copy=False)
-    support_bounds = _compute_support_bounds(ordered_positions)
-    return ordered_positions, support_bounds, ordered_indices
-
-
-def _resolve_line_point_supports(
-    specimen_geometry: SpecimenGeometry,
-    *,
-    axis: SliceAxis,
-    line_index: int,
-    valid_point_mask: npt.NDArray[np.bool_],
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.int64], npt.NDArray[np.bool_]]:
-    """Resolve ordered point supports along one row or column.
-    
-       Note: This currently assumes slices are defined along the x or y axes 
-       and that the DIC data is structured as a regular grid. So angled slices aren't supported yet.
-    """
-
-    if axis == "y":
-        point_coordinates_raw = specimen_geometry.x[line_index, :]
-        point_valid_raw = valid_point_mask[line_index, :]
-        row_indices = np.full(point_coordinates_raw.shape, line_index, dtype=np.int64)
-        col_indices = np.arange(point_coordinates_raw.size, dtype=np.int64)
-    else:
-        point_coordinates_raw = specimen_geometry.y[:, line_index]
-        point_valid_raw = valid_point_mask[:, line_index]
-        row_indices = np.arange(point_coordinates_raw.size, dtype=np.int64)
-        col_indices = np.full(point_coordinates_raw.shape, line_index, dtype=np.int64)
-
-    finite_points = np.isfinite(point_coordinates_raw)
-    point_coordinates = point_coordinates_raw[finite_points]
-    point_valid = point_valid_raw[finite_points]
-    row_indices = row_indices[finite_points]
-    col_indices = col_indices[finite_points]
-
-    order = np.argsort(point_coordinates)
-    ordered_coordinates = point_coordinates[order].astype(np.float64, copy=False)
-    ordered_valid = point_valid[order].astype(bool, copy=False)
-    ordered_rows = row_indices[order]
-    ordered_cols = col_indices[order]
-    point_indices = np.ravel_multi_index((ordered_rows, ordered_cols), specimen_geometry.x.shape).astype(np.int64)
-    point_cell_bounds = _compute_support_bounds(ordered_coordinates)
-    return ordered_coordinates, point_cell_bounds, point_indices, ordered_valid
-
-
 def _build_slice_band(
     *,
     axis: SliceAxis,
@@ -568,146 +95,19 @@ def _build_slice_band(
     cross_min: float,
     cross_max: float,
     cross_pad: float,
-) -> Polygon:
-    """Build a rectangular slice band spanning the ROI in the cross direction.
-    
-       Shapely box has definition: box(minx, miny, maxx, maxy, ccw=True)
-    """
+):
+    """Build a padded rectangular band that spans one slice along the chosen axis."""
 
     if axis == "y":
-        min_x, max_x = cross_min - cross_pad, cross_max + cross_pad
-        min_y, max_y = along_min, along_max
-    else:
-        min_x, max_x = along_min, along_max
-        min_y, max_y = cross_min - cross_pad, cross_max + cross_pad
-
-    return box(min_x, min_y, max_x, max_y)
-
-
-def _build_cross_section_line(
-    *,
-    axis: SliceAxis,
-    line_position: float,
-    cross_min: float,
-    cross_max: float,
-    cross_pad: float,
-) -> LineString:
-    """Build a horizontal or vertical cross-section line through the ROI."""
-
-    if axis == "y":
-        return LineString(
-            (
-                (cross_min - cross_pad, line_position),
-                (cross_max + cross_pad, line_position),
-            )
-        )
-    return LineString(
-        (
-            (line_position, cross_min - cross_pad),
-            (line_position, cross_max + cross_pad),
-        )
-    )
-
-
-def _extract_line_segments(
-    geometry: BaseGeometry,
-    *,
-    axis: SliceAxis,
-) -> tuple[tuple[float, float], ...]:
-    """Extract sorted line segments from a line/ROI intersection result."""
-
-    raw_segments: list[tuple[float, float]] = []
-
-    def append_segments(current_geometry: BaseGeometry) -> None:
-        if current_geometry.is_empty:
-            return
-        if isinstance(current_geometry, LineString):
-            coordinates = np.asarray(current_geometry.coords, dtype=np.float64)
-            if coordinates.shape[0] < 2:
-                return
-            line_coordinates = coordinates[:, 0] if axis == "y" else coordinates[:, 1]
-            segment_min = float(np.min(line_coordinates))
-            segment_max = float(np.max(line_coordinates))
-            if segment_max - segment_min > _GEOMETRY_TOLERANCE:
-                raw_segments.append((segment_min, segment_max))
-            return
-        if isinstance(current_geometry, MultiLineString):
-            for line in current_geometry.geoms:
-                append_segments(line)
-            return
-        if isinstance(current_geometry, GeometryCollection):
-            for item in current_geometry.geoms:
-                append_segments(item)
-
-    append_segments(geometry)
-    if len(raw_segments) == 0:
-        return tuple()
-
-    raw_segments.sort(key=lambda segment: segment[0])
-    merged_segments: list[tuple[float, float]] = [raw_segments[0]]
-    for segment_min, segment_max in raw_segments[1:]:
-        current_min, current_max = merged_segments[-1]
-        if segment_min <= current_max + _GEOMETRY_TOLERANCE:
-            merged_segments[-1] = (current_min, max(current_max, segment_max))
-        else:
-            merged_segments.append((segment_min, segment_max))
-    return tuple(merged_segments)
-
-
-def _compute_support_bounds(
-    coordinates: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    """Compute piecewise-constant support cells around ordered point centres."""
-
-    if coordinates.ndim != 1 or coordinates.size == 0:
-        raise ValueError("Support coordinates must be a non-empty 1D array.")
-    if coordinates.size == 1:
-        half_width = 0.5
-        return np.asarray([[coordinates[0] - half_width, coordinates[0] + half_width]], dtype=np.float64)
-
-    midpoints = 0.5 * (coordinates[:-1] + coordinates[1:])
-    left_edge = coordinates[0] - 0.5 * (coordinates[1] - coordinates[0])
-    right_edge = coordinates[-1] + 0.5 * (coordinates[-1] - coordinates[-2])
-    boundaries = np.concatenate(([left_edge], midpoints, [right_edge]))
-    return np.column_stack((boundaries[:-1], boundaries[1:]))
-
-
-def _nanmean_without_warnings(
-    values: npt.NDArray[np.float64],
-    *,
-    axis: int,
-) -> npt.NDArray[np.float64]:
-    """Compute nanmean while returning NaN for all-NaN rows/columns."""
-
-    finite_mask = np.isfinite(values)
-    sums = np.sum(np.where(finite_mask, values, 0.0), axis=axis)
-    counts = np.sum(finite_mask, axis=axis)
-    means = np.full(sums.shape, np.nan, dtype=np.float64)
-    np.divide(sums, counts, out=means, where=counts > 0)
-    return means
-
-
-def _interval_overlap(
-    interval_min: float,
-    interval_max: float,
-    target_min: float,
-    target_max: float,
-) -> float:
-    """Return the overlap length between two 1D intervals.
-    
-       interal_min, interval_max: The min and max of the first interval.
-       target_min, target_max: The min and max of the second interval.
-       left edge is later of the two starts: min(interval_max, target_max)
-       right edge is earlier of the two ends: max(interval_min, target_min)
-       
-       """
-
-    return max(0.0, min(interval_max, target_max) - max(interval_min, target_min))
+        return box(cross_min - cross_pad, along_min, cross_max + cross_pad, along_max)
+    return box(along_min, cross_min - cross_pad, along_max, cross_max + cross_pad)
 
 
 @dataclass(slots=True)
 class SliceWiseSpatialParameterisation(ISpatialParameterisation):
-    slice_partition: SlicePartition
+    """Piecewise-constant parameterisation with one value per slice."""
+
+    slice_partition: SliceAssignmentPartition
     values: list[float | DegreeOfFreedom | None] | None = None
 
     def __post_init__(self) -> None:
@@ -822,6 +222,8 @@ def _resolve_slice_boundaries(
     boundaries: npt.NDArray[np.float64] | None,
     num_slices: int | None,
 ) -> npt.NDArray[np.float64]:
+    """Resolve explicit or evenly spaced slice boundaries along one axis."""
+
     if boundaries is not None:
         resolved = np.asarray(boundaries, dtype=np.float64)
         if resolved.ndim != 1 or resolved.size < 2:
@@ -846,24 +248,452 @@ def _resolve_slice_boundaries(
     return resolved
 
 
-# Future option if we want to re-enable automatic axis selection.
-# def infer_loading_axis(edge_conditions: EdgeConditions) -> SliceAxis:
-#     x_has_traction = (
-#         edge_conditions.min_x_edge.x is EEdgeCondition.Traction
-#         or edge_conditions.max_x_edge.x is EEdgeCondition.Traction
-#     )
-#     y_has_traction = (
-#         edge_conditions.min_y_edge.y is EEdgeCondition.Traction
-#         or edge_conditions.max_y_edge.y is EEdgeCondition.Traction
-#     )
-#
-#     if x_has_traction and y_has_traction:
-#         raise ValueError("Could not infer a unique loading axis because both x and y edges have traction DOFs.")
-#     if x_has_traction:
-#         return "x"
-#     if y_has_traction:
-#         return "y"
-#     raise ValueError("Could not infer the loading axis from edge conditions. Please set it explicitly.")
+@dataclass(slots=True, frozen=True)
+class SliceAreaPartition:
+    """Area-based slice partition backed by DIC support-cell overlap areas.
+
+    `areas` and `widths` are the discrete operator values implied by the
+    support-cell overlaps. `geometric_areas` and `geometric_widths` are the
+    exact ROI/slice polygon values retained for diagnostics.
+    """
+
+    axis: SliceAxis
+    boundaries: npt.NDArray[np.float64]
+    centres: npt.NDArray[np.float64]
+    spans: npt.NDArray[np.float64]
+    widths: npt.NDArray[np.float64]
+    areas: npt.NDArray[np.float64]
+    geometric_widths: npt.NDArray[np.float64]
+    geometric_areas: npt.NDArray[np.float64]
+    coverage_fractions: npt.NDArray[np.float64]
+    point_counts: npt.NDArray[np.int64]
+    slice_id_map: npt.NDArray[np.int32]
+    valid_point_mask: npt.NDArray[np.bool_]
+    slice_point_indices: tuple[npt.NDArray[np.int64], ...]
+    slice_force_point_indices: tuple[npt.NDArray[np.int64], ...]
+    slice_force_point_areas: tuple[npt.NDArray[np.float64], ...]
+    slice_force_point_area_integral_weights: tuple[npt.NDArray[np.float64], ...]
+    support_node_x: npt.NDArray[np.float64]
+    support_node_y: npt.NDArray[np.float64]
+    slice_geometries: tuple[BaseGeometry, ...]
+    num_slices: int
+
+    def get_slice_mask(self, slice_index: int) -> npt.NDArray[np.bool_]:
+        return self.slice_id_map == slice_index
+
+    def get_slice_active_cell_mask(self, slice_index: int) -> npt.NDArray[np.bool_]:
+        if slice_index < 0 or slice_index >= self.num_slices:
+            raise IndexError(f"Slice index {slice_index} is out of range.")
+
+        active_mask = np.zeros(self.slice_id_map.shape, dtype=bool)
+        active_indices = self.slice_force_point_indices[slice_index]
+        if active_indices.size > 0:
+            active_mask.ravel()[active_indices] = True
+        return active_mask
 
 
+def build_slice_area_partition(
+    specimen_geometry: SpecimenGeometry,
+    slice_config: SliceConfig | None = None,
+    plot_diagnostic: bool = False,
+    diagnostic_slice_index: int | None = None,
+) -> SliceAreaPartition:
+    """Build an area-based slice partition from DIC support-cell overlaps."""
+
+    if slice_config is None:
+        raise ValueError("slice_config must be provided explicitly for area-based slice-wise partitioning.")
+    config = slice_config
+
+    valid_point_mask = (
+        specimen_geometry.specimen_mask
+        & np.isfinite(specimen_geometry.x)
+        & np.isfinite(specimen_geometry.y)
+        & np.isfinite(specimen_geometry.pixel_area)
+    )
+    if not np.any(valid_point_mask):
+        raise ValueError("No valid specimen points were available to build the area-based slice partition.")
+
+    coordinate_along = specimen_geometry.x if config.axis == "x" else specimen_geometry.y
+    valid_coordinates_along = coordinate_along[valid_point_mask]
+    boundaries = _resolve_slice_boundaries(
+        valid_coordinates_along,
+        config.boundaries,
+        config.num_slices,
+    )
+
+    spans = np.diff(boundaries)
+    centres = 0.5 * (boundaries[:-1] + boundaries[1:])
+    roi_geometry = build_roi_geometry(specimen_geometry.region_of_interest.roi_definition)
+    slice_geometries, geometric_areas = _build_slice_geometries(
+        roi_geometry=roi_geometry,
+        axis=config.axis,
+        boundaries=boundaries,
+    )
+
+    geometric_widths = np.divide(
+        geometric_areas,
+        spans,
+        out=np.zeros_like(geometric_areas),
+        where=spans > 0.0,
+    )
+
+    support_node_x, support_node_y = _build_support_node_grids(specimen_geometry)
+    (
+        slice_force_point_indices,
+        slice_force_point_areas,
+        slice_force_point_area_integral_weights,
+        discrete_areas,
+    ) = _build_slice_support_overlap_operator(
+        specimen_geometry=specimen_geometry,
+        axis=config.axis,
+        boundaries=boundaries,
+        spans=spans,
+        valid_point_mask=valid_point_mask,
+        support_node_x=support_node_x,
+        support_node_y=support_node_y,
+        slice_geometries=slice_geometries,
+        geometric_areas=geometric_areas,
+    )
+
+    widths = np.divide(
+        discrete_areas,
+        spans,
+        out=np.zeros_like(discrete_areas),
+        where=spans > 0.0,
+    )
+    coverage_fractions = np.divide(
+        discrete_areas,
+        geometric_areas,
+        out=np.ones_like(discrete_areas),
+        where=geometric_areas > _GEOMETRY_TOLERANCE,
+    )
+
+    slice_id_map, slice_point_indices, point_counts = _associate_points_to_slices(
+        specimen_geometry,
+        axis=config.axis,
+        boundaries=boundaries,
+        valid_point_mask=valid_point_mask,
+    )
+
+    partition = SliceAreaPartition(
+        axis=config.axis,
+        boundaries=boundaries,
+        centres=centres,
+        spans=spans,
+        widths=widths,
+        areas=discrete_areas,
+        geometric_widths=geometric_widths,
+        geometric_areas=geometric_areas,
+        coverage_fractions=coverage_fractions,
+        point_counts=point_counts,
+        slice_id_map=slice_id_map,
+        valid_point_mask=valid_point_mask,
+        slice_point_indices=slice_point_indices,
+        slice_force_point_indices=slice_force_point_indices,
+        slice_force_point_areas=slice_force_point_areas,
+        slice_force_point_area_integral_weights=slice_force_point_area_integral_weights,
+        support_node_x=support_node_x,
+        support_node_y=support_node_y,
+        slice_geometries=slice_geometries,
+        num_slices=int(spans.size),
+    )
+
+    if plot_diagnostic:
+        plot_slice_area_partition_diagnostic(
+            specimen_geometry,
+            partition,
+            slice_index=diagnostic_slice_index,
+        )
+
+    return partition
+
+
+def plot_slice_area_partition_diagnostic(
+    specimen_geometry: SpecimenGeometry,
+    slice_partition: SliceAreaPartition,
+    slice_index: int | None = None,
+) -> None:
+    """Plot the ROI, slices, and DIC support cells used by the area operator."""
+
+    import matplotlib.pyplot as plt
+    from matplotlib.collections import PolyCollection
+
+    fig, ax = plt.subplots()
+
+    valid_rows, valid_cols = np.nonzero(slice_partition.valid_point_mask)
+    active_mask = (
+        slice_partition.get_slice_active_cell_mask(slice_index)
+        if slice_index is not None
+        else np.zeros(slice_partition.valid_point_mask.shape, dtype=bool)
+    )
+
+    inactive_polygons: list[npt.NDArray[np.float64]] = []
+    active_polygons: list[npt.NDArray[np.float64]] = []
+    for row_index, col_index in zip(valid_rows, valid_cols, strict=True):
+        vertices = _build_support_cell_vertices(
+            slice_partition.support_node_x,
+            slice_partition.support_node_y,
+            int(row_index),
+            int(col_index),
+        )
+        if slice_index is not None and active_mask[row_index, col_index]:
+            active_polygons.append(vertices)
+        else:
+            inactive_polygons.append(vertices)
+
+    if inactive_polygons:
+        ax.add_collection(
+            PolyCollection(
+                inactive_polygons,
+                facecolors="none",
+                edgecolors="#b0b7bf",
+                linewidths=0.45,
+            )
+        )
+    if active_polygons:
+        ax.add_collection(
+            PolyCollection(
+                active_polygons,
+                facecolors="#4C78A8",
+                edgecolors="#1f4e79",
+                linewidths=0.7,
+                alpha=0.32,
+            )
+        )
+
+    roi_geometry = build_roi_geometry(specimen_geometry.region_of_interest.roi_definition)
+    _plot_geometry_boundaries(ax, roi_geometry, color="black", linewidth=1.6)
+
+    colours = ("#F58518", "#54A24B", "#E45756", "#72B7B2")
+    for current_slice_index, geometry in enumerate(slice_partition.slice_geometries):
+        colour = colours[current_slice_index % len(colours)]
+        linewidth = 2.0 if current_slice_index == slice_index else 1.0
+        linestyle = "-" if current_slice_index == slice_index else "--"
+        _plot_geometry_boundaries(ax, geometry, color=colour, linewidth=linewidth, linestyle=linestyle)
+
+    ax.scatter(
+        specimen_geometry.x[slice_partition.valid_point_mask],
+        specimen_geometry.y[slice_partition.valid_point_mask],
+        s=5,
+        c="black",
+        alpha=0.35,
+        linewidths=0.0,
+        zorder=4,
+    )
+
+    if slice_index is None:
+        ax.set_title("Area-based slice partition diagnostic")
+    else:
+        coverage = float(slice_partition.coverage_fractions[slice_index])
+        ax.set_title(
+            "Area-based slice partition diagnostic "
+            f"(slice {slice_index}, coverage={coverage:.3f})"
+        )
+
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.tight_layout()
+
+
+def _build_slice_geometries(
+    *,
+    roi_geometry: BaseGeometry,
+    axis: SliceAxis,
+    boundaries: npt.NDArray[np.float64],
+) -> tuple[tuple[BaseGeometry, ...], npt.NDArray[np.float64]]:
+    bounds = roi_geometry.bounds
+    if axis == "y":
+        cross_min = float(bounds[0])
+        cross_max = float(bounds[2])
+    else:
+        cross_min = float(bounds[1])
+        cross_max = float(bounds[3])
+    cross_pad = max(0.05 * (cross_max - cross_min), 1.0)
+
+    slice_geometries: list[BaseGeometry] = []
+    geometric_areas = np.zeros(boundaries.size - 1, dtype=np.float64)
+    for slice_index in range(boundaries.size - 1):
+        slice_band = _build_slice_band(
+            axis=axis,
+            along_min=float(boundaries[slice_index]),
+            along_max=float(boundaries[slice_index + 1]),
+            cross_min=cross_min,
+            cross_max=cross_max,
+            cross_pad=cross_pad,
+        )
+        geometry = roi_geometry.intersection(slice_band)
+        slice_geometries.append(geometry)
+        geometric_areas[slice_index] = float(geometry.area)
+
+    return tuple(slice_geometries), geometric_areas
+
+
+def _build_support_node_grids(
+    specimen_geometry: SpecimenGeometry,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    data_mesh = _generate_data_mesh_nodal_coord(
+        specimen_geometry.x,
+        specimen_geometry.y,
+    )
+    return data_mesh.nodal_coord_x, data_mesh.nodal_coord_y
+
+
+def _build_slice_support_overlap_operator(
+    *,
+    specimen_geometry: SpecimenGeometry,
+    axis: SliceAxis,
+    boundaries: npt.NDArray[np.float64],
+    spans: npt.NDArray[np.float64],
+    valid_point_mask: npt.NDArray[np.bool_],
+    support_node_x: npt.NDArray[np.float64],
+    support_node_y: npt.NDArray[np.float64],
+    slice_geometries: tuple[BaseGeometry, ...],
+    geometric_areas: npt.NDArray[np.float64],
+) -> tuple[
+    tuple[npt.NDArray[np.int64], ...],
+    tuple[npt.NDArray[np.float64], ...],
+    tuple[npt.NDArray[np.float64], ...],
+    npt.NDArray[np.float64],
+]:
+    num_slices = spans.size
+    slice_index_lists: list[list[int]] = [[] for _ in range(num_slices)]
+    slice_area_lists: list[list[float]] = [[] for _ in range(num_slices)]
+    slice_weight_lists: list[list[float]] = [[] for _ in range(num_slices)]
+    discrete_areas = np.zeros(num_slices, dtype=np.float64)
+
+    valid_rows, valid_cols = np.nonzero(valid_point_mask)
+    for row_index, col_index in zip(valid_rows, valid_cols, strict=True):
+        row_index = int(row_index)
+        col_index = int(col_index)
+
+        cell_vertices = _build_support_cell_vertices(
+            support_node_x,
+            support_node_y,
+            row_index,
+            col_index,
+        )
+        cell_polygon = Polygon(cell_vertices)
+        if not cell_polygon.is_valid:
+            cell_polygon = cell_polygon.buffer(0.0)
+        if cell_polygon.is_empty or cell_polygon.area <= _GEOMETRY_TOLERANCE:
+            continue
+
+        along_coordinates = cell_vertices[:, 0] if axis == "x" else cell_vertices[:, 1]
+        along_min = float(np.min(along_coordinates))
+        along_max = float(np.max(along_coordinates))
+
+        slice_start = int(np.searchsorted(boundaries, along_min, side="right") - 1)
+        slice_end = int(np.searchsorted(boundaries, along_max, side="left") - 1)
+        if slice_end < 0 or slice_start > num_slices - 1:
+            continue
+
+        slice_start = max(0, slice_start)
+        slice_end = min(num_slices - 1, slice_end)
+        flat_index = int(np.ravel_multi_index((row_index, col_index), specimen_geometry.x.shape))
+
+        for slice_index in range(slice_start, slice_end + 1):
+            if _interval_overlap(
+                along_min,
+                along_max,
+                float(boundaries[slice_index]),
+                float(boundaries[slice_index + 1]),
+            ) <= _GEOMETRY_TOLERANCE:
+                continue
+
+            overlap_area = float(cell_polygon.intersection(slice_geometries[slice_index]).area)
+            if overlap_area <= _GEOMETRY_TOLERANCE:
+                continue
+
+            slice_index_lists[slice_index].append(flat_index)
+            slice_area_lists[slice_index].append(overlap_area)
+            slice_weight_lists[slice_index].append(overlap_area / float(spans[slice_index]))
+            discrete_areas[slice_index] += overlap_area
+
+    for slice_index, geometric_area in enumerate(geometric_areas):
+        if geometric_area <= _GEOMETRY_TOLERANCE:
+            continue
+        if len(slice_index_lists[slice_index]) == 0:
+            raise ValueError(
+                "A slice region has non-zero geometric area but no valid DIC support cells overlap it. "
+                "Check the ROI/data alignment or refine the slice definition."
+            )
+
+    return (
+        tuple(np.asarray(indices, dtype=np.int64) for indices in slice_index_lists),
+        tuple(np.asarray(areas, dtype=np.float64) for areas in slice_area_lists),
+        tuple(np.asarray(weights, dtype=np.float64) for weights in slice_weight_lists),
+        discrete_areas,
+    )
+
+
+def _build_support_cell_vertices(
+    support_node_x: npt.NDArray[np.float64],
+    support_node_y: npt.NDArray[np.float64],
+    row_index: int,
+    col_index: int,
+) -> npt.NDArray[np.float64]:
+    return np.asarray(
+        (
+            (support_node_x[row_index, col_index], support_node_y[row_index, col_index]),
+            (support_node_x[row_index, col_index + 1], support_node_y[row_index, col_index + 1]),
+            (support_node_x[row_index + 1, col_index + 1], support_node_y[row_index + 1, col_index + 1]),
+            (support_node_x[row_index + 1, col_index], support_node_y[row_index + 1, col_index]),
+        ),
+        dtype=np.float64,
+    )
+
+
+def _plot_geometry_boundaries(
+    ax,
+    geometry: BaseGeometry,
+    *,
+    color: str,
+    linewidth: float,
+    linestyle: str = "-",
+) -> None:
+    if geometry.is_empty:
+        return
+
+    if isinstance(geometry, Polygon):
+        exterior = np.asarray(geometry.exterior.coords, dtype=np.float64)
+        ax.plot(exterior[:, 0], exterior[:, 1], color=color, linewidth=linewidth, linestyle=linestyle)
+        for interior in geometry.interiors:
+            ring = np.asarray(interior.coords, dtype=np.float64)
+            ax.plot(ring[:, 0], ring[:, 1], color=color, linewidth=linewidth, linestyle=linestyle)
+        return
+
+    if isinstance(geometry, MultiPolygon):
+        for polygon in geometry.geoms:
+            _plot_geometry_boundaries(
+                ax,
+                polygon,
+                color=color,
+                linewidth=linewidth,
+                linestyle=linestyle,
+            )
+        return
+
+    if isinstance(geometry, GeometryCollection):
+        for item in geometry.geoms:
+            _plot_geometry_boundaries(
+                ax,
+                item,
+                color=color,
+                linewidth=linewidth,
+                linestyle=linestyle,
+            )
+
+
+def _interval_overlap(
+    interval_min: float,
+    interval_max: float,
+    target_min: float,
+    target_max: float,
+) -> float:
+    return max(0.0, min(interval_max, target_max) - max(interval_min, target_min))
+
+
+SlicePartition = SliceAreaPartition
+build_slice_partition = build_slice_area_partition
 SlicewiseSpatialParameterisation = SliceWiseSpatialParameterisation
