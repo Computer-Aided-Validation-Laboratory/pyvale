@@ -109,8 +109,8 @@ used during the build process:
 
 .. code-block:: bash
 
-   export CC=/opt/homebrew/opt/gcc/bin/gcc-15
-   export CXX=/opt/homebrew/opt/gcc/bin/g++-15
+   export CC=$(brew --prefix gcc)/bin/gcc-15
+   export CXX=$(brew --prefix gcc)/bin/g++-15
 
 You might need to change the number at the end depending on which version of
 ``gcc`` you have installed.
@@ -128,8 +128,8 @@ used during the build process:
 
 .. code-block:: bash
 
-   export CC=/opt/homebrew/opt/llvm/bin/clang
-   export CXX=/opt/homebrew/opt/llvm/bin/clang++
+  export CC=$(brew --prefix llvm)/bin/clang
+  export CXX=$(brew --prefix llvm)/bin/clang++
 
 Clone and Install the Github Repository
 =======================================

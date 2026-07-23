@@ -103,11 +103,25 @@ def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint],
                             atol: float = 1e-5) -> list[str]:
     fails = []
 
+    MACOS_GOLD_CASES = {    
+        "scal2d_analytic_nomesh",    
+        "scal3d_nomesh",    
+        "vec2d_analytic_nomesh",   
+        "tens2d_analytic_nomesh",
+    }
+
     for ss in sens_dict:
         measurements = sens_dict[ss].sim_measurements()
         gold_path = pointsensconst.GOLD_PATH / f"{ss}.npy"
 
-        load_path = pointsensconst.GOLD_PATH / f"{ss.lower()}.npy"
+        print(ss.lower())
+
+        if any(case in ss.lower() for case in MACOS_GOLD_CASES):           
+            load_path = (pointsensconst.GOLD_PATH / "macos" / f"{ss.lower()}.npy")
+        else:
+            load_path = (pointsensconst.GOLD_PATH / f"{ss.lower()}.npy")
+
+        
         if load_path.is_file():
             gold = np.load(load_path)
 
