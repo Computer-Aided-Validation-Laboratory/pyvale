@@ -10,7 +10,7 @@ from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.metric import IMetric
 from pyvale.vfm.metricsliceforce import (
     SliceForceReconstructionDiagnostics,
-    SliceLocalForceReconstructionProblem,
+    LocalSliceData,
     _extract_force_component,
     _normalise_weights,
 )
@@ -48,27 +48,27 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
         )
         return weighted_residual.ravel()
 
-    def build_local_problem(
+    def build_local_slice_data(
         self,
         experiment_data: ExperimentData,
         slice_index: int,
-    ) -> SliceLocalForceReconstructionProblem:
+    ) -> LocalSliceData:
         if slice_index < 0 or slice_index >= self.slice_partition.num_slices:
             raise IndexError(f"Slice index {slice_index} is out of range.")
 
         # extract global applied force in longitudinal direction
-        target_force = _extract_force_component(experiment_data.boundary_conditions.force, self.slice_partition.axis)
+        applied_longitudinal_force = _extract_force_component(experiment_data.boundary_conditions.force, self.slice_partition.axis)
         # best to apply weighting in cost function instead??
-        temporal_weights = _normalise_weights(np.abs(target_force))
+        temporal_weights = _normalise_weights(np.abs(applied_longitudinal_force))
         spatial_weights = _normalise_weights(self.slice_partition.widths)
 
         point_indices = self.slice_partition.slice_force_point_indices[slice_index]
-        point_weights = self.slice_partition.slice_force_point_weights[slice_index]
+        point_area_integral_weights = self.slice_partition.slice_force_point_area_integral_weights[slice_index]
         finite_strain_points = np.all(np.isfinite(experiment_data.strain), axis=(0, 1)).ravel()
         if point_indices.size > 0:
             valid_operator_points = finite_strain_points[point_indices]
             point_indices = point_indices[valid_operator_points]
-            point_weights = point_weights[valid_operator_points]
+            point_area_integral_weights = point_area_integral_weights[valid_operator_points]
 
         if point_indices.size == 0:
             global_point_indices = np.zeros(0, dtype=np.int64)
@@ -78,14 +78,14 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
             global_point_indices = global_point_indices.astype(np.int64, copy=False)
             local_point_indices = local_point_indices.astype(np.int64, copy=False)
 
-        return SliceLocalForceReconstructionProblem(
+        return LocalSliceData(
             slice_index=slice_index,
             axis=self.slice_partition.axis,
             stress_component_index=0 if self.slice_partition.axis == "x" else 1,
             global_point_indices=global_point_indices,
             local_point_indices=local_point_indices,
-            point_weights=point_weights,
-            target_force=target_force,
+            point_area_integral_weights=point_area_integral_weights,
+            applied_longitudinal_force=applied_longitudinal_force,
             temporal_weights=temporal_weights,
             spatial_weight=float(spatial_weights[slice_index]),
         )
@@ -94,30 +94,30 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
         self,
         stress: npt.NDArray[np.float64],
         experiment_data: ExperimentData,
-        local_problem: SliceLocalForceReconstructionProblem,
+        local_problem: LocalSliceData,
     ) -> npt.NDArray[np.float64]:
         if stress.ndim != 4:
             raise ValueError(f"Expected stress with shape (timesteps, components, y, x), got {stress.shape}.")
-        if stress.shape[0] != local_problem.target_force.shape[0]:
+        if stress.shape[0] != local_problem.applied_longitudinal_force.shape[0]:
             raise ValueError(
                 "Local stress history does not match the force history length: "
-                f"{stress.shape[0]} vs {local_problem.target_force.shape[0]}."
+                f"{stress.shape[0]} vs {local_problem.applied_longitudinal_force.shape[0]}."
             )
 
         stress_component = stress[:, local_problem.stress_component_index, :, :].reshape(stress.shape[0], -1)
-        reconstructed_force = np.zeros(local_problem.target_force.shape, dtype=np.float64)
-        if local_problem.local_point_indices.size > 0 and local_problem.point_weights.size > 0:
+        reconstructed_force = np.zeros(local_problem.applied_longitudinal_force.shape, dtype=np.float64)
+        if local_problem.local_point_indices.size > 0 and local_problem.point_area_integral_weights.size > 0:
             reconstructed_force = (
                 float(experiment_data.specimen_geometry.thickness)
                 * np.sum(
                     stress_component[:, local_problem.local_point_indices]
-                    * local_problem.point_weights[np.newaxis, :],
+                    * local_problem.point_area_integral_weights[np.newaxis, :],
                     axis=1,
                 )
             )
 
-        force_error = reconstructed_force - local_problem.target_force
-        force_scale = float(np.max(np.abs(local_problem.target_force)))
+        force_error = reconstructed_force - local_problem.applied_longitudinal_force
+        force_scale = float(np.max(np.abs(local_problem.applied_longitudinal_force)))
         if force_scale <= 0.0:
             force_scale = 1.0
 
@@ -138,36 +138,36 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
 
         loading_axis = self.slice_partition.axis
         stress_component_index = 0 if loading_axis == "x" else 1
-        target_force = _extract_force_component(experiment_data.boundary_conditions.force, loading_axis)
-        if target_force.shape[0] != stress.shape[0]:
+        applied_longitudinal_force = _extract_force_component(experiment_data.boundary_conditions.force, loading_axis)
+        if applied_longitudinal_force.shape[0] != stress.shape[0]:
             raise ValueError(
-                f"Force history length {target_force.shape[0]} does not match stress timesteps {stress.shape[0]}."
+                f"Force history length {applied_longitudinal_force.shape[0]} does not match stress timesteps {stress.shape[0]}."
             )
 
         reconstructed_force = np.zeros((stress.shape[0], self.slice_partition.num_slices), dtype=np.float64)
         stress_component = stress[:, stress_component_index, :, :].reshape(stress.shape[0], -1)
         thickness = float(experiment_data.specimen_geometry.thickness)
 
-        for slice_index, (point_indices, point_weights) in enumerate(
+        for slice_index, (point_indices, point_area_integral_weights) in enumerate(
             zip(
                 self.slice_partition.slice_force_point_indices,
-                self.slice_partition.slice_force_point_weights,
+                self.slice_partition.slice_force_point_area_integral_weights,
                 strict=True,
             )
         ):
-            if point_indices.size == 0 or point_weights.size == 0:
+            if point_indices.size == 0 or point_area_integral_weights.size == 0:
                 continue
             reconstructed_force[:, slice_index] = (
-                thickness * np.sum(stress_component[:, point_indices] * point_weights[np.newaxis, :], axis=1)
+                thickness * np.sum(stress_component[:, point_indices] * point_area_integral_weights[np.newaxis, :], axis=1)
             )
 
-        force_reconstruction_error = reconstructed_force - target_force[:, np.newaxis]
-        force_scale = float(np.max(np.abs(target_force)))
+        force_reconstruction_error = reconstructed_force - applied_longitudinal_force[:, np.newaxis]
+        force_scale = float(np.max(np.abs(applied_longitudinal_force)))
         if force_scale <= 0.0:
             force_scale = 1.0
         normalised_force_reconstruction_error = force_reconstruction_error / force_scale
 
-        temporal_weights = _normalise_weights(np.abs(target_force))
+        temporal_weights = _normalise_weights(np.abs(applied_longitudinal_force))
         spatial_weights = _normalise_weights(self.slice_partition.widths)
 
         weighted_temporal_rms = np.sqrt(
@@ -191,5 +191,5 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
             spatial_weights=spatial_weights,
             weighted_temporal_rms=weighted_temporal_rms,
             weighted_spatiotemporal_rms=weighted_spatiotemporal_rms,
-            target_force=target_force,
+            applied_longitudinal_force=applied_longitudinal_force,
         )

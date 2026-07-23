@@ -59,7 +59,7 @@ class SliceCrossSection:
     point_coordinates: npt.NDArray[np.float64]
     point_cell_bounds: npt.NDArray[np.float64]
     point_indices: npt.NDArray[np.int64]
-    point_weights: npt.NDArray[np.float64]
+    point_area_integral_weights: npt.NDArray[np.float64]
     point_segment_ids: npt.NDArray[np.int32]
 
 
@@ -455,7 +455,7 @@ def _build_cross_section(
         point_coordinates=np.asarray(point_coordinate_list, dtype=np.float64),
         point_cell_bounds=np.asarray(point_cell_bound_list, dtype=np.float64),
         point_indices=np.asarray(point_index_list, dtype=np.int64),
-        point_weights=np.asarray(point_weight_list, dtype=np.float64),
+        point_area_integral_weights=np.asarray(point_weight_list, dtype=np.float64),
         point_segment_ids=np.asarray(point_segment_id_list, dtype=np.int32),
     )
 

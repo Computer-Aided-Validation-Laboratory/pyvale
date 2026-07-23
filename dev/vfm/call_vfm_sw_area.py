@@ -111,17 +111,17 @@ def main() -> None:
 
     phases = [
         IdentificationPhase(
-            {
+            spatial_parameterisations={
                 "elastic_modulus": KnownSpatialParameterisation(),
                 "poissons_ratio": KnownSpatialParameterisation(),
                 "yield_strength": SliceWiseSpatialParameterisation(slice_partition),
                 "hardening_modulus": SliceWiseSpatialParameterisation(slice_partition),
             },
-            [
+            metrics=[
                 SliceWiseAreaForceReconstructionMetric(slice_partition),
             ],
-            VectorFirstResultPassthrough(),
-            SliceWiseIndependentLeastSquares(),
+            objective_function=VectorFirstResultPassthrough(),
+            optimiser=SliceWiseIndependentLeastSquares(),
         )
     ]
 

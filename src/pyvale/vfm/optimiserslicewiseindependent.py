@@ -12,7 +12,7 @@ from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.metric import IMetric
 from pyvale.vfm.metricsliceforce import (
-    SliceLocalForceReconstructionProblem,
+    LocalSliceData,
     SliceWiseForceReconstructionMetric,
 )
 from pyvale.vfm.metricsliceforcearea import SliceWiseAreaForceReconstructionMetric
@@ -30,7 +30,7 @@ from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 class _SliceSolveData:
     """All precomputed data required to solve one slice independently."""
 
-    local_problem: SliceLocalForceReconstructionProblem
+    local_problem: LocalSliceData
     local_strain: npt.NDArray[np.float64]
     unknown_parameter_names: tuple[str, ...]
     lower_bounds: npt.NDArray[np.float64]
@@ -62,9 +62,24 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
         objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
     ) -> dict[str, ISpatialParameterisation]:
-        slice_metric = _resolve_slice_metric(metrics)
+
+        # Check that the metrics are compatible with independent slice-wise solving
+        if len(metrics) != 1 or not isinstance(
+        metrics[0],
+        (SliceWiseForceReconstructionMetric, SliceWiseAreaForceReconstructionMetric),
+        ):
+            raise ValueError(
+                "SliceWiseIndependentLeastSquares requires exactly one "
+                "SliceWiseForceReconstructionMetric or "
+                "SliceWiseAreaForceReconstructionMetric."
+            )
+        slice_metric = metrics[0]
+
+        # Check that the spatial parameterisations are compatible with independent slice-wise solving
+        # e.g. all unknown parameters must use SliceWiseSpatialParameterisation with the same slice partition
         _validate_slice_parameterisations(spatial_parameterisations, slice_metric)
 
+        # Create copy of spatial parameterisations to update with optimised values
         optimised_spatial_parameterisations = {
             param_name: copy.deepcopy(sp)
             for param_name, sp in spatial_parameterisations.items()
@@ -116,18 +131,6 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
         return optimised_spatial_parameterisations
 
 
-def _resolve_slice_metric(metrics: list[IMetric]) -> SliceMetricType:
-    if len(metrics) != 1 or not isinstance(
-        metrics[0],
-        (SliceWiseForceReconstructionMetric, SliceWiseAreaForceReconstructionMetric),
-    ):
-        raise ValueError(
-            "SliceWiseIndependentLeastSquares requires exactly one "
-            "SliceWiseForceReconstructionMetric or "
-            "SliceWiseAreaForceReconstructionMetric."
-        )
-    return metrics[0]
-
 
 def _validate_slice_parameterisations(
     spatial_parameterisations: dict[str, ISpatialParameterisation],
@@ -157,7 +160,7 @@ def _build_slice_solve_data(
     slice_metric: SliceMetricType,
     experiment_data: ExperimentData,
 ) -> _SliceSolveData:
-    local_problem = slice_metric.build_local_problem(experiment_data, slice_index)
+    local_problem = slice_metric.build_local_slice_data(experiment_data, slice_index)
 
     # Extract the slice support points once so each objective evaluation only
     # needs to update the local constitutive parameter values.

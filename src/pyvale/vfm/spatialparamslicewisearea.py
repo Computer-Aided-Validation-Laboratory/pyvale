@@ -48,7 +48,7 @@ class SliceAreaPartition:
     slice_point_indices: tuple[npt.NDArray[np.int64], ...]
     slice_force_point_indices: tuple[npt.NDArray[np.int64], ...]
     slice_force_point_areas: tuple[npt.NDArray[np.float64], ...]
-    slice_force_point_weights: tuple[npt.NDArray[np.float64], ...]
+    slice_force_point_area_integral_weights: tuple[npt.NDArray[np.float64], ...]
     support_node_x: npt.NDArray[np.float64]
     support_node_y: npt.NDArray[np.float64]
     slice_geometries: tuple[BaseGeometry, ...]
@@ -188,7 +188,7 @@ def build_slice_area_partition(
     (
         slice_force_point_indices,
         slice_force_point_areas,
-        slice_force_point_weights,
+        slice_force_point_area_integral_weights,
         discrete_areas,
     ) = _build_slice_support_overlap_operator(
         specimen_geometry=specimen_geometry,
@@ -242,7 +242,7 @@ def build_slice_area_partition(
         slice_point_indices=slice_point_indices,
         slice_force_point_indices=slice_force_point_indices,
         slice_force_point_areas=slice_force_point_areas,
-        slice_force_point_weights=slice_force_point_weights,
+        slice_force_point_area_integral_weights=slice_force_point_area_integral_weights,
         support_node_x=support_node_x,
         support_node_y=support_node_y,
         slice_geometries=slice_geometries,
