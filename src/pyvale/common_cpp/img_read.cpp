@@ -136,7 +136,7 @@ Image read_tiff(const std::string &fullpath) {
             }
             else {
                 for (uint32_t x = 0; x < width; ++x)
-                    img.data32[row * width + x] = p[x * spp];
+                    img.data32f[row * width + x] = p[x * spp];
             }
         }
     }
