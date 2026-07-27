@@ -54,7 +54,7 @@ class SliceForceMetricResult:
 
 
 @dataclass(slots=True, frozen=True)
-class SliceForceReconstructionDiagnostics:
+class ForceReconstructionErrorResult:
     """Diagnostics for global slice-force reconstruction across all slices."""
 
     metric_result: SliceForceMetricResult
@@ -86,13 +86,13 @@ def build_local_slice_force_result(
     )
 
 
-def build_global_slice_force_diagnostics(
+def build_force_reconstruction_error_result(
     *,
     reconstructed_force: npt.NDArray[np.float64],
     applied_longitudinal_force: npt.NDArray[np.float64],
     temporal_weights: npt.NDArray[np.float64],
     spatial_weights: npt.NDArray[np.float64],
-) -> SliceForceReconstructionDiagnostics:
+) -> ForceReconstructionErrorResult:
     """Build the raw global slice residual and weighted diagnostic summaries."""
 
     raw_residual = reconstructed_force - applied_longitudinal_force[:, np.newaxis]
@@ -114,7 +114,7 @@ def build_global_slice_force_diagnostics(
         )
     )
 
-    return SliceForceReconstructionDiagnostics(
+    return ForceReconstructionErrorResult(
         metric_result=SliceForceMetricResult(
             raw_residual=raw_residual,
             normalised_residual=normalised_residual,
@@ -155,6 +155,23 @@ def _normalise_weights(raw_weights: npt.NDArray[np.float64]) -> npt.NDArray[np.f
     return resolved / total
 
 
+def _filter_operator_points(
+    point_indices: npt.NDArray[np.int64],
+    point_area_integral_weights: npt.NDArray[np.float64],
+    valid_global_points: npt.NDArray[np.bool_],
+) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]:
+    """Filter a slice force operator down to globally valid flat point indices."""
+
+    if point_indices.size == 0:
+        return point_indices, point_area_integral_weights
+
+    valid_operator_points = valid_global_points[point_indices]
+    return (
+        point_indices[valid_operator_points],
+        point_area_integral_weights[valid_operator_points],
+    )
+
+
 @dataclass(slots=True)
 class SliceWiseAreaForceReconstructionMetric(IMetric):
     """Area-based slice force reconstruction metric.
@@ -177,7 +194,7 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
         spatial_parameterisations: dict[str, ISpatialParameterisation],
         experiment_data: ExperimentData,
     ) -> SliceForceMetricResult:
-        return self.evaluate_diagnostics(stress, experiment_data).metric_result
+        return self.evaluate_force_recon_error(stress, experiment_data).metric_result
 
     def evaluate_local(
         self,
@@ -214,11 +231,11 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
             spatial_weight=local_slice_data.spatial_weights,
         )
 
-    def evaluate_diagnostics(
+    def evaluate_force_recon_error(
         self,
         stress: npt.NDArray[np.float64],
         experiment_data: ExperimentData,
-    ) -> SliceForceReconstructionDiagnostics:
+    ) -> ForceReconstructionErrorResult:
         if stress.ndim != 4:
             raise ValueError(f"Expected stress with shape (timesteps, components, y, x), got {stress.shape}.")
 
@@ -230,9 +247,12 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
                 f"Force history length {applied_longitudinal_force.shape[0]} does not match stress timesteps {stress.shape[0]}."
             )
 
-        reconstructed_force = np.zeros((stress.shape[0], self.slice_partition.num_slices), dtype=np.float64)
         stress_component = stress[:, stress_component_index, :, :].reshape(stress.shape[0], -1)
+        reconstructed_force = np.zeros((stress.shape[0], self.slice_partition.num_slices), dtype=np.float64)
         thickness = float(experiment_data.specimen_geometry.thickness)
+        finite_strain_points = np.all(np.isfinite(experiment_data.strain), axis=(0, 1)).ravel()
+        finite_stress_points = np.all(np.isfinite(stress_component), axis=0)
+        valid_global_points = finite_strain_points & finite_stress_points
 
         for slice_index, (point_indices, point_area_integral_weights) in enumerate(
             zip(
@@ -241,6 +261,11 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
                 strict=True,
             )
         ):
+            point_indices, point_area_integral_weights = _filter_operator_points(
+                point_indices,
+                point_area_integral_weights,
+                valid_global_points,
+            )
             if point_indices.size == 0 or point_area_integral_weights.size == 0:
                 continue
             reconstructed_force[:, slice_index] = (
@@ -250,7 +275,7 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
         temporal_weights = _normalise_weights(np.abs(applied_longitudinal_force))
         spatial_weights = _normalise_weights(self.slice_partition.widths)
 
-        return build_global_slice_force_diagnostics(
+        return build_force_reconstruction_error_result(
             reconstructed_force=reconstructed_force,
             applied_longitudinal_force=applied_longitudinal_force,
             temporal_weights=temporal_weights,

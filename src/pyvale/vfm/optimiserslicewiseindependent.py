@@ -13,6 +13,7 @@ from pyvale.vfm.metricsliceforce import (
     LocalSliceData,
     SliceWiseForceReconstructionMetric,
     _extract_force_component,
+    _filter_operator_points,
     _normalise_weights,
 )
 from pyvale.vfm.normalisation import (
@@ -80,6 +81,15 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
             # If there are no unknown parameters for this slice, skip the optimisation.
             if len(local_slice_data.unknown_parameter_names) == 0:
                 continue
+
+            if (
+                local_slice_data.local_point_indices.size == 0
+                or local_slice_data.point_area_integral_weights.size == 0
+            ):
+                raise ValueError(
+                    f"Slice {slice_index} has unknown parameters but no usable points "
+                    "after filtering non-finite strain histories."
+                )
 
             # Build the initial guess for the unknown parameters for this slice, normalised to [0, 1].
             initial_guess = _build_initial_guess(
@@ -202,10 +212,11 @@ def _build_slice_solve_data(
     # Restrict the slice force operator to points with fully finite strain history.
     # `point_indices` contains global flat indices into the full DIC field.
     # `finite_strain_points` is a global boolean mask over all points.
-    if point_indices.size > 0:
-        valid_operator_points = finite_strain_points[point_indices]
-        point_indices = point_indices[valid_operator_points]
-        point_area_integral_weights = point_area_integral_weights[valid_operator_points]
+    point_indices, point_area_integral_weights = _filter_operator_points(
+        point_indices,
+        point_area_integral_weights,
+        finite_strain_points,
+    )
 
     # `point_indices` may still contain repeated global point references.
     # We want:
