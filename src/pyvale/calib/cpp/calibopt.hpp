@@ -29,6 +29,7 @@ namespace optimization {
         std::vector<double> p; // hard coded optimzation parameters
         std::vector<double> dp; // deltaP
         std::vector<double> pdp; // P + deltaP
+        std::vector<bool> vary; // whether each parameter is optimized
         int max_iter;
         double precision;
         int px_vert;
@@ -39,7 +40,7 @@ namespace optimization {
 
         // Constructor to initialize vectors and other parameters
         Parameters(int num_params_, int max_iter_, 
-                double precision_, int px_vert_, int px_hori_)
+                double precision_)
             :
             num_params(num_params_),
             lambda(0.01),
@@ -48,10 +49,9 @@ namespace optimization {
             p(num_params, 0.0),
             dp(num_params, 0.0),
             pdp(num_params, 0.0),
+            vary(num_params, true),
             max_iter(max_iter_),
-            precision(precision_),
-            px_vert(px_vert_),
-            px_hori(px_hori_) {}
+            precision(precision_) {}
     };
 
 
@@ -59,26 +59,50 @@ namespace optimization {
         Eigen::VectorXd residuals;
         std::vector<double> proj0;
         std::vector<double> proj1;
+        int iter;
     };
 
     // master optimization routine
-    optimization::Output bundle_adjustment(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1,
-                            const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths);
+    optimization::Output bundle_adjustment(Parameters &opt, 
+                                           const std::vector<double> &dots_cam0, 
+                                           const std::vector<double> &dots_cam1,
+                                           const std::vector<double> &grid, 
+                                           const size_t num_img, 
+                                           const std::vector<int> &lengths);
 
     // single iteration of optimization
-    void iterate_cost(Parameters &opt, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1, 
-                    const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths);
+    void iterate_cost(Parameters &opt, 
+                      const std::vector<double> &dots_cam0, 
+                      const std::vector<double> &dots_cam1, 
+                      const std::vector<double> &grid, 
+                      const size_t num_img, 
+                      const std::vector<int> &lengths, 
+                      const int iter);
 
     // calculate jacobian
-    Eigen::MatrixXd calc_jac(std::vector<double> &p, const Eigen::VectorXd &r, const std::vector<double> &dots_cam0, const std::vector<double> &dots_cam1, 
-                            const std::vector<double> &grid, const size_t num_img, const std::vector<int> &lengths);
+    Eigen::MatrixXd calc_jac(std::vector<double> &p, 
+                             const Eigen::VectorXd &r, 
+                             const std::vector<double> &dots_cam0, 
+                             const std::vector<double> &dots_cam1, 
+                             const std::vector<double> &grid, 
+                             const size_t num_img, 
+                             const int iter,
+                             const std::vector<int> &lengths);
 
     // calculate residuals
-    optimization::Output calc_residuals(std::vector<double> &p, const std::vector<double> &dots_cam0, 
-                                const std::vector<double> &dots_cam1, const std::vector<double> &grid, 
-                                const size_t num_img,  const std::vector<int> &lengths, const bool print_flag);
+    optimization::Output calc_residuals(std::vector<double> &p, 
+                                        const std::vector<double> &dots_cam0, 
+                                        const std::vector<double> &dots_cam1, 
+                                        const std::vector<double> &grid, 
+                                        const size_t num_img,
+                                        const std::vector<int> &lengths, 
+                                        const int iter,
+                                        const bool print_flag);
 
 
+    // Function to convert Rodrigues rotation vector to rotation matrix using Eigen
+    Eigen::Matrix3d rodrigues_to_matrix(const Eigen::Vector3d &rvec);
+    Eigen::Vector3d matrix_to_rodrigues(const Eigen::Matrix3d &R);
 }
 
 #endif // CALIBOPT_H

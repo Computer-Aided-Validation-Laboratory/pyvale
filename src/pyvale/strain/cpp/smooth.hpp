@@ -26,7 +26,7 @@ namespace smooth {
      * @param[in] disp_vals 
      * @return Eigen::VectorXd A vector of coefficients for a bilinear fit inside strain window
      */
-    Eigen::VectorXd q4(std::vector<int> &x, std::vector<int> &y, std::vector<double>& disp_vals);
+    Eigen::VectorXd q4(const std::vector<double> &x, const std::vector<double> &y, const std::vector<double>& disp_vals);
 
     /**
      * @brief 
@@ -36,7 +36,7 @@ namespace smooth {
      * @param[in] disp_vals 
      * @return Eigen::VectorXd  A vector of coefficients for a bilinear fit inside strain window
      */
-    Eigen::VectorXd q9(std::vector<int> &x, std::vector<int> &y, std::vector<double>& disp_vals);
+    Eigen::VectorXd q9(const std::vector<double> &x, const std::vector<double> &y, const std::vector<double>& disp_vals);
 
     /**
      * @brief 

@@ -88,7 +88,7 @@ filterwarnings = [
 "Issue Tracker" = "https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues"
 
 [tool.scikit-build]
-build.verbose = false
+build.verbose = true
 logging.level = "INFO"
 ninja.make-fallback = false
 build-dir = "build"

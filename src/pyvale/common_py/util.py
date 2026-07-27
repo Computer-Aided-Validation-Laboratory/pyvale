@@ -6,6 +6,55 @@
 
 import os
 import sys
+from datetime import datetime
+
+def print_pyvale_banner():
+    print("                             #              ##            ####                  ")
+    print("                             #+#          #-+#            #--+                  ")
+    print("                             ##-##      ##--#             #--+                  ")
+    print("                              #.-+#    #++.+#   ### ####  #--+     ####         ")
+    print("                              #+---#  #.---# ##-----+--#  #--+  ##------#       ")
+    print("                               #.---##.-.-+# +--+###+--#  #--+ #+--####--#      ")
+    print("                               #++--+-...+#  +--## #+--#  #--+ #+--#######      ")
+    print("                                #+-+#--.-#   #+--------#  #--+  #----+---#      ")
+    print("                                #...+..+#      ##+######  ####    ##++##        ")
+    print("                              #+++---+-#                                        ")
+    print(" #####+++##  #####  #####   ##-.----.--++--.------------+-----.-##              ")
+    print(" #---------#  +--+##+--#   #+-.--.-.--..-.-..+.--.+.-..--#..-.--.-+.-##         ")
+    print(" #---#  #---# #+--++--##   #--..-.---.-..-------.-----.#+..----.-.#-+-#         ")
+    print(" #---###+--+    +----#      #+---#-+-.-..-.---.-++-+..-+....--.-.-..#-+##       ")
+    print(" #--------+#    #+--#       ##+...-.----..-----------..-++---.--.----+-.--+#    ")
+    print(" #---####      #+--#        ###+---.-..-+.--.-.-+-..-----------++#..+.++##..-## ")
+    print(" #---#        #+--#              ##########+++#+#++###########   #----#   #+++# ")
+    print(" #####       #####                                                #+.-#     ##  ")
+    print("                                                                    ##          ")
+
+
+def print_title(title: str):
+    line_width = 80
+
+    print("-" * line_width)
+    print(f" {title} ".center(line_width, "-"))
+    print("-" * line_width)
+
+
+def info(msg: str) -> None:
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    print(f"[{timestamp}] {msg}")
+
+
+def info_out(label: object, value: object) -> None:
+    total_width = 80
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    lhs = f"[{timestamp}] {label}"
+    rhs = str(value)
+    padding = 1
+
+    if len(lhs) + len(rhs) < total_width:
+        padding = total_width - len(lhs) - len(rhs)
+
+    print(lhs + " " * padding + rhs)
+
 
 def check_output_directory(output_basepath: str,
                            output_prefix: str, debug_level: int) -> None:
@@ -32,7 +81,7 @@ def check_output_directory(output_basepath: str,
         If the output directory does not exist or the user chooses not to proceed after
         being warned about existing files.
     """
-
+    
     # check if there's output files
     try:
         files = os.listdir(output_basepath)
@@ -49,10 +98,7 @@ def check_output_directory(output_basepath: str,
     if conflicting_files:
         conflicting_files.sort()
         if (debug_level>0):
-            print("WARNING: The following output files already exist and may be overwritten:")
-            for f in conflicting_files:
-                print(f"  - {os.path.join(output_basepath, f)}")
-            print("")
+            info("WARNING: files with matching prefix in output dir")
 
 
         ###### TURNING USER INPUT OFF FOR NOW ######

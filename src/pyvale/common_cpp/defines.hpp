@@ -8,10 +8,6 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#define TITLE(a) std::cout << std::string(80, '-') << std::endl; std::cout << std::string(38 - std::strlen(a)/2, '-') << " " << a << " " << std::string(38 - std::strlen(a)/2, '-') << std::endl; std::cout << std::string(80, '-') << std::endl;
-#define INFO_OUT(a,b) std::cout << "  - " << std::left << std::setw(50) << a << b << std::endl;
-#define DEBUGGER std::cout << __FILE__ << " " << __LINE__ << std::endl;
-
 #ifdef CUDA
         #define CUDA_CALL(x) do { if((x) != cudaSuccess) {\
         printf("Error at %s:%d\n",__FILE__,__LINE__);\
