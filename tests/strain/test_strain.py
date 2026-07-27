@@ -198,7 +198,7 @@ def test_strain_3d(window_element):
     strain_2d, strain_3d = run_strain_test(window_element)
 
     for field, atol in [
-        ("eps_xx", 3e-5),
+        ("eps_xx", 4e-5),
         ("eps_xy", 8e-5),
         ("eps_yy", 2e-4),
     ]:

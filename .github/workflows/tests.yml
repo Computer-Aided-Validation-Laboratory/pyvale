@@ -56,6 +56,7 @@ jobs:
         if: startsWith(matrix.os, 'windows')
         run: |
           vcpkg install tiff
+          PATH="C:/vcpkg/installed/x64-windows/bin;$PATH"
 
       - name: Install libtiff (Ubuntu)
         if: startsWith(matrix.os, 'ubuntu')

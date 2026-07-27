@@ -19,5 +19,5 @@ __all__ = ["calculate_2d",
            "import_2d",
            "import_3d",
            "Bspline",
-           "Intepolator",
+           "Interpolator",
            "Results"]
