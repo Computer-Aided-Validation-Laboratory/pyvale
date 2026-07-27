@@ -5,8 +5,8 @@ import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
-from pyvale.vfm.metric import IMetric
-from pyvale.vfm.objectivefunc import IObjectiveFunction, MetricResult
+from pyvale.vfm.metric import IMetric, MetricResult
+from pyvale.vfm.objectivefunc import IObjectiveFunction
 from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
     evaluate_parameterisations_to_map,

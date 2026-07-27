@@ -1,10 +1,8 @@
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.objectivefunc import (
-    IVectorObjectiveFunction,
-    MetricResult,
-)
+from pyvale.vfm.metric import MetricResult
+from pyvale.vfm.objectivefunc import IVectorObjectiveFunction
 
 
 def _is_vector_metric_result(metric_result: MetricResult) -> bool:
@@ -56,13 +54,10 @@ class VectorFirstResultPassthrough(IVectorObjectiveFunction):
         self,
         metric_results: list[MetricResult],
     ) -> npt.NDArray[np.float64]:
-        return _resolve_metric_result_vector(
-            metric_results[0],
-            use_normalised_residual=False,
-            use_temporal_weighting=False,
-            use_spatial_weighting=False,
-        ).ravel()
+        if metric_results[0].residual is None:
+            raise ValueError("Metric residual doesn't exist")
 
+        return metric_results[0].residual.ravel()
 
 class VectorConcatenateObjective(IVectorObjectiveFunction):
     def evaluate(
@@ -71,17 +66,15 @@ class VectorConcatenateObjective(IVectorObjectiveFunction):
     ) -> npt.NDArray[np.float64]:
         if not metric_results:
             return np.array([], dtype=np.float64)
-        return np.concatenate(
-            [
-                _resolve_metric_result_vector(
-                    metric_result,
-                    use_normalised_residual=False,
-                    use_temporal_weighting=False,
-                    use_spatial_weighting=False,
-                ).ravel()
-                for metric_result in metric_results
-            ]
-        )
+
+        residuals = []
+        for metric_result in metric_results:
+            if metric_result.residual is None:
+                raise ValueError("Metric residual doesn't exist")
+
+            residuals.append(metric_result.residual.ravel())
+
+        return np.concatenate(residuals)
 
 
 class VectorWeightedObjective(IVectorObjectiveFunction):

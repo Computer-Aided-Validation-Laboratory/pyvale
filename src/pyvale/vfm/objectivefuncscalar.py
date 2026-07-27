@@ -1,8 +1,5 @@
-import numpy as np
-import numpy.typing as npt
-
-from pyvale.vfm.objectivefunc import IScalarObjectiveFunction, MetricResult
-from pyvale.vfm.objectivefuncvector import _resolve_metric_result_vector
+from pyvale.vfm.metric import MetricResult
+from pyvale.vfm.objectivefunc import IScalarObjectiveFunction
 
 
 class ScalarFirstResultPassthrough(IScalarObjectiveFunction):
@@ -10,12 +7,8 @@ class ScalarFirstResultPassthrough(IScalarObjectiveFunction):
         self,
         metric_results: list[MetricResult],
     ) -> float:
+        if metric_results[0].residual is None:
+            raise ValueError("Metric residual doesn't exist")
+
         # TODO: only valid for 1D arrays
-        return float(
-            _resolve_metric_result_vector(
-                metric_results[0],
-                use_normalised_residual=False,
-                use_temporal_weighting=False,
-                use_spatial_weighting=False,
-            )[0]
-        )
+        return metric_results[0].residual[0]
