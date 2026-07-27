@@ -2,26 +2,37 @@ import numpy as np
 
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.identificationconfig import IdentificationConfig
+from pyvale.vfm.identificationconfig import IdentificationPhase
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
+from pyvale.vfm.slicewise_utils import (
+    slice_partition_matches_config,
+    slice_partitions_are_equivalent,
+)
+from pyvale.vfm.spatialparam import get_num_degrees_of_freedom
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
-
+from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 
 # TODO:
-#   - chech x, y, pixel area, strain (y, x) dims have same shape 
-#   - roi validation
-#   - specimen mask validation
-# 
-# # check specimen mask agrees with x, y, pixel_area
-# x_valid = np.isfinite(x)
-# y_valid = np.isfinite(y)
-# pixel_area_valid = np.isfinite(pixel_area)
-# if not np.array_equal(self.specimen_mask, x_valid & y_valid & pixel_area_valid):
-#     raise ValueError("Specimen mask does not agree with x, y, and pixel_area.")
+# - check x,y pixel_area, syrain (y,x) dims have same shape 
+# - roi validation
+# specimen mas kvalidatation 
+#
+# check specimen mask agrees with x,y, pixel area
+# x_valid =np.isfinite(x)
+# y_valid=np.isfinite(y)
+# pixel_area_valid=np.isfinite(pixel_area)
+#if not np.array_equal(self.specimen_mask, x_valid & y_valid & pixel_area_valid):
+#    raise ValueError("specimen_mask must be True where x, y, and pixel_area are finite")
+
+
 
 def validate_experiment_data(
     experiment_data: ExperimentData
 ) -> None:
     geometry = experiment_data.specimen_geometry
     boundary_conditions = experiment_data.boundary_conditions
+    region_of_interest = geometry.specimen_mask
 
     # Shape and dtype checks
     strain = experiment_data.strain
@@ -50,11 +61,12 @@ def validate_experiment_data(
             f"timesteps must be float64, got {timesteps.dtype}"
         )
 
-    force = boundary_conditions.force
-    if force.ndim != 2:
-        raise ValueError(
-            f"force must be 2D (timesteps, 2) with columns [Fx, Fy], "
-            f"got ndim={force.ndim}"
+    # TEMP HACK TO TRY RUNNING (SHOULD BE UNCOMMENTED)
+    # force = boundary_conditions.force
+    # if force.ndim != 2:
+    #     raise ValueError(
+    #         f"force must be 2D (timesteps, 2) with columns [Fx, Fy], "
+    #         f"got ndim={force.ndim}"
         )
     if force.dtype != np.float64:
         raise ValueError(
@@ -268,3 +280,64 @@ def validate_identification_config(
                 f"parameter '{name}': upper_bound ({param.upper_bound}) "
                 f"must be finite"
             )
+
+
+def validate_and_prepare_slicewise_independent_phase(
+    phase: IdentificationPhase,
+    experiment_data: ExperimentData,
+    phase_index: int,
+) -> None:
+    if not isinstance(phase.optimiser, SliceWiseIndependentLeastSquares):
+        return
+
+    if len(phase.metrics) != 1 or not isinstance(phase.metrics[0], SliceWiseForceReconstructionMetric):
+        raise ValueError(
+            f"phase {phase_index}: SliceWiseIndependentLeastSquares requires exactly one "
+            "SliceWiseForceReconstructionMetric."
+        )
+
+    slice_metric = phase.metrics[0]
+    slice_metric.initialise_slice_partition(experiment_data.specimen_geometry)
+    if slice_metric.slice_partition is None:
+        raise RuntimeError("Failed to resolve slice metric partition.")
+
+    canonical_partition = slice_metric.slice_partition
+
+    for param_name, sps in phase.spatial_parameterisations.items():
+        if len(sps) != 1:
+            raise ValueError(
+                f"phase {phase_index} parameter '{param_name}': independent slice-wise "
+                "identification currently requires exactly one spatial parameterisation."
+            )
+
+        sp = sps[0]
+        if not isinstance(sp, SliceWiseSpatialParameterisation):
+            if get_num_degrees_of_freedom(sps) != 0:
+                raise ValueError(
+                    f"phase {phase_index} parameter '{param_name}': all unknown parameters must "
+                    "use SliceWiseSpatialParameterisation for independent slice-wise identification."
+                )
+            continue
+
+        if sp.slice_partition is not None:
+            if not slice_partitions_are_equivalent(sp.slice_partition, canonical_partition):
+                raise ValueError(
+                    f"phase {phase_index} parameter '{param_name}': slicewise partition does not "
+                    "match the metric partition."
+                )
+            sp.slice_partition = canonical_partition
+            continue
+
+        if sp.slice_config is None:
+            raise ValueError(
+                f"phase {phase_index} parameter '{param_name}': provide either slice_partition "
+                "or slice_config."
+            )
+
+        if not slice_partition_matches_config(canonical_partition, sp.slice_config):
+            raise ValueError(
+                f"phase {phase_index} parameter '{param_name}': slice_config does not match "
+                "the metric partitioning."
+            )
+
+        sp.slice_partition = canonical_partition

@@ -6,10 +6,10 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
-from pyvale.vfm.experimentdata import ExperimentData
-from pyvale.vfm.metric import IMetric
+from pyvale.vfm.experimentdata import ExperimentData, SpecimenGeometry
+from pyvale.vfm.metric import IMetric, MetricResult
+from pyvale.vfm.slicewise_utils import SliceAreaPartition, SliceConfig, resolve_slice_partition
 from pyvale.vfm.spatialparam import ISpatialParameterisation
-from pyvale.vfm.spatialparamslicewise import SliceAreaPartition
 
 
 @dataclass(slots=True, frozen=True)
@@ -42,24 +42,40 @@ class LocalSliceData:
 
 
 @dataclass(slots=True, frozen=True)
-class SliceForceMetricResult:
-    """Raw slice-force residual vector plus optional weighting metadata."""
-
-    raw_residual: npt.NDArray[np.float64]
-    normalised_residual: npt.NDArray[np.float64]
-    temporal_weights: npt.NDArray[np.float64] | None
-    spatial_weights: npt.NDArray[np.float64] | float | None
-    reconstructed_force: npt.NDArray[np.float64]
-    applied_longitudinal_force: npt.NDArray[np.float64]
-
-
-@dataclass(slots=True, frozen=True)
 class ForceReconstructionErrorResult:
     """Diagnostics for global slice-force reconstruction across all slices."""
 
-    metric_result: SliceForceMetricResult
+    metric_result: MetricResult
     weighted_temporal_rms: npt.NDArray[np.float64]
     weighted_spatiotemporal_rms: float
+
+
+def _build_slice_metric_result(
+    *,
+    raw_residual: npt.NDArray[np.float64],
+    reconstructed_force: npt.NDArray[np.float64],
+    applied_longitudinal_force: npt.NDArray[np.float64],
+    temporal_weights: npt.NDArray[np.float64],
+    spatial_weights: npt.NDArray[np.float64] | float,
+) -> MetricResult:
+    force_scale = float(np.max(np.abs(applied_longitudinal_force)))
+    if force_scale <= 0.0:
+        force_scale = 1.0
+
+    resolved_raw_residual = np.asarray(raw_residual, dtype=np.float64)
+    normalised_residual = resolved_raw_residual / force_scale
+
+    return MetricResult(
+        residual=resolved_raw_residual,
+        additional_fields={
+            "raw_residual": resolved_raw_residual,
+            "normalised_residual": normalised_residual,
+            "temporal_weights": np.asarray(temporal_weights, dtype=np.float64),
+            "spatial_weights": np.asarray(spatial_weights, dtype=np.float64),
+            "reconstructed_force": np.asarray(reconstructed_force, dtype=np.float64),
+            "applied_longitudinal_force": np.asarray(applied_longitudinal_force, dtype=np.float64),
+        },
+    )
 
 
 def build_local_slice_force_result(
@@ -68,21 +84,16 @@ def build_local_slice_force_result(
     applied_longitudinal_force: npt.NDArray[np.float64],
     temporal_weights: npt.NDArray[np.float64],
     spatial_weight: float,
-) -> SliceForceMetricResult:
-    """Build the raw local slice residual together with its weighting metadata."""
+) -> MetricResult:
+    """Build the local slice residual with weighting metadata."""
 
     raw_residual = reconstructed_force - applied_longitudinal_force
-    force_scale = float(np.max(np.abs(applied_longitudinal_force)))
-    if force_scale <= 0.0:
-        force_scale = 1.0
-
-    return SliceForceMetricResult(
+    return _build_slice_metric_result(
         raw_residual=raw_residual,
-        normalised_residual=raw_residual / force_scale,
-        temporal_weights=np.asarray(temporal_weights, dtype=np.float64),
-        spatial_weights=float(spatial_weight),
-        reconstructed_force=np.asarray(reconstructed_force, dtype=np.float64),
-        applied_longitudinal_force=np.asarray(applied_longitudinal_force, dtype=np.float64),
+        reconstructed_force=reconstructed_force,
+        applied_longitudinal_force=applied_longitudinal_force,
+        temporal_weights=temporal_weights,
+        spatial_weights=spatial_weight,
     )
 
 
@@ -93,7 +104,7 @@ def build_force_reconstruction_error_result(
     temporal_weights: npt.NDArray[np.float64],
     spatial_weights: npt.NDArray[np.float64],
 ) -> ForceReconstructionErrorResult:
-    """Build the raw global slice residual and weighted diagnostic summaries."""
+    """Build global residuals and weighted diagnostic summaries."""
 
     raw_residual = reconstructed_force - applied_longitudinal_force[:, np.newaxis]
     force_scale = float(np.max(np.abs(applied_longitudinal_force)))
@@ -115,13 +126,12 @@ def build_force_reconstruction_error_result(
     )
 
     return ForceReconstructionErrorResult(
-        metric_result=SliceForceMetricResult(
+        metric_result=_build_slice_metric_result(
             raw_residual=raw_residual,
-            normalised_residual=normalised_residual,
-            temporal_weights=np.asarray(temporal_weights, dtype=np.float64),
-            spatial_weights=np.asarray(spatial_weights, dtype=np.float64),
-            reconstructed_force=np.asarray(reconstructed_force, dtype=np.float64),
-            applied_longitudinal_force=np.asarray(applied_longitudinal_force, dtype=np.float64),
+            reconstructed_force=reconstructed_force,
+            applied_longitudinal_force=applied_longitudinal_force,
+            temporal_weights=temporal_weights,
+            spatial_weights=spatial_weights,
         ),
         weighted_temporal_rms=weighted_temporal_rms,
         weighted_spatiotemporal_rms=weighted_spatiotemporal_rms,
@@ -173,7 +183,7 @@ def _filter_operator_points(
 
 
 @dataclass(slots=True)
-class SliceWiseAreaForceReconstructionMetric(IMetric):
+class SliceWiseForceReconstructionMetric(IMetric):
     """Area-based slice force reconstruction metric.
 
     The reconstructed slice force is the discrete analogue of
@@ -184,16 +194,39 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
     between each slice region and the native DIC support cells.
     """
 
-    slice_partition: SliceAreaPartition
+    slice_partition: SliceAreaPartition | None = None
+    slice_config: SliceConfig | None = None
+
+    def __post_init__(self) -> None:
+        if self.slice_partition is None and self.slice_config is None:
+            raise ValueError("Provide either slice_partition or slice_config.")
+
+    def initialise_slice_partition(
+        self,
+        specimen_geometry: SpecimenGeometry,
+    ) -> None:
+        self.slice_partition = resolve_slice_partition(
+            specimen_geometry,
+            slice_partition=self.slice_partition,
+            slice_config=self.slice_config,
+        )
+
+    def initialise(
+        self,
+        experiment_data: ExperimentData,
+    ) -> None:
+        self.initialise_slice_partition(experiment_data.specimen_geometry)
 
     def evaluate(
         self,
         stress: npt.NDArray[np.float64],
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         experiment_data: ExperimentData,
-    ) -> SliceForceMetricResult:
+    ) -> MetricResult:
+        if self.slice_partition is None:
+            raise RuntimeError("Slice partition has not been resolved.")
         return self.evaluate_force_recon_error(stress, experiment_data).metric_result
 
     def evaluate_local(
@@ -201,8 +234,8 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
         stress: npt.NDArray[np.float64],
         experiment_data: ExperimentData,
         local_slice_data: LocalSliceData,
-    ) -> SliceForceMetricResult:
-        """Return the raw local slice residual plus weighting metadata."""
+    ) -> MetricResult:
+        """Return the local slice residual plus weighting metadata."""
 
         if stress.ndim != 4:
             raise ValueError(f"Expected stress with shape (timesteps, components, y, x), got {stress.shape}.")
@@ -236,6 +269,8 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
         stress: npt.NDArray[np.float64],
         experiment_data: ExperimentData,
     ) -> ForceReconstructionErrorResult:
+        if self.slice_partition is None:
+            raise RuntimeError("Slice partition has not been resolved.")
         if stress.ndim != 4:
             raise ValueError(f"Expected stress with shape (timesteps, components, y, x), got {stress.shape}.")
 
@@ -281,6 +316,3 @@ class SliceWiseAreaForceReconstructionMetric(IMetric):
             temporal_weights=temporal_weights,
             spatial_weights=spatial_weights,
         )
-
-
-SliceWiseForceReconstructionMetric = SliceWiseAreaForceReconstructionMetric

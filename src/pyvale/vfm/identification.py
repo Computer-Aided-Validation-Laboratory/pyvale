@@ -4,6 +4,7 @@ from pyvale.vfm.constlaw import EIdentificationType
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.validation import (
+    validate_and_prepare_slicewise_independent_phase,
     validate_experiment_data,
     validate_identification_config,
 )
@@ -20,6 +21,13 @@ def run_identification(
 ) -> dict[str, ConstitutiveParameter]:
     validate_experiment_data(experiment_data)
     validate_identification_config(identification_config)
+
+    for phase_index, phase in enumerate(identification_config.phases):
+        validate_and_prepare_slicewise_independent_phase(
+            phase,
+            experiment_data,
+            phase_index,
+        )
 
     match identification_config.constitutive_law.get_identification_type():
         # TODO: implement linear case

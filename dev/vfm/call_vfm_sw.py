@@ -13,18 +13,18 @@ from pyvale.vfm.experimentdata import (
     ExperimentData,
     SpecimenGeometry,
 )
-from pyvale.vfm.hardening import LinearHardening
-from pyvale.vfm.identification import Identification, IdentificationPhase
+from pyvale.vfm.hardening import HardeningLinear
+from pyvale.vfm.identification import run_identification
+from pyvale.vfm.identificationconfig import IdentificationConfig, IdentificationPhase
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.objectivefuncvector import VectorWeightedObjective
 from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
-from pyvale.vfm.spatialparamknown import KnownSpatialParameterisation
+from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 from pyvale.vfm.spatialparamslicewise import (
     SliceConfig,
     SliceWiseSpatialParameterisation,
     build_slice_partition,
 )
-from pyvale.vfm.vfm import run_identification
 from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
 
@@ -104,33 +104,33 @@ def main() -> None:
         ),
     }
 
-    slice_partition = build_slice_partition(
-        specimen_geometry,
-        slice_config=SliceConfig(axis=SLICE_AXIS, num_slices=NUM_SLICES),
-        plot_diagnostic=PLOT_SLICE_PARTITION,
-        diagnostic_slice_index=PLOT_SLICE_INDEX,
-    )
-    _print_coverage_diagnostic(slice_partition)
+    # slice_config = 
+
+    # slice_partition = build_slice_partition(
+    #         specimen_geometry,
+    #         slice_config=slice_config,
+    #         plot_diagnostic=True,
+    #         diagnostic_slice_index=PLOT_SLICE_INDEX,
+    #     )
+    # _print_coverage_diagnostic(slice_partition)
 
     phases = [
         IdentificationPhase(
             spatial_parameterisations={
-                "elastic_modulus": KnownSpatialParameterisation(),
-                "poissons_ratio": KnownSpatialParameterisation(),
-                "yield_strength": SliceWiseSpatialParameterisation(slice_partition),
-                "hardening_modulus": SliceWiseSpatialParameterisation(slice_partition),
+                "elastic_modulus": [SpatialParameterisationKnown()],
+                "poissons_ratio": [SpatialParameterisationKnown()],
+                "yield_strength": [SliceWiseSpatialParameterisation(slice_config = SliceConfig(axis=SLICE_AXIS, num_slices=NUM_SLICES))],
+                "hardening_modulus": [SliceWiseSpatialParameterisation(slice_config = SliceConfig(axis=SLICE_AXIS, num_slices=NUM_SLICES))],
             },
-            metrics=[
-                SliceWiseForceReconstructionMetric(slice_partition),
-            ],
+            metrics=[SliceWiseForceReconstructionMetric( slice_config=SliceConfig(axis=SLICE_AXIS, num_slices=NUM_SLICES))],
             objective_function=VectorWeightedObjective(),
             optimiser=SliceWiseIndependentLeastSquares(),
         )
     ]
 
-    identification = Identification(
+    identification = IdentificationConfig(
         IsotropicVonMisesElastoplasticity(
-            LinearHardening()
+            HardeningLinear()
         ),
         parameters,
         phases,
@@ -146,7 +146,7 @@ def main() -> None:
         ("Yield Strength", "Hardening Modulus"),
         strict=True,
     ):
-        image = ax.imshow(vfm_result[param_name].value, origin="lower", cmap="viridis")
+        image = ax.imshow(vfm_result[param_name].map, origin="lower", cmap="viridis")
         ax.set_title(title)
         fig.colorbar(image, ax=ax)
     plt.show()

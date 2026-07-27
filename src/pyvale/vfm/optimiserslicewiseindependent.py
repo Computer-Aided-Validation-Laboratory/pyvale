@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import least_squares
@@ -20,57 +21,63 @@ from pyvale.vfm.normalisation import (
     denormalise_degrees_of_freedom,
     normalise_degrees_of_freedom,
 )
-from pyvale.vfm.objectivefunc import IObjectiveFunction
+from pyvale.vfm.objectivefunc import IObjectiveFunction, IVectorObjectiveFunction
 from pyvale.vfm.optimiser import IOptimiser
-from pyvale.vfm.spatialparam import ISpatialParameterisation
+from pyvale.vfm.spatialparam import ISpatialParameterisation, get_num_degrees_of_freedom
 from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 
 SliceMetricType = SliceWiseForceReconstructionMetric
 
 
-class SliceWiseIndependentLeastSquares(IOptimiser):
-    """Identify each slice independently using a local least-squares solve.
+def _get_single_spatial_parameterisation(
+    param_name: str,
+    spatial_parameterisations: list[ISpatialParameterisation],
+) -> ISpatialParameterisation:
+    if len(spatial_parameterisations) != 1:
+        raise ValueError(
+            "SliceWiseIndependentLeastSquares currently requires exactly one spatial "
+            f"parameterisation per parameter. Parameter '{param_name}' has {len(spatial_parameterisations)}."
+        )
+    return spatial_parameterisations[0]
 
-    This optimiser is intended for slice-wise identification with the
-    slice force-reconstruction metric. All unknown parameters must
-    therefore use `SliceWiseSpatialParameterisation` with the same slice
-    partition object.
-    """
+
+class SliceWiseIndependentLeastSquares(IOptimiser):
+    """Identify each slice independently using a local least-squares solve."""
 
     method: str = "trf"
+
+    def get_required_objective_function_type(self) -> type:
+        return IVectorObjectiveFunction
 
     def optimise(
         self,
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, ISpatialParameterisation],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         metrics: list[IMetric],
         objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
-    ) -> dict[str, ISpatialParameterisation]:
+    ) -> dict[str, list[ISpatialParameterisation]]:
 
-        # Validate the metric is compatible with independent slice-wise identification.
         if len(metrics) != 1 or not isinstance(metrics[0], SliceWiseForceReconstructionMetric):
             raise ValueError(
                 "SliceWiseIndependentLeastSquares requires exactly one "
                 "SliceWiseForceReconstructionMetric."
             )
         slice_metric = metrics[0]
+        if slice_metric.slice_partition is None:
+            raise RuntimeError("Slice metric partition must be prepared before optimisation.")
 
-        # Validate the parameterisations are compatible with independent slice-wise identification.
         _validate_slice_parameterisations(spatial_parameterisations, slice_metric)
 
-        # Create a deep copy of the spatial parameterisations to avoid modifying the originals.
         optimised_spatial_parameterisations = {
-            param_name: copy.deepcopy(sp)
-            for param_name, sp in spatial_parameterisations.items()
+            param_name: copy.deepcopy(sps)
+            for param_name, sps in spatial_parameterisations.items()
         }
 
-        # Solve each slice independently, updating the optimised parameterisations in place.
-        # Note: could be parallelised in the future if needed, but this is not currently a bottleneck.
+        # Solve each slice indentently, updating the optimised parameterisations in place
+        # Note: could be parallised in future if required
         for slice_index in range(slice_metric.slice_partition.num_slices):
-            # Build the slice-local solve data, which includes point associations, point weights,
-            # local strain, fixed parameter maps
             local_slice_data = _build_slice_solve_data(
                 slice_index=slice_index,
                 parameter_map_size=parameter_map_size,
@@ -78,7 +85,7 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                 slice_metric=slice_metric,
                 experiment_data=experiment_data,
             )
-            # If there are no unknown parameters for this slice, skip the optimisation.
+            # If no unknown parameters for this slice, skip the solve and leave the parameterisations unchanged
             if len(local_slice_data.unknown_parameter_names) == 0:
                 continue
 
@@ -91,7 +98,7 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                     "after filtering non-finite strain histories."
                 )
 
-            # Build the initial guess for the unknown parameters for this slice, normalised to [0, 1].
+            # Build the initial guess for the unknown parameters of this slice, normalised to [0, 1]
             initial_guess = _build_initial_guess(
                 optimised_spatial_parameterisations,
                 slice_index,
@@ -99,8 +106,8 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
             )
 
             result = least_squares(
-                fun = _evaluate_slice_candidate,
-                x0 = initial_guess,
+                fun=_evaluate_slice_candidate,
+                x0=initial_guess,
                 bounds=(np.zeros_like(initial_guess), np.ones_like(initial_guess)),
                 method=self.method,
                 args=(
@@ -127,12 +134,15 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
         return optimised_spatial_parameterisations
 
 
-
 def _validate_slice_parameterisations(
-    spatial_parameterisations: dict[str, ISpatialParameterisation],
+    spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
     slice_metric: SliceMetricType,
 ) -> None:
-    for param_name, spatial_parameterisation in spatial_parameterisations.items():
+    if slice_metric.slice_partition is None:
+        raise RuntimeError("Slice metric partition must be prepared before optimisation.")
+
+    for param_name, sps in spatial_parameterisations.items():
+        spatial_parameterisation = _get_single_spatial_parameterisation(param_name, sps)
         if isinstance(spatial_parameterisation, SliceWiseSpatialParameterisation):
             if spatial_parameterisation.slice_partition is not slice_metric.slice_partition:
                 raise ValueError(
@@ -141,7 +151,7 @@ def _validate_slice_parameterisations(
                 )
             continue
 
-        if spatial_parameterisation.get_num_degrees_of_freedom() != 0:
+        if get_num_degrees_of_freedom(sps) != 0:
             raise ValueError(
                 "Independent slice-wise identification requires all unknown parameters "
                 f"to use SliceWiseSpatialParameterisation. Parameter '{param_name}' does not."
@@ -152,76 +162,66 @@ def _build_slice_solve_data(
     *,
     slice_index: int,
     parameter_map_size: npt.NDArray[np.uint32],
-    spatial_parameterisations: dict[str, ISpatialParameterisation],
+    spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
     slice_metric: SliceMetricType,
     experiment_data: ExperimentData,
 ) -> LocalSliceData:
-    """Build all cached inputs needed to solve one slice independently.
+    """ Build all cached inputs needed to solve one slice independently.
 
-    This converts the global identification setup into a compact slice-local
-    problem for repeated use inside SciPy's least-squares iterations.
-
+    This converts the global problem into a local problem for one slice, 
+    for repeated solving.
+    
     The returned object contains:
-    - the slice-local force reconstruction data
-    - the strain history only at points used by this slice
-    - the names and bounds of any unknown slice parameters
-    - local parameter maps for parameters that are fixed during this slice solve
+    - the local slice force reconstruction data
+    - the strain history for the points in the slice (filtered to only include points with finite strain histories)
+    - the applied longitudinal force history
+    - the names and bounds of any unknown parameters for this slice
+    - the fixed parameter maps for any known parameters
     """
 
-    # Validate the slice index is within the valid range of slices.
+    if slice_metric.slice_partition is None:
+        raise RuntimeError("Slice metric partition must be prepared before optimisation.")
     if slice_index < 0 or slice_index >= slice_metric.slice_partition.num_slices:
         raise IndexError(f"Slice index {slice_index} is out of range.")
 
-    # Extract the applied longitudinal force for this slice 
     applied_longitudinal_force = _extract_force_component(
         experiment_data.boundary_conditions.force,
         slice_metric.slice_partition.axis,
     )
 
-    # Compute the temporal and spatial weights (optionally used in objective function).
-    # - temporal weights emphasise load steps with larger applied force
-    # - spatial weights scale each slice relative to the others
+    # Compute the temporal and spatial weights for this slice (optionally used in objective function)
+    # - temporal weights are normalised absolute applied longitudinal force
+    # - spatial weights are normalised slice widths
     temporal_weights = _normalise_weights(np.abs(applied_longitudinal_force))
     spatial_weights = _normalise_weights(slice_metric.slice_partition.widths)
 
-    # Extract the point indices for this slice
     point_indices = slice_metric.slice_partition.slice_force_point_indices[slice_index]
-
-    # Get the point area integral weights for this slice
-    # These weights are used to scale the contribution of each point in the objective function. 
-    # They are derived from the area associated with each measurement point in the slice.
+    # Get the area integral weights for the points in this slice, which are used to weight the residuals in the objective function
+    # These weights are the area integral of the points in the slice, which is used to weight the residuals in the objective function
     point_area_integral_weights = (
         slice_metric.slice_partition.slice_force_point_area_integral_weights[slice_index]
     )
 
-    # Filter out any points whose strain history is not full finite.
+    # Filter out any points that have non-finite strain histories, as these cannot be used in the optimisation
     finite_strain_points = np.all(np.isfinite(experiment_data.strain), axis=(0, 1)).ravel()
-
-    PLOT_VALID_STRAIN_POINTS = False # Set to True to visualise valid strain points for debugging
-    if PLOT_VALID_STRAIN_POINTS:
-        import matplotlib.pyplot as plt
-        valid_point_mask_2d = finite_strain_points.reshape(experiment_data.specimen_geometry.x.shape)
-        plt.figure()
-        plt.imshow(valid_point_mask_2d, origin="lower", cmap="gray")
-        plt.title("Finite Strain Points: white=valid, black=invalid")
-        plt.xlabel("x index")
-        plt.ylabel("y index")
-        plt.colorbar()
-        plt.show()
-
-    # Restrict the slice force operator to points with fully finite strain history.
-    # `point_indices` contains global flat indices into the full DIC field.
-    # `finite_strain_points` is a global boolean mask over all points.
     point_indices, point_area_integral_weights = _filter_operator_points(
         point_indices,
         point_area_integral_weights,
         finite_strain_points,
     )
 
-    # `point_indices` may still contain repeated global point references.
-    # We want:
-    # - `global_point_indices`: the unique global points needed for this slice
-    # - `local_point_indices`: how each operator entry maps into that compact local list
+    PLOT_VALID_STRAIN_POINTS = False # set to True to visualise the points that have valid strain histories for this slice
+    if PLOT_VALID_STRAIN_POINTS:
+        import matplotlib.pyplot as plt
+        valid_point_mask_2d = finite_strain_points.reshape(experiment_data.specimen_geometry.x.shape)
+        plt.figure()
+        plt.imshow(valid_point_mask_2d, cmap="gray", origin="lower")
+        plt.title(f"Valid Strain Points for Slice {slice_index}. white = valid, black = invalid")
+        plt.xlabel("X Index")
+        plt.ylabel("Y Index")
+        plt.colorbar(label="Valid Strain Point (1 = valid, 0 = invalid)")
+        plt.show()
+
     if point_indices.size == 0:
         global_point_indices = np.zeros(0, dtype=np.int64)
         local_point_indices = np.zeros(0, dtype=np.int64)
@@ -230,37 +230,36 @@ def _build_slice_solve_data(
         global_point_indices = global_point_indices.astype(np.int64, copy=False)
         local_point_indices = local_point_indices.astype(np.int64, copy=False)
 
-    # Extract the strain history at the points used by this slice. 
-    # This is a 4D array with shape (num_timesteps, num_components, 1, num_points).
+    # Extract the local strain history for the points in this slice (4D array with shape [num_timesteps, num_components, 1, num_points_in_slice])
     local_strain = _extract_local_strain(
         experiment_data.strain,
         global_point_indices,
     )
 
-    # Collect the unknowns for this slice solve and cache any fixed local
-    # parameter maps that do not change during optimisation.
     unknown_parameter_names: list[str] = []
     lower_bounds: list[float] = []
     upper_bounds: list[float] = []
     fixed_parameter_maps: dict[str, npt.NDArray[np.float64]] = {}
 
-    for param_name, spatial_parameterisation in spatial_parameterisations.items():
+    for param_name, sps in spatial_parameterisations.items():
+        spatial_parameterisation = _get_single_spatial_parameterisation(param_name, sps)
         if isinstance(spatial_parameterisation, SliceWiseSpatialParameterisation):
-            # Look up the value for this slice. 
+            # Look up the value for this slice
+            if spatial_parameterisation.values is None:
+                raise ValueError("SliceWiseSpatialParameterisation values must be initialised.")
+
             slice_value = spatial_parameterisation.values[slice_index]
             if slice_value is None:
                 raise ValueError(
                     "SliceWiseSpatialParameterisation must be initialised with "
-                    "update_from_constitutive_parameter before optimisation."
+                    "initialise_from_constitutive_parameter before optimisation."
                 )
 
-            # If value of current slice is a DegreeOfFreedom, it is an unknown parameter to be solved.
             if isinstance(slice_value, DegreeOfFreedom):
                 unknown_parameter_names.append(param_name)
                 lower_bounds.append(slice_value.lower_bound)
                 upper_bounds.append(slice_value.upper_bound)
             else:
-                # If value of current slice is a float, it is a fixed parameter.
                 fixed_parameter_maps[param_name] = np.full(
                     local_strain.shape[2:],
                     float(slice_value),
@@ -274,9 +273,6 @@ def _build_slice_solve_data(
             global_point_indices,
         )
 
-    # Package slice local force reconstruction data containing information needed to
-    # convert stress field into reconstructed force residual, together with the
-    # local constitutive inputs and optimisation bookkeeping for this slice solve.
     return LocalSliceData(
         slice_index=slice_index,
         axis=slice_metric.slice_partition.axis,
@@ -296,15 +292,20 @@ def _build_slice_solve_data(
 
 
 def _build_initial_guess(
-    spatial_parameterisations: dict[str, ISpatialParameterisation],
+    spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
     slice_index: int,
     unknown_parameter_names: tuple[str, ...],
 ) -> npt.NDArray[np.float64]:
     slice_degrees_of_freedom: list[DegreeOfFreedom] = []
     for param_name in unknown_parameter_names:
-        spatial_parameterisation = spatial_parameterisations[param_name]
+        spatial_parameterisation = _get_single_spatial_parameterisation(
+            param_name,
+            spatial_parameterisations[param_name],
+        )
         if not isinstance(spatial_parameterisation, SliceWiseSpatialParameterisation):
             raise TypeError("Expected a SliceWiseSpatialParameterisation for independent slice solving.")
+        if spatial_parameterisation.values is None:
+            raise ValueError("SliceWiseSpatialParameterisation values must be initialised.")
 
         slice_value = spatial_parameterisation.values[slice_index]
         if not isinstance(slice_value, DegreeOfFreedom):
@@ -349,12 +350,12 @@ def _evaluate_slice_candidate(
         local_slice_data.upper_bounds,
     )
 
-    # Build the local parameter maps for this slice, combining fixed parameters and the current candidate unknowns.
+    # Build local parameter maps for this slice, combining the fixed known parameters and the unknown parameters being solved for
     local_parameter_maps = {
         param_name: value.copy()
         for param_name, value in local_slice_data.fixed_parameter_maps.items()
     }
-    # Add the current candidate unknown parameters to the local parameter maps.
+
     for param_name, param_value in zip(
         local_slice_data.unknown_parameter_names,
         resolved_degrees_of_freedom,
@@ -365,18 +366,21 @@ def _evaluate_slice_candidate(
             float(param_value),
             dtype=np.float64,
         )
-    # Compute the stress field for this slice using the constitutive law and the local strain and parameter maps.
+
+    # Compute stress field for this slice
     local_stress = constitutive_law.calculate_stress(
         local_slice_data.local_strain,
         local_parameter_maps,
     )
-    # Evaluate the slice force reconstruction metric for this candidate stress field, returning the residuals.
+
+    # Evaluate the force reconstruction metric for this slice, which computes the residuals between the reconstructed and applied forces
     metric_result = slice_metric.evaluate_local(
         local_stress,
         experiment_data,
         local_slice_data,
     )
-    # Evaluate the objective function using the metric result, which should return a vector of residuals.
+
+    # Evaluate the objective function for this slice, which computes the cost term to be minimised in the optimisation
     objective_value = objective_function.evaluate([metric_result])
     if not isinstance(objective_value, np.ndarray):
         raise TypeError(
@@ -387,15 +391,20 @@ def _evaluate_slice_candidate(
 
 
 def _update_slice_parameterisations(
-    spatial_parameterisations: dict[str, ISpatialParameterisation],
+    spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
     slice_index: int,
     unknown_parameter_names: tuple[str, ...],
     solved_values: npt.NDArray[np.float64],
 ) -> None:
     for param_name, param_value in zip(unknown_parameter_names, solved_values, strict=True):
-        spatial_parameterisation = spatial_parameterisations[param_name]
+        spatial_parameterisation = _get_single_spatial_parameterisation(
+            param_name,
+            spatial_parameterisations[param_name],
+        )
         if not isinstance(spatial_parameterisation, SliceWiseSpatialParameterisation):
             raise TypeError("Expected a SliceWiseSpatialParameterisation when updating slice results.")
+        if spatial_parameterisation.values is None:
+            raise ValueError("SliceWiseSpatialParameterisation values must be initialised.")
 
         slice_value = spatial_parameterisation.values[slice_index]
         if not isinstance(slice_value, DegreeOfFreedom):

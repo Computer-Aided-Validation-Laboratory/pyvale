@@ -5,15 +5,6 @@ from pyvale.vfm.metric import MetricResult
 from pyvale.vfm.objectivefunc import IVectorObjectiveFunction
 
 
-def _is_vector_metric_result(metric_result: MetricResult) -> bool:
-    return (
-        hasattr(metric_result, "raw_residual")
-        and hasattr(metric_result, "normalised_residual")
-        and hasattr(metric_result, "temporal_weights")
-        and hasattr(metric_result, "spatial_weights")
-    )
-
-
 def _resolve_metric_result_vector(
     metric_result: MetricResult,
     *,
@@ -21,30 +12,29 @@ def _resolve_metric_result_vector(
     use_temporal_weighting: bool,
     use_spatial_weighting: bool,
 ) -> npt.NDArray[np.float64]:
-    if not _is_vector_metric_result(metric_result):
-        if use_normalised_residual or use_temporal_weighting or use_spatial_weighting:
-            raise TypeError(
-                "This objective requires metric weighting metadata, but the metric returned "
-                "a plain ndarray."
-            )
-        return np.asarray(metric_result, dtype=np.float64)
+    if metric_result.residual is None:
+        raise ValueError("Metric residual doesn't exist.")
 
-    residual = (
-        metric_result.normalised_residual
-        if use_normalised_residual and metric_result.normalised_residual is not None
-        else metric_result.raw_residual
-    )
+    metadata = metric_result.additional_fields or {}
+
+    if use_normalised_residual:
+        residual = metadata.get("normalised_residual", metric_result.residual)
+    else:
+        residual = metadata.get("raw_residual", metric_result.residual)
+
     resolved = np.asarray(residual, dtype=np.float64)
 
     if use_temporal_weighting:
-        if metric_result.temporal_weights is None:
+        temporal_weights = metadata.get("temporal_weights")
+        if temporal_weights is None:
             raise TypeError("Temporal weighting was requested, but the metric did not provide temporal weights.")
-        resolved = resolved * np.sqrt(np.asarray(metric_result.temporal_weights, dtype=np.float64))
+        resolved = resolved * np.sqrt(np.asarray(temporal_weights, dtype=np.float64))
 
     if use_spatial_weighting:
-        if metric_result.spatial_weights is None:
+        spatial_weights = metadata.get("spatial_weights")
+        if spatial_weights is None:
             raise TypeError("Spatial weighting was requested, but the metric did not provide spatial weights.")
-        resolved = resolved * np.sqrt(np.asarray(metric_result.spatial_weights, dtype=np.float64))
+        resolved = resolved * np.sqrt(np.asarray(spatial_weights, dtype=np.float64))
 
     return resolved
 

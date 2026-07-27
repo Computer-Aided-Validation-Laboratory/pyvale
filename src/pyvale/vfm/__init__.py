@@ -20,6 +20,7 @@ from .spatialparamknown import *
 from .spatialparamhomogeneous import *
 from .spatialparambasisfuncs import *
 from .spatialparamslicewise import *
+from .slicewise_utils import *
 
 from .optimiser import *
 from .optimiserleastsquares import *
