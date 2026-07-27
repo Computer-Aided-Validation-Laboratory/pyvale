@@ -1,178 +1,94 @@
-from dataclasses import dataclass, field
-
-from pyvale.vfm.inputdatafiles import InputDataFile, NpyFile
-from pyvale.vfm.experimentdata import EdgeConditions
-import enum
-
-import numpy.typing as npt
 import numpy as np
+import numpy.typing as npt
+
+from pyvale.vfm.ansysloaddata import load_ansys_data
+from pyvale.vfm.inputdataconfig import AnsysConfig, InputDataConfig, MooseConfig
+from pyvale.vfm.mooseloaddata import load_moose_data
 
 
-class EFeDataSource(enum.Enum):
-    ANSYS = enum.auto()
-    MOOSE = enum.auto()
-
-
-def _default_strain_component_files() -> dict[str, str]:
-    # Maps component name -> txt filename, in [xx, yy, xy] order.
-    return {
-        "strain_xx": "eps_xx.txt",
-        "strain_yy": "eps_yy.txt",
-        "strain_xy": "eps_xy.txt",
-    }
-
-
-@dataclass(slots=True)
-class AnsysConfig:
-    """Inputs for interpolating ANSYS FE centroid data onto a regular grid.
-
-    Strain components are read from separate per-component txt files (e.g.
-    eps_xx.txt) since a combined element_data.csv may not exist. All file
-    names are resolved relative to ``fe_data_dir``.
-    """
-    fe_data_dir: str
-    strain_component_files: dict[str, str] = field(
-        default_factory=_default_strain_component_files
-    )
-    x_coordinates_file: str = "x_coordinates.txt"
-    y_coordinates_file: str = "y_coordinates.txt"
-    time_values_file: str = "time_values.txt"
-    element_ids_file: str | None = "element_ids.txt"
-    mesh_file: str | None = None
-    upsample_factor: float = 2.0
-    target_spacing: float | None = None
-
-
-@dataclass(slots=True)
-class MooseConfig:
-    """Inputs for loading MOOSE exodus data and interpolating onto a grid."""
-    exodus_file_path: str
-    grid_divs: int
-    plate_height: float
-    plate_width: float
-    strain_component_keys: tuple[str, str, str] = (
-        "strain_xx",
-        "strain_yy",
-        "strain_xy",
-    )
-    force_key: str = "react_y_top"
-
-
-@dataclass(slots=True)
-class CoordConfig:
-    file: InputDataFile
-
-    def load_from_file(self) -> npt.NDArray[np.float64]:
-        return self.file.load()
-
-
-@dataclass(slots=True)
-class StrainConfig:
-    # if its an npy file with all components
-    # we need the index of each field, and the order
-    # of components
-    #
-    # if its fe data, there could be like 4 data points per component
-    #
-    # if its in a csv file there could be a row per component
-    file: InputDataFile
-
-    timestep_dim_index: int
-    components_dim_index: int
-    y_dim_index: int
-    x_dim_index: int
-
-    xx_component_index: int
-    yy_component_index: int
-    xy_component_index: int
-
-    def __post_init__(self) -> None:
-        allowed_file_types = {NpyFile}
-
-        if type(self.file) not in allowed_file_types:
-            raise TypeError(
-                f"Strain file must be one of {allowed_file_types}. "
-                f"Got {type(self.file).__name__}."
-            )
-
-    def load_from_file(self) -> npt.NDArray[np.float64]:
-        data = self.file.load()
-
-        # Reorder the axes into (timesteps, components, y, x)
-        data = np.transpose(
-            data,
-            (
-                self.timestep_dim_index,
-                self.components_dim_index,
-                self.y_dim_index,
-                self.x_dim_index,
-            ),
+def process_input_data(config: InputDataConfig) -> tuple[
+    npt.NDArray[np.float64],  # x, shape (y, x)
+    npt.NDArray[np.float64],  # y, shape (y, x)
+    npt.NDArray[np.float64],  # strain, shape (timesteps, components, y, x)
+    npt.NDArray[np.float64],  # force, shape (timesteps, components)
+    npt.NDArray[np.float64],  # time, shape (timesteps,)
+]:
+    if isinstance(config, AnsysConfig):
+        x, y, strain, force, time = load_ansys_data(config)
+    elif isinstance(config, MooseConfig):
+        x, y, strain, force, time = load_moose_data(config)
+    else:
+        raise TypeError(
+            f"Unsupported input data config: {type(config).__name__}."
         )
 
-        # Reorder the components axis into [xx, yy, xy]
-        data = data[
-            :,
-            [
-                self.xx_component_index,
-                self.yy_component_index,
-                self.xy_component_index,
-            ],
-            :,
-            :,
-        ]
+    _validate_input_data(
+        x,
+        y,
+        strain,
+        force,
+        time
+    )
 
-        return data
+    # generate plot
+    # save plots
+    # save results in a dir
 
-
-class EForceUnits(enum.Enum):
-    N = enum.auto()
-    KN = enum.auto()
+    return (x, y, strain, force, time)
 
 
-@dataclass(slots=True)
-class ForceConfig:
-    file: InputDataFile
-    units: EForceUnits
-
-    should_flip_sign: bool = False
-
-    def load_from_file(self) -> npt.NDArray[np.float64]:
-        return self.file.load()
 
 
-@dataclass(slots=True)
-class TimeConfig:
-    file: InputDataFile
-
-    should_offset_start_time_to_zero: bool = False
-
-    def load_from_file(self) -> npt.NDArray[np.float64]:
-        return self.file.load()
 
 
-@dataclass(slots=True)
-class ROIConfig:
-    file: InputDataFile
+def _validate_input_data(
+    x: npt.NDArray[np.float64],
+    y: npt.NDArray[np.float64],
+    strain: npt.NDArray[np.float64],
+    force: npt.NDArray[np.float64],
+    time: npt.NDArray[np.float64]
+):
+    errors: list[str] = []
 
-    def load_from_file(self) -> dict:
-        return self.file.load()
+    # Check dims
+    if x.ndim == 1 and y.ndim == 1:
+        x, y = np.meshgrid(x, y)
 
+    if force.ndim != 2:
+        errors.append(
+            f"Force must be a 2D array. Got a {force.ndim}D array."
+        )
 
-@dataclass(slots=True)
-class InputDataConfig:
-    x: CoordConfig
-    y: CoordConfig
-    force: ForceConfig
-    time: TimeConfig
-    thickness: float
-    # computed from x and y?
-    # pixel_area: float = None
-    edge_conditions: EdgeConditions
+    if time.ndim != 1:
+        errors.append(
+            f"Time must be a 1D array. Got a {time.ndim}D array."
+        )
 
-    # Which FE solver produced the data. ANSYS data is interpolated onto a
-    # grid from element centroids; MOOSE data is loaded from an exodus file.
-    data_source: EFeDataSource
-    ansys: AnsysConfig | None = None
-    moose: MooseConfig | None = None
+    if strain.ndim != 4:
+        errors.append(
+            f"Strain must be a 4D array. Got a {strain.ndim}D array."
+        )
 
+    # Check shapes
+    if x.shape != strain.shape[2:]:
+        errors.append(
+            f"Coordinate grid shape {x.shape} does not match spatial strain "
+            f"components. Got shape {strain.shape[2:]}"
+        )
 
+    if force.shape[0] != time.shape[0]:
+        errors.append(
+            f"Number of rows in force ({force.shape[0]}) does not match the "
+            f"number of timesteps ({time.shape[0]})."
+        )
+
+    if time.shape[0] != strain.shape[0]:
+        errors.append(
+            f"Number of timesteps ({time.shape[0]}) does not match the length "
+            f"of the strain 0th dimension ({strain.shape[0]})."
+        )
+
+    if errors:
+        raise ValueError(
+            "Invalid input data:\n" + "\n".join(f"  - {e}" for e in errors)
+        )

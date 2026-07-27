@@ -1,74 +1,76 @@
+from pathlib import Path
+
 from pyvale.vfm.experimentdata import Edge, EdgeConditions, EEdgeCondition
-from pyvale.vfm.inputdata import (
+from pyvale.vfm.inputdata import process_input_data
+from pyvale.vfm.inputdataconfig import (
     AnsysConfig,
-    CoordConfig,
-    EFeDataSource,
-    EForceUnits,
-    ForceConfig,
     InputDataConfig,
     MooseConfig,
-    TimeConfig,
 )
-from pyvale.vfm.inputdatafiles import (
-    MultiFieldCsvFile,
-    TxtFile,
-)
-from pyvale.vfm.inputdatapreprocessor import preprocess_input_data
 
-ANSYS_DIR = "/Users/chris/work/example_input_data/plate-with-hole-hom-lin-hard"
-FE_DATA_DIR = f"{ANSYS_DIR}/fe-data"
+ANSYS_DIR = Path(
+    "/Users/chris/work/example_input_data/plate-with-hole-hom-lin-hard/fe-data"
+)
 EXODUS_FILE = "/Users/chris/work/vfmverif/data/out_hole2d_plas_32f.e"
 
 
-def _edge_conditions() -> EdgeConditions:
-    return EdgeConditions(
-        Edge(EEdgeCondition.Fixed, EEdgeCondition.Fixed),
-        Edge(EEdgeCondition.Traction, EEdgeCondition.Fixed),
-        Edge(EEdgeCondition.Free, EEdgeCondition.Free),
-        Edge(EEdgeCondition.Free, EEdgeCondition.Free),
-    )
-
-
-def _common_configs() -> dict:
-    """Config fields shared across both scenarios."""
-    return dict(
-        x=CoordConfig(TxtFile(f"{FE_DATA_DIR}/x_coordinates.txt")),
-        y=CoordConfig(TxtFile(f"{FE_DATA_DIR}/y_coordinates.txt")),
-        force=ForceConfig(
-            MultiFieldCsvFile(
-                f"{FE_DATA_DIR}/reaction_history.csv", "reaction_fy"
-            ),
-            units=EForceUnits.N,
-        ),
-        time=TimeConfig(
-            MultiFieldCsvFile(f"{FE_DATA_DIR}/reaction_history.csv", "time"),
-        ),
+def build_example_ansys_config() -> InputDataConfig:
+    return AnsysConfig(
+        x_file= ANSYS_DIR / "x_coordinates.txt",
+        y_file= ANSYS_DIR / "y_coordinates.txt",
+        strain_xx_file= ANSYS_DIR / "eps_xx.txt",
+        strain_yy_file= ANSYS_DIR / "eps_yy.txt",
+        strain_xy_file= ANSYS_DIR / "eps_xy.txt",
+        force_file= ANSYS_DIR / "reaction_history.csv",
+        time_file= ANSYS_DIR / "time_values.txt",
         thickness=0.001,
-        edge_conditions=_edge_conditions(),
+        edge_conditions=EdgeConditions(
+            min_x_edge=Edge(
+                x=EEdgeCondition.Fixed,
+                y=EEdgeCondition.Fixed
+            ),
+            max_x_edge=Edge(
+                x=EEdgeCondition.Traction,
+                y=EEdgeCondition.Fixed
+            ),
+            min_y_edge=Edge(
+                x=EEdgeCondition.Free,
+                y=EEdgeCondition.Free
+            ),
+            max_y_edge=Edge(
+                x=EEdgeCondition.Free,
+                y=EEdgeCondition.Free
+            ),
+        ),
+        mesh_file=ANSYS_DIR / "mesh2d_holeplate.msh",
     )
 
 
-def build_ansys_config() -> InputDataConfig:
-    return InputDataConfig(
-        **_common_configs(),
-        data_source=EFeDataSource.ANSYS,
-        ansys=AnsysConfig(
-            fe_data_dir=FE_DATA_DIR,
-            mesh_file="mesh2d_holeplate.msh",
-        ),
-    )
-
-
-def build_moose_config() -> InputDataConfig:
-    return InputDataConfig(
-        **_common_configs(),
-        data_source=EFeDataSource.MOOSE,
-        moose=MooseConfig(
-            exodus_file_path=EXODUS_FILE,
-            grid_divs=101,
-            plate_height=35e-3,
-            plate_width=25e-3,
-        ),
+def build_example_moose_config() -> InputDataConfig:
+    return MooseConfig(
+        exodus_file_path=EXODUS_FILE,
+        height=35e-3,
+        width=25e-3,
+        thickness=0.001,
+        grid_divs=101,
+        edge_conditions=EdgeConditions(
+            min_x_edge=Edge(
+                x=EEdgeCondition.Fixed,
+                y=EEdgeCondition.Fixed
+            ),
+            max_x_edge=Edge(
+                x=EEdgeCondition.Traction,
+                y=EEdgeCondition.Fixed
+            ),
+            min_y_edge=Edge(
+                x=EEdgeCondition.Free,
+                y=EEdgeCondition.Free
+            ),
+            max_y_edge=Edge(
+                x=EEdgeCondition.Free,
+                y=EEdgeCondition.Free
+            ),
+        )
     )
 
 
@@ -82,10 +84,10 @@ def _print_output(x, y, strain, force, time) -> None:
 
 def main():
     print("=== ANSYS scenario ===")
-    _print_output(*preprocess_input_data(build_ansys_config()))
+    _print_output(*process_input_data(build_example_ansys_config()))
 
     print("=== MOOSE scenario ===")
-    _print_output(*preprocess_input_data(build_moose_config()))
+    _print_output(*process_input_data(build_example_moose_config()))
 
 
 if __name__ == "__main__":

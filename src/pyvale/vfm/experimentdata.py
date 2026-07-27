@@ -4,7 +4,10 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.vfm.roi import VfmRegionOfInterest
 
+
+# TODO: roi/specimen mask docs
 @dataclass(slots=True)
 class SpecimenGeometry:
     """
@@ -28,14 +31,35 @@ class SpecimenGeometry:
     Always positive, increasing top to bottom (row index)
     """
 
-    region_of_interest: npt.NDArray[np.bool_]
-    """Boolean mask of valid analysis points, shape ``(y, x)``"""
+    pixel_area: npt.NDArray[np.float64]
+    """Area per grid point, shape ``(y, x)`` (mm²)"""
 
     thickness: float
     """Out-of-plane thickness of the specimen (mm)"""
 
-    pixel_area: npt.NDArray[np.float64]
-    """Area per grid point, shape ``(y, x)`` (mm²)"""
+    region_of_interest: VfmRegionOfInterest
+    # """Boolean mask of valid analysis points, shape ``(y, x)``"""
+
+    specimen_mask: npt.NDArray[np.bool_]
+    """Boolean mask of valid analysis points, shape ``(y, x)``"""
+
+
+    def __init__(
+        self,
+        x: npt.NDArray[np.float64],
+        y: npt.NDArray[np.float64],
+        pixel_area: npt.NDArray[np.float64],
+        thickness: float,
+        region_of_interest: VfmRegionOfInterest,
+    ) -> None:
+        self.x = x
+        self.y = y
+        self.pixel_area = pixel_area
+
+        self.thickness = thickness
+
+        self.region_of_interest = region_of_interest
+        self.specimen_mask = region_of_interest.sample_specimen_mask(x, y)
 
 
 class EEdgeCondition(enum.Enum):

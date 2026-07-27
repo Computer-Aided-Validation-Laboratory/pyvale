@@ -129,7 +129,6 @@ def load_fe_point_cloud_data(
 
 
 def load_fe_point_cloud_from_txt_files(
-    *,
     x_coordinates_path: str | Path,
     y_coordinates_path: str | Path,
     time_values_path: str | Path,

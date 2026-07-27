@@ -1,9 +1,3 @@
-"""Load MOOSE exodus simulation data and interpolate it onto a regular grid.
-
-Ported from the VFM end-to-end test helpers so that MOOSE data can be
-consumed by the input data preprocessor.
-"""
-
 from pathlib import Path
 
 import numpy as np
@@ -11,10 +5,25 @@ import numpy.typing as npt
 import pyvista as pv
 
 from pyvale import mooseherder, sensorsim
+from pyvale.mooseherder.simdata import SimData
 from pyvale.vfm.inputdata import MooseConfig
 
 
-def load_moose_strain(
+def load_moose_data(config: MooseConfig) -> tuple[
+    npt.NDArray[np.float64],  # x, shape (y, x)
+    npt.NDArray[np.float64],  # y, shape (y, x)
+    npt.NDArray[np.float64],  # strain, shape (timesteps, components, y, x)
+    npt.NDArray[np.float64],  # force, shape (timesteps, components)
+    npt.NDArray[np.float64],  # time, shape (timesteps,)
+]:
+    x, y, strain = _load_moose_strain(config)
+    force = _load_moose_force(config)
+    time = _load_moose_timesteps(config)
+
+    return (x, y, strain, force, time)
+
+
+def _load_moose_strain(
     config: MooseConfig,
 ) -> tuple[
     npt.NDArray[np.float64],  # x_grid, shape (y, x)
@@ -29,21 +38,10 @@ def load_moose_strain(
     return _enforce_conventions(x_grid, y_grid, grid_data)
 
 
-# Output shape: (timesteps, components) [Fx, Fy]
-def load_moose_force(config: MooseConfig) -> npt.NDArray[np.float64]:
-    sim_data = _load_sim_data(config)
-    force = sim_data.glob_vars[config.force_key]
-    return np.column_stack((np.zeros_like(force), force))
+def _load_sim_data(config: MooseConfig) -> SimData:
+    path = Path(config.exodus_file_path)
 
-
-# Output shape: (timesteps,)
-def load_moose_timesteps(config: MooseConfig) -> npt.NDArray[np.float64]:
-    return _load_sim_data(config).time
-
-
-def _load_sim_data(config: MooseConfig):
-    exodus_file_path = Path(config.exodus_file_path)
-    return mooseherder.ExodusLoader(exodus_file_path).load_all_sim_data()
+    return mooseherder.ExodusLoader(path).load_all_sim_data()
 
 
 def _load_sim_data_to_grid(
@@ -62,8 +60,8 @@ def _load_sim_data_to_grid(
         stop = upper - (step / 2)
         return np.linspace(start, stop, num_divs)
 
-    plate_width = config.plate_width
-    plate_height = config.plate_height
+    plate_width = config.width
+    plate_height = config.height
     grid_divs = config.grid_divs
 
     x_vec = grid_inner_vec(plate_width / 2, -plate_width / 2, grid_divs)
@@ -103,6 +101,20 @@ def _load_sim_data_to_grid(
     grid_data = sample_at_sim_time.reshape(final_shape)
 
     return (x_grid, y_grid, grid_data)
+
+
+# TODO: will we get any Fx data? Currently it gets zerod
+# Output shape: (timesteps, components) [Fx, Fy]
+def _load_moose_force(config: MooseConfig) -> npt.NDArray[np.float64]:
+    sim_data = _load_sim_data(config)
+    force = sim_data.glob_vars[config.force_key]
+    return np.column_stack((np.zeros_like(force), force))
+
+
+# Output shape: (timesteps,)
+def _load_moose_timesteps(config: MooseConfig) -> npt.NDArray[np.float64]:
+    sim_data = _load_sim_data(config)
+    return sim_data.time
 
 
 def _enforce_conventions(
