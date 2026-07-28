@@ -3,16 +3,39 @@ import numpy as np
 from pyvale.vfm.constlaw import EIdentificationType
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.identificationconfig import IdentificationConfig
+from pyvale.vfm.identificationconfig import IdentificationPhase
 from pyvale.vfm.validation import (
-    validate_and_prepare_slicewise_independent_phase,
+    validate_slicewise_independent_phase,
     validate_experiment_data,
     validate_identification_config,
 )
-from pyvale.vfm.identificationconfig import IdentificationConfig
 from pyvale.vfm.spatialparam import (
+    PhaseSpatialState,
     evaluate_parameterisations_to_map,
-    initialise_parameterisations_from_constitutive_parameter,
 )
+
+
+def prepare_phase_runtime(
+    phase: IdentificationPhase,
+    experiment_data: ExperimentData,
+) -> PhaseSpatialState:
+    """Prepare one phase runtime once experiment data are available.
+
+    Validation has already checked that the phase configuration is legal.
+    This step only resolves data-dependent runtime state such as shared
+    supports and metric operators.
+    """
+
+    phase_spatial_state = PhaseSpatialState(
+        phase.spatial_parameterisations
+    )
+    phase_spatial_state.prepare(experiment_data)
+
+    for metric in phase.metrics:
+        metric.initialise(experiment_data)
+
+    return phase_spatial_state
 
 
 def run_identification(
@@ -23,9 +46,8 @@ def run_identification(
     validate_identification_config(identification_config)
 
     for phase_index, phase in enumerate(identification_config.phases):
-        validate_and_prepare_slicewise_independent_phase(
+        validate_slicewise_independent_phase(
             phase,
-            experiment_data,
             phase_index,
         )
 
@@ -40,24 +62,21 @@ def run_identification(
             )
 
             for phase in identification_config.phases:
-                # Initialise spatial parameterisation from constitutive
-                # parameter maps
-                for param_name, sps in phase.spatial_parameterisations.items():
-                    initialise_parameterisations_from_constitutive_parameter(
-                        sps,
-                        identification_config.parameters[param_name],
-                        parameter_map_size,
-                    )
-
-                for metric in phase.metrics:
-                    metric.initialise(experiment_data)
+                phase_spatial_state = prepare_phase_runtime(
+                    phase,
+                    experiment_data,
+                )
+                phase_spatial_state.initialise_from_constitutive_parameters(
+                    identification_config.parameters,
+                    parameter_map_size,
+                )
 
                 # Optimise the degrees of freedom of the spatial
                 # parameterisations
                 opt_spatial_parameterisations = phase.optimiser.optimise(
                     identification_config.constitutive_law,
                     parameter_map_size,
-                    phase.spatial_parameterisations,
+                    phase_spatial_state.spatial_parameterisations,
                     phase.metrics,
                     phase.objective_function,
                     experiment_data

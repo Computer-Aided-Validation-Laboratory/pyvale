@@ -10,6 +10,7 @@ from pyvale.vfm.experimentdata import ExperimentData, SpecimenGeometry
 from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.slicewise_utils import SliceAreaPartition, SliceConfig, resolve_slice_partition
 from pyvale.vfm.spatialparam import ISpatialParameterisation
+from pyvale.vfm.spatialparamslicewise import SupportSlice
 
 
 @dataclass(slots=True, frozen=True)
@@ -194,22 +195,42 @@ class SliceWiseForceReconstructionMetric(IMetric):
     between each slice region and the native DIC support cells.
     """
 
+    support: SupportSlice | None = None
     slice_partition: SliceAreaPartition | None = None
     slice_config: SliceConfig | None = None
 
     def __post_init__(self) -> None:
-        if self.slice_partition is None and self.slice_config is None:
-            raise ValueError("Provide either slice_partition or slice_config.")
+        if self.support is None:
+            self.support = SupportSlice(
+                slice_partition=self.slice_partition,
+                slice_config=self.slice_config,
+            )
+        elif self.slice_partition is not None or self.slice_config is not None:
+            raise ValueError(
+                "Provide either support or slice_partition/slice_config."
+            )
+        self._sync_from_support()
+
+    def _sync_from_support(self) -> None:
+        if self.support is None:
+            return
+        self.slice_partition = self.support.slice_partition
+        self.slice_config = self.support.slice_config
+
+    def set_support(
+        self,
+        support: SupportSlice,
+    ) -> None:
+        self.support = support
+        self._sync_from_support()
 
     def initialise_slice_partition(
         self,
         specimen_geometry: SpecimenGeometry,
     ) -> None:
-        self.slice_partition = resolve_slice_partition(
-            specimen_geometry,
-            slice_partition=self.slice_partition,
-            slice_config=self.slice_config,
-        )
+        assert self.support is not None
+        self.support.prepare_from_specimen_geometry(specimen_geometry)
+        self._sync_from_support()
 
     def initialise(
         self,

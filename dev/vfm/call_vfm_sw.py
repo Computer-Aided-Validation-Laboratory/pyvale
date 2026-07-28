@@ -23,6 +23,7 @@ from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 from pyvale.vfm.spatialparamslicewise import (
     SliceConfig,
     SliceWiseSpatialParameterisation,
+    SupportSlice,
     build_slice_partition,
 )
 from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
@@ -51,6 +52,8 @@ def _print_coverage_diagnostic(slice_partition) -> None:
 
 
 def main() -> None:
+
+    # Prepare experiment data
     specimen_geometry = SpecimenGeometry(
         x=np.load(INPUTS_PATH / "x.npy"),
         y=np.load(INPUTS_PATH / "y.npy"),
@@ -88,6 +91,8 @@ def main() -> None:
         np.load(INPUTS_PATH / "time.npy"),
     )
 
+    # Define constitutive parameters associated with constitutive law
+    constitutive_law = IsotropicVonMisesElastoplasticity(HardeningLinear())
     parameter_map_size = np.array(specimen_geometry.x.shape)
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
@@ -104,7 +109,6 @@ def main() -> None:
         ),
     }
 
-    # slice_config = 
 
     # slice_partition = build_slice_partition(
     #         specimen_geometry,
@@ -114,28 +118,50 @@ def main() -> None:
     #     )
     # _print_coverage_diagnostic(slice_partition)
 
+    shared_slice_support = SupportSlice(
+        slice_config=SliceConfig(
+            axis=SLICE_AXIS,
+            num_slices=NUM_SLICES,
+        )
+    )
+
+    # Define identification phases
+    # Each phase has its own set of spatial parameterisations, metrics, objective function and optimiser. 
     phases = [
+        # Phase 0
         IdentificationPhase(
             spatial_parameterisations={
                 "elastic_modulus": [SpatialParameterisationKnown()],
                 "poissons_ratio": [SpatialParameterisationKnown()],
-                "yield_strength": [SliceWiseSpatialParameterisation(slice_config = SliceConfig(axis=SLICE_AXIS, num_slices=NUM_SLICES))],
-                "hardening_modulus": [SliceWiseSpatialParameterisation(slice_config = SliceConfig(axis=SLICE_AXIS, num_slices=NUM_SLICES))],
+                "yield_strength": [
+                    SliceWiseSpatialParameterisation(
+                        support=shared_slice_support
+                    )
+                ],
+                "hardening_modulus": [
+                    SliceWiseSpatialParameterisation(
+                        support=shared_slice_support
+                    )
+                ],
             },
-            metrics=[SliceWiseForceReconstructionMetric( slice_config=SliceConfig(axis=SLICE_AXIS, num_slices=NUM_SLICES))],
+            metrics=[
+                SliceWiseForceReconstructionMetric(
+                    support=shared_slice_support
+                )
+            ],
             objective_function=VectorWeightedObjective(),
             optimiser=SliceWiseIndependentLeastSquares(),
         )
     ]
 
+    # Assemble the identification configuration
     identification = IdentificationConfig(
-        IsotropicVonMisesElastoplasticity(
-            HardeningLinear()
-        ),
-        parameters,
-        phases,
+        constitutive_law=constitutive_law,
+        parameters=parameters,
+        phases=phases,
     )
 
+    # Run the identification
     vfm_result = run_identification(experiment_data, identification)
     print(vfm_result)
 

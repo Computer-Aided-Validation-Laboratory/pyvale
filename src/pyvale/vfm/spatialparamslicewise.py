@@ -8,7 +8,7 @@ import numpy.typing as npt
 
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.dof import DegreeOfFreedom
-from pyvale.vfm.experimentdata import SpecimenGeometry
+from pyvale.vfm.experimentdata import ExperimentData, SpecimenGeometry
 from pyvale.vfm import slicewise_utils
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 
@@ -25,19 +25,82 @@ resolve_slice_partition = slicewise_utils.resolve_slice_partition
 
 
 @dataclass(slots=True)
-class SliceWiseSpatialParameterisation(ISpatialParameterisation):
-    """Piecewise-constant parameterisation with one value per slice."""
+class SupportSlice:
+    """Resolved slice support that may be shared across parameters and metrics."""
 
-    slice_partition: SliceAssignmentPartition | None = None
+    slice_partition: SliceAreaPartition | None = None
     slice_config: SliceConfig | None = None
-    values: list[float | DegreeOfFreedom | None] | None = None
 
     def __post_init__(self) -> None:
         if self.slice_partition is None and self.slice_config is None:
             raise ValueError("Provide either slice_partition or slice_config.")
 
+    def prepare_from_specimen_geometry(
+        self,
+        specimen_geometry: SpecimenGeometry,
+    ) -> None:
+        self.slice_partition = resolve_slice_partition(
+            specimen_geometry,
+            slice_partition=self.slice_partition,
+            slice_config=self.slice_config,
+        )
+
+    def prepare(
+        self,
+        experiment_data: ExperimentData,
+    ) -> None:
+        self.prepare_from_specimen_geometry(experiment_data.specimen_geometry)
+
+    def get_num_degrees_of_freedom(self) -> int:
+        return 0
+
+    def collect_degrees_of_freedom(self) -> list[DegreeOfFreedom]:
+        return []
+
+    def update_from_degrees_of_freedom(
+        self,
+        degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64],
+    ) -> None:
+        return
+
+
+@dataclass(slots=True)
+class SliceWiseSpatialParameterisation(ISpatialParameterisation):
+    """Piecewise-constant parameterisation with one value per slice."""
+
+    support: SupportSlice | None = None
+    slice_partition: SliceAssignmentPartition | None = None
+    slice_config: SliceConfig | None = None
+    values: list[float | DegreeOfFreedom | None] | None = None
+
+    def __post_init__(self) -> None:
+        if self.support is None:
+            self.support = SupportSlice(
+                slice_partition=self.slice_partition,
+                slice_config=self.slice_config,
+            )
+        elif self.slice_partition is not None or self.slice_config is not None:
+            raise ValueError(
+                "Provide either support or slice_partition/slice_config."
+            )
+
+        self._sync_from_support()
         if self.slice_partition is not None:
             self._ensure_values_match_partition()
+
+    def _sync_from_support(self) -> None:
+        if self.support is None:
+            return
+        self.slice_partition = self.support.slice_partition
+        self.slice_config = self.support.slice_config
+
+    def set_support(
+        self,
+        support: SupportSlice,
+    ) -> None:
+        self.support = support
+        self._sync_from_support()
+        self._ensure_values_match_partition()
 
     def initialise_slice_partition(
         self,
@@ -45,11 +108,9 @@ class SliceWiseSpatialParameterisation(ISpatialParameterisation):
     ) -> None:
         """Resolve the slice partition once specimen geometry is available."""
 
-        self.slice_partition = resolve_slice_partition(
-            specimen_geometry,
-            slice_partition=self.slice_partition,
-            slice_config=self.slice_config,
-        )
+        assert self.support is not None
+        self.support.prepare_from_specimen_geometry(specimen_geometry)
+        self._sync_from_support()
         self._ensure_values_match_partition()
 
     def _ensure_values_match_partition(self) -> None:

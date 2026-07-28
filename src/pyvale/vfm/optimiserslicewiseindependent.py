@@ -23,6 +23,7 @@ from pyvale.vfm.normalisation import (
 )
 from pyvale.vfm.objectivefunc import IObjectiveFunction, IVectorObjectiveFunction
 from pyvale.vfm.optimiser import IOptimiser
+from pyvale.vfm.slicewise_utils import slice_partitions_are_equivalent
 from pyvale.vfm.spatialparam import ISpatialParameterisation, get_num_degrees_of_freedom
 from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 
@@ -144,10 +145,18 @@ def _validate_slice_parameterisations(
     for param_name, sps in spatial_parameterisations.items():
         spatial_parameterisation = _get_single_spatial_parameterisation(param_name, sps)
         if isinstance(spatial_parameterisation, SliceWiseSpatialParameterisation):
-            if spatial_parameterisation.slice_partition is not slice_metric.slice_partition:
+            if spatial_parameterisation.slice_partition is None:
+                raise RuntimeError(
+                    "SliceWiseSpatialParameterisation partitions must be prepared before "
+                    "independent slice-wise optimisation."
+                )
+            if not slice_partitions_are_equivalent(
+                spatial_parameterisation.slice_partition,
+                slice_metric.slice_partition,
+            ):
                 raise ValueError(
-                    "All SliceWiseSpatialParameterisation instances must share the same "
-                    "slice partition used by the selected slice force metric."
+                    "All SliceWiseSpatialParameterisation instances must resolve to the "
+                    "same slice partition used by the selected slice force metric."
                 )
             continue
 
