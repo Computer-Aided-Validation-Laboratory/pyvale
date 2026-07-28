@@ -63,16 +63,20 @@ def validate_experiment_data(
                 f"{field_name} must be float64, got {array.dtype}"
             )
 
-    region_of_interest = geometry.region_of_interest
-    if region_of_interest.ndim != 2:
+    specimen_mask = geometry.region_of_interest.sample_specimen_mask(
+        geometry.x,
+        geometry.y
+    )
+
+    if specimen_mask.ndim != 2:
         raise ValueError(
-            f"region_of_interest must be 2D (y, x), "
-            f"got ndim={region_of_interest.ndim}"
+            f"specimen_mask must be 2D (y, x), "
+            f"got ndim={specimen_mask.ndim}"
         )
-    if region_of_interest.dtype != np.bool_:
+    if specimen_mask.dtype != np.bool_:
         raise ValueError(
-            f"region_of_interest must be bool dtype, "
-            f"got {region_of_interest.dtype}"
+            f"specimen_mask must be bool dtype, "
+            f"got {specimen_mask.dtype}"
         )
 
     # Cross-field dimension agreement
@@ -99,9 +103,9 @@ def validate_experiment_data(
             f"y shape {geometry.y.shape} does not match "
             f"strain spatial dims ({n_y}, {n_x})"
         )
-    if region_of_interest.shape != (n_y, n_x):
+    if specimen_mask.shape != (n_y, n_x):
         raise ValueError(
-            f"region_of_interest shape {region_of_interest.shape} "
+            f"specimen_mask shape {specimen_mask.shape} "
             f"does not match strain spatial dims ({n_y}, {n_x})"
         )
     if geometry.pixel_area.shape != (n_y, n_x):
@@ -111,10 +115,10 @@ def validate_experiment_data(
         )
 
     # Value constraints
-    if np.any(geometry.x < 0):
-        raise ValueError("x coordinates must be non-negative")
-    if np.any(geometry.y < 0):
-        raise ValueError("y coordinates must be non-negative")
+    # if np.any(geometry.x < 0):
+    #     raise ValueError("x coordinates must be non-negative")
+    # if np.any(geometry.y < 0):
+    #     raise ValueError("y coordinates must be non-negative")
     if geometry.thickness <= 0:
         raise ValueError(
             f"thickness must be positive, got {geometry.thickness}"
@@ -125,12 +129,12 @@ def validate_experiment_data(
         raise ValueError("timesteps must be strictly increasing")
     if not np.all(np.isfinite(force)):
         raise ValueError("force contains NaN or Inf values")
-    # NaN is only allowed where region_of_interest is False (outside the mask)
-    flat_roi = region_of_interest.ravel()
+    # NaN is only allowed where the specimen mask is False (outside the mask)
+    flat_mask = specimen_mask.ravel()
     flat_strain = strain.reshape(strain.shape[0], strain.shape[1], -1)
-    if not np.all(np.isfinite(flat_strain[:, :, flat_roi])):
+    if not np.all(np.isfinite(flat_strain[:, :, flat_mask])):
         raise ValueError(
-            "strain contains NaN or Inf within the region of interest"
+            "strain contains NaN or Inf within the specimen mask"
         )
 
 

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pyvale.vfm.experimentdata import Edge, EdgeConditions, EEdgeCondition
+from pyvale.vfm.experimentdata import Edge, EdgeConditions, EEdgeCondition, ExperimentData
 from pyvale.vfm.inputdata import process_input_data
 from pyvale.vfm.inputdataconfig import (
     AnsysConfig,
@@ -84,10 +84,13 @@ def _print_output(x, y, strain, force, time) -> None:
 
 def main():
     print("=== ANSYS scenario ===")
-    _print_output(*process_input_data(build_example_ansys_config()))
+    x = process_input_data(build_example_ansys_config())
+    y = ExperimentData.load_from_file(x)
+    print(y)
+
 
     print("=== MOOSE scenario ===")
-    _print_output(*process_input_data(build_example_moose_config()))
+    process_input_data(build_example_moose_config())
 
 
 if __name__ == "__main__":

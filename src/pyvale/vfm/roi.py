@@ -372,7 +372,6 @@ def convert_roi_definition_to_physical_coordinates(
 
 def convert_mask_to_physical_roi(
     mask: np.ndarray,
-    *,
     x: np.ndarray,
     y: np.ndarray,
     simplification_pixels: float = 0.0,
