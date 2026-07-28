@@ -77,6 +77,14 @@ void multiwindow_only(const Interpolator &interp_ref,
 
             // append fourier results to master result vectors
             OptResult res(conf.num_params);
+
+            // Keep inactive subsets at their reset/default result state, matching
+            // multiwindow_rg and calc_rigid_displacements.
+            if (!ss_grid.active_ss[ss]) {
+                results_def.append(res, ss);
+                continue;
+            }
+
             res.u    = multiwindow.back().u[ss];
             res.p[0] = multiwindow.back().u[ss];
             res.v    = multiwindow.back().v[ss];
