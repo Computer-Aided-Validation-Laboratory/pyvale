@@ -141,6 +141,7 @@ namespace renderer{
                 // Avoids the "plain black shadows" caused by zero light return
                 //EiVector3d ambient_fallback = ray_blue_sky(current_ray) * 0.2; // Legacy if using sky colour gradient
                 const EiVector3d ambient_fallback = renderer::background_color;
+                //const EiVector3d ambient_fallback = renderer::background_color * 0.2; // this might work better for affecting the object colour less?
                 total_color += current_state.accumulated_color.cwiseProduct(intersection_record.emission + ambient_fallback);
                 continue; 
             }
@@ -159,7 +160,7 @@ namespace renderer{
                 double p = std::clamp(rr_albedo.maxCoeff(), 0.1, 0.95);
                 // [SOBOL] Path-survival decision uses this bounce's reserved decision dimension. This only fires for non-refractive
                 // materials (refractive uses rr_albedo=(1,1,1) so it never terminates here and runs its own internal RR), so a given
-                // bounce consumes the decision dimension for EITHER the Fresnel branch (refractive) OR path survival (diffuse/specular) - never
+                // bounce consumes the decision dimension for EITHER the Fresnel branch (reactive) OR path survival (diffuse/specular) - never
                 // both - so there is no dimension collision
                 if (current_state.sampler.bounce_decision(current_state.depth) > p){
                 // [MT19937 - LEGACY] White-noise path-survival decision

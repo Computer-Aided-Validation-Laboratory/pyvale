@@ -277,17 +277,17 @@ struct IntersectionOutput;
  */
 // Struct size (worst case):
 // Vector: number of elements in the mesh * 2653 bytes
-// Rest: 48 + 16 + 8 (64-bit system) + 8 x 2 + 8 (64-bit system) x 2 + 4 x 3 = 116 bytes
+// Rest: 48 + 16 + 8 x 2 + 8 (64-bit system) x 3 + 4 x 3 = 116 bytes
 struct BLAS {
     std::vector<BLAS_Node> tree_nodes; // Flat array of BVH nodes for this mesh
     AABB bounding_box {}; // Bounding box of the entire mesh
     // We cannot just copy relevant pieces of texture into different BLAS nodes, so keep it at the BLAS level. This will also allow us to do fewer if/else checks in intersection for coloring
     Texture texture {}; // If texture.data is not a nullptr, face_color is (u,v). This logic saves us having to store surface type explicitly
-    IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count) {nullptr}; // Ray-mesh element intersection check (TRI3, QUAD4, etc.) pointer
     double refractive_index {1.0}; // Refractive index of the mesh material; set to 1.0 to avoid bad division in case it somehow gets unitialised
     double thickness {1.0}; // Thickness of a SHELL mesh; unused for solids
-    // Void function pointer will be 8 bytes in 64-bit system, 4 in a 32x, so this should be the best positioning of those for memory alignment
+    // Function pointer will be 8 bytes in 64-bit system, 4 in a 32x, so this should be the best positioning of those for memory alignment
     // Function pointer for writing intersection data into a HitRecord. Allows specialising how intersection attributes are computed based on element type and surface representation (solid color, texture, etc.).
+    IntersectionOutput (*intersection_function_ptr)(const Ray&, const std::vector<double>& node_coords, const unsigned int bvh_node_element_count) {nullptr}; // Ray-mesh element intersection check (TRI3, QUAD4, etc.) pointer
     void (*overwrite_intersection_function_ptr)(HitRecord&,const BLAS_Node&, const Texture& texture, Eigen::Index min_row_idx) {nullptr}; 
     // Function pointer for evaluating ray–mesh material interaction
     void (*ray_material_ptr)(const RayState& current_state, HitRecord& intersection_record, const EiVector3d& albedo, std::vector<RayState>& stack, EiVector3d& total_color, const double offset) {nullptr};

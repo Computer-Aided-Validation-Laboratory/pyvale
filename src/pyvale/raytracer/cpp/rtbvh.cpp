@@ -144,7 +144,8 @@ bool binned_SAH_split(BuildTask& Node,
     }
 
     // Create bins
-    constexpr int NUM_BINS = 8;
+    //constexpr int NUM_BINS = 8; // Our default since the beginning
+    constexpr int NUM_BINS = 16; // Might produce quality comparable to the full SweepSAH [Wald, 2007]
     Bin bins[NUM_BINS];
 
     const double inverse_extent = 1.0/axis_extent;

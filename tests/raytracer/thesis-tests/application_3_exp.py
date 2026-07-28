@@ -10,6 +10,7 @@ from global_utils import *
 import pyvale.dic as dic
 
 import smplotlib # For nicer figures (imo), but no need to install if you don't want it
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from pyvale.sensorsim.imagetools import ImageTools
 import os
@@ -602,7 +603,134 @@ def run_dic_experimental(test: ExpTest, save_plot: bool = True, convert_to_mm: b
     
     # Read data
     dicdata = dic.import_2d(data=dic_files, delimiter=",", binary=False)
+    horizontal_displacement = dicdata.u[0]
+    vertical_displacement = dicdata.v[0]
+    unit = "[px]"
+    combined_filename = f"{test.label_file}_exp_dic_plot_px.png"
+    ux_filename = f"{test.label_file}_exp_dic_plot_ux_px.png"
+    uy_filename = f"{test.label_file}_exp_dic_plot_uy_px.png"
 
+    if convert_to_mm:
+        horizontal_displacement = np.abs(horizontal_displacement / SCALE_PX_MM)
+        vertical_displacement = vertical_displacement / SCALE_PX_MM
+        unit = "[mm]"
+        combined_filename = f"{test.label_file}_exp_dic_plot_mm.png"
+        ux_filename = f"{test.label_file}_exp_dic_plot_ux_mm.png"
+        uy_filename = f"{test.label_file}_exp_dic_plot_uy_mm.png"
+
+    cmap = "coolwarm"
+
+    # -----------------------------
+    # Combined figure: ux and uy
+    # -----------------------------
+    fig_combined, axes = plt.subplots(1, 2, figsize=(15, 10))
+    axes = axes.flatten()
+    im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, horizontal_displacement, cmap=cmap)
+    im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, vertical_displacement, cmap=cmap)
+
+    fig_combined.suptitle(
+        f"Experimental DIC results\nTest case: {test.label_plot}",
+        fontsize=FONT_SIZES["suptitle"]
+    )
+    axes[0].set_title(f"$u_x$ {unit}", fontsize=FONT_SIZES["subtitle"])
+    axes[1].set_title(f"$u_y$ {unit}", fontsize=FONT_SIZES["subtitle"])
+
+    for aa in axes:
+        aa.set_aspect("equal")
+        aa.invert_yaxis()
+        aa.tick_params(
+            axis="both",
+            which="both",
+            bottom=False,
+            top=False,
+            left=False,
+            right=False,
+            labelbottom=False,
+            labelleft=False
+        )
+
+    divider1 = make_axes_locatable(axes[0])
+    cax1 = divider1.append_axes("right", size="5%", pad=0.15)
+    cbar1 = fig_combined.colorbar(im1, cax=cax1)
+    cbar1.ax.tick_params(labelsize=20)
+    cbar1.ax.yaxis.get_offset_text().set_fontsize(20)
+
+    divider2 = make_axes_locatable(axes[1])
+    cax2 = divider2.append_axes("right", size="5%", pad=0.15)
+    cbar2 = fig_combined.colorbar(im2, cax=cax2)
+    cbar2.ax.tick_params(labelsize=20)
+    cbar2.ax.yaxis.get_offset_text().set_fontsize(20)
+
+    fig_combined.tight_layout()
+
+    if save_plot:
+        fig_combined.savefig(test.output_save_dir / combined_filename, dpi=300, bbox_inches="tight")
+    plt.close(fig_combined)
+
+    # -----------------------------
+    # Separate figure: ux only
+    # -----------------------------
+    fig_ux, ax_ux = plt.subplots(figsize=(8, 7))
+
+    im_ux = ax_ux.pcolor(dicdata.ss_x, dicdata.ss_y, horizontal_displacement, cmap=cmap)
+    ax_ux.set_aspect("equal")
+    ax_ux.invert_yaxis()
+    ax_ux.tick_params(
+        axis="both",
+        which="both",
+        bottom=False,
+        top=False,
+        left=False,
+        right=False,
+        labelbottom=False,
+        labelleft=False
+    )
+
+    divider3 = make_axes_locatable(ax_ux)
+    cax3 = divider3.append_axes("right", size="5%", pad=0.15)
+    cbar_x = fig_ux.colorbar(im_ux, cax=cax3)
+    cbar_x.set_label(f"$u_x$ {unit}", fontsize=30, labelpad=10)
+    cbar_x.ax.tick_params(labelsize=25)
+    cbar_x.ax.yaxis.get_offset_text().set_fontsize(25)
+
+    fig_ux.tight_layout()
+
+    if save_plot:
+        fig_ux.savefig(test.output_save_dir / ux_filename, dpi=300, bbox_inches="tight")
+    plt.close(fig_ux)
+
+    # -----------------------------
+    # Separate figure: uy only
+    # -----------------------------
+    fig_uy, ax_uy = plt.subplots(figsize=(8, 7))
+
+    im_uy = ax_uy.pcolor(dicdata.ss_x, dicdata.ss_y, vertical_displacement, cmap=cmap)
+    ax_uy.set_aspect("equal")
+    ax_uy.invert_yaxis()
+    ax_uy.tick_params(
+        axis="both",
+        which="both",
+        bottom=False,
+        top=False,
+        left=False,
+        right=False,
+        labelbottom=False,
+        labelleft=False
+    )
+
+    divider4 = make_axes_locatable(ax_uy)
+    cax4 = divider4.append_axes("right", size="5%", pad=0.15)
+    cbar_y = fig_uy.colorbar(im_uy, cax=cax4)
+    cbar_y.set_label(f"$u_y$ {unit}", fontsize=30, labelpad=10)
+    cbar_y.ax.tick_params(labelsize=25)
+    cbar_y.ax.yaxis.get_offset_text().set_fontsize(25)
+
+    fig_uy.tight_layout()
+
+    if save_plot:
+        fig_uy.savefig(test.output_save_dir / uy_filename, dpi=300, bbox_inches="tight")
+    plt.close(fig_uy)
+    """
     # Data for the first deformation image (and the only one in this case)
     horizontal_displacement = dicdata.u[0]
     vertical_displacement = dicdata.v[0]
@@ -639,6 +767,7 @@ def run_dic_experimental(test: ExpTest, save_plot: bool = True, convert_to_mm: b
     #plt.show()
     if save_plot:
         fig.savefig(test.output_save_dir / figure_filename, dpi=300, bbox_inches="tight")
+    """
 
 def do_dic_all_exp():
     for name, test_case in iter_exp_tests():
@@ -646,7 +775,7 @@ def do_dic_all_exp():
             continue
         run_dic_experimental(test_case, True, False) # px plot
         run_dic_experimental(test_case, True, True) # mm plot
-        convert_roi_to_yaml(test_case)
+        #convert_roi_to_yaml(test_case)
 
 #do_dic_all_exp()
 
@@ -725,6 +854,7 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
     pipe_temporal_displacements = create_rigid_linear_translation(pipe.node_count, frame_count, total_displacement, Axis.X)
     tank_temporal_displacements = create_rigid_linear_translation(tank.node_count, frame_count, total_displacement, Axis.X)
     pipe_right_shift = np.array([1.0, 0.0, 0.0]) # Shift pipe for static cases, else beam hits its wall
+    water_shift = np.array([0.0, -2, 0.0]) # Shift water in the version WITHOUT HOLE FOR THE PIPE as it gets created too high up and overlap is wrong
     # Pipe will have to get the displacements added after being translated, which is case specific to model the dielectrics correctly
     
     if test == RTTests.AIR_PIPE_DYN: # Pipe moves with beam
@@ -760,9 +890,10 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
          # Add water fill to the pipe only
         water_pipe = any_mesh_to_rtmesh(water_pipe_path)
         water_pipe.translate(z_translation)
+        water_pipe.translate(water_shift)
         water_pipe_temporal_displacements = create_rigid_linear_translation(water_pipe.node_count, frame_count, total_displacement, Axis.X)
         water_pipe.add_temporal_displacement(water_pipe_temporal_displacements)
-        water_pipe.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+        water_pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.WATER,
                           material_type = MaterialType.REFRACTIVE,
                           mesh_type = MeshType.SOLID,
                           priority = 0) # Pipe is open-ended => Water needs to have higher priority
@@ -775,9 +906,10 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
         scene.add_rtmesh(tank)
         water_tank = any_mesh_to_rtmesh(water_tank_path)
         water_tank.translate(z_translation)
+        water_tank.translate(water_shift)
         water_tank_temporal_displacements = create_rigid_linear_translation(water_tank.node_count, frame_count, total_displacement, Axis.X)
         water_tank.add_temporal_displacement(water_tank_temporal_displacements)
-        water_tank.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+        water_tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.WATER,
                           material_type = MaterialType.REFRACTIVE,
                           mesh_type = MeshType.SOLID,
                           priority = 0) # Pipe is open-ended => Water needs to have higher priority
@@ -791,7 +923,8 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
         water_pipe = any_mesh_to_rtmesh(water_pipe_path)
         water_pipe.translate(z_translation)
         water_pipe.translate(pipe_right_shift)
-        water_pipe.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+        water_pipe.translate(water_shift)
+        water_pipe.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.WATER,
                           material_type = MaterialType.REFRACTIVE,
                           mesh_type = MeshType.SOLID,
                           priority = 0) # Pipe is open-ended => Water needs to have higher priority
@@ -803,7 +936,8 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
         scene.add_rtmesh(tank)
         water_tank = any_mesh_to_rtmesh(water_tank_path)
         water_tank.translate(z_translation)
-        water_tank.set_surface(SurfType.FIELD_COLOR, material = ri_matching_fluid,
+        water_tank.translate(water_shift)
+        water_tank.set_surface(SurfType.FIELD_COLOR, material = MaterialPresets.WATER,
                           material_type = MaterialType.REFRACTIVE,
                           mesh_type = MeshType.SOLID,
                           priority = 0) # Pipe is open-ended => Water needs to have higher priority
@@ -962,7 +1096,8 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
         image_width = image_width_phs6 - left_crop - right_crop
         image_height = image_width_phs6 - bottom_crop - top_crop
 
-    #SceneVisualiser([tank, beam], cam)
+    #SceneVisualiser([tank, beam, water_tank], cam)
+    #SceneVisualiser([pipe, water_pipe], cam)
     scene.add_camera(cam)
     #scene.set_background(np.array([0.0, 0.0, 0.0])) # Black background
     # Render both images at once or one at a time (option mostly for fluid cases that might take ages otherwise)
@@ -995,11 +1130,12 @@ def render_exp_images(test: RTTest, aa_samples: int = 1, min_refr_depth: int | N
 #render_exp_images(RTTests.BOTH, aa_samples=1, min_refr_depth=8) # This RR depth works best
 #render_exp_images(RTTests.FLUID_PIPE, aa_samples=1, min_refr_depth=8) # This RR depth works best
 #render_exp_images(RTTests.FLUID, aa_samples=1, min_refr_depth=4) # <= Looks kinda good, but need to fix modeling of water in tank. Awfully slow even at RR=4 and aa=1
-#render_exp_images(RTTests.FLUID, aa_samples=1, min_refr_depth=4, crop_px = True)
-#render_exp_images(RTTests.FLUID, aa_samples=1, min_refr_depth=2, crop_px = True, frame_idx = 0)
 
-# Note to self 14.07: fix tank water because it has hole in it for nested dielectrics
-#render_exp_images(RTTests.FLUID_PIPE_STAT, aa_samples=1, min_refr_depth=4, crop_px = False, frame_idx = None)
+# Wiera - commands
+#render_exp_images(RTTests.FLUID_PIPE_STAT, aa_samples=2**2, min_refr_depth=4, crop_px = True, frame_idx = None)
+#render_exp_images(RTTests.FLUID_PIPE_DYN, aa_samples=2**15, min_refr_depth=4, crop_px = True, frame_idx = None)
+#render_exp_images(RTTests.FLUID_TANK_DYN, aa_samples=2**15, min_refr_depth=6, crop_px = True, frame_idx = None)
+#render_exp_images(RTTests.FLUID_TANK_STAT, aa_samples=2**15, min_refr_depth=6, crop_px = True, frame_idx = None)
 
 # ================================================================================
 # Ray tracer DIC
@@ -1050,38 +1186,142 @@ def run_dic_rt(test: RTTest, save_plot: bool = True, convert_to_mm: bool = True)
     # Data for the first deformation image (and the only one in this case)
     horizontal_displacement = dicdata.u[0]
     vertical_displacement = dicdata.v[0]
+
     unit = "[px]"
-    figure_filename = f"{test.label_file}_rt_dic_plot_px.png"
+    combined_filename = f"{test.label_file}_rt_dic_plot_px.png"
+    ux_filename = f"{test.label_file}_rt_dic_plot_ux_px.png"
+    uy_filename = f"{test.label_file}_rt_dic_plot_uy_px.png"
+
     if convert_to_mm:
-        horizontal_displacement /= SCALE_PX_MM
-        vertical_displacement /= SCALE_PX_MM
+        horizontal_displacement = horizontal_displacement / SCALE_PX_MM
+        vertical_displacement = vertical_displacement / SCALE_PX_MM
         unit = "[mm]"
-        figure_filename = f"{test.label_file}_rt_dic_plot_mm.png"
+        combined_filename = f"{test.label_file}_rt_dic_plot_mm.png"
+        ux_filename = f"{test.label_file}_rt_dic_plot_ux_mm.png"
+        uy_filename = f"{test.label_file}_rt_dic_plot_uy_mm.png"
 
-    # Plot data
-    fig, axes = plt.subplots(1, 2, figsize=(15, 10))
+    #cmap = "magma"
+    cmap = "coolwarm"
+
+    # -----------------------------
+    # Combined figure: ux and uy
+    # -----------------------------
+    fig_combined, axes = plt.subplots(1, 2, figsize=(15, 10))
     axes = axes.flatten()
-    cmap = "magma"
 
-    # First deformation image
     im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, horizontal_displacement, cmap=cmap)
     im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, vertical_displacement, cmap=cmap)
 
-    # Titles
-    fig.suptitle(f"RayTracer DIC results\nTest case: {test.label_plot}", fontsize=FONT_SIZES["suptitle"])
-    axes[0].set_title(f"$u_x$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Horizontal displacement
-    axes[1].set_title(f"$u_y$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Vertical displacement
+    fig_combined.suptitle(
+        f"RayTracer DIC results\nTest case: {test.label_plot}",
+        fontsize=FONT_SIZES["suptitle"]
+    )
+    axes[0].set_title(f"$u_x$ {unit}", fontsize=FONT_SIZES["subtitle"])
+    axes[1].set_title(f"$u_y$ {unit}", fontsize=FONT_SIZES["subtitle"])
 
     for aa in axes:
-        aa.set_aspect('equal')
+        aa.set_aspect("equal")
+        aa.invert_yaxis()
+        aa.tick_params(
+            axis="both",
+            which="both",
+            bottom=False,
+            top=False,
+            left=False,
+            right=False,
+            labelbottom=False,
+            labelleft=False
+        )
 
-    # Colorbars
-    fig.colorbar(im1, ax=axes[0])
-    fig.colorbar(im2, ax=axes[1])
+    divider1 = make_axes_locatable(axes[0])
+    cax1 = divider1.append_axes("right", size="5%", pad=0.15)
+    cbar1 = fig_combined.colorbar(im1, cax=cax1)
+    cbar1.ax.tick_params(labelsize=20)
 
-    plt.tight_layout()
-    #plt.show()
+    divider2 = make_axes_locatable(axes[1])
+    cax2 = divider2.append_axes("right", size="5%", pad=0.15)
+    cbar2 = fig_combined.colorbar(im2, cax=cax2)
+    cbar2.ax.tick_params(labelsize=20)
+
+    fig_combined.tight_layout()
+
     if save_plot:
-        fig.savefig(test.output_save_dir / figure_filename, dpi=300, bbox_inches="tight")
+        fig_combined.savefig(test.output_save_dir / combined_filename, dpi=300, bbox_inches="tight")
+    plt.close(fig_combined)
 
-#run_dic_rt(RTTests.AIR, save_plot=True, convert_to_mm=True)
+    # -----------------------------
+    # Separate figure: ux only
+    # -----------------------------
+    fig_ux, ax_ux = plt.subplots(figsize=(8, 7))
+
+    im_ux = ax_ux.pcolor(dicdata.ss_x, dicdata.ss_y, horizontal_displacement, cmap=cmap)
+    ax_ux.set_aspect("equal")
+    ax_ux.invert_yaxis()
+    ax_ux.tick_params(
+        axis="both",
+        which="both",
+        bottom=False,
+        top=False,
+        left=False,
+        right=False,
+        labelbottom=False,
+        labelleft=False
+    )
+
+    divider3 = make_axes_locatable(ax_ux)
+    cax3 = divider3.append_axes("right", size="5%", pad=0.15)
+    cbar_x = fig_ux.colorbar(im_ux, cax=cax3)
+    cbar_x.set_label(f"$u_x$ {unit}", fontsize=30, labelpad=10)
+    cbar_x.ax.tick_params(labelsize=25)
+    cbar_x.ax.yaxis.get_offset_text().set_fontsize(25)
+
+    fig_ux.tight_layout()
+
+    if save_plot:
+        fig_ux.savefig(test.output_save_dir / ux_filename, dpi=300, bbox_inches="tight")
+    plt.close(fig_ux)
+
+    # -----------------------------
+    # Separate figure: uy only
+    # -----------------------------
+    fig_uy, ax_uy = plt.subplots(figsize=(8, 7))
+
+    im_uy = ax_uy.pcolor(dicdata.ss_x, dicdata.ss_y, vertical_displacement, cmap=cmap)
+    ax_uy.set_aspect("equal")
+    ax_uy.invert_yaxis()
+    ax_uy.tick_params(
+        axis="both",
+        which="both",
+        bottom=False,
+        top=False,
+        left=False,
+        right=False,
+        labelbottom=False,
+        labelleft=False
+    )
+
+    divider4 = make_axes_locatable(ax_uy)
+    cax4 = divider4.append_axes("right", size="5%", pad=0.15)
+    cbar_y = fig_uy.colorbar(im_uy, cax=cax4)
+    cbar_y.set_label(f"$u_y$ {unit}", fontsize=30, labelpad=10)
+    cbar_y.ax.tick_params(labelsize=25)
+    cbar_y.ax.yaxis.get_offset_text().set_fontsize(25)
+
+    fig_uy.tight_layout()
+
+    if save_plot:
+        fig_uy.savefig(test.output_save_dir / uy_filename, dpi=300, bbox_inches="tight")
+    plt.close(fig_uy)
+
+"""
+run_dic_rt(RTTests.AIR, save_plot=True, convert_to_mm=True)
+run_dic_rt(RTTests.AIR_PIPE_DYN, save_plot=True, convert_to_mm=True)
+run_dic_rt(RTTests.AIR_PIPE_STAT, save_plot=True, convert_to_mm=True)
+run_dic_rt(RTTests.AIR_TANK_DYN, save_plot=True, convert_to_mm=True)
+run_dic_rt(RTTests.AIR_TANK_STAT, save_plot=True, convert_to_mm=True)
+run_dic_rt(RTTests.AIR, save_plot=True, convert_to_mm=False)
+run_dic_rt(RTTests.AIR_PIPE_DYN, save_plot=True, convert_to_mm=False)
+run_dic_rt(RTTests.AIR_PIPE_STAT, save_plot=True, convert_to_mm=False)
+run_dic_rt(RTTests.AIR_TANK_DYN, save_plot=True, convert_to_mm=False)
+run_dic_rt(RTTests.AIR_TANK_STAT, save_plot=True, convert_to_mm=False)
+"""

@@ -109,7 +109,7 @@ def conv_test_rt(test_case: TestCase,
         elif test_case == TestCase.WATER:
             print(f"--------------------------------\nTESTED CASE: TANK WITH WATER\n--------------------------------")
             mat_type = MaterialType.DIFFUSE
-    output_dir_name = "convergence_rt/res_" + str(resolution.value) + "/" + test_case.value
+    output_dir_name = "convergence_rt/8bit/res_" + str(resolution.value) + "/" + test_case.value
 
     # 3. Set camera data
     # Data for Photron Nova S6
@@ -122,6 +122,7 @@ def conv_test_rt(test_case: TestCase,
     angle_vfov = vertical_fov_from_resolution(resolution, SCALE_PX_PER_MM, CAMERA_DISTANCE) # this works better (more truthfully for this)
     #angle_vfov = 20
     cam = Camera(image_width, image_height, camera_center, camera_target, angle_vfov)
+    output_format_8bit = ImageFormat(OutputFormat.IMG_TIFF_8BIT, BitDepth.BIT_8, ChannelCount.MONO, True)
 
     # ------------------------------------------------
     # POSITIONING AND SINGLE RENDER TEST SECTION
@@ -212,7 +213,7 @@ def conv_test_rt(test_case: TestCase,
         time_mode = "a" if time_log_exists else "w" # Append if time log already exists
         subsamples = starting_subsamples # Anti-aliasing samples
         if single_image:
-            time = timeit.timeit(lambda: render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6, omp_thread_count = thread_count), number=1)
+            time = timeit.timeit(lambda: render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_8bit, omp_thread_count = thread_count), number=1)
             new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
             os.rename(target.joinpath(fresh_filename), target.joinpath(new_filename))
             with open(time_csv_path, mode=time_mode, newline="", encoding="utf-8") as timefile:
@@ -237,7 +238,7 @@ def conv_test_rt(test_case: TestCase,
                 csvfile.flush()
                 os.fsync(csvfile.fileno())
                 # Create the first image as our baseline
-                time = timeit.timeit(lambda: render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6, omp_thread_count = thread_count), number=1)
+                time = timeit.timeit(lambda: render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_8bit, omp_thread_count = thread_count), number=1)
                 # Create the updated filename and change file name
                 new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
                 os.rename(target.joinpath(fresh_filename), target.joinpath(new_filename))
@@ -253,7 +254,7 @@ def conv_test_rt(test_case: TestCase,
                     prev_filename = new_filename
                     subsamples *=2
                     iteration_number += 1
-                    time = timeit.timeit(lambda: render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_phs6, omp_thread_count = thread_count), number=1)
+                    time = timeit.timeit(lambda: render_scene(image_height, image_width, scene, subsamples, target, RenderType.STATIC, texture_sampler = TextureSampler.CATMULL_ROM, shading_type = ShadingType.FLAT, image_format = output_format_8bit, omp_thread_count = thread_count), number=1)
                     # Rename this file
                     #new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
                     new_filename = "rtimage_" + "subsamples_" + str(subsamples) + ".tiff"
@@ -263,7 +264,7 @@ def conv_test_rt(test_case: TestCase,
                     timefile.flush()
                     os.fsync(timefile.fileno())
                     # Compare this brand new image with the previous one
-                    rmse, max_ae, percentile_diff, identical_count, total_pixels = bitwise_compare(target / new_filename, target / prev_filename, roi=roi_path, bit_depth=output_format_phs6.bit_depth)
+                    rmse, max_ae, percentile_diff, identical_count, total_pixels = bitwise_compare(target / new_filename, target / prev_filename, roi=roi_path, bit_depth=BitDepth.BIT_8)
                     print(f"-------------------------------- \nCURRENT SUBSAMPLE COUNT: {subsamples}"
                         f"\n\t RMSE: {rmse}"
                         f"\n\t MAX ABS ERROR: {max_ae}\n--------------------------------")
@@ -283,7 +284,7 @@ def conv_test_rt(test_case: TestCase,
                     # RMSE condition - the main one
                     if max_ae <= MAX_ABS_ERR_THRESHOLD: # RMSE is max. 1.0 for each individual pixel - we fall within least significant bit convergence
                         #if not first_criterion_hit: # Switch off - we have only big cases remaining, do not render more than absolutely necessary
-                           #first_criterion_hit = True # True, so we terminate on the next case to make sure we've converged without weird behaviour
+                            #first_criterion_hit = True # True, so we terminate on the next case to make sure we've converged without weird behaviour
                             #continue
                         print("Images converged to the least significant bit. Terminating this case.")
                         break
@@ -292,23 +293,5 @@ def conv_test_rt(test_case: TestCase,
                         print(f"Exceeded the maximum subsample limit of {SUBSAMPLE_LIMIT_MAX}. Terminating this case.")
                         break
         
-# HIGH RES TANK
-# QUAD4
-#conv_test_rt(TestCase.TANK, Resolution.HIGH, starting_subsamples=2**14, thread_count=None, element_idx = 0, single_image = False, subsample_limit = 2**20)
-# Everything else
-#conv_test_rt(TestCase.TANK, Resolution.HIGH, starting_subsamples=2**15, thread_count=None, element_idx = 1, single_image = False, subsample_limit = 2**20) #Q8
-#conv_test_rt(TestCase.TANK, Resolution.HIGH, starting_subsamples=2**15, thread_count=None, element_idx = 2, single_image = False, subsample_limit = 2**20) #Q9
-#conv_test_rt(TestCase.TANK, Resolution.HIGH, starting_subsamples=2**15, thread_count=None, element_idx = 3, single_image = False, subsample_limit = 2**20) #T3
-#conv_test_rt(TestCase.TANK, Resolution.HIGH, starting_subsamples=2**15, thread_count=None, element_idx = 4, single_image = False, subsample_limit = 2**20) #T6
 
-
-# HIGH RES WATER
-# TRI3 - we have 8k, so start at 16k
-#conv_test_rt(TestCase.WATER, Resolution.HIGH, starting_subsamples=2**14, thread_count=None, element_idx = 1, single_image = False, subsample_limit = 2**23)
-# QUAD8, QUAD9 - we have 16k, so start at 32k
-#conv_test_rt(TestCase.WATER, Resolution.HIGH, starting_subsamples=2**15, thread_count=None, element_idx = 2, single_image = False, subsample_limit = 2**23)
-#conv_test_rt(TestCase.WATER, Resolution.HIGH, starting_subsamples=2**15, thread_count=None, element_idx = 3, single_image = False, subsample_limit = 2**23)
-# QUAD 4 and TRI6 - we have absolutely nothing
-#conv_test_rt(TestCase.WATER, Resolution.HIGH, starting_subsamples=2**13, thread_count=None, element_idx = 0, single_image = False, subsample_limit = 2**23)
-#conv_test_rt(TestCase.WATER, Resolution.HIGH, starting_subsamples=2**13, thread_count=None, element_idx = 4, single_image = False, subsample_limit = 2**23)
-
+#conv_test_rt(TestCase.WATER, Resolution.HIGH, starting_subsamples=2**14, thread_count=None, element_idx = 3, single_image = False, subsample_limit = 2**20)

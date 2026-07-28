@@ -1621,7 +1621,7 @@ def find_node_normals(node_coords: np.ndarray,
     """
     Finds angle-weighted node normals for surface meshes. Should handle quadratic elements (TRI6, QUAD8, QUAD9) as well.
 
-    For each element we compute a normal per corner from the two edges incident to that corner, weighted by the interior angle at that corner (https://www.tandfonline.com/doi/abs/10.1080/10867651.1999.10487501).
+    For each element we compute a normal per corner from the two edges incident to that corner, weighted by the interior angle at that corner (https://www.tandfonline.com/doi/abs/10.1080/10867651.1999.10487501, https://api.semanticscholar.org/CorpusID:26638291).
     Corner contributions are accumulated to corner nodes only. Mid-edge nodes get the average of their two adjacent corners' weighted normals, and QUAD9 center node gets the average of all 4 corners.
     
     Parameters:

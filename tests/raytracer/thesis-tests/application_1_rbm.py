@@ -21,6 +21,7 @@ from pyvale.raytracer.rtscene import *
 from pyvale.raytracer.rtpresets import *
 from pyvale.raytracer.rtmain import *
 from pyvale.raytracer.rtoutputformat import *
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 # No Blender imports => Should work on Linux
 
 # ================================================================================
@@ -532,43 +533,341 @@ def run_dic_rmb(test_case: TestCaseApp, save_plot: bool = True, convert_to_mm: b
     dicdata = dic.import_2d(data=dic_files, delimiter=",", binary=False)
 
     for i in range(def_img_count):
-        # Data for this deformation image
         horizontal_displacement = dicdata.u[i]
         vertical_displacement = dicdata.v[i]
-        unit = "[px]"
-        figure_filename = f"{test_case.value}_rmb_dic_plot_px_{i}.png"
-        if convert_to_mm:
-            horizontal_displacement /= SCALE_PX_MM
-            vertical_displacement /= SCALE_PX_MM
-            unit = "[mm]"
-            figure_filename = f"{test_case.value}_rmb_dic_plot_mm_{i}.png"
 
-        # Plot data
-        fig, axes = plt.subplots(1, 2, figsize=(15, 10))
-        axes = axes.flatten()
+        unit = "[px]"
+        combined_filename = f"{test_case.value}_rmb_dic_plot_px_{i}.png"
+        ux_filename = f"{test_case.value}_rmb_dic_plot_ux_px_{i}.png"
+        uy_filename = f"{test_case.value}_rmb_dic_plot_uy_px_{i}.png"
+
+        if convert_to_mm:
+            horizontal_displacement = horizontal_displacement / SCALE_PX_MM
+            vertical_displacement = vertical_displacement / SCALE_PX_MM
+            unit = "[mm]"
+            combined_filename = f"{test_case.value}_rmb_dic_plot_mm_{i}.png"
+            ux_filename = f"{test_case.value}_rmb_dic_plot_ux_mm_{i}.png"
+            uy_filename = f"{test_case.value}_rmb_dic_plot_uy_mm_{i}.png"
+
         cmap = "magma"
 
-        # First deformation image
+        # -----------------------------
+        # Combined figure: ux and uy
+        # -----------------------------
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+        fig_combined, axes = plt.subplots(1, 2, figsize=(15, 10))
+        axes = axes.flatten()
+
         im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, horizontal_displacement, cmap=cmap)
         im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, vertical_displacement, cmap=cmap)
 
-        # Titles
-        fig.suptitle(f"2D DIC results for frame {i}\nTest case: {test_case.value}", fontsize=FONT_SIZES["suptitle"])
-        axes[0].set_title(f"$u_x$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Horizontal displacement
-        axes[1].set_title(f"$u_y$ {unit}", fontsize=FONT_SIZES["subtitle"]) # Vertical displacement
+        fig_combined.suptitle(f"2D DIC results for frame {i}\nTest case: {test_case.value}",fontsize=FONT_SIZES["suptitle"])
+        axes[0].set_title(f"$u_x$ {unit}", fontsize=FONT_SIZES["subtitle"])
+        axes[1].set_title(f"$u_y$ {unit}", fontsize=FONT_SIZES["subtitle"])
 
         for aa in axes:
-            aa.set_aspect('equal')
-            aa.invert_yaxis() # Flip upside down because duck points the wrong way
-            aa.tick_params(axis='both', labelsize=25) 
+            aa.set_aspect("equal")
+            aa.invert_yaxis()
+            #aa.tick_params(axis="both", labelsize=25)
+            aa.tick_params(axis="both", which="both", bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
 
-        # Colorbars
-        fig.colorbar(im1, ax=axes[0])
-        fig.colorbar(im2, ax=axes[1])
+        # This makes cbars the same height as the figure axes
+        divider1 = make_axes_locatable(axes[0])
+        cax1 = divider1.append_axes("right", size="5%", pad=0.1)
+        fig_combined.colorbar(im1, cax=cax1)
+        divider2 = make_axes_locatable(axes[1])
+        cax2 = divider2.append_axes("right", size="5%", pad=0.1)
+        fig_combined.colorbar(im2, cax=cax2)
 
-        plt.tight_layout()
-        #plt.show()
+        fig_combined.tight_layout()
+
         if save_plot:
-            fig.savefig(target_path  / figure_filename, dpi=300, bbox_inches="tight")
+            fig_combined.savefig(target_path / combined_filename, dpi=300, bbox_inches="tight")
+        plt.close(fig_combined)
+
+        # -----------------------------
+        # Separate figure: ux only
+        # -----------------------------
+        fig_ux, ax_ux = plt.subplots(figsize=(8, 7))
+
+        im_ux = ax_ux.pcolor(dicdata.ss_x, dicdata.ss_y, horizontal_displacement, cmap=cmap)
+        #fig_ux.suptitle(f"2D DIC results for frame {i}\nTest case: {test_case.value}", fontsize=FONT_SIZES["suptitle"])
+        #ax_ux.set_title(f"$u_x$ {unit}", fontsize=FONT_SIZES["subtitle"])
+        ax_ux.set_aspect("equal")
+        ax_ux.invert_yaxis()
+        #ax_ux.tick_params(axis="both", labelsize=20)
+        ax_ux.tick_params(axis="both", which="both", bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
+        divider3 = make_axes_locatable(ax_ux)
+        cax3 = divider3.append_axes("right", size="5%", pad=0.1)
+        cbar_x = fig_ux.colorbar(im_ux, cax=cax3)
+        cbar_x.set_label(f"$u_x$ {unit}", fontsize=30, labelpad=10)
+        # Tick label size (numbers next to the bar)
+        cbar_x.ax.tick_params(labelsize=25) 
+        
+
+
+        fig_ux.tight_layout()
+
+        if save_plot:
+            fig_ux.savefig(target_path / ux_filename, dpi=300, bbox_inches="tight")
+        plt.close(fig_ux)
+
+        # -----------------------------
+        # Separate figure: uy only
+        # -----------------------------
+        fig_uy, ax_uy = plt.subplots(figsize=(8, 7))
+
+        im_uy = ax_uy.pcolor(dicdata.ss_x, dicdata.ss_y, vertical_displacement, cmap=cmap)
+        #fig_uy.suptitle(f"2D DIC results for frame {i}\nTest case: {test_case.value}",fontsize=FONT_SIZES["suptitle"])
+        #ax_uy.set_title(f"$u_y$ {unit}", fontsize=40)
+        ax_uy.set_aspect("equal")
+        ax_uy.invert_yaxis()
+        #ax_uy.tick_params(axis="both", labelsize=20)
+        ax_uy.tick_params(axis="both", which="both", bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
+        divider4 = make_axes_locatable(ax_uy)
+        cax4 = divider4.append_axes("right", size="5%", pad=0.1)
+        cbar_y = fig_uy.colorbar(im_uy, cax=cax4)
+        cbar_y.set_label(f"$u_y$ {unit}", fontsize=30, labelpad=10)
+        # Tick label size (numbers next to the bar)
+        cbar_y.ax.tick_params(labelsize=25)
+
+        #cbar_y = fig_uy.colorbar(im_uy, ax=ax_uy, shrink=0.85)
+        #cbar_y.set_label(f"$u_y$ {unit}", fontsize=30)
+        #cbar_y.ax.tick_params(labelsize=25)
+
+        fig_uy.tight_layout()
+
+        if save_plot:
+            fig_uy.savefig(target_path / uy_filename, dpi=300, bbox_inches="tight")
+        plt.close(fig_uy)
+
+
+
+def compare_converged_dic(save_plot: bool = True, convert_to_mm: bool = False):
+    """
+    Compare converged and converged_to_lsb DIC results for the air_diffuse case.
+    Computes (conv - lsb) for ux and uy, crops mismatched fields to their common
+    shape if necessary, and saves combined / ux-only / uy-only heatmaps into:
+        app1_rmb/air_diffuse/
+    """
+    import pyvale.dic as dic
+
+    SCALE_PX_MM = 0.022131147540983605  # from rmb_test
+
+    case_name = "air_diffuse"
+    base_data_dir_lsb = "app1_rmb/air_diffuse/converged_to_lsb"
+    base_data_dir_conv = "app1_rmb/air_diffuse/fully_conv_1m"
+    output_dir = test_dir(BASE_TEST_DIR, "app1_rmb/air_diffuse/lsbvsfull")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    image_basename = "rtimage_"
+    suffix = "_cam0.tiff"
+    def_img_count = 10
+
+    def ensure_dic_results(base_data_dir: str):
+        target_path = test_dir(BASE_TEST_DIR, base_data_dir)
+
+        ref_img_path = target_path / f"{image_basename}0{suffix}"
+        ref_img = ImageTools.load_image_greyscale(ref_img_path)
+
+        print(f"target path: {target_path}")
+
+        roi = dic.RegionOfInterest(ref_image=ref_img)
+        roi_file = target_path / f"{case_name}_{ROI_FILENAME}"
+        dic_results_prefix = f"{case_name}_{DIC_RESULTS_PREFIX}"
+
+        if not os.path.exists(roi_file):
+            roi.interactive_selection(subset_size=SUBSET_SIZE)
+            roi.save_array(filename=roi_file, binary=False)
+
+        dic_files = target_path / f"{dic_results_prefix}*.csv"
+        dic_filename_check = target_path / f"{dic_results_prefix}def_img_0000.csv"
+
+        if not os.path.exists(dic_filename_check):
+            roi.read_array(filename=roi_file, binary=False)
+
+            def_images = np.ndarray((def_img_count, ref_img.shape[0], ref_img.shape[1]))
+            def_images[0] = ref_img
+
+            for i in range(1, def_img_count):
+                def_img_path = target_path / f"{image_basename}{i}{suffix}"
+                def_img = ImageTools.load_image_greyscale(def_img_path)
+                def_images[i] = def_img
+
+            dic.calculate_2d(
+                reference=ref_img,
+                deformed=def_images,
+                roi_mask=roi.mask,
+                seed=[123, 99],
+                subset_size=SUBSET_SIZE,
+                subset_step=STEP_SIZE,
+                shape_function="AFFINE",
+                correlation_criteria="ZNSSD",
+                output_basepath=target_path,
+                output_delimiter=",",
+                output_prefix=dic_results_prefix,
+                max_displacement=2,
+                method="IMAGE_SCAN",
+            )
+
+        return dic.import_2d(data=dic_files, delimiter=",", binary=False)
+
+    def crop_to_common_shape(a, b):
+        nrows = min(a.shape[0], b.shape[0])
+        ncols = min(a.shape[1], b.shape[1])
+        return a[:nrows, :ncols], b[:nrows, :ncols], nrows, ncols
+
+    dicdata_lsb = ensure_dic_results(base_data_dir_lsb)
+    dicdata_conv = ensure_dic_results(base_data_dir_conv)
+
+    for i in range(def_img_count):
+        ux_conv = dicdata_conv.u[i]
+        ux_lsb = dicdata_lsb.u[i]
+        uy_conv = dicdata_conv.v[i]
+        uy_lsb = dicdata_lsb.v[i]
+
+        ux_conv_crop, ux_lsb_crop, nrows_x, ncols_x = crop_to_common_shape(ux_conv, ux_lsb)
+        uy_conv_crop, uy_lsb_crop, nrows_y, ncols_y = crop_to_common_shape(uy_conv, uy_lsb)
+
+        horizontal_displacement = ux_conv_crop - ux_lsb_crop
+        vertical_displacement = uy_conv_crop - uy_lsb_crop
+
+        ss_x_ux = dicdata_conv.ss_x[:nrows_x, :ncols_x]
+        ss_y_ux = dicdata_conv.ss_y[:nrows_x, :ncols_x]
+        ss_x_uy = dicdata_conv.ss_x[:nrows_y, :ncols_y]
+        ss_y_uy = dicdata_conv.ss_y[:nrows_y, :ncols_y]
+
+        unit = "[px]"
+        combined_filename = f"{case_name}_rmb_dic_plot_px_lsbvsconv_{i}.png"
+        ux_filename = f"{case_name}_rmb_dic_plot_ux_px_lsbvsconv_{i}.png"
+        uy_filename = f"{case_name}_rmb_dic_plot_uy_px_lsbvsconv_{i}.png"
+
+        if convert_to_mm:
+            horizontal_displacement = horizontal_displacement / SCALE_PX_MM
+            vertical_displacement = vertical_displacement / SCALE_PX_MM
+            unit = "[mm]"
+            combined_filename = f"{case_name}_rmb_dic_plot_mm_lsbvsconv_{i}.png"
+            ux_filename = f"{case_name}_rmb_dic_plot_ux_mm_lsbvsconv_{i}.png"
+            uy_filename = f"{case_name}_rmb_dic_plot_uy_mm_lsbvsconv_{i}.png"
+
+        cmap = "magma"
+
+        # -----------------------------
+        # Combined figure: ux and uy
+        # -----------------------------
+        fig_combined, axes = plt.subplots(1, 2, figsize=(15, 10))
+        axes = axes.flatten()
+
+        im1 = axes[0].pcolor(ss_x_ux, ss_y_ux, horizontal_displacement, cmap=cmap)
+        im2 = axes[1].pcolor(ss_x_uy, ss_y_uy, vertical_displacement, cmap=cmap)
+
+        fig_combined.suptitle(
+            f"2D DIC difference results for frame {i}\nTest case: {case_name} (conv - lsb)",
+            fontsize=FONT_SIZES["suptitle"],
+        )
+        axes[0].set_title(f"$u_x$ {unit}", fontsize=FONT_SIZES["subtitle"])
+        axes[1].set_title(f"$u_y$ {unit}", fontsize=FONT_SIZES["subtitle"])
+
+        for aa in axes:
+            aa.set_aspect("equal")
+            aa.invert_yaxis()
+            aa.tick_params(
+                axis="both",
+                which="both",
+                bottom=False,
+                top=False,
+                left=False,
+                right=False,
+                labelbottom=False,
+                labelleft=False,
+            )
+
+        divider1 = make_axes_locatable(axes[0])
+        cax1 = divider1.append_axes("right", size="5%", pad=0.1)
+        cbar1 = fig_combined.colorbar(im1, cax=cax1)
+        cbar1.ax.tick_params(labelsize=20)
+        cbar1.ax.yaxis.get_offset_text().set_fontsize(20)
+
+        divider2 = make_axes_locatable(axes[1])
+        cax2 = divider2.append_axes("right", size="5%", pad=0.1)
+        cbar2 = fig_combined.colorbar(im2, cax=cax2)
+        cbar2.ax.tick_params(labelsize=20)
+        cbar2.ax.yaxis.get_offset_text().set_fontsize(20)
+
+        fig_combined.tight_layout()
+
+        if save_plot:
+            fig_combined.savefig(output_dir / combined_filename, dpi=300, bbox_inches="tight")
+        plt.close(fig_combined)
+
+        # -----------------------------
+        # Separate figure: ux only
+        # -----------------------------
+        fig_ux, ax_ux = plt.subplots(figsize=(8, 7))
+
+        im_ux = ax_ux.pcolor(ss_x_ux, ss_y_ux, horizontal_displacement, cmap=cmap)
+        ax_ux.set_aspect("equal")
+        ax_ux.invert_yaxis()
+        ax_ux.tick_params(
+            axis="both",
+            which="both",
+            bottom=False,
+            top=False,
+            left=False,
+            right=False,
+            labelbottom=False,
+            labelleft=False,
+        )
+
+        divider3 = make_axes_locatable(ax_ux)
+        cax3 = divider3.append_axes("right", size="5%", pad=0.1)
+        cbar_x = fig_ux.colorbar(im_ux, cax=cax3)
+        cbar_x.set_label(f"$u_x$ {unit}", fontsize=30, labelpad=10)
+        cbar_x.ax.tick_params(labelsize=25)
+        cbar_x.ax.yaxis.get_offset_text().set_fontsize(25)
+
+        fig_ux.tight_layout()
+
+        if save_plot:
+            fig_ux.savefig(output_dir / ux_filename, dpi=300, bbox_inches="tight")
+        plt.close(fig_ux)
+
+        # -----------------------------
+        # Separate figure: uy only
+        # -----------------------------
+        fig_uy, ax_uy = plt.subplots(figsize=(8, 7))
+
+        im_uy = ax_uy.pcolor(ss_x_uy, ss_y_uy, vertical_displacement, cmap=cmap)
+        ax_uy.set_aspect("equal")
+        ax_uy.invert_yaxis()
+        ax_uy.tick_params(
+            axis="both",
+            which="both",
+            bottom=False,
+            top=False,
+            left=False,
+            right=False,
+            labelbottom=False,
+            labelleft=False,
+        )
+
+        divider4 = make_axes_locatable(ax_uy)
+        cax4 = divider4.append_axes("right", size="5%", pad=0.1)
+        cbar_y = fig_uy.colorbar(im_uy, cax=cax4)
+        cbar_y.set_label(f"$u_y$ {unit}", fontsize=30, labelpad=10)
+        cbar_y.ax.tick_params(labelsize=25)
+        cbar_y.ax.yaxis.get_offset_text().set_fontsize(25)
+
+        fig_uy.tight_layout()
+
+        if save_plot:
+            print(f"Saving plot to: {output_dir / uy_filename}")
+            fig_uy.savefig(output_dir / uy_filename, dpi=300, bbox_inches="tight")
+        plt.close(fig_uy)
+            
+compare_converged_dic(save_plot=True, convert_to_mm=False)         
         
 #run_dic_rmb(TestCaseApp.AIR_DIFFUSE, True, False)
+#run_dic_rmb(TestCaseApp.PIPE, True, False)
+#run_dic_rmb(TestCaseApp.WATER, True, False)
