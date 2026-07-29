@@ -229,12 +229,15 @@ class PhaseSpatialState:
         supports: list[object] = []
         support_ids: set[int] = set()
 
+        # Loop through dict of lists of spatial parameterisations for current phase
         for spatial_parameterisations in self.spatial_parameterisations.values():
+            # Loop through each spatial parameterisation in the list collecting unique supports
             for spatial_parameterisation in spatial_parameterisations:
                 support = getattr(spatial_parameterisation, "support", None)
                 if support is None:
                     continue
 
+                # Get unique python object id of support
                 support_id = id(support)
                 if support_id in support_ids:
                     continue
@@ -256,12 +259,16 @@ class PhaseSpatialState:
         return PhaseSpatialState(copy.deepcopy(self.spatial_parameterisations))
 
     def prepare(self, experiment_data: ExperimentData) -> None:
+        # Prepare any shared supports
         for support in self.supports:
             prepare = getattr(support, "prepare", None)
             if prepare is None:
                 continue
+            # Execute the support's prepare() method
+            # e.g. for SupportSlice build the slicewise partition using experiment_data
             prepare(experiment_data)
 
+        # Synchronise any spatial parameterisations that have a _sync_from_support() method
         for spatial_parameterisations in self.spatial_parameterisations.values():
             for spatial_parameterisation in spatial_parameterisations:
                 sync_from_support = getattr(
@@ -271,6 +278,10 @@ class PhaseSpatialState:
                 )
                 if sync_from_support is None:
                     continue
+
+                # Execute the spatial parameterisation's _sync_from_support() method
+                # e.g. for SliceWiseSpatialParameterisation update the parameterisation object
+                # slice_partition and slice_config from support
                 sync_from_support()
 
     def get_num_degrees_of_freedom(self) -> int:

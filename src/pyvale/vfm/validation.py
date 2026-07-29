@@ -215,6 +215,11 @@ def validate_identification_config(
                 f"phase {i} must have at least one metric"
             )
 
+        validate_slicewise_independent_phase(
+            phase,
+            i,
+        )
+
     # Constitutive-law parameter requirements
     required = set(config.constitutive_law.get_required_parameters())
     given = set(config.parameters.keys())
@@ -386,11 +391,11 @@ def validate_slicewise_independent_phase(
         if sp.support is None:
             raise ValueError(
                 f"phase {phase_index} parameter '{param_name}': SliceWiseSpatialParameterisation "
-                "must define a slice support."
+                "must define a slice support when used for independent slice-wise identification."
             )
 
         if not _slice_supports_are_compatible(sp.support, slice_metric.support):
             raise ValueError(
                 f"phase {phase_index} parameter '{param_name}': slicewise support declaration "
-                "does not match the slice-force metric support."
+                "does not match the slice-force metric support (required for independent slice-wise identification)."
             )

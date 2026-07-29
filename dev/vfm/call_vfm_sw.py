@@ -109,6 +109,13 @@ def main() -> None:
         ),
     }
 
+    # Define shared spatial parameterisation supports
+    shared_slice_support = SupportSlice(
+        slice_config=SliceConfig(
+            axis=SLICE_AXIS,
+            num_slices=NUM_SLICES,
+        )
+    )
 
     # slice_partition = build_slice_partition(
     #         specimen_geometry,
@@ -117,13 +124,6 @@ def main() -> None:
     #         diagnostic_slice_index=PLOT_SLICE_INDEX,
     #     )
     # _print_coverage_diagnostic(slice_partition)
-
-    shared_slice_support = SupportSlice(
-        slice_config=SliceConfig(
-            axis=SLICE_AXIS,
-            num_slices=NUM_SLICES,
-        )
-    )
 
     # Define identification phases
     # Each phase has its own set of spatial parameterisations, metrics, objective function and optimiser. 

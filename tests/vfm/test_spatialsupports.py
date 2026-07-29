@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 
 from pyvale.vfm.dof import DegreeOfFreedom
@@ -39,6 +40,7 @@ from pyvale.vfm.vfmregionofinterest import (
     VfmRegionOfInterest,
 )
 from pyvale.vfm.validation import validate_slicewise_independent_phase
+from pyvale.vfm.validation import validate_identification_config
 from pyvale.vfm.constlaw import IConstitutiveLaw, EIdentificationType
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.metric import MetricResult
@@ -318,6 +320,58 @@ def test_validate_slicewise_independent_phase_is_pure_validation() -> None:
     assert metric.slice_partition is None
     assert phase.spatial_parameterisations["yield_strength"][0].slice_partition is None
     assert phase.spatial_parameterisations["yield_strength"][0].support is shared_support
+
+
+def test_validate_identification_config_checks_slicewise_independent_phases() -> None:
+    parameters = {
+        "yield_strength": ConstitutiveParameter(
+            2.0,
+            0.5,
+            5.0,
+            np.array((4, 5), dtype=np.uint32),
+        ),
+        "hardening_modulus": ConstitutiveParameter(
+            3.0,
+            0.5,
+            5.0,
+            np.array((4, 5), dtype=np.uint32),
+        ),
+    }
+
+    identification = IdentificationConfig(
+        constitutive_law=_DummyConstitutiveLaw(),
+        parameters=parameters,
+        phases=[
+            IdentificationPhase(
+                spatial_parameterisations={
+                    "yield_strength": [
+                        SliceWiseSpatialParameterisation(
+                            support=SupportSlice(
+                                slice_config=SliceConfig(axis="x", num_slices=3)
+                            )
+                        )
+                    ],
+                    "hardening_modulus": [
+                        SliceWiseSpatialParameterisation(
+                            support=SupportSlice(
+                                slice_config=SliceConfig(axis="x", num_slices=3)
+                            )
+                        )
+                    ],
+                },
+                metrics=[_DummyMetric()],
+                objective_function=VectorFirstResultPassthrough(),
+                optimiser=SliceWiseIndependentLeastSquares(),
+            )
+        ],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="SliceWiseIndependentLeastSquares requires exactly one "
+        "SliceWiseForceReconstructionMetric",
+    ):
+        validate_identification_config(identification)
 
 
 def test_prepare_phase_runtime_allows_matching_independent_slice_supports() -> None:
