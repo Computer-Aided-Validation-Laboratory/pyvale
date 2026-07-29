@@ -24,31 +24,16 @@ from pyvale.vfm.spatialparamslicewise import (
     SliceConfig,
     SliceWiseSpatialParameterisation,
     SupportSlice,
-    build_slice_partition,
 )
 from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
 
 INPUTS_PATH = Path(__file__).resolve().parent / "rob-data" / "wdbn4-vfm-input-data-260629-1530"
 SLICE_AXIS = "y"
-NUM_SLICES = 20
-PLOT_SLICE_PARTITION = True
-PLOT_SLICE_INDEX = 0
-
-
-def _print_coverage_diagnostic(slice_partition) -> None:
-    mean_coverage = float(np.mean(slice_partition.coverage_fractions))
-    min_slice_index = int(np.argmin(slice_partition.coverage_fractions))
-    min_slice_coverage = float(slice_partition.coverage_fractions[min_slice_index])
-    overall_coverage = float(np.sum(slice_partition.areas) / np.sum(slice_partition.geometric_areas))
-
-    print("Slice coverage diagnostic:")
-    print(f"  overall area coverage ratio: {overall_coverage:.6f}")
-    print(f"  mean slice coverage ratio:   {mean_coverage:.6f}")
-    print(f"  minimum slice coverage:      {min_slice_coverage:.6f} (slice {min_slice_index})")
-    print("  per-slice coverage ratios:")
-    for slice_index, coverage in enumerate(slice_partition.coverage_fractions):
-        print(f"    slice {slice_index:>2d}: {float(coverage):.6f}")
+NUM_SLICES = 40
+MERGE_PARAMETER_TOLERANCE = 0.05
+SPLIT_FORCE_ERROR_THRESHOLD = 0.1
+OUTPUT_PLOT_PATH = Path(__file__).resolve().parent / "call_vfm_sw_refine_results.png"
 
 
 def main() -> None:
@@ -109,27 +94,23 @@ def main() -> None:
         ),
     }
 
-    # Define shared spatial parameterisation supports
-    # Note for supports: shared object means shared evolution, separate objects mean independent ownership.
+    # Shared object means shared evolution: both unknown parameters and the
+    # slice-force metric use the same refinable slice topology.
     shared_slice_support = SupportSlice(
         slice_config=SliceConfig(
             axis=SLICE_AXIS,
             num_slices=NUM_SLICES,
-        )
+        ),
+        refine=True,
+        merge_parameter_tolerance=MERGE_PARAMETER_TOLERANCE,
+        split_error_threshold=SPLIT_FORCE_ERROR_THRESHOLD,
+        max_refinements=1,
     )
 
-    # slice_partition = build_slice_partition(
-    #         specimen_geometry,
-    #         slice_config=slice_config,
-    #         plot_diagnostic=True,
-    #         diagnostic_slice_index=PLOT_SLICE_INDEX,
-    #     )
-    # _print_coverage_diagnostic(slice_partition)
-
     # Define identification phases
-    # Each phase has its own set of spatial parameterisations, metrics, objective function and optimiser. 
+    # Similar neighbouring slices are merged, and high-error slices are split,
+    # once after the first solve.
     phases = [
-        # Phase 0
         IdentificationPhase(
             spatial_parameterisations={
                 "elastic_modulus": [SpatialParameterisationKnown()],
@@ -162,7 +143,7 @@ def main() -> None:
         phases=phases,
     )
 
-    # Run the identification
+    # Run identification, refine the shared support once, then solve again.
     vfm_result = run_identification(experiment_data, identification)
     print(vfm_result)
 
@@ -176,7 +157,12 @@ def main() -> None:
         image = ax.imshow(vfm_result[param_name].map, origin="lower", cmap="viridis")
         ax.set_title(title)
         fig.colorbar(image, ax=ax)
-    plt.show()
+    fig.savefig(OUTPUT_PLOT_PATH, dpi=200)
+    print(f"Saved slicewise refinement plot to {OUTPUT_PLOT_PATH}")
+    if plt.get_backend().lower() == "agg":
+        plt.close(fig)
+    else:
+        plt.show()
 
 
 if __name__ == "__main__":

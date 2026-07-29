@@ -22,7 +22,6 @@ from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
 from pyvale.vfm.optimiserslicewiseindependent import (
     SliceWiseIndependentLeastSquares,
 )
-from pyvale.vfm.slicewise_utils import slice_partitions_are_equivalent
 from pyvale.vfm.spatialparam import PhaseSpatialState
 from pyvale.vfm.spatialparambasisfuncs import (
     BasisFunctionKernelUnivariate,
@@ -374,8 +373,7 @@ def test_validate_identification_config_checks_slicewise_independent_phases() ->
         validate_identification_config(identification)
 
 
-def test_prepare_phase_runtime_allows_matching_independent_slice_supports() -> None:
-    experiment_data = _build_experiment_data()
+def test_validate_slicewise_independent_phase_requires_shared_support_instance() -> None:
     phase = IdentificationPhase(
         spatial_parameterisations={
             "yield_strength": [
@@ -406,26 +404,275 @@ def test_prepare_phase_runtime_allows_matching_independent_slice_supports() -> N
         optimiser=SliceWiseIndependentLeastSquares(),
     )
 
-    validate_slicewise_independent_phase(phase, 0)
-    phase_spatial_state = prepare_phase_runtime(phase, experiment_data)
+    with pytest.raises(
+        ValueError,
+        match="requires this parameterisation to reference the same SupportSlice object",
+    ):
+        validate_slicewise_independent_phase(phase, 0)
 
-    metric = phase.metrics[0]
+
+def test_prepare_phase_runtime_preserves_shared_independent_slice_support() -> None:
+    experiment_data = _build_experiment_data()
+    shared_support = SupportSlice(
+        slice_config=SliceConfig(axis="x", num_slices=3)
+    )
+    phase = IdentificationPhase(
+        spatial_parameterisations={
+            "yield_strength": [
+                SliceWiseSpatialParameterisation(
+                    support=shared_support,
+                    values=[1.0, 1.0, 1.0],
+                )
+            ],
+            "hardening_modulus": [
+                SliceWiseSpatialParameterisation(
+                    support=shared_support,
+                    values=[2.0, 2.0, 2.0],
+                )
+            ],
+        },
+        metrics=[
+            SliceWiseForceReconstructionMetric(
+                support=shared_support
+            )
+        ],
+        objective_function=VectorFirstResultPassthrough(),
+        optimiser=SliceWiseIndependentLeastSquares(),
+    )
+
+    validate_slicewise_independent_phase(phase, 0)
+    phase_runtime = prepare_phase_runtime(phase, experiment_data)
+
+    metric = phase_runtime.metrics[0]
     assert isinstance(metric, SliceWiseForceReconstructionMetric)
     assert metric.slice_partition is not None
 
+    phase_spatial_state = phase_runtime.spatial_state
     yield_parameterisation = phase_spatial_state.spatial_parameterisations["yield_strength"][0]
     hardening_parameterisation = phase_spatial_state.spatial_parameterisations["hardening_modulus"][0]
     assert isinstance(yield_parameterisation, SliceWiseSpatialParameterisation)
     assert isinstance(hardening_parameterisation, SliceWiseSpatialParameterisation)
-    assert yield_parameterisation.support is not metric.support
-    assert hardening_parameterisation.support is not metric.support
+    assert yield_parameterisation.support is metric.support
+    assert hardening_parameterisation.support is metric.support
+    assert metric.support is not shared_support
     assert yield_parameterisation.slice_partition is not None
     assert hardening_parameterisation.slice_partition is not None
-    assert slice_partitions_are_equivalent(
-        yield_parameterisation.slice_partition,
-        metric.slice_partition,
+    assert yield_parameterisation.slice_partition is metric.slice_partition
+    assert hardening_parameterisation.slice_partition is metric.slice_partition
+
+    # Runtime preparation preserves the caller's declared sharing while still
+    # using a copied runtime support object.
+    original_metric = phase.metrics[0]
+    assert isinstance(original_metric, SliceWiseForceReconstructionMetric)
+    assert original_metric.support is not metric.support
+
+
+def test_support_slice_refinement_merges_adjacent_similar_slices() -> None:
+    experiment_data = _build_experiment_data()
+    support = SupportSlice(
+        slice_config=SliceConfig(axis="x", num_slices=4),
+        refine=True,
+        merge_parameter_tolerance=0.05,
     )
-    assert slice_partitions_are_equivalent(
-        hardening_parameterisation.slice_partition,
-        metric.slice_partition,
+    yield_parameterisation = SliceWiseSpatialParameterisation(support=support)
+    hardening_parameterisation = SliceWiseSpatialParameterisation(support=support)
+    support.prepare(experiment_data)
+
+    assert support.slice_partition is not None
+    original_boundaries = support.slice_partition.boundaries.copy()
+    parameter_maps = {
+        "yield_strength": np.zeros(
+            experiment_data.specimen_geometry.x.shape,
+            dtype=np.float64,
+        ),
+        "hardening_modulus": np.zeros(
+            experiment_data.specimen_geometry.x.shape,
+            dtype=np.float64,
+        ),
+    }
+    for slice_index, (yield_value, hardening_value) in enumerate(
+        zip(
+            (100.0, 104.0, 150.0, 220.0),
+            (1000.0, 1040.0, 2000.0, 2500.0),
+            strict=True,
+        )
+    ):
+        slice_mask = support.slice_partition.slice_id_map == slice_index
+        parameter_maps["yield_strength"][slice_mask] = yield_value
+        parameter_maps["hardening_modulus"][slice_mask] = hardening_value
+    spatial_parameterisations = {
+        "yield_strength": [yield_parameterisation],
+        "hardening_modulus": [hardening_parameterisation],
+    }
+
+    assert support.should_perform_refinement(
+        parameter_maps=parameter_maps,
+        spatial_parameterisations=spatial_parameterisations,
+    )
+    support.perform_refinement(
+        parameter_maps=parameter_maps,
+        spatial_parameterisations=spatial_parameterisations,
+    )
+
+    assert support.slice_partition is None
+    assert support.slice_config is not None
+    assert support.slice_config.boundaries is not None
+    assert support.slice_config.boundaries.shape[0] == original_boundaries.shape[0] - 1
+    assert np.allclose(
+        support.slice_config.boundaries,
+        np.delete(original_boundaries, 1),
+    )
+
+
+def test_support_slice_refinement_splits_high_error_slices() -> None:
+    experiment_data = _build_experiment_data()
+    support = SupportSlice(
+        slice_config=SliceConfig(axis="x", num_slices=4),
+        refine=True,
+        split_error_threshold=0.1,
+    )
+    support.prepare(experiment_data)
+
+    assert support.slice_partition is not None
+    original_boundaries = support.slice_partition.boundaries.copy()
+    support.perform_refinement(
+        parameter_maps={},
+        spatial_parameterisations={},
+        force_error_ratio=np.array([0.05, 0.12, 0.03, 0.25], dtype=np.float64),
+    )
+
+    assert support.slice_partition is None
+    assert support.slice_config is not None
+    assert support.slice_config.boundaries is not None
+    assert np.allclose(
+        support.slice_config.boundaries,
+        np.sort(
+            np.concatenate(
+                (
+                    original_boundaries,
+                    [
+                        0.5 * (original_boundaries[1] + original_boundaries[2]),
+                        0.5 * (original_boundaries[3] + original_boundaries[4]),
+                    ],
+                )
+            )
+        ),
+    )
+
+
+def test_slice_parameterisation_refits_after_support_slice_count_changes() -> None:
+    experiment_data = _build_experiment_data()
+    support = SupportSlice(
+        slice_config=SliceConfig(axis="x", num_slices=4),
+        refine=True,
+        merge_parameter_tolerance=0.05,
+    )
+    parameterisation = SliceWiseSpatialParameterisation(support=support)
+    support.prepare(experiment_data)
+    parameterisation.initialise_from_constitutive_parameter(
+        ConstitutiveParameter(
+            np.arange(
+                experiment_data.specimen_geometry.x.size,
+                dtype=np.float64,
+            ).reshape(experiment_data.specimen_geometry.x.shape),
+            0.0,
+            100.0,
+        )
+    )
+
+    assert parameterisation.values is not None
+    assert len(parameterisation.values) == 4
+    assert support.slice_partition is not None
+    parameter_map = np.zeros(
+        experiment_data.specimen_geometry.x.shape,
+        dtype=np.float64,
+    )
+    for slice_index, value in enumerate((100.0, 104.0, 150.0, 220.0)):
+        parameter_map[support.slice_partition.slice_id_map == slice_index] = value
+    parameter_maps = {"yield_strength": parameter_map}
+    spatial_parameterisations = {"yield_strength": [parameterisation]}
+    support.perform_refinement(
+        parameter_maps=parameter_maps,
+        spatial_parameterisations=spatial_parameterisations,
+    )
+    support.prepare(experiment_data)
+
+    parameterisation.initialise_from_constitutive_parameter(
+        ConstitutiveParameter(
+            np.arange(
+                experiment_data.specimen_geometry.x.size,
+                dtype=np.float64,
+            ).reshape(experiment_data.specimen_geometry.x.shape),
+            0.0,
+            100.0,
+        )
+    )
+
+    assert parameterisation.values is not None
+    assert len(parameterisation.values) == 3
+
+
+def test_run_identification_handles_single_shared_support_refinement() -> None:
+    experiment_data = _build_experiment_data()
+    shared_support = SupportSlice(
+        slice_config=SliceConfig(axis="x", num_slices=3),
+        refine=True,
+        merge_parameter_tolerance=10.0,
+        max_refinements=1,
+    )
+    parameter_map_size = np.array(
+        experiment_data.specimen_geometry.x.shape,
+        dtype=np.uint32,
+    )
+    identification = IdentificationConfig(
+        constitutive_law=_DummyConstitutiveLaw(),
+        parameters={
+            "yield_strength": ConstitutiveParameter(
+                2.0,
+                0.5,
+                5.0,
+                parameter_map_size,
+            ),
+            "hardening_modulus": ConstitutiveParameter(
+                3.0,
+                0.5,
+                5.0,
+                parameter_map_size,
+            ),
+        },
+        phases=[
+            IdentificationPhase(
+                spatial_parameterisations={
+                    "yield_strength": [
+                        SliceWiseSpatialParameterisation(
+                            support=shared_support,
+                        )
+                    ],
+                    "hardening_modulus": [
+                        SliceWiseSpatialParameterisation(
+                            support=shared_support,
+                        )
+                    ],
+                },
+                metrics=[
+                    SliceWiseForceReconstructionMetric(
+                        support=shared_support,
+                    )
+                ],
+                objective_function=VectorFirstResultPassthrough(),
+                optimiser=SliceWiseIndependentLeastSquares(),
+            )
+        ],
+    )
+
+    identified_parameters = run_identification(
+        experiment_data,
+        identification,
+    )
+
+    assert identified_parameters["yield_strength"].map.shape == (
+        experiment_data.specimen_geometry.x.shape
+    )
+    assert identified_parameters["hardening_modulus"].map.shape == (
+        experiment_data.specimen_geometry.x.shape
     )

@@ -259,30 +259,13 @@ class PhaseSpatialState:
         return PhaseSpatialState(copy.deepcopy(self.spatial_parameterisations))
 
     def prepare(self, experiment_data: ExperimentData) -> None:
-        # Prepare any shared supports
+        """Prepare any shared supports required by the phase runtime."""
+
         for support in self.supports:
             prepare = getattr(support, "prepare", None)
             if prepare is None:
                 continue
-            # Execute the support's prepare() method
-            # e.g. for SupportSlice build the slicewise partition using experiment_data
             prepare(experiment_data)
-
-        # Synchronise any spatial parameterisations that have a _sync_from_support() method
-        for spatial_parameterisations in self.spatial_parameterisations.values():
-            for spatial_parameterisation in spatial_parameterisations:
-                sync_from_support = getattr(
-                    spatial_parameterisation,
-                    "_sync_from_support",
-                    None,
-                )
-                if sync_from_support is None:
-                    continue
-
-                # Execute the spatial parameterisation's _sync_from_support() method
-                # e.g. for SliceWiseSpatialParameterisation update the parameterisation object
-                # slice_partition and slice_config from support
-                sync_from_support()
 
     def get_num_degrees_of_freedom(self) -> int:
         return sum(

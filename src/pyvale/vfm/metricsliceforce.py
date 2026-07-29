@@ -183,7 +183,7 @@ def _filter_operator_points(
     )
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class SliceWiseForceReconstructionMetric(IMetric):
     """Area-based slice force reconstruction metric.
 
@@ -195,42 +195,44 @@ class SliceWiseForceReconstructionMetric(IMetric):
     between each slice region and the native DIC support cells.
     """
 
-    support: SupportSlice | None = None
-    slice_partition: SliceAreaPartition | None = None
-    slice_config: SliceConfig | None = None
+    support: SupportSlice
 
-    def __post_init__(self) -> None:
-        if self.support is None:
-            self.support = SupportSlice(
-                slice_partition=self.slice_partition,
-                slice_config=self.slice_config,
+    def __init__(
+        self,
+        support: SupportSlice | None = None,
+        slice_partition: SliceAreaPartition | None = None,
+        slice_config: SliceConfig | None = None,
+    ) -> None:
+        if support is None:
+            support = SupportSlice(
+                slice_partition=slice_partition,
+                slice_config=slice_config,
             )
-        elif self.slice_partition is not None or self.slice_config is not None:
+        elif slice_partition is not None or slice_config is not None:
             raise ValueError(
                 "Provide either support or slice_partition/slice_config."
             )
-        self._sync_from_support()
+        self.support = support
 
-    def _sync_from_support(self) -> None:
-        if self.support is None:
-            return
-        self.slice_partition = self.support.slice_partition
-        self.slice_config = self.support.slice_config
+    @property
+    def slice_partition(self) -> SliceAreaPartition | None:
+        return self.support.slice_partition
+
+    @property
+    def slice_config(self) -> SliceConfig | None:
+        return self.support.slice_config
 
     def set_support(
         self,
         support: SupportSlice,
     ) -> None:
         self.support = support
-        self._sync_from_support()
 
     def initialise_slice_partition(
         self,
         specimen_geometry: SpecimenGeometry,
     ) -> None:
-        assert self.support is not None
         self.support.prepare_from_specimen_geometry(specimen_geometry)
-        self._sync_from_support()
 
     def initialise(
         self,

@@ -5,16 +5,9 @@ from pyvale.vfm.identificationconfig import IdentificationConfig
 from pyvale.vfm.identificationconfig import IdentificationPhase
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
-from pyvale.vfm.slicewise_utils import (
-    slice_partition_matches_config,
-    slice_partitions_are_equivalent,
-)
 from pyvale.vfm.spatialparam import get_num_degrees_of_freedom
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
-from pyvale.vfm.spatialparamslicewise import (
-    SliceWiseSpatialParameterisation,
-    SupportSlice,
-)
+from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 
 # TODO:
 # - check x,y pixel_area, syrain (y,x) dims have same shape 
@@ -297,61 +290,6 @@ def validate_identification_config(
             )
 
 
-def _slice_configs_are_equivalent(
-    config_a,
-    config_b,
-) -> bool:
-    if config_a is config_b:
-        return True
-    if config_a is None or config_b is None:
-        return False
-    if config_a.axis != config_b.axis:
-        return False
-
-    boundaries_a = config_a.boundaries
-    boundaries_b = config_b.boundaries
-    if boundaries_a is not None or boundaries_b is not None:
-        if boundaries_a is None or boundaries_b is None:
-            return False
-        return (
-            boundaries_a.shape == boundaries_b.shape
-            and np.allclose(boundaries_a, boundaries_b)
-        )
-
-    return config_a.num_slices == config_b.num_slices
-
-
-def _slice_supports_are_compatible(
-    support_a: SupportSlice,
-    support_b: SupportSlice,
-) -> bool:
-    if support_a is support_b:
-        return True
-
-    if support_a.slice_partition is not None and support_b.slice_partition is not None:
-        return slice_partitions_are_equivalent(
-            support_a.slice_partition,
-            support_b.slice_partition,
-        )
-
-    if support_a.slice_partition is not None and support_b.slice_config is not None:
-        return slice_partition_matches_config(
-            support_a.slice_partition,
-            support_b.slice_config,
-        )
-
-    if support_b.slice_partition is not None and support_a.slice_config is not None:
-        return slice_partition_matches_config(
-            support_b.slice_partition,
-            support_a.slice_config,
-        )
-
-    return _slice_configs_are_equivalent(
-        support_a.slice_config,
-        support_b.slice_config,
-    )
-
-
 def validate_slicewise_independent_phase(
     phase: IdentificationPhase,
     phase_index: int,
@@ -394,8 +332,9 @@ def validate_slicewise_independent_phase(
                 "must define a slice support when used for independent slice-wise identification."
             )
 
-        if not _slice_supports_are_compatible(sp.support, slice_metric.support):
+        if sp.support is not slice_metric.support:
             raise ValueError(
-                f"phase {phase_index} parameter '{param_name}': slicewise support declaration "
-                "does not match the slice-force metric support (required for independent slice-wise identification)."
+                f"phase {phase_index} parameter '{param_name}': independent slice-wise identification "
+                "requires this parameterisation to reference the same SupportSlice object as the "
+                "slice-force metric."
             )

@@ -71,10 +71,9 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
 
         _validate_slice_parameterisations(spatial_parameterisations, slice_metric)
 
-        optimised_spatial_parameterisations = {
-            param_name: copy.deepcopy(sps)
-            for param_name, sps in spatial_parameterisations.items()
-        }
+        optimised_spatial_parameterisations = copy.deepcopy(
+            spatial_parameterisations
+        )
 
         # Solve each slice indentently, updating the optimised parameterisations in place
         # Note: could be parallised in future if required
