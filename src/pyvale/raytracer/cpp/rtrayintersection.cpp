@@ -802,27 +802,85 @@ Eigen::Vector2d nodes_gh[6] = {
     {0,0}, {1,0}, {0,1}, {0.5,0}, {0.5,0.5}, {0,0.5}
 };
 
-double intersect_tri6(const Ray &ray,
-    const std::array<EiVector3d, ElementNodeCount::TRI6> nodes,
-    EiVector3d &surface_normals_out,
-    Eigen::Vector2d &uv) {
+// Parametric coordinates for the adaptive hull construction
+EiVector2d uv_nodes[6] = {
+    {0.0,0.0},
+    {1.0,0.0},
+    {0.0,1.0},
+    {0.5,0.0},
+    {0.5,0.5},
+    {0.0,0.5}
+};
+const int edge_nodes[3][3] =
+{
+    {0,3,1},
+    {1,4,2},
+    {2,5,0}
+};
+
+struct InitialGuess
+{
+    bool valid = false;
+    Eigen::Vector2d gh;
+    double t;
+};
+
+inline double edgeFunction(
+    const EiVector2d& a,
+    const EiVector2d& b,
+    const EiVector2d& p)
+{
+    return (p.x() - a.x()) * (b.y() - a.y())
+         - (p.y() - a.y()) * (b.x() - a.x());
+}
+
+bool barycentric_test(
+    EiVector2d p,
+    EiVector2d a,
+    EiVector2d b,
+    EiVector2d c,
+    EiVector3d& bc)
+{
+    EiVector2d v0=b-a;
+    EiVector2d v1=c-a;
+    EiVector2d v2=p-a;
+
+    double d00=v0.dot(v0);
+    double d01=v0.dot(v1);
+    double d11=v1.dot(v1);
+    double d20=v2.dot(v0);
+    double d21=v2.dot(v1);
+
+    double denom=d00*d11-d01*d01;
+    if(std::abs(denom)<1e-12) return false;
+
+    double v=(d11*d20-d01*d21)/denom;
+    double w=(d00*d21-d01*d20)/denom;
+    double u=1.0-v-w;
+
+    bc={u,v,w};
+
+    return u>=0 && v>=0 && w>=0;
+}
+
+
+InitialGuess compute_initial_guess_tri6_V0(
+    const Ray& ray,
+    const std::array<EiVector3d,6>& nodes)
+{
+    /*
+    Initial guess based on linear triangle intersection, 
+    i.e. split TRI6 into four TRI3
+    */
+
+    InitialGuess result;
 
     // Set precision parameters
     const double eps_init_guess1 = 1e-10;
     const double eps_init_guess2 = 0.1;
     const double eps_t = 1e-5;
 
-    const double eps_sol1 = 1e-7;
-    const double eps_sol2 = 1e-8;
-    const double eps_sol3 = 1e-10;
-
-    // Find initial guess based on linear triangle intersection
-    double min_t = std::numeric_limits<double>::infinity();
-    bool intersect = false;
-
     double best_sub_t = std::numeric_limits<double>::infinity();
-    Eigen::Vector2d best_gh_guess(0.33, 0.33);
-    bool found_guess = false;
 
     for (int s = 0; s < 4; ++s) {
         EiVector3d nodes_0 = nodes[sub_tris[s][0]];
@@ -856,73 +914,290 @@ double intersect_tri6(const Ray &ray,
             best_sub_t = t_sub;
 
             double w_sub = 1.0 - u_sub - v_sub;
-            best_gh_guess =
+
+            result.valid = true;
+            result.gh =
                 w_sub * nodes_gh[sub_tris[s][0]] +
                 u_sub * nodes_gh[sub_tris[s][1]] +
                 v_sub * nodes_gh[sub_tris[s][2]];
-
-            found_guess = true;
+            result.t = t_sub;
         }
     }
+
+    // Uncomment this if all rays need to go through Newton solver
+    // if (!result.valid) {
+    //     result.valid = true;
+    //     result.gh = Eigen::Vector2d(1.0 / 3.0, 1.0 / 3.0);
+    //     Eigen::VectorXd N = 
+    //         shapefuncs::compute_shape_tri6(result.gh.x(), result.gh.y());
+    //     EiVector3d P = EiVector3d::Zero();
+    //     for (int i = 0; i < 6; ++i)
+    //         P += N[i] * nodes[i];
+    //     result.t = (P - ray.origin).dot(ray.direction);
+    // }
+
+
+    return result;
+
+};
+
+InitialGuess compute_initial_guess_tri6_V1(
+    const Ray& ray,
+    const std::array<EiVector3d,6>& nodes)
+{
+    /*
+    Initial guess based on the projected adaptive hull:
+        1. Project the curved element into the plane normal to the ray
+        2. Approximate its boundary by a adaptive hull
+        3. Triangulate adaptive hull with a fan.
+        4. Find which fan triangle contains the projected ray
+        5. Compute barycentric coordinates in that fan triangle
+        6. Apply those same barycentric coordinates to the corresponding points in the reference triangle
+        7. Calculate t from projection on ray direction
+    */
+    
+    InitialGuess result;
+
+    // Build ray coordinate system, i.e. plane perpendicular to the ray
+    EiVector3d ez = ray.direction.normalized();
+
+    EiVector3d tmp =
+        (std::abs(ez.x()) < 0.9)
+            ? EiVector3d{1.0, 0.0, 0.0}
+            : EiVector3d{0.0, 1.0, 0.0};
+
+    EiVector3d ex = ez.cross(tmp).normalized();
+    EiVector3d ey = ez.cross(ex);
+
+
+    // Project nodes onto plane perpendicular to ray
+    EiVector2d proj[6];
+
+    for(int i=0;i<6;i++)
+    {
+        EiVector3d d = nodes[i]-ray.origin;
+        proj[i] = {d.dot(ex), d.dot(ey)};
+    }
+
+    double winding = edgeFunction(proj[0], proj[1], proj[2]);
+
+
+    // Construct adaptive hull
+    std::vector<EiVector2d> hull;
+    std::vector<EiVector2d> hull_uv;
+
+    for (int e = 0; e < 3; e++)
+    {
+        int a = edge_nodes[e][0];
+        int m = edge_nodes[e][1];
+        int b = edge_nodes[e][2];
+    
+        EiVector2d A = proj[a];
+        EiVector2d M = proj[m];
+        EiVector2d B = proj[b];
+    
+        EiVector2d uvA = uv_nodes[a];
+        EiVector2d uvM = uv_nodes[m];
+        EiVector2d uvB = uv_nodes[b];
+
+        double ef = edgeFunction(A, B, M);
+
+        if (winding < 0.0)
+            ef = -ef;
+
+        bool use_midpoint = (ef >= 0.0);
+
+        EiVector2d support;
+        EiVector2d support_uv;
+        EiVector2d D;
+
+        if (use_midpoint) // Concave edge
+        {
+            support = M;
+            support_uv = uv_nodes[m];
+        }
+        else // Convex edge
+        {
+            // Bézier control point
+            support = 2.0 * M - 0.5 * (A + B);
+
+            // Modified Bézier control point with buffer
+            // double buffer = 11.0;
+            // EiVector2d D = M - 0.5*(A + B);
+            // A = A + buffer*D;
+            // B = B + buffer*D;
+            // support = M + buffer*D;
+
+            support_uv = uv_nodes[m];
+
+        }
+
+        hull.push_back(A);
+        hull_uv.push_back(uvA);
+
+        hull.push_back(support);
+        hull_uv.push_back(support_uv);
+    
+        hull.push_back(B);
+        hull_uv.push_back(uvB);
+    }
+
+    
+    // Compute centroid
+    EiVector2d center(0,0);
+    for(auto &v:hull)
+        center+=v;
+    center/=double(hull.size());
+
+    // center = EiVector2d(0,0);
+
+    EiVector2d center_uv(0,0);
+    for(auto& uv : hull_uv)
+        center_uv += uv;
+    center_uv /= double(hull_uv.size());
+
+
+    // Search the fan for intersection with the projected ray
+    EiVector2d P(0,0);
+
+    for(size_t i=0;i<hull.size();i++)
+    {
+        size_t j=(i+1)%hull.size();
+
+        EiVector3d bc;
+
+        if(!barycentric_test(P, center, hull[i], hull[j], bc))
+            continue;
+
+        result.gh =
+              bc.x()*center_uv
+            + bc.y()*hull_uv[i]
+            + bc.z()*hull_uv[j];
+
+        result.gh = result.gh.cwiseMax(0.0).cwiseMin(1.0);
+        if (result.gh.x() + result.gh.y() > 1.0)
+        {
+            double s = result.gh.x() + result.gh.y();
+            result.gh /= s;
+        }
+
+        // t from projection on ray direction
+
+        Eigen::VectorXd N =
+            shapefuncs::compute_shape_tri6(result.gh.x(), result.gh.y());
+
+        EiVector3d X=EiVector3d::Zero();
+
+        for(int k=0;k<6;k++)
+            X+=N[k]*nodes[k];
+
+        result.t = (X - ray.origin).dot(ray.direction);
+
+        result.valid = true;
+        return result;
+    }
+
+
+    // Uncomment this if all rays need to go through Newton solver
+    // if (!result.valid) {
+    //     result.valid = true;
+    //     result.gh = Eigen::Vector2d(1.0 / 3.0, 1.0 / 3.0);
+    //     Eigen::VectorXd N = 
+    //         shapefuncs::compute_shape_tri6(result.gh.x(), result.gh.y());
+    //     EiVector3d P = EiVector3d::Zero();
+    //     for (int i = 0; i < 6; ++i)
+    //         P += N[i] * nodes[i];
+    //     result.t = (P - ray.origin).dot(ray.direction);
+    // }
+
+    return result;
+}
+
+double intersect_tri6(const Ray &ray,
+    const std::array<EiVector3d, ElementNodeCount::TRI6> nodes,
+    EiVector3d &surface_normals_out,
+    Eigen::Vector2d &uv) {
+
+    // Set precision parameters
+    const double eps_t = 1e-5;
+
+    const double eps_sol1 = 1e-7;
+    const double eps_sol2 = 1e-8;
+    const double eps_sol3 = 1e-10;
+
+    // Find initial guess and confirm that it is valid
+    InitialGuess guess = compute_initial_guess_tri6_V1(ray, nodes);
+    if (!guess.valid)
+        return std::numeric_limits<double>::infinity();
 
     // Search for the intersection if the initial guess is found
-    if (found_guess) {
-        Eigen::Vector2d gh = best_gh_guess;
-        double t = best_sub_t;
+    double min_t = std::numeric_limits<double>::infinity();
+    bool converged = false;
+    Eigen::Vector2d gh = guess.gh;
+    double t = guess.t;
 
-        for (int iter = 0; iter < iter_max; ++iter) {
-            Eigen::VectorXd N = shapefuncs::compute_shape_tri6(gh.x(), gh.y());
+    // Uncomment this and comment out Newton solver if just initial guesses are required
+    // converged = true;
+    // min_t = t;
+    // Eigen::Matrix<double, 3, 2> J =
+    //     shapefuncs::get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
+    // EiVector3d normal =
+    //     (J.col(0).cross(J.col(1))).transpose();
+    // surface_normals_out = normal;
+    // uv = gh;
     
-            EiVector3d P = EiVector3d::Zero();
-            for (int i = 0; i < 6; ++i)
-                P += N[i] * nodes[i];
+    for (int iter = 0; iter < iter_max; ++iter) {
+        Eigen::VectorXd N = shapefuncs::compute_shape_tri6(gh.x(), gh.y());
+
+        EiVector3d P = EiVector3d::Zero();
+        for (int i = 0; i < 6; ++i)
+            P += N[i] * nodes[i];
+
+        EiVector3d residual = ray.origin + t * ray.direction - P;
+
+        if (residual.norm() < eps_sol1) {
+            if (gh.x() >= 0 - eps_sol2 &&
+                gh.y() >= 0 - eps_sol2 &&
+                (gh.x() + gh.y()) <= 1 + eps_sol2)
+                {
+                    if (t < min_t && t > eps_t) {
+                        min_t = t;
     
-            EiVector3d residual = ray.origin + t * ray.direction - P;
+                        Eigen::Matrix<double, 3, 2> J =
+                            shapefuncs::get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
     
-            if (residual.norm() < eps_sol1) {
-                if (gh.x() >= 0 - eps_sol2 &&
-                    gh.y() >= 0 - eps_sol2 &&
-                    (gh.x() + gh.y()) <= 1 + eps_sol2)
-                    {
-                        if (t < min_t && t > eps_t) {
-                            min_t = t;
-        
-                            Eigen::Matrix<double, 3, 2> J =
-                                shapefuncs::get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
-        
-                            EiVector3d normal =
-                                (J.col(0).cross(J.col(1))).transpose();
-        
-                            surface_normals_out = normal;
-                            uv = gh;
-                            intersect = true;
-                        }
+                        EiVector3d normal =
+                            (J.col(0).cross(J.col(1))).transpose();
+    
+                        surface_normals_out = normal;
+                        uv = gh;
+                        converged = true;
                     }
-                break;
-            }
-    
-            Eigen::Matrix<double, 3, 2> J =
-                shapefuncs::get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
-    
-            Eigen::Matrix3d M;
-            M.col(0) = ray.direction.transpose();
-            M.col(1) = -J.col(0);
-            M.col(2) = -J.col(1);
-    
-            if (std::abs(M.determinant()) < eps_sol3) break;
-    
-            Eigen::Vector3d delta = M.inverse() * (-residual.transpose());
-    
-            t += delta.x();
-            gh.x() += delta.y();
-            gh.y() += delta.z();
-    
-            if (gh.x() < -0.5 || gh.y() < -0.5 || (gh.x() + gh.y()) > 1.5)
-                break;
+                }
+            break;
         }
+
+        Eigen::Matrix<double, 3, 2> J =
+            shapefuncs::get_face_Jacobian_tri6(gh.x(), gh.y(), nodes);
+
+        Eigen::Matrix3d M;
+        M.col(0) = ray.direction.transpose();
+        M.col(1) = -J.col(0);
+        M.col(2) = -J.col(1);
+
+        if (std::abs(M.determinant()) < eps_sol3) break;
+
+        Eigen::Vector3d delta = M.inverse() * (-residual.transpose());
+
+        t += delta.x();
+        gh.x() += delta.y();
+        gh.y() += delta.z();
+
+        if (gh.x() < -0.5 || gh.y() < -0.5 || (gh.x() + gh.y()) > 1.5)
+            break;
     }
 
-    return intersect ? min_t : std::numeric_limits<double>::infinity();
+    return converged ? min_t : std::numeric_limits<double>::infinity();
 }
 
 IntersectionOutput intersect_bvh_tri6(const Ray& ray,
