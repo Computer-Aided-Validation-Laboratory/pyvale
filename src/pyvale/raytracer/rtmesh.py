@@ -2740,7 +2740,10 @@ def simdata_csv_to_rtmesh(directory: Path,
         connectivity = _read_connectivity(directory / "connect.csv")
     except FileNotFoundError: # Sometimes stored under different name
         connectivity = _read_connectivity(directory / "connectivity.csv")
-    coords = _read_coords(directory / "coords.csv") * 1000
+    if connectivity.ndim == 1:
+        print(f"Warning: Adding dimention to the connectivity array.")
+        connectivity = connectivity[np.newaxis, ...]
+    coords = _read_coords(directory / "coords.csv")
     uvs = _read_uvs(directory / "uvs.csv")
     nodal_displacements = None
     try:
