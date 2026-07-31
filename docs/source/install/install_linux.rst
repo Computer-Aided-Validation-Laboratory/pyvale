@@ -89,6 +89,13 @@ manager with:
    sudo apt update
    sudo apt install gcc
 
+You will also need the ``libtiff-dev`` development package which can be installed
+with:
+
+.. code-block:: bash
+
+   sudo apt install libtiff-dev
+
 For the ROI tool, you'll need the `Interactive ROI dependencies`_.
 Once done, you can clone ``pyvale`` to your local system using:
 
