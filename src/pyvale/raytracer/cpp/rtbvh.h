@@ -148,6 +148,38 @@ struct AABB {
         // Diagonal of rectangular prism
         return std::sqrt(std::pow(corner_max[0] - corner_min[0], 2) + std::pow(corner_max[1] - corner_min[1], 2) + std::pow(corner_max[2] - corner_min[2], 2));
     }
+
+    // inline void expand(double buffer)
+    // {
+    //     for (int i = 0; i < 3; ++i)
+    //     {
+    //         corner_min[i] -= buffer;
+    //         corner_max[i] += buffer;
+    //     }
+    // }
+
+    inline void expand(double relative_buffer = 1e-4,
+                   double minimum_buffer = 1e-9)
+    {
+        // Characteristic size of the box
+        const double dx = corner_max[0] - corner_min[0];
+        const double dy = corner_max[1] - corner_min[1];
+        const double dz = corner_max[2] - corner_min[2];
+    
+        // Use the largest edge as the reference length
+        const double max_extent = std::max({dx, dy, dz});
+    
+        // Buffer is a fraction of the element size,
+        // but never smaller than the minimum.
+        const double buffer = std::max(relative_buffer * max_extent,
+                                       minimum_buffer);
+    
+        for (int i = 0; i < 3; ++i)
+        {
+            corner_min[i] -= buffer;
+            corner_max[i] += buffer;
+        }
+    }
 };
 
 /**
@@ -428,6 +460,8 @@ static void process_element_data(size_t mesh_number_of_elements,
         // Create bounding volume for this element
         AABB element_aabb;
         element_aabb.build_for_element(&element_node_coords[0], nodes_per_element);
+        // element_aabb.expand(10);     // Buffer in absolute terms (old version)
+        element_aabb.expand(1e-1); // Buffer in relative terms, here 10% of largest edge
         mesh_element_aabbs.push_back(element_aabb);
         //std::cout << "AABB max " << element_aabb.corner_max[0] << " " << element_aabb.corner_max[1] << " " << element_aabb.corner_max[2] << std::endl;
         //std::cout << "AABB min " << element_aabb.corner_min[0] << " " << element_aabb.corner_min[1] << " " << element_aabb.corner_min[2] << std::endl;
