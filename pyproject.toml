@@ -22,11 +22,10 @@ requires-python = "==3.13.*"
 dependencies = [
   "numpy>=2.0.0",
   "scipy>=1.14.0",
-  "shapely>=2.0.0",
   "matplotlib>=3.8",
   "pyvista>=0.43.3",
   "vtk>=9.5.2",
-  "netCDF4>=1.6.5",
+  "netCDF4>=1.6.5",  
   "sympy>=1.13.0",
   "PyQT6>=6.7.1",
   "imageio>=2.36.1",
