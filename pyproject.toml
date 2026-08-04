@@ -1,12 +1,6 @@
 [build-system]
-requires = [
-  "setuptools>=61.0",
-  "wheel",
-  "Cython>=3.0.0",
-  "numpy>=2.0.0",
-  "pybind11>=2.13.6",
-  "scikit-build-core>=0.11.6",
-]
+requires = ["setuptools>=61.0", "wheel", "Cython>=3.0.0", "numpy>=2.0.0",
+    "pybind11>=2.13.6", "scikit-build-core>=0.11.6"]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -35,7 +29,6 @@ dependencies = [
   "pyqtgraph>=0.13.7",
   "opencv-python>=4.13.0.92",
   "pandas>=2.3.1",
-  "shapely>=2.1.2",
 ]
 
 [dependency-groups]
@@ -78,13 +71,16 @@ dev = [
   "trame",
   "trame-vtk",
   "trame-vuetify",
-  "urllib3",
+  "urllib3"
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "tests"]
+pythonpath = [
+    "src",
+    "tests"
+]
 filterwarnings = [
-  "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning",
+    "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning"
 ]
 
 [project.urls]
