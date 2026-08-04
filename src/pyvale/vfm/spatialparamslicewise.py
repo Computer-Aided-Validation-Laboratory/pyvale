@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import copy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -35,25 +35,10 @@ class SupportSlice:
 
     slice_partition: SliceAreaPartition | None = None
     slice_config: SliceConfig | None = None
-    refine: bool = False
-    merge_parameter_tolerance: float = 0.05
-    split_error_threshold: float = 0.1
-    max_refinements: int = 1
-    _num_refinements: int = field(
-        default=0,
-        init=False,
-        repr=False,
-    )
 
     def __post_init__(self) -> None:
         if self.slice_partition is None and self.slice_config is None:
             raise ValueError("Provide either slice_partition or slice_config.")
-        if self.merge_parameter_tolerance < 0.0:
-            raise ValueError("merge_parameter_tolerance must be non-negative.")
-        if self.split_error_threshold < 0.0:
-            raise ValueError("split_error_threshold must be non-negative.")
-        if self.max_refinements < 0:
-            raise ValueError("max_refinements must be non-negative.")
 
     def prepare_from_specimen_geometry(
         self,
@@ -137,219 +122,6 @@ class SupportSlice:
         degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64],
     ) -> None:
         return
-
-    def should_perform_refinement(
-        self,
-        *,
-        parameter_maps: dict[str, npt.NDArray[np.float64]],
-        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-        force_error_ratio: npt.NDArray[np.float64] | None = None,
-    ) -> bool:
-        """Return True when the fresh post-solve state changes the partition."""
-
-        if not self.refine or self._num_refinements >= self.max_refinements:
-            return False
-        return self._build_refined_boundaries(
-            parameter_maps=parameter_maps,
-            spatial_parameterisations=spatial_parameterisations,
-            force_error_ratio=force_error_ratio,
-        ) is not None
-
-    def perform_refinement(
-        self,
-        *,
-        parameter_maps: dict[str, npt.NDArray[np.float64]],
-        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-        force_error_ratio: npt.NDArray[np.float64] | None = None,
-    ) -> None:
-        """Update slice boundaries using current maps and force diagnostics."""
-
-        refined_boundaries = self._build_refined_boundaries(
-            parameter_maps=parameter_maps,
-            spatial_parameterisations=spatial_parameterisations,
-            force_error_ratio=force_error_ratio,
-        )
-        if refined_boundaries is None:
-            return
-
-        assert self.slice_partition is not None
-        self.slice_config = SliceConfig(
-            axis=self.slice_partition.axis,
-            boundaries=refined_boundaries,
-        )
-        self.slice_partition = None
-        self._num_refinements += 1
-
-    def _build_refined_boundaries(
-        self,
-        *,
-        parameter_maps: dict[str, npt.NDArray[np.float64]],
-        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-        force_error_ratio: npt.NDArray[np.float64] | None,
-    ) -> npt.NDArray[np.float64] | None:
-        if self.slice_partition is None:
-            return None
-
-        num_slices = self.slice_partition.num_slices
-        merge_boundary_mask = self._get_merge_boundary_mask(
-            parameter_maps=parameter_maps,
-            spatial_parameterisations=spatial_parameterisations,
-        )
-        split_slice_mask = self._get_split_slice_mask(force_error_ratio)
-        if merge_boundary_mask is None:
-            merge_boundary_mask = np.zeros(max(num_slices - 1, 0), dtype=bool)
-        if split_slice_mask is None:
-            split_slice_mask = np.zeros(num_slices, dtype=bool)
-
-        # A high-error slice asks for more local resolution, so keep its
-        # existing neighbours even if the fitted parameter values are similar.
-        if merge_boundary_mask.size > 0:
-            merge_boundary_mask = (
-                merge_boundary_mask
-                & ~split_slice_mask[:-1]
-                & ~split_slice_mask[1:]
-            )
-
-        if not np.any(merge_boundary_mask) and not np.any(split_slice_mask):
-            return None
-
-        old_boundaries = self.slice_partition.boundaries
-        new_boundaries = [float(old_boundaries[0])]
-        for slice_index in range(num_slices):
-            if split_slice_mask[slice_index]:
-                new_boundaries.append(
-                    float(
-                        0.5
-                        * (
-                            old_boundaries[slice_index]
-                            + old_boundaries[slice_index + 1]
-                        )
-                    )
-                )
-            if (
-                slice_index < num_slices - 1
-                and not merge_boundary_mask[slice_index]
-            ):
-                new_boundaries.append(float(old_boundaries[slice_index + 1]))
-        new_boundaries.append(float(old_boundaries[-1]))
-
-        refined_boundaries = np.asarray(new_boundaries, dtype=np.float64)
-        if (
-            refined_boundaries.shape == old_boundaries.shape
-            and np.allclose(refined_boundaries, old_boundaries)
-        ):
-            return None
-        return refined_boundaries
-
-    def _get_merge_boundary_mask(
-        self,
-        *,
-        parameter_maps: dict[str, npt.NDArray[np.float64]],
-        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-    ) -> npt.NDArray[np.bool_] | None:
-        if self.slice_partition is None or self.slice_partition.num_slices < 2:
-            return None
-
-        parameter_names = self._get_refined_parameter_names(
-            spatial_parameterisations
-        )
-        if not parameter_names:
-            return None
-
-        merge_boundary_mask = np.ones(
-            self.slice_partition.num_slices - 1,
-            dtype=bool,
-        )
-        for parameter_name in parameter_names:
-            if parameter_name not in parameter_maps:
-                raise ValueError(
-                    f"No parameter map was supplied for '{parameter_name}'."
-                )
-            slice_values = self._calculate_slice_means(
-                parameter_maps[parameter_name]
-            )
-            value_scale = np.maximum(
-                np.maximum(
-                    np.abs(slice_values[:-1]),
-                    np.abs(slice_values[1:]),
-                ),
-                1.0e-12,
-            )
-            relative_difference = (
-                np.abs(slice_values[:-1] - slice_values[1:]) / value_scale
-            )
-            merge_boundary_mask &= (
-                np.isfinite(relative_difference)
-                & (relative_difference <= self.merge_parameter_tolerance)
-            )
-
-        if not np.any(merge_boundary_mask):
-            return None
-        return merge_boundary_mask
-
-    def _get_split_slice_mask(
-        self,
-        force_error_ratio: npt.NDArray[np.float64] | None,
-    ) -> npt.NDArray[np.bool_] | None:
-        if self.slice_partition is None or force_error_ratio is None:
-            return None
-
-        resolved_force_error_ratio = np.asarray(
-            force_error_ratio,
-            dtype=np.float64,
-        )
-        if resolved_force_error_ratio.shape != (self.slice_partition.num_slices,):
-            raise ValueError(
-                "Force reconstruction error ratio shape does not match the "
-                f"slice partition: {resolved_force_error_ratio.shape} vs "
-                f"({self.slice_partition.num_slices},)."
-            )
-
-        split_slice_mask = (
-            np.isfinite(resolved_force_error_ratio)
-            & (resolved_force_error_ratio > self.split_error_threshold)
-        )
-        if not np.any(split_slice_mask):
-            return None
-        return split_slice_mask
-
-    def _get_refined_parameter_names(
-        self,
-        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-    ) -> tuple[str, ...]:
-        parameter_names: list[str] = []
-        for parameter_name, parameterisation_list in spatial_parameterisations.items():
-            if any(
-                getattr(parameterisation, "support", None) is self
-                and parameterisation.get_num_degrees_of_freedom() > 0
-                for parameterisation in parameterisation_list
-            ):
-                parameter_names.append(parameter_name)
-        return tuple(parameter_names)
-
-    def _calculate_slice_means(
-        self,
-        parameter_map: npt.NDArray[np.float64],
-    ) -> npt.NDArray[np.float64]:
-        if self.slice_partition is None:
-            raise RuntimeError("Slice partition has not been resolved.")
-        if parameter_map.shape != self.slice_partition.slice_id_map.shape:
-            raise ValueError(
-                "Parameter map shape does not match the slice partition shape: "
-                f"{parameter_map.shape} vs {self.slice_partition.slice_id_map.shape}."
-            )
-
-        slice_means = np.full(
-            self.slice_partition.num_slices,
-            np.nan,
-            dtype=np.float64,
-        )
-        for slice_index in range(self.slice_partition.num_slices):
-            slice_mask = self.slice_partition.slice_id_map == slice_index
-            finite_values = parameter_map[slice_mask & np.isfinite(parameter_map)]
-            if finite_values.size > 0:
-                slice_means[slice_index] = float(np.mean(finite_values))
-        return slice_means
 
 
 @dataclass(slots=True, init=False)

@@ -5,6 +5,7 @@ from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.metric import IMetric
 from pyvale.vfm.objectivefunc import IObjectiveFunction
 from pyvale.vfm.optimiser import IOptimiser
+from pyvale.vfm.refinement import IRefinementPolicy
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 
@@ -32,6 +33,9 @@ class IdentificationPhase:
 
     optimiser: IOptimiser
     """Optimisation algorithm that drives the parameter search"""
+
+    refinement_policy: IRefinementPolicy | None = None
+    """Optional phase-level strategy for changing the spatial representation"""
 
 
 @dataclass(slots=True)

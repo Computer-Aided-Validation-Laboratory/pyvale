@@ -9,9 +9,9 @@ from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.identificationconfig import IdentificationConfig
 from pyvale.vfm.identificationconfig import IdentificationPhase
 from pyvale.vfm.metric import IMetric
-from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.refinement import IRefinementPolicy
+from pyvale.vfm.refinement import RefinementContext
 from pyvale.vfm.spatialparam import ISpatialParameterisation
-from pyvale.vfm.spatialparamslicewise import SupportSlice
 from pyvale.vfm.validation import (
     validate_experiment_data,
     validate_identification_config,
@@ -33,6 +33,7 @@ class PhaseRuntime:
 
     spatial_parameterisations: dict[str, list[ISpatialParameterisation]]
     metrics: list[IMetric]
+    refinement_policy: IRefinementPolicy | None = None
     spatial_state: PhaseSpatialState = field(init=False)
 
     def __post_init__(self) -> None:
@@ -90,8 +91,104 @@ class PhaseRuntime:
             else:
                 metric.support = replacement
 
+        if self.refinement_policy is not None:
+            target = getattr(self.refinement_policy, "target", None)
+            replacement = support_replacements.get(id(target))
+            if replacement is not None:
+                self.refinement_policy.target = replacement
+
         self.spatial_parameterisations = spatial_parameterisations
         self.rebuild_spatial_state()
+
+    def update_constitutive_parameter_maps(
+        self,
+        constitutive_parameters: dict[str, ConstitutiveParameter],
+        parameter_map_size: np.ndarray,
+    ) -> None:
+        """Write this phase's parameter maps back to the identification state."""
+
+        for param_name, parameterisation_list in self.spatial_parameterisations.items():
+            constitutive_parameters[param_name].map = evaluate_parameterisations_to_map(
+                parameterisation_list,
+                parameter_map_size,
+            )
+
+    def build_refinement_context(
+        self,
+        constitutive_law: IConstitutiveLaw,
+        constitutive_parameters: dict[str, ConstitutiveParameter],
+        parameter_map_size: np.ndarray,
+        experiment_data: ExperimentData,
+    ) -> RefinementContext:
+        """Build solved-state data for phase-level refinement policies."""
+
+        return RefinementContext(
+            experiment_data=experiment_data,
+            constitutive_law=constitutive_law,
+            constitutive_parameters=constitutive_parameters,
+            parameter_map_size=parameter_map_size,
+            parameter_maps={
+                param_name: np.asarray(parameter.map, dtype=np.float64)
+                for param_name, parameter in constitutive_parameters.items()
+            },
+        )
+
+    def collect_unique_supports(self) -> list[object]:
+        supports: list[object] = []
+        support_ids: set[int] = set()
+
+        for support in self.spatial_state.supports:
+            supports.append(support)
+            support_ids.add(id(support))
+
+        for metric in self.metrics:
+            support = getattr(metric, "support", None)
+            if support is None or id(support) in support_ids:
+                continue
+            supports.append(support)
+            support_ids.add(id(support))
+
+        return supports
+
+    def get_parameterisation(
+        self,
+        parameter_name: str,
+        index: int,
+    ) -> tuple[str, ISpatialParameterisation]:
+        return (
+            parameter_name,
+            self.spatial_parameterisations[parameter_name][index],
+        )
+
+    def get_parameterisations_using_support(
+        self,
+        support: object,
+    ) -> list[tuple[str, ISpatialParameterisation]]:
+        parameterisations: list[tuple[str, ISpatialParameterisation]] = []
+        for parameter_name, parameterisation_list in self.spatial_parameterisations.items():
+            for parameterisation in parameterisation_list:
+                if getattr(parameterisation, "support", None) is support:
+                    parameterisations.append((parameter_name, parameterisation))
+        return parameterisations
+
+    def resolve_support_target(
+        self,
+        target: object,
+    ) -> object:
+        if isinstance(target, tuple):
+            _, parameterisation = self.get_parameterisation(
+                target[0],
+                target[1],
+            )
+            return getattr(parameterisation, "support", parameterisation)
+
+        if isinstance(target, str):
+            for support in self.collect_unique_supports():
+                if getattr(support, "name", None) == target:
+                    return support
+            raise ValueError(f"No support named '{target}' was found.")
+
+        return target
 
 
 def _map_updated_supports(
@@ -117,139 +214,6 @@ def _map_updated_supports(
     return support_replacements
 
 
-def _collect_unique_supports(
-    phase_runtime: PhaseRuntime,
-) -> list[object]:
-    supports: list[object] = []
-    support_ids: set[int] = set()
-
-    for support in phase_runtime.spatial_state.supports:
-        supports.append(support)
-        support_ids.add(id(support))
-
-    for metric in phase_runtime.metrics:
-        support = getattr(metric, "support", None)
-        if support is None or id(support) in support_ids:
-            continue
-        supports.append(support)
-        support_ids.add(id(support))
-
-    return supports
-
-
-def _has_refinable_support(
-    phase_runtime: PhaseRuntime,
-) -> bool:
-    return any(
-        getattr(support, "refine", False)
-        for support in _collect_unique_supports(phase_runtime)
-    )
-
-
-def _update_constitutive_parameter_maps(
-    constitutive_parameters: dict[str, ConstitutiveParameter],
-    spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-    parameter_map_size: np.ndarray,
-) -> None:
-    """Write the current runtime parameter maps back to the identification state."""
-
-    for param_name, parameterisation_list in spatial_parameterisations.items():
-        constitutive_parameters[param_name].map = evaluate_parameterisations_to_map(
-            parameterisation_list,
-            parameter_map_size,
-        )
-
-
-def _build_support_slice_refinement_inputs(
-    phase_runtime: PhaseRuntime,
-    constitutive_law: IConstitutiveLaw,
-    constitutive_parameters: dict[str, ConstitutiveParameter],
-    experiment_data: ExperimentData,
-) -> tuple[
-    dict[str, np.ndarray],
-    dict[int, np.ndarray],
-]:
-    """Compute fresh post-solve maps, stress, and slice-force diagnostics."""
-
-    parameter_maps = {
-        param_name: np.asarray(parameter.map, dtype=np.float64)
-        for param_name, parameter in constitutive_parameters.items()
-    }
-    stress = constitutive_law.calculate_stress(
-        experiment_data.strain,
-        parameter_maps,
-    )
-
-    force_error_ratio_by_support_id: dict[int, np.ndarray] = {}
-    for metric in phase_runtime.metrics:
-        if not isinstance(metric, SliceWiseForceReconstructionMetric):
-            continue
-        result = metric.evaluate_force_recon_error(
-            stress,
-            experiment_data,
-        )
-        force_error_ratio_by_support_id[id(metric.support)] = (
-            result.weighted_temporal_rms
-        )
-
-    return parameter_maps, force_error_ratio_by_support_id
-
-
-def _perform_optional_refinement(
-    phase_runtime: PhaseRuntime,
-    experiment_data: ExperimentData,
-    *,
-    parameter_maps: dict[str, np.ndarray],
-    force_error_ratio_by_support_id: dict[int, np.ndarray],
-) -> bool:
-    """Refine the active runtime state and rebuild prepared supports if needed.
-
-    Shared supports are refined once before checking parameterisation-local
-    refinement. Support objects should be mutated in place so existing metric
-    and parameterisation references remain valid.
-    """
-
-    for support in _collect_unique_supports(phase_runtime):
-        if isinstance(support, SupportSlice):
-            force_error_ratio = force_error_ratio_by_support_id.get(id(support))
-            if not support.should_perform_refinement(
-                parameter_maps=parameter_maps,
-                spatial_parameterisations=phase_runtime.spatial_parameterisations,
-                force_error_ratio=force_error_ratio,
-            ):
-                continue
-            support.perform_refinement(
-                parameter_maps=parameter_maps,
-                spatial_parameterisations=phase_runtime.spatial_parameterisations,
-                force_error_ratio=force_error_ratio,
-            )
-            phase_runtime.prepare(experiment_data)
-            return True
-
-        should_refine = getattr(support, "should_perform_refinement", None)
-        perform_refinement = getattr(support, "perform_refinement", None)
-        if should_refine is None or perform_refinement is None:
-            continue
-        if not should_refine():
-            continue
-        perform_refinement()
-        phase_runtime.prepare(experiment_data)
-        return True
-
-    refined = False
-    for spatial_parameterisation_list in phase_runtime.spatial_parameterisations.values():
-        for spatial_parameterisation in spatial_parameterisation_list:
-            if not spatial_parameterisation.should_perform_refinement():
-                continue
-            spatial_parameterisation.perform_refinement()
-            refined = True
-
-    if refined:
-        phase_runtime.prepare(experiment_data)
-
-    return refined
-
-
 def prepare_phase_runtime(
     phase: IdentificationPhase,
     experiment_data: ExperimentData,
@@ -262,14 +226,19 @@ def prepare_phase_runtime(
     and metric state.
     """
 
-    # Copy spatial parameterisations and metrics together so any shared support
-    # objects declared by the caller remain shared in the runtime copies.
-    runtime_spatial_parameterisations, runtime_metrics = copy.deepcopy(
-        (phase.spatial_parameterisations, phase.metrics)
+    # Copy spatial parameterisations, metrics, and policy together so shared
+    # support objects and policy object-targets remain shared in runtime copies.
+    (
+        runtime_spatial_parameterisations,
+        runtime_metrics,
+        runtime_refinement_policy,
+    ) = copy.deepcopy(
+        (phase.spatial_parameterisations, phase.metrics, phase.refinement_policy)
     )
     phase_runtime = PhaseRuntime(
         spatial_parameterisations=runtime_spatial_parameterisations,
         metrics=runtime_metrics,
+        refinement_policy=runtime_refinement_policy,
     )
     phase_runtime.prepare(experiment_data)
     return phase_runtime
@@ -299,13 +268,13 @@ def run_identification(
                 )
 
                 while True:
-                    # Re-project the current constitutive maps onto the active
-                    # runtime parameterisation DOFs before each solve.
+                    # Project the current maps onto the active phase DOFs.
                     phase_runtime.initialise_from_constitutive_parameters(
                         identification_config.parameters,
                         parameter_map_size,
                     )
 
+                    # Optimise the active DOFs to minimise the objective.
                     optimised_spatial_parameterisations = phase.optimiser.optimise(
                         identification_config.constitutive_law,
                         parameter_map_size,
@@ -315,34 +284,31 @@ def run_identification(
                         experiment_data
                     )
 
+                    # Adopt optimiser output and update the global maps.
                     phase_runtime.adopt_spatial_parameterisations(
                         optimised_spatial_parameterisations
                     )
-                    _update_constitutive_parameter_maps(
+                    phase_runtime.update_constitutive_parameter_maps(
                         identification_config.parameters,
-                        phase_runtime.spatial_parameterisations,
                         parameter_map_size,
                     )
-                    if _has_refinable_support(phase_runtime):
-                        (
-                            refinement_parameter_maps,
-                            force_error_ratio_by_support_id,
-                        ) = _build_support_slice_refinement_inputs(
-                            phase_runtime,
-                            identification_config.constitutive_law,
-                            identification_config.parameters,
-                            experiment_data,
-                        )
-                    else:
-                        refinement_parameter_maps = {}
-                        force_error_ratio_by_support_id = {}
 
-                    if not _perform_optional_refinement(
-                        phase_runtime,
-                        experiment_data,
-                        parameter_maps=refinement_parameter_maps,
-                        force_error_ratio_by_support_id=force_error_ratio_by_support_id,
-                    ):
+                    if phase_runtime.refinement_policy is None:
                         break
+
+                    context = phase_runtime.build_refinement_context(
+                        identification_config.constitutive_law,
+                        identification_config.parameters,
+                        parameter_map_size,
+                        experiment_data,
+                    )
+                    action = phase_runtime.refinement_policy.propose(
+                        phase_runtime,
+                        context,
+                    )
+                    if action is None:
+                        break
+                    action.apply(phase_runtime, context)
+                    phase_runtime.prepare(experiment_data)
 
     return identification_config.parameters

@@ -19,6 +19,7 @@ from pyvale.vfm.identificationconfig import IdentificationConfig, Identification
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.objectivefuncvector import VectorWeightedObjective
 from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
+from pyvale.vfm.refinement import SliceMergeSplitRefinement
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 from pyvale.vfm.spatialparamslicewise import (
     SliceConfig,
@@ -95,16 +96,12 @@ def main() -> None:
     }
 
     # Shared object means shared evolution: both unknown parameters and the
-    # slice-force metric use the same refinable slice topology.
+    # slice-force metric use the same slice topology.
     shared_slice_support = SupportSlice(
         slice_config=SliceConfig(
             axis=SLICE_AXIS,
             num_slices=NUM_SLICES,
         ),
-        refine=True,
-        merge_parameter_tolerance=MERGE_PARAMETER_TOLERANCE,
-        split_error_threshold=SPLIT_FORCE_ERROR_THRESHOLD,
-        max_refinements=1,
     )
 
     # Define identification phases
@@ -133,6 +130,12 @@ def main() -> None:
             ],
             objective_function=VectorWeightedObjective(),
             optimiser=SliceWiseIndependentLeastSquares(),
+            refinement_policy=SliceMergeSplitRefinement(
+                target=shared_slice_support,
+                merge_parameter_tolerance=MERGE_PARAMETER_TOLERANCE,
+                split_error_threshold=SPLIT_FORCE_ERROR_THRESHOLD,
+                max_refinements=1,
+            ),
         )
     ]
 
