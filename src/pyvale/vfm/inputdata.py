@@ -4,7 +4,6 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.ansysloaddata import load_ansys_data
 from pyvale.vfm.experimentdata import (
     BoundaryConditions,
     EdgeConditions,
@@ -12,18 +11,39 @@ from pyvale.vfm.experimentdata import (
     SpecimenGeometry,
 )
 from pyvale.vfm.inputdataconfig import AnsysConfig, InputDataConfig, MooseConfig
+from pyvale.vfm.inputdataloadansys import load_ansys_data
+from pyvale.vfm.inputdataloadmoose import load_moose_data
 from pyvale.vfm.inputdataplots import _create_diagnostic_plots
-from pyvale.vfm.mooseloaddata import load_moose_data
 from pyvale.vfm.roi import VfmRegionOfInterest, convert_mask_to_physical_roi
 from pyvale.vfm.validation import validate_experiment_data
 
 
-# TODO: docs
-# returns path of newly created experiment data file
 def process_input_data(
     config: InputDataConfig,
     output_root: str | Path = "."
 ) -> Path:
+    """
+    Load, process, and save experiment data from a solver output.
+
+    Loads the raw field data described by ``config`` (from an Ansys or MOOSE
+    solve), builds an ``ExperimentData`` object, validates it, writes
+    diagnostic plots, and saves the result to a timestamped run directory
+    under ``output_root``.
+
+    Parameters
+    ----------
+    config : InputDataConfig
+        Solver-specific configuration describing the input data files and
+        specimen properties (``AnsysConfig`` or ``MooseConfig``)
+    output_root : str | Path, optional
+        Directory in which the timestamped run directory is created,
+        by default ``"."``
+
+    Returns
+    -------
+    Path
+        Path of the newly created ``experiment_data.yaml`` file
+    """
     if isinstance(config, AnsysConfig):
         x, y, strain, force, time = load_ansys_data(config)
     elif isinstance(config, MooseConfig):

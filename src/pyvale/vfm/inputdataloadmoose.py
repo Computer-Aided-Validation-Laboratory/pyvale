@@ -16,6 +16,27 @@ def load_moose_data(config: MooseConfig) -> tuple[
     npt.NDArray[np.float64],  # force, shape (timesteps, components)
     npt.NDArray[np.float64],  # time, shape (timesteps,)
 ]:
+    """
+    Load MOOSE exodus results and interpolate them onto a regular grid.
+
+    Reads the exodus file described by ``config``, interpolates the strain
+    field onto a regular grid following pyvale's coordinate conventions, and
+    loads the associated reaction force and time data.
+
+    Parameters
+    ----------
+    config : MooseConfig
+        Exodus file path, specimen dimensions, grid resolution, and field
+        keys for the MOOSE data
+
+    Returns
+    -------
+    tuple of npt.NDArray[np.float64]
+        ``(x, y, strain, force, time)`` where ``x`` and ``y`` are the grid
+        coordinates with shape ``(y, x)``, ``strain`` has shape
+        ``(timesteps, components, y, x)``, ``force`` has shape
+        ``(timesteps, components)``, and ``time`` has shape ``(timesteps,)``
+    """
     x, y, strain = _load_moose_strain(config)
     force = _load_moose_force(config)
     time = _load_moose_timesteps(config)

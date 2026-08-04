@@ -319,8 +319,8 @@ def interpolate_fe_point_cloud_to_grid(
 
     x_output = np.asarray(x_grid, dtype=np.float64).copy()
     y_output = np.asarray(y_grid, dtype=np.float64).copy()
-    x_output[~specimen_mask] = np.nan
-    y_output[~specimen_mask] = np.nan
+    # x_output[~specimen_mask] = np.nan
+    # y_output[~specimen_mask] = np.nan
 
     warnings: list[str] = []
     if nearest_fallback_count > 0:

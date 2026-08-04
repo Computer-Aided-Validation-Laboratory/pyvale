@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from pyvale.vfm.experimentdata import Edge, EdgeConditions, EEdgeCondition, ExperimentData
+from pyvale.vfm.experimentdata import (
+    Edge,
+    EdgeConditions,
+    EEdgeCondition,
+    ExperimentData,
+)
 from pyvale.vfm.inputdata import process_input_data
 from pyvale.vfm.inputdataconfig import (
     AnsysConfig,
@@ -72,14 +77,6 @@ def build_example_moose_config() -> InputDataConfig:
             ),
         )
     )
-
-
-def _print_output(x, y, strain, force, time) -> None:
-    print(f"  x     : shape={x.shape}")
-    print(f"  y     : shape={y.shape}")
-    print(f"  strain: shape={strain.shape}")
-    print(f"  force : shape={force.shape}")
-    print(f"  time  : shape={time.shape}")
 
 
 def main():

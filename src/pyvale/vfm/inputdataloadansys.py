@@ -1,11 +1,11 @@
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.feinterpdata import (
+from pyvale.vfm.inputdataconfig import AnsysConfig
+from pyvale.vfm.inputdatafeinterp import (
     interpolate_fe_point_cloud_to_grid,
     load_fe_point_cloud_from_txt_files,
 )
-from pyvale.vfm.inputdataconfig import AnsysConfig
 
 
 def load_ansys_data(config: AnsysConfig) -> tuple[
@@ -15,6 +15,27 @@ def load_ansys_data(config: AnsysConfig) -> tuple[
     npt.NDArray[np.float64],  # force, shape (timesteps, components)
     npt.NDArray[np.float64],  # time, shape (timesteps,)
 ]:
+    """
+    Load Ansys FE results and interpolate them onto a regular grid.
+
+    Builds a point cloud from the per-component txt files described by
+    ``config``, interpolates the strain data onto a regular grid, and loads
+    the associated reaction force and time data.
+
+    Parameters
+    ----------
+    config : AnsysConfig
+        Paths and interpolation settings for the Ansys data files
+
+    Returns
+    -------
+    tuple of npt.NDArray[np.float64]
+        ``(x, y, strain, force, time)`` where ``x`` and ``y`` are the grid
+        coordinates with shape ``(y, x)``, ``strain`` has shape
+        ``(timesteps, components, y, x)``, ``force`` has shape
+        ``(timesteps, components)``, and ``time`` has shape ``(timesteps,)``
+    """
+
     # Build the FE point cloud from the separate per-component txt files.
     point_cloud = load_fe_point_cloud_from_txt_files(
         config.x_file,

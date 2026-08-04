@@ -23,14 +23,14 @@ class SpecimenGeometry:
     """
     x-coordinates at each grid point, shape ``(y, x)`` (mm).
 
-    Always positive, increasing left to right (column index)
+    Increasing left to right (column index)
     """
 
     y: npt.NDArray[np.float64]
     """
     y-coordinates at each grid point, shape ``(y, x)`` (mm).
 
-    Always positive, increasing top to bottom (row index)
+    Increasing top to bottom (row index)
     """
 
     pixel_area: npt.NDArray[np.float64]
@@ -39,8 +39,10 @@ class SpecimenGeometry:
     thickness: float
     """Out-of-plane thickness of the specimen (mm)"""
 
-    # TODO: docstring
     region_of_interest: VfmRegionOfInterest
+    """
+    Region of interest defining which part of the specimen contains valid data
+    """
 
 
 class EEdgeCondition(enum.Enum):

@@ -24,6 +24,7 @@ from pyvale.vfm.identificationconfig import (
 from pyvale.vfm.metricsbvf import MetricSBVF
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
+from pyvale.vfm.roi import VfmRegionOfInterest, convert_mask_to_physical_roi
 from pyvale.vfm.spatialparamhomogeneous import (
     SpatialParameterisationHomogeneous,
 )
@@ -146,6 +147,15 @@ def _setup_experiment_data() -> ExperimentData:
 
     specimen_mask = ~np.isnan(strain[0, 0, :, :])
 
+    roi = VfmRegionOfInterest.from_definition(
+        convert_mask_to_physical_roi(
+            specimen_mask,
+            x_grid,
+            y_grid,
+            simplification_pixels=0.0
+        )
+    )
+
     grid_element_area = (
         (x_grid[0, 1] - x_grid[0, 0]) * (y_grid[1, 0] - y_grid[0, 0])
     )
@@ -153,9 +163,9 @@ def _setup_experiment_data() -> ExperimentData:
     specimen_geometry = SpecimenGeometry(
         x_grid,
         y_grid,
-        specimen_mask,
-        PLATE_THICKNESS,
         np.full_like(x_grid, grid_element_area, dtype=np.float64),
+        PLATE_THICKNESS,
+        roi
     )
 
     # seems to be an issue with FE input force data being 1000x too large

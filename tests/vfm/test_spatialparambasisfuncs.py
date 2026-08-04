@@ -28,6 +28,7 @@ from pyvale.vfm.identificationconfig import (
 from pyvale.vfm.metricsbvf import MetricSBVF
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
+from pyvale.vfm.roi import VfmRegionOfInterest, convert_mask_to_physical_roi
 from pyvale.vfm.spatialparambasisfuncs import (
     SpatialParameterisationBasisFunction,
 )
@@ -50,7 +51,7 @@ INIT_MAX_ABS_DIFF_TOLERANCE = 0.01 * BUMP_HEIGHT  # 1% of the peak
 INIT_ABS_PERC_DIFF_TOLERANCE = 1.0  # %, evaluated where the target is large
 SIGNIFICANCE_FRACTION = 0.1  # fraction of the peak above which a point counts
 
-PLOT_INITIALISATION = True
+PLOT_INITIALISATION = False
 
 # ---------------------------------------------------------------------------
 # Test 2: identification of a heterogeneous yield strength field
@@ -81,7 +82,7 @@ KNOWN_HARDENING_MODULUS = 1_000.0  # MPa
 IDENT_ABS_DIFF_RMS_TOLERANCE = 20.0  # MPa
 IDENT_ABS_PERC_DIFF_TOLERANCE = 10.0  # %
 
-PLOT_IDENTIFICATION = True
+PLOT_IDENTIFICATION = False
 
 
 def _make_diagonal_bump_map(
@@ -285,12 +286,21 @@ def _setup_experiment_data() -> ExperimentData:
         (x_grid[0, 1] - x_grid[0, 0]) * (y_grid[1, 0] - y_grid[0, 0])
     )
 
+    roi = VfmRegionOfInterest.from_definition(
+        convert_mask_to_physical_roi(
+            specimen_mask,
+            x_grid,
+            y_grid,
+            simplification_pixels=0.0
+        )
+    )
+
     specimen_geometry = SpecimenGeometry(
         x_grid,
         y_grid,
-        specimen_mask,
-        PLATE_THICKNESS,
         np.full_like(x_grid, grid_element_area, dtype=np.float64),
+        PLATE_THICKNESS,
+        roi
     )
 
     # seems to be an issue with FE input force data being 1000x too large
