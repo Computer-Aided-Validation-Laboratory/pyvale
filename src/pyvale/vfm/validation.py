@@ -63,16 +63,20 @@ def validate_experiment_data(
                 f"{field_name} must be float64, got {array.dtype}"
             )
 
-    region_of_interest = geometry.region_of_interest
-    if region_of_interest.ndim != 2:
+    specimen_mask = geometry.region_of_interest.sample_specimen_mask(
+        geometry.x,
+        geometry.y
+    )
+
+    if specimen_mask.ndim != 2:
         raise ValueError(
-            f"region_of_interest must be 2D (y, x), "
-            f"got ndim={region_of_interest.ndim}"
+            f"specimen_mask must be 2D (y, x), "
+            f"got ndim={specimen_mask.ndim}"
         )
-    if region_of_interest.dtype != np.bool_:
+    if specimen_mask.dtype != np.bool_:
         raise ValueError(
-            f"region_of_interest must be bool dtype, "
-            f"got {region_of_interest.dtype}"
+            f"specimen_mask must be bool dtype, "
+            f"got {specimen_mask.dtype}"
         )
 
     # Cross-field dimension agreement
@@ -99,9 +103,9 @@ def validate_experiment_data(
             f"y shape {geometry.y.shape} does not match "
             f"strain spatial dims ({n_y}, {n_x})"
         )
-    if region_of_interest.shape != (n_y, n_x):
+    if specimen_mask.shape != (n_y, n_x):
         raise ValueError(
-            f"region_of_interest shape {region_of_interest.shape} "
+            f"specimen_mask shape {specimen_mask.shape} "
             f"does not match strain spatial dims ({n_y}, {n_x})"
         )
     if geometry.pixel_area.shape != (n_y, n_x):
@@ -111,27 +115,54 @@ def validate_experiment_data(
         )
 
     # Value constraints
-    if np.any(geometry.x < 0):
-        raise ValueError("x coordinates must be non-negative")
-    if np.any(geometry.y < 0):
-        raise ValueError("y coordinates must be non-negative")
     if geometry.thickness <= 0:
         raise ValueError(
             f"thickness must be positive, got {geometry.thickness}"
         )
     if np.any(geometry.pixel_area <= 0):
         raise ValueError("pixel_area must be positive everywhere")
+    if not np.all(np.isfinite(timesteps)):
+        raise ValueError("timesteps contains NaN or Inf values")
     if np.any(np.diff(timesteps) <= 0):
         raise ValueError("timesteps must be strictly increasing")
     if not np.all(np.isfinite(force)):
         raise ValueError("force contains NaN or Inf values")
-    # NaN is only allowed where region_of_interest is False (outside the mask)
-    flat_roi = region_of_interest.ravel()
+
+    # NaN is only allowed where the specimen mask is False (outside the mask)
+    flat_mask = specimen_mask.ravel()
     flat_strain = strain.reshape(strain.shape[0], strain.shape[1], -1)
-    if not np.all(np.isfinite(flat_strain[:, :, flat_roi])):
+    if not np.all(np.isfinite(flat_strain[:, :, flat_mask])):
         raise ValueError(
-            "strain contains NaN or Inf within the region of interest"
+            "strain contains NaN or Inf within the specimen mask"
         )
+
+    # Coordinate grid conventions
+    if not np.all(np.isfinite(geometry.x)):
+        raise ValueError("x contains NaN or Inf values")
+    if not np.all(np.isfinite(geometry.y)):
+        raise ValueError("y contains NaN or Inf values")
+
+    if n_x >= 2 and np.any(np.diff(geometry.x, axis=1) <= 0):
+        raise ValueError("x must increase left to right along each row")
+    if n_y >= 2 and np.any(np.diff(geometry.y, axis=0) <= 0):
+        raise ValueError("y must increase top to bottom down each column")
+
+    # x and y must form an axis-aligned grid: x varies only across columns and
+    # y only across rows. The area of every element is then computed from the
+    # grid spacing and must match the supplied pixel_area.
+    if n_x >= 2 and n_y >= 2:
+        if not np.allclose(np.diff(geometry.x, axis=0), 0.0):
+            raise ValueError("x must be constant down each column")
+        if not np.allclose(np.diff(geometry.y, axis=1), 0.0):
+            raise ValueError("y must be constant along each row")
+
+        element_areas = np.abs(
+            np.gradient(geometry.x, axis=1) * np.gradient(geometry.y, axis=0)
+        )
+        if not np.allclose(element_areas, geometry.pixel_area):
+            raise ValueError(
+                "pixel_area must equal the area of each grid element"
+            )
 
 
 def validate_identification_config(

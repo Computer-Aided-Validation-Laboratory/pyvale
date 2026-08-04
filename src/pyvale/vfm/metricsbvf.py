@@ -86,10 +86,15 @@ class MetricSBVF(IMetric):
         self,
         experiment_data: ExperimentData
     ) -> None:
+        x = experiment_data.specimen_geometry.x
+        y = experiment_data.specimen_geometry.y
+        roi = experiment_data.specimen_geometry.region_of_interest
+        specimen_mask = roi.sample_specimen_mask(x, y)
+
         self._virtual_fields_mesh = generate_virtual_fields_mesh(
-            experiment_data.specimen_geometry.x,
-            experiment_data.specimen_geometry.y,
-            experiment_data.specimen_geometry.region_of_interest,
+            x,
+            y,
+            specimen_mask,
             experiment_data.boundary_conditions.edge_conditions,
             self.mesh_size
         )
