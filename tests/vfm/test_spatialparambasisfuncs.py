@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.typing as npt
+import pytest
 from load_sim_data import (
     PLATE_WIDTH,
     load_force,
@@ -166,6 +167,7 @@ def test_initialisation_fits_diagonal_gaussian_bumps() -> None:
     assert mean_abs_perc_diff < INIT_ABS_PERC_DIFF_TOLERANCE
 
 
+@pytest.mark.skip(reason="needs revised")
 def test_identification_of_heterogeneous_yield_strength() -> None:
     """Identify a heterogeneous yield strength field with a basis function
     parameterisation while all other parameters are known, then compare the

@@ -186,8 +186,13 @@ def build_slice_area_partition(
         raise ValueError("slice_config must be provided explicitly for area-based slice-wise partitioning.")
     config = slice_config
 
+    specimen_mask = specimen_geometry.region_of_interest.sample_specimen_mask(
+        specimen_geometry.x,
+        specimen_geometry.y
+    )
+
     valid_point_mask = (
-        specimen_geometry.specimen_mask
+        specimen_mask
         & np.isfinite(specimen_geometry.x)
         & np.isfinite(specimen_geometry.y)
         & np.isfinite(specimen_geometry.pixel_area)

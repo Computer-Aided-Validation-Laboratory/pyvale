@@ -20,15 +20,15 @@ from .spatialparamknown import *
 from .spatialparamhomogeneous import *
 from .spatialparambasisfuncs import *
 from .spatialparamslicewise import *
-from .slicewise_utils import *
 
 from .optimiser import *
 from .optimiserleastsquares import *
+from .optimiserslicewiseindependent import *
 
 from .metric import *
 from .metricsbvf import *
 from .metricsliceforce import *
-from .vfmesh import *
+from .metricequilibriumgap import *
 
 from .objectivefunc import *
 from .objectivefuncscalar import *
@@ -36,4 +36,6 @@ from .objectivefuncvector import *
 
 from .dof import *
 from .normalisation import *
-from .vfmregionofinterest import *
+from .roi import *
+from .slicewise_utils import *
+from .vfmesh import *

@@ -360,9 +360,6 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
                 height.value = float(updated_value)
             dof_index += 1
 
-    def should_perform_refinement(self) -> bool:
-        return False
-
     def _ensure_heights_match_support(self) -> None:
         if len(self.kernels) == 0:
             if len(self.heights) != 0:

@@ -9,26 +9,12 @@ from pyvale.vfm.spatialparam import get_num_degrees_of_freedom
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 
-# TODO:
-# - check x,y pixel_area, syrain (y,x) dims have same shape 
-# - roi validation
-# specimen mas kvalidatation 
-#
-# check specimen mask agrees with x,y, pixel area
-# x_valid =np.isfinite(x)
-# y_valid=np.isfinite(y)
-# pixel_area_valid=np.isfinite(pixel_area)
-#if not np.array_equal(self.specimen_mask, x_valid & y_valid & pixel_area_valid):
-#    raise ValueError("specimen_mask must be True where x, y, and pixel_area are finite")
-
-
 
 def validate_experiment_data(
     experiment_data: ExperimentData
 ) -> None:
     geometry = experiment_data.specimen_geometry
     boundary_conditions = experiment_data.boundary_conditions
-    region_of_interest = geometry.specimen_mask
 
     # Shape and dtype checks
     strain = experiment_data.strain
@@ -58,11 +44,11 @@ def validate_experiment_data(
         )
 
     force = boundary_conditions.force
-    # if force.ndim != 2:
-    #     raise ValueError(
-    #         f"force must be 2D (timesteps, 2) with columns [Fx, Fy], "
-    #         f"got ndim={force.ndim}"
-    #     )
+    if force.ndim != 2:
+        raise ValueError(
+            f"force must be 2D (timesteps, 2) with columns [Fx, Fy], "
+            f"got ndim={force.ndim}"
+        )
     if force.dtype != np.float64:
         raise ValueError(
             f"force must be float64, got {force.dtype}"
@@ -134,10 +120,6 @@ def validate_experiment_data(
         )
 
     # Value constraints
-    if np.any(geometry.x < 0):
-        raise ValueError("x coordinates must be non-negative")
-    if np.any(geometry.y < 0):
-        raise ValueError("y coordinates must be non-negative")
     if geometry.thickness <= 0:
         raise ValueError(
             f"thickness must be positive, got {geometry.thickness}"
@@ -179,18 +161,17 @@ def validate_experiment_data(
         if not np.allclose(np.diff(geometry.y, axis=1), 0.0):
             raise ValueError("y must be constant along each row")
 
-        element_areas = np.abs(
-            np.gradient(geometry.x, axis=1) * np.gradient(geometry.y, axis=0)
-        )
-        if not np.allclose(element_areas, geometry.pixel_area):
+        if not len(np.unique(geometry.pixel_area)) == 1:
             raise ValueError(
-                "pixel_area must equal the area of each grid element"
+                "Pixel area should be constant across all elements as we assume "
+                "x and y must form an axis-aligned grid with uniform spacing"
             )
-    if not np.all(np.isfinite(flat_strain[:, :, flat_mask])):
-        raise ValueError(
-            "strain contains NaN or Inf within the region of interest"
-        )
 
+        # if not np.all(np.isclose(geometry.pixel_area, geometry.pixel_area[0], atol=0.001)):
+        #     raise ValueError(
+        #         "Pixel area should be 'almost' constant across all elements as we assume "
+        #         "x and y must form an axis-aligned grid with uniform spacing"
+        #     )
 
 def validate_identification_config(
     config: IdentificationConfig

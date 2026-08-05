@@ -325,10 +325,6 @@ class SliceWiseSpatialParameterisation(ISpatialParameterisation):
                 value.value = float(updated_value)
             dof_index += 1
 
-    def should_perform_refinement(self) -> bool:
-        return False
-
-
 def _resolve_slice_value(value: float | DegreeOfFreedom | None) -> float:
     if isinstance(value, DegreeOfFreedom):
         return float(value.value)
@@ -337,6 +333,5 @@ def _resolve_slice_value(value: float | DegreeOfFreedom | None) -> float:
             "SliceWiseSpatialParameterisation must be initialised before converting to a map."
         )
     return float(value)
-
 
 SlicewiseSpatialParameterisation = SliceWiseSpatialParameterisation

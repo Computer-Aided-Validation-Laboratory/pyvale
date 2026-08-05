@@ -39,47 +39,50 @@ OUTPUT_PLOT_PATH = Path(__file__).resolve().parent / "call_vfm_sw_refine_results
 
 def main() -> None:
 
-    # Prepare experiment data
-    specimen_geometry = SpecimenGeometry(
-        x=np.load(INPUTS_PATH / "x.npy"),
-        y=np.load(INPUTS_PATH / "y.npy"),
-        region_of_interest=VfmRegionOfInterest.from_yaml(INPUTS_PATH / "region_of_interest.yaml"),
-        thickness=0.8,
-        pixel_area=np.load(INPUTS_PATH / "pixel_area.npy"),
-    )
+    experiment_data = ExperimentData.load_from_file(INPUTS_PATH / "experiment_data.yaml")
 
-    boundary_conditions = BoundaryConditions(
-        EdgeConditions(
-            min_x_edge=Edge(
-                EEdgeCondition.Free,
-                EEdgeCondition.Free,
-            ),
-            max_x_edge=Edge(
-                EEdgeCondition.Free,
-                EEdgeCondition.Free,
-            ),
-            min_y_edge=Edge(
-                EEdgeCondition.Fixed,
-                EEdgeCondition.Fixed,
-            ),
-            max_y_edge=Edge(
-                EEdgeCondition.Free,
-                EEdgeCondition.Traction,
-            ),
-        ),
-        np.load(INPUTS_PATH / "force.npy"),
-    )
 
-    experiment_data = ExperimentData(
-        np.load(INPUTS_PATH / "strain.npy"),
-        specimen_geometry,
-        boundary_conditions,
-        np.load(INPUTS_PATH / "time.npy"),
-    )
+    # # Prepare experiment data
+    # specimen_geometry = SpecimenGeometry(
+    #     x=np.load(INPUTS_PATH / "x.npy"),
+    #     y=np.load(INPUTS_PATH / "y.npy"),
+    #     region_of_interest=VfmRegionOfInterest.from_yaml(INPUTS_PATH / "region_of_interest.yaml"),
+    #     thickness=0.8,
+    #     pixel_area=np.load(INPUTS_PATH / "pixel_area.npy"),
+    # )
+
+    # boundary_conditions = BoundaryConditions(
+    #     EdgeConditions(
+    #         min_x_edge=Edge(
+    #             EEdgeCondition.Free,
+    #             EEdgeCondition.Free,
+    #         ),
+    #         max_x_edge=Edge(
+    #             EEdgeCondition.Free,
+    #             EEdgeCondition.Free,
+    #         ),
+    #         min_y_edge=Edge(
+    #             EEdgeCondition.Fixed,
+    #             EEdgeCondition.Fixed,
+    #         ),
+    #         max_y_edge=Edge(
+    #             EEdgeCondition.Free,
+    #             EEdgeCondition.Traction,
+    #         ),
+    #     ),
+    #     np.load(INPUTS_PATH / "force.npy"),
+    # )
+
+    # experiment_data = ExperimentData(
+    #     np.load(INPUTS_PATH / "strain.npy"),
+    #     specimen_geometry,
+    #     boundary_conditions,
+    #     np.load(INPUTS_PATH / "time.npy"),
+    # )
 
     # Define constitutive parameters associated with constitutive law
     constitutive_law = IsotropicVonMisesElastoplasticity(HardeningLinear())
-    parameter_map_size = np.array(specimen_geometry.x.shape)
+    parameter_map_size = np.array(experiment_data.specimen_geometry.x.shape)
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
             210_000, 150_000, 250_000, parameter_map_size

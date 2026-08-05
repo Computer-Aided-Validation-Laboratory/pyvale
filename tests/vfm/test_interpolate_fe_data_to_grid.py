@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from pyvale.vfm.interpolate_fe_data_to_grid import (
+from pyvale.vfm.inputdatafeinterp import (
     build_surface_geometry_from_gmsh,
     interpolate_fe_data_to_grid,
 )

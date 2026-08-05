@@ -22,6 +22,76 @@ from pyvale.vfm.spatialparam import (
 )
 
 
+def run_identification(
+    experiment_data: ExperimentData,
+    identification_config: IdentificationConfig
+) -> dict[str, ConstitutiveParameter]:
+    validate_experiment_data(experiment_data)
+    validate_identification_config(identification_config)
+
+    match identification_config.constitutive_law.get_identification_type():
+        # TODO: implement linear case
+        case EIdentificationType.Linear:
+            ...
+        case EIdentificationType.Nonlinear:
+            parameter_map_size = np.array(
+                experiment_data.specimen_geometry.x.shape,
+                dtype=np.uint32
+            )
+
+            for phase in identification_config.phases:
+                phase_runtime = prepare_phase_runtime(
+                    phase,
+                    experiment_data,
+                )
+
+                while True:
+                    # Project the current maps onto the active phase DOFs.
+                    phase_runtime.initialise_from_constitutive_parameters(
+                        identification_config.parameters,
+                        parameter_map_size,
+                    )
+
+                    # Optimise the active DOFs to minimise the objective.
+                    optimised_spatial_parameterisations = phase.optimiser.optimise(
+                        identification_config.constitutive_law,
+                        parameter_map_size,
+                        phase_runtime.spatial_state.spatial_parameterisations,
+                        phase_runtime.metrics,
+                        phase.objective_function,
+                        experiment_data
+                    )
+
+                    # Adopt optimiser output and update the global maps.
+                    phase_runtime.adopt_spatial_parameterisations(
+                        optimised_spatial_parameterisations
+                    )
+                    phase_runtime.update_constitutive_parameter_maps(
+                        identification_config.parameters,
+                        parameter_map_size,
+                    )
+
+                    if phase_runtime.refinement_policy is None:
+                        break
+
+                    context = phase_runtime.build_refinement_context(
+                        identification_config.constitutive_law,
+                        identification_config.parameters,
+                        parameter_map_size,
+                        experiment_data,
+                    )
+                    action = phase_runtime.refinement_policy.propose(
+                        phase_runtime,
+                        context,
+                    )
+                    if action is None:
+                        break
+                    action.apply(phase_runtime, context)
+                    phase_runtime.prepare(experiment_data)
+
+    return identification_config.parameters
+
+
 @dataclass(slots=True)
 class PhaseRuntime:
     """Prepared runtime state for one identification phase.
@@ -242,73 +312,3 @@ def prepare_phase_runtime(
     )
     phase_runtime.prepare(experiment_data)
     return phase_runtime
-
-
-def run_identification(
-    experiment_data: ExperimentData,
-    identification_config: IdentificationConfig
-) -> dict[str, ConstitutiveParameter]:
-    validate_experiment_data(experiment_data)
-    validate_identification_config(identification_config)
-
-    match identification_config.constitutive_law.get_identification_type():
-        # TODO: implement linear case
-        case EIdentificationType.Linear:
-            ...
-        case EIdentificationType.Nonlinear:
-            parameter_map_size = np.array(
-                experiment_data.specimen_geometry.x.shape,
-                dtype=np.uint32
-            )
-
-            for phase in identification_config.phases:
-                phase_runtime = prepare_phase_runtime(
-                    phase,
-                    experiment_data,
-                )
-
-                while True:
-                    # Project the current maps onto the active phase DOFs.
-                    phase_runtime.initialise_from_constitutive_parameters(
-                        identification_config.parameters,
-                        parameter_map_size,
-                    )
-
-                    # Optimise the active DOFs to minimise the objective.
-                    optimised_spatial_parameterisations = phase.optimiser.optimise(
-                        identification_config.constitutive_law,
-                        parameter_map_size,
-                        phase_runtime.spatial_state.spatial_parameterisations,
-                        phase_runtime.metrics,
-                        phase.objective_function,
-                        experiment_data
-                    )
-
-                    # Adopt optimiser output and update the global maps.
-                    phase_runtime.adopt_spatial_parameterisations(
-                        optimised_spatial_parameterisations
-                    )
-                    phase_runtime.update_constitutive_parameter_maps(
-                        identification_config.parameters,
-                        parameter_map_size,
-                    )
-
-                    if phase_runtime.refinement_policy is None:
-                        break
-
-                    context = phase_runtime.build_refinement_context(
-                        identification_config.constitutive_law,
-                        identification_config.parameters,
-                        parameter_map_size,
-                        experiment_data,
-                    )
-                    action = phase_runtime.refinement_policy.propose(
-                        phase_runtime,
-                        context,
-                    )
-                    if action is None:
-                        break
-                    action.apply(phase_runtime, context)
-                    phase_runtime.prepare(experiment_data)
-
-    return identification_config.parameters
