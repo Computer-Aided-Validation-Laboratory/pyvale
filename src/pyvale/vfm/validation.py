@@ -2,7 +2,12 @@ import numpy as np
 
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.identificationconfig import IdentificationConfig
+from pyvale.vfm.identificationconfig import IdentificationPhase
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
+from pyvale.vfm.spatialparam import get_num_degrees_of_freedom
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
+from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 
 
 def validate_experiment_data(
@@ -156,14 +161,17 @@ def validate_experiment_data(
         if not np.allclose(np.diff(geometry.y, axis=1), 0.0):
             raise ValueError("y must be constant along each row")
 
-        element_areas = np.abs(
-            np.gradient(geometry.x, axis=1) * np.gradient(geometry.y, axis=0)
-        )
-        if not np.allclose(element_areas, geometry.pixel_area):
+        if not len(np.unique(geometry.pixel_area)) == 1:
             raise ValueError(
-                "pixel_area must equal the area of each grid element"
+                "Pixel area should be constant across all elements as we assume "
+                "x and y must form an axis-aligned grid with uniform spacing"
             )
 
+        # if not np.all(np.isclose(geometry.pixel_area, geometry.pixel_area[0], atol=0.001)):
+        #     raise ValueError(
+        #         "Pixel area should be 'almost' constant across all elements as we assume "
+        #         "x and y must form an axis-aligned grid with uniform spacing"
+        #     )
 
 def validate_identification_config(
     config: IdentificationConfig
@@ -180,6 +188,11 @@ def validate_identification_config(
             raise ValueError(
                 f"phase {i} must have at least one metric"
             )
+
+        validate_slicewise_independent_phase(
+            phase,
+            i,
+        )
 
     # Constitutive-law parameter requirements
     required = set(config.constitutive_law.get_required_parameters())
@@ -255,4 +268,54 @@ def validate_identification_config(
             raise ValueError(
                 f"parameter '{name}': upper_bound ({param.upper_bound}) "
                 f"must be finite"
+            )
+
+
+def validate_slicewise_independent_phase(
+    phase: IdentificationPhase,
+    phase_index: int,
+) -> None:
+    if not isinstance(phase.optimiser, SliceWiseIndependentLeastSquares):
+        return
+
+    if len(phase.metrics) != 1 or not isinstance(phase.metrics[0], SliceWiseForceReconstructionMetric):
+        raise ValueError(
+            f"phase {phase_index}: SliceWiseIndependentLeastSquares requires exactly one "
+            "SliceWiseForceReconstructionMetric."
+        )
+
+    slice_metric = phase.metrics[0]
+    if slice_metric.support is None:
+        raise ValueError(
+            f"phase {phase_index}: SliceWiseForceReconstructionMetric must define a "
+            "slice support."
+        )
+
+    for param_name, sps in phase.spatial_parameterisations.items():
+        if len(sps) != 1:
+            raise ValueError(
+                f"phase {phase_index} parameter '{param_name}': independent slice-wise "
+                "identification currently requires exactly one spatial parameterisation."
+            )
+
+        sp = sps[0]
+        if not isinstance(sp, SliceWiseSpatialParameterisation):
+            if get_num_degrees_of_freedom(sps) != 0:
+                raise ValueError(
+                    f"phase {phase_index} parameter '{param_name}': all unknown parameters must "
+                    "use SliceWiseSpatialParameterisation for independent slice-wise identification."
+                )
+            continue
+
+        if sp.support is None:
+            raise ValueError(
+                f"phase {phase_index} parameter '{param_name}': SliceWiseSpatialParameterisation "
+                "must define a slice support when used for independent slice-wise identification."
+            )
+
+        if sp.support is not slice_metric.support:
+            raise ValueError(
+                f"phase {phase_index} parameter '{param_name}': independent slice-wise identification "
+                "requires this parameterisation to reference the same SupportSlice object as the "
+                "slice-force metric."
             )

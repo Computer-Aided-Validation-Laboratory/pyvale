@@ -15,10 +15,8 @@ from pyvale.vfm.optimiser import (
     evaluate_candidate,
 )
 from pyvale.vfm.spatialparam import (
+    PhaseSpatialState,
     ISpatialParameterisation,
-    collect_degrees_of_freedom,
-    get_num_degrees_of_freedom,
-    unpack_spatial_parameterisations,
 )
 
 
@@ -42,19 +40,10 @@ class OptimiserLeastSquares(IOptimiser):
         objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
     ) -> dict[str, list[ISpatialParameterisation]]:
-        normalised_degrees_of_freedom = []
-
-        for sps in spatial_parameterisations.values():
-            if get_num_degrees_of_freedom(sps) == 0:
-                continue
-
-            degrees_of_freedom = collect_degrees_of_freedom(sps)
-
-            normalised_degrees_of_freedom.append(
-                normalise_degrees_of_freedom(degrees_of_freedom)
-            )
-
-        dofs = np.concatenate(normalised_degrees_of_freedom)
+        phase_spatial_state = PhaseSpatialState(spatial_parameterisations)
+        dofs = phase_spatial_state.collect_normalised_degrees_of_freedom()
+        if dofs.size == 0:
+            return spatial_parameterisations
 
         result = least_squares(
             evaluate_candidate,
@@ -66,16 +55,16 @@ class OptimiserLeastSquares(IOptimiser):
             args=(
                 constitutive_law,
                 parameter_map_size,
-                spatial_parameterisations,
+                phase_spatial_state,
                 metrics,
                 objective_function,
                 experiment_data,
             )
         )
 
-        optimised_spatial_parameterisations = unpack_spatial_parameterisations(
-            spatial_parameterisations,
+        optimised_phase_spatial_state = phase_spatial_state.copy()
+        optimised_phase_spatial_state.update_from_normalised_degrees_of_freedom(
             result.x
         )
 
-        return optimised_spatial_parameterisations
+        return optimised_phase_spatial_state.spatial_parameterisations

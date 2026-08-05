@@ -234,15 +234,9 @@ class ExperimentData:
                 )
             )
 
-
         edge_conditions = _unpack_edge_conditions(edge_conditions)
 
-        element_area = (
-            (x[0, 1] - x[0, 0])
-            * (y[1, 0] - y[0, 0])
-        )
-
-        pixel_area = np.full_like(x, element_area, dtype=np.float64)
+        pixel_area = np.abs(np.gradient(x, axis=1) * np.gradient(y, axis=0))
 
         specimen_geometry = SpecimenGeometry(
             x,

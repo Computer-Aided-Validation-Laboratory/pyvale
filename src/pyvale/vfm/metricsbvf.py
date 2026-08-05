@@ -10,17 +10,16 @@ from pyvale.vfm.experimentdata import (
     EEdgeCondition,
     ExperimentData,
 )
-from pyvale.vfm.metric import IMetric
+from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.normalisation import (
     denormalise_degree_of_freedom,
     normalise_degree_of_freedom,
 )
 from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
-    collect_degrees_of_freedom,
     evaluate_parameterisations_to_map,
     get_num_degrees_of_freedom,
-    update_from_degrees_of_freedom,
+    PhaseSpatialState,
 )
 from pyvale.vfm.vfmesh import (
     GlobalVirtualFields,
@@ -106,7 +105,7 @@ class MetricSBVF(IMetric):
         parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         experiment_data: ExperimentData,
-    ) -> npt.NDArray[np.float64]:
+    ) -> MetricResult:
         if self._virtual_fields_mesh is None:
             raise RuntimeError(
                 "Virtual fields mesh has not been generated. "
@@ -251,7 +250,9 @@ class MetricSBVF(IMetric):
         self._internal_virtual_work = np.array(internal_virtual_work_vectors)
         self._external_virtual_work = np.array(external_virtual_work_vectors)
 
-        return np.concatenate(residual_vector)
+        residual = np.concatenate(residual_vector)
+
+        return MetricResult(residual)
 
 
     def calculate_stress_sensitivities(
@@ -338,79 +339,75 @@ def _calculate_stress_sensitivities_dof(
 
     """
 
+    phase_spatial_state = PhaseSpatialState(spatial_parameterisations)
+    phase_degrees_of_freedom = phase_spatial_state.collect_degrees_of_freedom()
+    normalised_phase_degrees_of_freedom = (
+        phase_spatial_state.collect_normalised_degrees_of_freedom()
+    )
+
     stress_sensitivities = []
-    # Loop through each constitutive parameter
-    for param_name, sps in spatial_parameterisations.items():
-        dofs = collect_degrees_of_freedom(sps)
+    for dof_index, dof in enumerate(phase_degrees_of_freedom):
+        normalised_dof_value = normalise_degree_of_freedom(dof)
 
-        # Loop through each DOF of the current parameter
-        for i, dof in enumerate(dofs):
-
-            # Normalise DOF value to [0, 1] range based on its lower and upper bounds
-            normalised_dof_value = normalise_degree_of_freedom(dof)
-
-            # Default pertubation lowers DOF value, but if DOF is close to lower bound, perturb upwards instead to ensure effective perturbation
-            if normalised_dof_value >= perturbation_factor:
-                perturbed_dof_value_normalised = (normalised_dof_value - perturbation_factor)
-            else:
-                perturbed_dof_value_normalised = ( normalised_dof_value + perturbation_factor)
-
-            # Denormalise perturbed DOF value back to physical space
-            perturbed_dof_value = denormalise_degree_of_freedom(
-                perturbed_dof_value_normalised,
-                dof.lower_bound,
-                dof.upper_bound
+        # Default perturbation lowers the DOF value, but if the value is
+        # already close to the lower bound perturb upwards instead so the
+        # perturbation magnitude remains effective.
+        if normalised_dof_value >= perturbation_factor:
+            perturbed_dof_value_normalised = (
+                normalised_dof_value - perturbation_factor
+            )
+        else:
+            perturbed_dof_value_normalised = (
+                normalised_dof_value + perturbation_factor
             )
 
-            # Create copy of spatial parameterisation with perturbed DOF
-            perturbed_spatial_parameterisations = deepcopy(spatial_parameterisations)
-            perturbed_dof = copy(dof)                 # copy DegreeOfFreedom dataclass
-            perturbed_dof.value = perturbed_dof_value # update DOF value to perturbed value
-            perturbed_dofs = deepcopy(dofs)           # copy list of DOFs
-            perturbed_dofs[i] = perturbed_dof         # update current perturbed DOF in list of DOFs            
+        perturbed_phase_degrees_of_freedom = (
+            normalised_phase_degrees_of_freedom.copy()
+        )
+        perturbed_phase_degrees_of_freedom[dof_index] = (
+            perturbed_dof_value_normalised
+        )
 
+        perturbed_phase_spatial_state = phase_spatial_state.copy()
+        perturbed_phase_spatial_state.update_from_normalised_degrees_of_freedom(
+            perturbed_phase_degrees_of_freedom
+        )
 
-            # Update spatial parameterisation using perturbed DOF
-            update_from_degrees_of_freedom(
-                perturbed_spatial_parameterisations[param_name],
-                perturbed_dofs,
+        perturbed_spatial_parameter_maps = (
+            perturbed_phase_spatial_state.evaluate_parameter_maps(
+                parameter_map_size
             )
+        )
 
-            # Update spatial parameter maps using perturbed spatial parameterisation
-            # TODO: can we just update the relevant parameter map for current dof?
-            perturbed_spatial_parameter_maps = {
-                parameter_name: evaluate_parameterisations_to_map(sps, parameter_map_size)
-                for parameter_name, sps
-                in perturbed_spatial_parameterisations.items()
-            }
+        perturbed_stress = constitutive_law.calculate_stress(
+            strain,
+            perturbed_spatial_parameter_maps,
+        )
 
-            # Compute perturbed stress using perturbed spatial parameter maps
-            perturbed_stress = constitutive_law.calculate_stress(
-                strain, perturbed_spatial_parameter_maps
+        # Compute stress sensitivity as difference between reference stress and
+        # perturbed stress.
+        total_stress_sensitivity = stress_reference - perturbed_stress
+
+        # Compute incremental stress sensitivity as difference in stress
+        # sensitivity between consecutive timesteps. The first timestep has
+        # zero incremental sensitivity as there is no previous step to compare
+        # to.
+        incremental_stress_sensitivity = np.zeros_like(total_stress_sensitivity)
+        incremental_stress_sensitivity[1:, :, :, :] = np.diff(
+            total_stress_sensitivity,
+            axis=0,
+        )
+
+        stress_sensitivities.append(
+            StressSensitivity(
+                total=total_stress_sensitivity,
+                incremental=incremental_stress_sensitivity,
             )
+        )
 
-            # Compute stress sensitivity as difference between reference stress and perturbed stress
-            total_stress_sensitivity = stress_reference - perturbed_stress
-
-            # Compute incremental stress sensitivity as difference in stress sensitivity between consecutive timesteps
-            # First timestep has zero incremental sensitivity as there is no previous step to compare to
-            incremental_stress_sensitivity = np.zeros_like(total_stress_sensitivity)
-            incremental_stress_sensitivity[1:, :, :, :] = np.diff(
-                total_stress_sensitivity,
-                axis=0,
-            )
-
-            # Store sensitivities for current perturbed DOF
-            stress_sensitivities.append(
-                StressSensitivity(
-                    total=total_stress_sensitivity,
-                    incremental=incremental_stress_sensitivity,
-                )
-            )
-
-            plot_debug = False
-            if plot_debug:
-                # Debug: plot perturbed stress
+        plot_debug = False
+        if plot_debug:
+            # Debug: plot perturbed stress
                 step = 14
                 component = 0
                 img = perturbed_stress[step, component, :, :]   # 10th step, 1st component, all y, all x

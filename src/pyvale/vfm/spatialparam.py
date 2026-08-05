@@ -1,10 +1,12 @@
 import copy
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.constparam import ConstitutiveParameter
+from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.normalisation import denormalise_degrees_of_freedom
 from pyvale.vfm.dof import DegreeOfFreedom
 
@@ -99,37 +101,6 @@ class ISpatialParameterisation(ABC):
         """
         pass
 
-    @abstractmethod
-    def should_perform_refinement(self) -> bool:
-        """
-        Evaluate whether refinement should be performed for this spatial
-        parameterisation.
-
-        Refinement is optional, so if a spatial parameterisation doesn't
-        support refinement this should return False.
-
-        Returns
-        -------
-        bool
-            True if refinement should be performed, False otherwise
-        """
-        pass
-
-    def perform_refinement(self) -> None:
-        """
-        Perform refinement on the spatial parameterisation's degrees of freedom.
-
-        Implementing this function is optional, hence it isn't marked as an
-        abstractmethod.
-
-        If this function is not implemented, `should_perform_refinement()`
-        should return False.
-
-        If this function is implemented, it will only be run if
-        `should_perform_refinement()` returns True.
-        """
-        pass
-
 
 def evaluate_parameterisations_to_map(
     spatial_parameterisations: list[ISpatialParameterisation],
@@ -207,6 +178,159 @@ def update_from_degrees_of_freedom(
         index += num_dofs
 
 
+@dataclass(slots=True)
+class PhaseSpatialState:
+    """Runtime spatial state for one identification phase.
+
+    The phase state owns the shared-support-aware DOF packing and unpacking for
+    a phase. Spatial parameterisation objects still build their own maps; this
+    class only coordinates support preparation, DOF routing, and evaluation of
+    the full constitutive-parameter maps.
+    """
+
+    spatial_parameterisations: dict[str, list[ISpatialParameterisation]]
+    supports: list[object] = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.supports = self._collect_supports()
+
+    def _collect_supports(self) -> list[object]:
+        supports: list[object] = []
+        support_ids: set[int] = set()
+
+        # Loop through dict of lists of spatial parameterisations for current phase
+        for spatial_parameterisations in self.spatial_parameterisations.values():
+            # Loop through each spatial parameterisation in the list collecting unique supports
+            for spatial_parameterisation in spatial_parameterisations:
+                support = getattr(spatial_parameterisation, "support", None)
+                if support is None:
+                    continue
+
+                # Get unique python object id of support
+                support_id = id(support)
+                if support_id in support_ids:
+                    continue
+
+                supports.append(support)
+                support_ids.add(support_id)
+
+        return supports
+
+    def _iter_dof_owners(self) -> list[object]:
+        owners: list[object] = list(self.supports)
+        for spatial_parameterisations in self.spatial_parameterisations.values():
+            owners.extend(spatial_parameterisations)
+        return owners
+
+    def copy(self) -> "PhaseSpatialState":
+        # deepcopy preserves aliasing, so shared supports remain shared in the
+        # copied candidate state.
+        return PhaseSpatialState(copy.deepcopy(self.spatial_parameterisations))
+
+    def prepare(self, experiment_data: ExperimentData) -> None:
+        """Prepare any shared supports required by the phase runtime."""
+
+        for support in self.supports:
+            prepare = getattr(support, "prepare", None)
+            if prepare is None:
+                continue
+            prepare(experiment_data)
+
+    def get_num_degrees_of_freedom(self) -> int:
+        return sum(
+            owner.get_num_degrees_of_freedom()
+            for owner in self._iter_dof_owners()
+        )
+
+    def collect_degrees_of_freedom(self) -> list[DegreeOfFreedom]:
+        degrees_of_freedom: list[DegreeOfFreedom] = []
+        for owner in self._iter_dof_owners():
+            degrees_of_freedom.extend(owner.collect_degrees_of_freedom())
+        return degrees_of_freedom
+
+    def collect_normalised_degrees_of_freedom(
+        self,
+    ) -> npt.NDArray[np.float64]:
+        degrees_of_freedom = self.collect_degrees_of_freedom()
+        if not degrees_of_freedom:
+            return np.zeros(0, dtype=np.float64)
+
+        lower_bounds = np.asarray(
+            [dof.lower_bound for dof in degrees_of_freedom],
+            dtype=np.float64,
+        )
+        upper_bounds = np.asarray(
+            [dof.upper_bound for dof in degrees_of_freedom],
+            dtype=np.float64,
+        )
+        values = np.asarray(
+            [dof.value for dof in degrees_of_freedom],
+            dtype=np.float64,
+        )
+        return (values - lower_bounds) / (upper_bounds - lower_bounds)
+
+    def update_from_degrees_of_freedom(
+        self,
+        degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64],
+    ) -> None:
+        index = 0
+        for owner in self._iter_dof_owners():
+            num_dofs = owner.get_num_degrees_of_freedom()
+            if num_dofs == 0:
+                continue
+            owner.update_from_degrees_of_freedom(
+                degrees_of_freedom[index:index + num_dofs]
+            )
+            index += num_dofs
+
+    def update_from_normalised_degrees_of_freedom(
+        self,
+        normalised_degrees_of_freedom: npt.NDArray[np.float64],
+    ) -> None:
+        degrees_of_freedom = self.collect_degrees_of_freedom()
+        if not degrees_of_freedom:
+            return
+
+        lower_bounds = np.asarray(
+            [dof.lower_bound for dof in degrees_of_freedom],
+            dtype=np.float64,
+        )
+        upper_bounds = np.asarray(
+            [dof.upper_bound for dof in degrees_of_freedom],
+            dtype=np.float64,
+        )
+        denormalised_degrees_of_freedom = denormalise_degrees_of_freedom(
+            normalised_degrees_of_freedom,
+            lower_bounds,
+            upper_bounds,
+        )
+        self.update_from_degrees_of_freedom(denormalised_degrees_of_freedom)
+
+    def initialise_from_constitutive_parameters(
+        self,
+        constitutive_parameters: dict[str, ConstitutiveParameter],
+        size: npt.NDArray[np.uint32],
+    ) -> None:
+        for param_name, spatial_parameterisations in self.spatial_parameterisations.items():
+            initialise_parameterisations_from_constitutive_parameter(
+                spatial_parameterisations,
+                constitutive_parameters[param_name],
+                size,
+            )
+
+    def evaluate_parameter_maps(
+        self,
+        size: npt.NDArray[np.uint32],
+    ) -> dict[str, npt.NDArray[np.float64]]:
+        return {
+            param_name: evaluate_parameterisations_to_map(
+                spatial_parameterisations,
+                size,
+            )
+            for param_name, spatial_parameterisations in self.spatial_parameterisations.items()
+        }
+
+
 def initialise_parameterisations_from_constitutive_parameter(
     spatial_parameterisations: list[ISpatialParameterisation],
     constitutive_parameter: ConstitutiveParameter,
@@ -279,37 +403,10 @@ def unpack_spatial_parameterisations(
         A copy of the reference spatial parameterisations with
         updated degrees of freedom
     """
-    lower_bounds = []
-    upper_bounds = []
-
-    for sps in reference_spatial_parameterisations.values():
-        for dof in collect_degrees_of_freedom(sps):
-            lower_bounds.append(dof.lower_bound)
-            upper_bounds.append(dof.upper_bound)
-
-    degrees_of_freedom = denormalise_degrees_of_freedom(
-        normalised_degrees_of_freedom,
-        np.array(lower_bounds),
-        np.array(upper_bounds),
+    phase_spatial_state = PhaseSpatialState(
+        copy.deepcopy(reference_spatial_parameterisations)
     )
-
-    unpacked_spatial_parameterisations = {}
-
-    index = 0
-    for param_name, sps in reference_spatial_parameterisations.items():
-        num_dofs = get_num_degrees_of_freedom(sps)
-
-        if num_dofs == 0:
-            unpacked_spatial_parameterisations[param_name] = sps
-            continue
-
-        unpacked_sps = copy.deepcopy(sps)
-
-        sp_dofs = degrees_of_freedom[index:index + num_dofs]
-
-        update_from_degrees_of_freedom(unpacked_sps, sp_dofs)
-        unpacked_spatial_parameterisations[param_name] = unpacked_sps
-
-        index += num_dofs
-
-    return unpacked_spatial_parameterisations
+    phase_spatial_state.update_from_normalised_degrees_of_freedom(
+        normalised_degrees_of_freedom
+    )
+    return phase_spatial_state.spatial_parameterisations

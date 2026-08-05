@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -6,6 +7,12 @@ import numpy.typing as npt
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.spatialparam import ISpatialParameterisation
+
+
+@dataclass(slots=True)
+class MetricResult:
+    residual: npt.NDArray[np.float64] | None = None
+    additional_fields: dict | None = None
 
 
 class IMetric(ABC):
@@ -42,7 +49,7 @@ class IMetric(ABC):
         parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         experiment_data: ExperimentData,
-    ) -> npt.NDArray[np.float64]:
+    ) -> MetricResult:
         """
         Evaluate the metric for a given stress candidate.
 

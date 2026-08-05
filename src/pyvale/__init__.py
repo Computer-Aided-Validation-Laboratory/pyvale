@@ -21,3 +21,4 @@ from . import sensorsim
 from . import mooseherder
 from . import dataset
 from . import calib
+from . import vfm

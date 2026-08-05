@@ -5,12 +5,11 @@ import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
-from pyvale.vfm.metric import IMetric
+from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.objectivefunc import IObjectiveFunction
 from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
-    evaluate_parameterisations_to_map,
-    unpack_spatial_parameterisations,
+    PhaseSpatialState,
 )
 
 
@@ -75,7 +74,7 @@ def evaluate_candidate(
     degrees_of_freedom: npt.NDArray[np.float64],
     constitutive_law: IConstitutiveLaw,
     parameter_map_size: npt.NDArray[np.uint32],
-    spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
+    phase_spatial_state: PhaseSpatialState,
     metrics: list[IMetric],
     objective_function: IObjectiveFunction,
     experiment_data: ExperimentData,
@@ -95,8 +94,8 @@ def evaluate_candidate(
         Constitutive model
     parameter_map_size : npt.NDArray[np.uint32]
         Spatial dimensions ``(y, x)`` of the parameter maps
-    spatial_parameterisations : dict[str, list[ISpatialParameterisation]]
-        Reference spatial parameterisations (cloned internally)
+    phase_spatial_state : PhaseSpatialState
+        Reference phase spatial state (cloned internally)
     metrics : list[IMetric]
         Virtual-work metrics
     objective_function : IObjectiveFunction
@@ -109,23 +108,23 @@ def evaluate_candidate(
     float | npt.NDArray[np.float64]
         Scalar or vector objective value for the candidate
     """
-
-    print("Evaluating candidate with degrees of freedom:", degrees_of_freedom)
-    updated_spatial_parameterisations = unpack_spatial_parameterisations(
-        spatial_parameterisations,
+    updated_phase_spatial_state = phase_spatial_state.copy()
+    updated_phase_spatial_state.update_from_normalised_degrees_of_freedom(
         degrees_of_freedom,
     )
 
-    updated_constitutive_parameter_maps = {
-        param_name: evaluate_parameterisations_to_map(sps, parameter_map_size)
-        for (param_name, sps) in updated_spatial_parameterisations.items()
-    }
+    updated_spatial_parameterisations = (
+        updated_phase_spatial_state.spatial_parameterisations
+    )
+    updated_constitutive_parameter_maps = (
+        updated_phase_spatial_state.evaluate_parameter_maps(parameter_map_size)
+    )
 
     updated_stress = constitutive_law.calculate_stress(
         experiment_data.strain, updated_constitutive_parameter_maps,
     )
 
-    metric_results = []
+    metric_results: list[MetricResult] = []
     for metric in metrics:
         metric_results.append(
             metric.evaluate(
