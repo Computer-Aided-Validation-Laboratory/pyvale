@@ -146,10 +146,10 @@ def plot_time_traces(sensor_array: SensorsPoint,
         sensors_to_plot = trace_opts.sensors_to_plot
         sensor_list = [x+1 for x in range(num_sens)]
         fake_sensors = list(filter(lambda x: x not in sensor_list, sensors_to_plot))
-        for i in sensors_to_plot:
-            if i not in sensor_list:
-                logger.warning(f"[{i}] not a valid sensor number. Removing from sensors to plot")
-                sensors_to_plot.remove(i)
+        for i in fake_sensors:
+            logger.warning(f"[{i}] not a valid sensor number. Removing from sensors to plot")
+            sensors_to_plot.remove(i)
+        print(sensors_to_plot)
         sensors_to_plot = sensors_to_plot
 
     if sensors_to_plot == 0:
@@ -202,7 +202,7 @@ def plot_time_traces(sensor_array: SensorsPoint,
         for ii,ss in enumerate(sensors_to_plot):
             if (ii+1) % sensors_per_plot == 0:
                 current_plot = current_plot+1
-            ax[current_plot].plot(sim_time,
+                ax[current_plot].plot(sim_time,
                     sim_vals[ss,comp_ind,:],
                     trace_opts.sim_line,
                     lw=plot_opts.lw,
