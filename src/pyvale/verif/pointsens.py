@@ -15,12 +15,14 @@ point sensors.
 """
 
 import numpy as np
+import platform
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
 import pyvale.verif.pointsensconst as pointsensconst
 from pyvale.verif.pointsensconst import GOLD_SEED
 
-def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
+def samp_times(sim_data: io.SimData) -> dict[str, None | np.ndarray]:
     sim_dims = sens.simtools.get_sim_dims(sim_data)
     sample_times = {}
 
@@ -30,7 +32,7 @@ def samp_times(sim_data: mh.SimData) -> dict[str, None | np.ndarray]:
     return sample_times
 
 
-def sens_data_dict(sim_data: mh.SimData,
+def sens_data_dict(sim_data: io.SimData,
                    sens_pos: dict[str,np.ndarray]) -> dict[str,sens.SensorData]:
     sample_times = samp_times(sim_data)
 
@@ -102,11 +104,25 @@ def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint],
                             atol: float = 1e-5) -> list[str]:
     fails = []
 
+    MACOS_GOLD_CASES = {    
+        "scal2d_analytic_nomesh",    
+        "scal3d_nomesh",    
+        "vec2d_analytic_nomesh",   
+        "tens2d_analytic_nomesh",
+    }
+
     for ss in sens_dict:
         measurements = sens_dict[ss].sim_measurements()
         gold_path = pointsensconst.GOLD_PATH / f"{ss}.npy"
 
-        load_path = pointsensconst.GOLD_PATH / f"{ss.lower()}.npy"
+        print(ss.lower())
+
+        if (any(case in ss.lower() for case in MACOS_GOLD_CASES) and (platform.system()=='Darwin')):           
+            load_path = (pointsensconst.GOLD_PATH / "macos" / f"{ss.lower()}.npy")
+        else:
+            load_path = (pointsensconst.GOLD_PATH / f"{ss.lower()}.npy")
+
+
         if load_path.is_file():
             gold = np.load(load_path)
 

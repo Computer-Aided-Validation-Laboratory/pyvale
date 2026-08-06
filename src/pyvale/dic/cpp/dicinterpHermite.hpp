@@ -18,6 +18,9 @@
 // Program Header files
 #include "./dicinterp.hpp"
 
+// common_cpp header files
+#include "../../common_cpp/util.hpp"
+
 class Hermite : public Interpolator {
 
 private:
@@ -27,7 +30,7 @@ private:
     std::vector<double> dxy;
     std::vector<double> px_y;
     std::vector<double> px_x;
-    double *image;
+    std::vector<double> image;
 
 
     /**
@@ -95,7 +98,7 @@ public:
      * @param px_hori Width of the image in pixels
      * @param px_vert Height of the image in pixels
      */
-    Hermite(double * img, int px_hori, int px_vert);
+    Hermite(const Image &img);
 
     /**
      * @brief Evaluates the bicubic interpolation at a specified point.

@@ -173,7 +173,6 @@ class Tools:
         """
         part.select_set(True)
         mat = bpy.data.materials.new(name="Material")
-        mat.use_nodes = True
         part.active_material = mat
         tree = mat.node_tree
         nodes = tree.nodes

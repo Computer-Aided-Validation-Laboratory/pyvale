@@ -12,23 +12,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-14, macos-26]
         env-type: [pip]
         include:
           - os: macos-14
             llvm: llvm@15
-          - os: macos-15-intel
-            llvm: llvm@18
-          - os: macos-latest
-            llvm: llvm@18
+          - os: macos-26
+            llvm: llvm@20
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.11'
+          version: "0.9.17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
       - name: Set default compiler on macOS to GCC
         if: startsWith(matrix.os, 'macos')
@@ -41,6 +44,24 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y libegl1 libgl1 libxext6 libx11-6
+
+      - name: Install libtiff (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install libtiff
+
+      - name: Install libtiff (Windows)
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          vcpkg install tiff:x64-windows-static
+          echo "CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static" >> $env:GITHUB_ENV
+
+      - name: Install libtiff (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtiff-dev libtiff-tools
 
       - name: Install with pip
         if: matrix.env-type == 'pip'

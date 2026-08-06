@@ -27,8 +27,9 @@ from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
 import pyvale.dataset as dataset
 
 #%%
@@ -40,7 +41,7 @@ sim_keys: set[str] = {"sim_nominal","sim_perturbed"}
 
 disp_keys = ("disp_x","disp_y")
 
-sim_data_dict: dict[str,mh.SimData] = {}
+sim_data_dict: dict[str,io.SimData] = {}
 for ss,kk in zip(sim_paths,sim_keys):
     sim_data = mh.ExodusLoader(ss).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,

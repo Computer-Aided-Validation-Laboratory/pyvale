@@ -12,14 +12,16 @@ from pyvale.mooseherder.gmshrunner import GmshRunner
 USER_DIR = Path.home()
 GMSH_INPUT_PATH = Path.cwd()/"tests"/"mooseherder"/"gmsh"
 
-def test_gmsh_exists():
-    exist_gmsh_path = USER_DIR / 'gmsh/bin/gmsh'
-    assert exist_gmsh_path.is_file()
+def test_gmsh_exists(gmsh_path: Path):
+    assert gmsh_path.is_file()
 
 
 @pytest.fixture()
 def gmsh_path() -> Path:
-    return USER_DIR / 'gmsh/bin/gmsh'
+    path = USER_DIR / 'gmsh/bin/gmsh'
+    if not path.is_file():
+        pytest.skip("Gmsh app not installed at the expected path")
+    return path
 
 
 @pytest.fixture()

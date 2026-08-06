@@ -41,7 +41,6 @@ class Scene():
 
         new_world = bpy.data.worlds.new('World')
         bpy.context.scene.world = new_world
-        new_world.use_nodes = True
         node_tree = new_world.node_tree
         nodes = node_tree.nodes
 
@@ -273,7 +272,7 @@ class Scene():
 
         Parameters
         ----------
-        sim_data : mh.SimData
+        sim_data : io.SimData
             A dataclass containing the simulation information i.e. the displacements
             to all the nodes in the mesh.
         part : bpy.data.objects
