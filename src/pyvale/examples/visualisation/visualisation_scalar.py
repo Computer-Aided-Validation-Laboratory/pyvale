@@ -179,41 +179,6 @@ print("\n"+80*"-")
 
 ################################################################################
 
-#disp_keys = ("disp_x","disp_y")
-
-data_path2: Path = dataset.thermal_3d_path()
-sim_data2: io.SimData = mh.ExodusLoader(data_path2).load_all_sim_data()
-
-# sim_data2: io.SimData = sens.scale_length_units(scale=1000.0,
-#                                                sim_data=sim_data2,
-#                                                disp_keys=disp_keys)
-
-sim_data2: io.SimData = mh.ExodusLoader(data_path2).load_all_sim_data()
-
-disp_keys = ("disp_x","disp_y")
-strain_norm_keys = ("strain_xx","strain_yy",)
-strain_dev_keys = ("strain_xy",)
-
-sim_data2: io.SimData  = sens.scale_length_units(scale=1000.0,
-                                                sim_data=sim_data2,
-                                                disp_keys=disp_keys)
-
-
-sens_angles2: tuple[Rotation] = sens_pos.shape[0] * \
-    (Rotation.from_euler("zyx",[90,0,0], degrees=True),)
-
-
-disp_sens_data = sens.SensorData(positions=sens_pos,
-                                 sample_times=sample_times,
-                                 angles=sens_angles2)
-
-disp_sens: sens.SensorsPoint = sens.SensorFactory.vector_point(
-    sim_data2,
-    disp_sens_data,
-    comp_keys=disp_keys,
-    spatial_dims=sens.EDim.TWOD,
-    descriptor=sens.DescriptorFactory.displacement(),
-)
 
 
 ################################################################################
@@ -237,17 +202,17 @@ field_key = "temperature"
 pv_plot = sens.plot_point_sensors_on_sim(sens_array, field_key)
 pv_plot.show()
 
-pv_plot = sens.plot_point_sensors_on_sim(disp_sens, "disp_x")
-pv_plot.show()
+# pv_plot = sens.plot_point_sensors_on_sim(disp_sens, "disp_x")
+# pv_plot.show()
 
 
-# using two sensor arrays, each with a different component key
-pv_plot = sens.plot_point_sensors_on_sim([sens_array, disp_sens], [field_key, "disp_x"])
-pv_plot.show()
+# # using two sensor arrays, each with a different component key
+# pv_plot = sens.plot_point_sensors_on_sim([sens_array, disp_sens], [field_key, "disp_x"])
+# pv_plot.show()
 
 
-pv_plot = sens.plot_point_sensors_on_sim(disp_sens, "disp_x")
-pv_plot.show()
+# pv_plot = sens.plot_point_sensors_on_sim(disp_sens, "disp_x")
+# pv_plot.show()
 
 #%%
 # We determined manually by moving camera in interative mode and then
@@ -271,4 +236,6 @@ print(80*"-")
 print("Camera position after interactive view:")
 print(pv_plot.camera_position)
 print(80*"-"+"\n")
+
+###################################################################################
 
