@@ -421,7 +421,7 @@ void overwrite_intersection_tri6(HitRecord& intersection_record,
     const double h = intersection_record.elem_interp_coords(1);
     const double ray = intersection_record.elem_interp_coords(2);
     // Compute quadratic shape functions
-    Eigen::VectorXd N = shapefuncs::compute_shape_tri6(g, h); // size = 6
+    std::array<double, ElementNodeCount::TRI6> N = shapefuncs::compute_shape_tri6(g, h); // size = 6
 
     // Get node normals if the shading type calls for them
     std::array<double, ElementNodeCount::TRI6 * NODE_COORDINATES> node_normals; // Shape (faces, 3) but flat
@@ -449,19 +449,19 @@ void overwrite_intersection_tri6(HitRecord& intersection_record,
         uv5 = 0.5 * (uv2 + uv0); // edge 2-0
         // Interpolate UVs using shape functions
         EiArray2d uvs =
-          N(0) * uv0
-        + N(1) * uv1
-        + N(2) * uv2
-        + N(3) * uv3
-        + N(4) * uv4
-        + N(5) * uv5;
+          N[0] * uv0
+        + N[1] * uv1
+        + N[2] * uv2
+        + N[3] * uv3
+        + N[4] * uv4
+        + N[5] * uv5;
          // uvs = g*uv0 + h*uv1 + ray*uv2;
 
         // uvs = intersection_record.elem_interp_coords(2) * uv0 + intersection_record.elem_interp_coords(0) * uv1 + intersection_record.elem_interp_coords(1) * uv2;
         intersection_record.face_color = texsampler::sample_texture(texture, uvs);
         if constexpr (Mode == ShadingType::ANGLE_AVG_BLENDED){
             for(int i = 0; i < ElementNodeCount::TRI6; i++){
-            double shape_weight = N(i);
+            double shape_weight = N[i];
             EiArray3d node_normal;
             node_normal << node_normals[i * NODE_COORDINATES], node_normals[i * NODE_COORDINATES + 1], node_normals[i * NODE_COORDINATES + 2];
             shading_normal += shape_weight * node_normal;
@@ -471,7 +471,7 @@ void overwrite_intersection_tri6(HitRecord& intersection_record,
     else if (Surface == SurfaceType::SOLID_COLOR){
         EiVector3d interpolated_color(0.0, 0.0, 0.0);
         for(int i = 0; i < ElementNodeCount::TRI6; i++){
-            double shape_weight = N(i);
+            double shape_weight = N[i];
             interpolated_color += shape_weight * color_data;
             if constexpr (Mode == ShadingType::ANGLE_AVG_BLENDED){
                 EiArray3d node_normal;

@@ -119,10 +119,18 @@ namespace shapefuncs{
      * 
      * @return (Eigen::VectorXd) Vector of shape function values, each entry corresponds to one of the 6 nodes of a TRI6 triangle
      */
-    static inline Eigen::VectorXd compute_shape_tri6(double g, double h) {
-        double r = 1.0 - g - h;
-        Eigen::VectorXd N(6);
-        N << r*(2*r-1), g*(2*g-1), h*(2*h-1), 4*g*r, 4*g*h, 4*h*r;
+    static inline std::array<double, ElementNodeCount::TRI6> compute_shape_tri6(double g, double h)
+    {
+        const double r = 1.0 - g - h;
+        std::array<double, ElementNodeCount::TRI6> N;
+
+        N[0] = r * (2.0 * r - 1.0);  // N1
+        N[1] = g * (2.0 * g - 1.0);  // N2
+        N[2] = h * (2.0 * h - 1.0);  // N3
+        N[3] = 4.0 * g * r;          // N4
+        N[4] = 4.0 * g * h;          // N5
+        N[5] = 4.0 * h * r;          // N6
+    
         return N;
     }
 
