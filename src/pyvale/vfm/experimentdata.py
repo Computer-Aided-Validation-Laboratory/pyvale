@@ -15,7 +15,7 @@ class SpecimenGeometry:
     """
     Physical geometry of the test specimen.
 
-    Stores the spatial coordinates, region-of-interest mask, thickness, and
+    Stores the spatial coordinates, region of interest, thickness, and
     per-point physical area of the DIC grid
     """
 
@@ -41,7 +41,9 @@ class SpecimenGeometry:
 
     region_of_interest: VfmRegionOfInterest
     """
-    Region of interest defining which part of the specimen contains valid data
+    Region of interest defining which part of the specimen contains valid
+    data. A ``(y, x)`` boolean specimen mask can sampled from it with
+    ``region_of_interest.sample_specimen_mask(x, y)``
     """
 
 
@@ -124,23 +126,21 @@ class ExperimentData:
     Stores the full-field strain history, specimen geometry, boundary
     conditions, and temporal data needed to perform VFM identification.
 
-    Shape conventions
-    -----------------
-    strain                 (timesteps, components, y, x)
-    specimen_geometry:
-        x                  (y, x)
-        y                  (y, x)
-        pixel_area         (y, x)
-        region_of_interest (y, x)
-    boundary_conditions:
-        force              (timesteps, 2)  ``[Fx, Fy]``
-    timesteps              (timesteps,)
+    Shape conventions::
 
-    Coordinate system
-    -----------------
-    ``x`` increases left to right (column index)
-    ``y`` increases top to bottom (row index)
-    All coordinates are always positive, and start at 0.0
+        strain             (timesteps, components, y, x)
+        specimen_geometry:
+            x              (y, x)
+            y              (y, x)
+            pixel_area     (y, x)
+        boundary_conditions:
+            force          (timesteps, 2)  [Fx, Fy]
+        timesteps          (timesteps,)
+
+    Coordinate system:
+
+    * ``x`` increases left to right (column index)
+    * ``y`` increases top to bottom (row index)
 
     Notes
     -----

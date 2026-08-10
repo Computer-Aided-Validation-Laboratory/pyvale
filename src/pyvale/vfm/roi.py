@@ -142,6 +142,15 @@ class RoiDefinition:
 
 @dataclass(frozen=True)
 class VfmRegionOfInterest:
+    """
+    Region of interest for a VFM specimen.
+
+    Defines which part of the measurement grid contains valid specimen data.
+    Construct one from a saved yaml file with ``from_yaml``, or from a
+    boolean specimen mask with ``convert_mask_to_physical_roi`` and
+    ``from_definition``
+    """
+
     roi_definition: RoiDefinition
 
     @classmethod

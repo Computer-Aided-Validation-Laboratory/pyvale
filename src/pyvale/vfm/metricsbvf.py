@@ -43,10 +43,25 @@ class StressSensitivity:
 
 @dataclass(slots=True)
 class MetricSBVF(IMetric):
+    """
+    Sensitivity-based virtual fields (SBVF) metric.
+
+    Constructs virtual fields automatically from the sensitivity of the
+    stress field to each constitutive parameter, on a virtual mesh of the
+    given size, and returns the residual between the internal and external
+    virtual work as the objective to minimise
+    """
+
     mesh_size: npt.NDArray[np.uint32]
+    """Number of virtual-mesh elements along each axis, e.g. ``[15, 15]``"""
+
     # TODO: option to adjust fraction of largest timesteps used for
     #   calculating VF scaling factor
     vf_scaling_fraction: float | None = None
+    """
+    Optional fraction of the largest-magnitude timesteps used to compute the
+    virtual-field scaling factor. When ``None`` all timesteps are used
+    """
 
     _virtual_fields_mesh: VirtualFieldsMesh | None = field(
         default=None,
@@ -267,26 +282,32 @@ class MetricSBVF(IMetric):
         perturbation_factor_param: float = 0.15,   #TODO: single perturbation factor or separate for param and dof? 
         perturbation_factor_dof: float = 0.05,
     ) -> list[StressSensitivity]:
-        """Calculate stress sensitivity objects for the provided spatial parameterisations.
+        """
+        Calculate stress sensitivity objects for the provided spatial
+        parameterisations.
 
+        DOF perturbation (``perturbation_factor_dof``):
 
-        stress_sensitivities_dof: 
-            - fixed additive step in normalised DOF space (e.g. 0.05 means perturbing by 5% of the full allowed range of the DOF)
-            - comparing sensitivities across DOFs with different scales, so a fixed step in 
-            normalised DOF space is a good simple choice
+        * fixed additive step in normalised DOF space (e.g. 0.05 perturbs by
+          5% of the full allowed range of the DOF)
+        * a fixed step in normalised DOF space is a good simple choice when
+          comparing sensitivities across DOFs with different scales
 
+        Parameter perturbation (``perturbation_factor_param``):
 
-        stress_sensitivities_parameter: 
-            - multiplicative step in physical parameter space (e.g. 0.15 means perturbing by 15% of the current parameter value)
-            - comparing sensitivities of physical constitutive parameters, so a multiplicative step in 
-            physical parameter space is a simple choice (that is used in Marek et al. 2023)
+        * multiplicative step in physical parameter space (e.g. 0.15 perturbs
+          by 15% of the current parameter value)
+        * a multiplicative step in physical parameter space is a simple choice
+          when comparing sensitivities of physical constitutive parameters
+          (as used in Marek et al. 2023)
 
+        The perturbation type determines how many downstream virtual fields
+        (VF) are created by the SBVF metric:
 
-        The pertubation type determines how many downstream virtual fields (VF) will 
-        be created by the SBVF metric:
-            -"constitutive_parameter": one sensitivity history per active constitutive parameter, 
-            so downstream nVF = nParameters.
-            - "dof": one sensitivity history per active optimisation DOF, so downstream nVF = nDof.
+        * ``"constitutive_parameter"``: one sensitivity history per active
+          constitutive parameter, so downstream nVF = nParameters
+        * ``"dof"``: one sensitivity history per active optimisation DOF, so
+          downstream nVF = nDof
         """
 
         if perturbation_type == "constitutive_parameter":

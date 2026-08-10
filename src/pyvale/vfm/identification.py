@@ -26,6 +26,29 @@ def run_identification(
     experiment_data: ExperimentData,
     identification_config: IdentificationConfig
 ) -> dict[str, ConstitutiveParameter]:
+    """
+    Run a VFM identification and return the identified parameters.
+
+    Validates the inputs, then executes each configured identification phase in
+    order, with the parameters from one phase becoming the initial guess for
+    the next.
+
+    Parameters
+    ----------
+    experiment_data : ExperimentData
+        The measured full-field strain, geometry, boundary conditions and
+        timesteps
+    identification_config : IdentificationConfig
+        The constitutive law, initial parameters (with bounds) and the
+        identification phases to run
+
+    Returns
+    -------
+    dict[str, ConstitutiveParameter]
+        Mapping of parameter name to the identified
+        ``ConstitutiveParameter``. Each carries a
+        ``map`` of the identified values over the specimen grid
+    """
     validate_experiment_data(experiment_data)
     validate_identification_config(identification_config)
 

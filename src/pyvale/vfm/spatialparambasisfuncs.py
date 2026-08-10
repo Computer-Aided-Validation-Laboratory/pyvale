@@ -243,6 +243,11 @@ class SupportBasis:
 
 @dataclass(slots=True)
 class SpatialParameterisationBasisFunction(ISpatialParameterisation):
+    """
+    Smoothly varying parameterisation built from a weighted sum of basis
+    functions over the specimen grid
+    """
+
     support: SupportBasis
     heights: list[float | DegreeOfFreedom | None]
     x: npt.NDArray[np.float64]

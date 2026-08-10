@@ -10,6 +10,11 @@ from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 @dataclass(slots=True)
 class SpatialParameterisationKnown(ISpatialParameterisation):
+    """
+    Fixed, known parameterisation: the parameter is held at its supplied map
+    and not optimised
+    """
+
     value: npt.NDArray[np.float64] | None = None
 
     def get_num_degrees_of_freedom(self) -> int:

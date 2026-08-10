@@ -28,6 +28,14 @@ from pyvale.vfm.spatialparam import (
 #   if we need these, should treat the below as a dataclass and
 #   take these options as inputs in construction
 class OptimiserLeastSquares(IOptimiser):
+    """
+    Least-squares optimiser driving the parameter search.
+
+    Wraps ``scipy.optimize.least_squares`` (Levenberg-Marquardt) to
+    minimise a vector objective over the active, normalised degrees of
+    freedom. Requires an ``IVectorObjectiveFunction``
+    """
+
     def get_required_objective_function_type(self) -> type:
         return IVectorObjectiveFunction
 

@@ -40,6 +40,13 @@ def _resolve_metric_result_vector(
 
 
 class VectorFirstResultPassthrough(IVectorObjectiveFunction):
+    """
+    Vector objective that passes the first metric's residual straight through
+    to the optimiser.
+
+    The most common choice for a single-metric least-squares identification
+    """
+
     def evaluate(
         self,
         metric_results: list[MetricResult],
@@ -50,6 +57,13 @@ class VectorFirstResultPassthrough(IVectorObjectiveFunction):
         return metric_results[0].residual.ravel()
 
 class VectorConcatenateObjective(IVectorObjectiveFunction):
+    """
+    Vector objective that concatenates the residuals of every metric into a
+    single residual vector.
+
+    Use this to drive a least-squares optimiser with more than one metric
+    """
+
     def evaluate(
         self,
         metric_results: list[MetricResult],

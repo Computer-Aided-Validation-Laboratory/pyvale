@@ -6,6 +6,14 @@ import numpy.typing as npt
 
 
 class IHardeningFunction(ABC):
+    """
+    Interface (abstract base class) for an isotropic hardening law.
+
+    A hardening law maps the current constitutive parameters and the
+    equivalent plastic strain onto the current yield stress and its slope,
+    and declares which constitutive parameters it requires
+    """
+
     @abstractmethod
     def hardening(
         self,
@@ -13,16 +21,16 @@ class IHardeningFunction(ABC):
         equivalent_plastic_strain: npt.NDArray[np.float64]
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """
-        Return current yield stress and its derivative for the active
+        Return the current yield stress and its derivative for this
         hardening law.
 
         Returns
         -------
         tuple[np.ndarray, np.ndarray]
-            yield_stress : Current yield stress at all datapoints
-            delta_yield_stress_delta_equivalent_plastic_strain : Derivative of
-                yield stress with respect to equivalent plastic strain
-                (i.e. hardening slope)
+            A tuple ``(yield_stress, hardening_slope)`` where ``yield_stress``
+            is the current yield stress at all datapoints and
+            ``hardening_slope`` is the derivative of the yield stress with
+            respect to the equivalent plastic strain (the hardening slope)
         """
         pass
 
@@ -42,6 +50,17 @@ class IHardeningFunction(ABC):
 
 @dataclass(slots=True)
 class HardeningLinear(IHardeningFunction):
+    """
+    Linear (bilinear) isotropic hardening.
+
+    The yield stress grows linearly with equivalent plastic strain:
+    ``sigma_y = yield_strength + hardening_modulus * eps_p``.
+
+    Requires the ``yield_strength`` and ``hardening_modulus`` parameters. The
+    label arguments allow these to be renamed if your parameter dictionary
+    uses different keys
+    """
+
     yield_strength_label: str
     hardening_modulus_label: str
 
@@ -85,6 +104,17 @@ class HardeningLinear(IHardeningFunction):
 
 @dataclass(slots=True)
 class HardeningSwift(IHardeningFunction):
+    """
+    Swift power-law isotropic hardening.
+
+    The yield stress follows
+    ``sigma_y = strength_coefficient * (strain_offset + eps_p) ** hardening_exponent``.
+
+    Requires the ``strength_coefficient``, ``strain_offset`` and
+    ``hardening_exponent`` parameters. The label arguments allow these to be
+    renamed if your parameter dictionary uses different keys
+    """
+
     strength_coefficient_label: str
     strain_offset_label: str
     hardening_exponent_label: str
@@ -151,6 +181,19 @@ class HardeningSwift(IHardeningFunction):
 
 @dataclass(slots=True)
 class HardeningVoce(IHardeningFunction):
+    """
+    Voce (saturating) isotropic hardening with a linear term.
+
+    Combines a linear hardening term with an exponentially saturating term:
+    ``sigma_y = yield_strength + hardening_modulus * eps_p
+    + saturation_stress * (1 - exp(-rate_parameter * eps_p))``.
+
+    Requires the ``yield_strength``, ``hardening_modulus``,
+    ``saturation_stress`` and ``rate_parameter`` parameters. The label
+    arguments allow these to be renamed if your parameter dictionary uses
+    different keys
+    """
+
     yield_strength_label: str
     hardening_modulus_label: str
     saturation_stress_label: str
@@ -230,6 +273,17 @@ class HardeningVoce(IHardeningFunction):
 
 @dataclass(slots=True)
 class HardeningLudwik(IHardeningFunction):
+    """
+    Ludwik power-law isotropic hardening.
+
+    The yield stress follows
+    ``sigma_y = yield_strength + strength_coefficient * eps_p ** hardening_exponent``.
+
+    Requires the ``yield_strength``, ``strength_coefficient`` and
+    ``hardening_exponent`` parameters. The label arguments allow these to be
+    renamed if your parameter dictionary uses different keys
+    """
+
     yield_strength_label: str
     strength_coefficient_label: str
     hardening_exponent_label: str

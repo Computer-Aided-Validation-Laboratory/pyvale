@@ -3,30 +3,29 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
-from pyvale.vfm.constparam import ConstitutiveParameter
-from pyvale.vfm.experimentdata import (
+from pyvale.vfm import (
     BoundaryConditions,
+    ConstitutiveParameter,
     Edge,
     EdgeConditions,
     EEdgeCondition,
     ExperimentData,
-    SpecimenGeometry,
-)
-from pyvale.vfm.hardening import HardeningLinear
-from pyvale.vfm.identification import run_identification
-from pyvale.vfm.identificationconfig import IdentificationConfig, IdentificationPhase
-from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
-from pyvale.vfm.objectivefuncvector import VectorWeightedObjective
-from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
-from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
-from pyvale.vfm.spatialparamslicewise import (
+    HardeningLinear,
+    IdentificationConfig,
+    IdentificationPhase,
+    IsotropicVonMisesElastoplasticity,
+    run_identification,
     SliceConfig,
+    SliceWiseForceReconstructionMetric,
+    SliceWiseIndependentLeastSquares,
     SliceWiseSpatialParameterisation,
+    SpatialParameterisationKnown,
+    SpecimenGeometry,
     SupportSlice,
-    build_slice_partition,
+    VectorWeightedObjective,
+    VfmRegionOfInterest,
 )
-from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
+from pyvale.vfm.spatialparamslicewise import build_slice_partition
 
 
 INPUTS_PATH = Path(__file__).resolve().parent / "rob-data" / "wdbn4-vfm-input-data-260629-1530"

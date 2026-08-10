@@ -6,46 +6,45 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.spatial import cKDTree
 
-from pyvale.vfm.constlaw import IConstitutiveLaw
-from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
-from pyvale.vfm.constparam import ConstitutiveParameter
-from pyvale.vfm.dof import DegreeOfFreedom
-from pyvale.vfm.experimentdata import (
+from pyvale.vfm import (
     BoundaryConditions,
+    ConstitutiveParameter,
+    convert_mask_to_physical_roi,
+    DegreeOfFreedom,
     Edge,
     EdgeConditions,
     EEdgeCondition,
+    EquilibriumGapMetric,
     ExperimentData,
+    HardeningLinear,
+    IConstitutiveLaw,
+    IdentificationConfig,
+    IdentificationPhase,
+    IMetric,
+    IObjectiveFunction,
+    IOptimiser,
+    IsotropicVonMisesElastoplasticity,
+    ISpatialParameterisation,
+    IVectorObjectiveFunction,
+    MetricSBVF,
+    run_identification,
+    SliceConfig,
+    SliceWiseForceReconstructionMetric,
+    SpatialParameterisationBasisFunction,
+    SpatialParameterisationHomogeneous,
+    SpatialParameterisationKnown,
     SpecimenGeometry,
+    SupportBasis,
+    SupportSlice,
+    VectorFirstResultPassthrough,
+    VfmRegionOfInterest,
 )
-from pyvale.vfm.hardening import HardeningLinear
-from pyvale.vfm.identification import run_identification
-from pyvale.vfm.identificationconfig import IdentificationConfig, IdentificationPhase
-from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
-from pyvale.vfm.metricsbvf import MetricSBVF
-from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
-from pyvale.vfm.metric import IMetric
 from pyvale.vfm.normalisation import (
     denormalise_degrees_of_freedom,
     normalise_degrees_of_freedom,
 )
-from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
-from pyvale.vfm.objectivefunc import IObjectiveFunction, IVectorObjectiveFunction
-from pyvale.vfm.optimiser import IOptimiser
-from pyvale.vfm.slicewise_utils import SliceConfig
-from pyvale.vfm.spatialparambasisfuncs import (
-    BasisFunctionKernelBivariate,
-    SpatialParameterisationBasisFunction,
-    SupportBasis,
-)
-from pyvale.vfm.spatialparam import ISpatialParameterisation, PhaseSpatialState
-from pyvale.vfm.spatialparamhomogeneous import SpatialParameterisationHomogeneous
-from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
-from pyvale.vfm.spatialparamslicewise import SupportSlice
-from pyvale.vfm.vfmregionofinterest import (
-    VfmRegionOfInterest,
-    convert_mask_to_physical_roi,
-)
+from pyvale.vfm.spatialparam import PhaseSpatialState
+from pyvale.vfm.spatialparambasisfuncs import BasisFunctionKernelBivariate
 
 
 INPUTS_PATH = Path(__file__).resolve().parent / "rob-data" / "notched-weld-input-data"
