@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from PIL import Image
 import csv
 
+from PIL import Image
+
 base_dir = Path.cwd() / "verif" / "verif_2"
 if not base_dir.is_dir():
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -517,9 +519,40 @@ def verif_case2_test() -> None:
                 f"b_{mesh_name}_{case_name} frame {frame_idx}: "
                 f"centroid dist={stats.dist:.6e}"
             )
+def verif_case2_generate_gifs() -> None:
 
+    for case_spec in verifconstants.distort_cases:
+        data_path = Path(Path().resolve().joinpath(case_spec["data_dir"]))
+        out_dir = make_test_dir(base_dir, "b_" + str(case_spec["mesh_type"].name  + "_" + case_spec["case_name"]))
+        test_rtmesh = simdata_csv_to_rtmesh(directory = data_path, 
+                                    spatial_dim = sens.EDim.TWOD, 
+                                    world_position = np.array([0.0, 0.0, 0.0]))
+        frames = []
+        for frame_idx in range(test_rtmesh.timestep_count):
+            img_path = out_dir / Path(f"rtimage_{frame_idx}_cam0.bmp")
+            frames.append(Image.open(img_path))
+
+        # frames[0].save(
+        #     out_dir / "animation.gif",
+        #     save_all=True,
+        #     append_images=frames[1:] + frames[-2::-1],
+        #     duration=300,   # milliseconds per frame
+        #     loop=0,
+        # )
+
+
+        ping_pong_frames = frames + frames[-2:0:-1]
+        ping_pong_frames[0].save(
+            out_dir / "animation.gif",
+            save_all=True,
+            append_images=ping_pong_frames[1:],
+            duration=200,
+            loop=0,
+        )
+        
 def main():
     verif_case2_test()
+    # verif_case2_generate_gifs()
 
 
 if __name__ == "__main__":
