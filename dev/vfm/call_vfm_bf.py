@@ -425,11 +425,11 @@ def _make_phases(
 
 
 def _copy_parameter_maps(
-    parameters: dict[str, ConstitutiveParameter],
+    parameter_maps: dict[str, np.ndarray],
 ) -> dict[str, np.ndarray]:
     return {
-        name: np.array(parameter.map, dtype=np.float64, copy=True)
-        for name, parameter in parameters.items()
+        name: np.array(parameter_map, dtype=np.float64, copy=True)
+        for name, parameter_map in parameter_maps.items()
     }
 
 
@@ -809,8 +809,8 @@ def main() -> None:
             parameters=parameters,
             phases=[phase],
         )
-        identified_parameters = run_identification(experiment_data, identification)
-        parameter_maps = _copy_parameter_maps(identified_parameters)
+        result = run_identification(experiment_data, identification)
+        parameter_maps = _copy_parameter_maps(result.parameter_maps)
         phase_parameter_maps.append(parameter_maps)
         _save_phase_diagnostics(
             phase_number=phase_index,

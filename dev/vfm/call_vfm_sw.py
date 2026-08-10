@@ -172,7 +172,7 @@ def main() -> None:
         ("Yield Strength", "Hardening Modulus"),
         strict=True,
     ):
-        image = ax.imshow(vfm_result[param_name].map, origin="lower", cmap="viridis")
+        image = ax.imshow(vfm_result.parameter_maps[param_name], origin="lower", cmap="viridis")
         ax.set_title(title)
         fig.colorbar(image, ax=ax)
     plt.show()

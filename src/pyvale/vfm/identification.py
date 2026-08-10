@@ -8,6 +8,11 @@ from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.identificationconfig import IdentificationConfig
 from pyvale.vfm.identificationconfig import IdentificationPhase
+from pyvale.vfm.identificationresult import (
+    IdentificationHistory,
+    IdentificationResult,
+    PhaseSnapshot,
+)
 from pyvale.vfm.metric import IMetric
 from pyvale.vfm.refinement import IRefinementPolicy
 from pyvale.vfm.refinement import RefinementContext
@@ -25,9 +30,9 @@ from pyvale.vfm.spatialparam import (
 def run_identification(
     experiment_data: ExperimentData,
     identification_config: IdentificationConfig
-) -> dict[str, ConstitutiveParameter]:
+) -> IdentificationResult:
     """
-    Run a VFM identification and return the identified parameters.
+    Run a VFM identification and return the result.
 
     Validates the inputs, then executes each configured identification phase in
     order, with the parameters from one phase becoming the initial guess for
@@ -44,13 +49,16 @@ def run_identification(
 
     Returns
     -------
-    dict[str, ConstitutiveParameter]
-        Mapping of parameter name to the identified
-        ``ConstitutiveParameter``. Each carries a
-        ``map`` of the identified values over the specimen grid
+    IdentificationResult
+        The final identified parameter map for each constitutive parameter,
+        together with an ``IdentificationHistory`` holding one snapshot per
+        phase (each capturing the phase's spatial parameterisations and their
+        degree-of-freedom values, taken at the end of the phase)
     """
     validate_experiment_data(experiment_data)
     validate_identification_config(identification_config)
+
+    history = IdentificationHistory()
 
     match identification_config.constitutive_law.get_identification_type():
         # TODO: implement linear case
@@ -112,7 +120,23 @@ def run_identification(
                     action.apply(phase_runtime, context)
                     phase_runtime.prepare(experiment_data)
 
-    return identification_config.parameters
+                # Snapshot the phase's final state, right at the end of the
+                # phase and before the next phase begins.
+                history.phases.append(
+                    PhaseSnapshot.from_spatial_parameterisations(
+                        phase_runtime.spatial_parameterisations
+                    )
+                )
+
+    parameter_maps = {
+        name: np.asarray(parameter.map, dtype=np.float64)
+        for name, parameter in identification_config.parameters.items()
+    }
+
+    return IdentificationResult(
+        parameter_maps,
+        history,
+    )
 
 
 @dataclass(slots=True)

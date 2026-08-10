@@ -218,21 +218,45 @@ Finally, combine the model, initial parameters and phases into a single
 4. Run the identification
 --------------------------
 
-``run_identification`` executes the configured
-phases and returns the identified parameters as a mapping of parameter name to
-``ConstitutiveParameter``:
+``run_identification`` executes the configured phases and returns an
+``IdentificationResult``:
 
 .. code-block:: python
 
-    identified_parameters = vfm.run_identification(
-        experiment_data, identification_config
-    )
+    result = vfm.run_identification(experiment_data, identification_config)
 
-    for name, parameter in identified_parameters.items():
-        print(f"{name} = {np.nanmean(parameter.map):.4f}")
+    for name, parameter_map in result.parameter_maps.items():
+        print(f"{name} = {np.nanmean(parameter_map):.4f}")
 
-Each returned ``ConstitutiveParameter`` carries a ``map`` of the identified
-values over the specimen grid. For a homogeneous parameterisation every entry
-holds the same value, so ``np.nanmean(parameter.map)`` recovers the scalar
-result; for a spatially varying parameterisation the ``map`` gives the full
-identified field.
+The result has two parts:
+
+* ``result.parameter_maps`` is a mapping from parameter name to the final
+  identified ``(y, x)`` map. For a homogeneous parameterisation every entry
+  holds the same value, so ``np.nanmean(parameter_map)`` recovers the scalar
+  result; for a spatially varying parameterisation the map gives the full
+  identified field.
+* ``result.history`` is an ``IdentificationHistory`` with one ``PhaseSnapshot``
+  per phase, taken at the end of that phase. Each snapshot holds, per
+  constitutive parameter, the spatial parameterisations and their
+  degree-of-freedom values:
+
+.. code-block:: python
+
+    for phase_index, phase_snapshot in enumerate(result.history.phases):
+        for name, snapshots in phase_snapshot.spatial_parameterisations.items():
+            for snapshot in snapshots:
+                print(phase_index, name, snapshot.dof_values)
+
+The result can be saved to disk with ``save_to_yaml``, which writes an
+``identification_result.yaml`` plus a sibling ``.npy`` file per parameter map.
+With no argument it creates a new ``vfm-identification-result_{timestamp}``
+directory in the current directory; pass a path to choose your own:
+
+.. code-block:: python
+
+    result.save_to_yaml()          # vfm-identification-result_<timestamp>/
+    result.save_to_yaml("my_run")  # my_run/
+
+The yaml records the parameter-map file names and the history inline, storing
+each spatial parameterisation as its type name and its list of
+degree-of-freedom values.

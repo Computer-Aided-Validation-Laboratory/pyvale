@@ -6,6 +6,12 @@
 
 from .identification import run_identification
 from .identificationconfig import IdentificationConfig, IdentificationPhase
+from .identificationresult import (
+    IdentificationHistory,
+    IdentificationResult,
+    ParameterisationSnapshot,
+    PhaseSnapshot,
+)
 
 from .inputdata import process_input_data
 from .inputdataconfig import AnsysConfig, InputDataConfig, MooseConfig
@@ -77,6 +83,10 @@ __all__ = [
     "run_identification",
     "IdentificationConfig",
     "IdentificationPhase",
+    "IdentificationResult",
+    "IdentificationHistory",
+    "PhaseSnapshot",
+    "ParameterisationSnapshot",
     "process_input_data",
     "AnsysConfig",
     "MooseConfig",

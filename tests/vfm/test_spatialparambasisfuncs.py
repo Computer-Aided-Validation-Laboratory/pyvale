@@ -223,9 +223,9 @@ def test_identification_of_heterogeneous_yield_strength() -> None:
     )
 
     print("Running identification...")
-    identified_parameters = run_identification(experiment_data, ident_config)
+    result = run_identification(experiment_data, ident_config)
 
-    identified_yield_map = identified_parameters["yield_strength"].map
+    identified_yield_map = result.parameter_maps["yield_strength"]
     known_yield_map = _known_yield_map(x_grid, y_grid)
 
     # Only compare within the region of interest (exclude the hole and any
