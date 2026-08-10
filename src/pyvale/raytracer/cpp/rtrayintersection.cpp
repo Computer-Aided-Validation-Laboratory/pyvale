@@ -494,6 +494,51 @@ void boundary_limit_tri(Eigen::Vector2d& gh)
     }
 }
 
+
+
+
+static void remove_duplicate_hull_points(
+    std::vector<EiVector2d>& hull,
+    std::vector<Eigen::Vector2d>& hull_uv,
+    double tol)
+{
+    if (hull.size() < 2)
+        return;
+
+    const double tol2 = tol * tol;
+
+    std::vector<EiVector2d> new_hull;
+    std::vector<Eigen::Vector2d> new_hull_uv;
+
+    new_hull.reserve(hull.size());
+    new_hull_uv.reserve(hull_uv.size());
+
+    new_hull.push_back(hull[0]);
+    new_hull_uv.push_back(hull_uv[0]);
+
+    // Remove consecutive duplicates
+    for (size_t i = 1; i < hull.size(); ++i)
+    {
+        if ((hull[i] - new_hull.back()).squaredNorm() > tol2)
+        {
+            new_hull.push_back(hull[i]);
+            new_hull_uv.push_back(hull_uv[i]);
+        }
+    }
+
+    if (new_hull.size() > 1 &&
+        (new_hull.front() - new_hull.back()).squaredNorm() <= tol2)
+    {
+        new_hull.pop_back();
+        new_hull_uv.pop_back();
+    }
+
+    hull.swap(new_hull);
+    hull_uv.swap(new_hull_uv);
+}
+
+
+
 template<ElementNodeCount element_node_count>
 InitialGuess compute_initial_guess_newton_solver(
     const Ray& ray,
@@ -646,6 +691,7 @@ InitialGuess compute_initial_guess_newton_solver(
         hull_uv.push_back(uvB);
     }
 
+    remove_duplicate_hull_points(hull, hull_uv, 1e-10 * std::max(diagonal, 1.0));
 
     // Compute centroid
     EiVector2d center(0.0,0.0);
