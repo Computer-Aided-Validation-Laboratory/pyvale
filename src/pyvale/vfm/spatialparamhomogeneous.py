@@ -11,6 +11,11 @@ from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 @dataclass(slots=True)
 class SpatialParameterisationHomogeneous(ISpatialParameterisation):
+    """
+    Spatially uniform parameterisation: a single value across the whole
+    specimen
+    """
+
     value: float | DegreeOfFreedom | None = None
 
     def get_num_degrees_of_freedom(self) -> int:

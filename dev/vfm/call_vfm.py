@@ -2,33 +2,27 @@ from pathlib import Path
 
 import numpy as np
 
-from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
-from pyvale.vfm.constparam import ConstitutiveParameter
-from pyvale.vfm.experimentdata import (
+from pyvale.vfm import (
     BoundaryConditions,
+    ConstitutiveParameter,
     Edge,
     EdgeConditions,
     EEdgeCondition,
     ExperimentData,
-    SpecimenGeometry,
-)
-from pyvale.vfm.hardening import HardeningLinear
-from pyvale.vfm.identification import run_identification
-from pyvale.vfm.identificationconfig import (
+    HardeningLinear,
     IdentificationConfig,
     IdentificationPhase,
-)
-from pyvale.vfm.metricsbvf import MetricSBVF
-from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
-from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
-from pyvale.vfm.spatialparambasisfuncs import (
+    IsotropicVonMisesElastoplasticity,
+    MetricSBVF,
+    OptimiserLeastSquares,
+    run_identification,
     SpatialParameterisationBasisFunction,
-)
-from pyvale.vfm.spatialparamhomogeneous import (
     SpatialParameterisationHomogeneous,
+    SpatialParameterisationKnown,
+    SpecimenGeometry,
+    VectorFirstResultPassthrough,
+    VfmRegionOfInterest,
 )
-from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
-from pyvale.vfm.vfmregionofinterest import VfmRegionOfInterest
 
 inputs_path = Path(__file__).resolve().parent / "inputs"
 

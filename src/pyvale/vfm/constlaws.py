@@ -13,6 +13,16 @@ from pyvale.vfm.radialreturn import radial_return
 
 @dataclass(slots=True)
 class IsotropicVonMisesElastoplasticity(IConstitutiveLaw):
+    """
+    Isotropic von Mises (J2) elasto-plasticity in plane stress.
+
+    Combines linear isotropic elasticity with a J2 yield surface and the
+    supplied isotropic ``hardening_function``. The required parameters are
+    ``elastic_modulus`` and ``poissons_ratio`` plus whichever parameters the
+    hardening law needs. The label arguments allow the elastic parameters to
+    be renamed if your parameter dictionary uses different keys
+    """
+
     hardening_function: IHardeningFunction
     elastic_modulus_label: str
     poissons_ratio_label: str

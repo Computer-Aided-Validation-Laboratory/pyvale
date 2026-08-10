@@ -11,8 +11,18 @@ from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 @dataclass(slots=True)
 class MetricResult:
+    """
+    Result returned by a virtual-work metric evaluation.
+
+    Holds the residual vector that the objective function minimises, together
+    with any additional fields produced by the metric
+    """
+
     residual: npt.NDArray[np.float64] | None = None
+    """Residual vector between internal and external virtual work"""
+
     additional_fields: dict | None = None
+    """Optional fields keyed by name (metric-specific)"""
 
 
 class IMetric(ABC):

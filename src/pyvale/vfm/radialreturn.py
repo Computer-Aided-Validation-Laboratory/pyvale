@@ -7,9 +7,20 @@ from pyvale.vfm.hardening import IHardeningFunction
 
 
 class EUnloading(enum.Enum):
+    """
+    Output-only unloading compensation mode for the radial-return mapping.
+
+    Controls how the reported stress is corrected when a point unloads
+    """
+
     NoCompensation = enum.auto()
+    """No output correction on unloading"""
+
     ConstantStrain = enum.auto()
+    """Hold the previous output stress (default)"""
+
     LinearExtrapolation = enum.auto()
+    """Extrapolate the output stress from the two previous outputs"""
 
 
 # TODO: update docstring
@@ -62,8 +73,8 @@ def radial_return(
 
 
     Overview
-    -------    
-    This function applies radial return mappingto integrate J2 plasticity 
+    --------
+    This function applies radial return mapping to integrate J2 plasticity
     with isotropic hardening over a strain history.
 
     Algorithm Overview:

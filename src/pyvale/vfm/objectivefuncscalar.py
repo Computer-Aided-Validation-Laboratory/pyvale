@@ -3,6 +3,14 @@ from pyvale.vfm.objectivefunc import IScalarObjectiveFunction
 
 
 class ScalarFirstResultPassthrough(IScalarObjectiveFunction):
+    """
+    Scalar objective that returns the first entry of the first metric's
+    residual unchanged.
+
+    A minimal objective for single-metric identifications driven by a scalar
+    optimiser
+    """
+
     def evaluate(
         self,
         metric_results: list[MetricResult],

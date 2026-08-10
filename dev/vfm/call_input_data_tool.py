@@ -1,16 +1,14 @@
 from pathlib import Path
 
-from pyvale.vfm.experimentdata import (
+from pyvale.vfm import (
+    AnsysConfig,
     Edge,
     EdgeConditions,
     EEdgeCondition,
     ExperimentData,
-)
-from pyvale.vfm.inputdata import process_input_data
-from pyvale.vfm.inputdataconfig import (
-    AnsysConfig,
     InputDataConfig,
     MooseConfig,
+    process_input_data,
 )
 
 ANSYS_DIR = Path(
