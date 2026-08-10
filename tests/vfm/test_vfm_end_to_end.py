@@ -89,14 +89,12 @@ def test_end_to_end_homogeneous() -> None:
     )
 
     print("Running identification...")
-    identified_parameters = run_identification(experiment_data, ident_config)
+    result = run_identification(experiment_data, ident_config)
 
-    for name, param in identified_parameters.items():
-        print(f"{name} = {np.nanmean(param.map):.6f}")
+    identified_maps = result.parameter_maps
 
-    identified_maps = {
-        name: param.map for name, param in identified_parameters.items()
-    }
+    for name, param_map in identified_maps.items():
+        print(f"{name} = {np.nanmean(param_map):.6f}")
 
     known_parameter_maps = {
         name: np.full((GRID_DIVS, GRID_DIVS), value)

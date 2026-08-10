@@ -136,13 +136,21 @@ identification_config = vfm.IdentificationConfig(
 # %%
 # 4. Run the identification
 # -------------------------
-# ``run_identification`` returns the identified parameters as a mapping of
-# parameter name to ``ConstitutiveParameter``. For a homogeneous
-# parameterisation every entry of the parameter ``map`` holds the same
-# identified value, so the mean recovers the scalar result.
-identified_parameters = vfm.run_identification(
-    experiment_data, identification_config
-)
+# ``run_identification`` returns an ``IdentificationResult`` holding the final
+# identified parameter map for each parameter (``result.parameter_maps``) and a
+# per-phase ``history``. For a homogeneous parameterisation every entry of a
+# parameter map holds the same identified value, so the mean recovers the
+# scalar result.
+result = vfm.run_identification(experiment_data, identification_config)
 
-for name, parameter in identified_parameters.items():
-    print(f"{name} = {np.nanmean(parameter.map):.4f}")
+for name, parameter_map in result.parameter_maps.items():
+    print(f"{name} = {np.nanmean(parameter_map):.4f}")
+
+# The history has one snapshot per phase, taken at the end of that phase, each
+# holding the spatial parameterisations of every parameter and their
+# degree-of-freedom values.
+for phase_index, phase_snapshot in enumerate(result.history.phases):
+    print(f"phase {phase_index}:")
+    for name, snapshots in phase_snapshot.spatial_parameterisations.items():
+        dof_values = [s.dof_values for s in snapshots]
+        print(f"    {name}: dof values = {dof_values}")

@@ -106,10 +106,10 @@ def test_sbvf_metric_with_vfs_locked():
     # homogeneous.
     # ------------------------------------------------------------------
     print("Running identification...")
-    identified_parameters = run_identification(experiment_data, ident_config)
+    result = run_identification(experiment_data, ident_config)
 
-    for name, param in identified_parameters.items():
-        print(f"{name} = {np.nanmean(param.map):.6f}")
+    for name, param_map in result.parameter_maps.items():
+        print(f"{name} = {np.nanmean(param_map):.6f}")
 
     # Copy the internal/external virtual work from the metric's final evaluation
     # during the identification (i.e. at the identified parameters).
@@ -205,10 +205,10 @@ def test_sbvf_metric_with_vfs_free():
     # homogeneous.
     # ------------------------------------------------------------------
     print("Running identification...")
-    identified_parameters = run_identification(experiment_data, ident_config)
+    result = run_identification(experiment_data, ident_config)
 
-    for name, param in identified_parameters.items():
-        print(f"{name} = {np.nanmean(param.map):.6f}")
+    for name, param_map in result.parameter_maps.items():
+        print(f"{name} = {np.nanmean(param_map):.6f}")
 
     # Copy the internal/external virtual work from the metric's final evaluation
     # during the identification (i.e. at the identified parameters).

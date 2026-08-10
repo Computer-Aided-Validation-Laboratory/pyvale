@@ -128,9 +128,9 @@ def _build_experiment_data() -> ExperimentData:
     specimen_geometry = SpecimenGeometry(
         x_grid,
         y_grid,
-        region_of_interest,
-        1.0,
         pixel_area,
+        1.0,
+        region_of_interest,
     )
 
     boundary_conditions = BoundaryConditions(
@@ -457,15 +457,15 @@ def test_run_identification_handles_shared_slice_support_with_general_optimiser(
         ],
     )
 
-    identified_parameters = run_identification(
+    result = run_identification(
         experiment_data,
         identification,
     )
 
-    assert identified_parameters["yield_strength"].map.shape == (
+    assert result.parameter_maps["yield_strength"].shape == (
         experiment_data.specimen_geometry.x.shape
     )
-    assert identified_parameters["hardening_modulus"].map.shape == (
+    assert result.parameter_maps["hardening_modulus"].shape == (
         experiment_data.specimen_geometry.x.shape
     )
 
@@ -943,14 +943,14 @@ def test_run_identification_handles_single_shared_support_refinement() -> None:
         ],
     )
 
-    identified_parameters = run_identification(
+    result = run_identification(
         experiment_data,
         identification,
     )
 
-    assert identified_parameters["yield_strength"].map.shape == (
+    assert result.parameter_maps["yield_strength"].shape == (
         experiment_data.specimen_geometry.x.shape
     )
-    assert identified_parameters["hardening_modulus"].map.shape == (
+    assert result.parameter_maps["hardening_modulus"].shape == (
         experiment_data.specimen_geometry.x.shape
     )
