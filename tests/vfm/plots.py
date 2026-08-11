@@ -5,7 +5,7 @@ import numpy.typing as npt
 STRESS_COMPONENT_LABELS = ("xx", "yy", "xy")
 
 
-def _plot_stress_abs_diff(
+def plot_stress_abs_diff(
     x_grid: npt.NDArray[np.float64],
     y_grid: npt.NDArray[np.float64],
     abs_diff: npt.NDArray[np.float64],
@@ -25,7 +25,7 @@ def _plot_stress_abs_diff(
     plt.show()
 
 
-def _plot_stress_abs_perc_diff(
+def plot_stress_abs_perc_diff(
     x_grid: npt.NDArray[np.float64],
     y_grid: npt.NDArray[np.float64],
     abs_perc_diff: npt.NDArray[np.float64],
@@ -46,7 +46,7 @@ def _plot_stress_abs_perc_diff(
     plt.show()
 
 
-def _plot_metric_virtual_work(
+def plot_metric_virtual_work(
     internal_virtual_work_a: npt.NDArray[np.float64],
     external_virtual_work_a: npt.NDArray[np.float64],
     internal_virtual_work_b: npt.NDArray[np.float64],
@@ -188,7 +188,7 @@ def _plot_metric_virtual_work(
     plt.show()
 
 
-def _plot_map_comparison(
+def plot_map_comparison(
     x_grid: npt.NDArray[np.float64],
     y_grid: npt.NDArray[np.float64],
     reference_map: npt.NDArray[np.float64],
@@ -236,7 +236,7 @@ def _plot_map_comparison(
     plt.show()
 
 
-def _plot_identification_diff(
+def plot_identification_diff(
     x_grid: npt.NDArray[np.float64],
     y_grid: npt.NDArray[np.float64],
     identified_maps: dict[str, npt.NDArray[np.float64]],

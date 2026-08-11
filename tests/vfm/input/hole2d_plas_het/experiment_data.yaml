@@ -1,0 +1,20 @@
+x: x.npy
+y: y.npy
+strain: strain.npy
+force: force.npy
+time: time.npy
+region_of_interest: region_of_interest.yaml
+thickness: 0.001
+edge_conditions:
+  min_x_edge:
+    x: Free
+    y: Free
+  max_x_edge:
+    x: Free
+    y: Free
+  min_y_edge:
+    x: Fixed
+    y: Fixed
+  max_y_edge:
+    x: Free
+    y: Traction
