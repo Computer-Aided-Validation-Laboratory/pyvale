@@ -1,10 +1,14 @@
 import numpy as np
 
 from pyvale.vfm.experimentdata import ExperimentData
-from pyvale.vfm.identificationconfig import IdentificationConfig
-from pyvale.vfm.identificationconfig import IdentificationPhase
+from pyvale.vfm.identificationconfig import (
+    IdentificationConfig,
+    IdentificationPhase,
+)
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
-from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
+from pyvale.vfm.optimiserslicewiseindependent import (
+    SliceWiseIndependentLeastSquares,
+)
 from pyvale.vfm.spatialparam import get_num_degrees_of_freedom
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
@@ -161,17 +165,18 @@ def validate_experiment_data(
         if not np.allclose(np.diff(geometry.y, axis=1), 0.0):
             raise ValueError("y must be constant along each row")
 
-        if not len(np.unique(geometry.pixel_area)) == 1:
-            raise ValueError(
-                "Pixel area should be constant across all elements as we assume "
-                "x and y must form an axis-aligned grid with uniform spacing"
+        if not np.all(
+            np.isclose(
+                geometry.pixel_area,
+                geometry.pixel_area[0],
+                rtol=1e-9,
+                atol=0.0
             )
-
-        # if not np.all(np.isclose(geometry.pixel_area, geometry.pixel_area[0], atol=0.001)):
-        #     raise ValueError(
-        #         "Pixel area should be 'almost' constant across all elements as we assume "
-        #         "x and y must form an axis-aligned grid with uniform spacing"
-        #     )
+        ):
+            raise ValueError(
+                "Pixel area should be effectively constant across all elements"
+                "as x and y must form an axis-aligned grid with uniform spacing"
+            )
 
 def validate_identification_config(
     config: IdentificationConfig

@@ -15,12 +15,14 @@ SINGLE_ELEMENT_DIR = REPO_ROOT / "dev" / "vfm" / "rob-data" / "single-element-pl
 PLATE_WITH_HOLE_DIR = REPO_ROOT / "dev" / "vfm" / "rob-data" / "plate-with-hole-hom-lin-hard"
 
 
+@pytest.mark.skip(reason="input data is local to Rob's machine, needs to be selectively moved to test input dir")
 def test_build_surface_geometry_from_single_element_mesh_returns_unit_area() -> None:
     geometry = build_surface_geometry_from_gmsh(SINGLE_ELEMENT_DIR / "single_element_square.msh")
 
     assert geometry.area == pytest.approx(1.0)
 
 
+@pytest.mark.skip(reason="input data is local to Rob's machine, needs to be selectively moved to test input dir")
 def test_interpolate_single_element_to_grid_returns_single_point() -> None:
     result = interpolate_fe_data_to_grid(
         SINGLE_ELEMENT_DIR / "element_data.csv",
@@ -36,6 +38,7 @@ def test_interpolate_single_element_to_grid_returns_single_point() -> None:
     assert result.total_specimen_area == pytest.approx(1.0)
 
 
+@pytest.mark.skip(reason="input data is local to Rob's machine, needs to be selectively moved to test input dir")
 def test_interpolate_plate_with_hole_to_grid_preserves_hole_and_timesteps() -> None:
     result = interpolate_fe_data_to_grid(
         PLATE_WITH_HOLE_DIR / "element_data.csv",
