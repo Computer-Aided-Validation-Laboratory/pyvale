@@ -28,7 +28,10 @@ from pyvale.vfm import (
 )
 
 
-INPUTS_PATH = Path(__file__).resolve().parent / "rob-data" / "wdbn4-vfm-input-data-260629-1530"
+INPUTS_PATH = Path(
+    "/media/data/3_Resources/gr91-weld-dic-results/wdbn1/pyvale-input/"
+    "vfm-input-data_2026-08-12_15-43"
+)
 SLICE_AXIS = "y"
 NUM_SLICES = 40
 MERGE_PARAMETER_TOLERANCE = 0.05

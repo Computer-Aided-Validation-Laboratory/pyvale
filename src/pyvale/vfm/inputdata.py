@@ -13,28 +13,32 @@ from pyvale.vfm.experimentdata import (
 from pyvale.vfm.inputdataconfig import AnsysConfig, InputDataConfig, MooseConfig
 from pyvale.vfm.inputdataloadansys import load_ansys_data
 from pyvale.vfm.inputdataloadmoose import load_moose_data
+from pyvale.vfm.inputdatamatchidassembled import (
+    MatchIDAssembledConfig,
+    load_matchid_assembled_data,
+)
 from pyvale.vfm.inputdataplots import _create_diagnostic_plots
 from pyvale.vfm.roi import VfmRegionOfInterest, convert_mask_to_physical_roi
 from pyvale.vfm.validation import validate_experiment_data
 
 
 def process_input_data(
-    config: InputDataConfig,
+    config: InputDataConfig | MatchIDAssembledConfig,
     output_root: str | Path = "."
 ) -> Path:
     """
-    Load, process, and save experiment data from a solver output.
+    Load, process, and save experiment data from solver or DIC output.
 
-    Loads the raw field data described by ``config`` (from an Ansys or MOOSE
-    solve), builds an ``ExperimentData`` object, validates it, writes
-    diagnostic plots, and saves the result to a timestamped run directory
-    under ``output_root``.
+    Loads the raw field data described by ``config`` (from Ansys, MOOSE, or an
+    assembled MatchID DIC archive), builds an ``ExperimentData`` object,
+    validates it, writes diagnostic plots, and saves the result to a
+    timestamped run directory under ``output_root``.
 
     Parameters
     ----------
-    config : InputDataConfig
-        Solver-specific configuration describing the input data files and
-        specimen properties (``AnsysConfig`` or ``MooseConfig``)
+    config : InputDataConfig | MatchIDAssembledConfig
+        Source-specific configuration describing the input data files and
+        specimen properties.
     output_root : str | Path, optional
         Directory in which the timestamped run directory is created,
         by default ``"."``
@@ -44,10 +48,21 @@ def process_input_data(
     Path
         Path of the newly created ``experiment_data.yaml`` file
     """
+    region_of_interest: VfmRegionOfInterest | None = None
     if isinstance(config, AnsysConfig):
         x, y, strain, force, time = load_ansys_data(config)
     elif isinstance(config, MooseConfig):
         x, y, strain, force, time = load_moose_data(config)
+    elif isinstance(config, MatchIDAssembledConfig):
+        matchid_data = load_matchid_assembled_data(config)
+        x = matchid_data.x
+        y = matchid_data.y
+        strain = matchid_data.strain
+        force = matchid_data.force
+        time = matchid_data.time
+        region_of_interest = matchid_data.region_of_interest
+    else:
+        raise TypeError(f"Unsupported VFM input-data config: {type(config)!r}")
 
     experiment_data = _build_experiment_data(
         x,
@@ -56,7 +71,8 @@ def process_input_data(
         force,
         time,
         config.thickness,
-        config.edge_conditions
+        config.edge_conditions,
+        region_of_interest,
     )
 
     validate_experiment_data(experiment_data)
@@ -81,7 +97,6 @@ def process_input_data(
     return run_dir / "experiment_data.yaml"
 
 
-# TODO: this currently only supports getting roi from nans in strain data
 def _build_experiment_data(
     x: npt.NDArray[np.float64],
     y: npt.NDArray[np.float64],
@@ -89,18 +104,19 @@ def _build_experiment_data(
     force: npt.NDArray[np.float64],
     time: npt.NDArray[np.float64],
     thickness: float,
-    edge_conditions: EdgeConditions
+    edge_conditions: EdgeConditions,
+    region_of_interest: VfmRegionOfInterest | None = None,
 ) -> ExperimentData:
-    specimen_mask = np.isfinite(strain[0, 0, :, :])
-
-    region_of_interest = VfmRegionOfInterest.from_definition(
-        convert_mask_to_physical_roi(
-            specimen_mask,
-            x,
-            y,
-            simplification_pixels=0.0
+    if region_of_interest is None:
+        specimen_mask = np.isfinite(strain[0, 0, :, :])
+        region_of_interest = VfmRegionOfInterest.from_definition(
+            convert_mask_to_physical_roi(
+                specimen_mask,
+                x,
+                y,
+                simplification_pixels=0.0
+            )
         )
-    )
 
     element_area = (
         (x[0, 1] - x[0, 0])
