@@ -12,6 +12,10 @@ from pyvale.vfm.experimentdata import EEdgeCondition, ExperimentData
 from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 
+# TODO
+# should all normalisation be done in objective function, not in metric? (e.g. normalised_gap, weighted_temporal_rms, weighted_spatiotemporal_rms)
+# suitable default for window_size and sliding_pitch? (e.g. fraction of domain, 1x1)
+# remove pixel area scale? when is it used?
 
 EquilibriumGapVirtualFieldType = Literal[
     "single_pos_pos",
@@ -45,11 +49,60 @@ class _EquilibriumGapOperator:
 class EquilibriumGapMetric(IMetric):
     """Equilibrium gap indicator (EGI) metric.
 
-    The metric rasterises a 9-node, 4-element virtual window over the stress
-    field. Each window returns a local internal virtual-work residual. The
-    raw residual is returned as the metric residual; normalised and weighted
+    The metric rasterises a set of virtual strain fields, defined by a 
+    9-node, 4-element virtual window over the stress field, computing a
+    scalar value of the internal virtual work (equilibrium gap) for each window. 
+    The raw residual is returned as the metric residual; normalised and weighted
     fields are included in ``additional_fields`` for objective scaling or
     plotting.
+
+    EG WINDOW: 4 elements per window
+    
+    ELEMENT ORDER:
+                   N4
+       N1 x--------x--------x N7
+          |        |        |
+          |   E4   |   E3   |
+       N2 x--------x--------x N8
+          |        |        |
+          |   E1   |   E2   |
+       N3 x--------x--------x N9
+                   N6
+    
+    NODE ORDER:
+    
+      4 x-------x 3
+        |       |    
+        |       |  
+      1 x-------x 2
+    
+      
+    Parameters
+    ----------
+    window_size : tuple[int, int] or npt.NDArray[np.uint32], optional
+        The number of rows and columns in the virtual window, must be odd and at least 3. Default is (29, 29).
+    sliding_pitch : tuple[int, int] or npt.NDArray[np.uint32], optional
+        The number of rows and columns to slide the window for each evaluation, must be at least 1. Default is (1, 1).
+    virtual_field_type : EquilibriumGapVirtualFieldType, optional
+        The type of virtual strain field to use for the equilibrium gap evaluation. 
+        single_pos_pos: single virtual field with positive x and y displacements at the centre node.
+        single_pos_neg: single virtual field with positive x and negative y displacements at the centre node.
+        two_averaged: average of the two virtual fields above.
+        Default is "single_pos_pos".
+    normalise_virtual_strain : bool, optional
+        Whether to normalise the virtual strain fields. Default is True.
+        Normalise virtual strain fields to the range [-1, 1] based on the minimum and maximum values of each field. 
+        This ensures that the virtual strain fields have a consistent scale, which can improve the stability and 
+        interpretability of the equilibrium gap metric.
+    pixel_area_scale : float, optional
+        Scale factor for the pixel area when computing the volume. Default is 1.0.
+        This is only required if mismatch in units between the pixel area and the stress field, 
+        e.g. if the pixel area is in mm^2 and the stress is in Pa, then a scale factor of 1e-6 is 
+        required to convert the pixel area to m^2.
+    _operator : _EquilibriumGapOperator | None
+        Internal operator for evaluating the equilibrium gap, initialised in ``initialise()``.
+        This operator contains the virtual strain fields, volume, window point counts, valid centre mask,
+          longitudinal force, and force weights. Hence does not need to be recomputed for each evaluation, improving performance.
     """
 
     window_size: npt.NDArray[np.uint32]
@@ -57,7 +110,6 @@ class EquilibriumGapMetric(IMetric):
     virtual_field_type: EquilibriumGapVirtualFieldType
     normalise_virtual_strain: bool
     pixel_area_scale: float
-    exclude_non_free_edge_margin: bool
     _operator: _EquilibriumGapOperator | None
 
     def __init__(
@@ -68,14 +120,12 @@ class EquilibriumGapMetric(IMetric):
         virtual_field_type: EquilibriumGapVirtualFieldType = "single_pos_pos",
         normalise_virtual_strain: bool = True,
         pixel_area_scale: float = 1.0,
-        exclude_non_free_edge_margin: bool = True,
     ) -> None:
         self.window_size = np.asarray(window_size, dtype=np.uint32)
         self.sliding_pitch = np.asarray(sliding_pitch, dtype=np.uint32)
         self.virtual_field_type = virtual_field_type
         self.normalise_virtual_strain = normalise_virtual_strain
         self.pixel_area_scale = pixel_area_scale
-        self.exclude_non_free_edge_margin = exclude_non_free_edge_margin
         self._operator = None
         _validate_window_definition(self.window_size, self.sliding_pitch)
 
@@ -90,7 +140,6 @@ class EquilibriumGapMetric(IMetric):
             virtual_field_type=self.virtual_field_type,
             normalise_virtual_strain=self.normalise_virtual_strain,
             pixel_area_scale=self.pixel_area_scale,
-            exclude_non_free_edge_margin=self.exclude_non_free_edge_margin,
         )
 
     def evaluate(
@@ -190,7 +239,6 @@ def _build_equilibrium_gap_operator(
     virtual_field_type: EquilibriumGapVirtualFieldType,
     normalise_virtual_strain: bool,
     pixel_area_scale: float,
-    exclude_non_free_edge_margin: bool,
 ) -> _EquilibriumGapOperator:
     specimen_geometry = experiment_data.specimen_geometry
     valid_point_mask = (
@@ -205,11 +253,13 @@ def _build_equilibrium_gap_operator(
     )
     valid_centre_mask = valid_point_mask & (window_point_counts > 0.0)
     valid_centre_mask &= _build_pitch_mask(valid_centre_mask.shape, sliding_pitch)
-    if exclude_non_free_edge_margin:
-        valid_centre_mask &= _build_non_free_edge_mask(
-            experiment_data,
-            window_size,
-        )
+
+    # Exclude border of half the window size around non-free edges, 
+    # as these windows are not valid for equilibrium gap evaluation.
+    valid_centre_mask &= _build_non_free_edge_mask(
+        experiment_data,
+        window_size,
+    )
 
     volume = (
         np.asarray(specimen_geometry.pixel_area, dtype=np.float64)
