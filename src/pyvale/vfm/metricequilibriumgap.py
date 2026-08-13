@@ -305,7 +305,7 @@ def _build_equilibrium_gap_operator(
         plot_virtual_field_schematic=plot_virtual_field_schematic,
     )
 
-    # Debug: plot the valid window centres and the sliding pitch
+    # debug: plot the virtual window raster
     plot_virtual_window_raster = True
     if plot_virtual_window_raster:
         _plot_virtual_window_raster(
@@ -1110,8 +1110,36 @@ def _plot_virtual_window_raster(
             "At least three valid EGI window centres are required for the raster plot."
         )
 
-    centre_x = x[centre_indices[:, 0], centre_indices[:, 1]]
-    centre_indices = centre_indices[np.argsort(centre_x)]
+    full_window_mask = (
+        (centre_indices[:, 0] >= row_half)
+        & (centre_indices[:, 0] < x.shape[0] - row_half)
+        & (centre_indices[:, 1] >= col_half)
+        & (centre_indices[:, 1] < x.shape[1] - col_half)
+    )
+    display_centre_indices = centre_indices[full_window_mask]
+    if display_centre_indices.shape[0] < 3:
+        display_centre_indices = centre_indices
+
+    centre_x = x[display_centre_indices[:, 0], display_centre_indices[:, 1]]
+    centre_y = y[display_centre_indices[:, 0], display_centre_indices[:, 1]]
+    x_targets = np.linspace(float(np.nanmin(centre_x)), float(np.nanmax(centre_x)), 3)
+    y_target = 0.5 * (float(np.nanmin(centre_y)) + float(np.nanmax(centre_y)))
+    x_scale = max(float(np.nanmax(centre_x) - np.nanmin(centre_x)), 1.0)
+    y_scale = max(float(np.nanmax(centre_y) - np.nanmin(centre_y)), 1.0)
+
+    selected_centre_indices = []
+    available_mask = np.ones(display_centre_indices.shape[0], dtype=bool)
+    for x_target in x_targets:
+        scores = (
+            ((centre_x - x_target) / x_scale) ** 2
+            + ((centre_y - y_target) / y_scale) ** 2
+        )
+        scores[~available_mask] = np.inf
+        selected_index = int(np.argmin(scores))
+        selected_centre_indices.append(display_centre_indices[selected_index])
+        available_mask[selected_index] = False
+
+    centre_indices = np.asarray(selected_centre_indices, dtype=np.int64)
 
     fig, axes = plt.subplots(1, 3, figsize=(12.0, 3.4), constrained_layout=True)
     axes = np.asarray(axes)
@@ -1119,13 +1147,19 @@ def _plot_virtual_window_raster(
     for window_index, ax in enumerate(axes):
         centre_row, centre_col = centre_indices[window_index]
 
-        row_start = max(centre_row - row_half, 0)
-        row_stop = min(centre_row + row_half + 1, x.shape[0])
-        col_start = max(centre_col - col_half, 0)
-        col_stop = min(centre_col + col_half + 1, x.shape[1])
+        row_start = centre_row - row_half
+        row_stop = centre_row + row_half + 1
+        col_start = centre_col - col_half
+        col_stop = centre_col + col_half + 1
+        if row_start < 0 or row_stop > x.shape[0] or col_start < 0 or col_stop > x.shape[1]:
+            row_start = max(row_start, 0)
+            row_stop = min(row_stop, x.shape[0])
+            col_start = max(col_start, 0)
+            col_stop = min(col_stop, x.shape[1])
 
         window_x = x[row_start:row_stop, col_start:col_stop]
         window_y = y[row_start:row_stop, col_start:col_stop]
+        window_valid_point_mask = valid_point_mask[row_start:row_stop, col_start:col_stop]
 
         node_rows = np.asarray([row_start, centre_row, row_stop - 1], dtype=np.int64)
         node_cols = np.asarray([col_start, centre_col, col_stop - 1], dtype=np.int64)
@@ -1151,9 +1185,16 @@ def _plot_virtual_window_raster(
         ax.scatter(
             x[valid_point_mask],
             y[valid_point_mask],
+            marker=".",
+            color="0.75",
+            s=1,
+        )
+        ax.scatter(
+            window_x[window_valid_point_mask],
+            window_y[window_valid_point_mask],
             marker="x",
-            color="0.35",
-            s=18,
+            color="tab:blue",
+            s=10,
         )
 
         for nodes in element_nodes:
@@ -1179,6 +1220,14 @@ def _plot_virtual_window_raster(
 
         ax.set_title(f"Window {window_index + 1}")
         ax.set_aspect("equal")
+        x_min = float(np.nanmin(window_x))
+        x_max = float(np.nanmax(window_x))
+        y_min = float(np.nanmin(window_y))
+        y_max = float(np.nanmax(window_y))
+        x_padding = 0.20 * (x_max - x_min)
+        y_padding = 0.20 * (y_max - y_min)
+        ax.set_xlim(x_min - x_padding, x_max + x_padding)
+        ax.set_ylim(y_max + y_padding, y_min - y_padding)
         ax.axis("off")
 
     plt.show()
