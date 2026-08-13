@@ -305,12 +305,8 @@ def _build_equilibrium_gap_operator(
         plot_virtual_field_schematic=plot_virtual_field_schematic,
     )
 
-    # Extract the longitudinal force from the experiment data, which is used to normalise the equilibrium gap metric.
-    # Unsure if this should be done here or in the objective function, but it is done here for now.
-    longitudinal_force = _extract_longitudinal_force(experiment_data)
-    force_weights = _calculate_force_weights(longitudinal_force)
-
-
+    # Debug: plot the valid window centres and the sliding pitch
+    plot_virtual_window_raster = True
     if plot_virtual_window_raster:
         _plot_virtual_window_raster(
             specimen_geometry.x,
@@ -319,6 +315,11 @@ def _build_equilibrium_gap_operator(
             valid_centre_mask,
             window_size,
         )
+
+    # Extract the longitudinal force from the experiment data, which is used to normalise the equilibrium gap metric.
+    # Unsure if this should be done here or in the objective function, but it is done here for now.
+    longitudinal_force = _extract_longitudinal_force(experiment_data)
+    force_weights = _calculate_force_weights(longitudinal_force)
 
     return _EquilibriumGapOperator(
         virtual_strain_fields=virtual_strain_fields,
@@ -409,6 +410,10 @@ def _build_virtual_strain_fields(
     leading dimension indexes the virtual field set and the second dimension indexes
     the strain components (xx, yy, xy). 
     If virtual_field_type is TWO_AVERAGED, then num_fields=2, otherwise num_fields=1.
+    
+    NOTE: The magnitude of the virtual strain fields scales with the window size, so 
+    normalisation, in addition to he normalise_virtual_strain normalisation done here,
+    is recommended to ensure that the equilibrium gap values are independent of the window size.
     """
 
     if not normalise_virtual_strain:
@@ -486,13 +491,14 @@ def _build_virtual_strain_fields(
         # Convert the list of normalised fields to a 3D numpy array of shape (num_fields, 3, window_rows, window_cols)
         virtual_strain_fields = np.asarray(normalised_fields, dtype=np.float64)
 
-    plot_virtual_field_schematic = True
+    # Debug: plot the window, mesh, virtual displacements and virtual strains 
+    plot_virtual_field_schematic = False 
     if plot_virtual_field_schematic:
         _plot_virtual_field_schematic(
             x,
             y,
             window_size,
-            virtual_strain_fields[0],
+            virtual_strain_fields[0], # plot the first virtual field
             centre_dof_x=1.0,
             centre_dof_y=1.0,
         )
@@ -788,16 +794,6 @@ def _shape_functions(
     return shape_function, shape_derivative_local
 
 
-# def _normalise_virtual_strain_field(
-#     virtual_strain: npt.NDArray[np.float64],
-# ) -> npt.NDArray[np.float64]:
-#     min_value = float(np.nanmin(virtual_strain))
-#     max_value = float(np.nanmax(virtual_strain))
-#     if np.isclose(max_value, min_value):
-#         return virtual_strain.copy()
-#     normalised = 2.0 * (virtual_strain - min_value) / (max_value - min_value) - 1.0
-#     normalised[np.isclose(virtual_strain, 0.0) & np.isclose(normalised, 0.0)] = 0.0
-#     return normalised
 
 
 def _evaluate_raw_gap(
