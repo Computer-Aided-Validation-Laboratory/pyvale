@@ -69,6 +69,17 @@ from .objectivefuncvector import (
     VectorFirstResultPassthrough,
     VectorWeightedObjective,
 )
+from .equilibriumgapaggregation import (
+    EquilibriumGapAggregationResult,
+    aggregate_equilibrium_gap_results,
+    calculate_combined_equilibrium_gap_spatial_rms,
+    combine_equilibrium_gap_maps,
+    infer_window_area_weights,
+)
+from .objectivefuncfreandegi import (
+    ForceAndEquilibriumGapObjectiveResult,
+    ScalarForceAndEquilibriumGapObjective,
+)
 
 from .refinement import (
     BasisAddRemoveRefinement,
@@ -130,6 +141,13 @@ __all__ = [
     "VectorFirstResultPassthrough",
     "VectorConcatenateObjective",
     "VectorWeightedObjective",
+    "EquilibriumGapAggregationResult",
+    "aggregate_equilibrium_gap_results",
+    "calculate_combined_equilibrium_gap_spatial_rms",
+    "combine_equilibrium_gap_maps",
+    "infer_window_area_weights",
+    "ForceAndEquilibriumGapObjectiveResult",
+    "ScalarForceAndEquilibriumGapObjective",
     "IRefinementPolicy",
     "IRefinementAction",
     "SliceMergeSplitRefinement",

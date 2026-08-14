@@ -256,6 +256,7 @@ class EquilibriumGapMetric(IMetric):
                     self._operator.window_point_counts
                     / self._operator.nominal_window_point_count
                 ),
+                "window_size": self.window_size.copy(),
                 "nominal_window_point_count": self._operator.nominal_window_point_count,
                 "valid_centre_mask": self._operator.valid_centre_mask,
                 "virtual_strain_fields": self._operator.virtual_strain_fields,
