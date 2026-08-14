@@ -6,7 +6,7 @@ import warnings
 
 import numpy as np
 import numpy.typing as npt
-from scipy.signal import correlate2d
+from scipy.signal import correlate, correlate2d
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import EEdgeCondition, ExperimentData
@@ -170,9 +170,26 @@ class EquilibriumGapMetric(IMetric):
                 f"{stress.shape[2:]} vs {self._operator.valid_centre_mask.shape}."
             )
 
+        # Evaluate raw equilibrium gap for each window in the stress field, 
+        # using the precomputed operator. raw_gap has shape (timesteps, y, x)
         raw_gap = _evaluate_raw_gap(stress, self._operator)
+        # Mask out invalid windows in the raw gap, setting them to NaN.
         raw_gap[:, ~self._operator.valid_centre_mask] = np.nan
+
+        # Debug plot
+        plot_raw_gap = False
+        if plot_raw_gap:
+            import matplotlib.pyplot as plt
+            tt = len(raw_gap)-1
+            plt.imshow(raw_gap[tt], cmap="viridis")
+            plt.colorbar()
+            plt.title("Raw Equilibrium Gap (timestep {tt})")
+            plt.show()
+
+        #
         normalised_gap = _normalise_raw_gap(raw_gap, self._operator)
+
+
         weighted_temporal_rms = _calculate_weighted_temporal_rms(
             normalised_gap,
             self._operator.force_weights,
@@ -781,6 +798,8 @@ def _extract_longitudinal_force(
         return force[:, 1]
     raise ValueError("No traction edge found for equilibrium gap normalisation.")
 
+def _edge_has_traction(edge) -> bool:
+    return edge.x == EEdgeCondition.Traction or edge.y == EEdgeCondition.Traction
 
 def _calculate_force_weights(
     longitudinal_force: npt.NDArray[np.float64],
@@ -815,13 +834,14 @@ def _evaluate_raw_gap(
                 stress[:, component_index, :, :] * operator.volume[np.newaxis, :, :],
                 nan=0.0,
             )
-            # Loop over timesteps, and correlate (convolve with flipped kernel) the stress 
-            # volume with the virtual strain field for this component.
-            for timestep_index in range(stress.shape[0]):
-                gap[timestep_index, :, :] += _correlate_same(
-                    stress_volume[timestep_index, :, :],
-                    virtual_strain[component_index, :, :],
-                )
+            # Correlate (convolve with flipped kernel) all timesteps at once.
+            # The kernel has length 1 in the time dimension, so this is the same
+            # operation as looping over timesteps, but avoids many Python calls
+            # and lets SciPy use its FFT implementation for the spatial work.
+            gap += _correlate_time_stack_same(
+                stress_volume,
+                virtual_strain[component_index, :, :],
+            )
         # Append the computed gap for this virtual strain field to the list of raw gaps
         raw_gap_by_field.append(gap)
 
@@ -841,6 +861,11 @@ def _normalise_raw_gap(
     raw_gap: npt.NDArray[np.float64],
     operator: _EquilibriumGapOperator,
 ) -> npt.NDArray[np.float64]:
+    """
+    Normalise the raw equilibrium gap metric by the longitudinal force and the number of valid points in the window.
+    
+    This enables comparison of EGI values across multiple window sizes and loadsteps
+    """
     force = np.abs(operator.longitudinal_force)
     denominator = (
         force[:, np.newaxis, np.newaxis]
@@ -899,6 +924,27 @@ def _correlate_same(
         mode="same",
         boundary="fill",
         fillvalue=0.0,
+    )
+
+
+def _correlate_time_stack_same(
+    values: npt.NDArray[np.float64],
+    kernel: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Correlate a stack of 2D fields with a 2D kernel.
+
+    ``values`` has shape (timesteps, rows, cols). The singleton time dimension
+    in the kernel keeps timesteps independent while allowing SciPy to evaluate
+    the whole stack in one call. This is equivalent to applying
+    ``_correlate_same`` to each timestep separately.
+
+    Values are stress fields multiplied by pixel volume, and the kernel is a virtual strain field.
+    """
+    return correlate(
+        values,
+        kernel[np.newaxis, :, :],
+        mode="same",
+        method="fft",
     )
 
 
