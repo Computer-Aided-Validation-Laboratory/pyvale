@@ -5,6 +5,37 @@ from pyvale.vfm.metric import MetricResult
 from pyvale.vfm.objectivefunc import IVectorObjectiveFunction
 
 
+def _finite_vector(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """Flatten residual-like values and remove entries masked with NaN."""
+    flat_values = np.asarray(values, dtype=np.float64).ravel()
+    return flat_values[np.isfinite(flat_values)]
+
+
+def _apply_temporal_weights(
+    values: npt.NDArray[np.float64],
+    temporal_weights: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Apply weights along the first axis of a metric residual."""
+    weights = np.asarray(temporal_weights, dtype=np.float64)
+    if values.shape[0] != weights.shape[0]:
+        raise ValueError(
+            "Temporal weights must match the first residual dimension: "
+            f"{weights.shape[0]} vs {values.shape[0]}."
+        )
+    weight_shape = weights.shape + (1,) * (values.ndim - 1)
+    return values * np.sqrt(weights.reshape(weight_shape))
+
+
+def _apply_spatial_weights(
+    values: npt.NDArray[np.float64],
+    spatial_weights: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Apply weights over the trailing dimensions of a metric residual."""
+    weights = np.asarray(spatial_weights, dtype=np.float64)
+    weight_shape = (1,) * (values.ndim - weights.ndim) + weights.shape
+    return values * np.sqrt(weights.reshape(weight_shape))
+
+
 def _resolve_metric_result_vector(
     metric_result: MetricResult,
     *,
@@ -27,16 +58,22 @@ def _resolve_metric_result_vector(
     if use_temporal_weighting:
         temporal_weights = metadata.get("temporal_weights")
         if temporal_weights is None:
-            raise TypeError("Temporal weighting was requested, but the metric did not provide temporal weights.")
-        resolved = resolved * np.sqrt(np.asarray(temporal_weights, dtype=np.float64))
+            raise TypeError(
+                "Temporal weighting was requested, but the metric did not "
+                "provide temporal weights."
+            )
+        resolved = _apply_temporal_weights(resolved, temporal_weights)
 
     if use_spatial_weighting:
         spatial_weights = metadata.get("spatial_weights")
         if spatial_weights is None:
-            raise TypeError("Spatial weighting was requested, but the metric did not provide spatial weights.")
-        resolved = resolved * np.sqrt(np.asarray(spatial_weights, dtype=np.float64))
+            raise TypeError(
+                "Spatial weighting was requested, but the metric did not "
+                "provide spatial weights."
+            )
+        resolved = _apply_spatial_weights(resolved, spatial_weights)
 
-    return resolved
+    return _finite_vector(resolved)
 
 
 class VectorFirstResultPassthrough(IVectorObjectiveFunction):
@@ -54,7 +91,7 @@ class VectorFirstResultPassthrough(IVectorObjectiveFunction):
         if metric_results[0].residual is None:
             raise ValueError("Metric residual doesn't exist")
 
-        return metric_results[0].residual.ravel()
+        return _finite_vector(metric_results[0].residual)
 
 class VectorConcatenateObjective(IVectorObjectiveFunction):
     """
@@ -76,7 +113,7 @@ class VectorConcatenateObjective(IVectorObjectiveFunction):
             if metric_result.residual is None:
                 raise ValueError("Metric residual doesn't exist")
 
-            residuals.append(metric_result.residual.ravel())
+            residuals.append(_finite_vector(metric_result.residual))
 
         return np.concatenate(residuals)
 
@@ -108,7 +145,7 @@ class VectorWeightedObjective(IVectorObjectiveFunction):
                     use_normalised_residual=self.use_normalised_residual,
                     use_temporal_weighting=self.use_temporal_weighting,
                     use_spatial_weighting=self.use_spatial_weighting,
-                ).ravel()
+                )
                 for metric_result in metric_results
             ]
         )
