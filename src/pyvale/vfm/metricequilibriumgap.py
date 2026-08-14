@@ -306,7 +306,7 @@ def _build_equilibrium_gap_operator(
     )
 
     # debug: plot the virtual window raster
-    plot_virtual_window_raster = True
+    # plot_virtual_window_raster = True
     if plot_virtual_window_raster:
         _plot_virtual_window_raster(
             specimen_geometry.x,
@@ -357,41 +357,6 @@ def _build_non_free_edge_mask(
 
 def _edge_is_non_free(edge) -> bool:
     return edge.x is not EEdgeCondition.Free or edge.y is not EEdgeCondition.Free
-
-
-def _extract_longitudinal_force(
-    experiment_data: ExperimentData,
-) -> npt.NDArray[np.float64]:
-    force = np.asarray(experiment_data.boundary_conditions.force, dtype=np.float64)
-    if force.ndim != 2 or force.shape[1] < 2:
-        raise ValueError(
-            "EquilibriumGapMetric expects force with shape (timesteps, 2)."
-        )
-
-    edge_conditions = experiment_data.boundary_conditions.edge_conditions
-    if (
-        _edge_has_traction(edge_conditions.min_x_edge)
-        or _edge_has_traction(edge_conditions.max_x_edge)
-    ):
-        return force[:, 0]
-    if (
-        _edge_has_traction(edge_conditions.min_y_edge)
-        or _edge_has_traction(edge_conditions.max_y_edge)
-    ):
-        return force[:, 1]
-    raise ValueError("No traction edge found for equilibrium gap normalisation.")
-
-
-def _calculate_force_weights(
-    longitudinal_force: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
-    force_squared = np.asarray(longitudinal_force, dtype=np.float64) ** 2
-    valid = np.isfinite(force_squared) & (force_squared > 0.0)
-    weights = np.zeros(force_squared.shape, dtype=np.float64)
-    if not np.any(valid):
-        return np.ones(force_squared.shape, dtype=np.float64)
-    weights[valid] = force_squared[valid] / float(np.mean(force_squared[valid]))
-    return weights
 
 
 def _build_virtual_strain_fields(
@@ -794,33 +759,78 @@ def _shape_functions(
     return shape_function, shape_derivative_local
 
 
+def _extract_longitudinal_force(
+    experiment_data: ExperimentData,
+) -> npt.NDArray[np.float64]:
+    force = np.asarray(experiment_data.boundary_conditions.force, dtype=np.float64)
+    if force.ndim != 2 or force.shape[1] < 2:
+        raise ValueError(
+            "EquilibriumGapMetric expects force with shape (timesteps, 2)."
+        )
 
+    edge_conditions = experiment_data.boundary_conditions.edge_conditions
+    if (
+        _edge_has_traction(edge_conditions.min_x_edge)
+        or _edge_has_traction(edge_conditions.max_x_edge)
+    ):
+        return force[:, 0]
+    if (
+        _edge_has_traction(edge_conditions.min_y_edge)
+        or _edge_has_traction(edge_conditions.max_y_edge)
+    ):
+        return force[:, 1]
+    raise ValueError("No traction edge found for equilibrium gap normalisation.")
+
+
+def _calculate_force_weights(
+    longitudinal_force: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    force_squared = np.asarray(longitudinal_force, dtype=np.float64) ** 2
+    valid = np.isfinite(force_squared) & (force_squared > 0.0)
+    weights = np.zeros(force_squared.shape, dtype=np.float64)
+    if not np.any(valid):
+        return np.ones(force_squared.shape, dtype=np.float64)
+    weights[valid] = force_squared[valid] / float(np.mean(force_squared[valid]))
+    return weights
 
 def _evaluate_raw_gap(
     stress: npt.NDArray[np.float64],
     operator: _EquilibriumGapOperator,
 ) -> npt.NDArray[np.float64]:
+    """
+    Evaluate the raw equilibrium gap metric for a given stress history and operator.
+    """
     raw_gap_by_field = []
     for virtual_strain in operator.virtual_strain_fields:
-        current_gap = np.zeros(
+        # Initialise gap as zeros array of shape (timesteps, rows, cols)
+        gap = np.zeros(
             (stress.shape[0], stress.shape[2], stress.shape[3]),
             dtype=np.float64,
         )
+        # Loop over stress components (xx, yy, xy) and compute the contribution to the gap from each component
         for component_index in range(3):
+            # Multiply the stress component by the pixel volume and replace
+            # NaN values with zero, to avoid NaN propagation in the correlation.
             stress_volume = np.nan_to_num(
                 stress[:, component_index, :, :] * operator.volume[np.newaxis, :, :],
                 nan=0.0,
             )
+            # Loop over timesteps, and correlate (convolve with flipped kernel) the stress 
+            # volume with the virtual strain field for this component.
             for timestep_index in range(stress.shape[0]):
-                current_gap[timestep_index, :, :] += _correlate_same(
+                gap[timestep_index, :, :] += _correlate_same(
                     stress_volume[timestep_index, :, :],
                     virtual_strain[component_index, :, :],
                 )
-        raw_gap_by_field.append(current_gap)
+        # Append the computed gap for this virtual strain field to the list of raw gaps
+        raw_gap_by_field.append(gap)
 
+    # If there is only one virtual strain field, return the raw gap for that field.
     if len(raw_gap_by_field) == 1:
         return raw_gap_by_field[0]
 
+    # If there are two virtual strain fields, return the average of the absolute values 
+    # of the raw gaps for both fields.
     return 0.5 * (
         np.abs(raw_gap_by_field[0])
         + np.abs(raw_gap_by_field[1])
