@@ -31,8 +31,8 @@ class EquilibriumGapResult:
     metric_result: MetricResult
     raw_gap: npt.NDArray[np.float64]
     normalised_gap: npt.NDArray[np.float64]
-    weighted_temporal_rms: npt.NDArray[np.float64]
-    weighted_spatiotemporal_rms: float
+    weighted_temporal_rms: npt.NDArray[np.float64] | None
+    weighted_spatiotemporal_rms: float | None
 
 
 @dataclass(slots=True, frozen=True)
@@ -40,6 +40,7 @@ class _EquilibriumGapOperator:
     virtual_strain_fields: npt.NDArray[np.float64]
     volume: npt.NDArray[np.float64]
     window_point_counts: npt.NDArray[np.float64]
+    nominal_window_point_count: float
     valid_centre_mask: npt.NDArray[np.bool_]
     longitudinal_force: npt.NDArray[np.float64]
     force_weights: npt.NDArray[np.float64]
@@ -72,6 +73,23 @@ class EquilibriumGapMetric(IMetric):
         Normalise virtual strain fields to the range [-1, 1] based on the minimum and maximum values of each field. 
         This ensures that the virtual strain fields have a consistent scale, which can improve the stability and 
         interpretability of the equilibrium gap metric.
+    normalise_by_force_and_window : bool, optional
+        Whether to divide the raw gap by the longitudinal force magnitude at
+        each timestep and by the nominal number of points in a full virtual
+        window. Default is True. If False, ``normalised_gap`` is a copy of
+        ``raw_gap``.
+    valid_window_fill_fraction : float, optional
+        Minimum fraction of the nominal virtual-window points that must lie
+        inside the specimen and have finite coordinates/area for the window
+        centre to be valid. Default is 0.5. A value of 0.0 keeps any valid
+        centre point, while 1.0 requires full window support. Note that traction
+        boundary edges are always excluded from valid window centres regardless.
+    compute_temporal_rms : bool, optional
+        Whether to compute the force-weighted temporal RMS map of the
+        normalised gap. Default is True.
+    compute_spatiotemporal_rms : bool, optional
+        Whether to compute the force-weighted spatial-temporal RMS scalar of
+        the normalised gap. Default is True.
     pixel_area_scale : float, optional
         Scale factor for the pixel area when computing the volume. Default is 1.0.
         This is only required if mismatch in units between the pixel area and the stress field, 
@@ -88,6 +106,10 @@ class EquilibriumGapMetric(IMetric):
     sliding_pitch: npt.NDArray[np.uint32]
     virtual_field_type: EquilibriumGapVirtualFieldType
     normalise_virtual_strain: bool
+    normalise_by_force_and_window: bool
+    valid_window_fill_fraction: float
+    compute_temporal_rms: bool
+    compute_spatiotemporal_rms: bool
     pixel_area_scale: float
     _operator: _EquilibriumGapOperator | None
     plot_virtual_field_schematic: bool
@@ -100,6 +122,10 @@ class EquilibriumGapMetric(IMetric):
         *,
         virtual_field_type: EquilibriumGapVirtualFieldType = EquilibriumGapVirtualFieldType.TWO_AVERAGED,
         normalise_virtual_strain: bool = True,
+        normalise_by_force_and_window: bool = True,
+        valid_window_fill_fraction: float = 0.5,
+        compute_temporal_rms: bool = True,
+        compute_spatiotemporal_rms: bool = True,
         pixel_area_scale: float = 1.0,
         plot_virtual_field_schematic: bool = False,
         plot_virtual_window_raster: bool = False,
@@ -108,11 +134,19 @@ class EquilibriumGapMetric(IMetric):
         self.sliding_pitch = np.asarray(sliding_pitch, dtype=np.uint32)
         self.virtual_field_type = virtual_field_type
         self.normalise_virtual_strain = normalise_virtual_strain
+        self.normalise_by_force_and_window = normalise_by_force_and_window
+        self.valid_window_fill_fraction = float(valid_window_fill_fraction)
+        self.compute_temporal_rms = compute_temporal_rms
+        self.compute_spatiotemporal_rms = compute_spatiotemporal_rms
         self.pixel_area_scale = pixel_area_scale
         self.plot_virtual_field_schematic = plot_virtual_field_schematic
         self.plot_virtual_window_raster = plot_virtual_window_raster
         self._operator = None
-        _validate_window_definition(self.window_size, self.sliding_pitch)
+        _validate_window_definition(
+            self.window_size,
+            self.sliding_pitch,
+            self.valid_window_fill_fraction,
+        )
 
     def initialise(
         self,
@@ -126,6 +160,7 @@ class EquilibriumGapMetric(IMetric):
             experiment_data,
             window_size=self.window_size,
             sliding_pitch=self.sliding_pitch,
+            valid_window_fill_fraction=self.valid_window_fill_fraction,
             virtual_field_type=self.virtual_field_type,
             normalise_virtual_strain=self.normalise_virtual_strain,
             pixel_area_scale=self.pixel_area_scale,
@@ -186,30 +221,42 @@ class EquilibriumGapMetric(IMetric):
             plt.title("Raw Equilibrium Gap (timestep {tt})")
             plt.show()
 
-        #
-        normalised_gap = _normalise_raw_gap(raw_gap, self._operator)
-
-
-        weighted_temporal_rms = _calculate_weighted_temporal_rms(
-            normalised_gap,
-            self._operator.force_weights,
-        )
-        weighted_spatiotemporal_rms = _calculate_nan_rms(
-            normalised_gap
-            * np.sqrt(self._operator.force_weights)[:, np.newaxis, np.newaxis]
+        normalised_gap = _normalise_raw_gap(
+            raw_gap,
+            self._operator,
+            normalise_by_force_and_window=self.normalise_by_force_and_window,
         )
 
-        finite_raw_gap = raw_gap[np.isfinite(raw_gap)]
+        weighted_temporal_rms = None
+        if self.compute_temporal_rms:
+            weighted_temporal_rms = _calculate_weighted_temporal_rms(
+                normalised_gap,
+                self._operator.force_weights,
+            )
+
+        weighted_spatiotemporal_rms = None
+        if self.compute_spatiotemporal_rms:
+            weighted_spatiotemporal_rms = _calculate_nan_rms(
+                normalised_gap
+                * np.sqrt(self._operator.force_weights)[:, np.newaxis, np.newaxis]
+            )
+
         metric_result = MetricResult(
-            residual=finite_raw_gap,
+            residual=normalised_gap,
             additional_fields={
                 "raw_gap": raw_gap,
                 "normalised_gap": normalised_gap,
                 "weighted_temporal_rms": weighted_temporal_rms,
                 "weighted_spatiotemporal_rms": weighted_spatiotemporal_rms,
                 "force_weights": self._operator.force_weights,
+                "temporal_weights": self._operator.force_weights,
                 "longitudinal_force": self._operator.longitudinal_force,
                 "window_point_counts": self._operator.window_point_counts,
+                "window_fill_fraction": (
+                    self._operator.window_point_counts
+                    / self._operator.nominal_window_point_count
+                ),
+                "nominal_window_point_count": self._operator.nominal_window_point_count,
                 "valid_centre_mask": self._operator.valid_centre_mask,
                 "virtual_strain_fields": self._operator.virtual_strain_fields,
             },
@@ -226,6 +273,7 @@ class EquilibriumGapMetric(IMetric):
 def _validate_window_definition(
     window_size: npt.NDArray[np.uint32],
     sliding_pitch: npt.NDArray[np.uint32],
+    valid_window_fill_fraction: float,
 ) -> None:
     if window_size.shape != (2,):
         raise ValueError("window_size must contain [rows, columns].")
@@ -237,6 +285,10 @@ def _validate_window_definition(
         raise ValueError("Equilibrium gap window rows and columns must be odd.")
     if np.any(sliding_pitch < 1):
         raise ValueError("sliding_pitch values must be at least 1.")
+    if not np.isfinite(valid_window_fill_fraction):
+        raise ValueError("valid_window_fill_fraction must be finite.")
+    if valid_window_fill_fraction < 0.0 or valid_window_fill_fraction > 1.0:
+        raise ValueError("valid_window_fill_fraction must be between 0.0 and 1.0.")
 
 
 def _build_equilibrium_gap_operator(
@@ -244,6 +296,7 @@ def _build_equilibrium_gap_operator(
     *,
     window_size: npt.NDArray[np.uint32],
     sliding_pitch: npt.NDArray[np.uint32],
+    valid_window_fill_fraction: float,
     virtual_field_type: EquilibriumGapVirtualFieldType,
     normalise_virtual_strain: bool,
     pixel_area_scale: float,
@@ -272,6 +325,7 @@ def _build_equilibrium_gap_operator(
         valid_point_mask.astype(np.float64),
         np.ones(tuple(window_size), dtype=np.float64),
     )
+    nominal_window_point_count = float(np.prod(window_size))
 
     # Debug: plot map of window counts
     # import matplotlib.pyplot as plt
@@ -279,7 +333,16 @@ def _build_equilibrium_gap_operator(
     # plt.colorbar(); plt.title('Window Point Counts'); plt.show()
 
     # Combine the valid point mask and the window point counts to create a mask of valid window centres.
-    valid_centre_mask = valid_point_mask & (window_point_counts > 0.0)
+    # The fill fraction controls how much of the nominal window support must
+    # be available. Even when set to 0.0, the centre point itself must be valid.
+    minimum_window_point_count = max(
+        1.0,
+        float(np.ceil(valid_window_fill_fraction * nominal_window_point_count)),
+    )
+    valid_centre_mask = (
+        valid_point_mask
+        & (window_point_counts >= minimum_window_point_count)
+    )
 
     # Compute a mask of valid window centres based on the sliding pitch. 
     # This ensures that only windows that are spaced by the sliding pitch are considered valid.
@@ -342,6 +405,7 @@ def _build_equilibrium_gap_operator(
         virtual_strain_fields=virtual_strain_fields,
         volume=volume,
         window_point_counts=window_point_counts,
+        nominal_window_point_count=nominal_window_point_count,
         valid_centre_mask=valid_centre_mask,
         longitudinal_force=longitudinal_force,
         force_weights=force_weights,
@@ -860,20 +924,29 @@ def _evaluate_raw_gap(
 def _normalise_raw_gap(
     raw_gap: npt.NDArray[np.float64],
     operator: _EquilibriumGapOperator,
+    *,
+    normalise_by_force_and_window: bool,
 ) -> npt.NDArray[np.float64]:
+    """Normalise the raw equilibrium gap by load level and nominal window size.
+
+    The raw gap is a summed internal virtual-work residual over a virtual
+    window, so it scales with stress magnitude and with the number of points in
+    the intended window support. The default normalisation divides by the
+    longitudinal force magnitude at each timestep and by the nominal point
+    count of a full window. The actual valid point count is deliberately not
+    used in the denominator, because clipped edge windows are a change in
+    support quality rather than a different nominal EGI length scale.
     """
-    Normalise the raw equilibrium gap metric by the longitudinal force and the number of valid points in the window.
-    
-    This enables comparison of EGI values across multiple window sizes and loadsteps
-    """
+    if not normalise_by_force_and_window:
+        return raw_gap.copy()
+
     force = np.abs(operator.longitudinal_force)
     denominator = (
         force[:, np.newaxis, np.newaxis]
-        * operator.window_point_counts[np.newaxis, :, :]
+        * operator.nominal_window_point_count
     )
     with np.errstate(divide="ignore", invalid="ignore"):
         normalised_gap = raw_gap / denominator
-    normalised_gap[:, operator.window_point_counts <= 0.0] = np.nan
     normalised_gap[force <= 0.0, :, :] = np.nan
     normalised_gap[:, ~operator.valid_centre_mask] = np.nan
     return normalised_gap
