@@ -25,6 +25,7 @@ from pyvale.vfm import (
     VectorWeightedObjective,
     run_identification,
 )
+from pyvale.vfm.radialreturn import radial_return
 
 
 DEFAULT_INPUTS_PATH = Path(
@@ -99,6 +100,13 @@ def main() -> None:
         experiment_data.strain,
         result.parameter_maps,
     )
+    yielded_datapoints = _calculate_yielded_datapoints(
+        experiment_data,
+        constitutive_law,
+        result.parameter_maps,
+        output_dir,
+    )
+    plastic_property_names = set(constitutive_law.hardening_function.get_required_parameters())
     diagnostic_slices = (
         args.diagnostic_slices
         if args.diagnostic_slices is not None
@@ -125,6 +133,8 @@ def main() -> None:
         output_dir / "identified_parameter_maps.png",
         "Identified Parameter Maps",
         cmap="viridis",
+        yielded_datapoints=yielded_datapoints,
+        transparent_names=plastic_property_names,
     )
     _plot_individual_maps(
         experiment_data,
@@ -132,6 +142,8 @@ def main() -> None:
         output_dir,
         "identified_parameter_map",
         cmap="viridis",
+        yielded_datapoints=yielded_datapoints,
+        transparent_names=plastic_property_names,
     )
 
     parameter_error_summary = {}
@@ -174,6 +186,11 @@ def main() -> None:
         "yield_strength_mean": float(np.nanmean(result.parameter_maps["yield_strength"])),
         "yield_strength_max": float(np.nanmax(result.parameter_maps["yield_strength"])),
         "hardening_modulus_mean": float(np.nanmean(result.parameter_maps["hardening_modulus"])),
+        "yielded_datapoint_count": int(np.count_nonzero(yielded_datapoints & _specimen_mask(experiment_data))),
+        "yielded_datapoint_fraction": _calculate_yielded_fraction(
+            experiment_data,
+            yielded_datapoints,
+        ),
         **force_error_summary,
         **egi_summary,
         **parameter_error_summary,
@@ -294,6 +311,56 @@ def _parameter_label(name: str) -> str:
     return labels.get(name, name.replace("_", " ").title())
 
 
+def _calculate_yielded_datapoints(
+    experiment_data: ExperimentData,
+    constitutive_law: IsotropicVonMisesElastoplasticity,
+    parameter_maps: dict[str, np.ndarray],
+    output_dir: Path,
+) -> np.ndarray:
+    """Save the datapoints that yielded at least once during the strain history."""
+
+    _, _, yield_map, equivalent_plastic_strain = radial_return(
+        experiment_data.strain,
+        parameter_maps,
+        parameter_maps[constitutive_law.elastic_modulus_label],
+        parameter_maps[constitutive_law.poissons_ratio_label],
+        constitutive_law.hardening_function,
+    )
+    yielded_datapoints = np.any(yield_map, axis=0)
+    yielded_datapoints = yielded_datapoints & _specimen_mask(experiment_data)
+
+    np.save(output_dir / "yielded_datapoints.npy", yielded_datapoints)
+    np.save(output_dir / "equivalent_plastic_strain.npy", equivalent_plastic_strain)
+    _plot_yielded_datapoints(
+        yielded_datapoints,
+        output_dir / "yielded_datapoints.png",
+    )
+    return yielded_datapoints
+
+
+def _calculate_yielded_fraction(
+    experiment_data: ExperimentData,
+    yielded_datapoints: np.ndarray,
+) -> float:
+    specimen_mask = _specimen_mask(experiment_data)
+    specimen_count = int(np.count_nonzero(specimen_mask))
+    if specimen_count == 0:
+        return 0.0
+    return float(np.count_nonzero(yielded_datapoints & specimen_mask) / specimen_count)
+
+
+def _plot_yielded_datapoints(
+    yielded_datapoints: np.ndarray,
+    output_path: Path,
+) -> None:
+    fig, ax = plt.subplots(figsize=(6, 4), constrained_layout=True)
+    image = ax.imshow(yielded_datapoints, origin="lower", cmap="gray_r", vmin=0.0, vmax=1.0)
+    ax.set_title("Yielded Datapoints")
+    fig.colorbar(image, ax=ax, ticks=[0, 1])
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
+
+
 def _specimen_mask(experiment_data: ExperimentData) -> np.ndarray:
     return experiment_data.specimen_geometry.region_of_interest.sample_specimen_mask(
         experiment_data.specimen_geometry.x,
@@ -316,6 +383,8 @@ def _plot_map_collection(
     *,
     cmap: str,
     symmetric: bool = False,
+    yielded_datapoints: np.ndarray | None = None,
+    transparent_names: set[str] | None = None,
 ) -> None:
     names = _ordered_parameter_names(parameter_maps)
     if not names:
@@ -333,7 +402,20 @@ def _plot_map_collection(
             max_abs = float(np.nanmax(np.abs(data))) if np.any(np.isfinite(data)) else 0.0
             vmax = max_abs if max_abs > 0.0 else 1.0
             vmin = -vmax
-        image = ax.imshow(data, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax)
+        image = _imshow_map(
+            ax,
+            experiment_data,
+            data,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            alpha=_map_alpha(
+                experiment_data,
+                name,
+                yielded_datapoints,
+                transparent_names,
+            ),
+        )
         ax.set_title(_parameter_label(name))
         fig.colorbar(image, ax=ax)
     for ax in flat_axes[len(names):]:
@@ -350,6 +432,8 @@ def _plot_individual_maps(
     *,
     cmap: str,
     symmetric: bool = False,
+    yielded_datapoints: np.ndarray | None = None,
+    transparent_names: set[str] | None = None,
 ) -> None:
     for name in _ordered_parameter_names(maps):
         data = _masked_map(experiment_data, maps[name])
@@ -359,11 +443,64 @@ def _plot_individual_maps(
             vmax = max_abs if max_abs > 0.0 else 1.0
             vmin = -vmax
         fig, ax = plt.subplots(figsize=(6, 4), constrained_layout=True)
-        image = ax.imshow(data, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax)
+        image = _imshow_map(
+            ax,
+            experiment_data,
+            data,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            alpha=_map_alpha(
+                experiment_data,
+                name,
+                yielded_datapoints,
+                transparent_names,
+            ),
+        )
         ax.set_title(_parameter_label(name))
         fig.colorbar(image, ax=ax)
         fig.savefig(output_dir / f"{prefix}_{name}.png", dpi=200)
         plt.close(fig)
+
+
+def _imshow_map(
+    ax,
+    experiment_data: ExperimentData,
+    data: np.ndarray,
+    *,
+    cmap: str,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    alpha: np.ndarray | None = None,
+):
+    colormap = plt.get_cmap(cmap).copy()
+    colormap.set_bad((1.0, 1.0, 1.0, 0.0))
+    return ax.imshow(
+        np.ma.masked_invalid(_masked_map(experiment_data, data)),
+        origin="lower",
+        cmap=colormap,
+        vmin=vmin,
+        vmax=vmax,
+        alpha=alpha,
+    )
+
+
+def _map_alpha(
+    experiment_data: ExperimentData,
+    name: str,
+    yielded_datapoints: np.ndarray | None,
+    transparent_names: set[str] | None,
+    *,
+    unyielded_alpha: float = 0.22,
+) -> np.ndarray | None:
+    if yielded_datapoints is None or transparent_names is None or name not in transparent_names:
+        return None
+
+    specimen_mask = _specimen_mask(experiment_data)
+    alpha = np.zeros(specimen_mask.shape, dtype=np.float64)
+    alpha[specimen_mask & ~yielded_datapoints] = unyielded_alpha
+    alpha[specimen_mask & yielded_datapoints] = 1.0
+    return alpha
 
 
 def _write_parameter_error_outputs(
