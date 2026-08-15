@@ -47,7 +47,11 @@ from .spatialparamslicewise import (
     SliceWiseSpatialParameterisation,
     SupportSlice,
 )
-from .slicewise_utils import SliceAreaPartition, SliceConfig
+from .slicewise_utils import (
+    SliceAreaPartition,
+    SliceConfig,
+    resolve_cell_aligned_slice_boundaries,
+)
 
 from .optimiser import IOptimiser
 from .optimiserleastsquares import OptimiserLeastSquares
@@ -126,6 +130,7 @@ __all__ = [
     "SupportSlice",
     "SliceConfig",
     "SliceAreaPartition",
+    "resolve_cell_aligned_slice_boundaries",
     "IOptimiser",
     "OptimiserLeastSquares",
     "SliceWiseIndependentLeastSquares",

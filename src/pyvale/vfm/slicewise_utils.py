@@ -22,8 +22,9 @@ class SliceConfig:
     """Configuration for slice-wise partitioning.
 
     Axis must be provided explicitly. Provide either `num_slices` or
-    `boundaries`. If both are provided, `boundaries` define the slices and
-    `num_slices` is only used as a consistency check.
+    `boundaries`. These values define the intended geometric slices; the
+    resolved slice partition snaps internal boundaries to support-cell edges
+    so datapoint cells remain the smallest material unit.
     """
 
     axis: SliceAxis
@@ -50,6 +51,21 @@ class SliceAssignmentPartition(Protocol):
 
     num_slices: int
     slice_id_map: npt.NDArray[np.int32]
+
+
+def _build_valid_point_mask(
+    specimen_geometry: SpecimenGeometry,
+) -> npt.NDArray[np.bool_]:
+    specimen_mask = specimen_geometry.region_of_interest.sample_specimen_mask(
+        specimen_geometry.x,
+        specimen_geometry.y,
+    )
+    return (
+        specimen_mask
+        & np.isfinite(specimen_geometry.x)
+        & np.isfinite(specimen_geometry.y)
+        & np.isfinite(specimen_geometry.pixel_area)
+    )
 
 
 def _associate_points_to_slices(
@@ -174,6 +190,67 @@ def _resolve_slice_boundaries(
     return resolved
 
 
+def resolve_cell_aligned_slice_boundaries(
+    specimen_geometry: SpecimenGeometry,
+    slice_config: SliceConfig,
+) -> npt.NDArray[np.float64]:
+    """Resolve slices, then snap internal boundaries to support-cell edges.
+
+    The VFM slice-wise material maps treat each DIC datapoint cell as the
+    smallest material representative volume. Snapping internal slice
+    boundaries to support-cell edges keeps that material discretisation
+    consistent with the area-overlap force operator while preserving the
+    requested geometric slice layout as closely as the data resolution allows.
+    """
+
+    valid_point_mask = _build_valid_point_mask(specimen_geometry)
+    if not np.any(valid_point_mask):
+        raise ValueError("No valid specimen points were available to align slice boundaries.")
+
+    coordinate_along = specimen_geometry.x if slice_config.axis == "x" else specimen_geometry.y
+    valid_coordinates_along = coordinate_along[valid_point_mask]
+    intended_boundaries = _resolve_slice_boundaries(
+        valid_coordinates_along,
+        slice_config.boundaries,
+        slice_config.num_slices,
+    )
+    if intended_boundaries.size <= 2:
+        return intended_boundaries.copy()
+
+    support_node_x, support_node_y = _build_support_node_grids(specimen_geometry)
+    candidate_edges = _collect_support_cell_edges_along(
+        specimen_geometry,
+        axis=slice_config.axis,
+        valid_point_mask=valid_point_mask,
+        support_node_x=support_node_x,
+        support_node_y=support_node_y,
+        lower_bound=float(intended_boundaries[0]),
+        upper_bound=float(intended_boundaries[-1]),
+    )
+    num_internal_boundaries = intended_boundaries.size - 2
+    if candidate_edges.size < num_internal_boundaries:
+        raise ValueError(
+            "Cannot align the requested slice boundaries to support-cell edges: "
+            f"{num_internal_boundaries} internal boundaries were requested, but only "
+            f"{candidate_edges.size} candidate cell edges are available inside the ROI extent."
+        )
+
+    snapped_internal = _snap_internal_boundaries_monotonic(
+        intended_boundaries[1:-1],
+        candidate_edges,
+    )
+    resolved = np.concatenate(
+        (
+            intended_boundaries[:1],
+            snapped_internal,
+            intended_boundaries[-1:],
+        )
+    )
+    if np.any(np.diff(resolved) <= 0.0):
+        raise ValueError("Cell-aligned slice boundaries are not strictly increasing.")
+    return resolved
+
+
 def build_slice_area_partition(
     specimen_geometry: SpecimenGeometry,
     slice_config: SliceConfig | None = None,
@@ -186,26 +263,13 @@ def build_slice_area_partition(
         raise ValueError("slice_config must be provided explicitly for area-based slice-wise partitioning.")
     config = slice_config
 
-    specimen_mask = specimen_geometry.region_of_interest.sample_specimen_mask(
-        specimen_geometry.x,
-        specimen_geometry.y
-    )
-
-    valid_point_mask = (
-        specimen_mask
-        & np.isfinite(specimen_geometry.x)
-        & np.isfinite(specimen_geometry.y)
-        & np.isfinite(specimen_geometry.pixel_area)
-    )
+    valid_point_mask = _build_valid_point_mask(specimen_geometry)
     if not np.any(valid_point_mask):
         raise ValueError("No valid specimen points were available to build the area-based slice partition.")
 
-    coordinate_along = specimen_geometry.x if config.axis == "x" else specimen_geometry.y
-    valid_coordinates_along = coordinate_along[valid_point_mask]
-    boundaries = _resolve_slice_boundaries(
-        valid_coordinates_along,
-        config.boundaries,
-        config.num_slices,
+    boundaries = resolve_cell_aligned_slice_boundaries(
+        specimen_geometry,
+        config,
     )
 
     spans = np.diff(boundaries)
@@ -517,6 +581,86 @@ def _build_slice_support_overlap_operator(
     )
 
 
+def _collect_support_cell_edges_along(
+    specimen_geometry: SpecimenGeometry,
+    *,
+    axis: SliceAxis,
+    valid_point_mask: npt.NDArray[np.bool_],
+    support_node_x: npt.NDArray[np.float64],
+    support_node_y: npt.NDArray[np.float64],
+    lower_bound: float,
+    upper_bound: float,
+) -> npt.NDArray[np.float64]:
+    """Return sorted support-cell edge coordinates inside the slice extent."""
+
+    edge_coordinates: list[float] = []
+    valid_rows, valid_cols = np.nonzero(valid_point_mask)
+    for row_index, col_index in zip(valid_rows, valid_cols, strict=True):
+        vertices = _build_support_cell_vertices(
+            support_node_x,
+            support_node_y,
+            int(row_index),
+            int(col_index),
+        )
+        along = vertices[:, 0] if axis == "x" else vertices[:, 1]
+        edge_coordinates.extend((float(np.min(along)), float(np.max(along))))
+
+    if not edge_coordinates:
+        return np.zeros(0, dtype=np.float64)
+
+    edges = np.asarray(edge_coordinates, dtype=np.float64)
+    edges = edges[np.isfinite(edges)]
+    edge_tolerance = _estimate_edge_tolerance(edges)
+    internal_edges = edges[
+        (edges > lower_bound + edge_tolerance)
+        & (edges < upper_bound - edge_tolerance)
+    ]
+    if internal_edges.size == 0:
+        return np.zeros(0, dtype=np.float64)
+    rounded_edges = np.round(internal_edges / edge_tolerance) * edge_tolerance
+    return np.unique(rounded_edges)
+
+
+def _estimate_edge_tolerance(
+    values: npt.NDArray[np.float64],
+) -> float:
+    finite_values = np.sort(np.asarray(values, dtype=np.float64)[np.isfinite(values)])
+    if finite_values.size < 2:
+        return 1.0e-12
+    spacings = np.diff(np.unique(finite_values))
+    positive_spacings = spacings[spacings > 0.0]
+    if positive_spacings.size == 0:
+        return 1.0e-12
+    return max(1.0e-12, 1.0e-8 * float(np.min(positive_spacings)))
+
+
+def _snap_internal_boundaries_monotonic(
+    intended_internal_boundaries: npt.NDArray[np.float64],
+    candidate_edges: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Snap boundaries to unique candidate edges while preserving ordering."""
+
+    intended = np.asarray(intended_internal_boundaries, dtype=np.float64)
+    candidates = np.asarray(candidate_edges, dtype=np.float64)
+    if candidates.size < intended.size:
+        raise ValueError("Not enough candidate support-cell edges for the requested slice boundaries.")
+
+    snapped = np.empty(intended.shape, dtype=np.float64)
+    first_allowed_index = 0
+    for boundary_index, intended_boundary in enumerate(intended):
+        remaining_boundaries = intended.size - boundary_index - 1
+        last_allowed_index = candidates.size - remaining_boundaries
+        candidate_window = candidates[first_allowed_index:last_allowed_index]
+        if candidate_window.size == 0:
+            raise ValueError("Could not find an ordered support-cell edge for every slice boundary.")
+        local_index = int(np.argmin(np.abs(candidate_window - intended_boundary)))
+        selected_index = first_allowed_index + local_index
+        snapped[boundary_index] = candidates[selected_index]
+        first_allowed_index = selected_index + 1
+
+    return snapped
+
+
 def _build_support_cell_vertices(
     support_node_x: npt.NDArray[np.float64],
     support_node_y: npt.NDArray[np.float64],
@@ -587,12 +731,19 @@ def _interval_overlap(
 def slice_partition_matches_config(
     slice_partition: SliceAreaPartition,
     slice_config: SliceConfig,
+    specimen_geometry: SpecimenGeometry | None = None,
 ) -> bool:
     if slice_partition.axis != slice_config.axis:
         return False
 
     if slice_config.boundaries is not None:
-        return np.allclose(slice_partition.boundaries, slice_config.boundaries)
+        if specimen_geometry is None:
+            return np.allclose(slice_partition.boundaries, slice_config.boundaries)
+        resolved_boundaries = resolve_cell_aligned_slice_boundaries(
+            specimen_geometry,
+            slice_config,
+        )
+        return np.allclose(slice_partition.boundaries, resolved_boundaries)
 
     return slice_partition.num_slices == slice_config.num_slices
 
@@ -621,7 +772,11 @@ def resolve_slice_partition(
     """Resolve a usable partition from either an existing partition or a config."""
 
     if slice_partition is not None:
-        if slice_config is not None and not slice_partition_matches_config(slice_partition, slice_config):
+        if slice_config is not None and not slice_partition_matches_config(
+            slice_partition,
+            slice_config,
+            specimen_geometry,
+        ):
             raise ValueError("Provided slice_partition is inconsistent with the provided slice_config.")
         return slice_partition
 

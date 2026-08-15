@@ -22,6 +22,7 @@ build_slice_area_partition = slicewise_utils.build_slice_area_partition
 build_slice_partition = slicewise_utils.build_slice_partition
 plot_slice_area_partition_diagnostic = slicewise_utils.plot_slice_area_partition_diagnostic
 resolve_slice_partition = slicewise_utils.resolve_slice_partition
+resolve_cell_aligned_slice_boundaries = slicewise_utils.resolve_cell_aligned_slice_boundaries
 
 
 @dataclass(slots=True)
@@ -65,28 +66,16 @@ class SupportSlice:
         if slice_config is None:
             return False
 
+        if self.slice_config is not None:
+            return _slice_configs_match(self.slice_config, slice_config)
+
         if self.slice_partition is not None:
             return slicewise_utils.slice_partition_matches_config(
                 self.slice_partition,
                 slice_config,
             )
 
-        support_config = self.slice_config
-        if support_config is None or support_config.axis != slice_config.axis:
-            return False
-
-        if support_config.boundaries is not None or slice_config.boundaries is not None:
-            if support_config.boundaries is None or slice_config.boundaries is None:
-                return False
-            return (
-                support_config.boundaries.shape == slice_config.boundaries.shape
-                and np.allclose(
-                    support_config.boundaries,
-                    slice_config.boundaries,
-                )
-            )
-
-        return support_config.num_slices == slice_config.num_slices
+        return False
 
     def is_equivalent_to(
         self,
@@ -333,5 +322,24 @@ def _resolve_slice_value(value: float | DegreeOfFreedom | None) -> float:
             "SliceWiseSpatialParameterisation must be initialised before converting to a map."
         )
     return float(value)
+
+
+def _slice_configs_match(
+    lhs: SliceConfig,
+    rhs: SliceConfig,
+) -> bool:
+    if lhs.axis != rhs.axis:
+        return False
+
+    if lhs.boundaries is not None or rhs.boundaries is not None:
+        if lhs.boundaries is None or rhs.boundaries is None:
+            return False
+        return (
+            lhs.boundaries.shape == rhs.boundaries.shape
+            and np.allclose(lhs.boundaries, rhs.boundaries)
+        )
+
+    return lhs.num_slices == rhs.num_slices
+
 
 SlicewiseSpatialParameterisation = SliceWiseSpatialParameterisation
