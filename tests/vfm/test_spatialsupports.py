@@ -44,7 +44,7 @@ from pyvale.vfm.vfmregionofinterest import (
     VfmRegionOfInterest,
 )
 from pyvale.vfm.validation import validate_slicewise_independent_phase
-from pyvale.vfm.validation import validate_identification_config
+from pyvale.vfm.validation import run_validation
 from pyvale.vfm.constlaw import IConstitutiveLaw, EIdentificationType
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.metric import MetricResult
@@ -498,7 +498,7 @@ def test_validate_slicewise_independent_phase_is_pure_validation() -> None:
     assert phase.spatial_parameterisations["yield_strength"][0].support is shared_support
 
 
-def test_validate_identification_config_checks_slicewise_independent_phases() -> None:
+def test_run_validation_checks_slicewise_independent_phases() -> None:
     parameters = {
         "yield_strength": ConstitutiveParameter(
             2.0,
@@ -547,7 +547,7 @@ def test_validate_identification_config_checks_slicewise_independent_phases() ->
         match="SliceWiseIndependentLeastSquares requires exactly one "
         "SliceWiseForceReconstructionMetric",
     ):
-        validate_identification_config(identification)
+        run_validation(_build_experiment_data(), identification)
 
 
 def test_validate_slicewise_independent_phase_requires_shared_support_instance() -> None:

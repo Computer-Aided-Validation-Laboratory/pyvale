@@ -17,10 +17,7 @@ from pyvale.vfm.metric import IMetric
 from pyvale.vfm.refinement import IRefinementPolicy
 from pyvale.vfm.refinement import RefinementContext
 from pyvale.vfm.spatialparam import ISpatialParameterisation
-from pyvale.vfm.validation import (
-    validate_experiment_data,
-    validate_identification_config,
-)
+from pyvale.vfm.validation import run_validation
 from pyvale.vfm.spatialparam import (
     PhaseSpatialState,
     evaluate_parameterisations_to_map,
@@ -55,8 +52,7 @@ def run_identification(
         phase (each capturing the phase's spatial parameterisations and their
         degree-of-freedom values, taken at the end of the phase)
     """
-    validate_experiment_data(experiment_data)
-    validate_identification_config(identification_config)
+    run_validation(experiment_data, identification_config)
 
     history = IdentificationHistory()
 
