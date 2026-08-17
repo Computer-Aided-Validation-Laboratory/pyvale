@@ -19,7 +19,7 @@ from pyvale.vfm.inputdatamatchidassembled import (
 )
 from pyvale.vfm.inputdataplots import _create_diagnostic_plots
 from pyvale.vfm.roi import VfmRegionOfInterest, convert_mask_to_physical_roi
-from pyvale.vfm.validation import validate_experiment_data
+from pyvale.vfm.validation import run_validation
 
 
 def process_input_data(
@@ -75,7 +75,7 @@ def process_input_data(
         region_of_interest,
     )
 
-    validate_experiment_data(experiment_data)
+    run_validation(experiment_data)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
