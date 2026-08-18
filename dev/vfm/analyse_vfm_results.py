@@ -222,15 +222,22 @@ def main() -> None:
 
 
     POINT_PLOT_COMPONENT = "vm"  # one of: xx, yy, xy, vm
-    POINT_PLOT_ROW = None  # grid row index
-    POINT_PLOT_COLUMN = None  # grid column index
     POINT_PLOT_TIMESTEP = None  # None uses the final timestep
+    centre_row = experiment_data.strain.shape[2] // 2
+    centre_col = experiment_data.strain.shape[3] // 2
+    point_count = 9
+    row_spacing = max(1, (experiment_data.strain.shape[2] - 1) // (point_count - 1))
+    point_rows = [
+        max(0, min(experiment_data.strain.shape[2] - 1, centre_row + row_spacing * (ii - 4)))
+        for ii in range(9)
+    ]
+    point_columns = [centre_col] * len(point_rows)
     plot_stress_strain_tiled(
         experiment_data.strain,
         stress,
         POINT_PLOT_COMPONENT,
-        POINT_PLOT_ROW,
-        POINT_PLOT_COLUMN,
+        point_rows,
+        point_columns,
         timestep=POINT_PLOT_TIMESTEP,
         output_path=figure_dir / "stress_strain_tiled.png",
         cmap=SEQUENTIAL_CMAP,

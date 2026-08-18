@@ -181,8 +181,8 @@ def test_plot_stress_strain_tiled_writes_output(tmp_path) -> None:
         strain,
         stress,
         "xx",
-        1,
-        1,
+        [0, 1],
+        [0, 1],
         output_path=output_path,
     )
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import inspect
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -822,8 +823,8 @@ def plot_stress_strain_tiled(
     strain: npt.NDArray[np.float64],
     stress: npt.NDArray[np.float64],
     component: Literal["xx", "yy", "xy", "vm"],
-    point_row: int | None = None,
-    point_column: int | None = None,
+    point_rows: Sequence[int] | int | None = None,
+    point_columns: Sequence[int] | int | None = None,
     *,
     timestep: int | None = None,
     output_path: Path,
@@ -839,37 +840,47 @@ def plot_stress_strain_tiled(
             f"got {strain_history.shape} and {stress_history.shape}."
         )
 
-    # If no point is specified, default to the centre of the map.
-    if point_row is None:
-        point_row = strain_history.shape[1] // 2
-    if point_column is None:
-        point_column = strain_history.shape[2] // 2
+    def _to_list(values: Sequence[int] | int | None) -> list[int] | None:
+        if values is None:
+            return None
+        if isinstance(values, int):
+            return [int(values)]
+        return [int(value) for value in values]
 
-    if point_row < 0 or point_row >= strain_history.shape[1]:
-        raise IndexError(
-            f"point_row={point_row} is out of bounds for rows "
-            f"[0, {strain_history.shape[1] - 1}]."
+    row_list = _to_list(point_rows)
+    col_list = _to_list(point_columns)
+    if row_list is None and col_list is None:
+        row_list = [strain_history.shape[1] // 2]
+        col_list = [strain_history.shape[2] // 2]
+    elif row_list is None or col_list is None:
+        raise ValueError(
+            "point_rows and point_columns must both be provided, "
+            "or both omitted."
         )
-    if point_column < 0 or point_column >= strain_history.shape[2]:
-        raise IndexError(
-            f"point_column={point_column} is out of bounds for columns "
-            f"[0, {strain_history.shape[2] - 1}]."
+    if not row_list or not col_list or len(row_list) != len(col_list):
+        raise ValueError(
+            "point_rows and point_columns must have equal non-zero length."
         )
+
+    for row_index, col_index in zip(row_list, col_list, strict=False):
+        if row_index < 0 or row_index >= strain_history.shape[1]:
+            raise IndexError(
+                f"point_row={row_index} is out of bounds for rows "
+                f"[0, {strain_history.shape[1] - 1}]."
+            )
+        if col_index < 0 or col_index >= strain_history.shape[2]:
+            raise IndexError(
+                f"point_column={col_index} is out of bounds for columns "
+                f"[0, {strain_history.shape[2] - 1}]."
+            )
 
     map_index = -1 if timestep is None else int(timestep)
     map_index = map_index % strain_history.shape[0]
     map_data = strain_history[map_index, :, :]
 
-    strain_series = strain_history[:, point_row, point_column]
-    stress_series = stress_history[:, point_row, point_column]
-    valid_series = np.isfinite(strain_series) & np.isfinite(stress_series)
-    if not np.any(valid_series):
-        raise ValueError(
-            "Selected point has no finite stress-strain data across timesteps."
-        )
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), constrained_layout=True)
+    point_colors = plt.get_cmap("tab10")(np.linspace(0.0, 1.0, len(row_list)))
 
     map_ax = axes[0]
     map_image = map_ax.imshow(
@@ -877,16 +888,22 @@ def plot_stress_strain_tiled(
         origin="lower",
         cmap=cmap,
     )
-    map_ax.scatter(
-        point_column,
-        point_row,
-        c="tab:red",
-        marker="o",
-        s=40,
-        edgecolors="black",
-        linewidths=0.6,
-        zorder=3,
-    )
+    for row_index, col_index, color in zip(
+        row_list,
+        col_list,
+        point_colors,
+        strict=False,
+    ):
+        map_ax.scatter(
+            col_index,
+            row_index,
+            color=color,
+            marker="o",
+            s=40,
+            edgecolors="black",
+            linewidths=0.6,
+            zorder=3,
+        )
     map_ax.set_title(
         "Strain "
         f"{PLOT_COMPONENT_LABEL[component]} "
@@ -897,14 +914,29 @@ def plot_stress_strain_tiled(
     fig.colorbar(map_image, ax=map_ax)
 
     curve_ax = axes[1]
-    curve_ax.plot(
-        strain_series[valid_series],
-        stress_series[valid_series],
-        "-o",
-        markersize=3,
-        linewidth=1.4,
-        color="tab:blue",
-    )
+    for row_index, col_index, color in zip(
+        row_list,
+        col_list,
+        point_colors,
+        strict=False,
+    ):
+        strain_series = strain_history[:, row_index, col_index]
+        stress_series = stress_history[:, row_index, col_index]
+        valid_series = np.isfinite(strain_series) & np.isfinite(stress_series)
+        if not np.any(valid_series):
+            raise ValueError(
+                "Selected point has no finite stress-strain data across "
+                f"timesteps: (row={row_index}, col={col_index})."
+            )
+        curve_ax.plot(
+            strain_series[valid_series],
+            stress_series[valid_series],
+            "-o",
+            markersize=3,
+            linewidth=1.4,
+            color=color,
+            label=f"r{row_index}, c{col_index}",
+        )
     curve_ax.set_title(
         "Local stress-strain "
         f"({PLOT_COMPONENT_LABEL[component]})"
@@ -912,6 +944,7 @@ def plot_stress_strain_tiled(
     curve_ax.set_xlabel(f"Strain {PLOT_COMPONENT_LABEL[component]} [-]")
     curve_ax.set_ylabel(f"Stress {PLOT_COMPONENT_LABEL[component]} [MPa]")
     curve_ax.grid(True, alpha=0.3)
+    curve_ax.legend(loc="best", fontsize=8)
 
     fig.savefig(output_path, dpi=200)
     plt.close(fig)
