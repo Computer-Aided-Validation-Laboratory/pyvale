@@ -5,6 +5,7 @@ import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.identificationresult import OptimisationOutcome
 from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.objectivefunc import IObjectiveFunction
 from pyvale.vfm.spatialparam import (
@@ -43,7 +44,8 @@ class IOptimiser(ABC):
         metrics: list[IMetric],
         objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
-    ) -> dict[str, list[ISpatialParameterisation]]:
+        progress_callback=None,
+    ) -> OptimisationOutcome | dict[str, list[ISpatialParameterisation]]:
         """
         Run the optimisation loop for one identification phase.
 
@@ -61,11 +63,14 @@ class IOptimiser(ABC):
             Aggregates metric results into the quantity to be minimised
         experiment_data : ExperimentData
             Measured DIC data
+        progress_callback
+            Optional callable receiving lightweight progress events
 
         Returns
         -------
-        dict[str, list[ISpatialParameterisation]]
-            Optimised spatial parameterisations after convergence
+        OptimisationOutcome | dict[str, list[ISpatialParameterisation]]
+            Optimised spatial parameterisations after convergence, optionally
+            with solver metadata for the identification result history.
         """
         pass
 

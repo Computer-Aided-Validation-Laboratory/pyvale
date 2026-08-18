@@ -9,7 +9,7 @@ from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
 from pyvale.vfm.experimentdata import SpecimenGeometry
-from pyvale.vfm.vfmregionofinterest import build_roi_geometry
+from pyvale.vfm.roi import build_roi_geometry
 from pyvale.vfm.vfmesh import _generate_data_mesh_nodal_coord
 
 

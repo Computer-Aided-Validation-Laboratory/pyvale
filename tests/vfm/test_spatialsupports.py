@@ -38,7 +38,7 @@ from pyvale.vfm.spatialparamslicewise import (
     SliceWiseSpatialParameterisation,
     SupportSlice,
 )
-from pyvale.vfm.vfmregionofinterest import (
+from pyvale.vfm.roi import (
     RoiDefinition,
     RoiShape,
     VfmRegionOfInterest,
@@ -51,6 +51,7 @@ from pyvale.vfm.metric import MetricResult
 from pyvale.vfm.metric import IMetric
 from pyvale.vfm.objectivefunc import IVectorObjectiveFunction
 from pyvale.vfm.optimiser import IOptimiser
+from pyvale.vfm.progress import ProgressEvent
 
 
 class _DummyConstitutiveLaw(IConstitutiveLaw):
@@ -954,3 +955,81 @@ def test_run_identification_handles_single_shared_support_refinement() -> None:
     assert result.parameter_maps["hardening_modulus"].shape == (
         experiment_data.specimen_geometry.x.shape
     )
+
+
+def test_run_identification_emits_lightweight_progress_events() -> None:
+    experiment_data = _build_experiment_data()
+    shared_support = SupportSlice(
+        slice_config=SliceConfig(axis="x", num_slices=2),
+    )
+    parameter_map_size = np.array(
+        experiment_data.specimen_geometry.x.shape,
+        dtype=np.uint32,
+    )
+    identification = IdentificationConfig(
+        constitutive_law=_DummyConstitutiveLaw(),
+        parameters={
+            "yield_strength": ConstitutiveParameter(
+                2.0,
+                0.5,
+                5.0,
+                parameter_map_size,
+            ),
+            "hardening_modulus": ConstitutiveParameter(
+                3.0,
+                0.5,
+                5.0,
+                parameter_map_size,
+            ),
+        },
+        phases=[
+            IdentificationPhase(
+                spatial_parameterisations={
+                    "yield_strength": [
+                        SliceWiseSpatialParameterisation(
+                            support=shared_support,
+                        )
+                    ],
+                    "hardening_modulus": [
+                        SliceWiseSpatialParameterisation(
+                            support=shared_support,
+                        )
+                    ],
+                },
+                metrics=[
+                    SliceWiseForceReconstructionMetric(
+                        support=shared_support,
+                    )
+                ],
+                objective_function=VectorFirstResultPassthrough(),
+                optimiser=SliceWiseIndependentLeastSquares(),
+            )
+        ],
+    )
+    events: list[ProgressEvent] = []
+
+    run_identification(
+        experiment_data,
+        identification,
+        progress_callback=events.append,
+    )
+
+    event_kinds = [event.kind for event in events]
+    assert event_kinds[0] == "run_started"
+    assert "phase_started" in event_kinds
+    assert "solve_started" in event_kinds
+    assert "slice_started" in event_kinds
+    assert "slice_finished" in event_kinds
+    assert "solve_finished" in event_kinds
+    assert "phase_finished" in event_kinds
+    assert event_kinds[-1] == "run_finished"
+
+    slice_finished = next(
+        event for event in events if event.kind == "slice_finished"
+    )
+    assert slice_finished.phase_index == 0
+    assert slice_finished.phase_count == 1
+    assert slice_finished.solve_attempt_index == 0
+    assert slice_finished.slice_index is not None
+    assert slice_finished.slice_count == 2
+    assert slice_finished.evaluation_count is not None
