@@ -1,5 +1,18 @@
 from __future__ import annotations
 
+"""
+VFM identification result storage and loading helpers.
+
+Postprocessing should depend only on the saved final parameter maps in
+``final_parameter_maps.npz``. History and parameterisation snapshots are
+auxiliary metadata used to explain or plot how a result was obtained, and
+loading final maps must not require importing historical parameterisation
+classes. There is no gaurentee that the parameterisation classes used in a
+run will be available in the future so saved snapshots are deliberately lightweight
+and do not include any executable code. The ``final_stress`` array is a derived audit
+artifact saved when available. 
+"""
+
 import copy
 import enum
 import platform
@@ -36,121 +49,9 @@ FINAL_PARAMETER_MAPS_FILE_NAME = "final_parameter_maps.npz"
 FINAL_IDENTIFIED_STRESS_FILE_NAME = "final_identified_stress.npz"
 
 
-def _dataclass_to_dict(
-    value: object,
-) -> Summary:
-    """Convert result dataclasses to YAML-safe dictionaries."""
-
-    json_value = _jsonify_value(value)
-    if isinstance(json_value, dict):
-        return json_value
-    return {}
-
-
-def _dataclass_from_dict(
-    cls,
-    data: dict[str, Any] | None,
-):
-    """Create a result dataclass from a dictionary using field annotations."""
-
-    data = data or {}
-    type_hints = get_type_hints(cls)
-    init_kwargs = {}
-    for data_field in fields(cls):
-        if not data_field.init:
-            continue
-        if data_field.metadata.get("serialize") is False:
-            continue
-        if data_field.name not in data:
-            continue
-        init_kwargs[data_field.name] = _coerce_loaded_value(
-            type_hints.get(data_field.name, Any),
-            data[data_field.name],
-            field_name=data_field.name,
-        )
-    return cls(**init_kwargs)
-
-
-def _coerce_loaded_value(
-    type_hint: object,
-    value: Any,
-    *,
-    field_name: str = "",
-) -> Any:
-    if value is None:
-        return None
-    if _field_is_summary(field_name):
-        return _ensure_summary(value)
-    if type_hint is Any:
-        return value
-
-    origin = get_origin(type_hint)
-    args = get_args(type_hint)
-
-    if origin in (UnionType, getattr(__import__("typing"), "Union")):
-        non_none_args = [arg for arg in args if arg is not type(None)]
-        for arg in non_none_args:
-            try:
-                return _coerce_loaded_value(arg, value, field_name=field_name)
-            except (TypeError, ValueError):
-                continue
-        return value
-
-    if origin is list:
-        item_type = args[0] if args else Any
-        return [
-            _coerce_loaded_value(item_type, item, field_name=field_name)
-            for item in value
-        ]
-
-    if origin is dict:
-        key_type = args[0] if args else str
-        value_type = args[1] if len(args) > 1 else Any
-        return {
-            _coerce_loaded_value(key_type, key, field_name=field_name):
-            _coerce_loaded_value(value_type, item, field_name=field_name)
-            for key, item in value.items()
-        }
-
-    if origin is tuple:
-        if len(args) == 2 and args[1] is Ellipsis:
-            return tuple(
-                _coerce_loaded_value(args[0], item, field_name=field_name)
-                for item in value
-            )
-        return tuple(
-            _coerce_loaded_value(arg, item, field_name=field_name)
-            for arg, item in zip(args, value, strict=False)
-        )
-
-    if isinstance(type_hint, type) and is_dataclass(type_hint):
-        from_dict = getattr(type_hint, "from_dict", None)
-        if from_dict is not None:
-            return from_dict(value)
-        return _dataclass_from_dict(type_hint, value)
-
-    if type_hint is str:
-        return str(value)
-    if type_hint is int:
-        return int(value)
-    if type_hint is float:
-        return float(value)
-    if type_hint is bool:
-        return bool(value)
-    return value
-
-
-def _field_is_summary(
-    field_name: str,
-) -> bool:
-    return (
-        field_name == "options"
-        or field_name == "details"
-        or field_name == "summary"
-        or field_name.endswith("_summary")
-        or field_name.endswith("_objective")
-    )
-
+# ==================================================================================
+# Dataclasses for identification result storage
+# ==================================================================================
 
 @dataclass(slots=True)
 class ArraySummary:
@@ -539,6 +440,112 @@ class OptimisationOutcome:
     solve_result: SolveResult | None = None
 
 
+@dataclass(slots=True)
+class IdentificationResult:
+    """
+    Result of a VFM identification run.
+
+    ``parameter_maps`` are the canonical durable result. ``final_stress`` is a
+    derived audit artifact saved when available so postprocessing code can be
+    checked against the stress history calculated during identification.
+    """
+
+    parameter_maps: dict[str, npt.NDArray[np.float64]]
+    history: IdentificationHistory = field(default_factory=IdentificationHistory)
+    final_stress: npt.NDArray[np.float64] | None = None
+    metadata: IdentificationMetadata = field(default_factory=IdentificationMetadata)
+
+    def save_to_yaml(self, output_dir: str | Path | None = None) -> Path:
+        """
+        Save a minimal durable run bundle.
+
+        The bundle contains this YAML manifest plus ``final_parameter_maps.npz``.
+        When ``final_stress`` is available, ``final_identified_stress.npz`` is
+        also written as a derived check artifact for later postprocessing.
+        """
+        if output_dir is None:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+            output_dir = f"vfm-identification-result_{timestamp}"
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        parameter_maps_file = output_dir / FINAL_PARAMETER_MAPS_FILE_NAME
+        np.savez(
+            parameter_maps_file,
+            **{
+                name: np.asarray(parameter_map, dtype=np.float64)
+                for name, parameter_map in self.parameter_maps.items()
+            },
+        )
+
+        final_stress_file: str | None = None
+        if self.final_stress is not None:
+            final_stress_file = FINAL_IDENTIFIED_STRESS_FILE_NAME
+            np.savez(
+                output_dir / final_stress_file,
+                stress=np.asarray(self.final_stress, dtype=np.float64),
+            )
+
+        content = {
+            "result_type": "pyvale.vfm.IdentificationResult",
+            "files": {
+                "final_parameter_maps": FINAL_PARAMETER_MAPS_FILE_NAME,
+                "final_identified_stress": final_stress_file,
+            },
+            "metadata": self.metadata.to_dict(),
+            "history": self.history.to_dict(),
+        }
+
+        result_file = output_dir / RESULT_FILE_NAME
+        result_file.write_text(
+            yaml.safe_dump(content, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        return result_file
+
+    save_run_bundle = save_to_yaml
+
+# ==================================================================================
+# Public load / save entry points
+# ==================================================================================
+
+def load_identification_result(
+    result_path: str | Path,
+) -> IdentificationResult:
+    """
+    Load a saved result bundle without importing historical VFM classes.
+
+    ``result_path`` may be either the bundle directory or the
+    ``identification_result.yaml`` file inside it.
+    """
+
+    result_file = Path(result_path)
+    if result_file.is_dir():
+        result_file = result_file / RESULT_FILE_NAME
+
+    base_dir = result_file.parent
+    content = yaml.safe_load(
+        result_file.read_text(encoding="utf-8")
+    ) or {}
+
+    files = content.get("files", {})
+    parameter_maps = _load_parameter_maps(base_dir, content, files)
+    final_stress = _load_final_stress(base_dir, files)
+
+    return IdentificationResult(
+        parameter_maps=parameter_maps,
+        history=IdentificationHistory.from_dict(content.get("history")),
+        final_stress=final_stress,
+        metadata=IdentificationMetadata.from_dict(content.get("metadata")),
+    )
+
+
+# ==================================================================================
+# Snapshot helpers
+# ==================================================================================
+
 def summarise_array(
     array: npt.ArrayLike,
 ) -> ArraySummary:
@@ -757,108 +764,6 @@ def generic_completed_solve_result(
         initial_dofs=initial_dofs,
         final_dofs=final_dofs,
     )
-
-
-@dataclass(slots=True)
-class IdentificationResult:
-    """
-    Result of a VFM identification run.
-
-    ``parameter_maps`` are the canonical durable result. ``final_stress`` is a
-    derived audit artifact saved when available so postprocessing code can be
-    checked against the stress history calculated during identification.
-    """
-
-    parameter_maps: dict[str, npt.NDArray[np.float64]]
-    history: IdentificationHistory = field(default_factory=IdentificationHistory)
-    final_stress: npt.NDArray[np.float64] | None = None
-    metadata: IdentificationMetadata = field(default_factory=IdentificationMetadata)
-
-    def save_to_yaml(self, output_dir: str | Path | None = None) -> Path:
-        """
-        Save a minimal durable run bundle.
-
-        The bundle contains this YAML manifest plus ``final_parameter_maps.npz``.
-        When ``final_stress`` is available, ``final_identified_stress.npz`` is
-        also written as a derived check artifact for later postprocessing.
-        """
-        if output_dir is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-            output_dir = f"vfm-identification-result_{timestamp}"
-
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        parameter_maps_file = output_dir / FINAL_PARAMETER_MAPS_FILE_NAME
-        np.savez(
-            parameter_maps_file,
-            **{
-                name: np.asarray(parameter_map, dtype=np.float64)
-                for name, parameter_map in self.parameter_maps.items()
-            },
-        )
-
-        final_stress_file: str | None = None
-        if self.final_stress is not None:
-            final_stress_file = FINAL_IDENTIFIED_STRESS_FILE_NAME
-            np.savez(
-                output_dir / final_stress_file,
-                stress=np.asarray(self.final_stress, dtype=np.float64),
-            )
-
-        content = {
-            "result_type": "pyvale.vfm.IdentificationResult",
-            "files": {
-                "final_parameter_maps": FINAL_PARAMETER_MAPS_FILE_NAME,
-                "final_identified_stress": final_stress_file,
-            },
-            "metadata": self.metadata.to_dict(),
-            "history": self.history.to_dict(),
-        }
-
-        result_file = output_dir / RESULT_FILE_NAME
-        result_file.write_text(
-            yaml.safe_dump(content, sort_keys=False),
-            encoding="utf-8",
-        )
-
-        return result_file
-
-    save_run_bundle = save_to_yaml
-
-
-def load_identification_result(
-    result_path: str | Path,
-) -> IdentificationResult:
-    """
-    Load a saved result bundle without importing historical VFM classes.
-
-    ``result_path`` may be either the bundle directory or the
-    ``identification_result.yaml`` file inside it.
-    """
-
-    result_file = Path(result_path)
-    if result_file.is_dir():
-        result_file = result_file / RESULT_FILE_NAME
-
-    base_dir = result_file.parent
-    content = yaml.safe_load(
-        result_file.read_text(encoding="utf-8")
-    ) or {}
-
-    files = content.get("files", {})
-    parameter_maps = _load_parameter_maps(base_dir, content, files)
-    final_stress = _load_final_stress(base_dir, files)
-
-    return IdentificationResult(
-        parameter_maps=parameter_maps,
-        history=IdentificationHistory.from_dict(content.get("history")),
-        final_stress=final_stress,
-        metadata=IdentificationMetadata.from_dict(content.get("metadata")),
-    )
-
-
-load_run_bundle = load_identification_result
 
 
 def summarise_parameterisation(
@@ -1085,6 +990,9 @@ def snapshot_refinement_action(
 
     return snapshot_object(action, options={})
 
+# ==================================================================================
+# File loading helpers
+# ==================================================================================
 
 def _load_parameter_maps(
     base_dir: Path,
@@ -1123,6 +1031,125 @@ def _load_final_stress(
         if loaded.files:
             return np.asarray(loaded[loaded.files[0]], dtype=np.float64)
     return None
+
+# ==================================================================================
+# Serialisation helpers for dataclasses and other objects that may be stored in YAML.
+# ==================================================================================
+
+def _dataclass_to_dict(
+    value: object,
+) -> Summary:
+    """Convert result dataclasses to YAML-safe dictionaries."""
+
+    json_value = _jsonify_value(value)
+    if isinstance(json_value, dict):
+        return json_value
+    return {}
+
+
+def _dataclass_from_dict(
+    cls,
+    data: dict[str, Any] | None,
+):
+    """Create a result dataclass from a dictionary using field annotations."""
+
+    data = data or {}
+    type_hints = get_type_hints(cls)
+    init_kwargs = {}
+    for data_field in fields(cls):
+        if not data_field.init:
+            continue
+        if data_field.metadata.get("serialize") is False:
+            continue
+        if data_field.name not in data:
+            continue
+        init_kwargs[data_field.name] = _coerce_loaded_value(
+            type_hints.get(data_field.name, Any),
+            data[data_field.name],
+            field_name=data_field.name,
+        )
+    return cls(**init_kwargs)
+
+
+def _coerce_loaded_value(
+    type_hint: object,
+    value: Any,
+    *,
+    field_name: str = "",
+) -> Any:
+    if value is None:
+        return None
+    if _field_is_summary(field_name):
+        return _ensure_summary(value)
+    if type_hint is Any:
+        return value
+
+    origin = get_origin(type_hint)
+    args = get_args(type_hint)
+
+    if origin in (UnionType, getattr(__import__("typing"), "Union")):
+        non_none_args = [arg for arg in args if arg is not type(None)]
+        for arg in non_none_args:
+            try:
+                return _coerce_loaded_value(arg, value, field_name=field_name)
+            except (TypeError, ValueError):
+                continue
+        return value
+
+    if origin is list:
+        item_type = args[0] if args else Any
+        return [
+            _coerce_loaded_value(item_type, item, field_name=field_name)
+            for item in value
+        ]
+
+    if origin is dict:
+        key_type = args[0] if args else str
+        value_type = args[1] if len(args) > 1 else Any
+        return {
+            _coerce_loaded_value(key_type, key, field_name=field_name):
+            _coerce_loaded_value(value_type, item, field_name=field_name)
+            for key, item in value.items()
+        }
+
+    if origin is tuple:
+        if len(args) == 2 and args[1] is Ellipsis:
+            return tuple(
+                _coerce_loaded_value(args[0], item, field_name=field_name)
+                for item in value
+            )
+        return tuple(
+            _coerce_loaded_value(arg, item, field_name=field_name)
+            for arg, item in zip(args, value, strict=False)
+        )
+
+    if isinstance(type_hint, type) and is_dataclass(type_hint):
+        from_dict = getattr(type_hint, "from_dict", None)
+        if from_dict is not None:
+            return from_dict(value)
+        return _dataclass_from_dict(type_hint, value)
+
+    if type_hint is str:
+        return str(value)
+    if type_hint is int:
+        return int(value)
+    if type_hint is float:
+        return float(value)
+    if type_hint is bool:
+        return bool(value)
+    return value
+
+
+def _field_is_summary(
+    field_name: str,
+) -> bool:
+    return (
+        field_name == "options"
+        or field_name == "details"
+        or field_name == "summary"
+        or field_name.endswith("_summary")
+        or field_name.endswith("_objective")
+    )
 
 
 def _collect_object_options(
