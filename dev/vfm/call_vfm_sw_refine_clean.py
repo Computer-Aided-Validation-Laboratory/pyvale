@@ -34,7 +34,7 @@ INPUT_PATH = Path(
     "/media/data/3_Resources/gr91-weld-dic-results/wdbn1/pyvale-input/"
     "vfm-input-data_2026-08-12_15-43"
 )
-OUTPUT_ROOT = Path(__file__).resolve().parent / "call_vfm_sw_refine_clean_output"
+OUTPUT_ROOT = INPUT_PATH.parent.parent / "call_vfm_sw_refine_clean_output"
 
 SLICE_AXIS = "y"
 NUM_SLICES = 20

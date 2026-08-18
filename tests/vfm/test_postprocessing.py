@@ -13,9 +13,11 @@ from pyvale.vfm.postprocessing import (
     ParameterErrorDiagnostics,
     cache_parameter_error_diagnostics,
     check_stress_against_saved,
+    component_history_map,
     compute_parameter_error_diagnostics,
     load_constitutive_law_from_result,
     parameter_map_summary,
+    plot_stress_strain_tiled,
     resolve_egi_window,
 )
 
@@ -131,3 +133,57 @@ def test_parameter_map_summary_uses_ordered_names() -> None:
         "yield_strength_mean",
         "yield_strength_max",
     ]
+
+
+def test_component_history_map_vm_matches_formula() -> None:
+    field = np.array(
+        [
+            [
+                [[1.0, 2.0], [3.0, 4.0]],
+                [[2.0, 3.0], [4.0, 5.0]],
+                [[0.5, 0.5], [0.5, 0.5]],
+            ]
+        ],
+        dtype=np.float64,
+    )
+
+    vm = component_history_map(field, "vm")
+    expected = np.sqrt(
+        field[:, 0, :, :] ** 2
+        + field[:, 1, :, :] ** 2
+        - field[:, 0, :, :] * field[:, 1, :, :]
+        + 3.0 * field[:, 2, :, :] ** 2
+    )
+
+    npt.assert_allclose(vm, expected)
+
+
+def test_plot_stress_strain_tiled_writes_output(tmp_path) -> None:
+    strain = np.array(
+        [
+            [
+                [[0.10, 0.20], [0.30, 0.40]],
+                [[0.11, 0.21], [0.31, 0.41]],
+                [[0.01, 0.02], [0.03, 0.04]],
+            ],
+            [
+                [[0.15, 0.25], [0.35, 0.45]],
+                [[0.16, 0.26], [0.36, 0.46]],
+                [[0.02, 0.03], [0.04, 0.05]],
+            ],
+        ],
+        dtype=np.float64,
+    )
+    stress = 100.0 * strain
+    output_path = tmp_path / "stress_strain_tiled.png"
+
+    plot_stress_strain_tiled(
+        strain,
+        stress,
+        "xx",
+        [0, 1],
+        [0, 1],
+        output_path=output_path,
+    )
+
+    assert output_path.exists()
