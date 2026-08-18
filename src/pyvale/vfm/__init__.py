@@ -10,7 +10,11 @@ from .identificationresult import (
     IdentificationHistory,
     IdentificationResult,
     ParameterisationSnapshot,
+    PhaseResult,
     PhaseSnapshot,
+    RefinementEvent,
+    SolveResult,
+    load_identification_result,
 )
 
 from .inputdata import process_input_data
@@ -84,6 +88,7 @@ from .objectivefuncfreandegi import (
     ForceAndEquilibriumGapObjectiveResult,
     ScalarForceAndEquilibriumGapObjective,
 )
+from .progress import ConsoleProgressReporter, ProgressEvent
 
 from .refinement import (
     BasisAddRemoveRefinement,
@@ -99,9 +104,13 @@ __all__ = [
     "IdentificationConfig",
     "IdentificationPhase",
     "IdentificationResult",
+    "load_identification_result",
     "IdentificationHistory",
+    "PhaseResult",
     "PhaseSnapshot",
     "ParameterisationSnapshot",
+    "SolveResult",
+    "RefinementEvent",
     "process_input_data",
     "AnsysConfig",
     "MooseConfig",
@@ -153,6 +162,8 @@ __all__ = [
     "infer_window_area_weights",
     "ForceAndEquilibriumGapObjectiveResult",
     "ScalarForceAndEquilibriumGapObjective",
+    "ProgressEvent",
+    "ConsoleProgressReporter",
     "IRefinementPolicy",
     "IRefinementAction",
     "SliceMergeSplitRefinement",

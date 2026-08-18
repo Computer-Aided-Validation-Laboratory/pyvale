@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import time
 
 import numpy as np
 import numpy.typing as npt
@@ -9,6 +10,11 @@ from scipy.optimize import least_squares
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.identificationresult import (
+    OptimisationOutcome,
+    SolveResult,
+    snapshot_object,
+)
 from pyvale.vfm.metric import IMetric
 from pyvale.vfm.metricsliceforce import (
     LocalSliceData,
@@ -23,6 +29,7 @@ from pyvale.vfm.normalisation import (
 )
 from pyvale.vfm.objectivefunc import IObjectiveFunction, IVectorObjectiveFunction
 from pyvale.vfm.optimiser import IOptimiser
+from pyvale.vfm.progress import ProgressEvent, emit_progress
 from pyvale.vfm.slicewise_utils import slice_partitions_are_equivalent
 from pyvale.vfm.spatialparam import ISpatialParameterisation, get_num_degrees_of_freedom
 from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
@@ -58,7 +65,8 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
         metrics: list[IMetric],
         objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
-    ) -> dict[str, list[ISpatialParameterisation]]:
+        progress_callback=None,
+    ) -> OptimisationOutcome:
 
         if len(metrics) != 1 or not isinstance(metrics[0], SliceWiseForceReconstructionMetric):
             raise ValueError(
@@ -74,6 +82,12 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
         optimised_spatial_parameterisations = copy.deepcopy(
             spatial_parameterisations
         )
+        parent_started_at = time.perf_counter()
+        parent_initial_dofs = _collect_spatial_dof_values(
+            spatial_parameterisations
+        )
+        child_results: list[SolveResult] = []
+        skipped_slice_count = 0
 
         # Solve each slice indentently, updating the optimised parameterisations in place
         # Note: could be parallised in future if required
@@ -87,6 +101,7 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
             )
             # If no unknown parameters for this slice, skip the solve and leave the parameterisations unchanged
             if len(local_slice_data.unknown_parameter_names) == 0:
+                skipped_slice_count += 1
                 continue
 
             if (
@@ -105,6 +120,13 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                 local_slice_data.unknown_parameter_names,
             )
 
+            _emit_slice_progress(
+                progress_callback,
+                kind="slice_started",
+                slice_index=slice_index,
+                slice_count=slice_metric.slice_partition.num_slices,
+            )
+            slice_started_at = time.perf_counter()
             result = least_squares(
                 fun=_evaluate_slice_candidate,
                 x0=initial_guess,
@@ -118,6 +140,15 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                     local_slice_data,
                 ),
             )
+            slice_runtime = time.perf_counter() - slice_started_at
+            _emit_slice_progress(
+                progress_callback,
+                kind="slice_finished",
+                slice_index=slice_index,
+                slice_count=slice_metric.slice_partition.num_slices,
+                evaluation_count=int(result.nfev),
+                elapsed_seconds=slice_runtime,
+            )
 
             solved_values = denormalise_degrees_of_freedom(
                 result.x,
@@ -130,8 +161,139 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                 local_slice_data.unknown_parameter_names,
                 solved_values,
             )
+            child_results.append(
+                SolveResult(
+                    solve_iteration=slice_index,
+                    optimiser=snapshot_object(
+                        self,
+                        options={"method": self.method},
+                    ),
+                    runtime_seconds=slice_runtime,
+                    num_evaluations=int(result.nfev),
+                    success=bool(result.success),
+                    status=int(result.status),
+                    message=str(result.message),
+                    initial_dofs=[
+                        float(value)
+                        for value in denormalise_degrees_of_freedom(
+                            initial_guess,
+                            local_slice_data.lower_bounds,
+                            local_slice_data.upper_bounds,
+                        )
+                    ],
+                    final_dofs=[float(value) for value in solved_values],
+                    final_objective=_summarise_least_squares_result(result),
+                    details={
+                        "slice_index": int(slice_index),
+                        "unknown_parameter_names": [
+                            str(name)
+                            for name in local_slice_data.unknown_parameter_names
+                        ],
+                        "num_local_points": int(
+                            local_slice_data.global_point_indices.size
+                        ),
+                    },
+                )
+            )
 
-        return optimised_spatial_parameterisations
+        parent_runtime = time.perf_counter() - parent_started_at
+        num_evaluations = sum(
+            child.num_evaluations or 0
+            for child in child_results
+        )
+        parent_success = all(
+            child.success is not False
+            for child in child_results
+        )
+        return OptimisationOutcome(
+            spatial_parameterisations=optimised_spatial_parameterisations,
+            solve_result=SolveResult(
+                solve_iteration=0,
+                optimiser=snapshot_object(
+                    self,
+                    options={"method": self.method},
+                ),
+                runtime_seconds=parent_runtime,
+                num_evaluations=int(num_evaluations),
+                success=parent_success,
+                status="completed" if parent_success else "completed_with_failures",
+                message=(
+                    "Solved each active slice independently using SciPy "
+                    "least_squares."
+                ),
+                initial_dofs=parent_initial_dofs,
+                final_dofs=_collect_spatial_dof_values(
+                    optimised_spatial_parameterisations
+                ),
+                details={
+                    "num_slices": int(slice_metric.slice_partition.num_slices),
+                    "solved_slice_count": int(len(child_results)),
+                    "skipped_slice_count": int(skipped_slice_count),
+                },
+                children=child_results,
+            ),
+        )
+
+
+def _emit_slice_progress(
+    progress_callback,
+    *,
+    kind: str,
+    slice_index: int,
+    slice_count: int,
+    evaluation_count: int | None = None,
+    elapsed_seconds: float | None = None,
+) -> None:
+    if progress_callback is None:
+        return
+
+    readable_index = slice_index + 1
+    message = f"Slice {readable_index}/{slice_count} started"
+    if kind == "slice_finished":
+        message = f"Slice {readable_index}/{slice_count} finished"
+        if evaluation_count is not None:
+            message += f", evaluations: {evaluation_count}"
+
+    emit_progress(
+        progress_callback,
+        ProgressEvent(
+            message,
+            kind=kind,
+            elapsed_seconds=elapsed_seconds,
+        ),
+    )
+
+
+def _collect_spatial_dof_values(
+    spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
+) -> list[float]:
+    values: list[float] = []
+    for parameterisation_list in spatial_parameterisations.values():
+        for parameterisation in parameterisation_list:
+            values.extend(
+                float(dof.value)
+                for dof in parameterisation.collect_degrees_of_freedom()
+            )
+    return values
+
+
+def _summarise_least_squares_result(
+    result,
+) -> dict:
+    residual = np.asarray(result.fun, dtype=np.float64).ravel()
+    finite_residual = residual[np.isfinite(residual)]
+    residual_norm = (
+        None
+        if finite_residual.size == 0
+        else float(np.linalg.norm(finite_residual))
+    )
+    return {
+        "cost": float(result.cost),
+        "residual_norm": residual_norm,
+        "residual_size": int(residual.size),
+        "finite_residual_count": int(finite_residual.size),
+        "optimality": float(result.optimality),
+    }
 
 
 def _validate_slice_parameterisations(
