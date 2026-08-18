@@ -32,6 +32,7 @@ from pyvale.vfm.postprocessing import (
     plot_grid_map,
     plot_individual_maps,
     plot_map_collection,
+    plot_stress_strain_tiled,
     plot_yielded_datapoints,
     write_summary_json,
 )
@@ -46,15 +47,13 @@ EXPERIMENT_DATA_PATH = Path(
     "vfm-input-data_2026-08-12_15-43"
 )
 RESULT_BUNDLE = (
-    Path(__file__).resolve().parent
-    / "call_vfm_sw_refine_clean_output"
+    Path("/media/data/3_Resources/gr91-weld-dic-results/wdbn1/call_vfm_sw_refine_clean_output") 
     / EXPERIMENT_DATA_PATH.name
     / "identification_result"
 )
 POSTPROCESSING_OUTPUT_DIR = (
-    Path(__file__).resolve().parent
-    / "analyse_vfm_results_output"
-    / EXPERIMENT_DATA_PATH.name
+    RESULT_BUNDLE.parent
+    / f"{EXPERIMENT_DATA_PATH.name}_postprocessing_output"
 )
 KNOWN_PARAMETER_MAPS = None
 
@@ -67,6 +66,7 @@ CACHE_FULL_EGI_HISTORY = False
 
 SEQUENTIAL_CMAP = "viridis"
 DIVERGING_CMAP = "cmc.vik" if CMCRAMERI_AVAILABLE else "RdBu_r"
+
 
 
 def main() -> None:
@@ -219,6 +219,22 @@ def main() -> None:
             "Equilibrium Gap Indicator [%]",
             cmap=SEQUENTIAL_CMAP,
         )
+
+
+    POINT_PLOT_COMPONENT = "vm"  # one of: xx, yy, xy, vm
+    POINT_PLOT_ROW = None  # grid row index
+    POINT_PLOT_COLUMN = None  # grid column index
+    POINT_PLOT_TIMESTEP = None  # None uses the final timestep
+    plot_stress_strain_tiled(
+        experiment_data.strain,
+        stress,
+        POINT_PLOT_COMPONENT,
+        POINT_PLOT_ROW,
+        POINT_PLOT_COLUMN,
+        timestep=POINT_PLOT_TIMESTEP,
+        output_path=figure_dir / "stress_strain_tiled.png",
+        cmap=SEQUENTIAL_CMAP,
+    )
 
     summary = _build_summary(
         input_path=experiment_data_file,

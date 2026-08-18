@@ -42,6 +42,19 @@ PARAMETER_NAME_ORDER = (
     "rate_parameter",
 )
 
+PLOT_COMPONENT_INDEX = {
+    "xx": 0,
+    "yy": 1,
+    "xy": 2,
+}
+
+PLOT_COMPONENT_LABEL = {
+    "xx": "xx",
+    "yy": "yy",
+    "xy": "xy",
+    "vm": "von Mises",
+}
+
 
 @dataclass(slots=True, frozen=True)
 class StressCheckResult:
@@ -768,6 +781,138 @@ def plot_map_collection(
         fig.colorbar(image, ax=ax)
     for ax in flat_axes[len(names):]:
         ax.axis("off")
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
+
+
+def component_history_map(
+    field: npt.NDArray[np.float64],
+    component: Literal["xx", "yy", "xy", "vm"],
+) -> npt.NDArray[np.float64]:
+    """Return a (timesteps, y, x) history for a requested component."""
+
+    resolved_field = np.asarray(field, dtype=np.float64)
+    if resolved_field.ndim != 4:
+        raise ValueError(
+            "Expected field with shape (timesteps, components, y, x), "
+            f"got {resolved_field.shape}."
+        )
+    if resolved_field.shape[1] < 3:
+        raise ValueError(
+            "Expected at least 3 components [xx, yy, xy], "
+            f"got {resolved_field.shape[1]}."
+        )
+
+    if component in PLOT_COMPONENT_INDEX:
+        return resolved_field[:, PLOT_COMPONENT_INDEX[component], :, :]
+    if component == "vm":
+        comp_xx = resolved_field[:, 0, :, :]
+        comp_yy = resolved_field[:, 1, :, :]
+        comp_xy = resolved_field[:, 2, :, :]
+        return np.sqrt(
+            comp_xx**2 + comp_yy**2 - comp_xx * comp_yy + 3.0 * comp_xy**2
+        )
+
+    raise ValueError(
+        f"Unknown component '{component}'. Supported values: xx, yy, xy, vm."
+    )
+
+
+def plot_stress_strain_tiled(
+    strain: npt.NDArray[np.float64],
+    stress: npt.NDArray[np.float64],
+    component: Literal["xx", "yy", "xy", "vm"],
+    point_row: int | None = None,
+    point_column: int | None = None,
+    *,
+    timestep: int | None = None,
+    output_path: Path,
+    cmap: str = "viridis",
+) -> None:
+    """Plot a tiled figure with a strain map and local stress-strain curve."""
+
+    strain_history = component_history_map(strain, component)
+    stress_history = component_history_map(stress, component)
+    if strain_history.shape != stress_history.shape:
+        raise ValueError(
+            "Strain and stress component histories must have the same shape, "
+            f"got {strain_history.shape} and {stress_history.shape}."
+        )
+
+    # If no point is specified, default to the centre of the map.
+    if point_row is None:
+        point_row = strain_history.shape[1] // 2
+    if point_column is None:
+        point_column = strain_history.shape[2] // 2
+
+    if point_row < 0 or point_row >= strain_history.shape[1]:
+        raise IndexError(
+            f"point_row={point_row} is out of bounds for rows "
+            f"[0, {strain_history.shape[1] - 1}]."
+        )
+    if point_column < 0 or point_column >= strain_history.shape[2]:
+        raise IndexError(
+            f"point_column={point_column} is out of bounds for columns "
+            f"[0, {strain_history.shape[2] - 1}]."
+        )
+
+    map_index = -1 if timestep is None else int(timestep)
+    map_index = map_index % strain_history.shape[0]
+    map_data = strain_history[map_index, :, :]
+
+    strain_series = strain_history[:, point_row, point_column]
+    stress_series = stress_history[:, point_row, point_column]
+    valid_series = np.isfinite(strain_series) & np.isfinite(stress_series)
+    if not np.any(valid_series):
+        raise ValueError(
+            "Selected point has no finite stress-strain data across timesteps."
+        )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), constrained_layout=True)
+
+    map_ax = axes[0]
+    map_image = map_ax.imshow(
+        np.ma.masked_invalid(map_data),
+        origin="lower",
+        cmap=cmap,
+    )
+    map_ax.scatter(
+        point_column,
+        point_row,
+        c="tab:red",
+        marker="o",
+        s=40,
+        edgecolors="black",
+        linewidths=0.6,
+        zorder=3,
+    )
+    map_ax.set_title(
+        "Strain "
+        f"{PLOT_COMPONENT_LABEL[component]} "
+        f"(timestep {map_index})"
+    )
+    map_ax.set_xlabel("Column")
+    map_ax.set_ylabel("Row")
+    fig.colorbar(map_image, ax=map_ax)
+
+    curve_ax = axes[1]
+    curve_ax.plot(
+        strain_series[valid_series],
+        stress_series[valid_series],
+        "-o",
+        markersize=3,
+        linewidth=1.4,
+        color="tab:blue",
+    )
+    curve_ax.set_title(
+        "Local stress-strain "
+        f"({PLOT_COMPONENT_LABEL[component]})"
+    )
+    curve_ax.set_xlabel(f"Strain {PLOT_COMPONENT_LABEL[component]} [-]")
+    curve_ax.set_ylabel(f"Stress {PLOT_COMPONENT_LABEL[component]} [MPa]")
+    curve_ax.grid(True, alpha=0.3)
+
     fig.savefig(output_path, dpi=200)
     plt.close(fig)
 
