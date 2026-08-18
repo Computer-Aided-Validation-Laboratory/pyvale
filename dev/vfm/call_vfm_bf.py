@@ -95,7 +95,9 @@ class _BoundedLeastSquares(IOptimiser):
         metrics: list[IMetric],
         objective_function: IObjectiveFunction,
         experiment_data: ExperimentData,
+        progress_callback=None,
     ) -> dict[str, list[ISpatialParameterisation]]:
+        _ = progress_callback
         phase_spatial_state = PhaseSpatialState(spatial_parameterisations)
         dofs = phase_spatial_state.collect_degrees_of_freedom()
         if len(dofs) == 0:
