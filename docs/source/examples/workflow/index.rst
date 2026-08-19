@@ -13,3 +13,4 @@ function-backed pipelines.
    ex2_riley_to_dic
    ex2_blender_to_dic
    ex3_moose_riley_dic
+   ex4_slurm_dry_run

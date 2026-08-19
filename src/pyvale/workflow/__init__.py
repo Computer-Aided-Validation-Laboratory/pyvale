@@ -11,6 +11,13 @@ from .case import (
 )
 from .config import EFailurePolicy, EWorkflowStorage, WorkflowConfig
 from .errors import WorkflowCaseError, WorkflowError
+from .executor import (
+    IWorkflowExecutor,
+    LocalArrayExecutor,
+    SlurmConfig,
+    SlurmExecutor,
+    SlurmSubmission,
+)
 from .gather import ConvergenceMetric, WorkflowGatherer, plot_signal_to_noise
 from .noise import add_grey_level_noise
 from .pipeline import (
@@ -40,10 +47,11 @@ __all__ = [
     "EParameterKind", "ESpatialReduction", "EStrainComponent",
     "EWorkflowStorage", "ExplicitCases", "FullFactorial",
     "FullFieldSelector", "FunctionStep", "ICaseDesign", "ISpatialSelector",
-    "IWorkflow",
+    "IWorkflow", "IWorkflowExecutor",
     "IWorkflowStep", "LineSelector", "MaskSelector", "ParameterValues",
     "PipelineWorkflow",
-    "PointSelector", "RandomSampling", "SignalExtraction", "WorkflowCase",
+    "LocalArrayExecutor", "PointSelector", "RandomSampling", "SignalExtraction",
+    "SlurmConfig", "SlurmExecutor", "SlurmSubmission", "WorkflowCase",
     "WorkflowCaseError", "WorkflowConfig", "WorkflowError",
     "WorkflowContext",
     "WorkflowDataset", "WorkflowGatherer", "WorkflowRunner",

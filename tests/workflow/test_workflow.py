@@ -167,6 +167,32 @@ def test_memory_storage_removes_case_files(tmp_path: Path) -> None:
     assert not (tmp_path / "manifest.json").exists()
 
 
+def test_slurm_dry_run_and_local_array_executor(tmp_path: Path) -> None:
+    """Slurm manifests and local array workers share the persisted protocol."""
+    factory = "pyvale.examples.workflow.ex4_slurm_dry_run:build_workflow"
+    design = workflow.ExplicitCases(({"value": 2}, {"value": 4}))
+    config = workflow.WorkflowConfig(tmp_path, threads_per_case=2)
+    submission = workflow.SlurmExecutor(
+        workflow.SlurmConfig(
+            partition="test",
+            cpus_per_task=2,
+            array_concurrency=1,
+            submit=False,
+        ),
+    ).prepare(factory, design.generate(9), config)
+
+    script = submission.script_path.read_text(encoding="utf-8")
+    assert "#SBATCH --array=0-1%1" in script
+    assert "pyvale.workflow.worker" in script
+    assert (tmp_path / "cases" / "000000" / "case.json").is_file()
+    result = workflow.LocalArrayExecutor(workers=1).run(
+        factory,
+        design.generate(9),
+        workflow.WorkflowConfig(tmp_path / "local", threads_per_case=1),
+    )
+    assert [item.metrics["value"] for item in result] == [4.0, 16.0]
+
+
 def test_pixel_selectors_return_expected_values() -> None:
     """Point, line, area, and whole-field selectors use pixel coordinates."""
     pixels_x, pixels_y = np.meshgrid(np.arange(3), np.arange(3))
