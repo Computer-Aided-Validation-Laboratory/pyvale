@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 from pyvale.mooseherder.simrunner import SimRunner
 from pyvale.mooseherder.mooseconfig import MooseConfig
+from pyvale.mooseherder.availability import BackendAvailability, moose_availability
 
 
 class MooseRunner(SimRunner):
@@ -46,8 +47,22 @@ class MooseRunner(SimRunner):
         os.environ['F77'] = 'mpif77'
         os.environ['FC'] = 'mpif90'
         os.environ['MOOSE_DIR'] = str(self._config['main_path'])
-        if str(self._config['app_path']) not in os.environ["PATH"]:
-            os.environ["PATH"] = os.environ["PATH"] + ':' + str(self._config['app_path'])
+        app_path = str(self._config['app_path'])
+        path_value = os.environ.get("PATH", "")
+        if app_path not in path_value:
+            os.environ["PATH"] = path_value + os.pathsep + app_path
+
+    def availability(self) -> BackendAvailability:
+        """Return whether the configured MOOSE application can be executed."""
+        return moose_availability(self._config)
+
+    def verify_input(self) -> None:
+        """Validate executable and input-file state before launching MOOSE."""
+        availability = self.availability()
+        if not availability.available:
+            raise RuntimeError(availability.reason)
+        if self._input_path is None:
+            raise RuntimeError("Set input path before calling run.")
 
     def set_threads(self, n_threads: int) -> None:
         """Sets the number of threads asked of MOOSE on the command line.
@@ -260,7 +275,10 @@ class MooseRunner(SimRunner):
             self.set_input_file(input_file)
 
         if self._input_path is None:
-            raise RuntimeError('No input file specified, set one using set_input_file or by passing on into this function.')
+            raise RuntimeError(
+                "No input file specified, set one using set_input_file or "
+                "by passing on into this function.",
+            )
 
         arg_list = []
         if self._n_tasks > 1:
@@ -295,8 +313,7 @@ class MooseRunner(SimRunner):
         if input_file is not None:
             self.set_input_file(input_file)
 
-        if self._input_path is None:
-            raise RuntimeError("Set input path before calling run.")
+        self.verify_input()
 
         self.set_env_vars()
 

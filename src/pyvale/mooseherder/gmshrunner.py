@@ -7,6 +7,7 @@
 import subprocess
 from pathlib import Path
 from pyvale.mooseherder.simrunner import SimRunner
+from pyvale.mooseherder.availability import BackendAvailability, gmsh_availability
 
 
 class GmshRunner(SimRunner):
@@ -51,6 +52,19 @@ class GmshRunner(SimRunner):
             raise FileNotFoundError('Gmsh app not found at given path.')
 
         self._gmsh_app = gmsh_app
+
+    def availability(self) -> BackendAvailability:
+        """Return whether configured or PATH-resolved Gmsh is executable."""
+        return gmsh_availability(self._gmsh_app)
+
+    def verify_input(self) -> Path:
+        """Validate Gmsh and its ``.geo`` input before process creation."""
+        availability = self.availability()
+        if not availability.available:
+            raise RuntimeError(availability.reason)
+        if self._input_path is None:
+            raise RuntimeError("Specify input *.geo file before running gmsh.")
+        return availability.executable # type: ignore
 
 
     def get_input_file(self) -> Path | None:
@@ -121,13 +135,9 @@ class GmshRunner(SimRunner):
         if input_file is not None:
             self.set_input_file(input_file)
 
-        if self._gmsh_app is None:
-            raise RuntimeError("Specify the full path to the gmsh app before calling run.")
+        executable = self.verify_input()
 
-        if self._input_path is None:
-            raise RuntimeError("Specify input *.geo file before running gmsh.")
-
-        arg_list = [str(self._gmsh_app)]
+        arg_list = [str(executable)]
         if parse_only is True:
             arg_list = arg_list+["-parse_and_exit"]
 
@@ -155,4 +165,3 @@ class GmshRunner(SimRunner):
 
         """
         return None
-
