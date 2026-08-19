@@ -44,3 +44,10 @@ Rendering
    :maxdepth: 2
 
    ../examples_render
+
+Workflow orchestration
+----------------------
+.. toctree::
+   :maxdepth: 2
+
+   examples/workflow/index

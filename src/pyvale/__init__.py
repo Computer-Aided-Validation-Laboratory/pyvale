@@ -14,6 +14,6 @@ sensor placement optimisation, testing simulation validation metrics and
 virtually testing digital shadows/twins.
 """
 
-from . import render
+from . import render, workflow
 
-__all__ = ["render"]
+__all__ = ["render", "workflow"]

@@ -12,6 +12,7 @@ Module Specific Guides
    guide_sensorsim.rst
    guide_dic.rst
    guide_blender.rst
+   workflow.rst
 
 
 What is pyvale?
@@ -69,5 +70,4 @@ We like rabbits and we like digital image correlation - so a rabbit with a speck
    :width: 400px
 
 We could have said it was some forced metaphor that rabbits multiply a lot and one of the main applications of pyvale is running large parallel sweeps on computing clusters. But it was actually just a series of jokes from different team members. Someone said "I can't design the logo because if I do it will have a rabbit on it", then someone else said that "A rabbits ears look like the 'V' in pyvale". And that was how our logo was born.
-
 

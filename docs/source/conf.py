@@ -120,6 +120,7 @@ sphinx_gallery_conf = {
         '../../src/pyvale/examples/dic',
         '../../src/pyvale/examples/mooseherder',
         '../../src/pyvale/examples/render',
+        '../../src/pyvale/examples/workflow',
     ],
     # Path to where to save gallery generated output
     'gallery_dirs': [
@@ -128,6 +129,7 @@ sphinx_gallery_conf = {
         'examples/dic',
         'examples/mooseherder',
         'examples/render',
+        'examples/workflow',
     ],
     # Pattern to identify example files
     'filename_pattern': '/ex',
