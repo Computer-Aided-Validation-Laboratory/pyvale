@@ -8,9 +8,18 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
+
+import pyvale.render as render
 
 from gengold_blender_triangle import render_triangle
 from render_checks import assert_render_allclose
+
+
+pytestmark = pytest.mark.skipif(
+    not render.blender_available(),
+    reason="Blender requires Python 3.13 and the pyvale blender extra.",
+)
 
 
 def test_blender_adapter_renders_common_mesh_and_camera(tmp_path: Path) -> None:

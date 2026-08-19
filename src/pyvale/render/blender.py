@@ -7,7 +7,9 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+import importlib
 from pathlib import Path
+import sys
 
 import numpy as np
 
@@ -38,6 +40,10 @@ class BlenderConfig:
     samples: int = 2
     threads: int = 1
 
+    def __post_init__(self) -> None:
+        """Normalise the configured output directory to a path object."""
+        object.__setattr__(self, "output_dir", Path(self.output_dir))
+
 
 @dataclass(frozen=True, slots=True)
 class _BlenderPlan:
@@ -59,6 +65,12 @@ class _BlenderPlan:
 
 class Blender(IRenderer3D):
     """Render common meshes and cameras through Blender's existing scene API.
+
+    Notes
+    -----
+    Blender is an optional backend. It requires Python 3.13 and installation
+    with the ``blender`` package extra. Requests made without that backend are
+    rejected by :meth:`verify_input` before scene construction starts.
 
     Parameters
     ----------
@@ -104,8 +116,24 @@ class Blender(IRenderer3D):
             If the scene or Blender configuration is invalid.
         """
         issues = list(verify_scene_3d(meshes, cameras, lights))
-        if self.config.samples <= 0 or self.config.threads <= 0:
-            issues.append(ValidationIssue("config", "VALUE", "Samples and threads must be positive."))
+        if not isinstance(self.config, BlenderConfig):
+            issues.append(
+                ValidationIssue("config", "TYPE", "Expected BlenderConfig."),
+            )
+        elif self.config.samples <= 0 or self.config.threads <= 0:
+            issues.append(
+                ValidationIssue(
+                    "config",
+                    "VALUE",
+                    "Samples and threads must be positive.",
+                ),
+            )
+
+        unavailable_reason = _blender_unavailable_reason()
+        if unavailable_reason is not None:
+            issues.append(
+                ValidationIssue("blender", "UNAVAILABLE", unavailable_reason),
+            )
         raise_if_issues(tuple(issues))
         return _BlenderPlan(tuple(meshes), tuple(cameras), tuple(lights or ()))
 
@@ -129,7 +157,7 @@ class Blender(IRenderer3D):
         """
         if not isinstance(render_plan, _BlenderPlan):
             raise TypeError("Blender received an invalid render plan.")
-        from pyvale.blender import RenderData, Scene
+        RenderData, Scene = _load_blender_api()
 
         scene = Scene()
         for mesh in render_plan.meshes:
@@ -155,4 +183,45 @@ class Blender(IRenderer3D):
         return RenderResult(images=images)
 
 
-__all__ = ["Blender", "BlenderConfig"]
+def blender_available() -> bool:
+    """Return whether this interpreter can use pyvale's Blender backend.
+
+    Returns
+    -------
+    bool
+        ``True`` only when Python 3.13 and the optional ``bpy`` dependency are
+        both available.
+    """
+    return _blender_unavailable_reason() is None
+
+
+def _blender_unavailable_reason() -> str | None:
+    """Return an actionable reason when Blender cannot run in this process."""
+    if sys.version_info[:2] != (3, 13):
+        return (
+            "Blender requires Python 3.13. Use Python 3.13 and install "
+            "pyvale with the 'blender' extra."
+        )
+
+    try:
+        importlib.import_module("pyvale.blender")
+    except Exception as exception:
+        return (
+            "Blender is not available. Install the optional dependency with "
+            "'pip install pyvale[blender]'. "
+            f"Import error: {exception}"
+        )
+    return None
+
+
+def _load_blender_api() -> tuple[object, object]:
+    """Import Blender scene classes after a request has passed validation."""
+    reason = _blender_unavailable_reason()
+    if reason is not None:
+        raise RuntimeError(reason)
+
+    blender_module = importlib.import_module("pyvale.blender")
+    return blender_module.RenderData, blender_module.Scene
+
+
+__all__ = ["Blender", "BlenderConfig", "blender_available"]

@@ -12,9 +12,19 @@ validated planar image-warp renderers. The default 3D implementation is
 
 from .camera import Camera, Camera2D
 from .camera_tools import CameraTools
-from .blender import Blender, BlenderConfig
+from .blender import Blender, BlenderConfig, blender_available
 from .capabilities import RenderCapabilities
 from .errors import RenderInputError, ValidationIssue
+from .feebee import (
+    EFeebeeMaterialType,
+    EFeebeeShading,
+    EFeebeeTextureSampler,
+    Feebee,
+    FeebeeColourShader,
+    FeebeeConfig,
+    FeebeeMaterial,
+    FeebeeTextureShader,
+)
 from .imagedef2d import ImageDef2D, ImageDefOpts
 from .imagewarp2d import IImageWarp2D
 from .image_tools import EImageType, ImageTools
@@ -34,7 +44,6 @@ from .pxint2d import (
     RectRule,
     quantise_image,
 )
-from .refract import Refract
 from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
 from .riley import FunctionShader, NodalFieldShader, Riley, TextureShader
@@ -45,15 +54,24 @@ __all__ = [
     "Camera2D",
     "CameraTools",
     "Blender",
+    "blender_available",
     "BlenderConfig",
     "AdditiveSpeckles",
     "AnalyticRule",
     "DisplacementSeries2D",
     "EElementType",
+    "EFeebeeMaterialType",
+    "EFeebeeShading",
+    "EFeebeeTextureSampler",
     "ELightType",
     "EImageType",
     "EPxIntMapping",
     "Eggbox",
+    "Feebee",
+    "FeebeeColourShader",
+    "FeebeeConfig",
+    "FeebeeMaterial",
+    "FeebeeTextureShader",
     "FunctionShader",
     "GaussianPSF",
     "GaussRule",
@@ -71,7 +89,6 @@ __all__ = [
     "PixIntSpeck2D",
     "PxInt2DOpts",
     "RectRule",
-    "Refract",
     "RenderCapabilities",
     "RenderInputError",
     "RenderResult",
