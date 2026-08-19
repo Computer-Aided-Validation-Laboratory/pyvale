@@ -4,8 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""
-NOTE: This module is a feature under developement.
+"""Finite-element-driven orthographic image deformation.
+
+The module provides the initial :class:`IImageWarp2D` implementation. It
+interpolates planar nodal displacements onto an orthographic image grid and
+warps a reference greyscale image for each simulation frame.
 """
 
 # TODO
@@ -29,6 +32,42 @@ from pyvale.render.image_tools import EImageType, ImageTools
 
 @dataclass(slots=True)
 class ImageDefOpts:
+    """Options controlling finite-element image deformation.
+
+    Parameters
+    ----------
+    save_path : pathlib.Path or None, optional
+        Directory used by :meth:`ImageDef2D.deform_images_to_disk`. ``None``
+        selects a ``deformed_images`` directory in the current directory.
+    save_tag : str, optional
+        Prefix used for files written to disk.
+    mask_input_image : bool, optional
+        Mask reference pixels outside the finite-element surface.
+    crop_on : bool, optional
+        Reserved option controlling input-image cropping.
+    crop_px : numpy.ndarray or None, optional
+        Reserved crop bounds in pixel coordinates.
+    calc_res_from_fe : bool, optional
+        Reserved option to calculate output resolution from the FE mesh.
+    calc_res_border_px : int, optional
+        Reserved pixel border for FE-derived resolution.
+    add_static_ref : bool, optional
+        Prepend an undeformed reference frame to displacement data.
+    fe_interp : str, optional
+        Interpolation method passed to :func:`scipy.interpolate.griddata`.
+    fe_rescale : bool, optional
+        Rescale coordinates before finite-element interpolation.
+    fe_extrap_outside_fov : bool, optional
+        Move values outside the specimen beyond the field of view.
+    image_def_order : int, optional
+        Spline order used to interpolate greyscale image values.
+    image_def_extrap : str, optional
+        Boundary mode passed to :func:`scipy.ndimage.map_coordinates`.
+    image_def_extval : float, optional
+        Constant value used by the ``constant`` interpolation boundary mode.
+    def_complex_geom : bool, optional
+        Deform the specimen mask as well as the greyscale image.
+    """
     save_path: Path | None = None
     save_tag: str = "defimage"
 
@@ -54,13 +93,29 @@ class ImageDefOpts:
     def_complex_geom: bool = True
 
     def __post_init__(self) -> None:
+        """Set the default deformation-image output directory."""
         if self.save_path is None:
             self.save_path = Path.cwd() / "deformed_images"
 
 
 class ImageDef2D(IImageWarp2D):
+    """Warp a planar reference image from finite-element displacements.
+
+    Parameters
+    ----------
+    options : ImageDefOpts or None, optional
+        Deformation options. ``None`` creates :class:`ImageDefOpts` with its
+        default values.
+    """
 
     def __init__(self, options: ImageDefOpts | None = None) -> None:
+        """Create a planar finite-element image-warp renderer.
+
+        Parameters
+        ----------
+        options : ImageDefOpts or None, optional
+            Deformation options. ``None`` uses default options.
+        """
         self.options = ImageDefOpts() if options is None else options
 
     def verify_input(self,
@@ -71,7 +126,33 @@ class ImageDef2D(IImageWarp2D):
                      displacements: np.ndarray,
                      ) -> tuple[np.ndarray, Camera2D, np.ndarray, np.ndarray,
                                 np.ndarray]:
-        """Verify a planar image-warp request before preprocessing it."""
+        """Verify a planar image-warp request before preprocessing it.
+
+        Parameters
+        ----------
+        source_image : numpy.ndarray
+            Two-dimensional reference image aligned with ``camera``.
+        camera : Camera2D
+            Orthographic image camera.
+        coords : numpy.ndarray
+            Planar finite-element node coordinates.
+        connectivity : numpy.ndarray
+            Non-empty finite-element connectivity table.
+        displacements : numpy.ndarray
+            Nodal planar displacement data with shape
+            ``(frame_count, node_count, 2)``.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, Camera2D, numpy.ndarray, numpy.ndarray,
+        numpy.ndarray]
+            Validated request data consumed by :meth:`_render`.
+
+        Raises
+        ------
+        ValueError
+            If source image, mesh, or displacement data is inconsistent.
+        """
         if source_image.ndim != 2:
             raise ValueError("source_image must be a two-dimensional image.")
         if coords.ndim != 2 or coords.shape[1] < 2:
@@ -87,7 +168,18 @@ class ImageDef2D(IImageWarp2D):
         return source_image, camera, coords, connectivity, displacements
 
     def _render(self, render_plan: object) -> ImageWarpResult:
-        """Warp all frames after validation has completed."""
+        """Warp every displacement frame in a validated request.
+
+        Parameters
+        ----------
+        render_plan : object
+            Tuple returned by :meth:`verify_input`.
+
+        Returns
+        -------
+        ImageWarpResult
+            Deformed images with frame and singleton-camera axes.
+        """
         image, camera, coords, connectivity, displacements = render_plan
         upsampled, mask, _, disp_x, disp_y = self.preprocess(
             camera, image.copy(), coords, connectivity,
@@ -110,6 +202,24 @@ class ImageDef2D(IImageWarp2D):
                             coords: np.ndarray,
                             connectivity: np.ndarray
                             ) -> tuple[np.ndarray,np.ndarray]:
+        """Mask pixels outside a finite-element surface.
+
+        Parameters
+        ----------
+        cam_data : Camera2D
+            Orthographic camera defining the image extent.
+        image : numpy.ndarray
+            Reference image to mask in place.
+        coords : numpy.ndarray
+            Finite-element node coordinates.
+        connectivity : numpy.ndarray
+            Surface-element connectivity table.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            Masked image and sub-pixel specimen mask.
+        """
 
         # Here to allow for addition
         #subsample: int = cam_data.subsample
@@ -247,6 +357,20 @@ class ImageDef2D(IImageWarp2D):
     @staticmethod
     def upsample_image(cam_data: Camera2D,
                        input_im: np.ndarray):
+        """Interpolate a reference image onto the camera sub-pixel grid.
+
+        Parameters
+        ----------
+        cam_data : Camera2D
+            Orthographic camera defining pixel and sub-pixel spacing.
+        input_im : numpy.ndarray
+            Two-dimensional source image.
+
+        Returns
+        -------
+        numpy.ndarray
+            Smoothly interpolated sub-pixel image.
+        """
         # Get grid of pixel centroid locations
         (px_vec_xm,px_vec_ym) = CameraTools.pixel_vec_leng(cam_data.field_of_view,
                                                            cam_data.leng_per_px)
@@ -285,6 +409,33 @@ class ImageDef2D(IImageWarp2D):
                               np.ndarray | None,
                               np.ndarray | None,
                               np.ndarray | None]:
+        """Prepare image, mask, and displacement data for deformation.
+
+        Parameters
+        ----------
+        cam_data : Camera2D
+            Orthographic camera for the output image.
+        image_input : numpy.ndarray
+            Reference image to crop, mask, and upsample.
+        coords : numpy.ndarray
+            Finite-element node coordinates.
+        connectivity : numpy.ndarray
+            Surface-element connectivity table.
+        disp_x, disp_y : numpy.ndarray
+            Nodal x and y displacement fields, arranged by node and frame.
+        id_opts : ImageDefOpts
+            Deformation controls.
+        print_on : bool, optional
+            Print timing diagnostics while preprocessing.
+
+        Returns
+        -------
+        tuple[numpy.ndarray or None, numpy.ndarray or None,
+        numpy.ndarray or None,
+        numpy.ndarray or None, numpy.ndarray or None]
+            Upsampled image, sub-pixel mask, prepared input image, and the x
+            and y displacement fields.
+        """
 
         if print_on:
             print("\n"+"="*80)
@@ -354,6 +505,32 @@ class ImageDef2D(IImageWarp2D):
                                     np.ndarray,
                                     np.ndarray,
                                     np.ndarray | None]:
+        """Deform one reference image for one nodal displacement frame.
+
+        Parameters
+        ----------
+        upsampled_image : numpy.ndarray
+            Sub-pixel reference image returned by :meth:`upsample_image`.
+        cam_data : Camera2D
+            Orthographic output camera.
+        id_opts : ImageDefOpts
+            Deformation controls.
+        coords : numpy.ndarray
+            Finite-element node coordinates.
+        disp : numpy.ndarray
+            One frame of nodal planar displacements with shape ``(nodes, 2)``.
+        image_mask : numpy.ndarray or None, optional
+            Sub-pixel mask describing the specimen region.
+        print_on : bool, optional
+            Print timing diagnostics while deforming.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray,
+        numpy.ndarray or None]
+            Deformed image, deformed sub-pixel image, x and y sub-pixel
+            displacements, and the optional deformed mask.
+        """
 
         if image_mask is not None:
             if (image_mask.shape[0] != cam_data.pixels_count[1]) or (image_mask.shape[1] != cam_data.pixels_count[0]):
@@ -456,6 +633,28 @@ class ImageDef2D(IImageWarp2D):
                       image_mask: np.ndarray | None,
                       id_opts: ImageDefOpts,
                       print_on: bool = False) -> None:
+        """Deform every frame and save it as a TIFF image.
+
+        Parameters
+        ----------
+        cam_data : Camera2D
+            Orthographic output camera.
+        upsampled_image : numpy.ndarray
+            Sub-pixel reference image.
+        coords : numpy.ndarray
+            Finite-element node coordinates.
+        connectivity : numpy.ndarray
+            Surface-element connectivity table. It is retained for API
+            compatibility with preprocessing.
+        disp_x, disp_y : numpy.ndarray
+            Nodal x and y displacement fields, arranged by node and frame.
+        image_mask : numpy.ndarray or None
+            Specimen mask to deform with each image.
+        id_opts : ImageDefOpts
+            Output and deformation controls.
+        print_on : bool, optional
+            Print timing diagnostics while writing images.
+        """
 
         #---------------------------------------------------------------------------
         # Image Deformation Loop
@@ -514,6 +713,26 @@ def _interp_sim_disp_to_subpx_grid(coords: np.ndarray,
                                subpx_grid_xm: np.ndarray,
                                subpx_grid_ym: np.ndarray
                                ) -> tuple[np.ndarray,np.ndarray]:
+    """Interpolate nodal displacements onto the sub-pixel camera grid.
+
+    Parameters
+    ----------
+    coords : numpy.ndarray
+        Finite-element node coordinates.
+    disp : numpy.ndarray
+        Nodal planar displacements with shape ``(nodes, 2)``.
+    cam_data : Camera2D
+        Orthographic output camera.
+    id_opts : ImageDefOpts
+        Finite-element interpolation controls.
+    subpx_grid_xm, subpx_grid_ym : numpy.ndarray
+        Horizontal and vertical sub-pixel grids in camera coordinates.
+
+    Returns
+    -------
+    tuple[numpy.ndarray, numpy.ndarray]
+        Interpolated x and y displacement fields on the sub-pixel grid.
+    """
 
     # Interpolate displacements onto sub-pixel locations - nan extrapolation
     subpx_disp_x = griddata((coords[:,0] + disp[:,0] + cam_data.world_to_cam[0],
@@ -552,6 +771,24 @@ def _interp_subpx_image(upsampled_image: np.ndarray,
                         cam_data: Camera2D,
                         id_opts: ImageDefOpts,
                         ) -> np.ndarray:
+        """Sample a sub-pixel image at deformed camera coordinates.
+
+        Parameters
+        ----------
+        upsampled_image : numpy.ndarray
+            Reference image on the sub-pixel grid.
+        def_subpx_x, def_subpx_y : numpy.ndarray
+            Deformed sub-pixel coordinates in physical camera units.
+        cam_data : Camera2D
+            Orthographic output camera.
+        id_opts : ImageDefOpts
+            Image interpolation controls.
+
+        Returns
+        -------
+        numpy.ndarray
+            Deformed sub-pixel image.
+        """
 
         # Flip needed to be consistent with pixel coords of ndimage
         def_subpx_x = def_subpx_x[::-1,:]
@@ -585,6 +822,26 @@ def _deform_image_mask(def_image: np.ndarray,
                        subpx_disp_y: np.ndarray,
                        cam_data: Camera2D,
                        ) -> tuple[np.ndarray,np.ndarray]:
+    """Warp a specimen mask and apply it to a deformed image.
+
+    Parameters
+    ----------
+    def_image : numpy.ndarray
+        Deformed output image to mask in place.
+    image_mask : numpy.ndarray
+        Reference specimen mask.
+    px_grid_xm, px_grid_ym : numpy.ndarray
+        Horizontal and vertical output-pixel grids in camera coordinates.
+    subpx_disp_x, subpx_disp_y : numpy.ndarray
+        Interpolated displacement fields on the sub-pixel grid.
+    cam_data : Camera2D
+        Orthographic output camera.
+
+    Returns
+    -------
+    tuple[numpy.ndarray, numpy.ndarray]
+        Masked deformed image and sampled mask.
+    """
 
     # This is slow - might be quicker to just deform an upsampled mask
     # TODO: use cython image averaging it is way faster!

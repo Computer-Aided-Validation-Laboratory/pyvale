@@ -20,7 +20,27 @@ def verify_scene_3d(
     cameras: Sequence[Camera],
     lights: Sequence[Light] | None,
 ) -> tuple[ValidationIssue, ...]:
-    """Return all common 3D input issues without allocating render buffers."""
+    """Check common three-dimensional scene constraints cheaply.
+
+    Parameters
+    ----------
+    meshes : Sequence[Mesh]
+        Surface meshes in the requested scene.
+    cameras : Sequence[Camera]
+        Cameras in the requested scene.
+    lights : Sequence[Light] or None
+        Explicit scene lights, if any.
+
+    Returns
+    -------
+    tuple[ValidationIssue, ...]
+        Every detected issue. An empty tuple denotes a valid common scene.
+
+    Notes
+    -----
+    This routine performs no scene construction, image allocation, or backend
+    calculation. Backends must add their own capability checks.
+    """
     issues: list[ValidationIssue] = []
     if not meshes:
         issues.append(ValidationIssue("meshes", "EMPTY", "At least one mesh is required."))
@@ -61,7 +81,18 @@ def verify_scene_3d(
 
 
 def raise_if_issues(issues: tuple[ValidationIssue, ...]) -> None:
-    """Raise one aggregated error if validation found any issues."""
+    """Raise an aggregated error when validation detected issues.
+
+    Parameters
+    ----------
+    issues : tuple[ValidationIssue, ...]
+        Issues returned by a verification routine.
+
+    Raises
+    ------
+    RenderInputError
+        If ``issues`` is not empty.
+    """
     if issues:
         raise RenderInputError(issues)
 

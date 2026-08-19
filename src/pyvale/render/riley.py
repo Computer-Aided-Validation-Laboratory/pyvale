@@ -28,7 +28,15 @@ except ImportError:  # pragma: no cover - exercised by installed-package checks
 
 @dataclass(frozen=True, slots=True)
 class TextureShader:
-    """Riley texture shader with node UV coordinates."""
+    """Riley texture shader with nodal UV coordinates.
+
+    Parameters
+    ----------
+    uvs : numpy.ndarray
+        Texture coordinates with shape ``(node_count, 2)``.
+    texture : numpy.ndarray
+        Greyscale or colour texture image consumed by Riley.
+    """
 
     uvs: np.ndarray
     texture: np.ndarray
@@ -36,14 +44,33 @@ class TextureShader:
 
 @dataclass(frozen=True, slots=True)
 class NodalFieldShader:
-    """Riley scalar nodal field shader with ``(frames, nodes, fields)`` data."""
+    """Riley scalar nodal-field shader.
+
+    Parameters
+    ----------
+    values : numpy.ndarray
+        Nodal field data with shape ``(frame_count, node_count, field_count)``.
+    """
 
     values: np.ndarray
 
 
 @dataclass(frozen=True, slots=True)
 class FunctionShader:
-    """Riley built-in analytic shader configuration."""
+    """Configuration for a Riley built-in analytic shader.
+
+    Parameters
+    ----------
+    builtin : int
+        Riley built-in shader identifier.
+    coord_mode : int
+        Riley coordinate-mode identifier for the analytic shader.
+    params : object or None, optional
+        Backend-native parameter object for the selected built-in shader.
+    uvs : numpy.ndarray or None, optional
+        Nodal texture coordinates with shape ``(node_count, 2)`` when the
+        analytic shader requires them.
+    """
 
     builtin: int
     coord_mode: int
@@ -53,12 +80,34 @@ class FunctionShader:
 
 @dataclass(frozen=True, slots=True)
 class _RileyPlan:
+    """Validated Riley scene data ready for backend conversion.
+
+    Parameters
+    ----------
+    meshes : tuple[Mesh, ...]
+        Validated render meshes.
+    cameras : tuple[Camera, ...]
+        Validated render cameras.
+    """
     meshes: tuple[Mesh, ...]
     cameras: tuple[Camera, ...]
 
 
 class Riley(IRenderer3D):
-    """Render a validated pyvale scene through an actual Riley configuration."""
+    """Render validated pyvale scenes through an actual Riley configuration.
+
+    Riley is the default high-performance three-dimensional renderer. Its
+    shader classes are intentionally backend-owned; use :class:`TextureShader`,
+    :class:`NodalFieldShader`, or :class:`FunctionShader` in each :class:`Mesh`.
+
+    Parameters
+    ----------
+    riley_config : riley.RasterConfig
+        Genuine Riley raster configuration controlling the render.
+    output_dir : pathlib.Path or None, optional
+        Directory to which Riley writes output files. ``None`` keeps Riley's
+        default output behaviour.
+    """
 
     capabilities = RenderCapabilities(
         element_types=frozenset(EElementType),
@@ -72,7 +121,15 @@ class Riley(IRenderer3D):
         riley_config: object,
         output_dir: Path | None = None,
     ) -> None:
-        """Create an adapter around a genuine ``riley.RasterConfig`` object."""
+        """Create an adapter around a genuine ``riley.RasterConfig`` object.
+
+        Parameters
+        ----------
+        riley_config : riley.RasterConfig
+            Riley configuration passed unmodified to the backend.
+        output_dir : pathlib.Path or None, optional
+            Optional directory for backend output files.
+        """
         self.riley_config = riley_config
         self.output_dir = output_dir
 
@@ -82,7 +139,28 @@ class Riley(IRenderer3D):
         cameras: Sequence[Camera],
         lights: Sequence[Light] | None = None,
     ) -> _RileyPlan:
-        """Verify all common and Riley-specific inputs before conversion."""
+        """Verify common and Riley-specific inputs before conversion.
+
+        Parameters
+        ----------
+        meshes : Sequence[Mesh]
+            Meshes using one of the Riley-owned shader data classes.
+        cameras : Sequence[Camera]
+            Perspective cameras to convert to Riley cameras.
+        lights : Sequence[Light] or None, optional
+            Requested lights. Riley currently rejects explicit lights.
+
+        Returns
+        -------
+        _RileyPlan
+            Validated scene data ready for lightweight backend conversion.
+
+        Raises
+        ------
+        RenderInputError
+            If Riley is unavailable, configuration is invalid, or the scene
+            uses an unsupported feature.
+        """
         issues = list(verify_scene_3d(meshes, cameras, lights))
         if _riley is None:
             issues.append(ValidationIssue("riley", "UNAVAILABLE", "riley-raster is not installed."))
@@ -118,7 +196,23 @@ class Riley(IRenderer3D):
         return _RileyPlan(tuple(meshes), tuple(cameras))
 
     def _render(self, render_plan: object) -> RenderResult:
-        """Convert a verified plan and invoke Riley exactly once."""
+        """Convert a verified plan and invoke Riley exactly once.
+
+        Parameters
+        ----------
+        render_plan : object
+            Plan returned by :meth:`verify_input`.
+
+        Returns
+        -------
+        RenderResult
+            Riley images in ``(frame, camera, height, width, channel)`` order.
+
+        Raises
+        ------
+        TypeError
+            If ``render_plan`` was not created by this renderer.
+        """
         if not isinstance(render_plan, _RileyPlan):
             raise TypeError("Riley received an invalid render plan.")
         assert _riley is not None
@@ -136,6 +230,18 @@ class Riley(IRenderer3D):
 
 
 def _mesh_to_riley(mesh: Mesh) -> object:
+    """Convert one renderer-independent mesh to a Riley mesh.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        Validated pyvale mesh using a Riley-owned shader.
+
+    Returns
+    -------
+    riley.Mesh
+        Backend mesh ready for ``riley.raster``.
+    """
     assert _riley is not None
     mesh_types = {
         EElementType.TRI3: _riley.MeshType.tri3,
@@ -179,6 +285,18 @@ def _mesh_to_riley(mesh: Mesh) -> object:
 
 
 def _camera_to_riley(camera: Camera) -> object:
+    """Convert one unified perspective camera to a Riley camera.
+
+    Parameters
+    ----------
+    camera : Camera
+        Validated pyvale camera.
+
+    Returns
+    -------
+    riley.Camera
+        Backend camera preserving supported camera options.
+    """
     assert _riley is not None
     return _riley.Camera(
         pixels_num=tuple(int(value) for value in camera.pixels_num),

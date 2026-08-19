@@ -12,7 +12,7 @@ import numpy as np
 
 
 class ELightType(Enum):
-    """Light geometries understood by compatible backends."""
+    """Light geometries understood by compatible three-dimensional backends."""
 
     POINT = "point"
     SUN = "sun"
@@ -21,7 +21,20 @@ class ELightType(Enum):
 
 @dataclass(slots=True)
 class Light:
-    """A physical light source for a renderer that supports lights."""
+    """A physical light source for a renderer that supports lights.
+
+    Parameters
+    ----------
+    light_type : ELightType
+        Geometry of the light source.
+    pos_world : numpy.ndarray
+        World position of the source, with shape ``(3,)``.
+    direction_world : numpy.ndarray
+        World-space direction, with shape ``(3,)``. It is relevant to sun and
+        area lights.
+    intensity : float
+        Non-negative backend-independent light intensity.
+    """
 
     light_type: ELightType
     pos_world: np.ndarray
@@ -29,6 +42,7 @@ class Light:
     intensity: float
 
     def __post_init__(self) -> None:
+        """Convert position and direction to double-precision arrays."""
         self.pos_world = np.asarray(self.pos_world, dtype=np.float64)
         self.direction_world = np.asarray(self.direction_world, dtype=np.float64)
 

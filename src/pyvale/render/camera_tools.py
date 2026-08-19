@@ -10,11 +10,25 @@ from scipy.signal import convolve2d
 
 
 class CameraTools:
-    """Small camera-grid helpers shared by planar renderers."""
+    """Camera-grid helpers shared by planar image-warp renderers."""
 
     @staticmethod
     def pixel_vec_leng(field_of_view: np.ndarray,
                        leng_per_px: float) -> tuple[np.ndarray, np.ndarray]:
+        """Build pixel-centre coordinate vectors for an orthographic camera.
+
+        Parameters
+        ----------
+        field_of_view : numpy.ndarray
+            Physical image extent in ``(width, height)`` order.
+        leng_per_px : float
+            Physical length represented by one pixel.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            Pixel-centre coordinates along the horizontal and vertical axes.
+        """
         return (
             np.arange(leng_per_px / 2.0, field_of_view[0], leng_per_px),
             np.arange(leng_per_px / 2.0, field_of_view[1], leng_per_px),
@@ -23,12 +37,42 @@ class CameraTools:
     @staticmethod
     def pixel_grid_leng(field_of_view: np.ndarray,
                         leng_per_px: float) -> tuple[np.ndarray, np.ndarray]:
+        """Build pixel-centre coordinate grids for an orthographic camera.
+
+        Parameters
+        ----------
+        field_of_view : numpy.ndarray
+            Physical image extent in ``(width, height)`` order.
+        leng_per_px : float
+            Physical length represented by one pixel.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            Horizontal and vertical pixel-centre grids.
+        """
         return np.meshgrid(*CameraTools.pixel_vec_leng(field_of_view, leng_per_px))
 
     @staticmethod
     def subpixel_vec_leng(field_of_view: np.ndarray,
                           leng_per_px: float,
                           subsample: int) -> tuple[np.ndarray, np.ndarray]:
+        """Build sub-pixel-centre coordinate vectors.
+
+        Parameters
+        ----------
+        field_of_view : numpy.ndarray
+            Physical image extent in ``(width, height)`` order.
+        leng_per_px : float
+            Physical length represented by one output pixel.
+        subsample : int
+            Number of sub-pixels in each pixel direction.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            Sub-pixel-centre coordinates along the two image axes.
+        """
         spacing = leng_per_px / subsample
         return (
             np.arange(spacing / 2.0, field_of_view[0], spacing),
@@ -39,6 +83,22 @@ class CameraTools:
     def subpixel_grid_leng(field_of_view: np.ndarray,
                            leng_per_px: float,
                            subsample: int) -> tuple[np.ndarray, np.ndarray]:
+        """Build sub-pixel-centre coordinate grids.
+
+        Parameters
+        ----------
+        field_of_view : numpy.ndarray
+            Physical image extent in ``(width, height)`` order.
+        leng_per_px : float
+            Physical length represented by one output pixel.
+        subsample : int
+            Number of sub-pixels in each pixel direction.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            Horizontal and vertical sub-pixel-centre grids.
+        """
         return np.meshgrid(
             *CameraTools.subpixel_vec_leng(field_of_view, leng_per_px, subsample),
         )
@@ -46,12 +106,39 @@ class CameraTools:
     @staticmethod
     def crop_image_rectangle(image: np.ndarray,
                              pixels_count: np.ndarray) -> np.ndarray:
-        """Crop an image to its camera extent from the upper-left corner."""
+        """Crop an image to its camera extent from the upper-left corner.
+
+        Parameters
+        ----------
+        image : numpy.ndarray
+            Source image with rows followed by columns.
+        pixels_count : numpy.ndarray
+            Requested image size in ``(width, height)`` order.
+
+        Returns
+        -------
+        numpy.ndarray
+            View of the requested upper-left image rectangle.
+        """
         return image[:pixels_count[1], :pixels_count[0]]
 
     @staticmethod
     def average_subpixel_image(image: np.ndarray, subsample: int) -> np.ndarray:
-        """Average an image's square subpixel blocks."""
+        """Average square sub-pixel blocks into output pixels.
+
+        Parameters
+        ----------
+        image : numpy.ndarray
+            Two-dimensional sub-pixel image.
+        subsample : int
+            Number of sub-pixels in each output-pixel direction.
+
+        Returns
+        -------
+        numpy.ndarray
+            Downsampled image. The input is returned unchanged for a factor of
+            one or less.
+        """
         if subsample <= 1:
             return image
         kernel = np.ones((subsample, subsample)) / (subsample ** 2)

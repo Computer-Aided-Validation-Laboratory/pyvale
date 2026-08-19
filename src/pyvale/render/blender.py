@@ -3,7 +3,7 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Blender implementation of the unified 3D renderer lifecycle."""
+"""Blender implementation of the unified 3D renderer interface."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -22,7 +22,17 @@ from .verifyinput import raise_if_issues, verify_scene_3d
 
 @dataclass(frozen=True, slots=True)
 class BlenderConfig:
-    """Small set of stable Blender controls for the unified adapter."""
+    """Stable Blender controls accepted by the unified adapter.
+
+    Parameters
+    ----------
+    output_dir : pathlib.Path
+        Directory used for Blender output files.
+    samples : int, optional
+        Number of Blender render samples.
+    threads : int, optional
+        Number of Blender worker threads.
+    """
 
     output_dir: Path
     samples: int = 2
@@ -31,15 +41,39 @@ class BlenderConfig:
 
 @dataclass(frozen=True, slots=True)
 class _BlenderPlan:
+    """Validated Blender scene data ready for scene construction.
+
+    Parameters
+    ----------
+    meshes : tuple[Mesh, ...]
+        Validated render meshes.
+    cameras : tuple[Camera, ...]
+        Validated render cameras.
+    lights : tuple[Light, ...]
+        Validated lights requested for the scene.
+    """
     meshes: tuple[Mesh, ...]
     cameras: tuple[Camera, ...]
     lights: tuple[Light, ...]
 
 
 class Blender(IRenderer3D):
-    """Render common meshes and cameras through Blender's existing scene API."""
+    """Render common meshes and cameras through Blender's existing scene API.
+
+    Parameters
+    ----------
+    config : BlenderConfig
+        Output and execution controls for the Blender adapter.
+    """
 
     def __init__(self, config: BlenderConfig) -> None:
+        """Store the configuration used by subsequent render requests.
+
+        Parameters
+        ----------
+        config : BlenderConfig
+            Output and execution controls for the adapter.
+        """
         self.config = config
 
     def verify_input(
@@ -48,7 +82,27 @@ class Blender(IRenderer3D):
         cameras: Sequence[Camera],
         lights: Sequence[Light] | None = None,
     ) -> _BlenderPlan:
-        """Verify the scene before Blender resets or creates a scene."""
+        """Verify a scene before Blender resets or creates a scene.
+
+        Parameters
+        ----------
+        meshes : Sequence[Mesh]
+            Meshes passed to Blender's scene API.
+        cameras : Sequence[Camera]
+            Cameras passed to Blender's scene API.
+        lights : Sequence[Light] or None, optional
+            Lights requested for the scene.
+
+        Returns
+        -------
+        _BlenderPlan
+            Validated scene data ready for Blender scene construction.
+
+        Raises
+        ------
+        RenderInputError
+            If the scene or Blender configuration is invalid.
+        """
         issues = list(verify_scene_3d(meshes, cameras, lights))
         if self.config.samples <= 0 or self.config.threads <= 0:
             issues.append(ValidationIssue("config", "VALUE", "Samples and threads must be positive."))
@@ -56,7 +110,23 @@ class Blender(IRenderer3D):
         return _BlenderPlan(tuple(meshes), tuple(cameras), tuple(lights or ()))
 
     def _render(self, render_plan: object) -> RenderResult:
-        """Build a minimal Blender scene and normalise image output."""
+        """Build a minimal Blender scene and normalise image output.
+
+        Parameters
+        ----------
+        render_plan : object
+            Plan returned by :meth:`verify_input`.
+
+        Returns
+        -------
+        RenderResult
+            Blender images in the common render-result layout.
+
+        Raises
+        ------
+        TypeError
+            If ``render_plan`` was not created by this renderer.
+        """
         if not isinstance(render_plan, _BlenderPlan):
             raise TypeError("Blender received an invalid render plan.")
         from pyvale.blender import RenderData, Scene

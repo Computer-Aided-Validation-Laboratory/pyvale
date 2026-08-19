@@ -21,11 +21,36 @@ def mesh_from_simdata(
     displacement_keys: Sequence[str] | None = None,
     extract_surface: bool = False,
 ) -> Mesh:
-    """Build one ``render.Mesh`` from a convention-normalised ``SimData``.
+    """Build one :class:`Mesh` from convention-normalised simulation data.
 
-    ``extract_surface`` should be selected for a volume simulation.  A source
-    with more than one connectivity table is rejected because a ``Mesh`` has
-    one element topology; callers can split it into multiple render meshes.
+    Parameters
+    ----------
+    sim_data : pyvale.dataio.SimData
+        Simulation data containing coordinates, connectivity, and optionally
+        nodal displacement fields.
+    shader : object
+        Backend-owned material or shader definition for the mesh.
+    displacement_keys : Sequence[str] or None, optional
+        Names of the three displacement components. ``None`` omits motion.
+    extract_surface : bool, optional
+        Extract the exterior surface before conversion. Select this for a
+        volume simulation.
+
+    Returns
+    -------
+    Mesh
+        Renderer-independent surface mesh data.
+
+    Raises
+    ------
+    ValueError
+        If required mesh data is absent or does not contain exactly one
+        supported connectivity table.
+
+    Notes
+    -----
+    A :class:`Mesh` has one topology. Split simulations with several
+    connectivity tables into separate render meshes before conversion.
     """
     prepared = enforce_mesh_convention(sim_data)
     if extract_surface:
@@ -47,6 +72,23 @@ def mesh_from_simdata(
 
 
 def _element_type_from_nodes(nodes_per_element: int) -> EElementType:
+    """Map a connectivity width to the corresponding render topology.
+
+    Parameters
+    ----------
+    nodes_per_element : int
+        Number of node indices in each connectivity row.
+
+    Returns
+    -------
+    EElementType
+        Renderer topology matching the connectivity width.
+
+    Raises
+    ------
+    ValueError
+        If the width has no matching supported topology.
+    """
     element_types = {
         3: EElementType.TRI3,
         4: EElementType.QUAD4,
@@ -66,6 +108,26 @@ def _displacements_from_simdata(
     sim_data: SimData,
     displacement_keys: Sequence[str] | None,
 ) -> np.ndarray | None:
+    """Extract three nodal displacement fields into renderer array order.
+
+    Parameters
+    ----------
+    sim_data : pyvale.dataio.SimData
+        Simulation data containing nodal variables.
+    displacement_keys : Sequence[str] or None
+        Names of the x, y, and z displacement variables.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        Displacements with shape ``(frames, nodes, 3)``, or ``None`` when no
+        keys are requested.
+
+    Raises
+    ------
+    ValueError
+        If the fields are missing or do not have ``(nodes, frames)`` shape.
+    """
     if displacement_keys is None:
         return None
     if sim_data.node_vars is None or len(displacement_keys) != 3:

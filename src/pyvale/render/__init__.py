@@ -3,7 +3,12 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Unified rendering APIs for pyvale."""
+"""Unified rendering APIs for pyvale.
+
+The namespace separates validated three-dimensional scene renderers from
+validated planar image-warp renderers. The default 3D implementation is
+:class:`Riley`; :class:`ImageDef2D` provides the initial 2D implementation.
+"""
 
 from .camera import Camera, Camera2D
 from .camera_tools import CameraTools

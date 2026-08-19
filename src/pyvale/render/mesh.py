@@ -12,7 +12,7 @@ import numpy as np
 
 
 class EElementType(Enum):
-    """Surface element topologies shared by the 3D render API."""
+    """Surface element topologies supported by the 3D render API."""
 
     TRI3 = "tri3"
     TRI6 = "tri6"
@@ -23,10 +23,21 @@ class EElementType(Enum):
 
 @dataclass(slots=True)
 class Mesh:
-    """A deformable surface mesh prepared for a renderer.
+    """A deformable surface mesh prepared for a three-dimensional renderer.
 
-    Coordinates have shape ``(node_count, 3)`` and displacements, when
-    present, have shape ``(frame_count, node_count, 3)``.
+    Parameters
+    ----------
+    element_type : EElementType
+        Topology of every element in ``connectivity``.
+    coords : numpy.ndarray
+        World coordinates with shape ``(node_count, 3)``.
+    connectivity : numpy.ndarray
+        Zero-based node indices with shape
+        ``(element_count, nodes_per_element)``.
+    shader : object
+        Backend-owned material or shader definition.
+    displacements : numpy.ndarray or None, optional
+        Nodal displacements with shape ``(frame_count, node_count, 3)``.
     """
 
     element_type: EElementType
@@ -36,6 +47,7 @@ class Mesh:
     displacements: np.ndarray | None = None
 
     def __post_init__(self) -> None:
+        """Convert array data to contiguous arrays with renderer dtypes."""
         self.coords = np.ascontiguousarray(self.coords, dtype=np.float64)
         self.connectivity = np.ascontiguousarray(self.connectivity, dtype=np.uintp)
         if self.displacements is not None:

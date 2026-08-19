@@ -13,7 +13,46 @@ from scipy.spatial.transform import Rotation
 
 @dataclass(slots=True)
 class Camera:
-    """A perspective camera that maps directly to Riley camera capabilities."""
+    """A perspective camera matching Riley's camera capabilities.
+
+    Parameters
+    ----------
+    pixels_num : numpy.ndarray
+        Image pixel counts in ``(width, height)`` order.
+    pixels_size : numpy.ndarray
+        Physical pixel dimensions in ``(width, height)`` order.
+    pos_world : numpy.ndarray
+        Camera position in world coordinates, with shape ``(3,)``.
+    rot_world : scipy.spatial.transform.Rotation
+        Camera orientation in world coordinates.
+    roi_cent_world : numpy.ndarray
+        Region-of-interest centre in world coordinates, with shape ``(3,)``.
+    focal_length : float
+        Camera focal length in the same units as world coordinates.
+    sub_sample : int, optional
+        Number of sub-pixel samples per pixel direction.
+    distortion_model : int, optional
+        Backend-specific lens-distortion model identifier.
+    distortion_k1, distortion_k2, distortion_k3, distortion_k4 : float, optional
+        Radial distortion coefficients.
+    distortion_k5, distortion_k6 : float, optional
+        Additional radial distortion coefficients.
+    distortion_p1, distortion_p2 : float, optional
+        Tangential distortion coefficients.
+    c0, c1 : float or None, optional
+        Optical-centre coordinates in pixels. ``None`` centres the coordinate
+        in the image.
+    fstop : float or None, optional
+        Lens f-number. ``None`` leaves depth-of-field disabled.
+    psf_type : int, optional
+        Backend-specific point-spread-function model identifier.
+    psf_sigma_x, psf_sigma_y : float, optional
+        Point-spread-function standard deviations in pixel coordinates.
+    psf_theta : float, optional
+        Point-spread-function rotation in radians.
+    psf_support_rad : float, optional
+        Point-spread-function support radius in pixels.
+    """
 
     pixels_num: np.ndarray
     pixels_size: np.ndarray
@@ -41,6 +80,7 @@ class Camera:
     psf_support_rad: float = 0.0
 
     def __post_init__(self) -> None:
+        """Normalise arrays and supply an unset optical centre."""
         self.pixels_num = np.asarray(self.pixels_num, dtype=np.int32)
         self.pixels_size = np.asarray(self.pixels_size, dtype=np.float64)
         self.pos_world = np.asarray(self.pos_world, dtype=np.float64)
@@ -53,7 +93,36 @@ class Camera:
 
 @dataclass(slots=True)
 class Camera2D:
-    """An orthographic camera for planar image-warp renderers."""
+    """An orthographic camera for planar image-warp renderers.
+
+    Parameters
+    ----------
+    pixels_count : numpy.ndarray, optional
+        Image pixel counts in ``(width, height)`` order.
+    leng_per_px : float, optional
+        Physical length represented by one pixel.
+    bits : int, optional
+        Number of quantisation bits in the output image.
+    roi_cent_world : numpy.ndarray, optional
+        World coordinate at the image-region centre.
+    background : float, optional
+        Normalised background value, scaled to the image dynamic range.
+    sample_times : numpy.ndarray or None, optional
+        Simulation times corresponding to output frames.
+    angle : scipy.spatial.transform.Rotation or None, optional
+        Optional planar camera orientation.
+    subsample : int, optional
+        Sub-pixel sampling factor used by compatible warp backends.
+
+    Attributes
+    ----------
+    field_of_view : numpy.ndarray
+        Physical image extent in ``(width, height)`` order.
+    dynamic_range : int
+        Number of representable values for ``bits``.
+    world_to_cam, cam_to_world : numpy.ndarray
+        Affine offsets between planar world and camera coordinates.
+    """
 
     pixels_count: np.ndarray = field(
         default_factory=lambda: np.array((1000, 1000), dtype=np.int32),
@@ -73,6 +142,7 @@ class Camera2D:
     cam_to_world: np.ndarray = field(init=False)
 
     def __post_init__(self) -> None:
+        """Normalise arrays and calculate derived camera quantities."""
         self.pixels_count = np.asarray(self.pixels_count, dtype=np.int32)
         self.roi_cent_world = np.asarray(self.roi_cent_world, dtype=np.float64)
         self.field_of_view = self.leng_per_px * self.pixels_count.astype(np.float64)
