@@ -1,3 +1,150 @@
+"""Regression tests for the vectorised plane-stress radial-return mapping."""
+
+import numpy as np
+
+from pyvale.vfm.hardening import HardeningLinear
+from pyvale.vfm.radialreturn import EUnloading, radial_return
+
+
+def _maps(
+    shape: tuple[int, int] = (1, 1),
+    *,
+    elastic_modulus: float = 210_000.0,
+    poissons_ratio: float = 0.3,
+    yield_strength: float = 250.0,
+    hardening_modulus: float = 1_000.0,
+) -> dict[str, np.ndarray]:
+    return {
+        "elastic_modulus": np.full(shape, elastic_modulus),
+        "poissons_ratio": np.full(shape, poissons_ratio),
+        "yield_strength": np.full(shape, yield_strength),
+        "hardening_modulus": np.full(shape, hardening_modulus),
+    }
+
+
+def _radial_return(
+    strain: np.ndarray,
+    maps: dict[str, np.ndarray],
+    *,
+    unloading: EUnloading = EUnloading.NoCompensation,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    return radial_return(
+        strain,
+        maps,
+        maps["elastic_modulus"],
+        maps["poissons_ratio"],
+        HardeningLinear(),
+        unloading=unloading,
+    )
+
+
+def test_radial_return_zero_strain_returns_zero_outputs() -> None:
+    strain = np.zeros((5, 3, 2, 4), dtype=np.float64)
+    stress, equivalent_stress, yield_map, peeq = _radial_return(strain, _maps((2, 4)))
+
+    np.testing.assert_array_equal(stress, np.zeros_like(stress))
+    np.testing.assert_array_equal(equivalent_stress, np.zeros_like(equivalent_stress))
+    np.testing.assert_array_equal(yield_map, np.zeros((5, 2, 4), dtype=bool))
+    np.testing.assert_array_equal(peeq, np.zeros_like(peeq))
+
+
+def test_radial_return_component_major_vectorisation_matches_plane_stress_hooke_law() -> None:
+    """Protect the flattened component-major path against component reordering."""
+
+    elastic_modulus = 190_000.0
+    poissons_ratio = 0.28
+    maps = _maps(
+        (2, 3),
+        elastic_modulus=elastic_modulus,
+        poissons_ratio=poissons_ratio,
+        yield_strength=1.0e9,
+        hardening_modulus=0.0,
+    )
+    strain = np.zeros((3, 3, 2, 3), dtype=np.float64)
+    strain[0, 0] = [[1.0e-4, 2.0e-4, -1.0e-4], [5.0e-5, -3.0e-5, 8.0e-5]]
+    strain[0, 1] = [[2.0e-5, -1.5e-4, 3.0e-5], [9.0e-5, 1.1e-4, -2.0e-5]]
+    strain[0, 2] = [[4.0e-5, -2.0e-5, 1.0e-5], [3.0e-5, -1.0e-5, 2.0e-5]]
+    strain[1] = 1.4 * strain[0]
+    strain[2] = 0.6 * strain[0]
+
+    stress, equivalent_stress, yield_map, peeq = _radial_return(strain, maps)
+    factor = elastic_modulus / (1.0 - poissons_ratio**2)
+    expected = np.empty_like(stress)
+    expected[:, 0] = factor * (strain[:, 0] + poissons_ratio * strain[:, 1])
+    expected[:, 1] = factor * (poissons_ratio * strain[:, 0] + strain[:, 1])
+    expected[:, 2] = elastic_modulus / (1.0 + poissons_ratio) * strain[:, 2]
+
+    np.testing.assert_allclose(stress, expected, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(
+        equivalent_stress,
+        np.sqrt(expected[:, 0] ** 2 + expected[:, 1] ** 2 - expected[:, 0] * expected[:, 1] + 3.0 * expected[:, 2] ** 2),
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    assert not np.any(yield_map)
+    assert not np.any(peeq)
+
+
+def test_radial_return_linear_hardening_material_point_regression() -> None:
+    """Freeze a plastic history so performance refactors preserve its solution."""
+
+    maps = _maps()
+    strain = np.zeros((31, 3, 1, 1), dtype=np.float64)
+    strain[:, 0, 0, 0] = np.linspace(0.0, 0.01, strain.shape[0])
+
+    stress, equivalent_stress, yield_map, peeq = _radial_return(strain, maps)
+
+    np.testing.assert_allclose(
+        stress[-1, :, 0, 0],
+        [300.21399336, 149.77706528, 0.0],
+        rtol=1e-9,
+        atol=1e-9,
+    )
+    np.testing.assert_allclose(equivalent_stress[-1, 0, 0], 259.9931541603503, rtol=1e-10)
+    np.testing.assert_allclose(peeq[-1, 0, 0], 0.009993153330089927, rtol=1e-10)
+    assert int(np.count_nonzero(yield_map)) == 27
+
+
+def test_radial_return_unloading_modes_patch_output_not_plastic_state() -> None:
+    maps = _maps()
+    strain = np.zeros((4, 3, 1, 1), dtype=np.float64)
+    strain[:, 0, 0, 0] = [0.0, 0.006, 0.004, 0.002]
+
+    no_compensation = _radial_return(strain, maps, unloading=EUnloading.NoCompensation)
+    constant = _radial_return(strain, maps, unloading=EUnloading.ConstantStrain)
+    linear = _radial_return(strain, maps, unloading=EUnloading.LinearExtrapolation)
+
+    np.testing.assert_array_equal(no_compensation[2].ravel(), [False, True, False, True])
+    np.testing.assert_allclose(constant[0][2], constant[0][1], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(linear[0][2], 2.0 * linear[0][1] - linear[0][0], rtol=1e-12, atol=1e-12)
+    assert not np.allclose(no_compensation[0][2], constant[0][2])
+    np.testing.assert_allclose(no_compensation[3], constant[3], rtol=0.0, atol=0.0)
+
+
+def test_radial_return_handles_mixed_elastic_and_plastic_heterogeneous_points() -> None:
+    maps = _maps((2, 2))
+    maps["yield_strength"][0, 0] = 100.0
+    maps["yield_strength"][1, 1] = 1_500.0
+    strain = np.zeros((12, 3, 2, 2), dtype=np.float64)
+    strain[:, 0] = np.linspace(0.0, 0.005, strain.shape[0])[:, None, None]
+
+    stress, equivalent_stress, yield_map, peeq = _radial_return(strain, maps)
+
+    assert stress.shape == strain.shape
+    assert equivalent_stress.shape == (12, 2, 2)
+    assert yield_map[-1, 0, 0]
+    assert not yield_map[-1, 1, 1]
+    assert peeq[-1, 0, 0] > 0.0
+    assert peeq[-1, 1, 1] == 0.0
+
+# ---------------------------------------------------------------------------
+# Legacy commented tests retained for future reference.
+#
+# These tests predate the current parameter-map radial_return API. The
+# downsampled real-data fixture is particularly useful as a template for a
+# future regression test once adapted to the current interface.
+# ---------------------------------------------------------------------------
+#
 # from __future__ import annotations
 
 # from pathlib import Path
