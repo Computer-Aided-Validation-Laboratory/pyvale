@@ -14,7 +14,7 @@ from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.errorintegrator import ErrIntegrator
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
-from pyvale.sensorsim.cameradata2d import CameraData2D
+from pyvale.render.camera import Camera2D
 from pyvale.sensorsim.cameratools import CameraTools
 
 
@@ -24,7 +24,7 @@ class CameraBasic2D(ISensorArray):
                  "_sensor_data","_truth","_measurements")
 
     def __init__(self,
-                 cam_data: CameraData2D,
+                 cam_data: Camera2D,
                  field: IField,
                  descriptor: SensorDescriptor | None = None,
                  ) -> None:
@@ -142,6 +142,5 @@ class CameraBasic2D(ISensorArray):
         image_shape = self.get_image_measurements_shape()
         #shape=(n_pixels_y,n_pixels_x,n_field_comps,n_time_steps)
         return np.reshape(self._measurements,image_shape)
-
 
 

@@ -37,3 +37,10 @@ Mooseherder
    :maxdepth: 2
 
    examples_mooseherder
+
+Rendering
+---------
+.. toctree::
+   :maxdepth: 2
+
+   ../examples_render

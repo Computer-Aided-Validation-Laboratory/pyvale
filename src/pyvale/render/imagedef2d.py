@@ -20,10 +20,11 @@ from scipy.interpolate import griddata
 from scipy.interpolate import RectBivariateSpline
 from scipy import ndimage
 
-from pyvale.sensorsim.rasternp import edge_function, RasterNP
-from pyvale.sensorsim.cameradata2d import CameraData2D
-from pyvale.sensorsim.cameratools import CameraTools
-from pyvale.sensorsim.imagetools import ImageTools, EImageType
+from pyvale.render.camera import Camera2D
+from pyvale.render.imagewarp2d import IImageWarp2D
+from pyvale.render.result import ImageWarpResult
+from pyvale.render.camera_tools import CameraTools
+from pyvale.render.image_tools import EImageType, ImageTools
 
 
 @dataclass(slots=True)
@@ -57,10 +58,54 @@ class ImageDefOpts:
             self.save_path = Path.cwd() / "deformed_images"
 
 
-class ImageDef2D:
+class ImageDef2D(IImageWarp2D):
+
+    def __init__(self, options: ImageDefOpts | None = None) -> None:
+        self.options = ImageDefOpts() if options is None else options
+
+    def verify_input(self,
+                     source_image: np.ndarray,
+                     camera: Camera2D,
+                     coords: np.ndarray,
+                     connectivity: np.ndarray,
+                     displacements: np.ndarray,
+                     ) -> tuple[np.ndarray, Camera2D, np.ndarray, np.ndarray,
+                                np.ndarray]:
+        """Verify a planar image-warp request before preprocessing it."""
+        if source_image.ndim != 2:
+            raise ValueError("source_image must be a two-dimensional image.")
+        if coords.ndim != 2 or coords.shape[1] < 2:
+            raise ValueError("coords must have at least two coordinate columns.")
+        if connectivity.ndim != 2 or connectivity.size == 0:
+            raise ValueError("connectivity must be a non-empty rank-2 array.")
+        if np.any(connectivity < 0) or np.any(connectivity >= coords.shape[0]):
+            raise ValueError("connectivity contains invalid node indices.")
+        if displacements.ndim != 3 or displacements.shape[1:] != (coords.shape[0], 2):
+            raise ValueError("displacements must have shape (frames, nodes, 2).")
+        if source_image.shape != tuple(camera.pixels_count[::-1]):
+            raise ValueError("source_image shape must match camera pixels_count.")
+        return source_image, camera, coords, connectivity, displacements
+
+    def _render(self, render_plan: object) -> ImageWarpResult:
+        """Warp all frames after validation has completed."""
+        image, camera, coords, connectivity, displacements = render_plan
+        upsampled, mask, _, disp_x, disp_y = self.preprocess(
+            camera, image.copy(), coords, connectivity,
+            displacements[:, :, 0].T, displacements[:, :, 1].T, self.options,
+        )
+        assert upsampled is not None and disp_x is not None and disp_y is not None
+        images = []
+        for frame_index in range(displacements.shape[0]):
+            deformed, _, _, _, _ = self.deform_one_image(
+                upsampled, camera, self.options, coords,
+                np.column_stack((disp_x[:, frame_index], disp_y[:, frame_index])),
+                mask, print_on=False,
+            )
+            images.append(deformed)
+        return ImageWarpResult(np.asarray(images)[:, None, :, :, None])
 
     @staticmethod
-    def image_mask_from_sim(cam_data: CameraData2D,
+    def image_mask_from_sim(cam_data: Camera2D,
                             image: np.ndarray,
                             coords: np.ndarray,
                             connectivity: np.ndarray
@@ -70,7 +115,7 @@ class ImageDef2D:
         #subsample: int = cam_data.subsample
         subsample: int = 1
 
-        coords_raster = coords - cam_data.roi_cent_world
+        coords_raster = coords - cam_data.roi_cent_world[:coords.shape[1]]
         if coords_raster.shape[1] >= 3:
             coords_raster = coords_raster[:,:-1]
 
@@ -111,16 +156,16 @@ class ImageDef2D:
         # Find the indices of the bounding box that each element lies within on
         # the image, bounded by the upper and lower edges of the image
         elem_bound_boxes_inds = np.zeros([num_elems_in_image,4],dtype=np.int32)
-        elem_bound_boxes_inds[:,0] = RasterNP.elem_bound_box_low(
-                                            elem_coord_min[:,0])
-        elem_bound_boxes_inds[:,1] = RasterNP.elem_bound_box_high(
-                                            elem_coord_max[:,0],
-                                            cam_data.pixels_count[0]-1)
-        elem_bound_boxes_inds[:,2] = RasterNP.elem_bound_box_low(
-                                            elem_coord_min[:,1])
-        elem_bound_boxes_inds[:,3] = RasterNP.elem_bound_box_high(
-                                            elem_coord_max[:,1],
-                                            cam_data.pixels_count[1]-1)
+        elem_bound_boxes_inds[:,0] = ImageTools.elem_bound_box_low(
+            elem_coord_min[:,0])
+        elem_bound_boxes_inds[:,1] = ImageTools.elem_bound_box_high(
+            elem_coord_max[:,0],
+            cam_data.pixels_count[0]-1)
+        elem_bound_boxes_inds[:,2] = ImageTools.elem_bound_box_low(
+            elem_coord_min[:,1])
+        elem_bound_boxes_inds[:,3] = ImageTools.elem_bound_box_high(
+            elem_coord_max[:,1],
+            cam_data.pixels_count[1]-1)
 
         num_edges: int = 3
         if elem_coords.shape[1] > 3:
@@ -155,26 +200,26 @@ class ImageDef2D:
             edge = np.zeros((num_edges,bound_subpx_coords_flat.shape[1]),dtype=np.float64)
 
             if num_edges == 4:
-                edge[0,:] = edge_function(elem_coords[ee,1,:],
+                edge[0,:] = ImageTools.edge_function(elem_coords[ee,1,:],
                                           elem_coords[ee,2,:],
                                           bound_subpx_coords_flat)
-                edge[1,:] = edge_function(elem_coords[ee,2,:],
+                edge[1,:] = ImageTools.edge_function(elem_coords[ee,2,:],
                                           elem_coords[ee,3,:],
                                           bound_subpx_coords_flat)
-                edge[2,:] = edge_function(elem_coords[ee,3,:],
+                edge[2,:] = ImageTools.edge_function(elem_coords[ee,3,:],
                                           elem_coords[ee,0,:],
                                           bound_subpx_coords_flat)
-                edge[3,:] = edge_function(elem_coords[ee,0,:],
+                edge[3,:] = ImageTools.edge_function(elem_coords[ee,0,:],
                                           elem_coords[ee,1,:],
                                           bound_subpx_coords_flat)
             else:
-                edge[0,:] = edge_function(elem_coords[ee,1,:],
+                edge[0,:] = ImageTools.edge_function(elem_coords[ee,1,:],
                                           elem_coords[ee,2,:],
                                           bound_subpx_coords_flat)
-                edge[1,:] = edge_function(elem_coords[ee,2,:],
+                edge[1,:] = ImageTools.edge_function(elem_coords[ee,2,:],
                                           elem_coords[ee,0,:],
                                           bound_subpx_coords_flat)
-                edge[2,:] = edge_function(elem_coords[ee,0,:],
+                edge[2,:] = ImageTools.edge_function(elem_coords[ee,0,:],
                                           elem_coords[ee,1,:],
                                           bound_subpx_coords_flat)
 
@@ -200,7 +245,7 @@ class ImageDef2D:
 
 
     @staticmethod
-    def upsample_image(cam_data: CameraData2D,
+    def upsample_image(cam_data: Camera2D,
                        input_im: np.ndarray):
         # Get grid of pixel centroid locations
         (px_vec_xm,px_vec_ym) = CameraTools.pixel_vec_leng(cam_data.field_of_view,
@@ -227,7 +272,7 @@ class ImageDef2D:
 
 
     @staticmethod
-    def preprocess(cam_data: CameraData2D,
+    def preprocess(cam_data: Camera2D,
                    image_input: np.ndarray,
                    coords: np.ndarray,
                    connectivity: np.ndarray,
@@ -298,7 +343,7 @@ class ImageDef2D:
 
     @staticmethod
     def deform_one_image(upsampled_image: np.ndarray,
-                         cam_data: CameraData2D,
+                         cam_data: Camera2D,
                          id_opts: ImageDefOpts,
                          coords: np.ndarray,
                          disp: np.ndarray,
@@ -402,7 +447,7 @@ class ImageDef2D:
         return (def_image,def_image_subpx,subpx_disp_x,subpx_disp_y,def_mask)
 
     @staticmethod
-    def deform_images_to_disk(cam_data: CameraData2D,
+    def deform_images_to_disk(cam_data: Camera2D,
                       upsampled_image: np.ndarray,
                       coords: np.ndarray,
                       connectivity: np.ndarray,
@@ -464,7 +509,7 @@ class ImageDef2D:
 
 def _interp_sim_disp_to_subpx_grid(coords: np.ndarray,
                                disp: np.ndarray,
-                               cam_data: CameraData2D,
+                               cam_data: Camera2D,
                                id_opts: ImageDefOpts,
                                subpx_grid_xm: np.ndarray,
                                subpx_grid_ym: np.ndarray
@@ -504,7 +549,7 @@ def _interp_sim_disp_to_subpx_grid(coords: np.ndarray,
 def _interp_subpx_image(upsampled_image: np.ndarray,
                         def_subpx_x: np.ndarray,
                         def_subpx_y: np.ndarray,
-                        cam_data: CameraData2D,
+                        cam_data: Camera2D,
                         id_opts: ImageDefOpts,
                         ) -> np.ndarray:
 
@@ -538,7 +583,7 @@ def _deform_image_mask(def_image: np.ndarray,
                        px_grid_ym: np.ndarray,
                        subpx_disp_x: np.ndarray,
                        subpx_disp_y: np.ndarray,
-                       cam_data: CameraData2D,
+                       cam_data: Camera2D,
                        ) -> tuple[np.ndarray,np.ndarray]:
 
     # This is slow - might be quicker to just deform an upsampled mask

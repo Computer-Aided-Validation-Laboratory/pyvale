@@ -118,19 +118,19 @@ sphinx_gallery_conf = {
         '../../src/pyvale/examples/basicsensorsim',
         '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/dic',
-        '../../src/pyvale/examples/blenderimagedef',
         '../../src/pyvale/examples/mooseherder',
+        '../../src/pyvale/examples/render',
     ],
     # Path to where to save gallery generated output
     'gallery_dirs': [
         'examples/basicsensorsim',
         'examples/extsensorsim',
         'examples/dic',
-        'examples/blenderimagedef',
         'examples/mooseherder',
+        'examples/render',
     ],
     # Pattern to identify example files
-    'filename_pattern': '/plot_',
+    'filename_pattern': '/ex',
     # Specify that examples should be ordered according to filename
     'within_subsection_order': FileNameSortKey,
     # Directory where function granular galleries are stored

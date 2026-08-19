@@ -8,10 +8,9 @@ from pathlib import Path
 import bpy
 
 # Pyvale
-from pyvale.sensorsim.cameradata import CameraData
 import pyvale.sensorsim.simtools as simtools
 from pyvale.sensorsim.camerastereo import CameraStereo
-from pyvale.sensorsim.rendermesh import RenderMesh
+from pyvale.render import Camera, Mesh
 
 from pyvale.blender.blenderexceptions import BlenderError
 from pyvale.blender.blendertools import Tools
@@ -49,7 +48,7 @@ class Scene():
         bg_node.inputs[0].default_value = [0.5, 0.5, 0.5, 1]
         bg_node.inputs[1].default_value = 0
 
-    def add_camera(self, cam_data:CameraData) -> bpy.data.objects:
+    def add_camera(self, cam_data: Camera) -> bpy.data.objects:
         """Method to add a camera object within Blender.
 
         Parameters
@@ -77,24 +76,17 @@ class Scene():
         pixels_num = (int(cam_data.pixels_num[0]), int(cam_data.pixels_num[1]))
         camera['sensor_px'] = pixels_num
         camera['px_size'] = cam_data.pixels_size
-        camera['k1'] = cam_data.k1
-        camera['k2'] = cam_data.k2
-        camera['k3'] = cam_data.k3
-        camera['p1'] = cam_data.p1
-        camera['p2'] = cam_data.p2
-        camera['c0'] = cam_data.c0
-        camera['c1'] = cam_data.c1
+        camera['k1'] = cam_data.distortion_k1
+        camera['k2'] = cam_data.distortion_k2
+        camera['k3'] = cam_data.distortion_k3
+        camera['p1'] = cam_data.distortion_p1
+        camera['p2'] = cam_data.distortion_p2
 
         new_cam.lens_unit = 'MILLIMETERS'
         new_cam.lens = cam_data.focal_length
         new_cam.sensor_fit = 'HORIZONTAL'
-        new_cam.sensor_width = cam_data.sensor_size[0]
-        new_cam.sensor_height = cam_data.sensor_size[1]
-
-        if cam_data.fstop is not None:
-            new_cam.dof.focus_distance = cam_data.image_dist
-            new_cam.dof.use_dof = True
-            new_cam.dof.aperture_fstop = cam_data.fstop
+        new_cam.sensor_width = cam_data.pixels_num[0] * cam_data.pixels_size[0]
+        new_cam.sensor_height = cam_data.pixels_num[1] * cam_data.pixels_size[1]
 
         new_cam.clip_end = ((cam_data.pos_world[2] - cam_data.roi_cent_world[2])
                             + 100)
@@ -156,17 +148,17 @@ class Scene():
         return light_ob
 
     def add_part(self,
-                 render_mesh: RenderMesh,
+                 render_mesh: Mesh,
                  sim_spat_dim: int) -> bpy.data.objects:
-        """A method to add a part mesh into Blender, given a RenderMeshData object.
-        This is done by taking the mesh information from the RenderMeshData
+        """A method to add a part mesh into Blender from a render.Mesh object.
+        This is done by taking the mesh information from the common mesh
         object and converting it into a form that is accepted by Blender. It
         should be noted that the object is placed at the origin and centred
         around its geometric centroid.
 
         Parameters
         ----------
-        render_mesh: RenderMeshData
+        render_mesh: render.Mesh
             A dataclass containing the mesh information of the skinned
             simulation mesh.
         sim_spat_dim: int
@@ -177,9 +169,9 @@ class Scene():
         bpy.data.objects
             The Blender part object that is created.
         """
-        nodes_centred = simtools.centre_mesh_nodes(render_mesh.coords,
-                                              sim_spat_dim)
-        vertices = np.delete(nodes_centred, 3, axis=1)
+        nodes_centred = simtools.centre_mesh_nodes(render_mesh.coords.copy(),
+                                                    sim_spat_dim)
+        vertices = nodes_centred[:, :3]
         faces = render_mesh.connectivity
 
         mesh = bpy.data.meshes.new("Part")
@@ -262,7 +254,7 @@ class Scene():
         Tools.uv_unwrap_part(part, mm_px_resolution, cal)
 
     def _debug_deform(self,
-                      render_mesh: RenderMesh,
+                      render_mesh: Mesh,
                      sim_spat_dim:int,
                      part: bpy.data.objects) -> None:
         """A method to deform the Blender mesh object using the simulation results.
@@ -279,15 +271,14 @@ class Scene():
             The Blender part object which is to be deformed, normally as sample
             object.
         """
-        render_mesh.coords = simtools.centre_mesh_nodes(render_mesh.coords,
-                                                        sim_spat_dim)
-        timesteps = render_mesh.fields_render.shape[1]
+        timesteps = 0 if render_mesh.displacements is None else \
+            render_mesh.displacements.shape[0]
 
 
         for timestep in range(1, timesteps):
-            deformed_nodes = simtools.get_deformed_nodes(timestep,
-                                                         render_mesh)
-            if deformed_nodes is not None:
+            if render_mesh.displacements is not None:
+                deformed_nodes = render_mesh.coords + \
+                    render_mesh.displacements[timestep]
                 Tools.deform_single_timestep(part, deformed_nodes)
                 Tools.set_new_frame(part)
 
@@ -375,7 +366,7 @@ class Scene():
                 bpy.ops.render.render(write_still=True)
 
     def render_deformed_images(self,
-                               render_mesh: RenderMesh,
+                               render_mesh: Mesh,
                                sim_spat_dim: int,
                                render_data: RenderData,
                                part: bpy.data.objects,
@@ -385,7 +376,7 @@ class Scene():
 
         Parameters
         ----------
-        render_mesh : RenderMeshData
+        render_mesh : render.Mesh
             A dataclass containing the skimmed mesh and simulation information
             needed to deform the sample.
         sim_spat_dim: int
@@ -411,9 +402,8 @@ class Scene():
                 3D setups, the images in the stack alternate between camera 0 and
                 camera 1.
         """
-        render_mesh.coords = simtools.centre_mesh_nodes(render_mesh.coords,
-                                                        sim_spat_dim)
-        timesteps = render_mesh.fields_render.shape[1]
+        timesteps = 0 if render_mesh.displacements is None else \
+            render_mesh.displacements.shape[0]
 
         # Render parameters
         bpy.context.scene.render.engine = render_data.engine.value
@@ -438,9 +428,9 @@ class Scene():
 
         image_arrays = []
         for timestep in range(0, timesteps):
-            deformed_nodes = simtools.get_deformed_nodes(timestep,
-                                                         render_mesh)
-            if deformed_nodes is not None:
+            if render_mesh.displacements is not None:
+                deformed_nodes = render_mesh.coords + \
+                    render_mesh.displacements[timestep]
                 Tools.deform_single_timestep(part, deformed_nodes)
                 Tools.set_new_frame(part)
 
@@ -478,8 +468,6 @@ class Scene():
             # TODO: Potentially change the way images are stacked for stereo systems
             # Change it so it suits Joel's code
             return image_arrays
-
-
 
 
 

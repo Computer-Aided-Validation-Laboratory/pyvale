@@ -14,10 +14,6 @@ sensor placement optimisation, testing simulation validation metrics and
 virtually testing digital shadows/twins.
 """
 
-from . import dic
-from . import strain
-from . import blender
-from . import sensorsim
-from . import mooseherder
-from . import dataset
-from . import calib
+from . import render
+
+__all__ = ["render"]

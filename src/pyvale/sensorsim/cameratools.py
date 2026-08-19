@@ -16,9 +16,9 @@ import copy
 from scipy.spatial.transform import Rotation
 import matplotlib.image as mplim
 from PIL import Image
-from pyvale.sensorsim.cameradata2d import CameraData2D
+from pyvale.render.camera import Camera2D
 from pyvale.sensorsim.sensordata import SensorData
-from pyvale.sensorsim.cameradata import CameraData
+from pyvale.render.camera import Camera
 from pyvale.sensorsim.camerastereo import CameraStereo
 
 
@@ -175,7 +175,7 @@ class CameraTools:
         return avg_image
 
     @staticmethod
-    def build_sensor_data_from_camera_2d(cam_data: CameraData2D) -> SensorData:
+    def build_sensor_data_from_camera_2d(cam_data: Camera2D) -> SensorData:
         pixels_vectorised = CameraTools.vectorise_pixel_grid_leng(cam_data.field_of_view,
                                                     cam_data.leng_per_px)
 
@@ -290,7 +290,7 @@ class CameraTools:
     # Blender camera tools
 
     @staticmethod
-    def calculate_FOV(cam_data: CameraData) -> tuple[float, float]:
+    def calculate_FOV(cam_data: Camera) -> tuple[float, float]:
         """A method to calulate the camera's field of view in mm
 
         Parameters
@@ -312,7 +312,7 @@ class CameraTools:
         return FOV_mm
 
     @staticmethod
-    def blender_FOV(cam_data: CameraData) -> tuple[float, float]:
+    def blender_FOV(cam_data: Camera) -> tuple[float, float]:
         """A method to calculate the camera's field of view in mm using Blender's
         method. This method differs due to one simplification.
 
@@ -332,7 +332,7 @@ class CameraTools:
         return FOV_blender
 
     @staticmethod
-    def calculate_mm_px_resolution(cam_data: CameraData) -> float:
+    def calculate_mm_px_resolution(cam_data: Camera) -> float:
         """Function to calculate the mm/px resolution of a camera
 
         Parameters
@@ -378,7 +378,7 @@ class CameraTools:
     def blender_camera_from_resolution(pixels_num: np.ndarray,
                                     pixels_size: np.ndarray,
                                     working_dist: float,
-                                    resolution: float) -> CameraData:
+                                    resolution: float) -> Camera:
         """A convenience function to create a camera object in Blender from its pixels,
         the pixel size, the working distance and desired resolution.
 
@@ -400,7 +400,7 @@ class CameraTools:
         """
         focal_length = CameraTools.focal_length_from_resolution(pixels_size, working_dist, resolution)
 
-        cam_data = CameraData(pixels_num=pixels_num,
+        cam_data = Camera(pixels_num=pixels_num,
                             pixels_size=pixels_size,
                             pos_world=(0, 0, working_dist),
                             rot_world=Rotation.from_euler("xyz", [0, 0, 0]),
@@ -409,7 +409,7 @@ class CameraTools:
         return cam_data
 
     @staticmethod
-    def symmetric_stereo_cameras(cam_data_0: CameraData,
+    def symmetric_stereo_cameras(cam_data_0: Camera,
                                 stereo_angle:float) -> CameraStereo:
         """A convenience function to set up a symmetric stereo camera system, given
         an initial CameraData dataclass and a stereo angle. This assumes the basic
@@ -449,7 +449,7 @@ class CameraTools:
         return stereo_system
 
     @staticmethod
-    def faceon_stereo_cameras(cam_data_0: CameraData,
+    def faceon_stereo_cameras(cam_data_0: Camera,
                             stereo_angle: float) -> CameraStereo:
         # TODO: Correct docstring
         """A convenience function to set up a face-on stereo camera system, given

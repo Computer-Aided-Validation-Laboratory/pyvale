@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # Pyvale
-from pyvale.sensorsim.cameradata import CameraData
+from pyvale.render.camera import Camera
 
 
 class RenderEngine(Enum):
@@ -21,7 +21,7 @@ class RenderEngine(Enum):
 
 @dataclass(slots=True)
 class RenderData:
-    cam_data: CameraData | tuple[CameraData, CameraData]
+    cam_data: Camera | tuple[Camera, Camera]
     base_dir: Path | None = None
     dir_name: str = "images"
     samples: int = 2
