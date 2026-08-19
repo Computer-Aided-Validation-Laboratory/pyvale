@@ -228,10 +228,11 @@ def radial_return(
         # sig_xy = sig_xy_prev + G * delta_gamma_xy  (note: shear strain is engineering shear strain, so no factor of 2 needed here)
         trial_stress_xy = stress_state[t_prev, 2, :, :] + shear_modulus * incremental_strain[t, 2, :, :]
        
-        # assemble trial stress into a single array  (shape: component, y, x)
-        trial_stress = np.stack((trial_stress_xx, trial_stress_yy, trial_stress_xy), axis=0)
-        # reshape trial stress to shape (datapoints, component) 
-        trial_stress_flat = np.moveaxis(trial_stress, 0, -1).reshape(num_datapoints, 3)
+        # Keep the component fields flattened through the return mapping. This
+        # avoids stacking and transposing the full stress field each timestep.
+        trial_stress_xx_flat = trial_stress_xx.ravel()
+        trial_stress_yy_flat = trial_stress_yy.ravel()
+        trial_stress_xy_flat = trial_stress_xy.ravel()
 
 
         # == CHECK YIELD CRITERION ==
@@ -241,10 +242,10 @@ def radial_return(
         # for the trial stress state at each point. This is used to evaluate the yield criterion 
         # and determine which points have yielded.
         yield_stress_measure[:] = 1/3 * (
-            trial_stress_xx.ravel() ** 2
-            + trial_stress_yy.ravel() ** 2
-            - trial_stress_xx.ravel() * trial_stress_yy.ravel()
-            + (3 * trial_stress_xy.ravel() ** 2)
+            trial_stress_xx_flat ** 2
+            + trial_stress_yy_flat ** 2
+            - trial_stress_xx_flat * trial_stress_yy_flat
+            + (3 * trial_stress_xy_flat ** 2)
         )
 
         # Compute yield stress for current plastic strain using the active
@@ -276,9 +277,15 @@ def radial_return(
         # ksi = (1/6)*(sig_xx + sig_yy)^2 + (1/2)*(sig_yy - sig_xx)^2 + 2*(sig_xy)^2
         # This is the projected invariant used by this plane-stress return-mapping implementation.
         ksi[plasticity_mask] = (
-            1 / 6 * np.sum(trial_stress_flat[plasticity_mask, 0:2], axis=1) ** 2
-            + 0.5 * (trial_stress_flat[plasticity_mask, 1] - trial_stress_flat[plasticity_mask, 0]) ** 2
-            + 2 * trial_stress_flat[plasticity_mask, 2] ** 2
+            1 / 6 * (
+                trial_stress_xx_flat[plasticity_mask]
+                + trial_stress_yy_flat[plasticity_mask]
+            ) ** 2
+            + 0.5 * (
+                trial_stress_yy_flat[plasticity_mask]
+                - trial_stress_xx_flat[plasticity_mask]
+            ) ** 2
+            + 2 * trial_stress_xy_flat[plasticity_mask] ** 2
         )
 
         # Compute plastic criterion 
@@ -302,10 +309,8 @@ def radial_return(
         # Newton-Raphson iteration to solve for plastic_multiplier such that plastic_criterion -> 0
         # stress sum and difference terms are trial-state invariants used in derivatives below
         # and remain fixed during Newton updates. Hence, compute once before iteration.
-        trial_stress_sum_sq = np.sum(trial_stress_flat[:, 0:2], axis=1) ** 2
-        trial_stress_diff_sq = (trial_stress_flat[:, 1] - trial_stress_flat[:, 0]) ** 2
-        # Set current stress state to the trial elastic stress; this will be updated for plastic points after the return-mapping iteration
-        stress_flat = trial_stress_flat.copy()
+        trial_stress_sum_sq = (trial_stress_xx_flat + trial_stress_yy_flat) ** 2
+        trial_stress_diff_sq = (trial_stress_yy_flat - trial_stress_xx_flat) ** 2
         i = 0
         while np.any(error > error_tolerance) and (i < iteration_limit):
             # Compute derivative of plastic criterion with respect to plastic_multiplier
@@ -321,7 +326,7 @@ def radial_return(
                 )
                 - 2
                 * shear_modulus_flat
-                * (trial_stress_diff_sq + 4 * stress_flat[:, 2] ** 2)
+                * (trial_stress_diff_sq + 4 * trial_stress_xy_flat ** 2)
                 / (1 + 2 * shear_modulus_flat * plastic_multiplier) ** 3
             )
 
@@ -407,7 +412,7 @@ def radial_return(
                         / (3 * (1 - poissons_ratio_flat))
                     ) ** 2
                 )
-                + (0.5 * trial_stress_diff_sq + 2 * stress_flat[:, 2] ** 2)
+                + (0.5 * trial_stress_diff_sq + 2 * trial_stress_xy_flat ** 2)
                 / (1 + 2 * shear_modulus_flat * plastic_multiplier) ** 2
             )
             ksi_all = np.maximum(ksi_all, 0)
@@ -470,24 +475,23 @@ def radial_return(
         correction_factor_avg = 0.5 * (correction_factor_1 + correction_factor_2)
         correction_factor_diff = 0.5 * (correction_factor_1 - correction_factor_2)
 
-        # Apply correction factors to trial stress to obtain corrected stress on yield surface.
-        stress_flat_corrected = np.column_stack(
-            (
-            correction_factor_avg * stress_flat[:, 0] + correction_factor_diff * stress_flat[:, 1],
-            correction_factor_diff * stress_flat[:, 0] + correction_factor_avg * stress_flat[:, 1],
-            correction_factor_2 * stress_flat[:, 2],
-            )
+        # Keep elastic trial points and overwrite only yielded points with the
+        # corrected values. The component-major view is layout-compatible with
+        # the stored (component, y, x) state.
+        state_flat = stress_state[t].reshape(3, num_datapoints)
+        state_flat[0] = trial_stress_xx_flat
+        state_flat[1] = trial_stress_yy_flat
+        state_flat[2] = trial_stress_xy_flat
+        state_flat[0, plasticity_mask] = (
+            correction_factor_avg[plasticity_mask] * trial_stress_xx_flat[plasticity_mask]
+            + correction_factor_diff[plasticity_mask] * trial_stress_yy_flat[plasticity_mask]
         )
-
-        # Keep elastic trial points and overwrite only yielded points with corrected stresses.
-        stress_flat[plasticity_mask] = stress_flat_corrected[plasticity_mask]
-
-        # Internal state: the return-mapped stress for all points, never patched by unloading.
-        # This is what the next step's trial-stress predictor must use.
-        stress_state[t, :, :, :] = np.moveaxis(
-            stress_flat.reshape(size_y, size_x, 3),
-            -1,
-            0,
+        state_flat[1, plasticity_mask] = (
+            correction_factor_diff[plasticity_mask] * trial_stress_xx_flat[plasticity_mask]
+            + correction_factor_avg[plasticity_mask] * trial_stress_yy_flat[plasticity_mask]
+        )
+        state_flat[2, plasticity_mask] = (
+            correction_factor_2[plasticity_mask] * trial_stress_xy_flat[plasticity_mask]
         )
 
 
@@ -513,20 +517,21 @@ def radial_return(
                 if t > 0: 
                     unload_mask = prev_plasticity_mask & (~plasticity_mask)  # Points that were plastic in the previous step but are now elastic
                     if np.any(unload_mask):
-                        out_flat = np.moveaxis(stress_output[t], 0, -1).reshape(num_datapoints, 3)
-                        prev_out_flat = np.moveaxis(stress_output[t - 1], 0, -1).reshape(num_datapoints, 3)
-                        out_flat[unload_mask] = prev_out_flat[unload_mask]
-                        stress_output[t] = np.moveaxis(out_flat.reshape(size_y, size_x, 3), -1, 0)
+                        out_flat = stress_output[t].reshape(3, num_datapoints)
+                        prev_out_flat = stress_output[t - 1].reshape(3, num_datapoints)
+                        out_flat[:, unload_mask] = prev_out_flat[:, unload_mask]
 
             case EUnloading.LinearExtrapolation:
                 if t > 1: 
                     unload_mask = prev_plasticity_mask & (~plasticity_mask)  # Points that were plastic in the previous step but are now elastic
                     if np.any(unload_mask):
-                        out_flat = np.moveaxis(stress_output[t], 0, -1).reshape(num_datapoints, 3)
-                        prev_out_flat = np.moveaxis(stress_output[t - 1], 0, -1).reshape(num_datapoints, 3)
-                        prev2_out_flat = np.moveaxis(stress_output[t - 2], 0, -1).reshape(num_datapoints, 3)
-                        out_flat[unload_mask] = (prev_out_flat[unload_mask] + (prev_out_flat[unload_mask] - prev2_out_flat[unload_mask]) )
-                        stress_output[t] = np.moveaxis(out_flat.reshape(size_y, size_x, 3), -1, 0)
+                        out_flat = stress_output[t].reshape(3, num_datapoints)
+                        prev_out_flat = stress_output[t - 1].reshape(3, num_datapoints)
+                        prev2_out_flat = stress_output[t - 2].reshape(3, num_datapoints)
+                        out_flat[:, unload_mask] = (
+                            2.0 * prev_out_flat[:, unload_mask]
+                            - prev2_out_flat[:, unload_mask]
+                        )
             case _:
                 # Defensive fallback; validated once before the timestep loop.
                 raise ValueError(
