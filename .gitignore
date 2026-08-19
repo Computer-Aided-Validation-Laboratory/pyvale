@@ -7,6 +7,7 @@
 pyvale-env/
 .venv/
 .pytest_cache/
+temp/
 
 # Output files
 *.npy
