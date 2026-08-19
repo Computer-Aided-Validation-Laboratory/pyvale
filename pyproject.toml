@@ -15,6 +15,7 @@ readme = "README.md"
 requires-python = "==3.13.*"
 dependencies = [
   "numpy>=2.0.0",
+  "numba>=0.60",
   "scipy>=1.14.0",
   "matplotlib>=3.8",
   "pyvista>=0.43.3",

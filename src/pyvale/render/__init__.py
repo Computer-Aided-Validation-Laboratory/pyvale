@@ -20,7 +20,20 @@ from .imagewarp2d import IImageWarp2D
 from .image_tools import EImageType, ImageTools
 from .light import ELightType, Light
 from .mesh import EElementType, Mesh
-from .pxint2d import PxInt2D
+from .mesh2d import DisplacementSeries2D, Mesh2D
+from .pxint2d import (
+    AdditiveSpeckles,
+    AnalyticRule,
+    EPxIntMapping,
+    Eggbox,
+    GaussianPSF,
+    GaussRule,
+    PixIntGrid2D,
+    PixIntSpeck2D,
+    PxInt2DOpts,
+    RectRule,
+    quantise_image,
+)
 from .refract import Refract
 from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
@@ -33,10 +46,17 @@ __all__ = [
     "CameraTools",
     "Blender",
     "BlenderConfig",
+    "AdditiveSpeckles",
+    "AnalyticRule",
+    "DisplacementSeries2D",
     "EElementType",
     "ELightType",
     "EImageType",
+    "EPxIntMapping",
+    "Eggbox",
     "FunctionShader",
+    "GaussianPSF",
+    "GaussRule",
     "IImageWarp2D",
     "IRenderer3D",
     "ImageDef2D",
@@ -45,8 +65,12 @@ __all__ = [
     "ImageWarpResult",
     "Light",
     "Mesh",
+    "Mesh2D",
     "NodalFieldShader",
-    "PxInt2D",
+    "PixIntGrid2D",
+    "PixIntSpeck2D",
+    "PxInt2DOpts",
+    "RectRule",
     "Refract",
     "RenderCapabilities",
     "RenderInputError",
@@ -55,4 +79,5 @@ __all__ = [
     "TextureShader",
     "ValidationIssue",
     "mesh_from_simdata",
+    "quantise_image",
 ]

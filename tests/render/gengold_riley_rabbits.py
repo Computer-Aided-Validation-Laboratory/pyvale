@@ -3,9 +3,11 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Generate the deterministic hash for the Riley rabbit multi-mesh case."""
+"""Generate committed Riley rabbit multi-mesh image gold data."""
 
+import argparse
 import hashlib
+from pathlib import Path
 
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -33,7 +35,10 @@ def build_rabbit_meshes() -> list[render.Mesh]:
 
 
 def main() -> None:
-    """Print the SHA256 of the rabbit multi-mesh output."""
+    """Print a hash or write the trusted rabbit image array."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--write", action="store_true")
+    arguments = parser.parse_args()
     meshes = build_rabbit_meshes()
     coords = np.concatenate([mesh.coords for mesh in meshes])
     pixels_num = np.array((320, 160))
@@ -52,7 +57,12 @@ def main() -> None:
     result = render.Riley(config).render(meshes, [camera])
     assert result.images is not None
     digest = hashlib.sha256(result.images.tobytes()).hexdigest()
-    print(digest)
+    if arguments.write:
+        path = Path(__file__).parent / "gold_riley/rabbits.npy"
+        np.save(path, result.images)
+        print(path)
+    else:
+        print(digest)
 
 
 if __name__ == "__main__":

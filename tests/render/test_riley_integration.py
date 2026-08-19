@@ -5,7 +5,6 @@
 # ============================================================================
 """Real Riley integration and golden-regression tests."""
 
-import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -15,6 +14,7 @@ import pyvale.render as render
 import riley
 
 from gengold_riley_rabbits import build_rabbit_meshes
+from render_checks import assert_render_allclose
 
 
 def test_riley_returns_canonical_image_layout() -> None:
@@ -57,6 +57,8 @@ def test_riley_rabbit_multimesh_golden_regression() -> None:
     config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.memory)
     result = render.Riley(config).render(meshes, [camera])
     assert result.images is not None
-    digest = hashlib.sha256(result.images.tobytes()).hexdigest()
-    golden_path = Path(__file__).parent / "gold_riley" / "rabbits.sha256"
-    assert digest == golden_path.read_text().strip()
+    golden_path = Path(__file__).parent / "gold_riley" / "rabbits.npy"
+    assert_render_allclose(
+        result.images, np.load(golden_path), "riley_rabbit_multimesh",
+        rtol=0.0, atol=0.0,
+    )

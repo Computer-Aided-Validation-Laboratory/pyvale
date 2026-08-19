@@ -3,7 +3,7 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""The mandatory validated lifecycle for 3D renderers."""
+"""The interface for 3D renderers."""
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
@@ -15,7 +15,7 @@ from .result import RenderResult
 
 
 class IRenderer3D(ABC):
-    """Abstract interface for validated three-dimensional renderers.
+    """Abstract interface for 3D renderers.
 
     Concrete renderers implement :meth:`verify_input` and :meth:`_render`.
     The public :meth:`render` method always validates a request before the
