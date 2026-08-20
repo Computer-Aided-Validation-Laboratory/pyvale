@@ -926,12 +926,43 @@ def _map_pixel_points_to_physical_coordinates(
     col_indices = _interpolate_axis_to_fractional_indices(col_axis, np.asarray(points_xy[:, 0], dtype=np.float64))
     row_indices = _interpolate_axis_to_fractional_indices(row_axis, np.asarray(points_xy[:, 1], dtype=np.float64))
 
-    mapped_x = _bilinear_interpolate_grid(x, row_indices, col_indices)
-    mapped_y = _bilinear_interpolate_grid(y, row_indices, col_indices)
+    # ROI-mask vertices lie on pixel-cell boundaries, while the measured x/y
+    # arrays are sample centres.  Pad the coordinate grids by linear
+    # extrapolation so boundaries such as pixel x=0 map half a sample spacing
+    # outside the first centre rather than being clamped onto it.
+    mapped_x = _bilinear_interpolate_grid(
+        _extend_coordinate_grid_for_interpolation(x),
+        row_indices + 1.0,
+        col_indices + 1.0,
+    )
+    mapped_y = _bilinear_interpolate_grid(
+        _extend_coordinate_grid_for_interpolation(y),
+        row_indices + 1.0,
+        col_indices + 1.0,
+    )
     if np.any(~np.isfinite(mapped_x)) or np.any(~np.isfinite(mapped_y)):
         raise ValueError("Could not map all ROI vertices from pixel coordinates to physical coordinates.")
 
     return np.column_stack((mapped_x, mapped_y))
+
+
+def _extend_coordinate_grid_for_interpolation(grid: np.ndarray) -> np.ndarray:
+    """Add a linearly extrapolated boundary layer to a 2D coordinate grid."""
+
+    values = np.asarray(grid, dtype=np.float64)
+    if values.ndim != 2 or min(values.shape) < 2:
+        raise ValueError("Need at least a 2x2 coordinate grid to map ROI boundaries.")
+    extended = np.empty((values.shape[0] + 2, values.shape[1] + 2), dtype=np.float64)
+    extended[1:-1, 1:-1] = values
+    extended[0, 1:-1] = 2.0 * values[0, :] - values[1, :]
+    extended[-1, 1:-1] = 2.0 * values[-1, :] - values[-2, :]
+    extended[1:-1, 0] = 2.0 * values[:, 0] - values[:, 1]
+    extended[1:-1, -1] = 2.0 * values[:, -1] - values[:, -2]
+    extended[0, 0] = extended[0, 1] + extended[1, 0] - extended[1, 1]
+    extended[0, -1] = extended[0, -2] + extended[1, -1] - extended[1, -2]
+    extended[-1, 0] = extended[-2, 0] + extended[-1, 1] - extended[-2, 1]
+    extended[-1, -1] = extended[-2, -1] + extended[-1, -2] - extended[-2, -2]
+    return extended
 
 
 def _fill_missing_axis_values(axis_values: np.ndarray) -> np.ndarray:
