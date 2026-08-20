@@ -162,25 +162,31 @@ class Riley(IRenderer3D):
             uses an unsupported feature.
         """
         issues = list(verify_scene_3d(meshes, cameras, lights))
+
         if _riley is None:
             issues.append(ValidationIssue("riley", "UNAVAILABLE", "riley-raster is not installed."))
         elif not isinstance(self.riley_config, _riley.RasterConfig):
             issues.append(ValidationIssue("riley_config", "TYPE", "Expected riley.RasterConfig."))
+
         if lights:
             issues.append(ValidationIssue("lights", "UNSUPPORTED", "Riley does not support lights yet."))
         frame_count: int | None = None
+
         for mesh_index, mesh in enumerate(meshes):
             if mesh.element_type not in self.capabilities.element_types:
                 issues.append(ValidationIssue(f"meshes[{mesh_index}].element_type", "UNSUPPORTED", "Unsupported Riley element type."))
+
             if mesh.displacements is not None:
                 if frame_count is None:
                     frame_count = mesh.displacements.shape[0]
                 elif frame_count != mesh.displacements.shape[0]:
                     issues.append(ValidationIssue(f"meshes[{mesh_index}].displacements", "FRAME_COUNT", "All deforming meshes require the same frame count."))
+
             shader = mesh.shader
             if not isinstance(shader, (TextureShader, NodalFieldShader, FunctionShader)):
                 issues.append(ValidationIssue(f"meshes[{mesh_index}].shader", "OWNERSHIP", "Expected a render.riley shader."))
                 continue
+
             if isinstance(shader, TextureShader):
                 if shader.uvs.shape != (mesh.coords.shape[0], 2):
                     issues.append(ValidationIssue(f"meshes[{mesh_index}].shader.uvs", "SHAPE", "Expected shape (nodes, 2)."))
@@ -189,9 +195,11 @@ class Riley(IRenderer3D):
             if isinstance(shader, NodalFieldShader):
                 if shader.values.ndim != 3 or shader.values.shape[1] != mesh.coords.shape[0]:
                     issues.append(ValidationIssue(f"meshes[{mesh_index}].shader.values", "SHAPE", "Expected shape (frames, nodes, fields)."))
+
             if isinstance(shader, FunctionShader) and shader.uvs is not None:
                 if shader.uvs.shape != (mesh.coords.shape[0], 2):
                     issues.append(ValidationIssue(f"meshes[{mesh_index}].shader.uvs", "SHAPE", "Expected shape (nodes, 2)."))
+
         raise_if_issues(tuple(issues))
         return _RileyPlan(tuple(meshes), tuple(cameras))
 

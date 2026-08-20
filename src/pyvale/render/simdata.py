@@ -130,8 +130,8 @@ def _displacements_from_simdata(
     """
     if displacement_keys is None:
         return None
-    if sim_data.node_vars is None or len(displacement_keys) != 3:
-        raise ValueError("Three displacement keys are required.")
+    if sim_data.node_vars is None or len(displacement_keys) not in (2, 3):
+        raise ValueError("Two or three displacement keys are required.")
     try:
         fields = [np.asarray(sim_data.node_vars[key], dtype=np.float64)
                   for key in displacement_keys]
@@ -139,7 +139,10 @@ def _displacements_from_simdata(
         raise ValueError(f"Missing displacement field {error.args[0]!r}.") from error
     if any(field.ndim != 2 for field in fields):
         raise ValueError("Displacement fields must have shape (nodes, frames).")
-    return np.ascontiguousarray(np.stack(fields, axis=2).transpose(1, 0, 2))
+    displacements = np.stack(fields, axis=2).transpose(1, 0, 2)
+    if displacements.shape[2] == 2:
+        displacements = np.pad(displacements, ((0, 0), (0, 0), (0, 1)))
+    return np.ascontiguousarray(displacements)
 
 
 __all__ = ["mesh_from_simdata"]

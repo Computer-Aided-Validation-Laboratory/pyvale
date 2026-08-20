@@ -11,8 +11,22 @@ validated planar image-warp renderers. The default 3D implementation is
 """
 
 from .camera import Camera, Camera2D
+from .camera_stereo import CameraStereo
 from .camera_tools import CameraTools
-from .blender import Blender, BlenderConfig, blender_available
+from .blender import (
+    Blender,
+    BlenderCalibrationData,
+    BlenderCalibrationTarget,
+    BlenderConfig,
+    BlenderImageShader,
+    BlenderMaterial,
+    BlenderTextureShader,
+    EBlenderEngine,
+    blender_available,
+    blender_gpu_available,
+    calibration_image_count,
+    render_calibration_images,
+)
 from .capabilities import RenderCapabilities
 from .errors import RenderInputError, ValidationIssue
 from .feebee import (
@@ -53,9 +67,19 @@ __all__ = [
     "Camera",
     "Camera2D",
     "CameraTools",
+    "CameraStereo",
     "Blender",
+    "BlenderCalibrationData",
+    "BlenderCalibrationTarget",
     "blender_available",
+    "blender_gpu_available",
+    "calibration_image_count",
+    "render_calibration_images",
     "BlenderConfig",
+    "BlenderImageShader",
+    "BlenderMaterial",
+    "BlenderTextureShader",
+    "EBlenderEngine",
     "AdditiveSpeckles",
     "AnalyticRule",
     "DisplacementSeries2D",

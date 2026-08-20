@@ -149,18 +149,3 @@ Computation times
    * - :ref:`sphx_glr_examples_mooseherder_ex8_read_existing_sweep_output.py` (``../../src/pyvale/examples/mooseherder/ex8_read_existing_sweep_output.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex1_1_blenderscene.py` (``../../src/pyvale/examples/renderblender/ex1_1_blenderscene.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex1_2_blenderdeformed.py` (``../../src/pyvale/examples/renderblender/ex1_2_blenderdeformed.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex2_1_stereoscene.py` (``../../src/pyvale/examples/renderblender/ex2_1_stereoscene.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex2_2_stereodeformed.py` (``../../src/pyvale/examples/renderblender/ex2_2_stereodeformed.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex3_1_blendercalibration.py` (``../../src/pyvale/examples/renderblender/ex3_1_blendercalibration.py``)
-     - 00:00.000
-     - 0.0

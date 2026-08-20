@@ -10,7 +10,7 @@ import pytest
 from scipy.spatial.transform import Rotation
 
 import pyvale.render as render
-import pyvale.render.blender as blender_adapter
+import pyvale.render.blender.adapter as blender_adapter
 
 
 def make_camera() -> render.Camera:
@@ -61,3 +61,14 @@ def test_blender_available_reflects_backend_probe(monkeypatch) -> None:
     )
 
     assert blender_adapter.blender_available()
+
+
+def test_blender_gpu_probe_is_safe_when_backend_is_unavailable(monkeypatch) -> None:
+    """The legacy GPU capability query returns false without Blender."""
+    monkeypatch.setattr(
+        blender_adapter,
+        "_blender_unavailable_reason",
+        lambda: "Blender is unavailable.",
+    )
+
+    assert not blender_adapter.blender_gpu_available()

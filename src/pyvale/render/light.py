@@ -16,6 +16,7 @@ class ELightType(Enum):
 
     POINT = "point"
     SUN = "sun"
+    SPOT = "spot"
     AREA = "area"
 
 
@@ -34,12 +35,15 @@ class Light:
         area lights.
     intensity : float
         Non-negative backend-independent light intensity.
+    shadow_soft_size : float, optional
+        Source radius used by backends that support soft shadows.
     """
 
     light_type: ELightType
     pos_world: np.ndarray
     direction_world: np.ndarray
     intensity: float
+    shadow_soft_size: float = 1.5
 
     def __post_init__(self) -> None:
         """Convert position and direction to double-precision arrays."""

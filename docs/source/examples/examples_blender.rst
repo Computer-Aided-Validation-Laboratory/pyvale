@@ -1,13 +1,18 @@
 .. _examples_blender:
 
-Blender Image Deformation
-=========================
+Blender rendering
+=================
+
+Blender examples are part of the unified rendering gallery. They use
+``pyvale.render.Blender`` and common ``render.Mesh`` and ``render.Camera``
+data, rather than the retired scene API.
 
 .. toctree::
    :maxdepth: 1
 
-   blenderimagedef/ex1_blender_scene2d.rst
-   blenderimagedef/ex2_blender_imagedef2d.rst
-   blenderimagedef/ex3_blender_scenestereo.rst
-   blenderimagedef/ex4_blender_imagedefstereo.rst
-   blenderimagedef/ex5_blender_calibstereo.rst
+   render/ex6_blender_scene
+   render/ex6a_blender_deformation
+   render/ex6b_blender_stereo
+   render/ex6c_blender_calibration
+   render/ex6c_blender_stereo_deformation
+   render/ex6d_blender_calibration_target

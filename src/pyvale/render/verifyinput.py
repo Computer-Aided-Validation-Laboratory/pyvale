@@ -76,7 +76,16 @@ def verify_scene_3d(
     if lights is not None:
         for light_index, light in enumerate(lights):
             if not np.isfinite(light.intensity) or light.intensity < 0.0:
-                issues.append(ValidationIssue(f"lights[{light_index}].intensity", "VALUE", "Expected a non-negative finite value."))
+                issues.append(ValidationIssue(
+                    f"lights[{light_index}].intensity", "VALUE",
+                    "Expected a non-negative finite value.",
+                ))
+            if (not np.isfinite(light.shadow_soft_size)
+                    or light.shadow_soft_size < 0.0):
+                issues.append(ValidationIssue(
+                    f"lights[{light_index}].shadow_soft_size", "VALUE",
+                    "Expected a non-negative finite value.",
+                ))
     return tuple(issues)
 
 

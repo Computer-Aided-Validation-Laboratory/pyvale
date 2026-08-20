@@ -9,7 +9,6 @@ Detailed Python API
 
    pyvale.sensorsim
    pyvale.render
-   pyvale.blender
    pyvale.calib
    pyvale.dic
    pyvale.strain

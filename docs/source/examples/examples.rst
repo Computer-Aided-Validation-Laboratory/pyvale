@@ -17,13 +17,6 @@ DIC & Strain Calculations
 
    examples_dic
 
-Blender Image Deformation
--------------------------
-.. toctree::
-   :maxdepth: 2
-
-   examples_blender
-
 Sensor Simulation Extended
 --------------------------
 .. toctree::
