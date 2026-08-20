@@ -60,7 +60,8 @@ from .pxint2d import (
 )
 from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
-from .riley import FunctionShader, NodalFieldShader, Riley, TextureShader
+from .scene import RenderMesh, RenderScene
+from .riley import Riley
 from .simdata import mesh_from_simdata
 
 __all__ = [
@@ -96,7 +97,6 @@ __all__ = [
     "FeebeeConfig",
     "FeebeeMaterial",
     "FeebeeTextureShader",
-    "FunctionShader",
     "GaussianPSF",
     "GaussRule",
     "IImageWarp2D",
@@ -108,16 +108,16 @@ __all__ = [
     "Light",
     "Mesh",
     "Mesh2D",
-    "NodalFieldShader",
     "PixIntGrid2D",
     "PixIntSpeck2D",
     "PxInt2DOpts",
     "RectRule",
     "RenderCapabilities",
+    "RenderMesh",
     "RenderInputError",
     "RenderResult",
+    "RenderScene",
     "Riley",
-    "TextureShader",
     "ValidationIssue",
     "mesh_from_simdata",
     "quantise_image",

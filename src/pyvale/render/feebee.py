@@ -10,7 +10,6 @@ in this module are derived from the previous ray-tracer implementation and
 form the stable Python boundary for its future compiled backend.
 """
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -18,12 +17,11 @@ from pathlib import Path
 import numpy as np
 
 from .capabilities import RenderCapabilities
-from .camera import Camera
 from .errors import RenderInputError, ValidationIssue
-from .light import Light
 from .mesh import EElementType, Mesh
 from .renderer3d import IRenderer3D
 from .result import RenderResult
+from .scene import RenderScene
 from .verifyinput import raise_if_issues, verify_scene_3d
 
 
@@ -200,15 +198,6 @@ class FeebeeConfig:
             object.__setattr__(self, "output_dir", Path(self.output_dir))
 
 
-@dataclass(frozen=True, slots=True)
-class _FeebeePlan:
-    """Validated Feebee scene data ready for backend conversion."""
-
-    meshes: tuple[Mesh, ...]
-    cameras: tuple[Camera, ...]
-    config: FeebeeConfig
-
-
 class Feebee(IRenderer3D):
     """Prepare pyvale scenes for the forthcoming Feebee ray tracer.
 
@@ -236,37 +225,34 @@ class Feebee(IRenderer3D):
 
     def verify_input(
         self,
-        meshes: Sequence[Mesh],
-        cameras: Sequence[Camera],
-        lights: Sequence[Light] | None = None,
-    ) -> _FeebeePlan:
+        scene: RenderScene,
+    ) -> None:
         """Validate a Feebee scene without expanding geometry or rendering.
 
         Parameters
         ----------
-        meshes : Sequence[Mesh]
-            Meshes with a :class:`FeebeeColourShader` or
-            :class:`FeebeeTextureShader`.
-        cameras : Sequence[Camera]
-            Perspective cameras from which to render the scene.
-        lights : Sequence[Light] or None, optional
-            Explicit lights. Feebee's first migrated backend will retain its
-            original material-only lighting model and therefore rejects them.
-
-        Returns
-        -------
-        _FeebeePlan
-            Validated data for the future compiled Feebee backend.
+        scene : RenderScene
+            Scene containing common meshes with a
+            :class:`FeebeeColourShader` or :class:`FeebeeTextureShader`.
 
         Raises
         ------
         RenderInputError
             If inputs are unsupported or invalid.
         """
-        issues = list(verify_scene_3d(meshes, cameras, lights))
-        issues.extend(_verify_config(self.config))
+        if not isinstance(scene, RenderScene):
+            raise TypeError("Feebee requires a RenderScene.")
 
-        if lights:
+        meshes = tuple(mesh for mesh in scene.meshes if isinstance(mesh, Mesh))
+        issues = list(verify_scene_3d(meshes, scene.cameras, scene.lights))
+        if isinstance(self.config, FeebeeConfig):
+            issues.extend(_verify_config(self.config))
+        else:
+            issues.append(ValidationIssue(
+                "config", "TYPE", "Expected render.FeebeeConfig.",
+            ))
+
+        if scene.lights:
             issues.append(
                 ValidationIssue(
                     "lights",
@@ -276,7 +262,13 @@ class Feebee(IRenderer3D):
             )
 
         frame_count: int | None = None
-        for mesh_index, mesh in enumerate(meshes):
+        for mesh_index, mesh in enumerate(scene.meshes):
+            if not isinstance(mesh, Mesh):
+                issues.append(ValidationIssue(
+                    f"scene.meshes[{mesh_index}]", "TYPE",
+                    "Feebee requires common render.Mesh objects.",
+                ))
+                continue
             path = f"meshes[{mesh_index}]"
             issues.extend(_verify_mesh(mesh, path))
 
@@ -295,31 +287,26 @@ class Feebee(IRenderer3D):
                 )
 
         raise_if_issues(tuple(issues))
-        return _FeebeePlan(tuple(meshes), tuple(cameras), self.config)
 
-    def _render(self, render_plan: object) -> RenderResult:
+    def _render(self, scene: RenderScene) -> RenderResult:
         """Reject rendering until the compiled Feebee backend is migrated.
 
         Parameters
         ----------
-        render_plan : object
-            Plan returned by :meth:`verify_input`.
+        scene : RenderScene
+            Previously validated Feebee scene.
 
         Raises
         ------
-        TypeError
-            If the plan was not created by this renderer.
         NotImplementedError
             Always, until the Feebee C++ dispatch layer is integrated.
         """
-        if not isinstance(render_plan, _FeebeePlan):
-            raise TypeError("Feebee received an invalid render plan.")
         raise NotImplementedError(
             "Feebee's compiled rendering backend has not been migrated yet.",
         )
 
 
-def _verify_config(config: object) -> tuple[ValidationIssue, ...]:
+def _verify_config(config: FeebeeConfig) -> tuple[ValidationIssue, ...]:
     """Return cheap validation issues for global Feebee options."""
     if not isinstance(config, FeebeeConfig):
         return (
@@ -499,13 +486,10 @@ def _verify_mesh(mesh: Mesh, path: str) -> tuple[ValidationIssue, ...]:
 
 
 def _verify_material(
-    material: object,
+    material: FeebeeMaterial,
     path: str,
 ) -> tuple[ValidationIssue, ...]:
     """Return validation issues for Feebee material properties."""
-    if not isinstance(material, FeebeeMaterial):
-        return (ValidationIssue(path, "TYPE", "Expected FeebeeMaterial."),)
-
     issues: list[ValidationIssue] = []
     if not isinstance(material.material_type, EFeebeeMaterialType):
         issues.append(
@@ -563,7 +547,7 @@ def _is_finite_array(values: np.ndarray) -> bool:
         return False
 
 
-def _is_positive_finite(value: object) -> bool:
+def _is_positive_finite(value: float | int | np.number) -> bool:
     """Return whether a scalar is finite and strictly positive."""
     try:
         return bool(np.isfinite(value) and value > 0.0)

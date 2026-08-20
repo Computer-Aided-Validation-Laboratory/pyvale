@@ -1,7 +1,5 @@
 """Unified Blender renderer adapter."""
 
-from collections.abc import Sequence
-from dataclasses import dataclass
 import importlib
 from pathlib import Path
 import sys
@@ -12,24 +10,15 @@ from scipy.spatial.transform import Rotation
 from pyvale.sensorsim.simtools import centre_mesh_nodes
 
 from ..camera import Camera
-from ..camera_stereo import CameraStereo
 from ..errors import ValidationIssue
 from ..light import ELightType, Light
 from ..mesh import Mesh
 from ..renderer3d import IRenderer3D
 from ..result import RenderResult
+from ..scene import RenderScene
 from ..verifyinput import raise_if_issues, verify_scene_3d
 from .config import BlenderConfig, EBlenderEngine
 from .shader import BlenderImageShader, BlenderTextureShader
-
-
-@dataclass(frozen=True, slots=True)
-class _BlenderPlan:
-    """Validated Blender scene data ready for scene construction."""
-
-    meshes: tuple[Mesh, ...]
-    cameras: tuple[Camera, ...]
-    lights: tuple[Light, ...]
 
 
 class Blender(IRenderer3D):
@@ -41,13 +30,13 @@ class Blender(IRenderer3D):
 
     def verify_input(
         self,
-        meshes: Sequence[Mesh],
-        cameras: Sequence[Camera] | CameraStereo,
-        lights: Sequence[Light] | None = None,
-    ) -> _BlenderPlan:
+        scene: RenderScene,
+    ) -> None:
         """Validate a complete Blender request before scene construction."""
-        camera_sequence = _camera_sequence(cameras)
-        issues = list(verify_scene_3d(meshes, camera_sequence, lights))
+        if not isinstance(scene, RenderScene):
+            raise TypeError("Blender requires a RenderScene.")
+        meshes = tuple(mesh for mesh in scene.meshes if isinstance(mesh, Mesh))
+        issues = list(verify_scene_3d(meshes, scene.cameras, scene.lights))
         if not isinstance(self.config, BlenderConfig):
             issues.append(ValidationIssue("config", "TYPE", "Expected BlenderConfig."))
         elif (not isinstance(self.config.samples, int)
@@ -69,18 +58,21 @@ class Blender(IRenderer3D):
             issues.append(ValidationIssue(
                 "config", "TYPE", "Blender output controls must be booleans.",
             ))
-        if len(camera_sequence) > 2:
+        if len(scene.cameras) > 2:
             issues.append(ValidationIssue(
                 "cameras", "COUNT",
                 "Blender currently supports at most two cameras.",
             ))
-        if sum(mesh.displacements is not None for mesh in meshes) > 1:
+        if sum(
+            isinstance(mesh, Mesh) and mesh.displacements is not None
+            for mesh in scene.meshes
+        ) > 1:
             issues.append(ValidationIssue(
                 "meshes", "DEFORMATION",
                 "Only one deformable mesh is currently supported.",
             ))
-        if lights is not None and any(
-            light.light_type not in ELightType for light in lights
+        if scene.lights is not None and any(
+            light.light_type not in ELightType for light in scene.lights
         ):
             issues.append(ValidationIssue(
                 "lights", "TYPE", "Unsupported Blender light.",
@@ -88,17 +80,20 @@ class Blender(IRenderer3D):
         reason = _blender_unavailable_reason()
         if reason is not None:
             issues.append(ValidationIssue("blender", "UNAVAILABLE", reason))
+        for mesh_index, mesh in enumerate(scene.meshes):
+            if not isinstance(mesh, Mesh):
+                issues.append(ValidationIssue(
+                    f"scene.meshes[{mesh_index}]", "TYPE",
+                    "Blender requires common render.Mesh objects.",
+                ))
         raise_if_issues(tuple(issues))
-        return _BlenderPlan(tuple(meshes), camera_sequence, tuple(lights or ()))
 
-    def _render(self, render_plan: object) -> RenderResult:
+    def _render(self, render_scene: RenderScene) -> RenderResult:
         """Construct and render one validated Blender scene."""
-        if not isinstance(render_plan, _BlenderPlan):
-            raise TypeError("Blender received an invalid render plan.")
         blender_module = importlib.import_module("pyvale.blender")
         scene = blender_module.Scene()
-        parts = [scene.add_part(mesh, 3) for mesh in render_plan.meshes]
-        for mesh, part in zip(render_plan.meshes, parts):
+        parts = [scene.add_part(mesh, 3) for mesh in render_scene.meshes]
+        for mesh, part in zip(render_scene.meshes, parts):
             if isinstance(mesh.shader, BlenderTextureShader):
                 scene.add_speckle(
                     part,
@@ -123,13 +118,14 @@ class Blender(IRenderer3D):
                 blender_module.Tools.uv_unwrap_part(
                     part, mesh.shader.millimetres_per_pixel,
                 )
-        for camera in render_plan.cameras:
+        for camera in render_scene.cameras:
             scene.add_camera(camera)
-        for light in render_plan.lights:
+        for light in render_scene.lights or ():
             scene.add_light(_legacy_light(blender_module, light))
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
-        camera_data = (render_plan.cameras[0] if len(render_plan.cameras) == 1
-                       else tuple(render_plan.cameras))
+        camera_data = (render_scene.cameras[0]
+                       if len(render_scene.cameras) == 1
+                       else render_scene.cameras)
         render_data = blender_module.RenderData(
             cam_data=camera_data,
             base_dir=self.config.output_dir,
@@ -138,7 +134,7 @@ class Blender(IRenderer3D):
             threads=self.config.threads,
             engine=blender_module.RenderEngine(self.config.engine.value),
         )
-        deformable = next((mesh for mesh in render_plan.meshes
+        deformable = next((mesh for mesh in render_scene.meshes
                            if mesh.displacements is not None), None)
         if not self.config.render_deformed:
             deformable = None
@@ -152,7 +148,7 @@ class Blender(IRenderer3D):
             if image is None:
                 return RenderResult(None, _image_paths(self.config.output_dir))
             return RenderResult(_normalise_images(np.asarray(image)))
-        part = parts[render_plan.meshes.index(deformable)]
+        part = parts[render_scene.meshes.index(deformable)]
         deformation_mesh = Mesh(
             deformable.element_type,
             centre_mesh_nodes(deformable.coords.copy(), 3),
@@ -170,7 +166,7 @@ class Blender(IRenderer3D):
         if image is None:
             return RenderResult(None, _image_paths(self.config.output_dir))
         return RenderResult(_normalise_deformed_images(
-            np.asarray(image), len(render_plan.cameras),
+            np.asarray(image), len(render_scene.cameras),
         ))
 
 
@@ -187,13 +183,6 @@ def _legacy_light(blender_module: object, light: Light) -> object:
         light.pos_world, rotation, light.intensity, light_type,
         light.shadow_soft_size,
     )
-
-
-def _camera_sequence(cameras: Sequence[Camera] | CameraStereo) -> tuple[Camera, ...]:
-    """Convert a stereo convenience object to the common camera sequence."""
-    if isinstance(cameras, CameraStereo):
-        return cameras.cam_data_0, cameras.cam_data_1
-    return tuple(cameras)
 
 
 def _image_paths(output_dir: Path) -> tuple[Path, ...]:

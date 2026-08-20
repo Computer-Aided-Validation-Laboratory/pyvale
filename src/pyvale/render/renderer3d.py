@@ -6,38 +6,27 @@
 """The interface for 3D renderers."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
-
-from .camera import Camera
-from .light import Light
-from .mesh import Mesh
 from .result import RenderResult
+from .scene import RenderScene
 
 
 class IRenderer3D(ABC):
     """Abstract interface for 3D renderers.
 
-    Concrete renderers implement :meth:`verify_input` and :meth:`_render`.
-    The public :meth:`render` method always validates a request before the
-    backend may create a scene, allocate image buffers, or start rendering.
+    The public :meth:`render` method always validates a concrete scene before
+    the backend may allocate image buffers or start rendering.
     """
 
     def render(
         self,
-        meshes: Sequence[Mesh],
-        cameras: Sequence[Camera],
-        lights: Sequence[Light] | None = None,
+        scene: RenderScene,
     ) -> RenderResult:
         """Validate and render a three-dimensional scene.
 
         Parameters
         ----------
-        meshes : Sequence[Mesh]
-            Surface meshes to render.
-        cameras : Sequence[Camera]
-            Cameras from which to render the scene.
-        lights : Sequence[Light] or None, optional
-            Scene lights. ``None`` requests the backend default lighting.
+        scene : RenderScene
+            Complete rendering request.
 
         Returns
         -------
@@ -49,31 +38,20 @@ class IRenderer3D(ABC):
         RenderInputError
             If the scene is not supported or contains invalid data.
         """
-        render_plan = self.verify_input(meshes, cameras, lights)
-        return self._render(render_plan)
+        self.verify_input(scene)
+        return self._render(scene)
 
     @abstractmethod
     def verify_input(
         self,
-        meshes: Sequence[Mesh],
-        cameras: Sequence[Camera],
-        lights: Sequence[Light] | None = None,
-    ) -> object:
+        scene: RenderScene,
+    ) -> None:
         """Validate a render request without expensive preparation.
 
         Parameters
         ----------
-        meshes : Sequence[Mesh]
-            Surface meshes to validate.
-        cameras : Sequence[Camera]
-            Cameras to validate.
-        lights : Sequence[Light] or None, optional
-            Lights to validate.
-
-        Returns
-        -------
-        object
-            An opaque, backend-specific plan consumed by :meth:`_render`.
+        scene : RenderScene
+            Complete rendering request to validate.
 
         Raises
         ------
@@ -82,13 +60,13 @@ class IRenderer3D(ABC):
         """
 
     @abstractmethod
-    def _render(self, render_plan: object) -> RenderResult:
+    def _render(self, scene: RenderScene) -> RenderResult:
         """Render a backend plan that has already passed validation.
 
         Parameters
         ----------
-        render_plan : object
-            Backend-specific plan returned by :meth:`verify_input`.
+        scene : RenderScene
+            Previously validated rendering request.
 
         Returns
         -------
