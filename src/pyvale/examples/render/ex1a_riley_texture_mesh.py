@@ -5,9 +5,10 @@
 Use a backend-owned Riley texture shader with the common mesh and camera data.
 """
 
+from pathlib import Path
+
 import numpy as np
 from scipy.spatial.transform import Rotation
-from pathlib import Path
 
 import pyvale.render as render
 import riley
@@ -25,7 +26,8 @@ camera = render.Camera(
     np.array((64, 64)), np.array((0.02, 0.02)), np.array((0.0, 0.0, 2.0)),
     Rotation.identity(), np.zeros(3), 1.0,
 )
-config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.memory)
+config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.both)
+config.report = 0
 output_dir = Path.cwd() / "pyvale-output" / "render-riley-texture"
 result = render.Riley(config, output_dir).render(
     render.RenderScene((mesh,), (camera,)),

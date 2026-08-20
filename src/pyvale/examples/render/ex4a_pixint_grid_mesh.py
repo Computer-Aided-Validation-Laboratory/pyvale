@@ -6,8 +6,9 @@
 small two-Quad4 example applies an affine displacement to both elements.
 """
 
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 import pyvale.render as render
 

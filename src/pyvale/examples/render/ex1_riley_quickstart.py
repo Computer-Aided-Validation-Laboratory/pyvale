@@ -5,9 +5,10 @@
 Render a single triangle with Riley through the unified pyvale API.
 """
 
+from pathlib import Path
+
 import numpy as np
 from scipy.spatial.transform import Rotation
-from pathlib import Path
 
 import pyvale.render as render
 import riley
@@ -31,7 +32,8 @@ camera = render.Camera(
     roi_cent_world=np.zeros(3),
     focal_length=1.0,
 )
-config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.memory)
+config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.both)
+config.report = 0
 output_dir = Path.cwd() / "pyvale-output" / "render-riley-quickstart"
 result = render.Riley(config, output_dir).render(
     render.RenderScene((mesh,), (camera,)),

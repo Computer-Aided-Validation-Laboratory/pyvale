@@ -6,8 +6,9 @@ Create a deterministic analytic disk-speckle image over a Riley-ordered Quad9
 element. Rectangular quadrature controls the sub-pixel sampling density.
 """
 
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 import pyvale.render as render
 

@@ -6,8 +6,9 @@ Render the same analytic eggbox through the Riley-ordered Tri3, Tri6, Quad4,
 Quad8, and Quad9 element definitions using ``NEWTON_ONE_ELEM``.
 """
 
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 import pyvale.render as render
 

@@ -5,8 +5,9 @@
 Use the separate planar image-warp interface for a simple orthographic mesh.
 """
 
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 import pyvale.render as render
 

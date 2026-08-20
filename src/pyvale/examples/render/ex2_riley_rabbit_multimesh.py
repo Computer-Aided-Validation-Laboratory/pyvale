@@ -5,9 +5,10 @@
 Render two Riley rabbit meshes through pyvale's common mesh and camera API.
 """
 
+from pathlib import Path
+
 import numpy as np
 from scipy.spatial.transform import Rotation
-from pathlib import Path
 
 import pyvale.render as render
 import riley
@@ -39,7 +40,8 @@ camera = render.Camera(
     pixels_num, pixels_size, np.asarray(position), rotation,
     np.mean(coords, axis=0), focal_length,
 )
-config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.memory)
+config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.both)
+config.report = 0
 output_dir = Path.cwd() / "pyvale-output" / "render-riley-rabbits"
 result = render.Riley(config, output_dir).render(
     render.RenderScene(meshes, (camera,)),
