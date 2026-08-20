@@ -22,7 +22,9 @@ result = render.render_calibration_images(
         np.array((15.0, 10.0, 1.0)), dataset.cal_target(), 0.1,
     ),
     stereo,
-    render.BlenderConfig(Path("pyvale-output/blender-calibration-images")),
+    render.BlenderConfig(
+        Path.cwd() / "pyvale-output" / "render-blender-calibration-images",
+    ),
     render.BlenderCalibrationData(
         angle_lims=(0.0, 0.0),
         angle_step=1.0,

@@ -49,7 +49,7 @@ def test_blender_reports_unavailable_before_scene_construction(
     renderer = render.Blender(render.BlenderConfig(tmp_path))
 
     with pytest.raises(render.RenderInputError, match="UNAVAILABLE"):
-        renderer.render((make_mesh(),), (make_camera(),))
+        renderer.render(render.RenderScene((make_mesh(),), (make_camera(),)))
 
 
 def test_blender_available_reflects_backend_probe(monkeypatch) -> None:

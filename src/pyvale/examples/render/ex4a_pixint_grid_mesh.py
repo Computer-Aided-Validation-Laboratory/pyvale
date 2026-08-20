@@ -7,6 +7,7 @@ small two-Quad4 example applies an affine displacement to both elements.
 """
 
 import numpy as np
+from pathlib import Path
 
 import pyvale.render as render
 
@@ -32,4 +33,7 @@ renderer = render.PixIntGrid2D(
     ),
 )
 result = renderer.render(mesh, camera, render.DisplacementSeries2D(displacements))
+output_dir = Path.cwd() / "pyvale-output" / "render-pixint-grid-mesh"
+output_dir.mkdir(parents=True, exist_ok=True)
+np.save(output_dir / "warped_images.npy", result.images)
 print(result.images.shape, result.masks.all())

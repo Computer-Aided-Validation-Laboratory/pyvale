@@ -53,11 +53,14 @@ def _render(
     renderer = render.Blender(render.BlenderConfig(
         tmp_path, engine=engine, samples=samples, max_bounces=bounces, threads=1,
     ))
-    result = renderer.render(
-        [_mesh(camera)], [camera],
-        [render.Light(render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
-                      np.zeros(3), light_energy)],
-    )
+    result = renderer.render(render.RenderScene(
+        (_mesh(camera),),
+        (camera,),
+        (render.Light(
+            render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
+            np.zeros(3), light_energy,
+        ),),
+    ))
     assert result.images is not None
     return result.images[0, 0, :, :, 0]
 
@@ -150,7 +153,7 @@ def test_blender_config_rejects_non_integral_controls(
     values[field] = 2.5
     renderer = render.Blender(render.BlenderConfig(tmp_path, **values))
     with pytest.raises(render.RenderInputError, match="VALUE"):
-        renderer.render([_mesh(_camera())], [_camera()])
+        renderer.render(render.RenderScene((_mesh(_camera()),), (_camera(),)))
 
 
 def test_blender_persisted_images_and_scene(tmp_path: Path) -> None:
@@ -158,11 +161,14 @@ def test_blender_persisted_images_and_scene(tmp_path: Path) -> None:
     camera = _camera()
     result = render.Blender(render.BlenderConfig(
         tmp_path, threads=1, save_images=True, save_scene=True,
-    )).render(
-        [_mesh(camera)], [camera],
-        [render.Light(render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
-                      np.zeros(3), 1.0)],
-    )
+    )).render(render.RenderScene(
+        (_mesh(camera),),
+        (camera,),
+        (render.Light(
+            render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
+            np.zeros(3), 1.0,
+        ),),
+    ))
     assert result.images is None
     assert len(result.output_paths) == 1
     assert result.output_paths[0].is_file()
@@ -176,14 +182,15 @@ def test_blender_supports_legacy_light_geometries(tmp_path: Path) -> None:
                        render.ELightType.AREA):
         result = render.Blender(render.BlenderConfig(
             tmp_path / light_type.value, threads=1,
-        )).render(
-            [_mesh(camera)], [camera],
-            [render.Light(
+        )).render(render.RenderScene(
+            (_mesh(camera),),
+            (camera,),
+            (render.Light(
                 light_type, np.array((0.0, 0.0, 400.0)),
                 np.array((0.0, 0.0, -1.0)), 1.0,
                 shadow_soft_size=2.0,
-            )],
-        )
+            ),),
+        ))
         assert result.images is not None
 
 
@@ -197,9 +204,14 @@ def test_blender_in_memory_texture(tmp_path: Path) -> None:
         source_mesh.displacements,
     )
     result = render.Blender(render.BlenderConfig(tmp_path, threads=1)).render(
-        [mesh], [camera],
-        [render.Light(render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
-                      np.zeros(3), 1.0)],
+        render.RenderScene(
+            (mesh,),
+            (camera,),
+            (render.Light(
+                render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
+                np.zeros(3), 1.0,
+            ),),
+        ),
     )
     assert result.images is not None
 
@@ -216,11 +228,14 @@ def test_legacy_stereo_gold(
     else:
         stereo = render.CameraTools.faceon_stereo_cameras(camera, 15.0)
     renderer = render.Blender(render.BlenderConfig(tmp_path, threads=1))
-    result = renderer.render(
-        [_mesh(camera)], [stereo.cam_data_0, stereo.cam_data_1],
-        [render.Light(render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
-                      np.zeros(3), 1.0)],
-    )
+    result = renderer.render(render.RenderScene(
+        (_mesh(camera),),
+        (stereo.cam_data_0, stereo.cam_data_1),
+        (render.Light(
+            render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
+            np.zeros(3), 1.0,
+        ),),
+    ))
     assert result.images is not None
     assert result.images.shape == (1, 2, 20, 20, 1)
     assert not np.array_equal(result.images[0, 0], result.images[0, 1])
@@ -232,11 +247,14 @@ def test_legacy_deformation_frames(tmp_path: Path) -> None:
     renderer = render.Blender(render.BlenderConfig(
         tmp_path, threads=1, render_deformed=True,
     ))
-    result = renderer.render(
-        [_mesh(camera)], [camera],
-        [render.Light(render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
-                      np.zeros(3), 1.0)],
-    )
+    result = renderer.render(render.RenderScene(
+        (_mesh(camera),),
+        (camera,),
+        (render.Light(
+            render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
+            np.zeros(3), 1.0,
+        ),),
+    ))
     assert result.images is not None
     assert result.images.shape == (61, 1, 20, 20, 1)
     assert not np.array_equal(result.images[0], result.images[-1])
@@ -277,7 +295,9 @@ def test_unified_stereo_matches_legacy_scene(tmp_path: Path) -> None:
         render.ELightType.POINT, np.array((0.0, 0.0, 400.0)), np.zeros(3), 1.0,
     )
     unified = render.Blender(render.BlenderConfig(tmp_path / "unified", threads=1))
-    unified_result = unified.render([mesh], stereo, [light])
+    unified_result = unified.render(render.RenderScene(
+        (mesh,), (stereo.cam_data_0, stereo.cam_data_1), (light,),
+    ))
     assert unified_result.images is not None
 
     scene = legacy_blender.Scene()
@@ -313,7 +333,7 @@ def test_unified_deformation_matches_legacy_scene(tmp_path: Path) -> None:
     )
     unified_result = render.Blender(render.BlenderConfig(
         tmp_path / "unified", threads=1, render_deformed=True,
-    )).render([mesh], [camera], [light])
+    )).render(render.RenderScene((mesh,), (camera,), (light,)))
     assert unified_result.images is not None
 
     scene = legacy_blender.Scene()

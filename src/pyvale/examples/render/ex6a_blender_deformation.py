@@ -12,9 +12,10 @@ from _blender_example_tools import build_scene
 
 
 renderer = render.Blender(render.BlenderConfig(
-    Path("pyvale-output/blender-deformation"), render_deformed=True,
+    Path.cwd() / "pyvale-output" / "render-blender-deformation",
+    render_deformed=True,
 ))
 mesh, camera, lights = build_scene()
-result = renderer.render([mesh], [camera], lights)
+result = renderer.render(render.RenderScene((mesh,), (camera,), tuple(lights)))
 assert result.images is not None
 print(f"Rendered {result.images.shape[0]} deformation frames.")

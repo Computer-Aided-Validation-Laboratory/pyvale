@@ -35,12 +35,11 @@ class _FakeRenderer(render.IRenderer3D):
     def __init__(self) -> None:
         self.rendered = False
 
-    def verify_input(self, meshes, cameras, lights=None):
-        if not meshes:
+    def verify_input(self, scene: render.RenderScene) -> None:
+        if not scene.meshes:
             raise render.RenderInputError(())
-        return None
 
-    def _render(self, render_plan):
+    def _render(self, scene: render.RenderScene):
         self.rendered = True
         return render.RenderResult(np.zeros((1, 1, 1, 1, 1)))
 
@@ -49,7 +48,7 @@ def test_renderer_lifecycle_blocks_backend_after_validation_failure() -> None:
     """The ABC must never invoke backend work when verification fails."""
     renderer = _FakeRenderer()
     with pytest.raises(render.RenderInputError):
-        renderer.render([], [make_camera()])
+        renderer.render(render.RenderScene((), (make_camera(),)))
     assert not renderer.rendered
 
 
@@ -57,21 +56,12 @@ def test_riley_rejects_lights_before_backend_call(monkeypatch) -> None:
     """Unsupported lights fail before Riley mesh/camera conversion or rasterising."""
     import pyvale.render.riley as riley_adapter
 
-    class RasterConfig:
-        pass
-
-    class FakeRiley:
-        pass
-
-    FakeRiley.RasterConfig = RasterConfig
-
-    monkeypatch.setattr(riley_adapter, "_riley", FakeRiley)
-    renderer = render.Riley(RasterConfig())
+    renderer = render.Riley(riley_adapter.riley.RasterConfig())
     light = render.Light(
         render.ELightType.POINT, np.zeros(3), np.array((0.0, 0.0, -1.0)), 1.0,
     )
     with pytest.raises(render.RenderInputError, match="UNSUPPORTED"):
-        renderer.render([make_mesh(object())], [make_camera()], [light])
+        renderer.render(render.RenderScene((), (make_camera(),), (light,)))
 
 
 def test_mesh_from_simdata_normalises_displacement_layout() -> None:

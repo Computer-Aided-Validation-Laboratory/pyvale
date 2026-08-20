@@ -34,9 +34,14 @@ mesh = render.blender.mesh_from_simdata(
 images = render.Blender(render.BlenderConfig(
     output_dir / "render", threads=1, render_deformed=True,
 )).render(
-    [mesh], [camera],
-    [render.Light(render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
-                  np.zeros(3), 1.0)],
+    render.RenderScene(
+        (mesh,),
+        (camera,),
+        (render.Light(
+            render.ELightType.POINT, np.array((0.0, 0.0, 400.0)),
+            np.zeros(3), 1.0,
+        ),),
+    ),
 ).images
 assert images is not None
 

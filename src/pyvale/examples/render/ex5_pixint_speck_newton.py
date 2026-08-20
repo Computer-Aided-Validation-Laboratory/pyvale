@@ -7,6 +7,7 @@ element. Rectangular quadrature controls the sub-pixel sampling density.
 """
 
 import numpy as np
+from pathlib import Path
 
 import pyvale.render as render
 
@@ -34,4 +35,7 @@ result = render.PixIntSpeck2D(
         integration=render.RectRule(4),
     ),
 ).render(mesh, camera, render.DisplacementSeries2D(np.zeros((1, 9, 2))))
+output_dir = Path.cwd() / "pyvale-output" / "render-pixint-speck"
+output_dir.mkdir(parents=True, exist_ok=True)
+np.save(output_dir / "warped_images.npy", result.images)
 print(result.images.shape, result.images.min(), result.images.max())

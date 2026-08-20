@@ -6,6 +6,7 @@ Use the separate planar image-warp interface for a simple orthographic mesh.
 """
 
 import numpy as np
+from pathlib import Path
 
 import pyvale.render as render
 
@@ -24,4 +25,7 @@ displacements = np.zeros((1, 4, 2))
 result = render.ImageDef2D().render(
     image, camera, coords, connectivity, displacements,
 )
+output_dir = Path.cwd() / "pyvale-output" / "render-imagedef2d"
+output_dir.mkdir(parents=True, exist_ok=True)
+np.save(output_dir / "warped_images.npy", result.images)
 print(result.images.shape)

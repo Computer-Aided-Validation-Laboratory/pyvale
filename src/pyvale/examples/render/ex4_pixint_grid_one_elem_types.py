@@ -7,6 +7,7 @@ Quad8, and Quad9 element definitions using ``NEWTON_ONE_ELEM``.
 """
 
 import numpy as np
+from pathlib import Path
 
 import pyvale.render as render
 
@@ -40,10 +41,13 @@ renderer = render.PixIntGrid2D(
         integration=render.RectRule(2),
     ),
 )
+output_dir = Path.cwd() / "pyvale-output" / "render-pixint-grid-one-element"
+output_dir.mkdir(parents=True, exist_ok=True)
 for element_type in render.EElementType:
     mesh = make_mesh(element_type)
     displacements = render.DisplacementSeries2D(
         np.zeros((1, mesh.coords.shape[0], 2)),
     )
     image = renderer.render(mesh, camera, displacements).images[0, 0, :, :, 0]
+    np.save(output_dir / f"{element_type.value}.npy", image)
     print(element_type.value, image.shape, image.min(), image.max())

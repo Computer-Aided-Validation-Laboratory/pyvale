@@ -21,7 +21,7 @@ def render_triangle(output_dir: Path) -> np.ndarray:
         Rotation.identity(), np.zeros(3), 1.0,
     )
     result = render.Blender(render.BlenderConfig(output_dir, samples=1)).render(
-        [mesh], [camera],
+        render.RenderScene((mesh,), (camera,)),
     )
     assert result.images is not None
     return result.images

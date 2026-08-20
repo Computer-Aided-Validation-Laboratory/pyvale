@@ -19,21 +19,20 @@ from render_checks import assert_render_allclose
 
 def test_riley_returns_canonical_image_layout() -> None:
     """Riley's field-major buffer is normalised by the pyvale adapter."""
-    mesh = render.Mesh(
-        render.EElementType.TRI3,
+    mesh = riley.Mesh(
+        riley.MeshType.tri3,
         np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))),
         np.array(((0, 1, 2),)),
-        render.FunctionShader(
-            riley.FuncShaderBuiltin.constant,
-            riley.FuncCoordMode.world_reference,
-        ),
+        shader_type=riley.ShaderType.func,
+        func_shader_builtin=riley.FuncShaderBuiltin.constant,
+        func_shader_coord_mode=riley.FuncCoordMode.world_reference,
     )
     camera = render.Camera(
         np.array((32, 32)), np.array((0.02, 0.02)), np.array((0.0, 0.0, 2.0)),
         Rotation.identity(), np.zeros(3), 1.0,
     )
     config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.memory)
-    result = render.Riley(config).render([mesh], [camera])
+    result = render.Riley(config).render(render.RenderScene((mesh,), (camera,)))
     assert result.images is not None
     assert result.images.shape == (1, 1, 32, 32, 1)
 
@@ -55,7 +54,7 @@ def test_riley_rabbit_multimesh_golden_regression() -> None:
         np.mean(coords, axis=0), focal_length,
     )
     config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.memory)
-    result = render.Riley(config).render(meshes, [camera])
+    result = render.Riley(config).render(render.RenderScene(tuple(meshes), (camera,)))
     assert result.images is not None
     golden_path = Path(__file__).parent / "gold_riley" / "rabbits.npy"
     assert_render_allclose(
