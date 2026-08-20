@@ -18,6 +18,7 @@ from .identificationresult import (
 )
 
 from .inputdata import process_input_data
+from .inputdataassembled import AssembledDataConfig, load_assembled_data
 from .inputdataconfig import AnsysConfig, InputDataConfig, MooseConfig
 from .experimentdata import (
     BoundaryConditions,
@@ -112,6 +113,8 @@ __all__ = [
     "SolveResult",
     "RefinementEvent",
     "process_input_data",
+    "AssembledDataConfig",
+    "load_assembled_data",
     "AnsysConfig",
     "MooseConfig",
     "InputDataConfig",

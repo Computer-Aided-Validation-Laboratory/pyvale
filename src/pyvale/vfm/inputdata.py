@@ -17,14 +17,17 @@ from pyvale.vfm.inputdatamatchidassembled import (
     MatchIDAssembledConfig,
     load_matchid_assembled_data,
 )
+from pyvale.vfm.inputdataassembled import AssembledDataConfig, load_assembled_data
 from pyvale.vfm.inputdataplots import _create_diagnostic_plots
 from pyvale.vfm.roi import VfmRegionOfInterest, convert_mask_to_physical_roi
 from pyvale.vfm.validation import run_validation
 
 
 def process_input_data(
-    config: InputDataConfig | MatchIDAssembledConfig,
-    output_root: str | Path = "."
+    config: InputDataConfig | MatchIDAssembledConfig | AssembledDataConfig,
+    output_root: str | Path = ".",
+    *,
+    timestamped: bool = True,
 ) -> Path:
     """
     Load, process, and save experiment data from solver or DIC output.
@@ -32,7 +35,9 @@ def process_input_data(
     Loads the raw field data described by ``config`` (from Ansys, MOOSE, or an
     assembled MatchID DIC archive), builds an ``ExperimentData`` object,
     validates it, writes diagnostic plots, and saves the result to a
-    timestamped run directory under ``output_root``.
+    timestamped run directory under ``output_root`` by default. Set
+    ``timestamped=False`` to write directly to an explicitly selected output
+    directory, for reproducible published datasets.
 
     Parameters
     ----------
@@ -61,6 +66,14 @@ def process_input_data(
         force = matchid_data.force
         time = matchid_data.time
         region_of_interest = matchid_data.region_of_interest
+    elif isinstance(config, AssembledDataConfig):
+        assembled_data = load_assembled_data(config)
+        x = assembled_data.x
+        y = assembled_data.y
+        strain = assembled_data.strain
+        force = assembled_data.force
+        time = assembled_data.time
+        region_of_interest = assembled_data.region_of_interest
     else:
         raise TypeError(f"Unsupported VFM input-data config: {type(config)!r}")
 
@@ -77,9 +90,11 @@ def process_input_data(
 
     run_validation(experiment_data)
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-
-    run_dir = Path(output_root) / f"vfm-input-data_{timestamp}"
+    if timestamped:
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        run_dir = Path(output_root) / f"vfm-input-data_{timestamp}"
+    else:
+        run_dir = Path(output_root)
     run_dir.mkdir(parents=True, exist_ok=True)
 
     _create_diagnostic_plots(
