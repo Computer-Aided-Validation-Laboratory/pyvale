@@ -34,6 +34,8 @@ test-input/
 # Keep these as they are used for examples
 !src/pyvale/data/*.tiff
 !src/pyvale/data/*.e
+!src/pyvale/data/**/
+!src/pyvale/data/**
 !reports/images/*.png
 !reports/images/*.svg
 !images/*.png
@@ -273,3 +275,6 @@ docs/source/examples/
 docs/source/doxygen
 
 .DS_Store
+
+# Legacy temporary output from strain tests.
+/tests/strain/test/

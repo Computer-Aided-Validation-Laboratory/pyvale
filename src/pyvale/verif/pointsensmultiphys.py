@@ -13,7 +13,7 @@ import pyvale.verif.pointsensscalar as pointsensscalar
 import pyvale.verif.pointsensvector as pointsensvector
 import pyvale.verif.pointsenstensor as pointsenstensor
 import pyvale.verif.pointsensmech as pointsensmech
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 
 def load_simdata_list(data_paths: list[Path],

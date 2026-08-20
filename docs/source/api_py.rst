@@ -14,4 +14,4 @@ Detailed Python API
    pyvale.strain
    pyvale.mooseherder
    pyvale.verif
-   pyvale.dataset
+   pyvale.data

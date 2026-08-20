@@ -13,17 +13,19 @@ from pathlib import Path
 
 import numpy as np
 
+import pyvale.data as dataset
 import pyvale.render as render
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "src/pyvale/render/pxint2d/data/single_elem"
 GOLD = ROOT / "tests/render/gold_pxint2d"
 
 
 def load_quad9_affine() -> tuple[render.Mesh2D, render.DisplacementSeries2D]:
     """Load the copied RCC 32-pixel Quad9 affine fixture."""
-    directory = DATA / "plate42_cam32_quad9_affine"
+    directory = dataset.pxint2d_single_element_path(
+        "plate42_cam32_quad9_affine",
+    )
     coords = np.loadtxt(directory / "coords.csv", delimiter=",")[:, :2]
     connect = np.loadtxt(
         directory / "connectivity.csv", delimiter=",", dtype=np.intp,

@@ -11,7 +11,7 @@ import yaml
 from scipy.spatial.transform import Rotation
 
 import pyvale.blender as blender
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 

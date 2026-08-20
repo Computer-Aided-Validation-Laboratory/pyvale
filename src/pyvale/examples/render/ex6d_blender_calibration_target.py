@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.render as render
 from _blender_example_tools import build_scene
 
@@ -32,6 +32,7 @@ result = render.render_calibration_images(
         plunge_step=1.0,
         x_limit=0.0,
         y_limit=0.0,
+        max_images=10,
     ),
     lights,
 )

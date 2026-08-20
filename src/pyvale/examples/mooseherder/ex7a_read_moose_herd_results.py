@@ -28,7 +28,7 @@ import numpy as np
 
 #pyvale imports
 import pyvale.sensorsim as sens
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 MooseConfig,

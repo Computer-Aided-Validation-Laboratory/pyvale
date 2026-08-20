@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import pyvale.data as dataset
 import pyvale.render as render
 from pyvale.render.pxint2d.elements import shape_functions
 from render_checks import assert_render_allclose
@@ -114,8 +115,9 @@ def affine_displacements(mesh: render.Mesh2D) -> render.DisplacementSeries2D:
 
 def rcc_rigid_displacements(mesh: render.Mesh2D) -> render.DisplacementSeries2D:
     """Apply the frame-three rigid displacement from the copied RCC fixture."""
-    directory = (Path("src/pyvale/render/pxint2d/data/single_elem")
-                 / "plate42_cam32_quad9_rigid")
+    directory = dataset.pxint2d_single_element_path(
+        "plate42_cam32_quad9_rigid",
+    )
     displacement_x = np.loadtxt(directory / "field_disp_x.csv", delimiter=",")
     displacement_y = np.loadtxt(directory / "field_disp_y.csv", delimiter=",")
     translation = np.array((displacement_x[0, 3], displacement_y[0, 3]))
@@ -126,8 +128,9 @@ def rcc_rigid_displacements(mesh: render.Mesh2D) -> render.DisplacementSeries2D:
 
 def rcc_affine_displacements(mesh: render.Mesh2D) -> render.DisplacementSeries2D:
     """Apply the copied RCC frame-three globally affine displacement field."""
-    directory = (Path("src/pyvale/render/pxint2d/data/single_elem")
-                 / "plate42_cam32_quad9_affine")
+    directory = dataset.pxint2d_single_element_path(
+        "plate42_cam32_quad9_affine",
+    )
     source_coords = np.loadtxt(directory / "coords.csv", delimiter=",")[:, :2]
     source_x = np.loadtxt(directory / "field_disp_x.csv", delimiter=",")[:, 3]
     source_y = np.loadtxt(directory / "field_disp_y.csv", delimiter=",")[:, 3]
@@ -204,8 +207,9 @@ def test_newton_maps_match_affine_for_every_element(
 @pytest.mark.parametrize("samples", (1, 2, 4))
 def test_rcc_quad9_subpixel_gold(samples: int) -> None:
     """The copied RCC affine Quad9 fixture matches each subpixel level."""
-    directory = (Path("src/pyvale/render/pxint2d/data/single_elem")
-                 / "plate42_cam32_quad9_affine")
+    directory = dataset.pxint2d_single_element_path(
+        "plate42_cam32_quad9_affine",
+    )
     coords = np.loadtxt(directory / "coords.csv", delimiter=",")[:, :2]
     connect = np.loadtxt(directory / "connectivity.csv", delimiter=",", dtype=int)
     displacement_x = np.loadtxt(directory / "field_disp_x.csv", delimiter=",")
@@ -287,8 +291,9 @@ def test_speck_element_types_match_affine_gold(
 
 def test_copied_rcc_analytic_gold_is_preserved() -> None:
     """The original RCC 32-pixel analytic reference remains reproducible."""
-    directory = (Path("src/pyvale/render/pxint2d/data/single_elem")
-                 / "plate42_cam32_quad9_rigid")
+    directory = dataset.pxint2d_single_element_path(
+        "plate42_cam32_quad9_rigid",
+    )
     coords = np.loadtxt(directory / "coords.csv", delimiter=",")[:, :2]
     connect = np.loadtxt(directory / "connectivity.csv", delimiter=",", dtype=int)
     displacement_x = np.loadtxt(directory / "field_disp_x.csv", delimiter=",")

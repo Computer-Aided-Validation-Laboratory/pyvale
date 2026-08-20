@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyvale"
-version = "2026.7.0"
+version = "2026.8.0"
 description = "Your virtual engineering lab: An all-in-one package for sensor simulation, uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
@@ -88,6 +88,11 @@ pythonpath = [
 filterwarnings = [
     "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning"
 ]
+markers = [
+    "example: smoke test for a documented gallery example",
+    "example_slow: longer-running documented gallery example",
+    "blender: requires the optional Blender renderer backend",
+]
 
 [project.urls]
 "Repository" = "https://github.com/Computer-Aided-Validation-Laboratory/pyvale"
@@ -98,6 +103,7 @@ build.verbose = true
 logging.level = "INFO"
 ninja.make-fallback = false
 build-dir = "build"
+wheel.packages = ["src/pyvale"]
 
 [tool.uv]
 required-version = ">=0.9.17"

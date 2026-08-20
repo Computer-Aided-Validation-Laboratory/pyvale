@@ -11,9 +11,10 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 
+
 @dataclass(slots=True)
 class Camera:
-    """A perspective camera matching Riley's camera capabilities.
+    """A perspective camera data structure.
 
     Parameters
     ----------

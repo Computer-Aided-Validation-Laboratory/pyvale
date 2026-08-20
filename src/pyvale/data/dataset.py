@@ -5,7 +5,7 @@
 #===============================================================================
 
 """
-Accesors for data that comes pre-packaged with pyvale for demonstrating its
+Accessors for data that comes pre-packaged with pyvale for demonstrating its
 functionality. This includes moose simulation outputs as exodus files, input
 files for moose and gmsh for additional simulation cases, and images required
 for testing the image deformation and digital image correlation modules.
@@ -59,6 +59,11 @@ class DataSetError(Exception):
     """
 
 
+def _data_path(*parts: str) -> Path:
+    """Return an installed path below the :mod:`pyvale.data` package."""
+    return Path(files("pyvale.data").joinpath(*parts))
+
+
 def sim_case_input_file_path(case_num: int) -> Path:
     """Gets the path to MOOSE input file (*.i) for a particular simulation
     case.
@@ -87,7 +92,7 @@ def sim_case_input_file_path(case_num: int) -> Path:
 
     case_num_str = str(case_num).zfill(2)
     case_file = f"case{case_num_str}.i"
-    return Path(files("pyvale.simcases").joinpath(case_file))
+    return _data_path("simulation", "simcases", case_file)
 
 
 def sim_case_gmsh_file_path(case_num: int) -> Path | None:
@@ -121,7 +126,7 @@ def sim_case_gmsh_file_path(case_num: int) -> Path | None:
 
     case_num_str = str(case_num).zfill(2)
     case_file = f"case{case_num_str}.geo"
-    case_path = Path(files("pyvale.simcases").joinpath(case_file))
+    case_path = _data_path("simulation", "simcases", case_file)
 
     if case_path.is_file():
         return case_path
@@ -138,8 +143,9 @@ def dic_pattern_5mpx_path() -> Path:
     Path
         Path to the *.tiff file containing the speckle pattern.
     """
-    return Path(files("pyvale.data")
-                .joinpath("optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff"))
+    return _data_path(
+        "render", "patterns", "optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff",
+    )
 
 
 def thermal_2d_path() -> Path:
@@ -158,7 +164,7 @@ def thermal_2d_path() -> Path:
     Path
         Path to the exodus (``*.e``) output file for this simulation case.
     """
-    return Path(files("pyvale.data").joinpath("case18_out.e"))
+    return _data_path("simulation", "exodus", "case18_out.e")
 
 
 def thermal_3d_path() -> Path:
@@ -181,7 +187,7 @@ def thermal_3d_path() -> Path:
     Path
         Path to the exodus (``*.e``) output file for this simulation case.
     """
-    return Path(files("pyvale.data").joinpath("case16_out.e"))
+    return _data_path("simulation", "exodus", "case16_out.e")
 
 
 def mechanical_2d_path() -> Path:
@@ -200,7 +206,7 @@ def mechanical_2d_path() -> Path:
     Path
         Path to the exodus (``*.e``) output file for this simulation case.
     """
-    return Path(files("pyvale.data").joinpath("case17_out.e"))
+    return _data_path("simulation", "exodus", "case17_out.e")
 
 
 def thermomechanical_2d_path() -> Path:
@@ -220,7 +226,7 @@ def thermomechanical_2d_path() -> Path:
     Path
         Path to the exodus (``*.e``) output file for this simulation case.
     """
-    return Path(files("pyvale.data").joinpath("case18_out.e"))
+    return _data_path("simulation", "exodus", "case18_out.e")
 
 
 def thermomechanical_3d_path() -> Path:
@@ -241,7 +247,7 @@ def thermomechanical_3d_path() -> Path:
     Path
         Path to the exodus (``*.e``) output file for this simulation case.
     """
-    return Path(files("pyvale.data").joinpath("case16_out.e"))
+    return _data_path("simulation", "exodus", "case16_out.e")
 
 
 def thermomechanical_2d_experiment_paths() -> list[Path]:
@@ -264,8 +270,10 @@ def thermomechanical_2d_experiment_paths() -> list[Path]:
     list[Path]
         Paths to the exodus (``*.e``) output files for this simulated experiment.
     """
-    return [Path(files("pyvale.data").joinpath("case18_out.e")),
-            Path(files("pyvale.data").joinpath("case18_d_out.e"))]
+    return [
+        _data_path("simulation", "exodus", "case18_out.e"),
+        _data_path("simulation", "exodus", "case18_d_out.e"),
+    ]
 
 def thermomechanical_3d_experiment_paths() -> list[Path]:
     """List of paths to MOOSE simulation output in exodus format. This case is a
@@ -290,8 +298,10 @@ def thermomechanical_3d_experiment_paths() -> list[Path]:
         Paths to the exodus (``*.e``) output files for this simulated experiment.
     """
 
-    return [Path(files("pyvale.data").joinpath("case16_out.e")),
-            Path(files("pyvale.data").joinpath("case16_d_out.e"))]
+    return [
+        _data_path("simulation", "exodus", "case16_out.e"),
+        _data_path("simulation", "exodus", "case16_d_out.e"),
+    ]
 
 
 def render_mechanical_3d_path() -> Path:
@@ -306,7 +316,7 @@ def render_mechanical_3d_path() -> Path:
     Path
         Path to the exodus (``*.e``) output file for this simulation case.
     """
-    return Path(files("pyvale.data").joinpath("case26_out.e"))
+    return _data_path("simulation", "exodus", "case26_out.e")
     
 
 def element_case_input_path(elem_type: EElemTest) -> Path:
@@ -327,8 +337,7 @@ def element_case_input_path(elem_type: EElemTest) -> Path:
     Path
         Path to the moose input file (.i) for this simulation case.
     """
-    return Path(files("pyvale.simcases")
-                .joinpath(f"case00_{elem_type.value}.i"))
+    return _data_path("simulation", "simcases", f"case00_{elem_type.value}.i")
 
 
 
@@ -350,8 +359,9 @@ def element_case_output_path(elem_type: EElemTest) -> Path:
     Path
         Path to the exodus (``*.e``) output file for this simulation case.
     """
-    return Path(files("pyvale.data")
-                .joinpath(f"case00_{elem_type.value}_out.e"))
+    return _data_path(
+        "simulation", "exodus", f"case00_{elem_type.value}_out.e",
+    )
 
 
 def dic_plate_with_hole_cam0_ref() -> Path:
@@ -369,8 +379,7 @@ def dic_plate_with_hole_cam0_ref() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("hole_cam0_frame00.tiff"))
+    return _data_path("dic", "plate_hole", "hole_cam0_frame00.tiff")
 
 def dic_plate_with_hole_cam1_ref() -> Path:
     """
@@ -387,8 +396,7 @@ def dic_plate_with_hole_cam1_ref() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("hole_cam1_frame00.tiff"))
+    return _data_path("dic", "plate_hole", "hole_cam1_frame00.tiff")
 
 
 def dic_plate_with_hole_cam0_def() -> Path:
@@ -406,8 +414,7 @@ def dic_plate_with_hole_cam0_def() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("hole_cam0_frame*.tiff"))
+    return _data_path("dic", "plate_hole", "hole_cam0_frame*.tiff")
 
 def dic_plate_with_hole_cam1_def() -> Path:
     """
@@ -424,8 +431,7 @@ def dic_plate_with_hole_cam1_def() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("hole_cam1_frame*.tiff"))
+    return _data_path("dic", "plate_hole", "hole_cam1_frame*.tiff")
 
 
 
@@ -444,8 +450,7 @@ def dic_plate_with_hydro_cam0_ref() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("hydro_cam0_frame00.tiff"))
+    return _data_path("dic", "plate_hydro", "hydro_cam0_frame00.tiff")
 
 def dic_plate_with_hydro_cam1_ref() -> Path:
     """
@@ -462,8 +467,7 @@ def dic_plate_with_hydro_cam1_ref() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("hydro_cam1_frame00.tiff"))
+    return _data_path("dic", "plate_hydro", "hydro_cam1_frame00.tiff")
 
 
 def dic_plate_with_hydro_cam0_def() -> Path:
@@ -481,8 +485,7 @@ def dic_plate_with_hydro_cam0_def() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("hydro_cam0_frame*.tiff"))
+    return _data_path("dic", "plate_hydro", "hydro_cam0_frame*.tiff")
 
 def dic_plate_with_hydro_cam1_def() -> Path:
     """
@@ -499,8 +502,7 @@ def dic_plate_with_hydro_cam1_def() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("hydro_cam1_frame*.tiff"))
+    return _data_path("dic", "plate_hydro", "hydro_cam1_frame*.tiff")
 
 
 
@@ -519,8 +521,7 @@ def dic_plate_rigid_cam0_ref() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("rigid_cam0_frame00.tiff"))
+    return _data_path("dic", "plate_rigid", "rigid_cam0_frame00.tiff")
 
 
 def dic_plate_rigid_cam0_def() -> Path:
@@ -533,8 +534,7 @@ def dic_plate_rigid_cam0_def() -> Path:
     Path
         Path to the deformation images (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("rigid_cam0_frame*.tiff"))
+    return _data_path("dic", "plate_rigid", "rigid_cam0_frame*.tiff")
 
 
 def dic_plate_rigid_cam1_ref() -> Path:
@@ -552,8 +552,7 @@ def dic_plate_rigid_cam1_ref() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("rigid_cam1_frame00.tiff"))
+    return _data_path("dic", "plate_rigid", "rigid_cam1_frame00.tiff")
 
 
 def dic_plate_rigid_cam1_def() -> Path:
@@ -566,14 +565,13 @@ def dic_plate_rigid_cam1_def() -> Path:
     Path
         Path to the deformation images (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("rigid_cam1_frame*.tiff"))
+    return _data_path("dic", "plate_rigid", "rigid_cam1_frame*.tiff")
 
 def dic_plate_rigid_cam0_def_small() -> list[Path]:
     """
     Returns rigid_cam0_frame0000.tiff to rigid_cam1_frame0010.tiff.
     """
-    data_dir = files("pyvale.data")
+    data_dir = files("pyvale.data").joinpath("dic", "plate_rigid")
 
     return [
         Path(data_dir.joinpath(f"rigid_cam0_frame{i:02d}.tiff"))
@@ -584,7 +582,7 @@ def dic_plate_rigid_cam1_def_small() -> list[Path]:
     """
     Returns rigid_cam1_frame0000.tiff to rigid_cam1_frame0010.tiff.
     """
-    data_dir = files("pyvale.data")
+    data_dir = files("pyvale.data").joinpath("dic", "plate_rigid")
 
     return [
         Path(data_dir.joinpath(f"rigid_cam1_frame{i:02d}.tiff"))
@@ -601,7 +599,7 @@ def dic_plate_rigid_cam0_def_10px() -> Path:
     Path
         Path to the 25 px deformed image (``.tiff``).
     """
-    return Path(files("pyvale.data").joinpath("rigid_cam0_frame11.tiff"))
+    return _data_path("dic", "plate_rigid", "rigid_cam0_frame11.tiff")
 
 
 def dic_plate_rigid_cam0_def_25px() -> Path:
@@ -614,7 +612,7 @@ def dic_plate_rigid_cam0_def_25px() -> Path:
     Path
         Path to the 25 px deformed image (``.tiff``).
     """
-    return Path(files("pyvale.data").joinpath("rigid_cam0_frame12.tiff"))
+    return _data_path("dic", "plate_rigid", "rigid_cam0_frame12.tiff")
 
 
 def dic_plate_rigid_cam0_def_50px() -> Path:
@@ -627,7 +625,7 @@ def dic_plate_rigid_cam0_def_50px() -> Path:
     Path
         Path to the 50px deformed image (``.tiff``).
     """
-    return Path(files("pyvale.data").joinpath("rigid_cam0_frame13.tiff"))
+    return _data_path("dic", "plate_rigid", "rigid_cam0_frame13.tiff")
 
 
 def dic_chal_2d_ref() -> Path:
@@ -642,8 +640,9 @@ def dic_chal_2d_ref() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("DIC_Challenge_Star_Noise_Ref.tiff"))
+    return _data_path(
+        "dic", "challenge", "DIC_Challenge_Star_Noise_Ref.tiff",
+    )
 
 
 def dic_chal_2d_def() -> Path:
@@ -658,8 +657,9 @@ def dic_chal_2d_def() -> Path:
     Path
         Path to the deformed image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("DIC_Challenge_Star_Noise_Def.tiff"))
+    return _data_path(
+        "dic", "challenge", "DIC_Challenge_Star_Noise_Def.tiff",
+    )
 
 
 def dic_chal_3d_cam0() -> Path:
@@ -680,8 +680,9 @@ def dic_chal_3d_cam0() -> Path:
     Path
         Path to the reference image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("Step01_00,00-sys1-0000_0.tif"))
+    return _data_path(
+        "dic", "stereo_challenge", "Step01_00,00-sys1-0000_0.tif",
+    )
 
 
 def dic_chal_3d_cam1() -> Path:
@@ -702,8 +703,9 @@ def dic_chal_3d_cam1() -> Path:
     Path
         Path to the deformed image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("Step01_00,00-sys1-0000_1.tif"))
+    return _data_path(
+        "dic", "stereo_challenge", "Step01_00,00-sys1-0000_1.tif",
+    )
 
 def cal_target() -> Path:
     """
@@ -714,15 +716,38 @@ def cal_target() -> Path:
     Path
         Path to the image (``.tiff``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("cal_target.tiff"))
+    return _data_path("calibration", "cal_target.tiff")
+
+
+def pxint2d_single_element_path(case_name: str) -> Path:
+    """Return a packaged PixInt2D single-element fixture directory.
+
+    Parameters
+    ----------
+    case_name : str
+        Fixture directory name, for example ``"plate42_cam32_quad9_affine"``.
+
+    Returns
+    -------
+    pathlib.Path
+        Directory containing coordinates, connectivity, and displacement CSVs.
+
+    Raises
+    ------
+    DataSetError
+        If the requested fixture is not packaged with pyvale.
+    """
+    path = _data_path("render", "pxint2d", "single_elem", case_name)
+    if not path.is_dir():
+        raise DataSetError(f"Unknown PixInt2D fixture: {case_name}.")
+    return path
 
 
 
 #TODO
 def valid_data_dir() -> Path:
-    return Path(str(files("pyvale.data.valid")))
+    return _data_path("valid")
 
 def valid_data_csvs() -> list[Path]:
-    data_dir = files("pyvale.data.valid")
+    data_dir = files("pyvale.data").joinpath("valid")
     return [Path(str(ff)) for ff in data_dir.glob("*.csv")]

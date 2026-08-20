@@ -8,7 +8,7 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.mooseherder as mooseherder
 import pyvale.render as render
 import pyvale.sensorsim as sensorsim

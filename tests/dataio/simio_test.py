@@ -9,7 +9,7 @@ import shutil
 import pytest
 import pyvale.mooseherder as mh
 import pyvale.dataio as io
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.verif.matchsimdata as verif
 
 TXT_GOLD_PATH: Path = Path(__file__).resolve().parent / "txt_gold"

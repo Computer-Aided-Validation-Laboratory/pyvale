@@ -11,9 +11,6 @@ interpolates planar nodal displacements onto an orthographic image grid and
 warps a reference greyscale image for each simulation frame.
 """
 
-# TODO
-# - Update deformation functions to use pyvista a
-
 import time
 import warnings
 from dataclasses import dataclass
@@ -155,16 +152,22 @@ class ImageDef2D(IImageWarp2D):
         """
         if source_image.ndim != 2:
             raise ValueError("source_image must be a two-dimensional image.")
+
         if coords.ndim != 2 or coords.shape[1] < 2:
             raise ValueError("coords must have at least two coordinate columns.")
+
         if connectivity.ndim != 2 or connectivity.size == 0:
             raise ValueError("connectivity must be a non-empty rank-2 array.")
+
         if np.any(connectivity < 0) or np.any(connectivity >= coords.shape[0]):
             raise ValueError("connectivity contains invalid node indices.")
+
         if displacements.ndim != 3 or displacements.shape[1:] != (coords.shape[0], 2):
             raise ValueError("displacements must have shape (frames, nodes, 2).")
+
         if source_image.shape != tuple(camera.pixels_count[::-1]):
             raise ValueError("source_image shape must match camera pixels_count.")
+
         return source_image, camera, coords, connectivity, displacements
 
     def _render(self, render_plan: object) -> ImageWarpResult:
@@ -181,11 +184,14 @@ class ImageDef2D(IImageWarp2D):
             Deformed images with frame and singleton-camera axes.
         """
         image, camera, coords, connectivity, displacements = render_plan
+
         upsampled, mask, _, disp_x, disp_y = self.preprocess(
             camera, image.copy(), coords, connectivity,
             displacements[:, :, 0].T, displacements[:, :, 1].T, self.options,
         )
+
         assert upsampled is not None and disp_x is not None and disp_y is not None
+
         images = []
         for frame_index in range(displacements.shape[0]):
             deformed, _, _, _, _ = self.deform_one_image(
@@ -194,6 +200,7 @@ class ImageDef2D(IImageWarp2D):
                 mask, print_on=False,
             )
             images.append(deformed)
+
         return ImageWarpResult(np.asarray(images)[:, None, :, :, None])
 
     @staticmethod

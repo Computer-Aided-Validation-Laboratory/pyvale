@@ -157,7 +157,7 @@ def _verify_cameras(cameras: tuple[Camera, ...]) -> tuple[ValidationIssue, ...]:
 
 
 def _camera_to_riley(camera: Camera) -> riley.Camera:
-    """Convert one common perspective camera to a native Riley camera."""
+    """Convert one common perspective camera to a Riley camera."""
     return riley.Camera(
         pixels_num=tuple(int(value) for value in camera.pixels_num),
         pixels_size=tuple(float(value) for value in camera.pixels_size),

@@ -7,6 +7,7 @@ Copyright (C) 2025 The Computer Aided Validation Team
 ================================================================================
 '''
 import time
+from importlib.resources import files
 from pathlib import Path
 from pyvale.mooseherder import (MooseConfig,
                          MooseRunner,
@@ -16,7 +17,7 @@ from pyvale.mooseherder import (MooseConfig,
 NUM_CASES = 23
 USER_DIR = Path.home()
 FORCE_GMSH = False
-CASES_DIR = Path('src/simcases/')
+CASES_DIR = Path(files("pyvale.data").joinpath("simulation", "simcases"))
 
 def run_one_case(case_str: str) -> None:
     print(80*'=')
@@ -24,7 +25,7 @@ def run_one_case(case_str: str) -> None:
     print(80*'=')
 
     case_files = (case_str+'.geo',case_str+'.i')
-    case_dir =  CASES_DIR / case_str
+    case_dir = CASES_DIR
 
     gmsh_run_time = 0.0
     if (case_dir / case_files[0]).is_file():
@@ -66,4 +67,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-

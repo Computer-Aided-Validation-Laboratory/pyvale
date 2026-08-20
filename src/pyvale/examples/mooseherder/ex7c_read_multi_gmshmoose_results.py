@@ -33,7 +33,7 @@ from pathlib import Path
 import numpy as np
 
 #pyvale imports
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 GmshRunner,

@@ -11,10 +11,10 @@ from .result import ImageWarpResult
 
 
 class IImageWarp2D(ABC):
-    """Abstract interface for validated planar image-warp renderers.
+    """Abstract interface for planar 2D image-warp renderers.
 
-    Implementations define their own request arguments, then perform cheap
-    validation in :meth:`verify_input` before image preparation or warping.
+    Implementations define their own request arguments, then perform input
+    verification in :meth:`verify_input` before image preparation or warping.
     """
 
     def render(self, *args: object, **kwargs: object) -> ImageWarpResult:

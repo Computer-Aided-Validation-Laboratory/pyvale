@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 
 #pyvale imports
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 from pyvale.mooseherder import GmshRunner
 
 #%%

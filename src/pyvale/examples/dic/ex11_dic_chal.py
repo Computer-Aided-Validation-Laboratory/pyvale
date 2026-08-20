@@ -27,7 +27,7 @@ from pathlib import Path
 import pyvale.dic as dic
 import pyvale.calib as calib
 import pyvale.strain as strain
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 # %% 
 # Import the calibration parameters:

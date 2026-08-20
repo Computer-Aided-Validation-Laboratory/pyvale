@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.blender as legacy_blender
 import pyvale.mooseherder as mooseherder
 import pyvale.render as render

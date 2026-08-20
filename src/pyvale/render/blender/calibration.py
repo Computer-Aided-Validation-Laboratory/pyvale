@@ -39,6 +39,8 @@ class BlenderCalibrationData:
     x_limit, y_limit : float or None, optional
         Optional lateral target-position limits retained for calibration scene
         generation.
+    max_images : int or None, optional
+        Maximum number of TIFF files to render. ``None`` renders every pose.
     """
 
     angle_lims: tuple[float, float] = (-10.0, 10.0)
@@ -47,6 +49,7 @@ class BlenderCalibrationData:
     plunge_step: float = 5.0
     x_limit: float | None = None
     y_limit: float | None = None
+    max_images: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,6 +138,8 @@ def render_calibration_images(
         raise TypeError("config must be a BlenderConfig.")
     if not isinstance(data, BlenderCalibrationData):
         raise TypeError("data must be a BlenderCalibrationData.")
+    if data.max_images is not None and data.max_images < 1:
+        raise ValueError("data.max_images must be positive when specified.")
     if target.size.shape != (3,) or np.any(target.size <= 0.0):
         raise ValueError("target.size must contain three positive dimensions.")
     if isinstance(cameras, CameraStereo):
@@ -178,6 +183,7 @@ def render_calibration_images(
         plunge_step=data.plunge_step,
         x_limit=data.x_limit,
         y_limit=data.y_limit,
+        max_images=data.max_images,
     )
     blender.Tools.render_calibration_images(render_data, legacy_data, target_object)
     paths = tuple(sorted((config.output_dir / "calimages").glob("*.tiff")))

@@ -412,7 +412,16 @@ class Tools:
 
                             if isinstance(render_data.cam_data, tuple):
                                 cam_count = 0
-                                for cam in [obj for obj in bpy.data.objects if obj.type == "CAMERA"]:
+                                cameras = [
+                                    obj for obj in bpy.data.objects
+                                    if obj.type == "CAMERA"
+                                ]
+                                for cam in cameras:
+                                    if (
+                                            calibration_data.max_images is not None
+                                            and render_counter >= calibration_data.max_images
+                                    ):
+                                        break
                                     bpy.context.scene.camera = cam
                                     cam_data_render = render_data.cam_data[cam_count]
                                     bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
@@ -421,7 +430,13 @@ class Tools:
                                     bpy.context.scene.render.filepath = str(save_dir / filename)
                                     bpy.ops.render.render(write_still=True)
                                     cam_count += 1
-                            render_counter += 1
+                                    render_counter += 1
+
+                            if (
+                                    calibration_data.max_images is not None
+                                    and render_counter >= calibration_data.max_images
+                            ):
+                                return render_counter
         print('Total number of calibration images = ' + str(render_counter))
         return render_counter
 
@@ -442,7 +457,5 @@ class Tools:
             if device.type in accepted_gpus:
                 return True
         return False
-
-
 
 
