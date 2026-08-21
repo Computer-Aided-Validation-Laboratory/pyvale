@@ -32,7 +32,7 @@ def _camera(pixels: tuple[int, int] = (20, 20)) -> render.Camera:
     )
 
 
-def _mesh(camera: render.Camera) -> render.Mesh:
+def _mesh(camera: render.Camera) -> render.Mesh3D:
     sim_data = mooseherder.ExodusLoader(
         dataset.mechanical_2d_path(),
     ).load_all_sim_data()
@@ -198,7 +198,7 @@ def test_blender_in_memory_texture(tmp_path: Path) -> None:
     """Legacy in-memory image textures are available through BlenderImageShader."""
     camera = _camera()
     source_mesh = _mesh(camera)
-    mesh = render.Mesh(
+    mesh = render.Mesh3D(
         source_mesh.element_type, source_mesh.coords, source_mesh.connectivity,
         render.BlenderImageShader(np.indices((64, 64)).sum(axis=0) % 255, 0.1),
         source_mesh.displacements,
@@ -349,7 +349,7 @@ def test_unified_deformation_matches_legacy_scene(tmp_path: Path) -> None:
     ))
     legacy_dir = tmp_path / "legacy"
     legacy_dir.mkdir()
-    centred_mesh = render.Mesh(
+    centred_mesh = render.Mesh3D(
         mesh.element_type, centre_mesh_nodes(mesh.coords.copy(), 3),
         mesh.connectivity, mesh.shader, mesh.displacements,
     )

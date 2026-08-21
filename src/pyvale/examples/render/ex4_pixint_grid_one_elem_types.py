@@ -29,7 +29,11 @@ def make_mesh(element_type: render.EElementType) -> render.Mesh2D:
                                     (-20, 0), (0, 0)),
     }[element_type]
     coords = np.asarray(nodes, dtype=np.float64)
-    return render.Mesh2D(element_type, coords, np.arange(len(coords))[None, :])
+    return render.Mesh2D(
+        element_type,
+        coords,
+        np.arange(len(coords))[None, :],
+    )
 
 
 camera = render.Camera2D(
@@ -46,9 +50,6 @@ output_dir = Path.cwd() / "pyvale-output" / "render-pixint-grid-one-element"
 output_dir.mkdir(parents=True, exist_ok=True)
 for element_type in render.EElementType:
     mesh = make_mesh(element_type)
-    displacements = render.DisplacementSeries2D(
-        np.zeros((1, mesh.coords.shape[0], 2)),
-    )
-    image = renderer.render(mesh, camera, displacements).images[0, 0, :, :, 0]
+    image = renderer.render(mesh, camera).images[0, 0, :, :, 0]
     np.save(output_dir / f"{element_type.value}.npy", image)
     print(element_type.value, image.shape, image.min(), image.max())

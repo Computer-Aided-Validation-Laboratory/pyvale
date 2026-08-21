@@ -12,11 +12,11 @@ import numpy as np
 from .camera import Camera
 from .errors import RenderInputError, ValidationIssue
 from .light import Light
-from .mesh import Mesh
+from .mesh import Mesh3D
 
 
 def verify_scene_3d(
-    meshes: Sequence[Mesh],
+    meshes: Sequence[Mesh3D],
     cameras: Sequence[Camera],
     lights: Sequence[Light] | None,
 ) -> tuple[ValidationIssue, ...]:
@@ -24,7 +24,7 @@ def verify_scene_3d(
 
     Parameters
     ----------
-    meshes : Sequence[Mesh]
+    meshes : Sequence[Mesh3D]
         Surface meshes in the requested scene.
     cameras : Sequence[Camera]
         Cameras in the requested scene.

@@ -8,7 +8,7 @@ from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.enums import EDim
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
 
-from ..mesh import EElementType, Mesh
+from ..mesh import EElementType, Mesh3D
 
 
 def mesh_from_simdata(
@@ -16,7 +16,7 @@ def mesh_from_simdata(
     shader: object,
     displacement_keys: Sequence[str] | None = None,
     spatial_dimension: EDim = EDim.TWOD,
-) -> Mesh:
+) -> Mesh3D:
     """Recreate legacy Blender surface extraction and deformation ordering."""
     keys = tuple(displacement_keys or ())
     surface = simdata_to_pyvista_interp(sim_data, keys or None, spatial_dimension)
@@ -33,7 +33,7 @@ def mesh_from_simdata(
     element_types = {3: EElementType.TRI3, 4: EElementType.QUAD4,
                      6: EElementType.TRI6, 8: EElementType.QUAD8,
                      9: EElementType.QUAD9}
-    return Mesh(
+    return Mesh3D(
         element_types[nodes_per_face], np.asarray(surface.points), connectivity,
         shader, displacements,
     )

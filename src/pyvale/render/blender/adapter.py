@@ -12,7 +12,7 @@ from pyvale.sensorsim.simtools import centre_mesh_nodes
 from ..camera import Camera
 from ..errors import ValidationIssue
 from ..light import ELightType, Light
-from ..mesh import Mesh
+from ..mesh import Mesh3D
 from ..renderer3d import IRenderer3D
 from ..result import RenderResult
 from ..scene import RenderScene
@@ -35,7 +35,9 @@ class Blender(IRenderer3D):
         """Validate a complete Blender request before scene construction."""
         if not isinstance(scene, RenderScene):
             raise TypeError("Blender requires a RenderScene.")
-        meshes = tuple(mesh for mesh in scene.meshes if isinstance(mesh, Mesh))
+        meshes = tuple(
+            mesh for mesh in scene.meshes if isinstance(mesh, Mesh3D)
+        )
         issues = list(verify_scene_3d(meshes, scene.cameras, scene.lights))
         if not isinstance(self.config, BlenderConfig):
             issues.append(ValidationIssue("config", "TYPE", "Expected BlenderConfig."))
@@ -64,7 +66,7 @@ class Blender(IRenderer3D):
                 "Blender currently supports at most two cameras.",
             ))
         if sum(
-            isinstance(mesh, Mesh) and mesh.displacements is not None
+            isinstance(mesh, Mesh3D) and mesh.displacements is not None
             for mesh in scene.meshes
         ) > 1:
             issues.append(ValidationIssue(
@@ -81,10 +83,10 @@ class Blender(IRenderer3D):
         if reason is not None:
             issues.append(ValidationIssue("blender", "UNAVAILABLE", reason))
         for mesh_index, mesh in enumerate(scene.meshes):
-            if not isinstance(mesh, Mesh):
+            if not isinstance(mesh, Mesh3D):
                 issues.append(ValidationIssue(
                     f"scene.meshes[{mesh_index}]", "TYPE",
-                    "Blender requires common render.Mesh objects.",
+                    "Blender requires common render.Mesh3D objects.",
                 ))
         raise_if_issues(tuple(issues))
 
@@ -149,7 +151,7 @@ class Blender(IRenderer3D):
                 return RenderResult(None, _image_paths(self.config.output_dir))
             return RenderResult(_normalise_images(np.asarray(image)))
         part = parts[render_scene.meshes.index(deformable)]
-        deformation_mesh = Mesh(
+        deformation_mesh = Mesh3D(
             deformable.element_type,
             centre_mesh_nodes(deformable.coords.copy(), 3),
             deformable.connectivity,

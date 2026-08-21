@@ -7,26 +7,25 @@
 
 import numpy as np
 
-from ..mesh2d import DisplacementSeries2D, Mesh2D
+from ..mesh import Mesh2D
 from .elements import in_natural_domain, shape_functions
 from .model import EPxIntMapping
 
 
 def map_points(
     mesh: Mesh2D,
-    displacements: DisplacementSeries2D,
     frame: int,
     query_x: np.ndarray,
     query_y: np.ndarray,
     mode: EPxIntMapping,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Map target-world points to reference coordinates for one frame."""
-    if frame < 0 or frame >= displacements.values.shape[0]:
+    if frame < 0 or frame >= mesh.displacement.shape[0]:
         raise IndexError("frame is outside the displacement series.")
 
     x_coord = np.asarray(query_x, dtype=np.float64).ravel()
     y_coord = np.asarray(query_y, dtype=np.float64).ravel()
-    deformed = mesh.coords + displacements.values[frame]
+    deformed = mesh.coords + mesh.displacement[frame]
 
     if mode is EPxIntMapping.AFFINE:
         return _affine(mesh, deformed, x_coord, y_coord)

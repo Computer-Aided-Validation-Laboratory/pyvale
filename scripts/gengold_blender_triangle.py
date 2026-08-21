@@ -10,7 +10,7 @@ import pyvale.render as render
 
 def render_triangle(output_dir: Path) -> np.ndarray:
     """Render the deterministic common-API Blender triangle scene."""
-    mesh = render.Mesh(
+    mesh = render.Mesh3D(
         render.EElementType.TRI3,
         np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0),
                   (0.0, 1.0, 0.0))),
@@ -29,7 +29,8 @@ def render_triangle(output_dir: Path) -> np.ndarray:
 
 def main() -> None:
     """Write the trusted Blender regression image."""
-    path = Path(__file__).parent / "gold_blender/triangle.npy"
+    repository_root = Path(__file__).resolve().parents[1]
+    path = repository_root / "tests" / "render" / "gold_blender" / "triangle.npy"
     path.parent.mkdir(parents=True, exist_ok=True)
     np.save(path, render_triangle(path.parent / "output"))
 

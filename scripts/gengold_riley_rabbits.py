@@ -58,7 +58,8 @@ def main() -> None:
     assert result.images is not None
     digest = hashlib.sha256(result.images.tobytes()).hexdigest()
     if arguments.write:
-        path = Path(__file__).parent / "gold_riley/rabbits.npy"
+        repository_root = Path(__file__).resolve().parents[1]
+        path = repository_root / "tests" / "render" / "gold_riley" / "rabbits.npy"
         np.save(path, result.images)
         print(path)
     else:

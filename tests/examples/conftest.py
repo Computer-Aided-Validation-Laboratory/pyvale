@@ -24,6 +24,52 @@ SOURCE_ROOT = PROJECT_ROOT / "src"
 EXAMPLES_ROOT = SOURCE_ROOT / "pyvale" / "examples"
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register filtering for one documented example sub-module."""
+    parser.addoption(
+        "--example-module",
+        metavar="MODULE",
+        help="Run example tests whose script is in this sub-module.",
+    )
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config,
+    items: list[pytest.Item],
+) -> None:
+    """Limit example smoke tests to the requested example sub-module."""
+    requested_module = config.getoption("example_module")
+    if requested_module is None:
+        return
+
+    module = requested_module.strip("/")
+    requested_prefix = f"{module}/"
+    selected: list[pytest.Item] = []
+    deselected: list[pytest.Item] = []
+
+    for item in items:
+        callspec = getattr(item, "callspec", None)
+        relative_path = (
+            callspec.params.get("example") if callspec is not None else None
+        )
+        module_marker = item.get_closest_marker("example_module")
+        marker_module = (
+            module_marker.args[0] if module_marker is not None else None
+        )
+
+        if (
+            isinstance(relative_path, str)
+            and relative_path.startswith(requested_prefix)
+        ) or marker_module == module:
+            selected.append(item)
+        else:
+            deselected.append(item)
+
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
+
+
 @pytest.fixture
 def run_example() -> Generator[Callable[..., Path], None, None]:
     """Run an example script in an isolated working directory.

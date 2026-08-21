@@ -13,7 +13,7 @@ import dataclasses
 import numpy as np
 
 from pyvale.dataio.simdata import SimData
-from pyvale.render.mesh import Mesh
+from pyvale.render.mesh import Mesh3D
 from pyvale.sensorsim.exceptions import Collapse2Dto3DError
 
 
@@ -147,8 +147,10 @@ def centre_mesh_nodes(nodes: np.ndarray, spat_dim: int) -> np.ndarray:
     return centred
 
 
-def get_deformed_nodes(timestep: int,
-                        render_mesh: Mesh) -> np.ndarray | None:
+def get_deformed_nodes(
+    timestep: int,
+    render_mesh: Mesh3D,
+) -> np.ndarray | None:
     """A method to obtain the deformed locations of all the nodes at a given
         timestep.
 
@@ -156,7 +158,7 @@ def get_deformed_nodes(timestep: int,
     ----------
     timestep : int
         The timestep at which to find the deformed nodes.
-    render_mesh: render.Mesh
+    render_mesh: render.Mesh3D
         A common render mesh with optional frame-major displacements.
 
     Returns
@@ -291,4 +293,3 @@ def is_sim_2D(coords_3d: np.ndarray) -> bool:
         return True
 
     return False
-

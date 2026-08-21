@@ -27,6 +27,7 @@ _DIC_EXAMPLES = (
 
 
 @pytest.mark.example
+@pytest.mark.example_module("dic")
 def test_plate_with_hole_examples(run_example: Callable[..., Path]) -> None:
     """The strain example runs against DIC output from the preceding example."""
     work_dir = run_example(
@@ -58,6 +59,7 @@ def test_dic_example(
 
 @pytest.mark.example
 @pytest.mark.blender
+@pytest.mark.example_module("dic")
 @pytest.mark.skipif(
     not render.blender_available(),
     reason="The optional Blender renderer backend is unavailable.",

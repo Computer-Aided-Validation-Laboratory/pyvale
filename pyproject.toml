@@ -90,6 +90,7 @@ filterwarnings = [
 ]
 markers = [
     "example: smoke test for a documented gallery example",
+    "example_module(name): documented example sub-module for filtering",
     "example_slow: longer-running documented gallery example",
     "blender: requires the optional Blender renderer backend",
 ]

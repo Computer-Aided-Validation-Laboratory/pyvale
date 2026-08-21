@@ -10,7 +10,7 @@ import bpy
 # Pyvale
 import pyvale.sensorsim.simtools as simtools
 from pyvale.sensorsim.camerastereo import CameraStereo
-from pyvale.render import Camera, Mesh
+from pyvale.render import Camera, Mesh3D
 
 from pyvale.blender.blenderexceptions import BlenderError
 from pyvale.blender.blendertools import Tools
@@ -148,9 +148,9 @@ class Scene():
         return light_ob
 
     def add_part(self,
-                 render_mesh: Mesh,
+                 render_mesh: Mesh3D,
                  sim_spat_dim: int) -> bpy.data.objects:
-        """A method to add a part mesh into Blender from a render.Mesh object.
+        """Add a part mesh to Blender from a ``render.Mesh3D`` object.
         This is done by taking the mesh information from the common mesh
         object and converting it into a form that is accepted by Blender. It
         should be noted that the object is placed at the origin and centred
@@ -158,7 +158,7 @@ class Scene():
 
         Parameters
         ----------
-        render_mesh: render.Mesh
+        render_mesh: render.Mesh3D
             A dataclass containing the mesh information of the skinned
             simulation mesh.
         sim_spat_dim: int
@@ -254,7 +254,7 @@ class Scene():
         Tools.uv_unwrap_part(part, mm_px_resolution, cal)
 
     def _debug_deform(self,
-                      render_mesh: Mesh,
+                      render_mesh: Mesh3D,
                      sim_spat_dim:int,
                      part: bpy.data.objects) -> None:
         """A method to deform the Blender mesh object using the simulation results.
@@ -366,7 +366,7 @@ class Scene():
                 bpy.ops.render.render(write_still=True)
 
     def render_deformed_images(self,
-                               render_mesh: Mesh,
+                               render_mesh: Mesh3D,
                                sim_spat_dim: int,
                                render_data: RenderData,
                                part: bpy.data.objects,
@@ -376,7 +376,7 @@ class Scene():
 
         Parameters
         ----------
-        render_mesh : render.Mesh
+        render_mesh : render.Mesh3D
             A dataclass containing the skimmed mesh and simulation information
             needed to deform the sample.
         sim_spat_dim: int
@@ -468,9 +468,6 @@ class Scene():
             # TODO: Potentially change the way images are stacked for stereo systems
             # Change it so it suits Joel's code
             return image_arrays
-
-
-
 
 
 

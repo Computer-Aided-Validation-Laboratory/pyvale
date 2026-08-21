@@ -105,15 +105,15 @@ def make_mesh_multi(element_type: render.EElementType) -> render.Mesh2D:
     )
 
 
-def affine_displacements(mesh: render.Mesh2D) -> render.DisplacementSeries2D:
+def affine_displacements(mesh: render.Mesh2D) -> np.ndarray:
     """Create a zero and globally affine displacement frame."""
     x_coord, y_coord = mesh.coords[:, 0], mesh.coords[:, 1]
     affine = np.column_stack((0.03*x_coord + 0.01*y_coord + 0.2,
                               -0.02*x_coord + 0.04*y_coord - 0.1))
-    return render.DisplacementSeries2D(np.stack((np.zeros_like(affine), affine)))
+    return np.stack((np.zeros_like(affine), affine))
 
 
-def rcc_rigid_displacements(mesh: render.Mesh2D) -> render.DisplacementSeries2D:
+def rcc_rigid_displacements(mesh: render.Mesh2D) -> np.ndarray:
     """Apply the frame-three rigid displacement from the copied RCC fixture."""
     directory = dataset.pxint2d_single_element_path(
         "plate42_cam32_quad9_rigid",
@@ -123,10 +123,10 @@ def rcc_rigid_displacements(mesh: render.Mesh2D) -> render.DisplacementSeries2D:
     translation = np.array((displacement_x[0, 3], displacement_y[0, 3]))
     frame_zero = np.zeros((mesh.coords.shape[0], 2))
     frame_three = np.broadcast_to(translation, frame_zero.shape).copy()
-    return render.DisplacementSeries2D(np.stack((frame_zero, frame_three)))
+    return np.stack((frame_zero, frame_three))
 
 
-def rcc_affine_displacements(mesh: render.Mesh2D) -> render.DisplacementSeries2D:
+def rcc_affine_displacements(mesh: render.Mesh2D) -> np.ndarray:
     """Apply the copied RCC frame-three globally affine displacement field."""
     directory = dataset.pxint2d_single_element_path(
         "plate42_cam32_quad9_affine",
@@ -140,9 +140,7 @@ def rcc_affine_displacements(mesh: render.Mesh2D) -> render.DisplacementSeries2D
     )
     displacement = np.column_stack((mesh.coords, np.ones(len(mesh.coords))))
     displacement = displacement @ coefficients
-    return render.DisplacementSeries2D(
-        np.stack((np.zeros_like(displacement), displacement)),
-    )
+    return np.stack((np.zeros_like(displacement), displacement))
 
 
 def make_speckles(kind: str) -> render.AdditiveSpeckles:
@@ -181,15 +179,16 @@ def test_newton_maps_match_affine_for_every_element(
 ) -> None:
     """Both Newton maps reproduce globally affine renders for all topologies."""
     mesh = make_mesh(element_type)
+    mesh.displacement = affine_displacements(mesh)
     camera = make_camera()
-    displacements = affine_displacements(mesh)
     quad_mesh = make_mesh(render.EElementType.QUAD9)
+    quad_mesh.displacement = affine_displacements(quad_mesh)
     baseline = render.PixIntGrid2D(
         options=render.PxInt2DOpts(
             mapping=render.EPxIntMapping.AFFINE,
             integration=render.RectRule(samples),
         ),
-    ).render(quad_mesh, camera, affine_displacements(quad_mesh)).images
+    ).render(quad_mesh, camera).images
     for mode in (render.EPxIntMapping.NEWTON_ONE_ELEM,
                  render.EPxIntMapping.NEWTON_MESH_UNSTRUCT,
                  render.EPxIntMapping.NEWTON_MESH_STRUCT,
@@ -198,7 +197,7 @@ def test_newton_maps_match_affine_for_every_element(
             options=render.PxInt2DOpts(
                 mapping=mode, integration=render.RectRule(samples),
             ),
-        ).render(mesh, camera, displacements).images
+        ).render(mesh, camera).images
         assert_render_allclose(
             actual, baseline, f"grid_{element_type.value}_{samples}_{mode}",
         )
@@ -215,7 +214,12 @@ def test_rcc_quad9_subpixel_gold(samples: int) -> None:
     displacement_x = np.loadtxt(directory / "field_disp_x.csv", delimiter=",")
     displacement_y = np.loadtxt(directory / "field_disp_y.csv", delimiter=",")
     values = np.stack((displacement_x, displacement_y), axis=2).transpose(1, 0, 2)
-    mesh = render.Mesh2D(render.EElementType.QUAD9, coords, connect[None, :])
+    mesh = render.Mesh2D(
+        render.EElementType.QUAD9,
+        coords,
+        connect[None, :],
+        values,
+    )
     camera = render.Camera2D(
         pixels_count=np.array((32, 32)), leng_per_px=1.0,
         roi_cent_world=np.zeros(3), subsample=1,
@@ -225,7 +229,7 @@ def test_rcc_quad9_subpixel_gold(samples: int) -> None:
             mapping=render.EPxIntMapping.AFFINE,
             integration=render.RectRule(samples),
         ),
-    ).render(mesh, camera, render.DisplacementSeries2D(values)).images[3, 0, :, :, 0]
+    ).render(mesh, camera).images[3, 0, :, :, 0]
     expected = np.load(GOLD / f"affine_grid_rect{samples}.npy")
     assert_render_allclose(actual, expected, f"quad9_affine_grid_{samples}")
 
@@ -245,12 +249,13 @@ def test_grid_element_types_match_affine_gold(
 ) -> None:
     """Single and multi-element Newton renders match the affine gold image."""
     mesh = mesh_factory(element_type)
+    mesh.displacement = rcc_affine_displacements(mesh)
     actual = render.PixIntGrid2D(
         options=render.PxInt2DOpts(
             mapping=mapping,
             integration=render.RectRule(samples),
         ),
-    ).render(mesh, make_camera(), rcc_affine_displacements(mesh)).images[1, 0, :, :, 0]
+    ).render(mesh, make_camera()).images[1, 0, :, :, 0]
     expected = np.load(GOLD / f"affine_grid_rect{samples}.npy")
     assert_render_allclose(
         actual, expected,
@@ -275,13 +280,14 @@ def test_speck_element_types_match_affine_gold(
 ) -> None:
     """Single and multi-element Newton renders match affine Speck2D gold."""
     mesh = mesh_factory(element_type)
+    mesh.displacement = rcc_affine_displacements(mesh)
     actual = render.PixIntSpeck2D(
         make_speckles(kind),
         options=render.PxInt2DOpts(
             mapping=mapping,
             integration=render.RectRule(samples),
         ),
-    ).render(mesh, make_camera(), rcc_affine_displacements(mesh)).images[1, 0, :, :, 0]
+    ).render(mesh, make_camera()).images[1, 0, :, :, 0]
     expected = np.load(GOLD / f"affine_speck_{kind}_rect{samples}.npy")
     assert_render_allclose(
         actual, expected,
@@ -299,7 +305,12 @@ def test_copied_rcc_analytic_gold_is_preserved() -> None:
     displacement_x = np.loadtxt(directory / "field_disp_x.csv", delimiter=",")
     displacement_y = np.loadtxt(directory / "field_disp_y.csv", delimiter=",")
     values = np.stack((displacement_x, displacement_y), axis=2).transpose(1, 0, 2)
-    mesh = render.Mesh2D(render.EElementType.QUAD9, coords, connect[None, :])
+    mesh = render.Mesh2D(
+        render.EElementType.QUAD9,
+        coords,
+        connect[None, :],
+        values,
+    )
     camera = render.Camera2D(
         pixels_count=np.array((32, 32)), leng_per_px=1.0,
         roi_cent_world=np.zeros(3), subsample=1,
@@ -309,7 +320,7 @@ def test_copied_rcc_analytic_gold_is_preserved() -> None:
             mapping=render.EPxIntMapping.AFFINE,
             integration=render.AnalyticRule(),
         ),
-    ).render(mesh, camera, render.DisplacementSeries2D(values)).images[0, 0, :, :, 0]
+    ).render(mesh, camera).images[0, 0, :, :, 0]
     expected = np.load(GOLD / "rcc_reference/grid2d_eggbox/rigid_f00.npy")
     assert_render_allclose(actual, expected, "quad9_rcc_analytic")
 
@@ -324,7 +335,15 @@ def test_speck_renderer_uses_the_shared_newton_map() -> None:
     )
     result = render.PixIntSpeck2D(
         pattern, render.PxInt2DOpts(integration=render.RectRule(2)),
-    ).render(mesh, make_camera(), affine_displacements(mesh))
+    ).render(
+        render.Mesh2D(
+            mesh.element_type,
+            mesh.coords,
+            mesh.connectivity,
+            affine_displacements(mesh),
+        ),
+        make_camera(),
+    )
     assert result.images.shape == (2, 1, 32, 32, 1)
     assert result.masks is not None and result.masks.shape == result.images.shape
 
@@ -338,4 +357,4 @@ def test_newton_one_element_rejects_a_multi_element_request() -> None:
             options=render.PxInt2DOpts(
                 mapping=render.EPxIntMapping.NEWTON_ONE_ELEM,
             ),
-        ).render(mesh, make_camera(), affine_displacements(mesh))
+        ).render(mesh, make_camera())

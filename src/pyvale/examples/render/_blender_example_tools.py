@@ -14,7 +14,7 @@ import pyvale.render as render
 import pyvale.sensorsim as sensorsim
 
 
-def build_scene() -> tuple[render.Mesh, render.Camera, list[render.Light]]:
+def build_scene() -> tuple[render.Mesh3D, render.Camera, list[render.Light]]:
     """Build the small textured plate scene used in Blender examples."""
     sim_data = mooseherder.ExodusLoader(
         dataset.mechanical_2d_path(),

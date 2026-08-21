@@ -12,7 +12,7 @@ from scipy.ndimage import gaussian_filter
 
 from ..camera import Camera2D
 from ..imagewarp2d import IImageWarp2D
-from ..mesh2d import DisplacementSeries2D, Mesh2D
+from ..mesh import Mesh2D
 from ..result import ImageWarpResult
 from .grid import _pixel_geometry
 from .mapping import map_points
@@ -120,7 +120,6 @@ class _SpeckPlan:
 
     mesh: Mesh2D
     camera: Camera2D
-    displacements: DisplacementSeries2D
 
 
 class PixIntSpeck2D(IImageWarp2D):
@@ -139,15 +138,14 @@ class PixIntSpeck2D(IImageWarp2D):
         self,
         mesh: Mesh2D,
         camera: Camera2D,
-        displacements: DisplacementSeries2D,
     ) -> _SpeckPlan:
         """Validate a Speck2D request before expensive point evaluation."""
-        if displacements.values.shape[1] != mesh.coords.shape[0]:
-            raise ValueError("displacement nodes must match mesh nodes.")
-
         if not np.isfinite(mesh.coords).all() or not np.isfinite(
-                displacements.values).all():
-            raise ValueError("mesh coordinates and displacements must be finite.")
+            mesh.displacement,
+        ).all():
+            raise ValueError(
+                "mesh coordinates and displacements must be finite.",
+            )
 
         if self.pattern.centres.ndim != 2 or self.pattern.centres.shape[1] != 2:
             raise ValueError("speckle centres must have shape (count, 2).")
@@ -161,7 +159,7 @@ class PixIntSpeck2D(IImageWarp2D):
 
         if isinstance(self.options.integration, AnalyticRule):
             raise ValueError("analytic Speck2D integration is not yet available.")
-        return _SpeckPlan(mesh, camera, displacements)
+        return _SpeckPlan(mesh, camera)
 
     def _render(self, render_plan: object) -> ImageWarpResult:
         """Render every displacement frame in a validated Speck2D request."""
@@ -170,7 +168,7 @@ class PixIntSpeck2D(IImageWarp2D):
         images: list[np.ndarray] = []
         masks: list[np.ndarray] = []
 
-        for frame in range(render_plan.displacements.values.shape[0]):
+        for frame in range(render_plan.mesh.displacement.shape[0]):
             image, mask = self._render_frame(render_plan, frame)
             images.append(image)
             masks.append(mask)
@@ -192,7 +190,10 @@ class PixIntSpeck2D(IImageWarp2D):
         query_x = (x_origin[:, None] + pixel_x * quad_x).ravel()
         query_y = (y_origin[:, None] + pixel_y * quad_y).ravel()
         reference_x, reference_y, valid = map_points(
-            plan.mesh, plan.displacements, frame, query_x, query_y,
+            plan.mesh,
+            frame,
+            query_x,
+            query_y,
             self.options.mapping,
         )
         coverage = self.pattern.coverage(reference_x, reference_y)

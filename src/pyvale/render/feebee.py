@@ -18,7 +18,7 @@ import numpy as np
 
 from .capabilities import RenderCapabilities
 from .errors import RenderInputError, ValidationIssue
-from .mesh import EElementType, Mesh
+from .mesh import EElementType, Mesh3D
 from .renderer3d import IRenderer3D
 from .result import RenderResult
 from .scene import RenderScene
@@ -243,7 +243,9 @@ class Feebee(IRenderer3D):
         if not isinstance(scene, RenderScene):
             raise TypeError("Feebee requires a RenderScene.")
 
-        meshes = tuple(mesh for mesh in scene.meshes if isinstance(mesh, Mesh))
+        meshes = tuple(
+            mesh for mesh in scene.meshes if isinstance(mesh, Mesh3D)
+        )
         issues = list(verify_scene_3d(meshes, scene.cameras, scene.lights))
         if isinstance(self.config, FeebeeConfig):
             issues.extend(_verify_config(self.config))
@@ -263,10 +265,10 @@ class Feebee(IRenderer3D):
 
         frame_count: int | None = None
         for mesh_index, mesh in enumerate(scene.meshes):
-            if not isinstance(mesh, Mesh):
+            if not isinstance(mesh, Mesh3D):
                 issues.append(ValidationIssue(
                     f"scene.meshes[{mesh_index}]", "TYPE",
-                    "Feebee requires common render.Mesh objects.",
+                    "Feebee requires common render.Mesh3D objects.",
                 ))
                 continue
             path = f"meshes[{mesh_index}]"
@@ -389,7 +391,7 @@ def _verify_depths(
     return tuple(issues)
 
 
-def _verify_mesh(mesh: Mesh, path: str) -> tuple[ValidationIssue, ...]:
+def _verify_mesh(mesh: Mesh3D, path: str) -> tuple[ValidationIssue, ...]:
     """Return Feebee-specific validation issues for one mesh."""
     issues: list[ValidationIssue] = []
     nodes_per_element = {
@@ -555,7 +557,7 @@ def _is_positive_finite(value: float | int | np.number) -> bool:
         return False
 
 
-def _mesh_frame_count(mesh: Mesh) -> int | None:
+def _mesh_frame_count(mesh: Mesh3D) -> int | None:
     """Return the animation frame count represented by one valid mesh."""
     if mesh.displacements is not None:
         return mesh.displacements.shape[0]

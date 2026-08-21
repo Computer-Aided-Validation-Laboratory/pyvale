@@ -11,13 +11,14 @@ import riley
 
 from .camera import Camera
 from .light import Light
-from .mesh import Mesh
+from .mesh import Mesh3D
 
 
-RenderMesh = Mesh | riley.Mesh
+RenderMesh = Mesh3D | riley.Mesh
 """A mesh accepted by a render scene.
 
-``render.Mesh`` is the common mesh used by Blender and future common backends.
+``render.Mesh3D`` is the common mesh used by Blender and future common
+backends.
 ``riley.Mesh`` is accepted so Riley can expose its complete native shader model
 without a pyvale wrapper.
 """
@@ -30,7 +31,8 @@ class RenderScene:
     Parameters
     ----------
     meshes : tuple[RenderMesh, ...]
-        Backend-compatible meshes. Blender requires common :class:`Mesh` data;
+        Backend-compatible meshes. Blender requires common :class:`Mesh3D`
+        data;
         Riley requires native :class:`riley.Mesh` data.
     cameras : tuple[Camera, ...]
         One or more common perspective cameras.

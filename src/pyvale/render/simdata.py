@@ -12,7 +12,7 @@ import numpy as np
 from pyvale.dataio.meshtools import enforce_mesh_convention, extract_surf_mesh
 from pyvale.dataio.simdata import SimData
 
-from .mesh import EElementType, Mesh
+from .mesh import EElementType, Mesh3D
 
 
 def mesh_from_simdata(
@@ -20,8 +20,8 @@ def mesh_from_simdata(
     shader: object,
     displacement_keys: Sequence[str] | None = None,
     extract_surface: bool = False,
-) -> Mesh:
-    """Build one :class:`Mesh` from convention-normalised simulation data.
+) -> Mesh3D:
+    """Build one :class:`Mesh3D` from convention-normalised simulation data.
 
     Parameters
     ----------
@@ -38,7 +38,7 @@ def mesh_from_simdata(
 
     Returns
     -------
-    Mesh
+    Mesh3D
         Renderer-independent surface mesh data.
 
     Raises
@@ -49,7 +49,7 @@ def mesh_from_simdata(
 
     Notes
     -----
-    A :class:`Mesh` has one topology. Split simulations with several
+    A :class:`Mesh3D` has one topology. Split simulations with several
     connectivity tables into separate render meshes before conversion.
     """
     prepared = enforce_mesh_convention(sim_data)
@@ -62,7 +62,7 @@ def mesh_from_simdata(
     connectivity = next(iter(prepared.connect.values()))
     element_type = _element_type_from_nodes(connectivity.shape[1])
     displacements = _displacements_from_simdata(prepared, displacement_keys)
-    return Mesh(
+    return Mesh3D(
         element_type=element_type,
         coords=np.ascontiguousarray(prepared.coords[:, :3], dtype=np.float64),
         connectivity=np.ascontiguousarray(connectivity, dtype=np.uintp),

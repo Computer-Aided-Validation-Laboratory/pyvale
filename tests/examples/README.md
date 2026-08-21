@@ -11,6 +11,18 @@ Run all documented example tests with:
 python -m pytest tests/examples
 ```
 
+Run the examples belonging to one sub-module, such as render, with:
+
+```bash
+python -m pytest tests/examples --example-module=render
+```
+
+Run the render unit tests and only render examples together with:
+
+```bash
+python -m pytest tests/render tests/examples --example-module=render
+```
+
 The Blender examples are included but skip automatically when its optional
 backend is unavailable. Tests marked `example_slow` remain part of the normal
 test set and can be selected with `-m example_slow` when needed.

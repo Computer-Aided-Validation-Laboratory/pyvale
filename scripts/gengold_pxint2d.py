@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GOLD = ROOT / "tests/render/gold_pxint2d"
 
 
-def load_quad9_affine() -> tuple[render.Mesh2D, render.DisplacementSeries2D]:
+def load_quad9_affine() -> render.Mesh2D:
     """Load the copied RCC 32-pixel Quad9 affine fixture."""
     directory = dataset.pxint2d_single_element_path(
         "plate42_cam32_quad9_affine",
@@ -33,15 +33,17 @@ def load_quad9_affine() -> tuple[render.Mesh2D, render.DisplacementSeries2D]:
     displacement_x = np.loadtxt(directory / "field_disp_x.csv", delimiter=",")
     displacement_y = np.loadtxt(directory / "field_disp_y.csv", delimiter=",")
     values = np.stack((displacement_x, displacement_y), axis=2).transpose(1, 0, 2)
-    return (
-        render.Mesh2D(render.EElementType.QUAD9, coords, connect[None, :]),
-        render.DisplacementSeries2D(values),
+    return render.Mesh2D(
+        render.EElementType.QUAD9,
+        coords,
+        connect[None, :],
+        values,
     )
 
 
 def render_images() -> dict[str, np.ndarray]:
     """Render deterministic 32-pixel Grid2D and Speck2D references."""
-    mesh, displacements = load_quad9_affine()
+    mesh = load_quad9_affine()
     camera = render.Camera2D(
         pixels_count=np.array((32, 32)), leng_per_px=1.0,
         roi_cent_world=np.zeros(3), subsample=1,
@@ -54,7 +56,7 @@ def render_images() -> dict[str, np.ndarray]:
                 integration=render.RectRule(samples),
             ),
         )
-        grid_result = grid.render(mesh, camera, displacements)
+        grid_result = grid.render(mesh, camera)
         images[f"affine_grid_rect{samples}.npy"] = grid_result.images[3, 0, :, :, 0]
 
         for kind, jitter_pdf, jitter, edge_fraction in (
@@ -74,7 +76,7 @@ def render_images() -> dict[str, np.ndarray]:
                     integration=render.RectRule(samples),
                 ),
             )
-            speck_result = speck.render(mesh, camera, displacements)
+            speck_result = speck.render(mesh, camera)
             images[f"affine_speck_{kind}_rect{samples}.npy"] = (
                 speck_result.images[3, 0, :, :, 0]
             )

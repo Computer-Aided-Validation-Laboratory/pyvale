@@ -20,9 +20,9 @@ def make_camera() -> render.Camera:
     )
 
 
-def make_mesh(shader: object) -> render.Mesh:
+def make_mesh(shader: object) -> render.Mesh3D:
     """Create a valid front-facing triangle mesh."""
-    return render.Mesh(
+    return render.Mesh3D(
         render.EElementType.TRI3,
         np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))),
         np.array(((0, 1, 2))), shader,

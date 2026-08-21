@@ -18,7 +18,10 @@ coords = np.array((
     (0.0, -16.0), (16.0, 0.0), (0.0, 16.0), (-16.0, 0.0), (0.0, 0.0),
 ))
 mesh = render.Mesh2D(
-    render.EElementType.QUAD9, coords, np.arange(9)[None, :],
+    render.EElementType.QUAD9,
+    coords,
+    np.arange(9)[None, :],
+    np.zeros((1, 9, 2)),
 )
 pattern = render.AdditiveSpeckles.jittered_lattice(
     kind="disk", speckle_diameter=2.0, black_area_fraction=0.5,
@@ -35,7 +38,7 @@ result = render.PixIntSpeck2D(
         mapping=render.EPxIntMapping.NEWTON_MESH_UNSTRUCT,
         integration=render.RectRule(4),
     ),
-).render(mesh, camera, render.DisplacementSeries2D(np.zeros((1, 9, 2))))
+).render(mesh, camera)
 output_dir = Path.cwd() / "pyvale-output" / "render-pixint-speck"
 output_dir.mkdir(parents=True, exist_ok=True)
 np.save(output_dir / "warped_images.npy", result.images)

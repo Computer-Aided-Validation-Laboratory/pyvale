@@ -12,7 +12,7 @@ import pytest
 
 import pyvale.render as render
 
-from gengold_blender_triangle import render_triangle
+from scripts.gengold_blender_triangle import render_triangle
 from render_checks import assert_render_allclose
 
 
@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_blender_adapter_renders_common_mesh_and_camera(tmp_path: Path) -> None:
-    """The Blender adapter accepts render.Mesh and normalises its image result."""
+    """The Blender adapter accepts render.Mesh3D and normalises its result."""
     actual = render_triangle(tmp_path)
     reference = np.load(Path(__file__).parent / "gold_blender/triangle.npy")
     assert actual.shape == (1, 1, 32, 32, 1)

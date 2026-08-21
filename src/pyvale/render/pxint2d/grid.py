@@ -12,7 +12,7 @@ from scipy.ndimage import gaussian_filter
 
 from ..camera import Camera2D
 from ..imagewarp2d import IImageWarp2D
-from ..mesh2d import DisplacementSeries2D, Mesh2D
+from ..mesh import Mesh2D
 from ..result import ImageWarpResult
 from .mapping import map_points
 from .model import AnalyticRule, Eggbox, PxInt2DOpts, quadrature_points
@@ -24,7 +24,6 @@ class _GridPlan:
 
     mesh: Mesh2D
     camera: Camera2D
-    displacements: DisplacementSeries2D
 
 
 class PixIntGrid2D(IImageWarp2D):
@@ -51,15 +50,14 @@ class PixIntGrid2D(IImageWarp2D):
         self,
         mesh: Mesh2D,
         camera: Camera2D,
-        displacements: DisplacementSeries2D,
     ) -> _GridPlan:
         """Validate a Grid2D request before quadrature allocation."""
-        if displacements.values.shape[1] != mesh.coords.shape[0]:
-            raise ValueError("displacement nodes must match mesh nodes.")
-
         if not np.isfinite(mesh.coords).all() or not np.isfinite(
-                displacements.values).all():
-            raise ValueError("mesh coordinates and displacements must be finite.")
+            mesh.displacement,
+        ).all():
+            raise ValueError(
+                "mesh coordinates and displacements must be finite.",
+            )
 
         if np.any(camera.pixels_count <= 0) or camera.leng_per_px <= 0.0:
             raise ValueError("camera geometry must be positive.")
@@ -73,7 +71,7 @@ class PixIntGrid2D(IImageWarp2D):
                 raise ValueError(
                     "analytic Grid2D integration requires AFFINE mapping.",
                 )
-        return _GridPlan(mesh, camera, displacements)
+        return _GridPlan(mesh, camera)
 
     def _render(self, render_plan: object) -> ImageWarpResult:
         """Render every displacement frame in a validated Grid2D request."""
@@ -82,7 +80,7 @@ class PixIntGrid2D(IImageWarp2D):
         images: list[np.ndarray] = []
         masks: list[np.ndarray] = []
 
-        for frame in range(render_plan.displacements.values.shape[0]):
+        for frame in range(render_plan.mesh.displacement.shape[0]):
             image, mask = self._render_frame(render_plan, frame)
             images.append(image)
             masks.append(mask)
@@ -106,7 +104,10 @@ class PixIntGrid2D(IImageWarp2D):
         query_x = (x_origin[:, None] + pixel_x * quad_x).ravel()
         query_y = (y_origin[:, None] + pixel_y * quad_y).ravel()
         reference_x, reference_y, valid = map_points(
-            plan.mesh, plan.displacements, frame, query_x, query_y,
+            plan.mesh,
+            frame,
+            query_x,
+            query_y,
             self.options.mapping,
         )
         values = self.texture.evaluate(reference_x, reference_y)
@@ -133,7 +134,7 @@ class PixIntGrid2D(IImageWarp2D):
     ) -> tuple[np.ndarray, np.ndarray]:
         """Calculate the exact affine eggbox pixel integral."""
         x_origin, y_origin, pixel_x, pixel_y = _pixel_geometry(plan.camera)
-        deformed = plan.mesh.coords + plan.displacements.values[frame]
+        deformed = plan.mesh.coords + plan.mesh.displacement[frame]
         design = np.column_stack((deformed, np.ones(len(deformed))))
         coeff, _, _, _ = np.linalg.lstsq(design, plan.mesh.coords, rcond=None)
         if np.max(np.abs(design @ coeff - plan.mesh.coords)) > 1.0e-8:

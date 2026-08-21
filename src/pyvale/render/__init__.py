@@ -43,8 +43,7 @@ from .imagedef2d import ImageDef2D, ImageDefOpts
 from .imagewarp2d import IImageWarp2D
 from .image_tools import EImageType, ImageTools
 from .light import ELightType, Light
-from .mesh import EElementType, Mesh
-from .mesh2d import DisplacementSeries2D, Mesh2D
+from .mesh import EElementType, Mesh2D, Mesh3D
 from .pxint2d import (
     AdditiveSpeckles,
     AnalyticRule,
@@ -83,7 +82,6 @@ __all__ = [
     "EBlenderEngine",
     "AdditiveSpeckles",
     "AnalyticRule",
-    "DisplacementSeries2D",
     "EElementType",
     "EFeebeeMaterialType",
     "EFeebeeShading",
@@ -106,8 +104,8 @@ __all__ = [
     "ImageTools",
     "ImageWarpResult",
     "Light",
-    "Mesh",
     "Mesh2D",
+    "Mesh3D",
     "PixIntGrid2D",
     "PixIntSpeck2D",
     "PxInt2DOpts",

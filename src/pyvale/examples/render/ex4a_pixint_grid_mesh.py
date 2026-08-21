@@ -18,11 +18,16 @@ coords = np.array((
     (-16.0, 16.0), (0.0, 16.0), (16.0, 16.0),
 ))
 connectivity = np.array(((0, 1, 4, 3), (1, 2, 5, 4)))
-mesh = render.Mesh2D(render.EElementType.QUAD4, coords, connectivity)
 displacements = np.stack((
     np.zeros((len(coords), 2)),
     np.column_stack((0.02 * coords[:, 0], -0.01 * coords[:, 1])),
 ))
+mesh = render.Mesh2D(
+    render.EElementType.QUAD4,
+    coords,
+    connectivity,
+    displacements,
+)
 camera = render.Camera2D(
     pixels_count=np.array((32, 32)), leng_per_px=1.0,
     roi_cent_world=np.zeros(3),
@@ -33,7 +38,7 @@ renderer = render.PixIntGrid2D(
         integration=render.GaussRule(2),
     ),
 )
-result = renderer.render(mesh, camera, render.DisplacementSeries2D(displacements))
+result = renderer.render(mesh, camera)
 output_dir = Path.cwd() / "pyvale-output" / "render-pixint-grid-mesh"
 output_dir.mkdir(parents=True, exist_ok=True)
 np.save(output_dir / "warped_images.npy", result.images)

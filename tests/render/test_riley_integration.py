@@ -13,7 +13,7 @@ from scipy.spatial.transform import Rotation
 import pyvale.render as render
 import riley
 
-from gengold_riley_rabbits import build_rabbit_meshes
+from scripts.gengold_riley_rabbits import build_rabbit_meshes
 from render_checks import assert_render_allclose
 
 
