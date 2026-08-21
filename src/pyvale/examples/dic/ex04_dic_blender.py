@@ -11,24 +11,39 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+from pyvale.dataio import SimData
 import pyvale.data as dataset
 import pyvale.dic as dic
-import pyvale.mooseherder as mooseherder
 import pyvale.render as render
-import pyvale.sensorsim as sensorsim
 
 
 output_dir = Path("pyvale-output/dic-blender")
-sim_data = mooseherder.ExodusLoader(dataset.mechanical_2d_path()).load_all_sim_data()
-sensorsim.scale_length_units(1000.0, sim_data, ("disp_x", "disp_y"))
+# %% Intended render workflow: convert SimData to a surface Mesh3D.
+# The converter enforces the shared convention and skins volumes. Blender uses
+# Tri3 surface meshes, so this example supplies a Tri3 simulation mesh.
+sim_data = SimData(
+    coords=np.array((
+        (-100.0, -100.0, 0.0),
+        (200.0, -100.0, 0.0),
+        (-100.0, 200.0, 0.0),
+    )),
+    connect={"connect1": np.array(((0, 1, 2),))},
+    node_vars={
+        "disp_x": np.array(((0.0, 0.3), (0.0, 0.3), (0.0, 0.3))),
+        "disp_y": np.zeros((3, 2)),
+    },
+)
 camera = render.Camera(
     np.array((64, 64)), np.array((0.00345, 0.00345)),
     np.array((0.0, 0.0, 500.0)), Rotation.identity(), np.zeros(3), 15.0,
 )
 texture_resolution = camera.pixels_size[0] * 500.0 / camera.focal_length
-mesh = render.blender.mesh_from_simdata(
+mesh = render.mesh3d_from_simdata(
     sim_data,
-    render.BlenderTextureShader(dataset.dic_pattern_5mpx_path(), texture_resolution),
+    render.BlenderTextureShader(
+        dataset.dic_pattern_5mpx_path(),
+        texture_resolution,
+    ),
     ("disp_x", "disp_y"),
 )
 images = render.Blender(render.BlenderConfig(

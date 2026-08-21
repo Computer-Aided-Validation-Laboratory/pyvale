@@ -61,7 +61,7 @@ from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
 from .scene import RenderMesh, RenderScene
 from .riley import Riley
-from .simdata import mesh_from_simdata
+from .simdata import mesh2d_from_simdata, mesh3d_from_simdata
 
 __all__ = [
     "Camera",
@@ -117,6 +117,7 @@ __all__ = [
     "RenderScene",
     "Riley",
     "ValidationIssue",
-    "mesh_from_simdata",
+    "mesh2d_from_simdata",
+    "mesh3d_from_simdata",
     "quantise_image",
 ]

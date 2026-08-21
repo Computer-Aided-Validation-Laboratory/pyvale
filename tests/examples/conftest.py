@@ -22,6 +22,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = PROJECT_ROOT / "src"
 EXAMPLES_ROOT = SOURCE_ROOT / "pyvale" / "examples"
+EXAMPLE_TESTS_ROOT = Path(__file__).resolve().parent
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -48,6 +49,10 @@ def pytest_collection_modifyitems(
     deselected: list[pytest.Item] = []
 
     for item in items:
+        if not item.path.is_relative_to(EXAMPLE_TESTS_ROOT):
+            selected.append(item)
+            continue
+
         callspec = getattr(item, "callspec", None)
         relative_path = (
             callspec.params.get("example") if callspec is not None else None

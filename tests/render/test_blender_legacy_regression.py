@@ -10,7 +10,7 @@ import pyvale.data as dataset
 import pyvale.blender as legacy_blender
 import pyvale.mooseherder as mooseherder
 import pyvale.render as render
-import pyvale.render.blender as blender
+from pyvale.render.blender.adapter import _triangulate_mesh_for_blender
 import pyvale.sensorsim as sensorsim
 from pyvale.sensorsim.simtools import centre_mesh_nodes
 
@@ -39,7 +39,7 @@ def _mesh(camera: render.Camera) -> render.Mesh3D:
     sensorsim.scale_length_units(1000.0, sim_data, ("disp_x", "disp_y"))
     resolution = camera.pixels_size[0] * camera.pos_world[2] / camera.focal_length
     shader = render.BlenderTextureShader(dataset.dic_pattern_5mpx_path(), resolution)
-    return blender.mesh_from_simdata(sim_data, shader, ("disp_x", "disp_y"))
+    return render.mesh3d_from_simdata(sim_data, shader, ("disp_x", "disp_y"))
 
 
 def _render(
@@ -287,7 +287,7 @@ def test_legacy_calibration_image_count() -> None:
 
 
 def test_unified_stereo_matches_legacy_scene(tmp_path: Path) -> None:
-    """The adapter exactly reproduces the active legacy stereo scene path."""
+    """The adapter reproduces Blender's tessellated legacy scene path."""
     camera = _camera()
     stereo = render.CameraTools.faceon_stereo_cameras(camera, 15.0)
     mesh = _mesh(camera)
@@ -300,8 +300,9 @@ def test_unified_stereo_matches_legacy_scene(tmp_path: Path) -> None:
     ))
     assert unified_result.images is not None
 
+    legacy_mesh = _triangulate_mesh_for_blender(mesh)
     scene = legacy_blender.Scene()
-    part = scene.add_part(mesh, 3)
+    part = scene.add_part(legacy_mesh, 3)
     scene.add_speckle(
         part, mesh.shader.image_path, legacy_blender.MaterialData(),
         mesh.shader.millimetres_per_pixel,
@@ -336,8 +337,9 @@ def test_unified_deformation_matches_legacy_scene(tmp_path: Path) -> None:
     )).render(render.RenderScene((mesh,), (camera,), (light,)))
     assert unified_result.images is not None
 
+    legacy_mesh = _triangulate_mesh_for_blender(mesh)
     scene = legacy_blender.Scene()
-    part = scene.add_part(mesh, 3)
+    part = scene.add_part(legacy_mesh, 3)
     scene.add_speckle(
         part, mesh.shader.image_path, legacy_blender.MaterialData(),
         mesh.shader.millimetres_per_pixel,
@@ -350,8 +352,11 @@ def test_unified_deformation_matches_legacy_scene(tmp_path: Path) -> None:
     legacy_dir = tmp_path / "legacy"
     legacy_dir.mkdir()
     centred_mesh = render.Mesh3D(
-        mesh.element_type, centre_mesh_nodes(mesh.coords.copy(), 3),
-        mesh.connectivity, mesh.shader, mesh.displacements,
+        legacy_mesh.element_type,
+        centre_mesh_nodes(legacy_mesh.coords.copy(), 3),
+        legacy_mesh.connectivity,
+        legacy_mesh.shader,
+        legacy_mesh.displacements,
     )
     legacy = scene.render_deformed_images(
         centred_mesh, 3,

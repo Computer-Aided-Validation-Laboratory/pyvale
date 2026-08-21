@@ -48,6 +48,18 @@ def make_mesh(element_type: render.EElementType) -> render.Mesh2D:
     )
 
 
+def test_grid_rejects_meshes_outside_the_shared_convention() -> None:
+    """Planar renderers reject clockwise connectivity before rendering."""
+    mesh = render.Mesh2D(
+        render.EElementType.TRI3,
+        np.array(((0.0, 0.0), (1.0, 0.0), (0.0, 1.0))),
+        np.array(((0, 2, 1),)),
+    )
+
+    with pytest.raises(ValueError, match="shared Riley/VTK convention"):
+        render.PixIntGrid2D().verify_input(mesh, make_camera())
+
+
 def make_mesh_multi(element_type: render.EElementType) -> render.Mesh2D:
     """Create four quads or eight triangles covering the camera field of view."""
     nodes: list[tuple[float, float]] = []

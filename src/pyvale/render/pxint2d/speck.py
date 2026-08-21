@@ -14,6 +14,7 @@ from ..camera import Camera2D
 from ..imagewarp2d import IImageWarp2D
 from ..mesh import Mesh2D
 from ..result import ImageWarpResult
+from ..verifyinput import mesh_convention_issues
 from .grid import _pixel_geometry
 from .mapping import map_points
 from .model import AnalyticRule, PxInt2DOpts, quadrature_points
@@ -140,6 +141,14 @@ class PixIntSpeck2D(IImageWarp2D):
         camera: Camera2D,
     ) -> _SpeckPlan:
         """Validate a Speck2D request before expensive point evaluation."""
+        convention_issues = mesh_convention_issues(
+            mesh.coords,
+            mesh.connectivity,
+            "mesh",
+        )
+        if convention_issues:
+            raise ValueError(convention_issues[0].message)
+
         if not np.isfinite(mesh.coords).all() or not np.isfinite(
             mesh.displacement,
         ).all():

@@ -18,7 +18,7 @@ from .mesh import EElementType
 from .renderer3d import IRenderer3D
 from .result import RenderResult
 from .scene import RenderScene
-from .verifyinput import raise_if_issues
+from .verifyinput import mesh_convention_issues, raise_if_issues
 
 
 class Riley(IRenderer3D):
@@ -95,6 +95,12 @@ class Riley(IRenderer3D):
                     f"scene.meshes[{mesh_index}]", "TYPE",
                     "Riley requires native riley.Mesh objects.",
                 ))
+                continue
+            issues.extend(mesh_convention_issues(
+                mesh.coords,
+                mesh.connect,
+                f"scene.meshes[{mesh_index}]",
+            ))
         issues.extend(_verify_cameras(scene.cameras))
         raise_if_issues(tuple(issues))
 

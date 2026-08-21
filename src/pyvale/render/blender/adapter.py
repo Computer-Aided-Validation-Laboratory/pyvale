@@ -3,6 +3,7 @@
 import importlib
 from pathlib import Path
 import sys
+import warnings
 
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -12,7 +13,7 @@ from pyvale.sensorsim.simtools import centre_mesh_nodes
 from ..camera import Camera
 from ..errors import ValidationIssue
 from ..light import ELightType, Light
-from ..mesh import Mesh3D
+from ..mesh import EElementType, Mesh3D
 from ..renderer3d import IRenderer3D
 from ..result import RenderResult
 from ..scene import RenderScene
@@ -88,14 +89,26 @@ class Blender(IRenderer3D):
                     f"scene.meshes[{mesh_index}]", "TYPE",
                     "Blender requires common render.Mesh3D objects.",
                 ))
+                continue
+            if mesh.element_type is not EElementType.TRI3:
+                warnings.warn(
+                    "Blender support is verified only for Tri3 meshes; "
+                    f"received {mesh.element_type.value}.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
         raise_if_issues(tuple(issues))
 
     def _render(self, render_scene: RenderScene) -> RenderResult:
         """Construct and render one validated Blender scene."""
         blender_module = importlib.import_module("pyvale.blender")
+        meshes = tuple(
+            _triangulate_mesh_for_blender(mesh)
+            for mesh in render_scene.meshes
+        )
         scene = blender_module.Scene()
-        parts = [scene.add_part(mesh, 3) for mesh in render_scene.meshes]
-        for mesh, part in zip(render_scene.meshes, parts):
+        parts = [scene.add_part(mesh, 3) for mesh in meshes]
+        for mesh, part in zip(meshes, parts):
             if isinstance(mesh.shader, BlenderTextureShader):
                 scene.add_speckle(
                     part,
@@ -136,7 +149,7 @@ class Blender(IRenderer3D):
             threads=self.config.threads,
             engine=blender_module.RenderEngine(self.config.engine.value),
         )
-        deformable = next((mesh for mesh in render_scene.meshes
+        deformable = next((mesh for mesh in meshes
                            if mesh.displacements is not None), None)
         if not self.config.render_deformed:
             deformable = None
@@ -150,7 +163,7 @@ class Blender(IRenderer3D):
             if image is None:
                 return RenderResult(None, _image_paths(self.config.output_dir))
             return RenderResult(_normalise_images(np.asarray(image)))
-        part = parts[render_scene.meshes.index(deformable)]
+        part = parts[meshes.index(deformable)]
         deformation_mesh = Mesh3D(
             deformable.element_type,
             centre_mesh_nodes(deformable.coords.copy(), 3),
@@ -184,6 +197,44 @@ def _legacy_light(blender_module: object, light: Light) -> object:
     return blender_module.LightData(
         light.pos_world, rotation, light.intensity, light_type,
         light.shadow_soft_size,
+    )
+
+
+def _triangulate_mesh_for_blender(mesh: Mesh3D) -> Mesh3D:
+    """Tessellate legacy surface cells for Blender's supported Tri3 path."""
+    if mesh.element_type is EElementType.TRI3:
+        return mesh
+
+    import pyvista as pv
+
+    cell_types = {
+        EElementType.TRI6: pv.CellType.QUADRATIC_TRIANGLE,
+        EElementType.QUAD4: pv.CellType.QUAD,
+        EElementType.QUAD8: pv.CellType.QUADRATIC_QUAD,
+        EElementType.QUAD9: pv.CellType.BIQUADRATIC_QUAD,
+    }
+    nodes_per_element = mesh.connectivity.shape[1]
+    cells = np.column_stack((
+        np.full(
+            mesh.connectivity.shape[0],
+            nodes_per_element,
+            dtype=np.uintp,
+        ),
+        mesh.connectivity,
+    )).ravel()
+    grid = pv.UnstructuredGrid(
+        cells,
+        np.full(mesh.connectivity.shape[0], cell_types[mesh.element_type]),
+        mesh.coords,
+    )
+    surface = grid.extract_surface(algorithm="dataset_surface").triangulate()
+    connectivity = np.asarray(surface.faces).reshape((-1, 4))[:, 1:]
+    return Mesh3D(
+        EElementType.TRI3,
+        np.asarray(surface.points),
+        connectivity,
+        mesh.shader,
+        mesh.displacements,
     )
 
 

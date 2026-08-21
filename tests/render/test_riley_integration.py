@@ -44,7 +44,7 @@ def test_riley_rabbit_multimesh_golden_regression() -> None:
     pixels_num = np.array((320, 160))
     pixels_size = np.array((5.3e-6, 5.3e-6))
     focal_length = 50.0e-3
-    rotation = Rotation.from_euler("xyz", (0.0, np.pi, 0.0))
+    rotation = Rotation.identity()
     position = riley.pos_fill_frame_from_rot(
         coords, tuple(pixels_num), tuple(pixels_size), focal_length,
         tuple(rotation.as_euler("xyz")), 1.1,

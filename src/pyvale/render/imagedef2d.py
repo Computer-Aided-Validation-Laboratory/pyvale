@@ -25,6 +25,7 @@ from pyvale.render.imagewarp2d import IImageWarp2D
 from pyvale.render.result import ImageWarpResult
 from pyvale.render.camera_tools import CameraTools
 from pyvale.render.image_tools import EImageType, ImageTools
+from pyvale.render.verifyinput import mesh_convention_issues
 
 
 @dataclass(slots=True)
@@ -161,6 +162,14 @@ class ImageDef2D(IImageWarp2D):
 
         if np.any(connectivity < 0) or np.any(connectivity >= coords.shape[0]):
             raise ValueError("connectivity contains invalid node indices.")
+
+        convention_issues = mesh_convention_issues(
+            coords,
+            connectivity,
+            "mesh",
+        )
+        if convention_issues:
+            raise ValueError(convention_issues[0].message)
 
         if displacements.ndim != 3 or displacements.shape[1:] != (coords.shape[0], 2):
             raise ValueError("displacements must have shape (frames, nodes, 2).")

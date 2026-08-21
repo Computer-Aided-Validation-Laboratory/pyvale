@@ -25,7 +25,7 @@ from pathlib import Path
 import netCDF4 as nc
 import numpy as np
 from pyvale.dataio.simdata import SimData, SimLoadConfig
-from pyvale.dataio.meshtools import enforce_mesh_convention
+from pyvale.dataio.meshconv import enforce_mesh_convention
 from pyvale.mooseherder.outputloader import IOutputLoader
 
 
@@ -752,6 +752,8 @@ class ExodusLoader(IOutputLoader):
             and data.connect is not None
             and data.coords is not None):
             data = enforce_mesh_convention(data)
+
+        data.refresh_mesh_type()
 
         return data
 

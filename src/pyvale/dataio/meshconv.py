@@ -17,6 +17,7 @@ _SURFACE_NODE_COUNTS = frozenset((3, 4, 6, 7, 8, 9))
 _VOLUME_NODE_COUNTS = frozenset((4, 8, 10, 20, 27))
 _SUPPORTED_NODE_COUNTS = _SURFACE_NODE_COUNTS | _VOLUME_NODE_COUNTS
 _TOL = 1.0e-12
+_QUAD8_EDGE_TOL = 5.0e-2
 
 
 @dataclass(slots=True)
@@ -269,6 +270,9 @@ def is_mesh_2d(mesh_in: SimData) -> bool:
     if mesh_in.coords is None or mesh_in.connect is None:
         return False
 
+    if is_volume_mesh(mesh_in):
+        return False
+
     # 1. Check coordinate flatness
     coord_ranges = np.ptp(mesh_in.coords, axis=0)
     if np.any(coord_ranges < 1e-12):
@@ -345,6 +349,98 @@ def is_mesh_2d(mesh_in: SimData) -> bool:
     return False
 
 
+def is_volume_mesh(mesh_in: SimData) -> bool:
+    """Return whether every connectivity table describes volume elements.
+
+    Element node count usually establishes the topology. Four-node and
+    eight-node tables are ambiguous (TET4/QUAD4 and HEX8/QUAD8), so they are
+    classified from their signed cell volume. A mesh containing both surface
+    and volume tables is rejected because it has no single ``EMeshType``.
+    """
+    if mesh_in.coords is None or mesh_in.connect is None:
+        return False
+
+    num_coords = mesh_in.coords.shape[0]
+    shift_all = _infer_mesh_zero_based_shift(mesh_in, num_coords)
+    table_types: set[bool] = set()
+
+    for name, connect_raw in mesh_in.connect.items():
+        connect = _coerce_connect_array(connect_raw, name)
+        if _should_transpose_connectivity(connect, name, mesh_in):
+            connect = connect.T
+
+        if _table_needs_zero_based_shift(connect, num_coords, shift_all):
+            connect = connect - 1
+
+        if not _check_indices_zero_based(connect, num_coords):
+            raise ValueError(
+                f"Connectivity table '{name}' has invalid indices."
+            )
+
+        table_types.add(_is_volume_connectivity_table(connect, mesh_in.coords))
+
+    if len(table_types) > 1:
+        raise ValueError(
+            "A SimData mesh cannot mix surface and volume connectivity tables."
+        )
+
+    return bool(table_types and table_types.pop())
+
+
+def _is_volume_connectivity_table(
+    connect: np.ndarray,
+    coords: np.ndarray,
+) -> bool:
+    nodes_per_elem = connect.shape[1]
+    _supported_nodes_per_elem(nodes_per_elem)
+
+    if nodes_per_elem in (10, 20, 27):
+        return True
+    if nodes_per_elem in (3, 6, 7, 9):
+        return False
+
+    if nodes_per_elem == 8:
+        if all(_is_quad8_surface_row(row, coords) for row in connect):
+            return False
+
+    for row in connect:
+        corner_inds = _get_volume_corner_indices(nodes_per_elem)
+        cell_coords = coords[row[corner_inds]]
+        if nodes_per_elem == 4:
+            metric = _tet_signed_volume(cell_coords)
+        else:
+            metric = _hex_signed_volume(cell_coords)
+
+        if abs(metric) > _TOL:
+            return True
+
+    return False
+
+
+def _is_quad8_surface_row(
+    connect_row: np.ndarray,
+    coords: np.ndarray,
+) -> bool:
+    """Return whether an eight-node row has the QUAD8 midside layout."""
+    elem_coords = coords[connect_row]
+    corners = elem_coords[:4]
+    midsides = elem_coords[4:]
+    edge_starts = corners
+    edge_ends = np.roll(corners, -1, axis=0)
+    edges = edge_ends - edge_starts
+    edge_lengths = np.linalg.norm(edges, axis=1)
+    if np.any(edge_lengths <= _TOL):
+        return False
+
+    edge_params = np.sum((midsides - edge_starts) * edges, axis=1)
+    edge_params /= edge_lengths**2
+    closest = edge_starts + edge_params[:, None] * edges
+    distances = np.linalg.norm(midsides - closest, axis=1)
+    on_edges = distances <= _QUAD8_EDGE_TOL * edge_lengths
+    between_corners = np.logical_and(edge_params >= 0.0, edge_params <= 1.0)
+    return bool(np.all(np.logical_and(on_edges, between_corners)))
+
+
 def extract_surf_mesh(
     mesh_in: SimData,
     enforce_convention: bool = True,
@@ -416,6 +512,7 @@ def extract_surf_mesh(
     surf_mesh = _copy_sim_data(mesh_in)
     surf_mesh.coords = surf_coords
     surf_mesh.connect = surf_connect_local
+    surf_mesh.refresh_mesh_type()
 
     if mesh_in.node_vars is not None:
         surf_mesh.node_vars = {
@@ -445,6 +542,7 @@ def _copy_sim_data(mesh_in: SimData,
                    connect: dict[str, np.ndarray] | None = None) -> SimData:
     mesh_out = SimData(
         num_spat_dims=mesh_in.num_spat_dims,
+        mesh_type=mesh_in.mesh_type,
         time=mesh_in.time,
         coords=mesh_in.coords,
         connect=mesh_in.connect if connect is None else connect,
@@ -621,7 +719,7 @@ def _score_orientation(connect_row_major: np.ndarray, coords: np.ndarray) -> int
             continue
 
         try:
-            metric = _handedness_metric(row, coords)
+            metric = _orientation_score_metric(row, coords)
         except ValueError:
             continue
 
@@ -629,6 +727,37 @@ def _score_orientation(connect_row_major: np.ndarray, coords: np.ndarray) -> int
             score += 1
 
     return score
+
+
+def _orientation_score_metric(
+    connect_row: np.ndarray,
+    coords: np.ndarray,
+) -> float | None:
+    """Return a metric only for resolving row-major connectivity ambiguity."""
+    nodes_per_elem = connect_row.shape[0]
+
+    if nodes_per_elem in _SURFACE_NODE_COUNTS:
+        corner_coords = coords[connect_row[_get_corner_indices(nodes_per_elem)]]
+        if _is_coplanar(corner_coords):
+            return _polygon_signed_area(corner_coords)
+
+    if nodes_per_elem in (4, 10):
+        volume_coords = coords[
+            connect_row[_get_volume_corner_indices(nodes_per_elem)]
+        ]
+        metric = _tet_signed_volume(volume_coords)
+        if nodes_per_elem == 10 or abs(metric) > _TOL:
+            return metric
+
+    if nodes_per_elem in (8, 20, 27):
+        volume_coords = coords[
+            connect_row[_get_volume_corner_indices(nodes_per_elem)]
+        ]
+        metric = _hex_signed_volume(volume_coords)
+        if nodes_per_elem in (20, 27) or abs(metric) > _TOL:
+            return metric
+
+    return None
 
 
 def _normalise_legacy_connectivity_order(
@@ -720,25 +849,97 @@ def _winding_metric(connect_row: np.ndarray, coords: np.ndarray) -> float | None
     nodes_per_elem = connect_row.shape[0]
     if nodes_per_elem not in _SURFACE_NODE_COUNTS:
         return None
+
+    if nodes_per_elem == 4:
+        cell_coords = coords[connect_row[_get_volume_corner_indices(4)]]
+        if abs(_tet_signed_volume(cell_coords)) > _TOL:
+            return None
+    elif nodes_per_elem == 8:
+        if not _is_quad8_surface_row(connect_row, coords):
+            cell_coords = coords[connect_row[_get_volume_corner_indices(8)]]
+            if abs(_hex_signed_volume(cell_coords)) > _TOL:
+                return None
+
     corner_inds = _get_corner_indices(nodes_per_elem)
     coords_elem = coords[connect_row[corner_inds]]
     if not _is_coplanar(coords_elem):
         return None
-    return _polygon_signed_area(coords_elem)
+    if _is_coplanar(coords):
+        reference_normal = _canonical_plane_normal(coords)
+    else:
+        face_centroid = np.mean(coords_elem, axis=0)
+        outward = face_centroid - np.mean(coords, axis=0)
+        outward_norm = np.linalg.norm(outward)
+        if outward_norm <= _TOL:
+            return None
+        reference_normal = outward / outward_norm
+
+    return _local_polygon_signed_area(coords_elem, reference_normal)
+
+
+def _canonical_plane_normal(coords: np.ndarray) -> np.ndarray:
+    centred = coords - np.mean(coords, axis=0)
+    _, _, vectors = np.linalg.svd(centred, full_matrices=False)
+    normal = vectors[-1]
+    dominant_axis = int(np.argmax(np.abs(normal)))
+    if normal[dominant_axis] < 0.0:
+        normal = -normal
+    return normal / np.linalg.norm(normal)
+
+
+def _local_polygon_signed_area(
+    coords_elem: np.ndarray,
+    reference_normal: np.ndarray,
+) -> float | None:
+    origin = coords_elem[0]
+    axis_u = None
+    for point in coords_elem[1:]:
+        edge = point - origin
+        edge -= np.dot(edge, reference_normal) * reference_normal
+        edge_norm = np.linalg.norm(edge)
+        if edge_norm > _TOL:
+            axis_u = edge / edge_norm
+            break
+
+    if axis_u is None:
+        return None
+
+    axis_v = np.cross(reference_normal, axis_u)
+    projected = np.column_stack((
+        (coords_elem - origin) @ axis_u,
+        (coords_elem - origin) @ axis_v,
+    ))
+    rolled = np.roll(projected, -1, axis=0)
+    return float(0.5 * np.sum(
+        projected[:, 0] * rolled[:, 1]
+        - rolled[:, 0] * projected[:, 1],
+    ))
 
 
 def _handedness_metric(connect_row: np.ndarray, coords: np.ndarray) -> float | None:
     nodes_per_elem = connect_row.shape[0]
+    if nodes_per_elem in (4, 10):
+        volume_coords = coords[
+            connect_row[_get_volume_corner_indices(nodes_per_elem)]
+        ]
+        volume_metric = _tet_signed_volume(volume_coords)
+        if nodes_per_elem == 10 or abs(volume_metric) > _TOL:
+            return volume_metric
+    if nodes_per_elem in (8, 20, 27):
+        volume_coords = coords[
+            connect_row[_get_volume_corner_indices(nodes_per_elem)]
+        ]
+        volume_metric = _hex_signed_volume(volume_coords)
+        if nodes_per_elem in (20, 27):
+            return volume_metric
+        if not _is_quad8_surface_row(connect_row, coords):
+            if abs(volume_metric) > _TOL:
+                return volume_metric
+
     if nodes_per_elem in _SURFACE_NODE_COUNTS:
         metric = _winding_metric(connect_row, coords)
         if metric is not None:
             return metric
-    corner_inds = _get_corner_indices(nodes_per_elem)
-    coords_elem = coords[connect_row[corner_inds]]
-    if nodes_per_elem in (4, 10):
-        return _tet_signed_volume(coords_elem)
-    if nodes_per_elem in (8, 20, 27):
-        return _hex_signed_volume(coords_elem)
     raise NotImplementedError(
         f"Handedness checks are not implemented for {nodes_per_elem}-node elements."
     )
@@ -748,6 +949,8 @@ def _check_ccw_winding_table(connect: np.ndarray, coords: np.ndarray) -> bool:
     for row in connect:
         metric = _winding_metric(row, coords)
         if metric is None:
+            continue
+        if abs(metric) <= _TOL:
             continue
         if metric <= 0.0:
             return False
@@ -759,6 +962,8 @@ def _check_cw_winding_table(connect: np.ndarray, coords: np.ndarray) -> bool:
         metric = _winding_metric(row, coords)
         if metric is None:
             continue
+        if abs(metric) <= _TOL:
+            continue
         if metric >= 0.0:
             return False
     return True
@@ -768,6 +973,8 @@ def _check_right_handed_table(connect: np.ndarray, coords: np.ndarray) -> bool:
     for row in connect:
         metric = _handedness_metric(row, coords)
         if metric is None:
+            continue
+        if abs(metric) <= _TOL:
             continue
         if metric <= 0.0:
             return False

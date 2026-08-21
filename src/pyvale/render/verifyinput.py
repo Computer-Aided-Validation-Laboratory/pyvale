@@ -9,10 +9,60 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from pyvale.dataio import SimData, check_mesh_convention
+
 from .camera import Camera
 from .errors import RenderInputError, ValidationIssue
 from .light import Light
 from .mesh import Mesh3D
+
+
+def mesh_convention_issues(
+    coords: np.ndarray,
+    connectivity: np.ndarray,
+    path: str,
+) -> tuple[ValidationIssue, ...]:
+    """Return shared-convention issues for a render surface mesh.
+
+    Two-dimensional coordinates are padded onto the XY plane before invoking
+    the common DataIO checker. This keeps planar renderers aligned with the
+    same counter-clockwise, right-handed convention as 3D renderers.
+    """
+    coords_array = np.asarray(coords)
+    connectivity_array = np.asarray(connectivity)
+    if coords_array.ndim != 2 or coords_array.shape[1] not in (2, 3):
+        return tuple()
+    if connectivity_array.ndim != 2 or connectivity_array.size == 0:
+        return tuple()
+
+    if coords_array.shape[1] == 2:
+        coords_array = np.pad(coords_array, ((0, 0), (0, 1)))
+
+    try:
+        report = check_mesh_convention(SimData(
+            coords=coords_array,
+            connect={"connect1": connectivity_array},
+        ))
+    except (IndexError, NotImplementedError, TypeError, ValueError) as error:
+        return (
+            ValidationIssue(
+                path + ".connectivity",
+                "CONVENTION",
+                f"Could not check the shared mesh convention: {error}",
+            ),
+        )
+
+    if report.is_valid:
+        return tuple()
+
+    failed = ", ".join(report.failed_checks)
+    return (
+        ValidationIssue(
+            path + ".connectivity",
+            "CONVENTION",
+            "Mesh must follow the shared Riley/VTK convention: " + failed,
+        ),
+    )
 
 
 def verify_scene_3d(
@@ -49,13 +99,29 @@ def verify_scene_3d(
     for mesh_index, mesh in enumerate(meshes):
         path = f"meshes[{mesh_index}]"
         if mesh.coords.ndim != 2 or mesh.coords.shape[1] != 3:
-            issues.append(ValidationIssue(path + ".coords", "SHAPE", "Expected shape (nodes, 3)."))
+            issues.append(ValidationIssue(
+                path + ".coords", "SHAPE", "Expected shape (nodes, 3).",
+            ))
         elif not np.isfinite(mesh.coords).all():
             issues.append(ValidationIssue(path + ".coords", "FINITE", "Values must be finite."))
         if mesh.connectivity.ndim != 2 or mesh.connectivity.shape[0] == 0:
-            issues.append(ValidationIssue(path + ".connectivity", "SHAPE", "Expected a non-empty rank-2 array."))
+            issues.append(ValidationIssue(
+                path + ".connectivity",
+                "SHAPE",
+                "Expected a non-empty rank-2 array.",
+            ))
         elif mesh.coords.ndim == 2 and np.any(mesh.connectivity >= len(mesh.coords)):
-            issues.append(ValidationIssue(path + ".connectivity", "INDEX", "Indices exceed node count."))
+            issues.append(ValidationIssue(
+                path + ".connectivity",
+                "INDEX",
+                "Indices exceed node count.",
+            ))
+        else:
+            issues.extend(mesh_convention_issues(
+                mesh.coords,
+                mesh.connectivity,
+                path,
+            ))
         if mesh.displacements is not None:
             expected = (mesh.displacements.shape[0], mesh.coords.shape[0], 3)
             if mesh.displacements.shape != expected:
@@ -106,4 +172,4 @@ def raise_if_issues(issues: tuple[ValidationIssue, ...]) -> None:
         raise RenderInputError(issues)
 
 
-__all__ = ["raise_if_issues", "verify_scene_3d"]
+__all__ = ["mesh_convention_issues", "raise_if_issues", "verify_scene_3d"]

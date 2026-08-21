@@ -3,25 +3,28 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Conversion from simulation results to renderer meshes."""
+"""Conversion from simulation results to renderer surface meshes."""
 
 from collections.abc import Sequence
 
 import numpy as np
 
-from pyvale.dataio.meshtools import enforce_mesh_convention, extract_surf_mesh
+from pyvale.dataio.meshconv import (
+    enforce_mesh_convention,
+    extract_surf_mesh,
+    is_mesh_2d,
+)
 from pyvale.dataio.simdata import SimData
 
-from .mesh import EElementType, Mesh3D
+from .mesh import EElementType, Mesh2D, Mesh3D
 
 
-def mesh_from_simdata(
+def mesh3d_from_simdata(
     sim_data: SimData,
     shader: object,
     displacement_keys: Sequence[str] | None = None,
-    extract_surface: bool = False,
 ) -> Mesh3D:
-    """Build one :class:`Mesh3D` from convention-normalised simulation data.
+    """Build one surface :class:`Mesh3D` from simulation data.
 
     Parameters
     ----------
@@ -32,10 +35,6 @@ def mesh_from_simdata(
         Backend-owned material or shader definition for the mesh.
     displacement_keys : Sequence[str] or None, optional
         Names of the three displacement components. ``None`` omits motion.
-    extract_surface : bool, optional
-        Extract the exterior surface before conversion. Select this for a
-        volume simulation.
-
     Returns
     -------
     Mesh3D
@@ -49,26 +48,94 @@ def mesh_from_simdata(
 
     Notes
     -----
-    A :class:`Mesh3D` has one topology. Split simulations with several
+    Volumetric simulation meshes are always skinned before conversion. A
+    :class:`Mesh3D` has one topology, so split simulations with several
     connectivity tables into separate render meshes before conversion.
     """
     prepared = enforce_mesh_convention(sim_data)
-    if extract_surface:
+
+    if not is_mesh_2d(prepared):
         prepared = extract_surf_mesh(prepared)
-    if prepared.coords is None or prepared.connect is None:
-        raise ValueError("SimData must provide coordinates and connectivity.")
-    if len(prepared.connect) != 1:
-        raise ValueError("SimData must have exactly one connectivity table.")
-    connectivity = next(iter(prepared.connect.values()))
+
+    coords, connectivity = _single_surface_table(prepared)
     element_type = _element_type_from_nodes(connectivity.shape[1])
     displacements = _displacements_from_simdata(prepared, displacement_keys)
     return Mesh3D(
         element_type=element_type,
-        coords=np.ascontiguousarray(prepared.coords[:, :3], dtype=np.float64),
+        coords=_coords3d(coords),
         connectivity=np.ascontiguousarray(connectivity, dtype=np.uintp),
         shader=shader,
         displacements=displacements,
     )
+
+
+def mesh2d_from_simdata(
+    sim_data: SimData,
+    displacement_keys: Sequence[str] | None = None,
+) -> Mesh2D:
+    """Build one XY-planar :class:`Mesh2D` from simulation data.
+
+    The input must already be a two-dimensional surface mesh in the XY plane.
+    Coordinates with a Z column are accepted only when every Z value is zero
+    within the shared mesh-convention tolerance.
+    """
+    prepared = enforce_mesh_convention(sim_data)
+    if not is_mesh_2d(prepared):
+        raise ValueError("mesh2d_from_simdata requires a surface mesh.")
+
+    coords, connectivity = _single_surface_table(prepared)
+    coords2d = _coords2d_xy(coords)
+    element_type = _element_type_from_nodes(connectivity.shape[1])
+    displacement = _displacements_from_simdata(prepared, displacement_keys)
+
+    if displacement is not None:
+        displacement = displacement[:, :, :2]
+
+    return Mesh2D(
+        element_type=element_type,
+        coords=coords2d,
+        connectivity=np.ascontiguousarray(connectivity, dtype=np.intp),
+        displacement=displacement,
+    )
+
+
+def _single_surface_table(sim_data: SimData) -> tuple[np.ndarray, np.ndarray]:
+    """Return the one required surface connectivity table and coordinates."""
+    if sim_data.coords is None or sim_data.connect is None:
+        raise ValueError("SimData must provide coordinates and connectivity.")
+
+    if len(sim_data.connect) != 1:
+        raise ValueError("SimData must have exactly one connectivity table.")
+
+    return sim_data.coords, next(iter(sim_data.connect.values()))
+
+
+def _coords3d(coords: np.ndarray) -> np.ndarray:
+    """Return finite render coordinates padded to three dimensions."""
+    coords_out = np.ascontiguousarray(coords, dtype=np.float64)
+    if coords_out.ndim != 2 or coords_out.shape[1] not in (2, 3):
+        raise ValueError("SimData coordinates must have two or three columns.")
+
+    if coords_out.shape[1] == 2:
+        coords_out = np.pad(coords_out, ((0, 0), (0, 1)))
+
+    return coords_out
+
+
+def _coords2d_xy(coords: np.ndarray) -> np.ndarray:
+    """Return XY coordinates, rejecting non-planar input."""
+    coords_out = np.ascontiguousarray(coords, dtype=np.float64)
+    if coords_out.ndim != 2 or coords_out.shape[1] not in (2, 3):
+        raise ValueError("SimData coordinates must have two or three columns.")
+
+    if coords_out.shape[1] == 3 and not np.allclose(
+        coords_out[:, 2],
+        0.0,
+        atol=1.0e-12,
+    ):
+        raise ValueError("mesh2d_from_simdata only supports the XY plane.")
+
+    return np.ascontiguousarray(coords_out[:, :2], dtype=np.float64)
 
 
 def _element_type_from_nodes(nodes_per_element: int) -> EElementType:
@@ -100,7 +167,8 @@ def _element_type_from_nodes(nodes_per_element: int) -> EElementType:
         return element_types[nodes_per_element]
     except KeyError as error:
         raise ValueError(
-            f"No render element type for {nodes_per_element} nodes per element.",
+            "No render element type for "
+            f"{nodes_per_element} nodes per element.",
         ) from error
 
 
@@ -133,10 +201,14 @@ def _displacements_from_simdata(
     if sim_data.node_vars is None or len(displacement_keys) not in (2, 3):
         raise ValueError("Two or three displacement keys are required.")
     try:
-        fields = [np.asarray(sim_data.node_vars[key], dtype=np.float64)
-                  for key in displacement_keys]
+        fields = [
+            np.asarray(sim_data.node_vars[key], dtype=np.float64)
+            for key in displacement_keys
+        ]
     except KeyError as error:
-        raise ValueError(f"Missing displacement field {error.args[0]!r}.") from error
+        raise ValueError(
+            f"Missing displacement field {error.args[0]!r}.",
+        ) from error
     if any(field.ndim != 2 for field in fields):
         raise ValueError("Displacement fields must have shape (nodes, frames).")
     displacements = np.stack(fields, axis=2).transpose(1, 0, 2)
@@ -145,4 +217,7 @@ def _displacements_from_simdata(
     return np.ascontiguousarray(displacements)
 
 
-__all__ = ["mesh_from_simdata"]
+__all__ = [
+    "mesh2d_from_simdata",
+    "mesh3d_from_simdata",
+]

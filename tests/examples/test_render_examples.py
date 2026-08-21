@@ -18,16 +18,8 @@ import pyvale.render as render
 
 _RENDER_EXAMPLES = (
     pytest.param(
-        "render/ex1_riley_quickstart.py",
+        "render/ex1a_riley_quickstart.py",
         "pyvale-output/render-riley-quickstart/cam0_frame0_field0.bmp",
-    ),
-    pytest.param(
-        "render/ex1a_riley_texture_mesh.py",
-        "pyvale-output/render-riley-texture/cam0_frame0_field0.bmp",
-    ),
-    pytest.param(
-        "render/ex2_riley_rabbit_multimesh.py",
-        "pyvale-output/render-riley-rabbits/cam0_frame0_field0.bmp",
     ),
     pytest.param(
         "render/ex3_imagedef2d_planar_deformation.py",
@@ -49,12 +41,12 @@ _RENDER_EXAMPLES = (
 )
 
 _BLENDER_EXAMPLES = (
-    "render/ex6_blender_scene.py",
-    "render/ex6a_blender_deformation.py",
-    "render/ex6b_blender_stereo.py",
-    "render/ex6c_blender_calibration.py",
-    "render/ex6c_blender_stereo_deformation.py",
-    "render/ex6d_blender_calibration_target.py",
+    "render/ex2a_blender_scene.py",
+    "render/ex2b_blender_deformation.py",
+    "render/ex2c_blender_stereo.py",
+    "render/ex2d_blender_calibration.py",
+    "render/ex2e_blender_stereo_deformation.py",
+    "render/ex2f_blender_calibration_target.py",
 )
 
 
@@ -83,7 +75,7 @@ def test_blender_render_example(
     """Run each Blender gallery example when the optional backend is present."""
     work_dir = run_example(example, ("pyvale-output",), timeout=300.0)
 
-    if example.endswith("ex6d_blender_calibration_target.py"):
+    if example.endswith("ex2f_blender_calibration_target.py"):
         images = tuple((
             work_dir
             / "pyvale-output"

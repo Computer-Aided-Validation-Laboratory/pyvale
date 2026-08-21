@@ -72,3 +72,28 @@ def test_blender_gpu_probe_is_safe_when_backend_is_unavailable(monkeypatch) -> N
     )
 
     assert not blender_adapter.blender_gpu_available()
+
+
+def test_blender_warns_for_non_tri3_meshes(monkeypatch, tmp_path) -> None:
+    """Blender retains legacy meshes but signals its Tri3-only guarantee."""
+    monkeypatch.setattr(
+        blender_adapter,
+        "_blender_unavailable_reason",
+        lambda: None,
+    )
+    mesh = render.Mesh3D(
+        render.EElementType.QUAD4,
+        np.array((
+            (-1.0, -1.0, 0.0),
+            (1.0, -1.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (-1.0, 1.0, 0.0),
+        )),
+        np.array(((0, 1, 2, 3),)),
+        object(),
+    )
+
+    with pytest.warns(RuntimeWarning, match="Tri3"):
+        render.Blender(render.BlenderConfig(tmp_path)).verify_input(
+            render.RenderScene((mesh,), (make_camera(),)),
+        )

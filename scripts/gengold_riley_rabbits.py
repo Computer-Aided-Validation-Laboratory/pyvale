@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+from pyvale.dataio import SimData, enforce_mesh_convention
 import pyvale.render as render
 import riley
 
@@ -22,13 +23,22 @@ def build_rabbit_meshes() -> list[riley.Mesh]:
     texture = riley.load_texture(riley.data.speckle_texture_path())
     for rabbit_name in ("riley", "feebs"):
         data_path = riley.data.rabbit_case_path(rabbit_name, "tri3")
-        coords = np.loadtxt(data_path / "coords.csv", delimiter=",")
-        connectivity = np.loadtxt(
-            data_path / "connectivity.csv", delimiter=",", dtype=np.uintp,
-        )
+        mesh_data = enforce_mesh_convention(SimData(
+            coords=np.loadtxt(data_path / "coords.csv", delimiter=","),
+            connect={
+                "connect1": np.loadtxt(
+                    data_path / "connectivity.csv",
+                    delimiter=",",
+                    dtype=np.uintp,
+                ),
+            },
+        ))
+        assert mesh_data.coords is not None and mesh_data.connect is not None
         uvs = np.loadtxt(data_path / "uvs.csv", delimiter=",")
         meshes.append(riley.Mesh(
-            riley.MeshType.tri3, coords, connectivity,
+            riley.MeshType.tri3,
+            mesh_data.coords,
+            mesh_data.connect["connect1"],
             shader_type=riley.ShaderType.tex, uvs=uvs, texture=texture,
         ))
     return meshes
@@ -44,7 +54,7 @@ def main() -> None:
     pixels_num = np.array((320, 160))
     pixels_size = np.array((5.3e-6, 5.3e-6))
     focal_length = 50.0e-3
-    rotation = Rotation.from_euler("xyz", (0.0, np.pi, 0.0))
+    rotation = Rotation.identity()
     position = riley.pos_fill_frame_from_rot(
         coords, tuple(pixels_num), tuple(pixels_size), focal_length,
         tuple(rotation.as_euler("xyz")), 1.1,

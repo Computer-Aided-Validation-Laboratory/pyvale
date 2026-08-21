@@ -64,7 +64,23 @@ def test_riley_rejects_lights_before_backend_call(monkeypatch) -> None:
         renderer.render(render.RenderScene((), (make_camera(),), (light,)))
 
 
-def test_mesh_from_simdata_normalises_displacement_layout() -> None:
+def test_riley_rejects_meshes_outside_the_shared_convention() -> None:
+    """Native Riley input must obey the common winding convention."""
+    import riley
+
+    mesh = riley.Mesh(
+        riley.MeshType.tri3,
+        np.array(((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))),
+        np.array(((0, 2, 1),)),
+    )
+
+    with pytest.raises(render.RenderInputError, match="CONVENTION"):
+        render.Riley(riley.RasterConfig()).verify_input(
+            render.RenderScene((mesh,), (make_camera(),)),
+        )
+
+
+def test_mesh3d_from_simdata_normalises_displacement_layout() -> None:
     """SimData displacement fields become frame-major renderer displacements."""
     from pyvale.dataio import SimData
 
@@ -78,9 +94,71 @@ def test_mesh_from_simdata_normalises_displacement_layout() -> None:
             "z": np.zeros((3, 2)),
         },
     )
-    mesh = render.mesh_from_simdata(
+    mesh = render.mesh3d_from_simdata(
         sim_data, object(), displacement_keys=("x", "y", "z"),
     )
     assert mesh.displacements is not None
     assert mesh.displacements.shape == (2, 3, 3)
     assert mesh.displacements[1, 0, 0] == 1.0
+
+
+def test_mesh3d_from_simdata_extracts_a_volume_surface() -> None:
+    """A render Mesh3D is always a surface, even from volume SimData."""
+    from pyvale.dataio import SimData
+
+    sim_data = SimData(
+        coords=np.array((
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 0.0, 1.0),
+        )),
+        connect={"connect1": np.array(((0, 1, 2, 3),))},
+    )
+
+    mesh = render.mesh3d_from_simdata(sim_data, object())
+
+    assert mesh.element_type is render.EElementType.TRI3
+    assert mesh.coords.shape == (4, 3)
+    assert mesh.connectivity.shape == (4, 3)
+
+
+def test_mesh2d_from_simdata_uses_xy_displacements() -> None:
+    """The 2D converter makes an XY mesh with frame-major displacement."""
+    from pyvale.dataio import SimData
+
+    sim_data = SimData(
+        coords=np.array((
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+        )),
+        connect={"connect1": np.array(((0, 1, 2),))},
+        node_vars={
+            "x": np.array(((0.0, 1.0), (0.0, 1.0), (0.0, 1.0))),
+            "y": np.zeros((3, 2)),
+        },
+    )
+
+    mesh = render.mesh2d_from_simdata(sim_data, ("x", "y"))
+
+    assert mesh.coords.shape == (3, 2)
+    assert mesh.displacement.shape == (2, 3, 2)
+    assert mesh.displacement[1, 0, 0] == 1.0
+
+
+def test_mesh2d_from_simdata_rejects_non_xy_meshes() -> None:
+    """The first Mesh2D conversion API intentionally supports XY only."""
+    from pyvale.dataio import SimData
+
+    sim_data = SimData(
+        coords=np.array((
+            (0.0, 0.0, 1.0),
+            (1.0, 0.0, 1.0),
+            (0.0, 1.0, 1.0),
+        )),
+        connect={"connect1": np.array(((0, 1, 2),))},
+    )
+
+    with pytest.raises(ValueError, match="XY plane"):
+        render.mesh2d_from_simdata(sim_data)

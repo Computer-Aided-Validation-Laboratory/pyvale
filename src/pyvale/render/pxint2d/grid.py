@@ -14,6 +14,7 @@ from ..camera import Camera2D
 from ..imagewarp2d import IImageWarp2D
 from ..mesh import Mesh2D
 from ..result import ImageWarpResult
+from ..verifyinput import mesh_convention_issues
 from .mapping import map_points
 from .model import AnalyticRule, Eggbox, PxInt2DOpts, quadrature_points
 
@@ -52,6 +53,14 @@ class PixIntGrid2D(IImageWarp2D):
         camera: Camera2D,
     ) -> _GridPlan:
         """Validate a Grid2D request before quadrature allocation."""
+        convention_issues = mesh_convention_issues(
+            mesh.coords,
+            mesh.connectivity,
+            "mesh",
+        )
+        if convention_issues:
+            raise ValueError(convention_issues[0].message)
+
         if not np.isfinite(mesh.coords).all() or not np.isfinite(
             mesh.displacement,
         ).all():

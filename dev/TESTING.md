@@ -101,6 +101,10 @@ unless Blender is available. Availability requires Python 3.13 and the optional
 same condition. The availability-boundary tests still run without Blender and
 verify the diagnostic behaviour.
 
+The Blender adapter is verified for Tri3 input. It warns when given another
+render surface topology, then tessellates that surface to Tri3 for the legacy
+Blender scene path.
+
 ### MOOSE and Gmsh
 
 Tests that execute MOOSE skip unless the configured MOOSE checkout and Proteus

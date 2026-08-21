@@ -9,7 +9,6 @@ from .calibration import (
 )
 from .config import BlenderConfig, EBlenderEngine
 from .shader import BlenderImageShader, BlenderMaterial, BlenderTextureShader
-from .mesh import mesh_from_simdata
 
 __all__ = [
     "Blender",
@@ -24,5 +23,4 @@ __all__ = [
     "blender_gpu_available",
     "calibration_image_count",
     "render_calibration_images",
-    "mesh_from_simdata",
 ]
