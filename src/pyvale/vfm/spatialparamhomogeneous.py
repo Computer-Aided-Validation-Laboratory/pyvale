@@ -12,8 +12,12 @@ from pyvale.vfm.spatialparam import ISpatialParameterisation
 @dataclass(slots=True)
 class SpatialParameterisationHomogeneous(ISpatialParameterisation):
     """
-    Spatially uniform parameterisation: a single value across the whole
-    specimen
+    Spatially uniform parameterisation with one active degree of freedom.
+
+    ``None`` initialises the value from the incoming constitutive-parameter
+    map, a supplied float is used as the initial value, and an explicit
+    ``DegreeOfFreedom`` preserves its value and bounds. Fixed parameter maps
+    should use ``SpatialParameterisationKnown`` instead.
     """
 
     value: float | DegreeOfFreedom | None = None
@@ -28,14 +32,19 @@ class SpatialParameterisationHomogeneous(ISpatialParameterisation):
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
-        if self.value is None or isinstance(self.value, DegreeOfFreedom):
-            self.value =  DegreeOfFreedom(
-                float(np.nanmean(constitutive_parameter.map)),
-                constitutive_parameter.lower_bound,
-                constitutive_parameter.upper_bound,
-            )
+        if self.value is None:
+            initial_value = float(np.nanmean(constitutive_parameter.map))
+        elif isinstance(self.value, DegreeOfFreedom):
+            # Preserve an explicitly configured active parameter.
+            return
         else:
-            self.value = float(np.nanmean(constitutive_parameter.map))
+            initial_value = float(self.value)
+
+        self.value = DegreeOfFreedom(
+            initial_value,
+            constitutive_parameter.lower_bound,
+            constitutive_parameter.upper_bound,
+        )
 
     def to_map(
         self,
