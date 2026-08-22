@@ -16,7 +16,9 @@ from pyvale.vfm.experimentdata import (
 from pyvale.vfm.metricequilibriumgap import (
     EquilibriumGapMetric,
     EquilibriumGapVirtualFieldType,
+    evaluate_equilibrium_gap_batch,
 )
+from pyvale.vfm.optimiser import _evaluate_batched_equilibrium_gap_metrics
 from pyvale.vfm.roi import RoiDefinition, RoiShape, VfmRegionOfInterest
 
 
@@ -224,6 +226,76 @@ def test_common_stress_and_force_scaling_leaves_normalised_gap_unchanged() -> No
         rtol=1.0e-12,
         atol=1.0e-12,
     )
+
+
+def test_batched_windows_match_independent_fft_correlations() -> None:
+    experiment_data = _rectangle_experiment_data(rows=23, cols=27)
+    stress = _stress_with_central_inclusion(experiment_data)
+    metrics = [
+        EquilibriumGapMetric(window_size=(5, 5)),
+        EquilibriumGapMetric(window_size=(9, 9)),
+    ]
+    for metric in metrics:
+        metric.initialise(experiment_data)
+
+    independent = [metric.evaluate_equilibrium_gap(stress) for metric in metrics]
+    batched = evaluate_equilibrium_gap_batch(
+        stress,
+        metrics,
+        include_diagnostics=True,
+    )
+
+    for expected, actual in zip(independent, batched, strict=True):
+        np.testing.assert_allclose(
+            actual.residual,
+            expected.normalised_gap,
+            rtol=2.0e-12,
+            atol=2.0e-12,
+            equal_nan=True,
+        )
+        assert actual.additional_fields is not None
+        assert actual.additional_fields["weighted_spatiotemporal_rms"] == pytest.approx(
+            expected.weighted_spatiotemporal_rms,
+            rel=2.0e-12,
+            abs=2.0e-12,
+        )
+
+
+def test_optimiser_batch_helper_returns_results_by_metric_index() -> None:
+    experiment_data = _rectangle_experiment_data(rows=23, cols=27)
+    stress = _stress_with_central_inclusion(experiment_data)
+    metrics = [
+        EquilibriumGapMetric(window_size=(5, 5)),
+        EquilibriumGapMetric(window_size=(9, 9)),
+    ]
+    for metric in metrics:
+        metric.initialise(experiment_data)
+
+    results = _evaluate_batched_equilibrium_gap_metrics(stress, metrics)
+
+    assert set(results) == {0, 1}
+    assert all(result.additional_fields is not None for result in results.values())
+
+
+def test_objective_only_egi_result_omits_diagnostic_fields() -> None:
+    experiment_data = _rectangle_experiment_data()
+    assert EquilibriumGapMetric().include_optimisation_diagnostics
+    metric = EquilibriumGapMetric(
+        window_size=(5, 5),
+        include_optimisation_diagnostics=False,
+    )
+    metric.initialise(experiment_data)
+
+    result = metric.evaluate_equilibrium_gap(
+        _stress_with_central_inclusion(experiment_data),
+        include_diagnostics=metric.include_optimisation_diagnostics,
+    ).metric_result
+
+    assert result.residual is None
+    assert set(result.additional_fields) == {
+        "weighted_spatiotemporal_rms",
+        "window_size",
+    }
 
 
 def test_windows_can_cross_free_edges_but_not_non_free_edges() -> None:

@@ -129,3 +129,34 @@ def test_scalar_egi_aggregation_is_not_rms_of_a_combined_map() -> None:
     assert scalar_cost == scalar_egi
     assert combined_map_rms == 1.0
     assert scalar_cost != combined_map_rms
+
+
+def test_combined_objective_accepts_compact_metric_results() -> None:
+    objective = CombinedForceAndEquilibriumGapObjective(
+        force_weight=0.25,
+        egi_baseline_values=(2.0, 4.0),
+        force_baseline_value=5.0,
+        egi_window_weights=(1.0, 3.0),
+    )
+    compact_results = [
+        MetricResult(
+            additional_fields={
+                "reconstructed_force": np.zeros(1),
+                "normalised_residual": np.asarray([15.0]),
+            }
+        ),
+        MetricResult(
+            additional_fields={
+                "weighted_spatiotemporal_rms": 4.0,
+                "window_size": np.asarray([5, 5]),
+            }
+        ),
+        MetricResult(
+            additional_fields={
+                "weighted_spatiotemporal_rms": 8.0,
+                "window_size": np.asarray([9, 9]),
+            }
+        ),
+    ]
+
+    assert objective.evaluate(compact_results) == 2.25

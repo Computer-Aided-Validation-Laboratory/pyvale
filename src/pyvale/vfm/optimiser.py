@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -7,6 +8,10 @@ from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.identificationresult import OptimisationOutcome
 from pyvale.vfm.metric import IMetric, MetricResult
+from pyvale.vfm.metricequilibriumgap import (
+    EquilibriumGapMetric,
+    evaluate_equilibrium_gap_batch,
+)
 from pyvale.vfm.objectivefunc import IObjectiveFunction
 from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
@@ -129,16 +134,96 @@ def evaluate_candidate(
         experiment_data.strain, updated_constitutive_parameter_maps,
     )
 
-    metric_results: list[MetricResult] = []
-    for metric in metrics:
-        metric_results.append(
-            metric.evaluate(
+    metric_results: list[MetricResult | None] = [None] * len(metrics)
+
+    # Evaluate compatible EquilibriumGapMetrics in batches to improve performance
+    batched_results = _evaluate_batched_equilibrium_gap_metrics(
+        updated_stress,
+        metrics,
+    )
+
+    # Evaluate remaining metrics individually
+    for index, metric in enumerate(metrics):
+        if index in batched_results:
+            metric_results[index] = batched_results[index]
+            continue
+        if isinstance(metric, EquilibriumGapMetric):
+            metric_results[index] = metric.evaluate_equilibrium_gap(
+                updated_stress,
+                include_diagnostics=metric.include_optimisation_diagnostics,
+            ).metric_result
+            continue
+        metric_results[index] = metric.evaluate(
                 updated_stress,
                 constitutive_law,
                 parameter_map_size,
                 updated_spatial_parameterisations,
                 experiment_data,
-            ),
-        )
+            )
 
-    return objective_function.evaluate(metric_results)
+    if any(result is None for result in metric_results):
+        raise RuntimeError("A candidate metric evaluation did not produce a result.")
+    return objective_function.evaluate(
+        [result for result in metric_results if result is not None]
+    )
+
+
+def _evaluate_batched_equilibrium_gap_metrics(
+    stress: npt.NDArray[np.float64],
+    metrics: list[IMetric],
+) -> dict[int, MetricResult]:
+    """Evaluate compatible equilibrium-gap metrics in shared FFT batches.
+
+    Metrics are compatible when they use the same integration volume and
+    optimisation diagnostic setting. Results are keyed by the metrics'
+    original positions; unbatched metrics are omitted for the caller to
+    evaluate individually.
+    """
+    results: dict[int, MetricResult] = {}
+    remaining_egi_indices = [
+        index
+        for index, metric in enumerate(metrics)
+        if isinstance(metric, EquilibriumGapMetric)
+    ]
+    while remaining_egi_indices:
+        first_index = remaining_egi_indices.pop(0)
+        first_metric = metrics[first_index]
+        if not isinstance(first_metric, EquilibriumGapMetric):
+            raise RuntimeError("Expected an equilibrium-gap metric.")
+        first_operator = first_metric._operator
+        compatible_indices = [first_index]
+        incompatible_indices = []
+        for index in remaining_egi_indices:
+            metric = metrics[index]
+            if not isinstance(metric, EquilibriumGapMetric):
+                raise RuntimeError("Expected an equilibrium-gap metric.")
+            operator = metric._operator
+            if (
+                first_operator is not None
+                and operator is not None
+                and np.array_equal(first_operator.volume, operator.volume)
+                and metric.include_optimisation_diagnostics
+                == first_metric.include_optimisation_diagnostics
+            ):
+                compatible_indices.append(index)
+            else:
+                incompatible_indices.append(index)
+        remaining_egi_indices = incompatible_indices
+        if len(compatible_indices) < 2:
+            continue
+        egi_metrics = [
+            cast(EquilibriumGapMetric, metrics[index])
+            for index in compatible_indices
+        ]
+        batched_results = evaluate_equilibrium_gap_batch(
+            stress,
+            egi_metrics,
+            include_diagnostics=first_metric.include_optimisation_diagnostics,
+        )
+        for index, result in zip(
+            compatible_indices,
+            batched_results,
+            strict=True,
+        ):
+            results[index] = result
+    return results
