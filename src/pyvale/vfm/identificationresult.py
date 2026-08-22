@@ -1220,10 +1220,12 @@ _UNSERIALISABLE = object()
 def _jsonify_value(
     value: Any,
 ) -> JsonValue | object:
-    if value is None or isinstance(value, (str, bool)):
-        return value
+    # StrEnum is also an instance of str, so Enum must be handled first or
+    # PyYAML receives the enum object rather than its plain scalar value.
     if isinstance(value, enum.Enum):
         return value.value if isinstance(value.value, (str, int, float, bool)) else value.name
+    if value is None or isinstance(value, (str, bool)):
+        return value
     if isinstance(value, (int, np.integer)):
         return int(value)
     if isinstance(value, (float, np.floating)):
