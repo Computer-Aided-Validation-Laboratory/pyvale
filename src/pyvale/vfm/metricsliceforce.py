@@ -59,12 +59,14 @@ def _build_slice_metric_result(
     temporal_weights: npt.NDArray[np.float64],
     spatial_weights: npt.NDArray[np.float64] | float,
 ) -> MetricResult:
-    force_scale = float(np.max(np.abs(applied_longitudinal_force)))
-    if force_scale <= 0.0:
-        force_scale = 1.0
-
+    # Raw residual is the difference between reconstructed and applied forces,
     resolved_raw_residual = np.asarray(raw_residual, dtype=np.float64)
-    normalised_residual = resolved_raw_residual / force_scale
+    
+    # Normalised residual is relative to applied force, FRE(t) = (F_R(t) - F_A(t)) / F_A(t)
+    normalised_residual = _compute_relative_force_residual(
+        raw_residual=resolved_raw_residual,
+        applied_longitudinal_force=applied_longitudinal_force,
+    )
 
     return MetricResult(
         residual=resolved_raw_residual,
@@ -74,7 +76,10 @@ def _build_slice_metric_result(
             "temporal_weights": np.asarray(temporal_weights, dtype=np.float64),
             "spatial_weights": np.asarray(spatial_weights, dtype=np.float64),
             "reconstructed_force": np.asarray(reconstructed_force, dtype=np.float64),
-            "applied_longitudinal_force": np.asarray(applied_longitudinal_force, dtype=np.float64),
+            "applied_longitudinal_force": np.asarray(
+                applied_longitudinal_force,
+                dtype=np.float64,
+            ),
         },
     )
 
@@ -107,21 +112,33 @@ def build_force_reconstruction_error_result(
 ) -> ForceReconstructionErrorResult:
     """Build global residuals and weighted diagnostic summaries."""
 
+    # Raw residual is the difference between reconstructed and applied forces, 
+    # with shape (timesteps, slices)
     raw_residual = reconstructed_force - applied_longitudinal_force[:, np.newaxis]
-    force_scale = float(np.max(np.abs(applied_longitudinal_force)))
-    if force_scale <= 0.0:
-        force_scale = 1.0
-
-    normalised_residual = raw_residual / force_scale
-    weighted_temporal_rms = np.sqrt(
-        np.sum(np.asarray(temporal_weights, dtype=np.float64)[:, np.newaxis] * normalised_residual**2, axis=0)
+    # Normalised residual is relative to applied force, FRE(t) = (F_R(t) - F_A(t)) / F_A(t)
+    relative_residual = _compute_relative_force_residual(
+        raw_residual,
+        applied_longitudinal_force,
     )
+
+    # Weighted RMS across time for each slice, shape (slices,)
+    # equation: sqrt(sum(temporal_weights * relative_residual^2))
+    weighted_temporal_rms = np.sqrt(
+        np.nansum(
+            np.asarray(temporal_weights, dtype=np.float64)[:, np.newaxis]
+            * relative_residual**2,
+            axis=0,
+        )
+    )
+
+    # Weighted RMS across time and slices, scalar
+    # equation: sqrt(sum(temporal_weights * spatial_weights * relative_residual^2))
     weighted_spatiotemporal_rms = float(
         np.sqrt(
-            np.sum(
+            np.nansum(
                 np.asarray(temporal_weights, dtype=np.float64)[:, np.newaxis]
                 * np.asarray(spatial_weights, dtype=np.float64)[np.newaxis, :]
-                * normalised_residual**2
+                * relative_residual**2
             )
         )
     )
@@ -158,12 +175,47 @@ def _extract_force_component(
 
 
 def _normalise_weights(raw_weights: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """
+    Normalise a weight array to sum to 1.0, replacing non-finite or negative weights
+    with zero. If the total weight is zero, return a uniform distribution.
+    """
     resolved = np.asarray(raw_weights, dtype=np.float64)
     resolved = np.where(np.isfinite(resolved) & (resolved > 0.0), resolved, 0.0)
     total = float(np.sum(resolved))
     if total <= 0.0:
         return np.full(resolved.shape, 1.0 / resolved.size, dtype=np.float64)
     return resolved / total
+
+
+def _compute_relative_force_residual(
+    raw_residual: npt.NDArray[np.float64],
+    applied_longitudinal_force: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Compute relative force-reconstruction error.
+
+    ``FRE = (F_R - F_A) / F_A``.  Zero-force steps carry no useful
+    information and are represented as NaN so zero temporal weight can safely
+    exclude them from weighted RMS aggregation.
+    """
+
+    applied_force = np.asarray(applied_longitudinal_force, dtype=np.float64)
+    raw_residual = np.asarray(raw_residual, dtype=np.float64)
+
+    # If applied_force is 1D and raw_residual is 2D (timesteps x slices), 
+    # broadcast applied_force to match shape for element-wise division
+    if raw_residual.ndim > applied_force.ndim:
+        applied_force = applied_force[:, np.newaxis]
+
+    # Compute normalised residual as FRE(t) = (F_R(t) - F_A(t)) / F_A(t),
+    # while handling division by zero by setting those entries to NaN
+    normalised_residual = np.divide(
+        raw_residual,
+        applied_force,
+        out=np.full_like(raw_residual, np.nan),
+        where=np.abs(applied_force) > np.finfo(np.float64).eps,
+    )
+
+    return normalised_residual
 
 
 def _filter_operator_points(
@@ -330,7 +382,9 @@ class SliceWiseForceReconstructionMetric(IMetric):
                 thickness * np.sum(stress_component[:, point_indices] * point_area_integral_weights[np.newaxis, :], axis=1)
             )
 
-        temporal_weights = _normalise_weights(np.abs(applied_longitudinal_force))
+        # Weight temporal FRE contributions by applied-force
+        # squared, reducing sensitivity to low-load frames.
+        temporal_weights = compute_force_temporal_weights(applied_longitudinal_force)
         spatial_weights = _normalise_weights(self.slice_partition.widths)
 
         return build_force_reconstruction_error_result(
@@ -339,3 +393,20 @@ class SliceWiseForceReconstructionMetric(IMetric):
             temporal_weights=temporal_weights,
             spatial_weights=spatial_weights,
         )
+
+
+def compute_force_temporal_weights(
+    applied_longitudinal_force: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Return normalised applied-force-squared temporal weights.
+    
+    F^2 weighting reduces sensitivity to low-load frames. 
+    """
+    force = np.asarray(applied_longitudinal_force, dtype=np.float64)
+    weights = force**2
+    if not np.any(weights > 0.0):
+        raise ValueError(
+            "Force reconstruction error requires at least one non-zero "
+            "applied-force timestep."
+        )
+    return _normalise_weights(weights)

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(slots=True)
@@ -14,3 +15,4 @@ class DegreeOfFreedom:
     value: float
     lower_bound: float
     upper_bound: float
+    scaling: Literal["linear", "log"] = "linear"

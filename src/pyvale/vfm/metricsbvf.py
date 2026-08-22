@@ -58,9 +58,15 @@ class MetricSBVF(IMetric):
     # TODO: option to adjust fraction of largest timesteps used for
     #   calculating VF scaling factor
     vf_scaling_fraction: float | None = None
-    """
-    Optional fraction of the largest-magnitude timesteps used to compute the
-    virtual-field scaling factor. When ``None`` all timesteps are used
+    """Optional fraction of the largest-magnitude timesteps used to compute
+    the virtual-field scaling factor. When ``None`` all timesteps are used."""
+
+    stress_area_scale: float = 1.0
+    """Convert ``stress * area`` to force for the experiment-data units.
+
+    PyVale's VFM data contract uses mm, MPa and N, for which this is ``1``.
+    Legacy SI-coordinate datasets with stress still expressed in MPa should
+    supply ``1e6`` explicitly.
     """
 
     _virtual_fields_mesh: VirtualFieldsMesh | None = field(
@@ -198,7 +204,7 @@ class MetricSBVF(IMetric):
             internal_virtual_work_4d = (
                 stress
                 * sbvf.virtual_strain
-                * pixel_area * 1e6
+                * pixel_area * self.stress_area_scale
                 * experiment_data.specimen_geometry.thickness
             )
 

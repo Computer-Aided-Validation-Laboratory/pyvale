@@ -1,10 +1,19 @@
 from pathlib import Path
 
 import numpy as np
-import numpy.testing as npt
 import yaml
+import numpy.testing as npt
 
 from pyvale.vfm.dof import DegreeOfFreedom
+from pyvale.vfm.metricequilibriumgap import EquilibriumGapVirtualFieldType
+from pyvale.vfm.identificationresult import _jsonify_value
+
+
+def test_jsonify_converts_str_enum_to_plain_yaml_scalar() -> None:
+    value = _jsonify_value(EquilibriumGapVirtualFieldType.TWO_AVERAGED)
+    assert type(value) is str
+    assert value == "two_averaged"
+    assert yaml.safe_dump({"value": value}) == "value: two_averaged\n"
 from pyvale.vfm.identificationresult import (
     IdentificationHistory,
     IdentificationResult,

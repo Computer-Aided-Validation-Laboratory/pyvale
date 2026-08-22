@@ -89,6 +89,11 @@ from .objectivefuncfreandegi import (
     ForceAndEquilibriumGapObjectiveResult,
     ScalarForceAndEquilibriumGapObjective,
 )
+from .objectivefunccombinedfreegi import (
+    CombinedForceAndEquilibriumGapObjective,
+    CombinedForceAndEquilibriumGapObjectiveResult,
+    infer_egi_window_length_weights,
+)
 from .progress import ConsoleProgressReporter, ProgressEvent
 
 from .refinement import (
@@ -165,6 +170,9 @@ __all__ = [
     "infer_window_area_weights",
     "ForceAndEquilibriumGapObjectiveResult",
     "ScalarForceAndEquilibriumGapObjective",
+    "CombinedForceAndEquilibriumGapObjective",
+    "CombinedForceAndEquilibriumGapObjectiveResult",
+    "infer_egi_window_length_weights",
     "ProgressEvent",
     "ConsoleProgressReporter",
     "IRefinementPolicy",

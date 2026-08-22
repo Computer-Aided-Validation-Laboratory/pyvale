@@ -7,7 +7,10 @@ import numpy.typing as npt
 
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import ExperimentData
-from pyvale.vfm.normalisation import denormalise_degrees_of_freedom
+from pyvale.vfm.normalisation import (
+    denormalise_degrees_of_freedom,
+    normalise_degrees_of_freedom,
+)
 from pyvale.vfm.dof import DegreeOfFreedom
 
 
@@ -255,19 +258,10 @@ class PhaseSpatialState:
         if not degrees_of_freedom:
             return np.zeros(0, dtype=np.float64)
 
-        lower_bounds = np.asarray(
-            [dof.lower_bound for dof in degrees_of_freedom],
-            dtype=np.float64,
+        return normalise_degrees_of_freedom(
+            degrees_of_freedom,
+            [dof.scaling for dof in degrees_of_freedom],
         )
-        upper_bounds = np.asarray(
-            [dof.upper_bound for dof in degrees_of_freedom],
-            dtype=np.float64,
-        )
-        values = np.asarray(
-            [dof.value for dof in degrees_of_freedom],
-            dtype=np.float64,
-        )
-        return (values - lower_bounds) / (upper_bounds - lower_bounds)
 
     def update_from_degrees_of_freedom(
         self,
@@ -303,6 +297,7 @@ class PhaseSpatialState:
             normalised_degrees_of_freedom,
             lower_bounds,
             upper_bounds,
+            [dof.scaling for dof in degrees_of_freedom],
         )
         self.update_from_degrees_of_freedom(denormalised_degrees_of_freedom)
 

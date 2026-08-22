@@ -22,6 +22,7 @@ from pyvale.vfm.metricsliceforce import (
     _extract_force_component,
     _filter_operator_points,
     _normalise_weights,
+    compute_force_temporal_weights,
 )
 from pyvale.vfm.normalisation import (
     denormalise_degrees_of_freedom,
@@ -360,9 +361,12 @@ def _build_slice_solve_data(
     )
 
     # Compute the temporal and spatial weights for this slice (optionally used in objective function)
-    # - temporal weights are normalised absolute applied longitudinal force
-    # - spatial weights are normalised slice widths
-    temporal_weights = _normalise_weights(np.abs(applied_longitudinal_force))
+    #temporal weights are normalised by applied longitudinal force squared, 
+    # reducing sensitivity to low-load frames
+    temporal_weights = compute_force_temporal_weights(
+        applied_longitudinal_force
+    )
+    # spatial weights are normalised slice widths
     spatial_weights = _normalise_weights(slice_metric.slice_partition.widths)
 
     point_indices = slice_metric.slice_partition.slice_force_point_indices[slice_index]
