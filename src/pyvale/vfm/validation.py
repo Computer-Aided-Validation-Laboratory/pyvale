@@ -251,6 +251,16 @@ def _collect_identification_config_errors(
                 f"phase {i} must have at least one metric"
             )
 
+        # Check that the radial return Newton-Raphson tolerance is finite and positive.
+        if (
+            not np.isfinite(phase.optimisation_newton_tolerance)
+            or phase.optimisation_newton_tolerance <= 0.0
+        ):
+            errors.append(
+                f"phase {i}: optimisation_newton_tolerance must be finite "
+                "and greater than zero"
+            )
+
         errors.extend(
             _collect_slicewise_independent_phase_errors(
                 phase,

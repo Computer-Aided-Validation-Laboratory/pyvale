@@ -37,6 +37,20 @@ class IdentificationPhase:
     refinement_policy: IRefinementPolicy | None = None
     """Optional phase-level strategy for changing the spatial representation"""
 
+    optimisation_newton_tolerance: float = 1.0e-6
+    """Newton tolerance used only for optimiser candidate stress evaluations.
+
+    Final stress reconstruction uses the constitutive law's ordinary
+    tolerance (``1e-8`` for the radial-return implementation).
+    """
+
+    cache_radial_return: bool = True
+    """Cache radial-return inputs during optimisation for faster repeated calls.
+
+    Set to ``False`` to use the ordinary uncached constitutive evaluation for
+    every optimisation candidate, including independent slice-wise solves.
+    """
+
 
 @dataclass(slots=True)
 class IdentificationConfig:

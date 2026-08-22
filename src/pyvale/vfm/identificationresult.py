@@ -132,6 +132,8 @@ class PhaseConfigSnapshot:
     objective_function: ObjectSnapshot | None = None
     optimiser: ObjectSnapshot | None = None
     refinement_policy: ObjectSnapshot | None = None
+    optimisation_newton_tolerance: float = 1.0e-6
+    cache_radial_return: bool = True
 
     def to_dict(self) -> Summary:
         return _dataclass_to_dict(self)
@@ -633,6 +635,10 @@ def snapshot_phase_config(
             if refinement_policy is None
             else snapshot_object(refinement_policy)
         ),
+        optimisation_newton_tolerance=float(
+            getattr(phase, "optimisation_newton_tolerance", 1.0e-6)
+        ),
+        cache_radial_return=bool(getattr(phase, "cache_radial_return", True)),
     )
 
 
