@@ -39,6 +39,7 @@ from pyvale.vfm.spatialparam import (
     PhaseSpatialState,
     evaluate_parameterisations_to_map,
 )
+from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 
 
 def run_identification(
@@ -158,6 +159,18 @@ def run_identification(
                         phase_runtime.spatial_state.collect_degrees_of_freedom()
                     )
 
+                    # Prepare a phase-local constitutive law for optimisation,
+                    # which may include precomputed inputs for the radial return algorithm
+                    # to reduce repeated calculations.
+                    phase_constitutive_law = _prepare_phase_constitutive_law(
+                        identification_config.constitutive_law,
+                        phase_runtime,
+                        experiment_data,
+                        parameter_map_size,
+                        phase.optimisation_newton_tolerance,
+                        phase.cache_radial_return,
+                    )
+
                     # Emit a progress event to indicate the start of the current solve iteration within the phase.
                     _emit_solve_progress(
                         progress_callback,
@@ -171,7 +184,7 @@ def run_identification(
                     solve_started_at = time.perf_counter()
                     # Optimise the active DOFs to minimise the objective.
                     optimisation_result = phase.optimiser.optimise(
-                        identification_config.constitutive_law,
+                        phase_constitutive_law,
                         parameter_map_size,
                         phase_runtime.spatial_state.spatial_parameterisations,
                         phase_runtime.metrics,
@@ -375,6 +388,60 @@ def run_identification(
             input=input_metadata,
             config=config_snapshot,
         ),
+    )
+
+
+def _prepare_phase_constitutive_law(
+    constitutive_law: IConstitutiveLaw,
+    phase_runtime: "PhaseRuntime",
+    experiment_data: ExperimentData,
+    parameter_map_size: np.ndarray,
+    optimisation_newton_tolerance: float,
+    cache_radial_return: bool,
+) -> IConstitutiveLaw:
+    """Build an optional phase-local fast constitutive evaluator.
+
+    Constitutive laws without a preparation hook retain their existing
+    behaviour. Known elastic maps are supplied only when both are represented
+    by ``SpatialParameterisationKnown`` objects in this phase.
+    """
+
+    prepare = getattr(constitutive_law, "prepare_for_optimisation", None)
+    if prepare is None:
+        return constitutive_law
+
+    # If both elastic modulus and Poisson's ratio are represented by known
+    # spatial parameterisations, evaluate their maps and use them to compute
+    # invariant quantities for the radial return algorithm.
+    elastic_labels = (
+        getattr(constitutive_law, "elastic_modulus_label", None),
+        getattr(constitutive_law, "poissons_ratio_label", None),
+    )
+    fixed_elastic_parameter_maps = None
+    if all(isinstance(label, str) for label in elastic_labels):
+        labels = tuple(elastic_labels)
+        if all(
+            len(phase_runtime.spatial_parameterisations[label]) == 1
+            and isinstance(
+                phase_runtime.spatial_parameterisations[label][0],
+                SpatialParameterisationKnown,
+            )
+            for label in labels
+        ):
+            all_maps = phase_runtime.spatial_state.evaluate_parameter_maps(
+                parameter_map_size
+            )
+            fixed_elastic_parameter_maps = {
+                label: all_maps[label]
+                for label in labels
+            }
+
+    # Prepare a phase-local constitutive law with precomputed radial-return inputs.
+    return prepare(
+        experiment_data.strain,
+        error_tolerance=optimisation_newton_tolerance,
+        fixed_elastic_parameter_maps=fixed_elastic_parameter_maps,
+        cache_radial_return=cache_radial_return,
     )
 
 

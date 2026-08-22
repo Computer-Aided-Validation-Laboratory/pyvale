@@ -121,6 +121,11 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                 local_slice_data.unknown_parameter_names,
             )
 
+            slice_constitutive_law = _prepare_slice_constitutive_law(
+                constitutive_law,
+                local_slice_data,
+            )
+
             _emit_slice_progress(
                 progress_callback,
                 kind="slice_started",
@@ -134,7 +139,7 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                 bounds=(np.zeros_like(initial_guess), np.ones_like(initial_guess)),
                 method=self.method,
                 args=(
-                    constitutive_law,
+                    slice_constitutive_law,
                     objective_function,
                     slice_metric,
                     experiment_data,
@@ -489,6 +494,41 @@ def _build_initial_guess(
         slice_degrees_of_freedom.append(copy.copy(slice_value))
 
     return normalise_degrees_of_freedom(slice_degrees_of_freedom)
+
+
+def _prepare_slice_constitutive_law(
+    constitutive_law: IConstitutiveLaw,
+    local_slice_data: LocalSliceData,
+) -> IConstitutiveLaw:
+    """Prepare invariant constitutive inputs once for one slice solve.
+
+    The phase law may already be prepared for the complete strain field. Its
+    preparation hook returns a shallow copy and replaces that full-field cache
+    with inputs matching this slice's filtered local points. The resulting law
+    is then reused by every candidate evaluation for this slice.
+    """
+    prepare = getattr(constitutive_law, "prepare_for_optimisation", None)
+    if prepare is None or not getattr(constitutive_law, "cache_radial_return", True):
+        return constitutive_law
+
+    elastic_labels = (
+        getattr(constitutive_law, "elastic_modulus_label", None),
+        getattr(constitutive_law, "poissons_ratio_label", None),
+    )
+    fixed_elastic_maps = None
+    if all(isinstance(label, str) for label in elastic_labels) and all(
+        label in local_slice_data.fixed_parameter_maps for label in elastic_labels
+    ):
+        fixed_elastic_maps = {
+            label: local_slice_data.fixed_parameter_maps[label]
+            for label in elastic_labels
+        }
+
+    return prepare(
+        local_slice_data.local_strain,
+        error_tolerance=getattr(constitutive_law, "error_tolerance", 1.0e-8),
+        fixed_elastic_parameter_maps=fixed_elastic_maps,
+    )
 
 
 def _extract_local_strain(

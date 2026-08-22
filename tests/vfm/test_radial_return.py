@@ -1,9 +1,18 @@
 """Regression tests for the vectorised plane-stress radial-return mapping."""
 
+from pathlib import Path
+
 import numpy as np
 
 from pyvale.vfm.hardening import HardeningLinear
-from pyvale.vfm.radialreturn import EUnloading, radial_return
+from pyvale.vfm.radialreturn import (
+    EUnloading,
+    prepare_radial_return_inputs,
+    radial_return,
+)
+
+
+FIXTURE_PATH = Path(__file__).parent / "gold" / "radial_return_downsampled_case.npz"
 
 
 def _maps(
@@ -136,6 +145,76 @@ def test_radial_return_handles_mixed_elastic_and_plastic_heterogeneous_points() 
     assert not yield_map[-1, 1, 1]
     assert peeq[-1, 0, 0] > 0.0
     assert peeq[-1, 1, 1] == 0.0
+
+
+def test_prepared_radial_return_inputs_match_uncached_path() -> None:
+    maps = _maps((2, 3))
+    maps["yield_strength"][0, 0] = 150.0
+    strain = np.zeros((14, 3, 2, 3), dtype=np.float64)
+    strain[:, 0] = np.linspace(0.0, 0.006, strain.shape[0])[:, None, None]
+    strain[:, 1] = 0.2 * strain[:, 0]
+    strain[:, 2] = -0.1 * strain[:, 0]
+
+    reference = _radial_return(strain, maps)
+    prepared = prepare_radial_return_inputs(
+        strain,
+        elastic_modulus=maps["elastic_modulus"],
+        poissons_ratio=maps["poissons_ratio"],
+    )
+    cached = radial_return(
+        strain,
+        maps,
+        maps["elastic_modulus"],
+        maps["poissons_ratio"],
+        HardeningLinear(),
+        unloading=EUnloading.NoCompensation,
+        prepared_inputs=prepared,
+    )
+
+    for actual, expected in zip(cached, reference, strict=True):
+        np.testing.assert_allclose(actual, expected, rtol=1.0e-13, atol=1.0e-13)
+
+
+def test_radial_return_real_data_regression_fixture() -> None:
+    with np.load(FIXTURE_PATH, allow_pickle=False) as fixture:
+        strain = fixture["strain"]
+        shape = strain.shape[2:]
+        maps = _maps(
+            shape,
+            elastic_modulus=float(fixture["elastic_modulus"]),
+            poissons_ratio=float(fixture["poissons_ratio"]),
+            yield_strength=float(fixture["yield_strength"]),
+            hardening_modulus=float(fixture["hardening_modulus"]),
+        )
+        unloading = {
+            "constant_strain": EUnloading.ConstantStrain,
+            "no_compensation": EUnloading.NoCompensation,
+            "linear_extrapolation": EUnloading.LinearExtrapolation,
+        }[str(fixture["unloading_mode"])]
+        actual = radial_return(
+            strain,
+            maps,
+            maps["elastic_modulus"],
+            maps["poissons_ratio"],
+            HardeningLinear(),
+            error_tolerance=float(fixture["error_tolerance"]),
+            iteration_limit=int(fixture["iteration_limit"]),
+            unloading=unloading,
+        )
+        expected = (
+            fixture["stress_expected"],
+            fixture["equivalent_stress_expected"],
+            fixture["yield_map_expected"],
+            fixture["peeq_expected"],
+        )
+
+    for actual_value, expected_value in zip(actual, expected, strict=True):
+        np.testing.assert_allclose(
+            actual_value,
+            expected_value,
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
 
 # ---------------------------------------------------------------------------
 # Legacy commented tests retained for future reference.

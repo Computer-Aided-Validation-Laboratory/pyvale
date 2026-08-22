@@ -1,9 +1,104 @@
 import enum
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.hardening import IHardeningFunction
+
+
+@dataclass(slots=True, frozen=True)
+class RadialReturnPreparedInputs:
+    """Immutable inputs that may be reused across stress reconstructions.
+
+    ``incremental_strain`` is valid whenever the measured strain history is
+    unchanged. ``elastic_stress_increment`` is populated only when both
+    elastic parameter maps are fixed for the lifetime of the prepared data.
+    """
+
+    strain_shape: tuple[int, int, int, int]
+    incremental_strain: npt.NDArray[np.float64]
+    elastic_stress_increment: npt.NDArray[np.float64] | None = None
+    elastic_modulus_flat: npt.NDArray[np.float64] | None = None
+    poissons_ratio_flat: npt.NDArray[np.float64] | None = None
+    shear_modulus_flat: npt.NDArray[np.float64] | None = None
+
+
+def prepare_radial_return_inputs(
+    strain: npt.NDArray[np.float64],
+    *,
+    elastic_modulus: npt.NDArray[np.float64] | None = None,
+    poissons_ratio: npt.NDArray[np.float64] | None = None,
+) -> RadialReturnPreparedInputs:
+    """Prepare strain and, optionally, fixed-elasticity radial-return data.
+
+    Supplying neither elastic map caches only strain increments. Supplying
+    both additionally caches the plane-stress elastic stress increment. The
+    latter is appropriate only when ``elastic_modulus`` and ``poissons_ratio``
+    are known and fixed throughout the optimisation phase.
+    """
+
+    if strain.ndim != 4 or strain.shape[1] != 3:
+        raise ValueError("strain must have shape (timesteps, 3, y, x)")
+    if (elastic_modulus is None) != (poissons_ratio is None):
+        raise ValueError(
+            "elastic_modulus and poissons_ratio must either both be supplied "
+            "or both be omitted."
+        )
+
+    # Compute incremental strain from the full strain history. The first
+    # timestep is treated as an increment from zero strain.
+    incremental_strain = np.empty_like(strain)
+    incremental_strain[0] = strain[0]
+    incremental_strain[1:] = np.diff(strain, axis=0)
+    # Convert tensorial shear strain to engineering shear strain
+    incremental_strain[:, 2] *= 2.0
+    # Set the write flag to False to prevent accidental modification of
+    # the incremental strain array.
+    incremental_strain.setflags(write=False)
+
+    elastic_stress_increment = None
+    elastic_modulus_flat = None
+    poissons_ratio_flat = None
+    shear_modulus_flat = None
+    if elastic_modulus is not None and poissons_ratio is not None:
+        expected_shape = strain.shape[2:]
+        if elastic_modulus.shape != expected_shape or poissons_ratio.shape != expected_shape:
+            raise ValueError(
+                "elastic parameter maps must match the strain spatial shape "
+                f"{expected_shape}."
+            )
+        plane_stress_factor = elastic_modulus / (1.0 - poissons_ratio**2)
+        shear_modulus = elastic_modulus / (2.0 * (1.0 + poissons_ratio))
+        elastic_stress_increment = np.empty_like(strain)
+        elastic_stress_increment[:, 0] = plane_stress_factor * (
+            incremental_strain[:, 0]
+            + poissons_ratio[np.newaxis] * incremental_strain[:, 1]
+        )
+        elastic_stress_increment[:, 1] = plane_stress_factor * (
+            poissons_ratio[np.newaxis] * incremental_strain[:, 0]
+            + incremental_strain[:, 1]
+        )
+        elastic_stress_increment[:, 2] = (
+            shear_modulus[np.newaxis] * incremental_strain[:, 2]
+        )
+        # Set the write flag to False to prevent accidental modification
+        elastic_stress_increment.setflags(write=False)
+        elastic_modulus_flat = np.array(elastic_modulus, copy=True).ravel()
+        poissons_ratio_flat = np.array(poissons_ratio, copy=True).ravel()
+        shear_modulus_flat = np.array(shear_modulus, copy=True).ravel()
+        elastic_modulus_flat.setflags(write=False)
+        poissons_ratio_flat.setflags(write=False)
+        shear_modulus_flat.setflags(write=False)
+
+    return RadialReturnPreparedInputs(
+        strain_shape=tuple(strain.shape),
+        incremental_strain=incremental_strain,
+        elastic_stress_increment=elastic_stress_increment,
+        elastic_modulus_flat=elastic_modulus_flat,
+        poissons_ratio_flat=poissons_ratio_flat,
+        shear_modulus_flat=shear_modulus_flat,
+    )
 
 
 class EUnloading(enum.Enum):
@@ -33,6 +128,7 @@ def radial_return(
     error_tolerance: float = 1e-8,
     iteration_limit: int = 100,
     unloading: EUnloading = EUnloading.ConstantStrain,
+    prepared_inputs: RadialReturnPreparedInputs | None = None,
 ) -> tuple[
     npt.NDArray[np.float64],
     npt.NDArray[np.float64],
@@ -58,6 +154,11 @@ def radial_return(
         - NoCompensation: no output correction on unloading
         - ConstantStrain: hold previous output stress (default)
         - LinearExtrapolation: extrapolate from two previous outputs
+    prepared_inputs : RadialReturnPreparedInputs, optional
+        Reusable strain increments and, for a phase with fixed elastic
+        properties, elastic stress increments. Create with
+        :func:`prepare_radial_return_inputs` and do not reuse after changing
+        the strain history or fixed elastic maps.
 
     Returns
     -------
@@ -138,21 +239,37 @@ def radial_return(
     size_x = strain.shape[3]
     num_datapoints = size_y * size_x
 
-    # Elastic modulus and poissons ratio are always required to compute trial elastic stress
-    elastic_modulus = constitutive_parameter_maps["elastic_modulus"]
-    poissons_ratio = constitutive_parameter_maps["poissons_ratio"]
+    if elastic_modulus.shape != (size_y, size_x):
+        raise ValueError("elastic_modulus must match the strain spatial shape")
+    if poissons_ratio.shape != (size_y, size_x):
+        raise ValueError("poissons_ratio must match the strain spatial shape")
+    if prepared_inputs is not None and prepared_inputs.strain_shape != tuple(strain.shape):
+        raise ValueError("prepared radial-return inputs do not match strain shape")
 
-    # == COMPUTE PLANE STRESS FACTOR (AND / OR ELASTIC STIFFNESS MATRIX) ==
-    shear_modulus = elastic_modulus / (2 * (1 + poissons_ratio))     
-
-    # Plane stress factor used rather than elastic stiffness matrix to more easily
-    # support spatially varying material properties without needing to construct
-    # a full elastic stiffness matrix for each point.
-    plane_stress_factor = elastic_modulus / (1 - poissons_ratio ** 2)
-
-    elastic_modulus_flat = elastic_modulus.ravel()
-    poissons_ratio_flat = poissons_ratio.ravel()
-    shear_modulus_flat = shear_modulus.ravel()
+    fixed_elastic_cache = (
+        prepared_inputs is not None
+        and prepared_inputs.elastic_stress_increment is not None
+    )
+    if fixed_elastic_cache:
+        elastic_modulus_flat = prepared_inputs.elastic_modulus_flat
+        poissons_ratio_flat = prepared_inputs.poissons_ratio_flat
+        shear_modulus_flat = prepared_inputs.shear_modulus_flat
+        if (
+            elastic_modulus_flat is None
+            or poissons_ratio_flat is None
+            or shear_modulus_flat is None
+        ):
+            raise ValueError("fixed-elasticity prepared inputs are incomplete")
+        shear_modulus = None
+        plane_stress_factor = None
+    else:
+        shear_modulus = elastic_modulus / (2 * (1 + poissons_ratio))
+        # Plane stress factor supports spatially varying elastic properties
+        # without constructing a stiffness matrix at every point.
+        plane_stress_factor = elastic_modulus / (1 - poissons_ratio ** 2)
+        elastic_modulus_flat = elastic_modulus.ravel()
+        poissons_ratio_flat = poissons_ratio.ravel()
+        shear_modulus_flat = shear_modulus.ravel()
  
     # Old: explicit elastic stiffness matrix for plane stress with engineering shear strain (only required if 
     #       we want to do the elastic predictor with a single matrix multiply or output the stiffness matrix for some reason)
@@ -167,15 +284,12 @@ def radial_return(
 
     # == COMPUTE INCREMENTAL STRAINS ==
     # The return-mapping algorithm works with strain increments. 
-    incremental_strain = np.zeros_like(strain) 
-    incremental_strain[0, :, :, :] = strain[0, :, :, :] # First timestep uses the total strain as the first increment
-    incremental_strain[1:, :, :, :] = np.diff(strain, axis=0)
-
-    # Convert tensorial shear strain component to engineering shear strain
-    # The constitutive matrix D is written using engineering shear strain gamma_xy,
-    # while the incoming field is assumed to contain tensorial shear epsilon_xy. 
-    # Need to confirm that the Python strain input is provided as tensorial strain.
-    incremental_strain[:, 2, :, :] *= 2    
+    if prepared_inputs is None:
+        incremental_strain = prepare_radial_return_inputs(strain).incremental_strain
+        elastic_stress_increment = None
+    else:
+        incremental_strain = prepared_inputs.incremental_strain
+        elastic_stress_increment = prepared_inputs.elastic_stress_increment
 
 
     # == INITIALISE VARIABLES FOR RADIAL RETURN ==
@@ -214,19 +328,34 @@ def radial_return(
 
         # xx component of trial stress at each point (shape: y, x)
         # sig_xx = sig_xx_prev + plane_stress_factor * (delta_eps_xx + nu * delta_eps_yy)
-        trial_stress_xx = stress_state[t_prev, 0, :, :] + plane_stress_factor * (
-            incremental_strain[t, 0, :, :] + poissons_ratio * incremental_strain[t, 1, :, :]
-        )
+        if elastic_stress_increment is None:
+            trial_stress_xx = stress_state[t_prev, 0, :, :] + plane_stress_factor * (
+                incremental_strain[t, 0, :, :] + poissons_ratio * incremental_strain[t, 1, :, :]
+            )
+        else:
+            trial_stress_xx = (
+                stress_state[t_prev, 0, :, :] + elastic_stress_increment[t, 0]
+            )
 
         # yy component of trial stress at each point (shape: y, x)
         # sig_yy = sig_yy_prev + plane_stress_factor * (delta_eps_yy + nu * delta_eps_xx)
-        trial_stress_yy = stress_state[t_prev, 1, :, :] + plane_stress_factor * (
-            poissons_ratio * incremental_strain[t, 0, :, :] + incremental_strain[t, 1, :, :]
-        )
+        if elastic_stress_increment is None:
+            trial_stress_yy = stress_state[t_prev, 1, :, :] + plane_stress_factor * (
+                poissons_ratio * incremental_strain[t, 0, :, :] + incremental_strain[t, 1, :, :]
+            )
+        else:
+            trial_stress_yy = (
+                stress_state[t_prev, 1, :, :] + elastic_stress_increment[t, 1]
+            )
 
         # xy component of trial stress at each point (shape: y, x)
         # sig_xy = sig_xy_prev + G * delta_gamma_xy  (note: shear strain is engineering shear strain, so no factor of 2 needed here)
-        trial_stress_xy = stress_state[t_prev, 2, :, :] + shear_modulus * incremental_strain[t, 2, :, :]
+        if elastic_stress_increment is None:
+            trial_stress_xy = stress_state[t_prev, 2, :, :] + shear_modulus * incremental_strain[t, 2, :, :]
+        else:
+            trial_stress_xy = (
+                stress_state[t_prev, 2, :, :] + elastic_stress_increment[t, 2]
+            )
        
         # Keep the component fields flattened through the return mapping. This
         # avoids stacking and transposing the full stress field each timestep.
@@ -330,7 +459,7 @@ def radial_return(
                 / (1 + 2 * shear_modulus_flat * plastic_multiplier) ** 3
             )
 
-            # Only update plastic points as elastic points have plastic_multiplier = 0 and 
+            # Only update plastic points as elastic points have plastic_multiplier = 0 and
             # do not need to be updated in the iteration
             delta_ksi_plastic_multiplier[plasticity_mask] = (
                 delta_ksi_plastic_multiplier_all[plasticity_mask]
