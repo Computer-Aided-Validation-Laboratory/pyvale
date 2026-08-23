@@ -11,8 +11,8 @@ validated planar image-warp renderers. The default 3D implementation is
 """
 
 from .camera import Camera, Camera2D
-from .camera_stereo import CameraStereo
-from .camera_tools import CameraTools
+from .camerastereo import CameraStereo
+from .cameratools import CameraTools
 from .blender import (
     Blender,
     BlenderCalibrationData,
@@ -41,7 +41,7 @@ from .feebee import (
 )
 from .imagedef2d import ImageDef2D, ImageDefOpts
 from .imagewarp2d import IImageWarp2D
-from .image_tools import EImageType, ImageTools
+from .imagetools import EImageType, ImageTools
 from .light import ELightType, Light
 from .mesh import EElementType, Mesh2D, Mesh3D
 from .pxint2d import (

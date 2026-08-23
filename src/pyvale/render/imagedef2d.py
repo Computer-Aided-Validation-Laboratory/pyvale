@@ -23,8 +23,8 @@ from scipy import ndimage
 from pyvale.render.camera import Camera2D
 from pyvale.render.imagewarp2d import IImageWarp2D
 from pyvale.render.result import ImageWarpResult
-from pyvale.render.camera_tools import CameraTools
-from pyvale.render.image_tools import EImageType, ImageTools
+from pyvale.render.cameratools import CameraTools
+from pyvale.render.imagetools import EImageType, ImageTools
 from pyvale.render.verifyinput import mesh_convention_issues
 
 

@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from ..camera import Camera
-from ..camera_stereo import CameraStereo
+from ..camerastereo import CameraStereo
 from ..light import Light
 from ..result import RenderResult
 from .adapter import _blender_unavailable_reason, _legacy_light

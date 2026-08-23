@@ -10,7 +10,7 @@ from scipy.signal import convolve2d
 from scipy.spatial.transform import Rotation
 
 from .camera import Camera
-from .camera_stereo import CameraStereo
+from .camerastereo import CameraStereo
 
 
 class CameraTools:
