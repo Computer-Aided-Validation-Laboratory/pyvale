@@ -8,56 +8,60 @@
 from abc import ABC, abstractmethod
 
 from .result import ImageWarpResult
+from .scene import Scene2D
 
 
 class IImageWarp2D(ABC):
     """Abstract interface for planar 2D image-warp renderers.
 
-    Implementations define their own request arguments, then perform input
+    Implementations receive a complete :class:`Scene2D` and perform input
     verification in :meth:`verify_input` before image preparation or warping.
     """
 
-    def render(self, *args: object, **kwargs: object) -> ImageWarpResult:
+    def render(self, scene: Scene2D) -> ImageWarpResult:
         """Validate and execute a planar image-warp request.
 
         Parameters
         ----------
-        *args : object
-            Positional arguments accepted by the concrete image-warp backend.
-        **kwargs : object
-            Keyword arguments accepted by the concrete image-warp backend.
+        scene : Scene2D
+            Complete planar rendering request.
 
         Returns
         -------
         ImageWarpResult
-            Warped images and optional masks.
+            Warped images, optional masks, and optional output paths.
         """
-        render_plan = self.verify_input(*args, **kwargs)
-        return self._render(render_plan)
+        self.verify_input(scene)
+        return self._render(scene)
 
     @abstractmethod
-    def verify_input(self, *args: object, **kwargs: object) -> object:
+    def verify_input(self, scene: Scene2D) -> None:
         """Validate a request without allocating or interpolating images.
 
-        Returns
-        -------
-        object
-            An opaque, backend-specific plan consumed by :meth:`_render`.
+        Parameters
+        ----------
+        scene : Scene2D
+            Complete planar rendering request to validate.
+
+        Raises
+        ------
+        ValueError
+            If the scene is invalid or unsupported.
         """
 
     @abstractmethod
-    def _render(self, render_plan: object) -> ImageWarpResult:
+    def _render(self, scene: Scene2D) -> ImageWarpResult:
         """Perform a previously validated image-warp request.
 
         Parameters
         ----------
-        render_plan : object
-            Backend-specific plan returned by :meth:`verify_input`.
+        scene : Scene2D
+            Previously validated planar rendering request.
 
         Returns
         -------
         ImageWarpResult
-            Warped images and optional masks.
+            Warped images, optional masks, and optional output paths.
         """
 
 

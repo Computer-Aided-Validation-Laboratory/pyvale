@@ -32,13 +32,14 @@ camera = render.Camera2D(
     pixels_count=np.array((32, 32)), leng_per_px=1.0,
     roi_cent_world=np.zeros(3),
 )
+scene = render.Scene2D(mesh=mesh, camera=camera)
 result = render.PixIntSpeck2D(
     pattern,
     options=render.PxInt2DOpts(
         mapping=render.EPxIntMapping.NEWTON_MESH_UNSTRUCT,
         integration=render.RectRule(4),
     ),
-).render(mesh, camera)
+).render(scene)
 output_dir = Path.cwd() / "pyvale-output" / "render-pixint-speck"
 output_dir.mkdir(parents=True, exist_ok=True)
 np.save(output_dir / "warped_images.npy", result.images)

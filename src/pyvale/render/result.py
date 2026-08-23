@@ -35,13 +35,16 @@ class ImageWarpResult:
     Parameters
     ----------
     images : numpy.ndarray
-        Warped image stack.
+        Warped image stack with shape ``(frame, camera, height, width, channel)``.
     masks : numpy.ndarray or None, optional
         Valid-pixel masks aligned with ``images``.
+    output_paths : tuple[pathlib.Path, ...], optional
+        Paths written by a backend that persists rendered images to disk.
     """
 
     images: np.ndarray
     masks: np.ndarray | None = None
+    output_paths: tuple[Path, ...] = ()
 
 
 __all__ = ["ImageWarpResult", "RenderResult"]

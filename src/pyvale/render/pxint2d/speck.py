@@ -14,6 +14,7 @@ from ..camera import Camera2D
 from ..imagewarp2d import IImageWarp2D
 from ..mesh import Mesh2D
 from ..result import ImageWarpResult
+from ..scene import Scene2D
 from ..verifyinput import mesh_convention_issues
 from .grid import _pixel_geometry
 from .mapping import map_points
@@ -22,7 +23,27 @@ from .model import AnalyticRule, PxInt2DOpts, quadrature_points
 
 @dataclass(frozen=True, slots=True)
 class AdditiveSpeckles:
-    """Finite deterministic lattice of additive disk or Gaussian speckles."""
+    """Finite deterministic lattice of additive disk or Gaussian speckles.
+
+    Parameters
+    ----------
+    kind : str
+        Speckle shape: ``"disk"`` or ``"gaussian"``.
+    pitch : float
+        Lattice spacing in world units.
+    diameter : float
+        Speckle diameter in world units.
+    centres : numpy.ndarray
+        Speckle centres with shape ``(count, 2)``.
+    intensity_mean : float, optional
+        Mean normalised intensity.
+    intensity_contrast : float, optional
+        Peak-to-trough texture contrast.
+    gaussian_edge_fraction : float, optional
+        Relative intensity at the Gaussian edge (used to compute sigma).
+    tail_sigmas : float, optional
+        Finite support radius for Gaussian speckles in standard deviations.
+    """
 
     kind: str
     pitch: float
@@ -72,10 +93,10 @@ class AdditiveSpeckles:
         support = radius if kind == "disk" else tail_sigmas * sigma
         xmin, xmax, ymin, ymax = bounds
         margin = support + 4.0 * jitter * pitch
-        ids_x = np.arange(np.floor((xmin-margin)/pitch),
-                          np.ceil((xmax+margin)/pitch) + 1)
-        ids_y = np.arange(np.floor((ymin-margin)/pitch),
-                          np.ceil((ymax+margin)/pitch) + 1)
+        ids_x = np.arange(np.floor((xmin - margin) / pitch),
+                          np.ceil((xmax + margin) / pitch) + 1)
+        ids_y = np.arange(np.floor((ymin - margin) / pitch),
+                          np.ceil((ymax + margin) / pitch) + 1)
         grid_x, grid_y = np.meshgrid(ids_x * pitch, ids_y * pitch)
         centres = np.column_stack((grid_x.ravel(), grid_y.ravel()))
         generator = np.random.default_rng(seed)
@@ -115,16 +136,16 @@ class AdditiveSpeckles:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class _SpeckPlan:
-    """Validated Speck2D render request."""
-
-    mesh: Mesh2D
-    camera: Camera2D
-
-
 class PixIntSpeck2D(IImageWarp2D):
-    """Render an additive speckle pattern over a deforming 2D mesh."""
+    """Render an additive speckle pattern over a deforming 2D mesh.
+
+    Parameters
+    ----------
+    pattern : AdditiveSpeckles
+        Deterministic speckle pattern to render.
+    options : PxInt2DOpts or None, optional
+        Mapping, integration, and execution controls.
+    """
 
     def __init__(
         self,
@@ -135,12 +156,22 @@ class PixIntSpeck2D(IImageWarp2D):
         self.pattern = pattern
         self.options = PxInt2DOpts() if options is None else options
 
-    def verify_input(
-        self,
-        mesh: Mesh2D,
-        camera: Camera2D,
-    ) -> _SpeckPlan:
-        """Validate a Speck2D request before expensive point evaluation."""
+    def verify_input(self, scene: Scene2D) -> None:
+        """Validate a Speck2D request before expensive point evaluation.
+
+        Parameters
+        ----------
+        scene : Scene2D
+            Complete planar rendering request.
+
+        Raises
+        ------
+        ValueError
+            If the scene is invalid or unsupported.
+        """
+        mesh = scene.mesh
+        camera = scene.camera
+
         convention_issues = mesh_convention_issues(
             mesh.coords,
             mesh.connectivity,
@@ -168,38 +199,54 @@ class PixIntSpeck2D(IImageWarp2D):
 
         if isinstance(self.options.integration, AnalyticRule):
             raise ValueError("analytic Speck2D integration is not yet available.")
-        return _SpeckPlan(mesh, camera)
 
-    def _render(self, render_plan: object) -> ImageWarpResult:
-        """Render every displacement frame in a validated Speck2D request."""
-        if not isinstance(render_plan, _SpeckPlan):
-            raise TypeError("PixIntSpeck2D received an invalid render plan.")
+        if np.any(camera.pixels_count <= 0) or camera.leng_per_px <= 0.0:
+            raise ValueError("camera geometry must be positive.")
+
+    def _render(self, scene: Scene2D) -> ImageWarpResult:
+        """Render every displacement frame in a validated Speck2D request.
+
+        Parameters
+        ----------
+        scene : Scene2D
+            Previously validated planar rendering request.
+
+        Returns
+        -------
+        ImageWarpResult
+            Rendered images and masks.
+        """
+        mesh = scene.mesh
+        camera = scene.camera
         images: list[np.ndarray] = []
         masks: list[np.ndarray] = []
 
-        for frame in range(render_plan.mesh.displacement.shape[0]):
-            image, mask = self._render_frame(render_plan, frame)
+        for frame in range(mesh.displacement.shape[0]):
+            image, mask = self._render_frame(mesh, camera, frame)
             images.append(image)
             masks.append(mask)
+
         return ImageWarpResult(
             images=np.asarray(images)[:, None, :, :, None],
             masks=np.asarray(masks)[:, None, :, :, None],
+            output_paths=(),
         )
 
     def _render_frame(
         self,
-        plan: _SpeckPlan,
+        mesh: Mesh2D,
+        camera: Camera2D,
         frame: int,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Render one numerical speckle image and its validity mask."""
-        x_origin, y_origin, pixel_x, pixel_y = _pixel_geometry(plan.camera)
+        x_origin, y_origin, pixel_x, pixel_y = _pixel_geometry(camera)
         quad_x, quad_y, weights = quadrature_points(self.options.integration)
         points_per_pixel = len(weights)
 
         query_x = (x_origin[:, None] + pixel_x * quad_x).ravel()
         query_y = (y_origin[:, None] + pixel_y * quad_y).ravel()
         reference_x, reference_y, valid = map_points(
-            plan.mesh,
+            mesh,
             frame,
             query_x,
             query_y,
@@ -210,7 +257,7 @@ class PixIntSpeck2D(IImageWarp2D):
 
         raw = coverage.reshape(-1, points_per_pixel) @ weights
         mask = valid.reshape(-1, points_per_pixel).all(axis=1)
-        raw = raw.reshape(plan.camera.pixels_count[1], plan.camera.pixels_count[0])
+        raw = raw.reshape(camera.pixels_count[1], camera.pixels_count[0])
         mask = mask.reshape(raw.shape)
         if self.options.psf is not None:
             psf = self.options.psf

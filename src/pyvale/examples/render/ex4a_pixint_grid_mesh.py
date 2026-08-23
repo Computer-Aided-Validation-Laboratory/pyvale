@@ -38,7 +38,8 @@ renderer = render.PixIntGrid2D(
         integration=render.GaussRule(2),
     ),
 )
-result = renderer.render(mesh, camera)
+scene = render.Scene2D(mesh=mesh, camera=camera)
+result = renderer.render(scene)
 output_dir = Path.cwd() / "pyvale-output" / "render-pixint-grid-mesh"
 output_dir.mkdir(parents=True, exist_ok=True)
 np.save(output_dir / "warped_images.npy", result.images)

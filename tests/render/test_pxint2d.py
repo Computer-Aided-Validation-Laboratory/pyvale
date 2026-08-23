@@ -55,9 +55,10 @@ def test_grid_rejects_meshes_outside_the_shared_convention() -> None:
         np.array(((0.0, 0.0), (1.0, 0.0), (0.0, 1.0))),
         np.array(((0, 2, 1),)),
     )
+    scene = render.Scene2D(mesh=mesh, camera=make_camera())
 
     with pytest.raises(ValueError, match="shared Riley/VTK convention"):
-        render.PixIntGrid2D().verify_input(mesh, make_camera())
+        render.PixIntGrid2D().verify_input(scene)
 
 
 def make_mesh_multi(element_type: render.EElementType) -> render.Mesh2D:
@@ -200,7 +201,7 @@ def test_newton_maps_match_affine_for_every_element(
             mapping=render.EPxIntMapping.AFFINE,
             integration=render.RectRule(samples),
         ),
-    ).render(quad_mesh, camera).images
+    ).render(render.Scene2D(mesh=quad_mesh, camera=camera)).images
     for mode in (render.EPxIntMapping.NEWTON_ONE_ELEM,
                  render.EPxIntMapping.NEWTON_MESH_UNSTRUCT,
                  render.EPxIntMapping.NEWTON_MESH_STRUCT,
@@ -209,7 +210,7 @@ def test_newton_maps_match_affine_for_every_element(
             options=render.PxInt2DOpts(
                 mapping=mode, integration=render.RectRule(samples),
             ),
-        ).render(mesh, camera).images
+        ).render(render.Scene2D(mesh=mesh, camera=camera)).images
         assert_render_allclose(
             actual, baseline, f"grid_{element_type.value}_{samples}_{mode}",
         )
@@ -241,7 +242,7 @@ def test_rcc_quad9_subpixel_gold(samples: int) -> None:
             mapping=render.EPxIntMapping.AFFINE,
             integration=render.RectRule(samples),
         ),
-    ).render(mesh, camera).images[3, 0, :, :, 0]
+    ).render(render.Scene2D(mesh=mesh, camera=camera)).images[3, 0, :, :, 0]
     expected = np.load(GOLD / f"affine_grid_rect{samples}.npy")
     assert_render_allclose(actual, expected, f"quad9_affine_grid_{samples}")
 
@@ -267,7 +268,7 @@ def test_grid_element_types_match_affine_gold(
             mapping=mapping,
             integration=render.RectRule(samples),
         ),
-    ).render(mesh, make_camera()).images[1, 0, :, :, 0]
+    ).render(render.Scene2D(mesh=mesh, camera=make_camera())).images[1, 0, :, :, 0]
     expected = np.load(GOLD / f"affine_grid_rect{samples}.npy")
     assert_render_allclose(
         actual, expected,
@@ -299,7 +300,7 @@ def test_speck_element_types_match_affine_gold(
             mapping=mapping,
             integration=render.RectRule(samples),
         ),
-    ).render(mesh, make_camera()).images[1, 0, :, :, 0]
+    ).render(render.Scene2D(mesh=mesh, camera=make_camera())).images[1, 0, :, :, 0]
     expected = np.load(GOLD / f"affine_speck_{kind}_rect{samples}.npy")
     assert_render_allclose(
         actual, expected,
@@ -332,7 +333,7 @@ def test_copied_rcc_analytic_gold_is_preserved() -> None:
             mapping=render.EPxIntMapping.AFFINE,
             integration=render.AnalyticRule(),
         ),
-    ).render(mesh, camera).images[0, 0, :, :, 0]
+    ).render(render.Scene2D(mesh=mesh, camera=camera)).images[0, 0, :, :, 0]
     expected = np.load(GOLD / "rcc_reference/grid2d_eggbox/rigid_f00.npy")
     assert_render_allclose(actual, expected, "quad9_rcc_analytic")
 
@@ -348,13 +349,15 @@ def test_speck_renderer_uses_the_shared_newton_map() -> None:
     result = render.PixIntSpeck2D(
         pattern, render.PxInt2DOpts(integration=render.RectRule(2)),
     ).render(
-        render.Mesh2D(
-            mesh.element_type,
-            mesh.coords,
-            mesh.connectivity,
-            affine_displacements(mesh),
+        render.Scene2D(
+            mesh=render.Mesh2D(
+                mesh.element_type,
+                mesh.coords,
+                mesh.connectivity,
+                affine_displacements(mesh),
+            ),
+            camera=make_camera(),
         ),
-        make_camera(),
     )
     assert result.images.shape == (2, 1, 32, 32, 1)
     assert result.masks is not None and result.masks.shape == result.images.shape
@@ -369,4 +372,4 @@ def test_newton_one_element_rejects_a_multi_element_request() -> None:
             options=render.PxInt2DOpts(
                 mapping=render.EPxIntMapping.NEWTON_ONE_ELEM,
             ),
-        ).render(mesh, make_camera())
+        ).render(render.Scene2D(mesh=mesh, camera=make_camera()))

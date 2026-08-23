@@ -59,7 +59,7 @@ from .pxint2d import (
 )
 from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
-from .scene import RenderMesh, RenderScene
+from .scene import RenderMesh, RenderScene, Scene2D
 from .riley import Riley
 from .simdata import mesh2d_from_simdata, mesh3d_from_simdata
 
@@ -116,6 +116,7 @@ __all__ = [
     "RenderResult",
     "RenderScene",
     "Riley",
+    "Scene2D",
     "ValidationIssue",
     "mesh2d_from_simdata",
     "mesh3d_from_simdata",

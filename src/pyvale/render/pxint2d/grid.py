@@ -14,17 +14,10 @@ from ..camera import Camera2D
 from ..imagewarp2d import IImageWarp2D
 from ..mesh import Mesh2D
 from ..result import ImageWarpResult
+from ..scene import Scene2D
 from ..verifyinput import mesh_convention_issues
 from .mapping import map_points
 from .model import AnalyticRule, Eggbox, PxInt2DOpts, quadrature_points
-
-
-@dataclass(frozen=True, slots=True)
-class _GridPlan:
-    """Validated Grid2D render request."""
-
-    mesh: Mesh2D
-    camera: Camera2D
 
 
 class PixIntGrid2D(IImageWarp2D):
@@ -47,12 +40,22 @@ class PixIntGrid2D(IImageWarp2D):
         self.texture = Eggbox() if texture is None else texture
         self.options = PxInt2DOpts() if options is None else options
 
-    def verify_input(
-        self,
-        mesh: Mesh2D,
-        camera: Camera2D,
-    ) -> _GridPlan:
-        """Validate a Grid2D request before quadrature allocation."""
+    def verify_input(self, scene: Scene2D) -> None:
+        """Validate a Grid2D request before quadrature allocation.
+
+        Parameters
+        ----------
+        scene : Scene2D
+            Complete planar rendering request.
+
+        Raises
+        ------
+        ValueError
+            If the scene is invalid or unsupported.
+        """
+        mesh = scene.mesh
+        camera = scene.camera
+
         convention_issues = mesh_convention_issues(
             mesh.coords,
             mesh.connectivity,
@@ -80,57 +83,71 @@ class PixIntGrid2D(IImageWarp2D):
                 raise ValueError(
                     "analytic Grid2D integration requires AFFINE mapping.",
                 )
-        return _GridPlan(mesh, camera)
 
-    def _render(self, render_plan: object) -> ImageWarpResult:
-        """Render every displacement frame in a validated Grid2D request."""
-        if not isinstance(render_plan, _GridPlan):
-            raise TypeError("PixIntGrid2D received an invalid render plan.")
+    def _render(self, scene: Scene2D) -> ImageWarpResult:
+        """Render every displacement frame in a validated Grid2D request.
+
+        Parameters
+        ----------
+        scene : Scene2D
+            Previously validated planar rendering request.
+
+        Returns
+        -------
+        ImageWarpResult
+            Rendered images and masks.
+        """
+        mesh = scene.mesh
+        camera = scene.camera
         images: list[np.ndarray] = []
         masks: list[np.ndarray] = []
 
-        for frame in range(render_plan.mesh.displacement.shape[0]):
-            image, mask = self._render_frame(render_plan, frame)
+        for frame in range(mesh.displacement.shape[0]):
+            image, mask = self._render_frame(mesh, camera, frame)
             images.append(image)
             masks.append(mask)
+
         return ImageWarpResult(
             images=np.asarray(images)[:, None, :, :, None],
             masks=np.asarray(masks)[:, None, :, :, None],
+            output_paths=(),
         )
 
     def _render_frame(
         self,
-        plan: _GridPlan,
+        mesh: Mesh2D,
+        camera: Camera2D,
         frame: int,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Render a numerical image and validity mask for one frame."""
         if isinstance(self.options.integration, AnalyticRule):
-            return self._analytic_frame(plan, frame)
-        x_origin, y_origin, pixel_x, pixel_y = _pixel_geometry(plan.camera)
+            return self._analytic_frame(mesh, camera, frame)
+
+        x_origin, y_origin, pixel_x, pixel_y = _pixel_geometry(camera)
         quad_x, quad_y, weights = quadrature_points(self.options.integration)
         points_per_pixel = len(weights)
 
         query_x = (x_origin[:, None] + pixel_x * quad_x).ravel()
         query_y = (y_origin[:, None] + pixel_y * quad_y).ravel()
         reference_x, reference_y, valid = map_points(
-            plan.mesh,
+            mesh,
             frame,
             query_x,
             query_y,
             self.options.mapping,
         )
         values = self.texture.evaluate(reference_x, reference_y)
-        values[~valid] = plan.camera.background / plan.camera.dynamic_range
+        values[~valid] = camera.background / camera.dynamic_range
 
         pixels = values.reshape(-1, points_per_pixel) @ weights
         mask = valid.reshape(-1, points_per_pixel).all(axis=1)
-        image = pixels.reshape(plan.camera.pixels_count[1], plan.camera.pixels_count[0])
+        image = pixels.reshape(camera.pixels_count[1], camera.pixels_count[0])
         mask = mask.reshape(image.shape)
         if self.options.psf is not None:
             psf = self.options.psf
             image = gaussian_filter(
                 image, psf.sigma_pixels, mode="constant",
-                cval=plan.camera.background / plan.camera.dynamic_range,
+                cval=camera.background / camera.dynamic_range,
                 radius=round(psf.sigma_pixels * psf.support_sigmas),
             )
 
@@ -138,15 +155,16 @@ class PixIntGrid2D(IImageWarp2D):
 
     def _analytic_frame(
         self,
-        plan: _GridPlan,
+        mesh: Mesh2D,
+        camera: Camera2D,
         frame: int,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Calculate the exact affine eggbox pixel integral."""
-        x_origin, y_origin, pixel_x, pixel_y = _pixel_geometry(plan.camera)
-        deformed = plan.mesh.coords + plan.mesh.displacement[frame]
+        x_origin, y_origin, pixel_x, pixel_y = _pixel_geometry(camera)
+        deformed = mesh.coords + mesh.displacement[frame]
         design = np.column_stack((deformed, np.ones(len(deformed))))
-        coeff, _, _, _ = np.linalg.lstsq(design, plan.mesh.coords, rcond=None)
-        if np.max(np.abs(design @ coeff - plan.mesh.coords)) > 1.0e-8:
+        coeff, _, _, _ = np.linalg.lstsq(design, mesh.coords, rcond=None)
+        if np.max(np.abs(design @ coeff - mesh.coords)) > 1.0e-8:
             raise ValueError("analytic Grid2D integration requires affine motion.")
         x_centre = x_origin + 0.5 * pixel_x
         y_centre = y_origin + 0.5 * pixel_y
@@ -175,7 +193,7 @@ class PixIntGrid2D(IImageWarp2D):
         image = (self.texture.mean - 0.5 * self.texture.contrast
                  + 0.5 * self.texture.contrast * (cos_x + cos_y)
                  + 0.25 * self.texture.contrast * (plus + minus))
-        image = image.reshape(plan.camera.pixels_count[1], plan.camera.pixels_count[0])
+        image = image.reshape(camera.pixels_count[1], camera.pixels_count[0])
         return np.flipud(image), np.flipud(np.ones_like(image, dtype=bool))
 
 

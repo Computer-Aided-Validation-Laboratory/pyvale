@@ -23,9 +23,21 @@ coords = np.array(((-16.0, -16.0), (16.0, -16.0),
                    (16.0, 16.0), (-16.0, 16.0)))
 connectivity = np.array(((0, 1, 2, 3),))
 displacements = np.zeros((1, 4, 2))
-result = render.ImageDef2D().render(
-    image, camera, coords, connectivity, displacements,
+
+mesh = render.Mesh2D(
+    element_type=render.EElementType.QUAD4,
+    coords=coords,
+    connectivity=connectivity,
+    displacement=displacements,
 )
+
+scene = render.Scene2D(
+    mesh=mesh,
+    camera=camera,
+    source_image=image,
+)
+
+result = render.ImageDef2D().render(scene)
 output_dir = Path.cwd() / "pyvale-output" / "render-imagedef2d"
 output_dir.mkdir(parents=True, exist_ok=True)
 np.save(output_dir / "warped_images.npy", result.images)

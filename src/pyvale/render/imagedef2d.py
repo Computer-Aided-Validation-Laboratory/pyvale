@@ -22,9 +22,11 @@ from scipy import ndimage
 
 from pyvale.render.camera import Camera2D
 from pyvale.render.imagewarp2d import IImageWarp2D
+from pyvale.render.mesh import Mesh2D
 from pyvale.render.result import ImageWarpResult
 from pyvale.render.cameratools import CameraTools
 from pyvale.render.imagetools import EImageType, ImageTools
+from pyvale.render.scene import Scene2D
 from pyvale.render.verifyinput import mesh_convention_issues
 
 
@@ -72,21 +74,20 @@ class ImageDefOpts:
     mask_input_image: bool = True
 
     crop_on: bool = False
-    crop_px: np.ndarray | None = None # only used to crop input image if above is true
+    crop_px: np.ndarray | None = None
 
-    calc_res_from_fe: bool =  False
+    calc_res_from_fe: bool = False
     calc_res_border_px: int = 5
 
     add_static_ref: bool = False
 
     fe_interp: str = "linear"
     fe_rescale: bool = True
-    fe_extrap_outside_fov: bool = True # forces displacements outside the
-    #subsample: int = 2 # MOVED TO CAMERA DATA
+    fe_extrap_outside_fov: bool = True
 
     image_def_order: int = 3
     image_def_extrap: str = "nearest"
-    image_def_extval: float = 0.0 # only used if above is "constant"
+    image_def_extval: float = 0.0
 
     def_complex_geom: bool = True
 
@@ -116,108 +117,100 @@ class ImageDef2D(IImageWarp2D):
         """
         self.options = ImageDefOpts() if options is None else options
 
-    def verify_input(self,
-                     source_image: np.ndarray,
-                     camera: Camera2D,
-                     coords: np.ndarray,
-                     connectivity: np.ndarray,
-                     displacements: np.ndarray,
-                     ) -> tuple[np.ndarray, Camera2D, np.ndarray, np.ndarray,
-                                np.ndarray]:
+    def verify_input(self, scene: Scene2D) -> None:
         """Verify a planar image-warp request before preprocessing it.
 
         Parameters
         ----------
-        source_image : numpy.ndarray
-            Two-dimensional reference image aligned with ``camera``.
-        camera : Camera2D
-            Orthographic image camera.
-        coords : numpy.ndarray
-            Planar finite-element node coordinates.
-        connectivity : numpy.ndarray
-            Non-empty finite-element connectivity table.
-        displacements : numpy.ndarray
-            Nodal planar displacement data with shape
-            ``(frame_count, node_count, 2)``.
-
-        Returns
-        -------
-        tuple[numpy.ndarray, Camera2D, numpy.ndarray, numpy.ndarray,
-        numpy.ndarray]
-            Validated request data consumed by :meth:`_render`.
+        scene : Scene2D
+            Complete planar rendering request containing mesh, camera, and
+            source image.
 
         Raises
         ------
         ValueError
             If source image, mesh, or displacement data is inconsistent.
         """
+        if scene.source_image is None:
+            raise ValueError("Scene2D.source_image is required for ImageDef2D.")
+
+        source_image = scene.source_image
+        camera = scene.camera
+        mesh = scene.mesh
+
         if source_image.ndim != 2:
             raise ValueError("source_image must be a two-dimensional image.")
 
-        if coords.ndim != 2 or coords.shape[1] < 2:
-            raise ValueError("coords must have at least two coordinate columns.")
+        if mesh.coords.ndim != 2 or mesh.coords.shape[1] < 2:
+            raise ValueError("mesh.coords must have at least two coordinate columns.")
 
-        if connectivity.ndim != 2 or connectivity.size == 0:
-            raise ValueError("connectivity must be a non-empty rank-2 array.")
+        if mesh.connectivity.ndim != 2 or mesh.connectivity.size == 0:
+            raise ValueError("mesh.connectivity must be a non-empty rank-2 array.")
 
-        if np.any(connectivity < 0) or np.any(connectivity >= coords.shape[0]):
-            raise ValueError("connectivity contains invalid node indices.")
+        if np.any(mesh.connectivity < 0) or np.any(mesh.connectivity >= mesh.coords.shape[0]):
+            raise ValueError("mesh.connectivity contains invalid node indices.")
 
         convention_issues = mesh_convention_issues(
-            coords,
-            connectivity,
+            mesh.coords,
+            mesh.connectivity,
             "mesh",
         )
         if convention_issues:
             raise ValueError(convention_issues[0].message)
 
-        if displacements.ndim != 3 or displacements.shape[1:] != (coords.shape[0], 2):
-            raise ValueError("displacements must have shape (frames, nodes, 2).")
+        if mesh.displacement.ndim != 3 or mesh.displacement.shape[1:] != (mesh.coords.shape[0], 2):
+            raise ValueError("mesh.displacement must have shape (frames, nodes, 2).")
 
         if source_image.shape != tuple(camera.pixels_count[::-1]):
             raise ValueError("source_image shape must match camera pixels_count.")
 
-        return source_image, camera, coords, connectivity, displacements
-
-    def _render(self, render_plan: object) -> ImageWarpResult:
+    def _render(self, scene: Scene2D) -> ImageWarpResult:
         """Warp every displacement frame in a validated request.
 
         Parameters
         ----------
-        render_plan : object
-            Tuple returned by :meth:`verify_input`.
+        scene : Scene2D
+            Validated planar rendering request.
 
         Returns
         -------
         ImageWarpResult
             Deformed images with frame and singleton-camera axes.
         """
-        image, camera, coords, connectivity, displacements = render_plan
+        source_image = scene.source_image
+        camera = scene.camera
+        mesh = scene.mesh
+
+        assert source_image is not None
 
         upsampled, mask, _, disp_x, disp_y = self.preprocess(
-            camera, image.copy(), coords, connectivity,
-            displacements[:, :, 0].T, displacements[:, :, 1].T, self.options,
+            camera, source_image.copy(), mesh.coords, mesh.connectivity,
+            mesh.displacement[:, :, 0].T, mesh.displacement[:, :, 1].T, self.options,
         )
 
         assert upsampled is not None and disp_x is not None and disp_y is not None
 
         images = []
-        for frame_index in range(displacements.shape[0]):
+        for frame_index in range(mesh.displacement.shape[0]):
             deformed, _, _, _, _ = self.deform_one_image(
-                upsampled, camera, self.options, coords,
+                upsampled, camera, self.options, mesh.coords,
                 np.column_stack((disp_x[:, frame_index], disp_y[:, frame_index])),
                 mask, print_on=False,
             )
             images.append(deformed)
 
-        return ImageWarpResult(np.asarray(images)[:, None, :, :, None])
+        return ImageWarpResult(
+            images=np.asarray(images)[:, None, :, :, None],
+            masks=None,
+            output_paths=(),
+        )
 
     @staticmethod
     def image_mask_from_sim(cam_data: Camera2D,
                             image: np.ndarray,
                             coords: np.ndarray,
                             connectivity: np.ndarray
-                            ) -> tuple[np.ndarray,np.ndarray]:
+                            ) -> tuple[np.ndarray, np.ndarray]:
         """Mask pixels outside a finite-element surface.
 
         Parameters
@@ -237,137 +230,115 @@ class ImageDef2D(IImageWarp2D):
             Masked image and sub-pixel specimen mask.
         """
 
-        # Here to allow for addition
-        #subsample: int = cam_data.subsample
         subsample: int = 1
 
         coords_raster = coords - cam_data.roi_cent_world[:coords.shape[1]]
         if coords_raster.shape[1] >= 3:
-            coords_raster = coords_raster[:,:-1]
+            coords_raster = coords_raster[:, :-1]
 
-        # Coords NDC: Convert to normalised device coords in the range [-1,1]
-        coords_raster[:,0] = 2*coords_raster[:,0] / cam_data.field_of_view[0]
-        coords_raster[:,1] = 2*coords_raster[:,1] / cam_data.field_of_view[1]
+        coords_raster[:, 0] = 2 * coords_raster[:, 0] / cam_data.field_of_view[0]
+        coords_raster[:, 1] = 2 * coords_raster[:, 1] / cam_data.field_of_view[1]
 
-        # Coords Raster: Covert to pixel (raster) coords
-        # Shape = ([X,Y,Z],num_nodes)
-        coords_raster[:,0] = (coords_raster[:,0] + 1)/2 * cam_data.pixels_count[0]
-        coords_raster[:,1] = (1-coords_raster[:,1])/2 * cam_data.pixels_count[1]
+        coords_raster[:, 0] = (coords_raster[:, 0] + 1) / 2 * cam_data.pixels_count[0]
+        coords_raster[:, 1] = (1 - coords_raster[:, 1]) / 2 * cam_data.pixels_count[1]
 
-        # shape=(num_elems,node_per_elem,coord[x,y])
-        elem_coords = np.ascontiguousarray(coords_raster[connectivity,:])
+        elem_coords = np.ascontiguousarray(coords_raster[connectivity, :])
 
-        #shape=(num_elems,coord[x,y,z])
-        elem_coord_min = np.min(elem_coords,axis=1)
-        elem_coord_max = np.max(elem_coords,axis=1)
+        elem_coord_min = np.min(elem_coords, axis=1)
+        elem_coord_max = np.max(elem_coords, axis=1)
 
-        # Check that min/max nodes are within the 4 edges of the camera image
-        #shape=(4_edges_to_check,num_elems)
-        crop_mask = np.zeros([elem_coords.shape[0],4],dtype=np.int8)
-        crop_mask[elem_coord_min[:,0] <= (cam_data.pixels_count[0]-1), 0] = 1
-        crop_mask[elem_coord_min[:,1] <= (cam_data.pixels_count[1]-1), 1] = 1
-        crop_mask[elem_coord_max[:,0] >= 0, 2] = 1
-        crop_mask[elem_coord_max[:,1] >= 0, 3] = 1
-        crop_mask = np.sum(crop_mask,axis=1) == 4
+        crop_mask = np.zeros([elem_coords.shape[0], 4], dtype=np.int8)
+        crop_mask[elem_coord_min[:, 0] <= (cam_data.pixels_count[0] - 1), 0] = 1
+        crop_mask[elem_coord_min[:, 1] <= (cam_data.pixels_count[1] - 1), 1] = 1
+        crop_mask[elem_coord_max[:, 0] >= 0, 2] = 1
+        crop_mask[elem_coord_max[:, 1] >= 0, 3] = 1
+        crop_mask = np.sum(crop_mask, axis=1) == 4
 
-        # Mask the element coords
-        elem_coords =  np.ascontiguousarray(elem_coords[crop_mask,:,:])
+        elem_coords = np.ascontiguousarray(elem_coords[crop_mask, :, :])
 
-        # Get only the elements that are within the FOV
-        # Mask the elem coords and the max and min elem coords for processing
-        elem_coord_min = elem_coord_min[crop_mask,:]
-        elem_coord_max = elem_coord_max[crop_mask,:]
+        elem_coord_min = elem_coord_min[crop_mask, :]
+        elem_coord_max = elem_coord_max[crop_mask, :]
         num_elems_in_image = elem_coord_min.shape[0]
 
-        # Find the indices of the bounding box that each element lies within on
-        # the image, bounded by the upper and lower edges of the image
-        elem_bound_boxes_inds = np.zeros([num_elems_in_image,4],dtype=np.int32)
-        elem_bound_boxes_inds[:,0] = ImageTools.elem_bound_box_low(
-            elem_coord_min[:,0])
-        elem_bound_boxes_inds[:,1] = ImageTools.elem_bound_box_high(
-            elem_coord_max[:,0],
-            cam_data.pixels_count[0]-1)
-        elem_bound_boxes_inds[:,2] = ImageTools.elem_bound_box_low(
-            elem_coord_min[:,1])
-        elem_bound_boxes_inds[:,3] = ImageTools.elem_bound_box_high(
-            elem_coord_max[:,1],
-            cam_data.pixels_count[1]-1)
+        elem_bound_boxes_inds = np.zeros([num_elems_in_image, 4], dtype=np.int32)
+        elem_bound_boxes_inds[:, 0] = ImageTools.elem_bound_box_low(
+            elem_coord_min[:, 0])
+        elem_bound_boxes_inds[:, 1] = ImageTools.elem_bound_box_high(
+            elem_coord_max[:, 0],
+            cam_data.pixels_count[0] - 1)
+        elem_bound_boxes_inds[:, 2] = ImageTools.elem_bound_box_low(
+            elem_coord_min[:, 1])
+        elem_bound_boxes_inds[:, 3] = ImageTools.elem_bound_box_high(
+            elem_coord_max[:, 1],
+            cam_data.pixels_count[1] - 1)
 
         num_edges: int = 3
         if elem_coords.shape[1] > 3:
             num_edges = 4
 
-        mask_subpixel_buffer =  np.full(subsample*cam_data.pixels_count,0.0).T
-        # Raster Loop
+        mask_subpixel_buffer = np.full(subsample * cam_data.pixels_count, 0.0).T
         for ee in range(elem_coords.shape[0]):
-            # Create the subpixel coords inside the bounding box to test with the
-            # edge function. Use the pixel indices of the bounding box.
-            bound_subpx_x = np.arange(elem_bound_boxes_inds[ee,0],
-                                      elem_bound_boxes_inds[ee,1],
-                                      1/subsample) + 1/(2*subsample)
-            bound_subpx_y = np.arange(elem_bound_boxes_inds[ee,2],
-                                      elem_bound_boxes_inds[ee,3],
-                                      1/subsample) + 1/(2*subsample)
-            (bound_subpx_grid_x,bound_subpx_grid_y) = np.meshgrid(bound_subpx_x,
-                                                                  bound_subpx_y)
+            bound_subpx_x = np.arange(elem_bound_boxes_inds[ee, 0],
+                                      elem_bound_boxes_inds[ee, 1],
+                                      1 / subsample) + 1 / (2 * subsample)
+            bound_subpx_y = np.arange(elem_bound_boxes_inds[ee, 2],
+                                      elem_bound_boxes_inds[ee, 3],
+                                      1 / subsample) + 1 / (2 * subsample)
+            (bound_subpx_grid_x, bound_subpx_grid_y) = np.meshgrid(bound_subpx_x,
+                                                                   bound_subpx_y)
             bound_coords_grid_shape = bound_subpx_grid_x.shape
-            # shape=(coord[x,y],num_subpx_in_box)
             bound_subpx_coords_flat = np.vstack((bound_subpx_grid_x.flatten(),
                                                  bound_subpx_grid_y.flatten()))
 
-            # Create the subpixel indices for buffer slicing later
-            subpx_inds_x = np.arange(subsample*elem_bound_boxes_inds[ee,0],
-                                     subsample*elem_bound_boxes_inds[ee,1])
-            subpx_inds_y = np.arange(subsample*elem_bound_boxes_inds[ee,2],
-                                     subsample*elem_bound_boxes_inds[ee,3])
-            (subpx_inds_grid_x,subpx_inds_grid_y) = np.meshgrid(subpx_inds_x,
-                                                                subpx_inds_y)
+            subpx_inds_x = np.arange(subsample * elem_bound_boxes_inds[ee, 0],
+                                     subsample * elem_bound_boxes_inds[ee, 1])
+            subpx_inds_y = np.arange(subsample * elem_bound_boxes_inds[ee, 2],
+                                     subsample * elem_bound_boxes_inds[ee, 3])
+            (subpx_inds_grid_x, subpx_inds_grid_y) = np.meshgrid(subpx_inds_x,
+                                                                 subpx_inds_y)
 
-            edge = np.zeros((num_edges,bound_subpx_coords_flat.shape[1]),dtype=np.float64)
+            edge = np.zeros((num_edges, bound_subpx_coords_flat.shape[1]), dtype=np.float64)
 
             if num_edges == 4:
-                edge[0,:] = ImageTools.edge_function(elem_coords[ee,1,:],
-                                          elem_coords[ee,2,:],
-                                          bound_subpx_coords_flat)
-                edge[1,:] = ImageTools.edge_function(elem_coords[ee,2,:],
-                                          elem_coords[ee,3,:],
-                                          bound_subpx_coords_flat)
-                edge[2,:] = ImageTools.edge_function(elem_coords[ee,3,:],
-                                          elem_coords[ee,0,:],
-                                          bound_subpx_coords_flat)
-                edge[3,:] = ImageTools.edge_function(elem_coords[ee,0,:],
-                                          elem_coords[ee,1,:],
-                                          bound_subpx_coords_flat)
+                edge[0, :] = ImageTools.edge_function(elem_coords[ee, 1, :],
+                                           elem_coords[ee, 2, :],
+                                           bound_subpx_coords_flat)
+                edge[1, :] = ImageTools.edge_function(elem_coords[ee, 2, :],
+                                           elem_coords[ee, 3, :],
+                                           bound_subpx_coords_flat)
+                edge[2, :] = ImageTools.edge_function(elem_coords[ee, 3, :],
+                                           elem_coords[ee, 0, :],
+                                           bound_subpx_coords_flat)
+                edge[3, :] = ImageTools.edge_function(elem_coords[ee, 0, :],
+                                           elem_coords[ee, 1, :],
+                                           bound_subpx_coords_flat)
             else:
-                edge[0,:] = ImageTools.edge_function(elem_coords[ee,1,:],
-                                          elem_coords[ee,2,:],
-                                          bound_subpx_coords_flat)
-                edge[1,:] = ImageTools.edge_function(elem_coords[ee,2,:],
-                                          elem_coords[ee,0,:],
-                                          bound_subpx_coords_flat)
-                edge[2,:] = ImageTools.edge_function(elem_coords[ee,0,:],
-                                          elem_coords[ee,1,:],
-                                          bound_subpx_coords_flat)
+                edge[0, :] = ImageTools.edge_function(elem_coords[ee, 1, :],
+                                           elem_coords[ee, 2, :],
+                                           bound_subpx_coords_flat)
+                edge[1, :] = ImageTools.edge_function(elem_coords[ee, 2, :],
+                                           elem_coords[ee, 0, :],
+                                           bound_subpx_coords_flat)
+                edge[2, :] = ImageTools.edge_function(elem_coords[ee, 0, :],
+                                           elem_coords[ee, 1, :],
+                                           bound_subpx_coords_flat)
 
-
-            # Now we check where the edge function is above zero for all edges
-            edge_check = np.zeros_like(edge,dtype=np.int8)
+            edge_check = np.zeros_like(edge, dtype=np.int8)
             edge_check[edge >= 0.0] = 1
             edge_check = np.sum(edge_check, axis=0)
-            # Create a mask with the check
             edge_mask_flat = edge_check == num_edges
-            edge_mask_grid = np.reshape(edge_mask_flat,bound_coords_grid_shape)
+            edge_mask_grid = np.reshape(edge_mask_flat, bound_coords_grid_shape)
 
             subpx_inds_grid_x = subpx_inds_grid_x[edge_mask_grid]
             subpx_inds_grid_y = subpx_inds_grid_y[edge_mask_grid]
-            mask_subpixel_buffer[subpx_inds_grid_y,subpx_inds_grid_x] += 1.0
+            mask_subpixel_buffer[subpx_inds_grid_y, subpx_inds_grid_x] += 1.0
 
-        mask_subpixel_buffer[mask_subpixel_buffer>1.0] = 1.0
+        mask_subpixel_buffer[mask_subpixel_buffer > 1.0] = 1.0
 
         mask_buffer = CameraTools.average_subpixel_image(mask_subpixel_buffer,
                                                          subsample)
-        image[mask_buffer<1.0] = cam_data.background
-        return (image,mask_subpixel_buffer)
+        image[mask_buffer < 1.0] = cam_data.background
+        return (image, mask_subpixel_buffer)
 
 
     @staticmethod
@@ -387,26 +358,20 @@ class ImageDef2D(IImageWarp2D):
         numpy.ndarray
             Smoothly interpolated sub-pixel image.
         """
-        # Get grid of pixel centroid locations
-        (px_vec_xm,px_vec_ym) = CameraTools.pixel_vec_leng(cam_data.field_of_view,
-                                                           cam_data.leng_per_px)
+        (px_vec_xm, px_vec_ym) = CameraTools.pixel_vec_leng(cam_data.field_of_view,
+                                                            cam_data.leng_per_px)
 
-        # Get grid of sub-pixel centroid locations
-        (subpx_vec_xm,subpx_vec_ym) = CameraTools.subpixel_vec_leng(
+        (subpx_vec_xm, subpx_vec_ym) = CameraTools.subpixel_vec_leng(
                                                         cam_data.field_of_view,
                                                         cam_data.leng_per_px,
                                                         cam_data.subsample)
 
-        # NOTE: See Scipy transition from interp2d docs here:
-        # https://scipy.github.io/devdocs/tutorial/interpolate/interp_transition_guide.html
         spline_interp = RectBivariateSpline(px_vec_xm,
                                             px_vec_ym,
                                             input_im.T)
         upsampled_image_interp = lambda x_new, y_new: spline_interp(x_new, y_new).T
 
-        # This function will flip the image regardless of the y vector input so flip it
-        # back to FE coords
-        upsampled_image =  upsampled_image_interp(subpx_vec_xm,subpx_vec_ym)
+        upsampled_image = upsampled_image_interp(subpx_vec_xm, subpx_vec_ym)
 
         return upsampled_image
 
@@ -454,22 +419,21 @@ class ImageDef2D(IImageWarp2D):
         """
 
         if print_on:
-            print("\n"+"="*80)
+            print("\n" + "=" * 80)
             print("IMAGE DEF PRE-PROCESSING\n")
 
         if not id_opts.save_path.is_dir():
             id_opts.save_path.mkdir()
 
-        # Make displacements a 2D column vector, allows addition of static frame
         if disp_x.ndim == 1:
             disp_x = np.atleast_2d(disp_x).T
         if disp_y.ndim == 1:
             disp_y = np.atleast_2d(disp_y).T
 
         if id_opts.add_static_ref:
-            num_nodes = coords.shape[0] # type: ignore
-            disp_x = np.hstack((np.zeros((num_nodes,1)),disp_x))
-            disp_y = np.hstack((np.zeros((num_nodes,1)),disp_y))
+            num_nodes = coords.shape[0]
+            disp_x = np.hstack((np.zeros((num_nodes, 1)), disp_x))
+            disp_y = np.hstack((np.zeros((num_nodes, 1)), disp_y))
 
         image_input = CameraTools.crop_image_rectangle(image_input,
                                                        cam_data.pixels_count)
@@ -485,28 +449,25 @@ class ImageDef2D(IImageWarp2D):
                                                           coords,
                                                           connectivity)
 
-
             if print_on:
                 toc = time.perf_counter()
-                print(f'Calculating image mask took {toc-tic:.4f} seconds')
+                print(f'Calculating image mask took {toc - tic:.4f} seconds')
         else:
             image_mask = None
 
-
-        # Image upsampling
         if print_on:
-            print('\n'+'-'*80)
+            print('\n' + '-' * 80)
             print('GENERATE UPSAMPLED IMAGE\n')
             print(f'Upsampling input image with a {cam_data.subsample}x{cam_data.subsample} subpixel')
             tic = time.perf_counter()
 
-        upsampled_image = ImageDef2D.upsample_image(cam_data,image_input)
+        upsampled_image = ImageDef2D.upsample_image(cam_data, image_input)
 
         if print_on:
             toc = time.perf_counter()
-            print(f'Upsampling image withtook {toc-tic:.4f} seconds')
+            print(f'Upsampling image withtook {toc - tic:.4f} seconds')
 
-        return (upsampled_image,image_mask,image_input,disp_x,disp_y)
+        return (upsampled_image, image_mask, image_input, disp_x, disp_y)
 
     @staticmethod
     def deform_one_image(upsampled_image: np.ndarray,
@@ -554,7 +515,7 @@ class ImageDef2D(IImageWarp2D):
                     warnings.warn('Image mask not specified, using default mask of whole image.')
                 else:
                     warnings.warn('Image mask size does not match camera, using default mask of whole image.')
-                image_mask = np.ones([cam_data.pixels_count[1],cam_data.pixels_count[0]])
+                image_mask = np.ones([cam_data.pixels_count[1], cam_data.pixels_count[0]])
 
         (px_grid_xm,
          px_grid_ym) = CameraTools.pixel_grid_leng(cam_data.field_of_view,
@@ -562,45 +523,39 @@ class ImageDef2D(IImageWarp2D):
 
         (subpx_grid_xm,
          subpx_grid_ym) = CameraTools.subpixel_grid_leng(cam_data.field_of_view,
-                                                        cam_data.leng_per_px,
-                                                        cam_data.subsample)
+                                                         cam_data.leng_per_px,
+                                                         cam_data.subsample)
 
-        #--------------------------------------------------------------------------
-        # Interpolate FE displacements onto the sub-pixel grid
         if print_on:
             print('Interpolating displacement onto sub-pixel grid.')
             tic = time.perf_counter()
 
-        (subpx_disp_x,subpx_disp_y) = _interp_sim_disp_to_subpx_grid(
-                                                                coords,
-                                                                disp,
-                                                                cam_data,
-                                                                id_opts,
-                                                                subpx_grid_xm,
-                                                                subpx_grid_ym)
+        (subpx_disp_x, subpx_disp_y) = _interp_sim_disp_to_subpx_grid(
+                                                                    coords,
+                                                                    disp,
+                                                                    cam_data,
+                                                                    id_opts,
+                                                                    subpx_grid_xm,
+                                                                    subpx_grid_ym)
 
         if print_on:
             toc = time.perf_counter()
-            print('Interpolating displacement with NaN extrap took {:.4f} seconds'.format(toc-tic))
+            print('Interpolating displacement with NaN extrap took {:.4f} seconds'.format(toc - tic))
 
-        #--------------------------------------------------------------------------
-        # Interpolate sub-pixel gray levels with ndimage toolbox
         if print_on:
             print('Deforming sub-pixel image.')
             tic = time.perf_counter()
 
         def_image_subpx = _interp_subpx_image(upsampled_image,
-                                              subpx_grid_xm-subpx_disp_x,
-                                              subpx_grid_ym-subpx_disp_y,
+                                              subpx_grid_xm - subpx_disp_x,
+                                              subpx_grid_ym - subpx_disp_y,
                                               cam_data,
                                               id_opts)
 
         if print_on:
             toc = time.perf_counter()
-            print('Deforming sub-pixel image with ndimage took {:.4f} seconds'.format(toc-tic))
+            print('Deforming sub-pixel image with ndimage took {:.4f} seconds'.format(toc - tic))
 
-        #--------------------------------------------------------------------------
-        # Average subpixel image
         if print_on:
             tic = time.perf_counter()
 
@@ -609,76 +564,66 @@ class ImageDef2D(IImageWarp2D):
 
         if print_on:
             toc = time.perf_counter()
-            print('Averaging sub-pixel imagetook {:.4f} seconds'.format(toc-tic))
+            print('Averaging sub-pixel imagetook {:.4f} seconds'.format(toc - tic))
 
-        #--------------------------------------------------------------------------
-        # DEFORMING IMAGE MASK
         if id_opts.def_complex_geom:
             if print_on:
                 print('Deforming image mask.')
                 tic = time.perf_counter()
 
-            (def_image,def_mask) = _deform_image_mask(def_image,
-                                                      image_mask,
-                                                      px_grid_xm,
-                                                      px_grid_ym,
-                                                      subpx_disp_x,
-                                                      subpx_disp_y,
-                                                      cam_data)
+            (def_image, def_mask) = _deform_image_mask(def_image,
+                                                       image_mask,
+                                                       px_grid_xm,
+                                                       px_grid_ym,
+                                                       subpx_disp_x,
+                                                       subpx_disp_y,
+                                                       cam_data)
 
             if print_on:
                 toc = time.perf_counter()
-                print('Deforming image mask with ndimage took {:.4f} seconds'.format(toc-tic))
+                print('Deforming image mask with ndimage took {:.4f} seconds'.format(toc - tic))
 
         else:
             def_mask = None
 
-        # Need to flip the image as all processing above is done with y axis down
-        # from the top left hand corner
-        def_image = def_image[::-1,:]
+        def_image = def_image[::-1, :]
 
-        return (def_image,def_image_subpx,subpx_disp_x,subpx_disp_y,def_mask)
+        return (def_image, def_image_subpx, subpx_disp_x, subpx_disp_y, def_mask)
 
-    @staticmethod
-    def deform_images_to_disk(cam_data: Camera2D,
-                      upsampled_image: np.ndarray,
-                      coords: np.ndarray,
-                      connectivity: np.ndarray,
-                      disp_x: np.ndarray,
-                      disp_y: np.ndarray,
-                      image_mask: np.ndarray | None,
-                      id_opts: ImageDefOpts,
-                      print_on: bool = False) -> None:
+    def deform_images_to_disk(self, scene: Scene2D) -> tuple[Path, ...]:
         """Deform every frame and save it as a TIFF image.
 
         Parameters
         ----------
-        cam_data : Camera2D
-            Orthographic output camera.
-        upsampled_image : numpy.ndarray
-            Sub-pixel reference image.
-        coords : numpy.ndarray
-            Finite-element node coordinates.
-        connectivity : numpy.ndarray
-            Surface-element connectivity table. It is retained for API
-            compatibility with preprocessing.
-        disp_x, disp_y : numpy.ndarray
-            Nodal x and y displacement fields, arranged by node and frame.
-        image_mask : numpy.ndarray or None
-            Specimen mask to deform with each image.
-        id_opts : ImageDefOpts
-            Output and deformation controls.
-        print_on : bool, optional
-            Print timing diagnostics while writing images.
-        """
+        scene : Scene2D
+            Validated planar rendering request.
 
-        #---------------------------------------------------------------------------
-        # Image Deformation Loop
+        Returns
+        -------
+        tuple[pathlib.Path, ...]
+            Paths to the saved TIFF images.
+        """
+        if scene.source_image is None:
+            raise ValueError("Scene2D.source_image is required for ImageDef2D.")
+
+        source_image = scene.source_image
+        camera = scene.camera
+        mesh = scene.mesh
+
+        upsampled, mask, _, disp_x, disp_y = self.preprocess(
+            camera, source_image.copy(), mesh.coords, mesh.connectivity,
+            mesh.displacement[:, :, 0].T, mesh.displacement[:, :, 1].T, self.options,
+        )
+
+        assert upsampled is not None and disp_x is not None and disp_y is not None
+
+        output_paths = []
+        num_frames = disp_x.shape[1]
+
         if print_on:
-            print('\n'+'='*80)
+            print('\n' + '=' * 80)
             print('DEFORMING IMAGES')
 
-        num_frames = disp_x.shape[1]
         ticl = time.perf_counter()
 
         for ff in range(num_frames):
@@ -686,49 +631,52 @@ class ImageDef2D(IImageWarp2D):
                 ticf = time.perf_counter()
                 print(f'\nDEFORMING FRAME: {ff}')
 
-            disp = np.array((disp_x[:,ff],disp_y[:,ff])).T
+            disp = np.array((disp_x[:, ff], disp_y[:, ff])).T
             (def_image,
-            _,
-            _,
-            _,
-            _) = ImageDef2D.deform_one_image(upsampled_image,
-                                            cam_data,
-                                            id_opts,
-                                            coords,
-                                            disp,
-                                            image_mask,
-                                            print_on=print_on)
+             _,
+             _,
+             _,
+             _) = ImageDef2D.deform_one_image(upsampled,
+                                             camera,
+                                             self.options,
+                                             mesh.coords,
+                                             disp,
+                                             mask,
+                                             print_on=print_on)
 
-            save_file = id_opts.save_path / str(f'{id_opts.save_tag}_'+
-                    f'{ImageTools.get_num_str(im_num=ff,width=4)}'+
+            save_file = self.options.save_path / str(f'{self.options.save_tag}_' +
+                    f'{ImageTools.get_num_str(im_num=ff, width=4)}' +
                     '.tiff')
             ImageTools.save_image(save_file,
                                   def_image,
                                   EImageType.TIFF,
-                                  cam_data.bits)
+                                  camera.bits)
+
+            output_paths.append(save_file)
 
             if print_on:
                 tocf = time.perf_counter()
-                print(f'DEFORMING FRAME: {ff} took {tocf-ticf:.4f} seconds')
+                print(f'DEFORMING FRAME: {ff} took {tocf - ticf:.4f} seconds')
 
         if print_on:
             tocl = time.perf_counter()
-            print('\n'+'-'*50)
-            print(f'Deforming all images took {tocl-ticl:.4f} seconds')
-            print('-'*50)
+            print('\n' + '-' * 50)
+            print(f'Deforming all images took {tocl - ticl:.4f} seconds')
+            print('-' * 50)
 
-            print('\n'+'='*80)
+            print('\n' + '=' * 80)
             print('COMPLETE\n')
 
+        return tuple(output_paths)
 
 
 def _interp_sim_disp_to_subpx_grid(coords: np.ndarray,
-                               disp: np.ndarray,
-                               cam_data: Camera2D,
-                               id_opts: ImageDefOpts,
-                               subpx_grid_xm: np.ndarray,
-                               subpx_grid_ym: np.ndarray
-                               ) -> tuple[np.ndarray,np.ndarray]:
+                                   disp: np.ndarray,
+                                   cam_data: Camera2D,
+                                   id_opts: ImageDefOpts,
+                                   subpx_grid_xm: np.ndarray,
+                                   subpx_grid_ym: np.ndarray
+                                   ) -> tuple[np.ndarray, np.ndarray]:
     """Interpolate nodal displacements onto the sub-pixel camera grid.
 
     Parameters
@@ -750,35 +698,31 @@ def _interp_sim_disp_to_subpx_grid(coords: np.ndarray,
         Interpolated x and y displacement fields on the sub-pixel grid.
     """
 
-    # Interpolate displacements onto sub-pixel locations - nan extrapolation
-    subpx_disp_x = griddata((coords[:,0] + disp[:,0] + cam_data.world_to_cam[0],
-                            coords[:,1] + disp[:,1] + cam_data.world_to_cam[1]),
-                            disp[:,0],
-                            (subpx_grid_xm,subpx_grid_ym),
+    subpx_disp_x = griddata((coords[:, 0] + disp[:, 0] + cam_data.world_to_cam[0],
+                             coords[:, 1] + disp[:, 1] + cam_data.world_to_cam[1]),
+                            disp[:, 0],
+                            (subpx_grid_xm, subpx_grid_ym),
                             method=id_opts.fe_interp,
                             fill_value=np.nan,
                             rescale=id_opts.fe_rescale)
 
-    subpx_disp_y = griddata((coords[:,0] + disp[:,0] + cam_data.world_to_cam[0],
-                            coords[:,1] + disp[:,1] + cam_data.world_to_cam[1]),
-                            disp[:,1],
-                            (subpx_grid_xm,subpx_grid_ym),
+    subpx_disp_y = griddata((coords[:, 0] + disp[:, 0] + cam_data.world_to_cam[0],
+                             coords[:, 1] + disp[:, 1] + cam_data.world_to_cam[1]),
+                            disp[:, 1],
+                            (subpx_grid_xm, subpx_grid_ym),
                             method=id_opts.fe_interp,
                             fill_value=np.nan,
                             rescale=id_opts.fe_rescale)
 
-    # Ndimage interp can't handle nans so force everything outside the specimen
-    # to extrapolate outside the FOV - then use ndimage opts to control
     if id_opts.fe_extrap_outside_fov:
-        subpx_disp_ext_vals = 2*cam_data.field_of_view
+        subpx_disp_ext_vals = 2 * cam_data.field_of_view
     else:
-        subpx_disp_ext_vals = (0.0,0.0)
+        subpx_disp_ext_vals = (0.0, 0.0)
 
-    # Set the nans to the extrapoltion value
     subpx_disp_x[np.isnan(subpx_disp_x)] = subpx_disp_ext_vals[0]
     subpx_disp_y[np.isnan(subpx_disp_y)] = subpx_disp_ext_vals[1]
 
-    return (subpx_disp_x,subpx_disp_y)
+    return (subpx_disp_x, subpx_disp_y)
 
 
 def _interp_subpx_image(upsampled_image: np.ndarray,
@@ -787,47 +731,42 @@ def _interp_subpx_image(upsampled_image: np.ndarray,
                         cam_data: Camera2D,
                         id_opts: ImageDefOpts,
                         ) -> np.ndarray:
-        """Sample a sub-pixel image at deformed camera coordinates.
+    """Sample a sub-pixel image at deformed camera coordinates.
 
-        Parameters
-        ----------
-        upsampled_image : numpy.ndarray
-            Reference image on the sub-pixel grid.
-        def_subpx_x, def_subpx_y : numpy.ndarray
-            Deformed sub-pixel coordinates in physical camera units.
-        cam_data : Camera2D
-            Orthographic output camera.
-        id_opts : ImageDefOpts
-            Image interpolation controls.
+    Parameters
+    ----------
+    upsampled_image : numpy.ndarray
+        Reference image on the sub-pixel grid.
+    def_subpx_x, def_subpx_y : numpy.ndarray
+        Deformed sub-pixel coordinates in physical camera units.
+    cam_data : Camera2D
+        Orthographic output camera.
+    id_opts : ImageDefOpts
+        Image interpolation controls.
 
-        Returns
-        -------
-        numpy.ndarray
-            Deformed sub-pixel image.
-        """
+    Returns
+    -------
+    numpy.ndarray
+        Deformed sub-pixel image.
+    """
 
-        # Flip needed to be consistent with pixel coords of ndimage
-        def_subpx_x = def_subpx_x[::-1,:]
-        def_subpx_y = def_subpx_y[::-1,:]
+    def_subpx_x = def_subpx_x[::-1, :]
+    def_subpx_y = def_subpx_y[::-1, :]
 
-        # NDIMAGE: IMAGE DEF
-        # NOTE: need to shift to pixel centroid co-ords from nodal so -0.5 makes the
-        # top left 0,0 in pixel co-ords
-        def_subpx_x_in_px = def_subpx_x*(cam_data.subsample/cam_data.leng_per_px)-0.5
-        def_subpx_y_in_px = def_subpx_y*(cam_data.subsample/cam_data.leng_per_px)-0.5
-        # NOTE: prefilter needs to be on to match griddata and interp2D!
-        # with prefilter on this exactly matches I2D but 10x faster!
-        def_image_subpx = ndimage.map_coordinates(upsampled_image,
-                                                [[def_subpx_y_in_px],
-                                                [def_subpx_x_in_px]],
-                                                prefilter=True,
-                                                order= id_opts.image_def_order,
-                                                mode= id_opts.image_def_extrap,
-                                                cval= id_opts.image_def_extval)
+    def_subpx_x_in_px = def_subpx_x * (cam_data.subsample / cam_data.leng_per_px) - 0.5
+    def_subpx_y_in_px = def_subpx_y * (cam_data.subsample / cam_data.leng_per_px) - 0.5
 
-        def_image_subpx = def_image_subpx[0,:,:].squeeze()
+    def_image_subpx = ndimage.map_coordinates(upsampled_image,
+                                            [[def_subpx_y_in_px],
+                                            [def_subpx_x_in_px]],
+                                            prefilter=True,
+                                            order=id_opts.image_def_order,
+                                            mode=id_opts.image_def_extrap,
+                                            cval=id_opts.image_def_extval)
 
-        return def_image_subpx
+    def_image_subpx = def_image_subpx[0, :, :].squeeze()
+
+    return def_image_subpx
 
 
 def _deform_image_mask(def_image: np.ndarray,
@@ -837,7 +776,7 @@ def _deform_image_mask(def_image: np.ndarray,
                        subpx_disp_x: np.ndarray,
                        subpx_disp_y: np.ndarray,
                        cam_data: Camera2D,
-                       ) -> tuple[np.ndarray,np.ndarray]:
+                       ) -> tuple[np.ndarray, np.ndarray]:
     """Warp a specimen mask and apply it to a deformed image.
 
     Parameters
@@ -859,26 +798,19 @@ def _deform_image_mask(def_image: np.ndarray,
         Masked deformed image and sampled mask.
     """
 
-    # This is slow - might be quicker to just deform an upsampled mask
-    # TODO: use cython image averaging it is way faster!
     px_disp_x = CameraTools.average_subpixel_image(subpx_disp_x,
                                                    cam_data.subsample)
     px_disp_y = CameraTools.average_subpixel_image(subpx_disp_y,
                                                    cam_data.subsample)
 
-    def_px_x = px_grid_xm-px_disp_x
-    def_px_y = px_grid_ym-px_disp_y
-    # Flip needed to be consistent with pixel coords of ndimage
-    def_px_x = def_px_x[::-1,:]
-    def_px_y = def_px_y[::-1,:]
+    def_px_x = px_grid_xm - px_disp_x
+    def_px_y = px_grid_ym - px_disp_y
+    def_px_x = def_px_x[::-1, :]
+    def_px_y = def_px_y[::-1, :]
 
-    # NDIMAGE: DEFORM IMAGE MASK
-    # NOTE: need to shift to pixel centroid co-ords from nodal so -0.5 makes the
-    # top left 0,0 in pixel co-ords
-    def_px_x_in_px = def_px_x*(1/cam_data.leng_per_px)-0.5
-    def_px_y_in_px = def_px_y*(1/cam_data.leng_per_px)-0.5
-    # NOTE: prefilter needs to be on to match griddata and interp2D!
-    # with prefilter on this exactly matches I2D but 10x faster!
+    def_px_x_in_px = def_px_x * (1 / cam_data.leng_per_px) - 0.5
+    def_px_y_in_px = def_px_y * (1 / cam_data.leng_per_px) - 0.5
+
     def_mask = ndimage.map_coordinates(image_mask,
                                         [[def_px_y_in_px],
                                         [def_px_x_in_px]],
@@ -887,9 +819,10 @@ def _deform_image_mask(def_image: np.ndarray,
                                         mode='constant',
                                         cval=0)
 
-    def_mask = def_mask[0,:,:].squeeze()
-    # Use the deformed image mask to mask the deformed image
-    # Mask is 0-1 with 1 being definitely inside the sample 0 outside
-    def_image[def_mask<0.51] = cam_data.background # type: ignore
+    def_mask = def_mask[0, :, :].squeeze()
+    def_image[def_mask < 0.51] = cam_data.background
 
-    return (def_image,image_mask)
+    return (def_image, image_mask)
+
+
+__all__ = ["ImageDef2D", "ImageDefOpts"]
