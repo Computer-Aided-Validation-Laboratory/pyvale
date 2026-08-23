@@ -52,10 +52,13 @@ def mesh_convention_issues(
             ),
         )
 
-    if report.is_valid:
+    if not report:
         return tuple()
 
-    failed = ", ".join(report.failed_checks)
+    failed = "; ".join(
+        f"{table}: {', '.join(code.value for code in codes)}"
+        for table, codes in report.items()
+    )
     return (
         ValidationIssue(
             path + ".connectivity",

@@ -23,6 +23,7 @@ We have non-software engineers and scientists working on the project so these gu
 - Prioritise an easy to remember and intuitive user API and performant code under the hood.
 - Work in your own 'feature' branch, merge into 'dev' - don't push to main (it should be protected and yell at you)!
 - Follow the PEP8 style guide: https://peps.python.org/pep-0008/
+- Format your code so it is readable, use an 80 character line length and put blank lines around logical groups of statements
 - Use descriptive variable names, no single letter variables (double letters for iterators in numpy style are ok) single letter variables for indices / iterators are ok.
 - Use major function first variable names: e.g. `FieldScalar`, `FieldVector` and `FieldTensor` instead of `ScalarField`, `VectorField` and `TensorField`.
 - Type hint everything: e.g. `def add_ints(a: int, b: int) -> int:`. This makes your code easier to understand and you have the possibility of compiling things if you need.
@@ -33,7 +34,7 @@ We have non-software engineers and scientists working on the project so these gu
 - `numpy` and `scipy` are your friend - avoid for/while loops. Push everything you can down into C. Unless you are writing Cython then loops are great!
 - Minimise dependencies as much as possible.
 - Avoid decorators unless absolutely necessary (`@dataclass`,  `@abstractmethod` and `@staticmethod` are examples that are ok)
-- Don't use `@property` to hide complicated variable initialisation behind the `.` notation - in fact just avoid `@property` altogether and just use a `@dataclass` for data only classes.
+- Don't use `@property`. It is normally used to hide complicated variable initialisation behind the `.` notation - just avoid `@property` altogether and just use a `@dataclass` for data only classes.
 - No inheritance unless it is a purely abstract interface (python abstract base class `ABC`) - use composition / dependency injection. See this [video](https://www.youtube.com/watch?v=hxGOiiR9ZKg&t=3s) and thie [video](https://www.youtube.com/watch?v=J1f5b4vcxCQ&t=2s).
 - Only use one layer of abstraction - don't inherit from multiple interfaces and don't use mix-ins.
 - For interfaces (abstract base classes) prefix the name of the class with a capital `I` e.g. `ISensor`
