@@ -10,7 +10,7 @@ validated planar image-warp renderers. The default 3D implementation is
 :class:`Riley`; :class:`ImageDef2D` provides the initial 2D implementation.
 """
 
-from .camera import Camera, Camera2D
+from .camera import Camera, Camera2D, EDistortionModel, EPSFType
 from .camerastereo import CameraStereo
 from .cameratools import CameraTools
 from .blender import (
@@ -67,6 +67,8 @@ __all__ = [
     "Camera",
     "Camera2D",
     "CameraTools",
+    "EDistortionModel",
+    "EPSFType",
     "CameraStereo",
     "Blender",
     "BlenderCalibrationData",

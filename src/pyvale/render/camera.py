@@ -6,10 +6,35 @@
 """Camera data for three-dimensional and planar rendering."""
 
 from dataclasses import dataclass, field
+from enum import IntEnum
 
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+
+class EDistortionModel(IntEnum):
+    """Lens distortion models matching Riley's C backend.
+
+    Values correspond to the ``distortion_model`` field in Riley's CCameraInput.
+    """
+
+    NONE = 0
+    BROWN_CONRADY = 1
+    BROWN_CONRADY_EXT = 2
+    POLYNOMIAL = 3
+    BROWN_CONRADY_POLYNOMIAL = 4
+    BROWN_CONRADY_EXT_POLYNOMIAL = 5
+
+
+class EPSFType(IntEnum):
+    """Point-spread function types matching Riley's PsfType enum.
+
+    Values correspond to Riley's PsfType enum.
+    """
+
+    PIXEL_BOX = 0
+    GAUSSIAN = 1
+    ANISOTROPIC_GAUSSIAN = 2
 
 
 @dataclass(slots=True)
@@ -32,8 +57,8 @@ class Camera:
         Camera focal length in the same units as world coordinates.
     sub_sample : int, optional
         Number of sub-pixel samples per pixel direction.
-    distortion_model : int, optional
-        Backend-specific lens-distortion model identifier.
+    distortion_model : EDistortionModel, optional
+        Lens-distortion model identifier.
     distortion_k1, distortion_k2, distortion_k3, distortion_k4 : float, optional
         Radial distortion coefficients.
     distortion_k5, distortion_k6 : float, optional
@@ -45,8 +70,8 @@ class Camera:
         in the image.
     fstop : float or None, optional
         Lens f-number. ``None`` leaves depth-of-field disabled.
-    psf_type : int, optional
-        Backend-specific point-spread-function model identifier.
+    psf_type : EPSFType, optional
+        Point-spread-function model identifier.
     psf_sigma_x, psf_sigma_y : float, optional
         Point-spread-function standard deviations in pixel coordinates.
     psf_theta : float, optional
@@ -62,7 +87,7 @@ class Camera:
     roi_cent_world: np.ndarray
     focal_length: float
     sub_sample: int = 1
-    distortion_model: int = 0
+    distortion_model: EDistortionModel = EDistortionModel.NONE
     distortion_k1: float = 0.0
     distortion_k2: float = 0.0
     distortion_k3: float = 0.0
@@ -74,7 +99,7 @@ class Camera:
     c0: float | None = None
     c1: float | None = None
     fstop: float | None = None
-    psf_type: int = 0
+    psf_type: EPSFType = EPSFType.PIXEL_BOX
     psf_sigma_x: float = 0.0
     psf_sigma_y: float = 0.0
     psf_theta: float = 0.0
@@ -90,6 +115,10 @@ class Camera:
             self.c0 = float(self.pixels_num[0]) / 2.0
         if self.c1 is None:
             self.c1 = float(self.pixels_num[1]) / 2.0
+        if isinstance(self.distortion_model, int):
+            self.distortion_model = EDistortionModel(self.distortion_model)
+        if isinstance(self.psf_type, int):
+            self.psf_type = EPSFType(self.psf_type)
 
 
 @dataclass(slots=True)
@@ -153,4 +182,4 @@ class Camera2D:
         self.cam_to_world = -self.world_to_cam
 
 
-__all__ = ["Camera", "Camera2D"]
+__all__ = ["Camera", "Camera2D", "EDistortionModel", "EPSFType"]
