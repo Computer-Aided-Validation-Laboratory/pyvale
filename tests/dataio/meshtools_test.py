@@ -293,12 +293,12 @@ def test_check_and_enforce_winding_for_quads() -> None:
         connect={"connect1": np.array(((0, 3, 2, 1),), dtype=np.int64)},
     )
 
-    assert io.check_cw_winding(mesh)
-    assert not io.check_ccw_winding(mesh)
+    check = io.check_mesh_convention(mesh)
+    assert io.MeshCheckCode.CCW_WINDING in check["connect1"]
 
-    mesh_out = io.enforce_ccw_winding(mesh)
+    mesh_out = io.enforce_mesh_convention(mesh)
 
-    assert io.check_ccw_winding(mesh_out)
+    assert not io.check_mesh_convention(mesh_out)
     assert np.array_equal(mesh_out.connect["connect1"], np.array(((0, 1, 2, 3),)))
 
 

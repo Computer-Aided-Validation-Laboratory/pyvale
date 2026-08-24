@@ -279,3 +279,10 @@ docs/source/doxygen
 
 # Legacy temporary output from strain tests.
 /tests/strain/test/
+
+# Example scratch output written relative to the example source directories
+# (sphinx-gallery and manual example runs); never commit these.
+src/pyvale/examples/**/pyvale-output/
+src/pyvale/examples/**/out-riley-py/
+src/pyvale/examples/**/deformed_images/
+src/pyvale/examples/**/tmp_dic/

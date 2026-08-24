@@ -7,11 +7,13 @@
 """PyVale ``SimData`` adapter for Riley's mesh-convention tools.
 
 Riley's public interface is :mod:`riley.python.meshconv`. Element metadata
-and the winding/classification conveniences used by PyVale live in Riley's
-implementation module, so this adapter binds them explicitly.
+is re-exported from Riley's implementation module, and the orientation
+symmetries are derived from the public element-type API.
 """
 
 from __future__ import annotations
+
+from types import MappingProxyType
 
 import numpy as np
 
@@ -27,9 +29,13 @@ MeshConvCheck = _core.MeshConvCheck
 EElementType = _core.EElementType
 ElementSpec = _impl.ElementSpec
 ELEMENT_SPECS = _impl.ELEMENT_SPECS
-ELEMENT_SYMMETRIES = _impl.ELEMENT_SYMMETRIES
 MeshConvention = _core.MeshConvention
 MeshConventionInferenceError = _impl.MeshConventionInferenceError
+
+ELEMENT_SYMMETRIES = MappingProxyType({
+    element_type: element_type.orientation_preserving_permutations()
+    for element_type in EElementType
+})
 
 # PyVale's historical Exodus fixtures use this documented source layout.  It
 # is adapter-owned metadata, not a Riley convention special case.
@@ -64,24 +70,6 @@ def enforce_mesh_convention(
         _to_riley_mesh(mesh_in),
         _resolve_source_convention(mesh_in, source_convention),
     )
-    return _from_riley_mesh(mesh_out, mesh_in.num_spat_dims)
-
-
-def check_cw_winding(mesh_in: SimData) -> bool:
-    return _impl._check_cw_winding(_to_riley_mesh(mesh_in))
-
-
-def check_ccw_winding(mesh_in: SimData) -> bool:
-    return _impl._check_ccw_winding(_to_riley_mesh(mesh_in))
-
-
-def enforce_cw_winding(mesh_in: SimData) -> SimData:
-    mesh_out = _impl._enforce_cw_winding(_to_riley_mesh(mesh_in))
-    return _from_riley_mesh(mesh_out, mesh_in.num_spat_dims)
-
-
-def enforce_ccw_winding(mesh_in: SimData) -> SimData:
-    mesh_out = _impl._enforce_ccw_winding(_to_riley_mesh(mesh_in))
     return _from_riley_mesh(mesh_out, mesh_in.num_spat_dims)
 
 
@@ -193,10 +181,6 @@ __all__ = [
     "MeshConvCheck",
     "check_mesh_convention",
     "enforce_mesh_convention",
-    "check_cw_winding",
-    "check_ccw_winding",
-    "enforce_cw_winding",
-    "enforce_ccw_winding",
     "is_mesh_2d",
     "is_volume_mesh",
     "extract_surf_mesh",
