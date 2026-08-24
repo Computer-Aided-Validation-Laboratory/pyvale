@@ -8,13 +8,12 @@ from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
 import pyvale.blender as legacy_blender
-import pyvale.mooseherder as mooseherder
 import pyvale.render as render
+import pyvale.verif.renderverif as renderverif
 from pyvale.render.blender.adapter import _triangulate_mesh_for_blender
-import pyvale.sensorsim as sensorsim
 from pyvale.sensorsim.simtools import centre_mesh_nodes
 
-from render_checks import assert_render_allclose
+from pyvale.verif.renderverif import assert_render_allclose
 
 
 pytestmark = pytest.mark.skipif(
@@ -33,10 +32,7 @@ def _camera(pixels: tuple[int, int] = (20, 20)) -> render.Camera:
 
 
 def _mesh(camera: render.Camera) -> render.Mesh3D:
-    sim_data = mooseherder.ExodusLoader(
-        dataset.mechanical_2d_path(),
-    ).load_all_sim_data()
-    sensorsim.scale_length_units(1000.0, sim_data, ("disp_x", "disp_y"))
+    sim_data = renderverif.scaled_mechanical_2d()
     resolution = camera.pixels_size[0] * camera.pos_world[2] / camera.focal_length
     shader = render.BlenderTextureShader(dataset.dic_pattern_5mpx_path(), resolution)
     return render.mesh3d_from_simdata(sim_data, shader, ("disp_x", "disp_y"))

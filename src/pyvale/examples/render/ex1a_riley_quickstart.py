@@ -1,9 +1,9 @@
-# %%
 """Riley quickstart
 =================
 
 Render a single triangle with Riley through the unified pyvale API.
 """
+
 
 from pathlib import Path
 

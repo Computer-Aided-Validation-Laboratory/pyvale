@@ -1,5 +1,8 @@
-# %%
-"""Riley DIC-UQ parity demo through :mod:`pyvale.render`."""
+"""
+Riley DIC-UQ parity demo through :mod:`pyvale.render`.
+======================================================
+"""
+
 
 from riley.pydemos.demo_dicuq import main
 

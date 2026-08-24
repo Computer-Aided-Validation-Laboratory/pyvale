@@ -268,10 +268,10 @@ def test_check_mesh_convention_reports_failed_checks() -> None:
     check = io.check_mesh_convention(mesh)
 
     assert check["connect1"] == [
-        io.CheckCode.ROW_MAJOR_CONNECTIVITY,
-        io.CheckCode.ZERO_BASED_INDEXING,
-        io.CheckCode.CCW_WINDING,
-        io.CheckCode.RIGHT_HANDED_GEOMETRY,
+        io.MeshCheckCode.ROW_MAJOR_CONNECTIVITY,
+        io.MeshCheckCode.ZERO_BASED_INDEXING,
+        io.MeshCheckCode.CCW_WINDING,
+        io.MeshCheckCode.RIGHT_HANDED_GEOMETRY,
     ]
 
 
@@ -310,7 +310,7 @@ def test_enforce_mesh_convention_fixes_tet_handedness() -> None:
     )
 
     check = io.check_mesh_convention(mesh)
-    assert io.CheckCode.RIGHT_HANDED_GEOMETRY in check["connect1"]
+    assert io.MeshCheckCode.RIGHT_HANDED_GEOMETRY in check["connect1"]
 
     mesh_out = io.enforce_mesh_convention(mesh)
 
@@ -332,8 +332,8 @@ def test_cube_mesh_convention_is_valid_after_enforcement(
     enforced = io.enforce_mesh_convention(mesh)
     enforced_check = io.check_mesh_convention(enforced)
 
-    assert io.CheckCode.ZERO_BASED_INDEXING in raw_check["connect1"]
-    assert io.CheckCode.ROW_MAJOR_CONNECTIVITY in raw_check["connect1"]
+    assert io.MeshCheckCode.ZERO_BASED_INDEXING in raw_check["connect1"]
+    assert io.MeshCheckCode.ROW_MAJOR_CONNECTIVITY in raw_check["connect1"]
     assert not enforced_check
 
 

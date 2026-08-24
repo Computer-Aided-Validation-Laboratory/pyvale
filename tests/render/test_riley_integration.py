@@ -11,10 +11,10 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 import pyvale.render as render
+import pyvale.verif.renderverif as renderverif
 import riley
 
-from scripts.gengold_riley_rabbits import build_rabbit_meshes
-from render_checks import assert_render_allclose
+from pyvale.verif.renderverif import assert_render_allclose
 
 
 def test_riley_returns_canonical_image_layout() -> None:
@@ -39,22 +39,9 @@ def test_riley_returns_canonical_image_layout() -> None:
 
 def test_riley_rabbit_multimesh_golden_regression() -> None:
     """The Riley rabbit multi-mesh scene remains deterministic end-to-end."""
-    meshes = build_rabbit_meshes()
-    coords = np.concatenate([mesh.coords for mesh in meshes])
-    pixels_num = np.array((320, 160))
-    pixels_size = np.array((5.3e-6, 5.3e-6))
-    focal_length = 50.0e-3
-    rotation = Rotation.identity()
-    position = riley.pos_fill_frame_from_rot(
-        coords, tuple(pixels_num), tuple(pixels_size), focal_length,
-        tuple(rotation.as_euler("xyz")), 1.1,
+    result = render.Riley(renderverif.riley_memory_config()).render(
+        renderverif.riley_rabbit_scene(),
     )
-    camera = render.Camera(
-        pixels_num, pixels_size, np.asarray(position), rotation,
-        np.mean(coords, axis=0), focal_length,
-    )
-    config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.memory)
-    result = render.Riley(config).render(render.RenderScene(tuple(meshes), (camera,)))
     assert result.images is not None
     golden_path = Path(__file__).parent / "gold_riley" / "rabbits.npy"
     assert_render_allclose(

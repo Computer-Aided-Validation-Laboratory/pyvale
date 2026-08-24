@@ -1,5 +1,8 @@
-# %%
-"""Riley multi-topology rabbit parity demo through :mod:`pyvale.render`."""
+"""
+Riley multi-topology rabbit parity demo through :mod:`pyvale.render`.
+=====================================================================
+"""
+
 
 from riley.pydemos.demo_rabbits import main
 

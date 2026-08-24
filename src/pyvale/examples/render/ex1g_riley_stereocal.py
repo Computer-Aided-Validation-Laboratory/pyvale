@@ -1,5 +1,8 @@
-# %%
-"""Riley stereo-calibration parity demo through :mod:`pyvale.render`."""
+"""
+Riley stereo-calibration parity demo through :mod:`pyvale.render`.
+==================================================================
+"""
+
 
 from riley.pydemos.demo_stereocal import main
 

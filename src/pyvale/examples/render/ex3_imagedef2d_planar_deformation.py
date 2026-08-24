@@ -1,9 +1,9 @@
-# %%
 """Planar ImageDef2D warp
 =========================
 
 Use the separate planar image-warp interface for a simple orthographic mesh.
 """
+
 
 from pathlib import Path
 

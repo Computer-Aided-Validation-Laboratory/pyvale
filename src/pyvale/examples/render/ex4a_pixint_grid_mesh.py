@@ -1,10 +1,10 @@
-# %%
 """PixIntGrid2D unstructured mesh mapping
 =========================================
 
 ``NEWTON_MESH_UNSTRUCT`` accepts multiple Riley-ordered finite elements. This
 small two-Quad4 example applies an affine displacement to both elements.
 """
+
 
 from pathlib import Path
 

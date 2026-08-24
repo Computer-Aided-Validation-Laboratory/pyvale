@@ -1,5 +1,8 @@
-# %%
-"""Riley sphere200 parity demo through :mod:`pyvale.render`."""
+"""
+Riley sphere200 parity demo through :mod:`pyvale.render`.
+=========================================================
+"""
+
 
 from riley.pydemos.demo_sphere200 import main
 

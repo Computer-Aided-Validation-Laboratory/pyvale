@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from render_checks import assert_render_allclose
+from pyvale.verif.renderverif import assert_render_allclose
 
 
 def test_failed_image_comparison_writes_all_diagnostics(

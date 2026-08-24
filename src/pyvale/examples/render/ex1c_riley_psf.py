@@ -1,5 +1,8 @@
-# %%
-"""Riley PSF parity demo through :mod:`pyvale.render`."""
+"""
+Riley PSF parity demo through :mod:`pyvale.render`.
+===================================================
+"""
+
 
 from riley.pydemos.demo_psf import main
 

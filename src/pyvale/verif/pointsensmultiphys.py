@@ -6,6 +6,7 @@
 from pathlib import Path
 import copy
 import numpy as np
+import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.verif.pointsens as pointsens

@@ -1,10 +1,10 @@
-# %%
 """PixIntGrid2D one-element mappings
 ====================================
 
 Render the same analytic eggbox through the Riley-ordered Tri3, Tri6, Quad4,
 Quad8, and Quad9 element definitions using ``NEWTON_ONE_ELEM``.
 """
+
 
 from pathlib import Path
 

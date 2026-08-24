@@ -1,10 +1,10 @@
-# %%
 """PixIntSpeck2D with a Newton mesh map
 =======================================
 
 Create a deterministic analytic disk-speckle image over a Riley-ordered Quad9
 element. Rectangular quadrature controls the sub-pixel sampling density.
 """
+
 
 from pathlib import Path
 

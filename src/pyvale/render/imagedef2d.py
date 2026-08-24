@@ -590,13 +590,15 @@ class ImageDef2D(IImageWarp2D):
 
         return (def_image, def_image_subpx, subpx_disp_x, subpx_disp_y, def_mask)
 
-    def deform_images_to_disk(self, scene: Scene2D) -> tuple[Path, ...]:
+    def deform_images_to_disk(self, scene: Scene2D, print_on: bool = False) -> tuple[Path, ...]:
         """Deform every frame and save it as a TIFF image.
 
         Parameters
         ----------
         scene : Scene2D
             Validated planar rendering request.
+        print_on : bool, optional
+            Print timing diagnostics while deforming.
 
         Returns
         -------

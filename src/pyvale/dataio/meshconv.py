@@ -4,26 +4,32 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""PyVale ``SimData`` adapter for Riley's mesh-convention tools."""
+"""PyVale ``SimData`` adapter for Riley's mesh-convention tools.
+
+Riley's public interface is :mod:`riley.python.meshconv`. Element metadata
+and the winding/classification conveniences used by PyVale live in Riley's
+implementation module, so this adapter binds them explicitly.
+"""
 
 from __future__ import annotations
 
 import numpy as np
 
 from riley.python import meshconv as _core
+from riley.python import _meshconv as _impl
 
 from pyvale.dataio.simdata import EMeshType as PyValeMeshType
 from pyvale.dataio.simdata import SimData
 
 
-CheckCode = _core.CheckCode
-MeshConventionCheck = _core.MeshConventionCheck
+MeshCheckCode = _core.MeshCheckCode
+MeshConvCheck = _core.MeshConvCheck
 EElementType = _core.EElementType
-ElementSpec = _core.ElementSpec
-ELEMENT_SPECS = _core.ELEMENT_SPECS
-ELEMENT_SYMMETRIES = _core.ELEMENT_SYMMETRIES
+ElementSpec = _impl.ElementSpec
+ELEMENT_SPECS = _impl.ELEMENT_SPECS
+ELEMENT_SYMMETRIES = _impl.ELEMENT_SYMMETRIES
 MeshConvention = _core.MeshConvention
-MeshConventionInferenceError = _core.MeshConventionInferenceError
+MeshConventionInferenceError = _impl.MeshConventionInferenceError
 
 # PyVale's historical Exodus fixtures use this documented source layout.  It
 # is adapter-owned metadata, not a Riley convention special case.
@@ -62,29 +68,29 @@ def enforce_mesh_convention(
 
 
 def check_cw_winding(mesh_in: SimData) -> bool:
-    return _core.check_cw_winding(_to_riley_mesh(mesh_in))
+    return _impl._check_cw_winding(_to_riley_mesh(mesh_in))
 
 
 def check_ccw_winding(mesh_in: SimData) -> bool:
-    return _core.check_ccw_winding(_to_riley_mesh(mesh_in))
+    return _impl._check_ccw_winding(_to_riley_mesh(mesh_in))
 
 
 def enforce_cw_winding(mesh_in: SimData) -> SimData:
-    mesh_out = _core.enforce_cw_winding(_to_riley_mesh(mesh_in))
+    mesh_out = _impl._enforce_cw_winding(_to_riley_mesh(mesh_in))
     return _from_riley_mesh(mesh_out, mesh_in.num_spat_dims)
 
 
 def enforce_ccw_winding(mesh_in: SimData) -> SimData:
-    mesh_out = _core.enforce_ccw_winding(_to_riley_mesh(mesh_in))
+    mesh_out = _impl._enforce_ccw_winding(_to_riley_mesh(mesh_in))
     return _from_riley_mesh(mesh_out, mesh_in.num_spat_dims)
 
 
 def is_mesh_2d(mesh_in: SimData) -> bool:
-    return _core.is_mesh_2d(_to_riley_mesh(mesh_in))
+    return _impl._check_mesh_2d(_to_riley_mesh(mesh_in))
 
 
 def is_volume_mesh(mesh_in: SimData) -> bool:
-    return _core.is_volume_mesh(_to_riley_mesh(mesh_in))
+    return _impl._check_volume_mesh(_to_riley_mesh(mesh_in))
 
 
 def extract_surf_mesh(
@@ -141,7 +147,7 @@ def _resolve_source_convention(
     for connect in mesh_in.connect.values():
         connect_array = np.asarray(connect, dtype=np.int64)
         if (
-            _core._should_transpose_connectivity(connect_array)
+            _impl._check_transpose_needed(connect_array)
             or int(connect_array.min()) == 1
         ):
             return PYVALE_EXODUS_MESH_CONVENTION
@@ -183,8 +189,8 @@ def _to_pyvale_mesh_type(
 
 
 __all__ = [
-    "CheckCode",
-    "MeshConventionCheck",
+    "MeshCheckCode",
+    "MeshConvCheck",
     "check_mesh_convention",
     "enforce_mesh_convention",
     "check_cw_winding",

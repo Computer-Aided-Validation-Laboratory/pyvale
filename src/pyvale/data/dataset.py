@@ -12,8 +12,11 @@ for testing the image deformation and digital image correlation modules.
 """
 
 from enum import Enum
-from pathlib import Path
 from importlib.resources import files
+from pathlib import Path
+
+import numpy as np
+import riley
 
 SIM_CASE_COUNT = 26
 """Constant describing the number of simulation test case input files for moose
@@ -96,10 +99,10 @@ def sim_case_input_file_path(case_num: int) -> Path:
 
 
 def sim_case_gmsh_file_path(case_num: int) -> Path | None:
-    """Gets the path to Gmsh input file (*.geo) for a particular simulation
+    """Gets the path to Gmsh input file (\*.geo) for a particular simulation
     case. Note that not all simulation cases use Gmsh for geometry and mesh
     generation. If the specified simulation case does not have an associated
-    Gmsh *.geo file. In this case 'None' is returned
+    Gmsh \*.geo file. In this case 'None' is returned
 
     Parameters
     ----------
@@ -802,6 +805,43 @@ def riley_rabbit_case_path(rabbit_name: str, mesh_name: str) -> Path:
     if not path.is_dir():
         raise DataSetError(f"Unknown Riley rabbit case: {rabbit_name}_{mesh_name}.")
     return path
+
+
+def riley_rabbit_meshes() -> list[riley.Mesh]:
+    """Load the packaged Riley TRI3 rabbit meshes with the speckle texture.
+
+    Returns
+    -------
+    list[riley.Mesh]
+        The ``"riley"`` and ``"feebs"`` TRI3 surface meshes normalised to
+        the shared mesh convention and textured with the packaged speckle
+        image.
+    """
+    from pyvale.dataio import SimData, enforce_mesh_convention
+
+    texture = riley.load_texture(str(riley_speckle_texture_path()))
+    meshes: list[riley.Mesh] = []
+    for rabbit_name in ("riley", "feebs"):
+        data_path = riley_rabbit_case_path(rabbit_name, "tri3")
+        mesh_data = enforce_mesh_convention(SimData(
+            coords=np.loadtxt(data_path / "coords.csv", delimiter=","),
+            connect={
+                "connect1": np.loadtxt(
+                    data_path / "connectivity.csv",
+                    delimiter=",",
+                    dtype=np.uintp,
+                ),
+            },
+        ))
+        assert mesh_data.coords is not None and mesh_data.connect is not None
+        uvs = np.loadtxt(data_path / "uvs.csv", delimiter=",")
+        meshes.append(riley.Mesh(
+            riley.MeshType.tri3,
+            mesh_data.coords,
+            mesh_data.connect["connect1"],
+            shader_type=riley.ShaderType.tex, uvs=uvs, texture=texture,
+        ))
+    return meshes
 
 
 
