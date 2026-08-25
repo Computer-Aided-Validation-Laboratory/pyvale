@@ -4,6 +4,9 @@
 Use the separate planar image-warp interface for a simple orthographic mesh.
 """
 
+# NOTE: This example uses ImageDef2D, which is provided for legacy
+# compatibility only. Prefer the Riley renderer even for 2D rendering: it is
+# faster and more deeply verified for correctness.
 
 from pathlib import Path
 

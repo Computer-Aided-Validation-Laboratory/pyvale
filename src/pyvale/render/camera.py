@@ -169,7 +169,7 @@ class Camera2D:
     background: float = 0.5
     sample_times: np.ndarray | None = None
     angle: Rotation | None = None
-     
+    subsample: int = 2
     field_of_view: np.ndarray = field(init=False)
     dynamic_range: int = field(init=False)
     world_to_cam: np.ndarray = field(init=False)

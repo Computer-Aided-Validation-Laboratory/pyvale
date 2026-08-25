@@ -1,9 +1,9 @@
 # Documented example tests
 
-This directory smoke-tests the stable Sensorsim, render, and DIC galleries in
-isolated subprocesses. Each test uses a temporary working directory, so the
-examples write their normal `pyvale-output` directory without modifying the
-repository.
+This directory smoke-tests the stable Sensorsim, 3D render, 2D render, and
+DIC galleries in isolated subprocesses. Each test uses a temporary working
+directory, so the examples write their normal `pyvale-output` directory
+without modifying the repository.
 
 Run all documented example tests with:
 
@@ -11,16 +11,18 @@ Run all documented example tests with:
 python -m pytest tests/examples
 ```
 
-Run the examples belonging to one sub-module, such as render, with:
+Run the examples belonging to one sub-module, such as `render3d` or
+`render2d`, with:
 
 ```bash
-python -m pytest tests/examples --example-module=render
+python -m pytest tests/examples --example-module=render3d
+python -m pytest tests/examples --example-module=render2d
 ```
 
-Run the render unit tests and only render examples together with:
+Run the render unit tests and only the matching examples together with:
 
 ```bash
-python -m pytest tests/render tests/examples --example-module=render
+python -m pytest tests/render tests/examples --example-module=render3d
 ```
 
 The Blender examples are included but skip automatically when its optional

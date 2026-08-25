@@ -130,15 +130,18 @@ sphinx_gallery_conf = {
         '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/dic',
         '../../src/pyvale/examples/mooseherder',
-        '../../src/pyvale/examples/render',
+        '../../src/pyvale/examples/render3d',
+        '../../src/pyvale/examples/render2d',
     ],
-    # Path to where to save gallery generated output
+    # Path to where to save gallery generated output. Render3D galleries are
+    # listed before the 2D image-warp galleries.
     'gallery_dirs': [
         'examples/basicsensorsim',
         'examples/extsensorsim',
         'examples/dic',
         'examples/mooseherder',
-        'examples/render',
+        'examples/render3d',
+        'examples/render2d',
     ],
     # Pattern to identify example files
     'filename_pattern': '/ex',

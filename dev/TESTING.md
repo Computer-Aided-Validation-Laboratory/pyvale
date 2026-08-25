@@ -43,7 +43,8 @@ Use `--example-module` to run examples in one example directory. The value is
 the directory below `src/pyvale/examples`, for example:
 
 ```bash
-python -m pytest tests/examples --example-module=render
+python -m pytest tests/examples --example-module=render3d
+python -m pytest tests/examples --example-module=render2d
 python -m pytest tests/examples --example-module=dic
 python -m pytest tests/examples --example-module=basicsensorsim
 python -m pytest tests/examples --example-module=extsensorsim
@@ -52,7 +53,7 @@ python -m pytest tests/examples --example-module=extsensorsim
 Run render implementation tests and its examples together with:
 
 ```bash
-python -m pytest tests/render tests/examples --example-module=render
+python -m pytest tests/render tests/examples --example-module=render3d
 ```
 
 The `example_slow` marker labels longer tests; select it explicitly with

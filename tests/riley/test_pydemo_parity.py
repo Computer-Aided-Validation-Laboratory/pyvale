@@ -12,7 +12,7 @@ import pytest
 
 
 _ROOT = Path(__file__).resolve().parents[2]
-_EXAMPLES = _ROOT / "src" / "pyvale" / "examples" / "render"
+_EXAMPLES = _ROOT / "src" / "pyvale" / "examples" / "render3d"
 _CASES = (
     ("demo_sphere200", "ex1b_riley_sphere200.py"),
     ("demo_psf", "ex1c_riley_psf.py"),
