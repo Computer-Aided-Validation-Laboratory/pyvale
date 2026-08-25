@@ -155,7 +155,7 @@ def test_check_mesh_convention_passes_for_canonical_quad() -> None:
 def test_element_specs_are_reexported_from_riley_adapter() -> None:
     assert io.ELEMENT_SPECS is meshconv.ELEMENT_SPECS
     assert (
-        io.ELEMENT_SPECS[io.EElementType.TRI6].surface_reverse_permutation
+        io.ELEMENT_SPECS[io.EElementType.TRI6].surf_reverse_perm
         == (0, 2, 1, 5, 4, 3)
     )
 

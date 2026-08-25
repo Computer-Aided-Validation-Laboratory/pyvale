@@ -145,9 +145,11 @@ class CameraTools:
         """
         if subsample <= 1:
             return image
+
         kernel = np.ones((subsample, subsample)) / (subsample ** 2)
         convolved = convolve2d(image, kernel, mode="same")
         start = round(subsample / 2.0) - 1
+
         return convolved[start::subsample, start::subsample]
 
     @staticmethod
@@ -161,6 +163,7 @@ class CameraTools:
         focal_length = CameraTools.focal_length_from_resolution(
             pixels_size, working_dist, resolution,
         )
+
         return Camera(
             pixels_num, pixels_size, np.array((0.0, 0.0, working_dist)),
             Rotation.identity(), np.zeros(3), focal_length,
@@ -208,6 +211,7 @@ class CameraTools:
         field_x = (camera.pixels_num[0] * camera.pixels_size[0]
                    * image_distance / camera.focal_length)
         field_y = camera.pixels_num[1] / camera.pixels_num[0] * field_x
+
         return float(field_x), float(field_y)
 
     @staticmethod

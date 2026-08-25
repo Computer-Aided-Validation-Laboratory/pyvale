@@ -77,6 +77,7 @@ class CameraStereo:
             int(parameters["Cam1_Cx [pixels]"] * 2),
             int(parameters["Cam1_Cy [pixels]"] * 2),
         ))
+        
         pixel_size = focal_length / parameters["Cam0_Fx [pixels]"]
         stereo_rotation = Rotation.from_euler(
             "xyz",
@@ -98,6 +99,7 @@ class CameraStereo:
                           rot_world_0, np.zeros(3), focal_length)
         camera_1 = Camera(pixels_num_1, np.full(2, pixel_size), pos_world_1,
                           rot_world_1, np.zeros(3), focal_length)
+
         return cls(camera_0, camera_1)
 
     def save_calibration(self, base_dir: Path) -> None:

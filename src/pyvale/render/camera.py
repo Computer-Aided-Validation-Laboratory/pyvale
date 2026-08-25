@@ -111,12 +111,16 @@ class Camera:
         self.pixels_size = np.asarray(self.pixels_size, dtype=np.float64)
         self.pos_world = np.asarray(self.pos_world, dtype=np.float64)
         self.roi_cent_world = np.asarray(self.roi_cent_world, dtype=np.float64)
+
         if self.c0 is None:
             self.c0 = float(self.pixels_num[0]) / 2.0
+
         if self.c1 is None:
             self.c1 = float(self.pixels_num[1]) / 2.0
+
         if isinstance(self.distortion_model, int):
             self.distortion_model = EDistortionModel(self.distortion_model)
+
         if isinstance(self.psf_type, int):
             self.psf_type = EPSFType(self.psf_type)
 
@@ -165,7 +169,7 @@ class Camera2D:
     background: float = 0.5
     sample_times: np.ndarray | None = None
     angle: Rotation | None = None
-    subsample: int = 2
+     
     field_of_view: np.ndarray = field(init=False)
     dynamic_range: int = field(init=False)
     world_to_cam: np.ndarray = field(init=False)

@@ -819,7 +819,7 @@ def riley_rabbit_meshes() -> list[riley.Mesh]:
     """
     from pyvale.dataio import SimData, enforce_mesh_convention
 
-    texture = riley.load_texture(str(riley_speckle_texture_path()))
+    texture = riley.load_texture_u8(str(riley_speckle_texture_path()))
     meshes: list[riley.Mesh] = []
     for rabbit_name in ("riley", "feebs"):
         data_path = riley_rabbit_case_path(rabbit_name, "tri3")
