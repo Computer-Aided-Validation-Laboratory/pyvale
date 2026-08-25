@@ -7,7 +7,7 @@
 
 from abc import ABC, abstractmethod
 from .result import RenderResult
-from .scene import RenderScene
+from .scene import Scene3D
 
 
 class IRenderer3D(ABC):
@@ -19,13 +19,13 @@ class IRenderer3D(ABC):
 
     def render(
         self,
-        scene: RenderScene,
+        scene: Scene3D,
     ) -> RenderResult:
         """Validate and render a three-dimensional scene.
 
         Parameters
         ----------
-        scene : RenderScene
+        scene : Scene3D
             Complete rendering request.
 
         Returns
@@ -44,13 +44,13 @@ class IRenderer3D(ABC):
     @abstractmethod
     def verify_input(
         self,
-        scene: RenderScene,
+        scene: Scene3D,
     ) -> None:
         """Validate a render request without expensive preparation.
 
         Parameters
         ----------
-        scene : RenderScene
+        scene : Scene3D
             Complete rendering request to validate.
 
         Raises
@@ -60,12 +60,12 @@ class IRenderer3D(ABC):
         """
 
     @abstractmethod
-    def _render(self, scene: RenderScene) -> RenderResult:
+    def _render(self, scene: Scene3D) -> RenderResult:
         """Render a backend plan that has already passed validation.
 
         Parameters
         ----------
-        scene : RenderScene
+        scene : Scene3D
             Previously validated rendering request.
 
         Returns

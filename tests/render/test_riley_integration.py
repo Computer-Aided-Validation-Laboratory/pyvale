@@ -32,7 +32,7 @@ def test_riley_returns_canonical_image_layout() -> None:
         Rotation.identity(), np.zeros(3), 1.0,
     )
     config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.memory)
-    result = render.Riley(config).render(render.RenderScene((mesh,), (camera,)))
+    result = render.Riley(config).render(render.Scene3D([mesh], [camera]))
     assert result.images is not None
     assert result.images.shape == (1, 1, 32, 32, 1)
 

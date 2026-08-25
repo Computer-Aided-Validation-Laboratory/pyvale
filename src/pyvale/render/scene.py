@@ -25,32 +25,25 @@ without a pyvale wrapper.
 """
 
 
-@dataclass(frozen=True, slots=True)
-class RenderScene:
+@dataclass(slots=True)
+class Scene3D:
     """A complete three-dimensional rendering request.
 
     Parameters
     ----------
-    meshes : tuple[RenderMesh, ...]
+    meshes : list[RenderMesh]
         Backend-compatible meshes. Blender requires common :class:`Mesh3D`
         data;
         Riley requires native :class:`riley.Mesh` data.
-    cameras : tuple[Camera, ...]
+    cameras : list[Camera]
         One or more common perspective cameras.
-    lights : tuple[Light, ...] or None, optional
+    lights : list[Light] or None, optional
         Explicit scene lights. ``None`` leaves lighting to the backend.
     """
 
-    meshes: tuple[RenderMesh, ...]
-    cameras: tuple[Camera, ...]
-    lights: tuple[Light, ...] | None = None
-
-    def __post_init__(self) -> None:
-        """Store immutable scene sequences for validation and rendering."""
-        object.__setattr__(self, "meshes", tuple(self.meshes))
-        object.__setattr__(self, "cameras", tuple(self.cameras))
-        if self.lights is not None:
-            object.__setattr__(self, "lights", tuple(self.lights))
+    meshes: list[RenderMesh]
+    cameras: list[Camera]
+    lights: list[Light] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,12 +65,5 @@ class Scene2D:
     camera: Camera2D
     source_image: np.ndarray | None = None
 
-    def __post_init__(self) -> None:
-        """Validate scene components."""
-        if not isinstance(self.mesh, Mesh2D):
-            raise TypeError("Scene2D.mesh must be a render.Mesh2D.")
-        if not isinstance(self.camera, Camera2D):
-            raise TypeError("Scene2D.camera must be a render.Camera2D.")
 
-
-__all__ = ["RenderMesh", "RenderScene", "Scene2D"]
+__all__ = ["RenderMesh", "Scene3D", "Scene2D"]

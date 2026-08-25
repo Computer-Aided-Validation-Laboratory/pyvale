@@ -21,7 +21,7 @@ from .errors import RenderInputError, ValidationIssue
 from .mesh import EElementType, Mesh3D
 from .renderer3d import IRenderer3D
 from .result import RenderResult
-from .scene import RenderScene
+from .scene import Scene3D
 from .verifyinput import raise_if_issues, verify_scene_3d
 
 
@@ -225,13 +225,13 @@ class Feebee(IRenderer3D):
 
     def verify_input(
         self,
-        scene: RenderScene,
+        scene: Scene3D,
     ) -> None:
         """Validate a Feebee scene without expanding geometry or rendering.
 
         Parameters
         ----------
-        scene : RenderScene
+        scene : Scene3D
             Scene containing common meshes with a
             :class:`FeebeeColourShader` or :class:`FeebeeTextureShader`.
 
@@ -240,8 +240,8 @@ class Feebee(IRenderer3D):
         RenderInputError
             If inputs are unsupported or invalid.
         """
-        if not isinstance(scene, RenderScene):
-            raise TypeError("Feebee requires a RenderScene.")
+        if not isinstance(scene, Scene3D):
+            raise TypeError("Feebee requires a Scene3D.")
 
         meshes = tuple(
             mesh for mesh in scene.meshes if isinstance(mesh, Mesh3D)
@@ -290,12 +290,12 @@ class Feebee(IRenderer3D):
 
         raise_if_issues(tuple(issues))
 
-    def _render(self, scene: RenderScene) -> RenderResult:
+    def _render(self, scene: Scene3D) -> RenderResult:
         """Reject rendering until the compiled Feebee backend is migrated.
 
         Parameters
         ----------
-        scene : RenderScene
+        scene : Scene3D
             Previously validated Feebee scene.
 
         Raises

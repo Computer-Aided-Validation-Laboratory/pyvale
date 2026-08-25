@@ -49,7 +49,7 @@ def _render(
     renderer = render.Blender(render.BlenderConfig(
         tmp_path, engine=engine, samples=samples, max_bounces=bounces, threads=1,
     ))
-    result = renderer.render(render.RenderScene(
+    result = renderer.render(render.Scene3D(
         (_mesh(camera),),
         (camera,),
         (render.Light(
@@ -129,14 +129,14 @@ def test_legacy_workbench_engine(tmp_path: Path) -> None:
 
 def test_camera_from_resolution_matches_legacy_gold(tmp_path: Path) -> None:
     """The migrated resolution helper creates the legacy Blender camera."""
-    camera = render.CameraTools.blender_camera_from_resolution(
+    camera = render.BlenderTools.blender_camera_from_resolution(
         np.array((20, 20)), np.array((0.00345, 0.00345)), 500.0, 0.1,
     )
     assert_render_allclose(
         _render(tmp_path, camera), np.load(_GOLD / "cam_from_resolution.npy"),
         "camera_from_resolution", rtol=0.0, atol=2.0,
     )
-    assert render.CameraTools.blender_mm_per_pixel(camera) == pytest.approx(0.1)
+    assert render.BlenderTools.blender_mm_per_pixel(camera) == pytest.approx(0.1)
 
 
 @pytest.mark.parametrize("field", ("samples", "max_bounces", "threads"))
@@ -149,7 +149,7 @@ def test_blender_config_rejects_non_integral_controls(
     values[field] = 2.5
     renderer = render.Blender(render.BlenderConfig(tmp_path, **values))
     with pytest.raises(render.RenderInputError, match="VALUE"):
-        renderer.render(render.RenderScene((_mesh(_camera()),), (_camera(),)))
+        renderer.render(render.Scene3D((_mesh(_camera()),), (_camera(),)))
 
 
 def test_blender_persisted_images_and_scene(tmp_path: Path) -> None:
@@ -157,7 +157,7 @@ def test_blender_persisted_images_and_scene(tmp_path: Path) -> None:
     camera = _camera()
     result = render.Blender(render.BlenderConfig(
         tmp_path, threads=1, save_images=True, save_scene=True,
-    )).render(render.RenderScene(
+    )).render(render.Scene3D(
         (_mesh(camera),),
         (camera,),
         (render.Light(
@@ -178,7 +178,7 @@ def test_blender_supports_legacy_light_geometries(tmp_path: Path) -> None:
                        render.ELightType.AREA):
         result = render.Blender(render.BlenderConfig(
             tmp_path / light_type.value, threads=1,
-        )).render(render.RenderScene(
+        )).render(render.Scene3D(
             (_mesh(camera),),
             (camera,),
             (render.Light(
@@ -200,7 +200,7 @@ def test_blender_in_memory_texture(tmp_path: Path) -> None:
         source_mesh.displacements,
     )
     result = render.Blender(render.BlenderConfig(tmp_path, threads=1)).render(
-        render.RenderScene(
+        render.Scene3D(
             (mesh,),
             (camera,),
             (render.Light(
@@ -224,7 +224,7 @@ def test_legacy_stereo_gold(
     else:
         stereo = render.CameraTools.faceon_stereo_cameras(camera, 15.0)
     renderer = render.Blender(render.BlenderConfig(tmp_path, threads=1))
-    result = renderer.render(render.RenderScene(
+    result = renderer.render(render.Scene3D(
         (_mesh(camera),),
         (stereo.cam_data_0, stereo.cam_data_1),
         (render.Light(
@@ -243,7 +243,7 @@ def test_legacy_deformation_frames(tmp_path: Path) -> None:
     renderer = render.Blender(render.BlenderConfig(
         tmp_path, threads=1, render_deformed=True,
     ))
-    result = renderer.render(render.RenderScene(
+    result = renderer.render(render.Scene3D(
         (_mesh(camera),),
         (camera,),
         (render.Light(
@@ -291,7 +291,7 @@ def test_unified_stereo_matches_legacy_scene(tmp_path: Path) -> None:
         render.ELightType.POINT, np.array((0.0, 0.0, 400.0)), np.zeros(3), 1.0,
     )
     unified = render.Blender(render.BlenderConfig(tmp_path / "unified", threads=1))
-    unified_result = unified.render(render.RenderScene(
+    unified_result = unified.render(render.Scene3D(
         (mesh,), (stereo.cam_data_0, stereo.cam_data_1), (light,),
     ))
     assert unified_result.images is not None
@@ -330,7 +330,7 @@ def test_unified_deformation_matches_legacy_scene(tmp_path: Path) -> None:
     )
     unified_result = render.Blender(render.BlenderConfig(
         tmp_path / "unified", threads=1, render_deformed=True,
-    )).render(render.RenderScene((mesh,), (camera,), (light,)))
+    )).render(render.Scene3D([mesh], [camera], [light]))
     assert unified_result.images is not None
 
     legacy_mesh = _triangulate_mesh_for_blender(mesh)

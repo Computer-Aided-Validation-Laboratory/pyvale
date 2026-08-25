@@ -18,7 +18,7 @@ def main() -> None:
     mesh, camera, lights = build_scene()
     output_dir = Path.cwd() / "pyvale-output" / "render-blender-scene"
     renderer = render.Blender(render.BlenderConfig(output_dir))
-    result = renderer.render(render.RenderScene((mesh,), (camera,), tuple(lights)))
+    result = renderer.render(render.Scene3D([mesh], [camera], lights))
     assert result.images is not None
     print(result.images.shape)
 

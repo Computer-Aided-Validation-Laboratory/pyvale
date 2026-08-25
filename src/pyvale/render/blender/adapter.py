@@ -16,7 +16,7 @@ from ..light import ELightType, Light
 from ..mesh import EElementType, Mesh3D
 from ..renderer3d import IRenderer3D
 from ..result import RenderResult
-from ..scene import RenderScene
+from ..scene import Scene3D
 from ..verifyinput import raise_if_issues, verify_scene_3d
 from .config import BlenderConfig, EBlenderEngine
 from .shader import BlenderImageShader, BlenderTextureShader
@@ -31,11 +31,11 @@ class Blender(IRenderer3D):
 
     def verify_input(
         self,
-        scene: RenderScene,
+        scene: Scene3D,
     ) -> None:
         """Validate a complete Blender request before scene construction."""
-        if not isinstance(scene, RenderScene):
-            raise TypeError("Blender requires a RenderScene.")
+        if not isinstance(scene, Scene3D):
+            raise TypeError("Blender requires a Scene3D.")
         meshes = tuple(
             mesh for mesh in scene.meshes if isinstance(mesh, Mesh3D)
         )
@@ -99,7 +99,7 @@ class Blender(IRenderer3D):
                 )
         raise_if_issues(tuple(issues))
 
-    def _render(self, render_scene: RenderScene) -> RenderResult:
+    def _render(self, render_scene: Scene3D) -> RenderResult:
         """Construct and render one validated Blender scene."""
         blender_module = importlib.import_module("pyvale.blender")
         meshes = tuple(
@@ -138,9 +138,11 @@ class Blender(IRenderer3D):
         for light in render_scene.lights or ():
             scene.add_light(_legacy_light(blender_module, light))
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
-        camera_data = (render_scene.cameras[0]
-                       if len(render_scene.cameras) == 1
-                       else render_scene.cameras)
+        camera_data = (
+            render_scene.cameras[0]
+            if len(render_scene.cameras) == 1
+            else tuple(render_scene.cameras)
+        )
         render_data = blender_module.RenderData(
             cam_data=camera_data,
             base_dir=self.config.output_dir,

@@ -20,8 +20,8 @@ def main() -> None:
         Path.cwd() / "pyvale-output" / "render-blender-stereo-deformation",
         render_deformed=True,
     ))
-    result = renderer.render(render.RenderScene(
-        (mesh,), (stereo.cam_data_0, stereo.cam_data_1), tuple(lights),
+    result = renderer.render(render.Scene3D(
+        [mesh], [stereo.cam_data_0, stereo.cam_data_1], lights,
     ))
     assert result.images is not None
     print(result.images.shape)

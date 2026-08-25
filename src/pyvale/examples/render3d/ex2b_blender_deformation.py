@@ -19,7 +19,7 @@ def main() -> None:
         render_deformed=True,
     ))
     mesh, camera, lights = build_scene()
-    result = renderer.render(render.RenderScene((mesh,), (camera,), tuple(lights)))
+    result = renderer.render(render.Scene3D([mesh], [camera], lights))
     assert result.images is not None
     print(f"Rendered {result.images.shape[0]} deformation frames.")
 

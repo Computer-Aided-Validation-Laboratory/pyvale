@@ -55,7 +55,7 @@ config.background_value = 0.5
 
 output_dir = Path.cwd() / "pyvale-output" / "render-riley-quickstart"
 result = render.Riley(config, output_dir).render(
-    render.RenderScene((mesh,), (camera,)),
+    render.Scene3D([mesh], [camera]),
 )
 
 assert result.images is not None

@@ -49,7 +49,7 @@ def test_blender_reports_unavailable_before_scene_construction(
     renderer = render.Blender(render.BlenderConfig(tmp_path))
 
     with pytest.raises(render.RenderInputError, match="UNAVAILABLE"):
-        renderer.render(render.RenderScene((make_mesh(),), (make_camera(),)))
+        renderer.render(render.Scene3D([make_mesh()], [make_camera()]))
 
 
 def test_blender_available_reflects_backend_probe(monkeypatch) -> None:
@@ -95,5 +95,5 @@ def test_blender_warns_for_non_tri3_meshes(monkeypatch, tmp_path) -> None:
 
     with pytest.warns(RuntimeWarning, match="Tri3"):
         render.Blender(render.BlenderConfig(tmp_path)).verify_input(
-            render.RenderScene((mesh,), (make_camera(),)),
+            render.Scene3D([mesh], [make_camera()]),
         )

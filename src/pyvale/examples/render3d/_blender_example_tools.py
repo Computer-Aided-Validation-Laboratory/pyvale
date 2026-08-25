@@ -35,7 +35,7 @@ def build_scene() -> tuple[render.Mesh3D, render.Camera, list[render.Light]]:
         np.array((128, 128)), np.array((0.00345, 0.00345)),
         np.array((0.0, 0.0, 500.0)), Rotation.identity(), np.zeros(3), 15.0,
     )
-    resolution = render.CameraTools.blender_mm_per_pixel(camera)
+    resolution = render.BlenderTools.blender_mm_per_pixel(camera)
     mesh = render.mesh3d_from_simdata(
         sim_data,
         render.BlenderTextureShader(

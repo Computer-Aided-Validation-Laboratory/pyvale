@@ -149,7 +149,7 @@ def render_triangle(output_dir: Path) -> np.ndarray:
         Rotation.identity(), np.zeros(3), 1.0,
     )
     result = render.Blender(render.BlenderConfig(output_dir, samples=1)).render(
-        render.RenderScene((mesh,), (camera,)),
+        render.Scene3D([mesh], [camera]),
     )
     assert result.images is not None
     return result.images
@@ -162,12 +162,12 @@ def riley_memory_config() -> riley.RasterConfig:
     )
 
 
-def riley_rabbit_scene() -> render.RenderScene:
+def riley_rabbit_scene() -> render.Scene3D:
     """Build the committed multi-mesh rabbit regression scene.
 
     Returns
     -------
-    render.RenderScene
+    render.Scene3D
         The packaged TRI3 rabbit meshes viewed by a camera filled from
         their combined extent.
     """
@@ -185,7 +185,7 @@ def riley_rabbit_scene() -> render.RenderScene:
         pixels_num, pixels_size, np.asarray(position), rotation,
         np.mean(coords, axis=0), focal_length,
     )
-    return render.RenderScene(tuple(meshes), (camera,))
+    return render.Scene3D(meshes, [camera])
 
 
 def pxint2d_camera() -> render.Camera2D:

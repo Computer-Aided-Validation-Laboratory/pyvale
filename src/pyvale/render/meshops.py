@@ -35,6 +35,7 @@ def mesh3d_from_simdata(
         Backend-owned material or shader definition for the mesh.
     displacement_keys : Sequence[str] or None, optional
         Names of the three displacement components. ``None`` omits motion.
+
     Returns
     -------
     Mesh3D
@@ -60,6 +61,7 @@ def mesh3d_from_simdata(
     coords, connectivity = _single_surface_table(prepared)
     element_type = _element_type_from_nodes(connectivity.shape[1])
     displacements = _displacements_from_simdata(prepared, displacement_keys)
+
     return Mesh3D(
         element_type=element_type,
         coords=_coords3d(coords),
@@ -79,6 +81,7 @@ def mesh2d_from_simdata(
     Coordinates with a Z column are accepted only when every Z value is zero
     within the shared mesh-convention tolerance.
     """
+
     prepared = enforce_mesh_convention(sim_data)
     if not is_mesh_2d(prepared):
         raise ValueError("mesh2d_from_simdata requires a surface mesh.")
@@ -198,8 +201,10 @@ def _displacements_from_simdata(
     """
     if displacement_keys is None:
         return None
+
     if sim_data.node_vars is None or len(displacement_keys) not in (2, 3):
         raise ValueError("Two or three displacement keys are required.")
+
     try:
         fields = [
             np.asarray(sim_data.node_vars[key], dtype=np.float64)
@@ -209,11 +214,15 @@ def _displacements_from_simdata(
         raise ValueError(
             f"Missing displacement field {error.args[0]!r}.",
         ) from error
+
     if any(field.ndim != 2 for field in fields):
         raise ValueError("Displacement fields must have shape (nodes, frames).")
+
     displacements = np.stack(fields, axis=2).transpose(1, 0, 2)
+
     if displacements.shape[2] == 2:
         displacements = np.pad(displacements, ((0, 0), (0, 0), (0, 1)))
+
     return np.ascontiguousarray(displacements)
 
 

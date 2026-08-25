@@ -39,7 +39,7 @@ def test_feebee_validates_scene_before_backend_dispatch() -> None:
     shader = render.FeebeeColourShader(np.ones((1, 1, 3)))
     renderer = render.Feebee()
 
-    scene = render.RenderScene((make_mesh(shader),), (make_camera(),))
+    scene = render.Scene3D([make_mesh(shader)], [make_camera()])
     renderer.verify_input(scene)
 
     with pytest.raises(NotImplementedError, match="compiled rendering backend"):
@@ -60,7 +60,7 @@ def test_feebee_aggregates_unsupported_scene_features() -> None:
     )
 
     with pytest.raises(render.RenderInputError) as exception:
-        render.Feebee().verify_input(render.RenderScene(
+        render.Feebee().verify_input(render.Scene3D(
             (make_mesh(shader),), (make_camera(),), (light,),
         ))
 
@@ -73,7 +73,7 @@ def test_feebee_checks_higher_order_connectivity() -> None:
     mesh.element_type = render.EElementType.QUAD9
 
     with pytest.raises(render.RenderInputError, match="9 nodes"):
-        render.Feebee().verify_input(render.RenderScene((mesh,), (make_camera(),)))
+        render.Feebee().verify_input(render.Scene3D([mesh], [make_camera()]))
 
 
 def test_feebee_texture_shader_accepts_nodal_uvs() -> None:
@@ -83,7 +83,7 @@ def test_feebee_texture_shader_accepts_nodal_uvs() -> None:
         np.ones((4, 4)),
     )
 
-    render.Feebee().verify_input(render.RenderScene(
+    render.Feebee().verify_input(render.Scene3D(
         (make_mesh(shader),), (make_camera(),),
     ))
 
@@ -93,7 +93,7 @@ def test_feebee_uses_a_static_colour_field_with_an_animated_mesh() -> None:
     mesh = make_mesh(render.FeebeeColourShader(np.ones((1, 1, 3))))
     mesh.displacements = np.zeros((2, 3, 3))
 
-    render.Feebee().verify_input(render.RenderScene((mesh,), (make_camera(),)))
+    render.Feebee().verify_input(render.Scene3D([mesh], [make_camera()]))
 
 
 def test_feebee_reports_non_numeric_material_data_cleanly() -> None:
@@ -105,6 +105,6 @@ def test_feebee_reports_non_numeric_material_data_cleanly() -> None:
     shader = render.FeebeeColourShader(np.ones((1, 1, 3)), material)
 
     with pytest.raises(render.RenderInputError, match="refractive_index"):
-        render.Feebee().verify_input(render.RenderScene(
+        render.Feebee().verify_input(render.Scene3D(
             (make_mesh(shader),), (make_camera(),),
         ))

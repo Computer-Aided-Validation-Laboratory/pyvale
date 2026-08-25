@@ -17,7 +17,7 @@ from .light import Light
 from .mesh import EElementType
 from .renderer3d import IRenderer3D
 from .result import RenderResult
-from .scene import RenderScene
+from .scene import Scene3D
 from .verifyinput import mesh_convention_issues, raise_if_issues
 
 
@@ -26,7 +26,7 @@ class Riley(IRenderer3D):
 
     Riley owns its complete mesh and shader representation. Construct meshes
     with :class:`riley.Mesh`, including its texture, nodal-field, or analytic
-    function shader settings, then place them in :class:`RenderScene`.
+    function shader settings, then place them in :class:`Scene3D`.
 
     Parameters
     ----------
@@ -53,12 +53,12 @@ class Riley(IRenderer3D):
         self.config = config
         self.output_dir = output_dir
 
-    def verify_input(self, scene: RenderScene) -> None:
+    def verify_input(self, scene: Scene3D) -> None:
         """Verify native Riley meshes and common cameras before rasterisation.
 
         Parameters
         ----------
-        scene : RenderScene
+        scene : Scene3D
             Scene containing native Riley meshes and no explicit lights.
 
         Raises
@@ -67,28 +67,34 @@ class Riley(IRenderer3D):
             If configuration, mesh, camera, or lighting input is unsupported.
         """
         issues: list[ValidationIssue] = []
-        if not isinstance(scene, RenderScene):
+
+        if not isinstance(scene, Scene3D):
             issues.append(ValidationIssue(
-                "scene", "TYPE", "Expected a RenderScene.",
+                "scene", "TYPE", "Expected a Scene3D.",
             ))
             raise_if_issues(tuple(issues))
             return
+
         if not isinstance(self.config, riley.RasterConfig):
             issues.append(ValidationIssue(
                 "config", "TYPE", "Expected riley.RasterConfig.",
             ))
+
         if not scene.meshes:
             issues.append(ValidationIssue(
                 "scene.meshes", "EMPTY", "At least one mesh is required.",
             ))
+
         if not scene.cameras:
             issues.append(ValidationIssue(
                 "scene.cameras", "EMPTY", "At least one camera is required.",
             ))
+
         if scene.lights:
             issues.append(ValidationIssue(
                 "scene.lights", "UNSUPPORTED", "Riley does not support lights yet.",
             ))
+
         for mesh_index, mesh in enumerate(scene.meshes):
             if not isinstance(mesh, riley.Mesh):
                 issues.append(ValidationIssue(
@@ -96,20 +102,22 @@ class Riley(IRenderer3D):
                     "Riley requires native riley.Mesh objects.",
                 ))
                 continue
+
             issues.extend(mesh_convention_issues(
                 mesh.coords,
                 mesh.connect,
                 f"scene.meshes[{mesh_index}]",
             ))
+
         issues.extend(_verify_cameras(scene.cameras))
         raise_if_issues(tuple(issues))
 
-    def _render(self, scene: RenderScene) -> RenderResult:
+    def _render(self, scene: Scene3D) -> RenderResult:
         """Rasterise a previously validated scene exactly once.
 
         Parameters
         ----------
-        scene : RenderScene
+        scene : Scene3D
             Validated scene containing native Riley meshes.
 
         Returns
@@ -118,16 +126,20 @@ class Riley(IRenderer3D):
             Riley images in ``(frame, camera, height, width, channel)`` order.
         """
         output_dir = None if self.output_dir is None else str(self.output_dir)
+
         if self.output_dir is not None:
             self.output_dir.mkdir(parents=True, exist_ok=True)
+
         images = riley.raster(
             list(scene.meshes),
             [_camera_to_riley(camera) for camera in scene.cameras],
             self.config,
             out_dir=output_dir,
         )
+
         if images is not None:
             images = np.ascontiguousarray(images.transpose(0, 1, 3, 4, 2))
+
         return RenderResult(images=images)
 
 

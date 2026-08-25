@@ -48,7 +48,7 @@ def use_pyvale_render_api() -> Iterator[None]:
         riley.raster = native_raster
         try:
             result = render.Riley(config, _path_or_none(out_dir)).render(
-                render.RenderScene(mesh_list, camera_list),
+                render.Scene3D(mesh_list, camera_list),
             )
         finally:
             riley.raster = raster_through_pyvale

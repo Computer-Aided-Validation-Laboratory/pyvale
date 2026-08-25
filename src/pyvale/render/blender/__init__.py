@@ -1,6 +1,7 @@
 """Blender implementation of pyvale's unified renderer API."""
 
 from .adapter import Blender, blender_available, blender_gpu_available
+from .blendertools import BlenderTools
 from .calibration import (
     BlenderCalibrationData,
     BlenderCalibrationTarget,
@@ -12,6 +13,7 @@ from .shader import BlenderImageShader, BlenderMaterial, BlenderTextureShader
 
 __all__ = [
     "Blender",
+    "BlenderTools",
     "BlenderCalibrationData",
     "BlenderCalibrationTarget",
     "BlenderConfig",

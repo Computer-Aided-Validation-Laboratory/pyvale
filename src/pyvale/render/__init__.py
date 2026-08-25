@@ -21,6 +21,7 @@ from .blender import (
     BlenderImageShader,
     BlenderMaterial,
     BlenderTextureShader,
+    BlenderTools,
     EBlenderEngine,
     blender_available,
     blender_gpu_available,
@@ -59,9 +60,9 @@ from .pxint2d import (
 )
 from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
-from .scene import RenderMesh, RenderScene, Scene2D
+from .scene import RenderMesh, Scene3D, Scene2D
 from .riley import Riley
-from .simdata import mesh2d_from_simdata, mesh3d_from_simdata
+from .meshops import mesh2d_from_simdata, mesh3d_from_simdata
 
 __all__ = [
     "Camera",
@@ -81,6 +82,7 @@ __all__ = [
     "BlenderImageShader",
     "BlenderMaterial",
     "BlenderTextureShader",
+    "BlenderTools",
     "EBlenderEngine",
     "AdditiveSpeckles",
     "AnalyticRule",
@@ -116,7 +118,7 @@ __all__ = [
     "RenderMesh",
     "RenderInputError",
     "RenderResult",
-    "RenderScene",
+    "Scene3D",
     "Riley",
     "Scene2D",
     "ValidationIssue",

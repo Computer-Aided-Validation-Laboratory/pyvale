@@ -29,17 +29,33 @@ def make_mesh(shader: object) -> render.Mesh3D:
     )
 
 
+def test_camera2d_defaults_to_one_sample_per_pixel() -> None:
+    """The planar and perspective camera defaults use one sample per pixel."""
+    assert render.Camera2D().subsample == 1
+
+
+def test_scene3d_keeps_mutable_scene_lists() -> None:
+    """Scene collections remain the caller's ordinary mutable lists."""
+    meshes: list[render.RenderMesh] = []
+    cameras = [make_camera()]
+
+    scene = render.Scene3D(meshes, cameras)
+
+    assert scene.meshes is meshes
+    assert scene.cameras is cameras
+
+
 class _FakeRenderer(render.IRenderer3D):
     """Renderer spy used to enforce the template-method lifecycle."""
 
     def __init__(self) -> None:
         self.rendered = False
 
-    def verify_input(self, scene: render.RenderScene) -> None:
+    def verify_input(self, scene: render.Scene3D) -> None:
         if not scene.meshes:
             raise render.RenderInputError(())
 
-    def _render(self, scene: render.RenderScene):
+    def _render(self, scene: render.Scene3D):
         self.rendered = True
         return render.RenderResult(np.zeros((1, 1, 1, 1, 1)))
 
@@ -48,7 +64,7 @@ def test_renderer_lifecycle_blocks_backend_after_validation_failure() -> None:
     """The ABC must never invoke backend work when verification fails."""
     renderer = _FakeRenderer()
     with pytest.raises(render.RenderInputError):
-        renderer.render(render.RenderScene((), (make_camera(),)))
+        renderer.render(render.Scene3D([], [make_camera()]))
     assert not renderer.rendered
 
 
@@ -61,7 +77,7 @@ def test_riley_rejects_lights_before_backend_call(monkeypatch) -> None:
         render.ELightType.POINT, np.zeros(3), np.array((0.0, 0.0, -1.0)), 1.0,
     )
     with pytest.raises(render.RenderInputError, match="UNSUPPORTED"):
-        renderer.render(render.RenderScene((), (make_camera(),), (light,)))
+        renderer.render(render.Scene3D([], [make_camera()], [light]))
 
 
 def test_riley_rejects_meshes_outside_the_shared_convention() -> None:
@@ -76,7 +92,7 @@ def test_riley_rejects_meshes_outside_the_shared_convention() -> None:
 
     with pytest.raises(render.RenderInputError, match="CONVENTION"):
         render.Riley(riley.RasterConfig()).verify_input(
-            render.RenderScene((mesh,), (make_camera(),)),
+            render.Scene3D([mesh], [make_camera()]),
         )
 
 
