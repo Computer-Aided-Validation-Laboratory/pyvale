@@ -3,6 +3,7 @@ import numpy as np
 from pyvale.vfm.metric import MetricResult
 from pyvale.vfm.objectivefunccombinedfreegi import (
     CombinedForceAndEquilibriumGapObjective,
+    CombinedObjectiveBaseline,
     infer_egi_window_length_weights,
 )
 
@@ -48,6 +49,44 @@ def test_combined_objective_matches_reference_equations() -> None:
     assert objective.last_result is not None
     assert objective.last_result.equilibrium_gap_cost == 2.0
     assert objective.last_result.force_cost == 2.0
+
+
+def test_combined_objective_uses_unit_baselines_by_default() -> None:
+    objective = CombinedForceAndEquilibriumGapObjective(
+        force_weight=0.25,
+        egi_window_weights=(1.0, 1.0),
+    )
+
+    value = objective.evaluate([
+        _force_result(8.0),
+        _egi_result(2.0, 29),
+        _egi_result(6.0, 57),
+    ])
+
+    assert value == 5.0
+    assert objective.last_result is not None
+    np.testing.assert_allclose(objective.last_result.egi_baselines, (1.0, 1.0))
+    assert objective.last_result.force_baseline == 1.0
+    np.testing.assert_allclose(objective.egi_baselines_for(2), (1.0, 1.0))
+
+
+def test_combined_objective_resolves_prior_phase_baselines() -> None:
+    objective = CombinedForceAndEquilibriumGapObjective(
+        force_weight=0.1,
+        egi_window_weights=(29.0, 57.0),
+        baseline=CombinedObjectiveBaseline.prior_phase(0),
+    )
+    reference = [_force_result(5.0), _egi_result(2.0, 29), _egi_result(4.0, 57)]
+    objective.resolve_from_prior_phase(reference)
+
+    assert objective.evaluate(reference) == 1.0
+    assert objective.baseline_diagnostics() == {
+        "mode": "prior_phase",
+        "phase_index": 0,
+        "egi_values": [2.0, 4.0],
+        "force_value": 5.0,
+    }
+    np.testing.assert_allclose(objective.egi_baselines_for(2), (2.0, 4.0))
 
 
 def test_egi_window_weights_use_length_not_area() -> None:

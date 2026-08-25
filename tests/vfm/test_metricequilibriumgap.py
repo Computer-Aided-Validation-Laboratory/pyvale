@@ -17,8 +17,8 @@ from pyvale.vfm.metricequilibriumgap import (
     EquilibriumGapMetric,
     EquilibriumGapVirtualFieldType,
     evaluate_equilibrium_gap_batch,
+    evaluate_batched_equilibrium_gap_metrics,
 )
-from pyvale.vfm.optimiser import _evaluate_batched_equilibrium_gap_metrics
 from pyvale.vfm.roi import RoiDefinition, RoiShape, VfmRegionOfInterest
 
 
@@ -271,7 +271,7 @@ def test_optimiser_batch_helper_returns_results_by_metric_index() -> None:
     for metric in metrics:
         metric.initialise(experiment_data)
 
-    results = _evaluate_batched_equilibrium_gap_metrics(stress, metrics)
+    results = evaluate_batched_equilibrium_gap_metrics(stress, metrics)
 
     assert set(results) == {0, 1}
     assert all(result.additional_fields is not None for result in results.values())
@@ -296,6 +296,31 @@ def test_objective_only_egi_result_omits_diagnostic_fields() -> None:
         "weighted_spatiotemporal_rms",
         "window_size",
     }
+
+
+def test_reference_evaluation_can_request_maps_from_compact_metrics() -> None:
+    experiment_data = _rectangle_experiment_data(rows=23, cols=27)
+    metrics = [
+        EquilibriumGapMetric(
+            window_size=window,
+            include_optimisation_diagnostics=False,
+        )
+        for window in ((5, 5), (9, 9))
+    ]
+    for metric in metrics:
+        metric.initialise(experiment_data)
+
+    results = evaluate_batched_equilibrium_gap_metrics(
+        _stress_with_central_inclusion(experiment_data),
+        metrics,
+        include_egi_diagnostics=True,
+    )
+
+    assert set(results) == {0, 1}
+    assert all(
+        result.additional_fields["weighted_temporal_rms"] is not None
+        for result in results.values()
+    )
 
 
 def test_windows_can_cross_free_edges_but_not_non_free_edges() -> None:

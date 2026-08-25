@@ -31,7 +31,8 @@ class ScalarForceAndEquilibriumGapObjective(IScalarObjectiveFunction):
     separates force-reconstruction metric results from equilibrium-gap metric
     results, aggregates the EGI windows into one map, and combines that EGI
     scalar with the force-reconstruction scalar using the supplied term
-    weights.
+    weights. This differs from ``CombinedForceAndEquilibriumGapObjective``,
+    which combines independent scalar EGI values from each window.
     """
 
     def __init__(
