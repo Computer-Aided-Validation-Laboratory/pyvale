@@ -1,21 +1,30 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import copy
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import numpy.typing as npt
+from scipy.ndimage import uniform_filter
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.equilibriumgapaggregation import combine_equilibrium_gap_maps
+from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
+from pyvale.vfm.objectivefunccombinedfreegi import (
+    CombinedForceAndEquilibriumGapObjective,
+)
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.spatialparambasisfuncs import (
+    BasisFunctionKernelUnivariate,
     SpatialParameterisationBasisFunction,
     SupportBasis,
 )
+from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.spatialparamslicewise import SliceConfig, SupportSlice
 
 if TYPE_CHECKING:
@@ -34,6 +43,9 @@ class RefinementContext:
     constitutive_parameters: dict[str, ConstitutiveParameter]
     parameter_map_size: npt.NDArray[np.uint32]
     parameter_maps: dict[str, npt.NDArray[np.float64]]
+    metrics: list[object] = field(default_factory=list)
+    objective_function: object | None = None
+    objective_value: float | None = None
     _stress: npt.NDArray[np.float64] | None = field(
         default=None,
         init=False,
@@ -51,7 +63,7 @@ class RefinementContext:
 
 
 class IRefinementAction(ABC):
-    """A single structural change selected after a solved optimisation state."""
+    """A single structural change proposed after a phase solve."""
 
     @abstractmethod
     def apply(
@@ -59,7 +71,19 @@ class IRefinementAction(ABC):
         runtime: PhaseRuntime,
         context: RefinementContext,
     ) -> None:
-        pass
+        ...
+
+    @property
+    def terminal(self) -> bool:
+        """Whether applying this action ends the current phase."""
+
+        return False
+
+    @property
+    def accepts_current_solve(self) -> bool:
+        """Whether the solved candidate remains the active phase model."""
+
+        return True
 
 
 class IRefinementPolicy(ABC):
@@ -71,8 +95,7 @@ class IRefinementPolicy(ABC):
         runtime: PhaseRuntime,
         context: RefinementContext,
     ) -> IRefinementAction | None:
-        pass
-
+        ...
 
 @dataclass(slots=True)
 class SliceMergeSplitRefinement(IRefinementPolicy):
@@ -208,10 +231,10 @@ class BasisAddRemoveRefinement(IRefinementPolicy):
                 self.min_basis_functions,
             )
             if removable_index is not None:
+                self._record_refinement()
                 return RemoveBasisFunctionAction(
                     support=support,
                     kernel_index=removable_index,
-                    policy=self,
                 )
 
         if self.mode not in {"add", "add_remove"}:
@@ -243,12 +266,12 @@ class BasisAddRemoveRefinement(IRefinementPolicy):
             target_map,
             parameter.upper_bound - parameter.lower_bound,
         )
+        self._record_refinement()
         return AddBasisFunctionAction(
             support=support,
             kernel=kernel,
             seed_parameterisation=parameterisation,
             seed_height=height,
-            policy=self,
         )
 
     def _record_refinement(self) -> None:
@@ -260,8 +283,7 @@ class AddBasisFunctionAction(IRefinementAction):
     support: SupportBasis
     kernel: object
     seed_parameterisation: SpatialParameterisationBasisFunction
-    seed_height: object
-    policy: BasisAddRemoveRefinement
+    seed_height: DegreeOfFreedom
 
     def apply(
         self,
@@ -281,14 +303,11 @@ class AddBasisFunctionAction(IRefinementAction):
             else:
                 parameterisation.heights.append(None)
 
-        self.policy._record_refinement()
-
 
 @dataclass(slots=True)
 class RemoveBasisFunctionAction(IRefinementAction):
     support: SupportBasis
     kernel_index: int
-    policy: BasisAddRemoveRefinement
 
     def apply(
         self,
@@ -305,7 +324,274 @@ class RemoveBasisFunctionAction(IRefinementAction):
                 continue
             del parameterisation.heights[self.kernel_index]
 
-        self.policy._record_refinement()
+
+@dataclass(slots=True)
+class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
+    """Grow univariate Gaussian bases from the normalised EGI residual map.
+
+    Add one EGI-seeded Gaussian after each accepted solve and retain it only
+    when the scalar objective improves sufficiently.
+    """
+
+    target: RefinementTarget
+    max_basis_functions: int = 6
+    relative_improvement_threshold: float = 0.05
+    refinement_height_fraction: float = 0.05
+    smoothing_points: int = 3
+    minimum_separation_points: float = 3.0
+    _accepted_cost: float | None = field(default=None, init=False, repr=False)
+    _accepted_spatial_parameterisations: dict[str, list[ISpatialParameterisation]] | None = field(
+        default=None, init=False, repr=False,
+    )
+
+    def __post_init__(self) -> None:
+        if self.max_basis_functions < 1:
+            raise ValueError("max_basis_functions must be at least one.")
+        if self.relative_improvement_threshold < 0.0:
+            raise ValueError("relative_improvement_threshold must be non-negative.")
+        if not 0.0 < self.refinement_height_fraction <= 1.0:
+            raise ValueError("refinement_height_fraction must lie in (0, 1].")
+        if self.smoothing_points < 1 or self.minimum_separation_points < 0.0:
+            raise ValueError("smoothing_points and minimum_separation_points must be non-negative.")
+
+    def propose(
+        self,
+        runtime: PhaseRuntime,
+        context: RefinementContext,
+    ) -> IRefinementAction | None:
+        if context.objective_value is None:
+            raise ValueError("EGI basis growth requires a scalar objective value.")
+        if not np.isfinite(context.objective_value):
+            raise ValueError("EGI basis growth requires a finite objective value.")
+        if self._accepted_cost is None:
+            self._accept(runtime, context.objective_value)
+        else:
+            improvement = (
+                (self._accepted_cost - context.objective_value)
+                / max(abs(self._accepted_cost), 1.0e-12)
+            )
+            if improvement < self.relative_improvement_threshold:
+                assert self._accepted_spatial_parameterisations is not None
+                return RestoreBasisModelAction(
+                    self._accepted_spatial_parameterisations,
+                )
+            self._accept(runtime, context.objective_value)
+
+        parameter_name, basis = _resolve_basis_parameterisation(runtime, self.target)
+        return self._new_egi_basis_action(
+            context,
+            parameter_name,
+            basis,
+            _evaluate_egi_metric_results(context),
+            height_fraction=self.refinement_height_fraction,
+        )
+
+    def _accept(
+        self,
+        runtime: PhaseRuntime,
+        cost: float,
+    ) -> None:
+        self._accepted_cost = float(cost)
+        self._accepted_spatial_parameterisations = copy.deepcopy(
+            runtime.spatial_parameterisations
+        )
+
+    def _new_egi_basis_action(
+        self,
+        context: RefinementContext,
+        parameter_name: str,
+        basis: SpatialParameterisationBasisFunction,
+        egi_results: list[object],
+        *,
+        height_fraction: float,
+    ) -> IRefinementAction | None:
+        if len(basis.kernels) >= self.max_basis_functions:
+            return None
+        objective = context.objective_function
+        if not isinstance(objective, CombinedForceAndEquilibriumGapObjective):
+            raise TypeError(
+                "EGI basis growth requires CombinedForceAndEquilibriumGapObjective."
+            )
+        egi_map = combine_equilibrium_gap_maps(
+            egi_results,
+            egi_baseline_values=objective.egi_baselines_for(len(egi_results)),
+            window_weights=objective.egi_window_weights,
+        )
+        centre = _select_egi_centre(
+            egi_map,
+            basis,
+            context.experiment_data,
+            self.smoothing_points,
+            self.minimum_separation_points,
+        )
+        if centre is None:
+            return None
+        kernel, height = _default_univariate_basis(
+            centre,
+            basis,
+            context.constitutive_parameters[parameter_name],
+            height_fraction,
+        )
+        return AddBasisFunctionAction(basis.support, kernel, basis, height)
+
+@dataclass(slots=True)
+class FitBasisFunctionsToMapAction(IRefinementAction):
+    basis: SpatialParameterisationBasisFunction
+    target_map: npt.NDArray[np.float64]
+    parameter_range: float
+    max_basis_functions: int
+    minimum_relative_improvement: float
+
+    def apply(self, runtime: PhaseRuntime, context: RefinementContext) -> None:
+        _ = runtime, context
+        self.basis.fit_to_map(
+            self.target_map,
+            parameter_range=self.parameter_range,
+            max_basis_functions=self.max_basis_functions,
+            minimum_relative_improvement=self.minimum_relative_improvement,
+        )
+
+
+@dataclass(slots=True)
+class RestoreBasisModelAction(IRefinementAction):
+    spatial_parameterisations: dict[str, list[ISpatialParameterisation]]
+
+    @property
+    def terminal(self) -> bool:
+        return True
+
+    @property
+    def accepts_current_solve(self) -> bool:
+        return False
+
+    def apply(self, runtime: PhaseRuntime, context: RefinementContext) -> None:
+        _ = context
+        runtime.adopt_spatial_parameterisations(
+            copy.deepcopy(self.spatial_parameterisations)
+        )
+
+
+def _resolve_basis_parameterisation(
+    runtime: PhaseRuntime,
+    target: RefinementTarget,
+) -> tuple[str, SpatialParameterisationBasisFunction]:
+    if isinstance(target, tuple):
+        parameter_name, parameterisation = runtime.get_parameterisation(*target)
+    else:
+        matches = [
+            (parameter_name, parameterisation)
+            for parameter_name, parameterisations in runtime.spatial_parameterisations.items()
+            for parameterisation in parameterisations
+            if parameterisation is target
+        ]
+        if len(matches) != 1:
+            raise TypeError(
+                "EGI basis growth target must identify one phase parameterisation."
+            )
+        parameter_name, parameterisation = matches[0]
+    if not isinstance(parameterisation, SpatialParameterisationBasisFunction):
+        raise TypeError("EGI basis growth target must be basis-based.")
+    return parameter_name, parameterisation
+
+
+def _map_rms(values: npt.NDArray[np.float64]) -> float:
+    finite = values[np.isfinite(values)]
+    return 0.0 if finite.size == 0 else float(np.sqrt(np.mean(finite**2)))
+
+
+def _evaluate_egi_metric_results(
+    context: RefinementContext,
+) -> list[object]:
+    results = []
+    for metric in context.metrics:
+        if isinstance(metric, EquilibriumGapMetric):
+            results.append(metric.evaluate_equilibrium_gap(context.stress).metric_result)
+    if not results:
+        raise ValueError("EGI basis growth requires at least one EquilibriumGapMetric.")
+    return results
+
+
+def _select_egi_metric_results(
+    metrics: list[object],
+    metric_results: list[object],
+) -> list[object]:
+    if len(metrics) != len(metric_results):
+        raise ValueError("Metric results do not match the phase metric definitions.")
+    results = [
+        result
+        for metric, result in zip(metrics, metric_results, strict=True)
+        if isinstance(metric, EquilibriumGapMetric)
+    ]
+    if not results:
+        raise ValueError("EGI basis growth requires at least one EquilibriumGapMetric.")
+    return results
+
+
+def _select_egi_centre(
+    egi_map: npt.NDArray[np.float64],
+    basis: SpatialParameterisationBasisFunction,
+    experiment_data: ExperimentData,
+    smoothing_points: int,
+    minimum_separation_points: float,
+) -> tuple[float, float] | None:
+    x = experiment_data.specimen_geometry.x
+    y = experiment_data.specimen_geometry.y
+    specimen = experiment_data.specimen_geometry.region_of_interest.sample_specimen_mask(x, y)
+    smoothed = uniform_filter(np.where(np.isfinite(egi_map), egi_map, 0.0), size=smoothing_points)
+    support = uniform_filter(np.isfinite(egi_map).astype(float), size=smoothing_points)
+    candidates = np.where(specimen & (support > 0.0), smoothed, np.nan)
+    spacing = min(
+        float(np.nanmedian(np.diff(x, axis=1))),
+        float(np.nanmedian(np.diff(y, axis=0))),
+    )
+    minimum_separation = minimum_separation_points * spacing
+    for index in np.argsort(np.nan_to_num(candidates, nan=-np.inf).ravel())[::-1]:
+        row, column = np.unravel_index(index, candidates.shape)
+        if not np.isfinite(candidates[row, column]):
+            continue
+        centre = (float(x[row, column]), float(y[row, column]))
+        if all(
+            np.hypot(centre[0] - _kernel_value(kernel.x), centre[1] - _kernel_value(kernel.y))
+            >= minimum_separation
+            for kernel in basis.kernels
+        ):
+            return centre
+    return None
+
+
+def _kernel_value(value: float | DegreeOfFreedom) -> float:
+    return float(value.value if isinstance(value, DegreeOfFreedom) else value)
+
+
+def _default_univariate_basis(
+    centre: tuple[float, float],
+    basis: SpatialParameterisationBasisFunction,
+    parameter: ConstitutiveParameter,
+    height_fraction: float,
+) -> tuple[BasisFunctionKernelUnivariate, DegreeOfFreedom]:
+    x, y = basis.x, basis.y
+    spacing = min(
+        float(np.nanmedian(np.diff(x, axis=1))),
+        float(np.nanmedian(np.diff(y, axis=0))),
+    )
+    diagonal = float(np.hypot(np.nanmax(x) - np.nanmin(x), np.nanmax(y) - np.nanmin(y)))
+    span = parameter.upper_bound - parameter.lower_bound
+    minimum_variance = (3.0 * spacing) ** 2
+    maximum_variance = max(diagonal**2, minimum_variance * (1.0 + 1.0e-6))
+    initial_variance = float(np.sqrt(minimum_variance * maximum_variance))
+    return (
+        BasisFunctionKernelUnivariate(
+            DegreeOfFreedom(centre[0], float(np.nanmin(x)), float(np.nanmax(x))),
+            DegreeOfFreedom(centre[1], float(np.nanmin(y)), float(np.nanmax(y))),
+            DegreeOfFreedom(
+                initial_variance,
+                minimum_variance,
+                maximum_variance,
+                scaling="log",
+            ),
+        ),
+        DegreeOfFreedom(height_fraction * span, -span, span),
+    )
 
 
 def _evaluate_slice_force_error_ratio(

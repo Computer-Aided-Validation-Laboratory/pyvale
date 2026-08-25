@@ -34,7 +34,7 @@ class ISpatialParameterisation(ABC):
         int
             Count of degrees of freedom
         """
-        pass
+        ...
 
     @abstractmethod
     def initialise_from_constitutive_parameter(
@@ -52,7 +52,7 @@ class ISpatialParameterisation(ABC):
         constitutive_parameter : ConstitutiveParameter
             Parameter with initial value, lower bound, and upper bound
         """
-        pass
+        ...
 
     @abstractmethod
     def to_map(
@@ -72,7 +72,7 @@ class ISpatialParameterisation(ABC):
         npt.NDArray[np.float64]
             Parameter map with shape ``(y, x)``
         """
-        pass
+        ...
 
     @abstractmethod
     def collect_degrees_of_freedom(
@@ -86,7 +86,7 @@ class ISpatialParameterisation(ABC):
         list[DegreeOfFreedom]
             Copies of each degree of freedom
         """
-        pass
+        ...
 
     @abstractmethod
     def update_from_degrees_of_freedom(
@@ -102,7 +102,7 @@ class ISpatialParameterisation(ABC):
             New values for each degree of freedom, in the same order as
             returned by `collect_degrees_of_freedom()`
         """
-        pass
+        ...
 
 
 def evaluate_parameterisations_to_map(

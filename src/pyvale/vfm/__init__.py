@@ -92,12 +92,15 @@ from .objectivefuncfreandegi import (
 from .objectivefunccombinedfreegi import (
     CombinedForceAndEquilibriumGapObjective,
     CombinedForceAndEquilibriumGapObjectiveResult,
+    CombinedObjectiveBaseline,
+    CombinedObjectiveBaselineMode,
     infer_egi_window_length_weights,
 )
 from .progress import ConsoleProgressReporter, ProgressEvent
 
 from .refinement import (
     BasisAddRemoveRefinement,
+    EquilibriumGapBasisGrowthRefinement,
     IRefinementAction,
     IRefinementPolicy,
     SliceMergeSplitRefinement,
@@ -172,6 +175,8 @@ __all__ = [
     "ScalarForceAndEquilibriumGapObjective",
     "CombinedForceAndEquilibriumGapObjective",
     "CombinedForceAndEquilibriumGapObjectiveResult",
+    "CombinedObjectiveBaseline",
+    "CombinedObjectiveBaselineMode",
     "infer_egi_window_length_weights",
     "ProgressEvent",
     "ConsoleProgressReporter",
@@ -179,6 +184,7 @@ __all__ = [
     "IRefinementAction",
     "SliceMergeSplitRefinement",
     "BasisAddRemoveRefinement",
+    "EquilibriumGapBasisGrowthRefinement",
     "VfmRegionOfInterest",
     "convert_mask_to_physical_roi",
 ]

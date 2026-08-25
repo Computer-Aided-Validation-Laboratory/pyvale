@@ -4,7 +4,15 @@ from pathlib import Path
 import time
 
 import numpy as np
+from scipy.ndimage import uniform_filter
 
+from pyvale.vfm.dof import DegreeOfFreedom
+from pyvale.vfm.equilibriumgapaggregation import combine_equilibrium_gap_maps
+from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
+from pyvale.vfm.spatialparambasisfuncs import (
+    BasisFunctionKernelUnivariate,
+    SpatialParameterisationBasisFunction,
+)
 from pyvale.vfm.constlaw import EIdentificationType, IConstitutiveLaw
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import ExperimentData
@@ -29,9 +37,15 @@ from pyvale.vfm.identificationresult import (
     summarise_refinement_action,
     summarise_refinement_target,
 )
-from pyvale.vfm.metric import IMetric
+from pyvale.vfm.metric import IMetric, MetricResult
+from pyvale.vfm.objectivefunc import IObjectiveFunction
+from pyvale.vfm.objectivefunccombinedfreegi import (
+    CombinedForceAndEquilibriumGapObjective,
+    CombinedObjectiveBaselineMode,
+)
+from pyvale.vfm.optimiser import IOptimiser, evaluate_metrics
 from pyvale.vfm.progress import ProgressEvent, emit_progress
-from pyvale.vfm.refinement import IRefinementPolicy
+from pyvale.vfm.refinement import IRefinementAction, IRefinementPolicy
 from pyvale.vfm.refinement import RefinementContext
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.validation import run_validation
@@ -64,6 +78,8 @@ def run_identification(
     identification_config : IdentificationConfig
         The constitutive law, initial parameters (with bounds) and the
         identification phases to run
+    input_source : str | Path | None, optional
+        The source path of the input data, used for logging.
     progress_callback
         Optional callable receiving lightweight progress events.
         If None, no progress events are emitted. If provided, the callable should
@@ -104,12 +120,13 @@ def run_identification(
 
     # Initialise identification history with empty phases list (populated as phases complete)
     history = IdentificationHistory()
+    completed_phase_maps: dict[int, dict[str, np.ndarray]] = {}
 
     match identification_config.constitutive_law.get_identification_type():
         # The current implementation assumes either linear or nonlinear identification is
-        # being performed (not a mix thoughout). As such, it is recommended to first run a 
-        # linear identification to obtain elastic parameters, and then use those as known 
-        # parameters in a subsequent nonlinear identification. This decision was made to 
+        # being performed (not a mix thoughout). As such, it is recommended to first run a
+        # linear identification to obtain elastic parameters, and then use those as known
+        # parameters in a subsequent nonlinear identification. This decision was made to
         # simplify implementation and recognises generally different data (e.g. load steps) are used for each
         # TODO: implement linear case
         case EIdentificationType.Linear:
@@ -132,43 +149,75 @@ def run_identification(
                     message="started",
                 )
 
-                # Prepare the phase runtime, which includes copying spatial parameterisations, metrics,
+                # Prepare the phase runtime. This is the mutable,working copy of the phase configuration
+                # which includes copying spatial parameterisations, metrics,
                 # and refinement policy while preserving shared support objects. Metrics and supports are
-                #  then prepared based on the experiment data.
+                # then prepared based on the experiment data.
                 phase_runtime = prepare_phase_runtime(
                     phase,
                     experiment_data,
                 )
+                # Ensure that phase runtime has objective function and optimiser set
+                assert phase_runtime.objective_function is not None
+                assert phase_runtime.optimiser is not None
 
-                # Initialise a PhaseResult to store the results of the current phase, including solve results and refinement events.
+                # Initialise a PhaseResult to store the results of the current phase,
+                # including solve results and refinement events.
                 phase_result = PhaseResult(
                     phase_index=phase_index,
                     config=snapshot_phase_config(phase_index, phase),
                 )
 
-                solve_iteration = 0
-                while True:
-                    # Initialise / update DOFs using the current maps (initial or identified)
-                    phase_runtime.initialise_from_constitutive_parameters(
-                        identification_config.parameters,
+                # Evaluate current metrics on all previously identified phases.
+                # phase results. These may not always be used, but can be used to
+                # resolve baseline values to normalise metrics and / or for initialising DOFs.
+                # Simpler to always compute for now.
+                # The immediate predecessor is used only for EGI-informed seeding.
+                previous_phases_metrics = (
+                    phase_runtime.evaluate_previous_phases_metrics(
+                        phase_index,
+                        completed_phase_maps,
+                        identification_config.constitutive_law,
+                        experiment_data,
                         parameter_map_size,
                     )
+                )
 
+                # Resolve the baseline metric values for the current phase's objective function, if applicable.
+                phase_runtime.resolve_objective_baseline(
+                    previous_phases_metrics,
+                )
+
+                # Initialise phase structure from parameter-map residuals.
+                # This initialises the spatial parameterisations and their DOFs based on
+                # the current parameter maps and any previous phase metrics.
+                phase_runtime.initialise_parameterisation_structure(
+                    identification_config.parameters,
+                    parameter_map_size,
+                    experiment_data,
+                    previous_phases_metrics.get(phase_index - 1),
+                )
+
+                # Prepare a phase-local constitutive law for optimisation,
+                # which may include precomputed inputs for the radial return algorithm
+                # to reduce repeated calculations (such as strain increments and
+                # linear stress increments if applicable).
+                # This is done once per phase, rather than once per solve iteration,
+                # to avoid unnecessary recomputation.
+                phase_constitutive_law = _prepare_phase_constitutive_law(
+                    identification_config.constitutive_law,
+                    phase_runtime,
+                    experiment_data,
+                    parameter_map_size,
+                    phase.optimisation_newton_tolerance,
+                    phase.cache_radial_return,
+                )
+
+                solve_iteration = 0
+                while True:
                     # Collect the initial DOF values for logging and comparison after optimisation.
                     initial_dofs = _collect_dof_values(
                         phase_runtime.spatial_state.collect_degrees_of_freedom()
-                    )
-
-                    # Prepare a phase-local constitutive law for optimisation,
-                    # which may include precomputed inputs for the radial return algorithm
-                    # to reduce repeated calculations.
-                    phase_constitutive_law = _prepare_phase_constitutive_law(
-                        identification_config.constitutive_law,
-                        phase_runtime,
-                        experiment_data,
-                        parameter_map_size,
-                        phase.optimisation_newton_tolerance,
-                        phase.cache_radial_return,
                     )
 
                     # Emit a progress event to indicate the start of the current solve iteration within the phase.
@@ -183,12 +232,12 @@ def run_identification(
 
                     solve_started_at = time.perf_counter()
                     # Optimise the active DOFs to minimise the objective.
-                    optimisation_result = phase.optimiser.optimise(
+                    optimisation_result = phase_runtime.optimiser.optimise(
                         phase_constitutive_law,
                         parameter_map_size,
                         phase_runtime.spatial_state.spatial_parameterisations,
                         phase_runtime.metrics,
-                        phase.objective_function,
+                        phase_runtime.objective_function,
                         experiment_data,
                         progress_callback=_phase_progress_callback(
                             progress_callback,
@@ -202,7 +251,7 @@ def run_identification(
                     # Unpack the optimisation result into optimised spatial parameterisations and a SolveResult object.
                     optimised_spatial_parameterisations, solve_result = _unpack_optimisation_result(
                         optimisation_result,
-                        phase.optimiser,
+                        phase_runtime.optimiser,
                         solve_iteration,
                         solve_runtime,
                         initial_dofs,
@@ -218,7 +267,13 @@ def run_identification(
                         phase_runtime.spatial_state.collect_degrees_of_freedom()
                     )
 
-                    # Append solve result to list of solves for this phase 
+                    # Store the resolved objective baseline in the solve result for logging
+                    _record_objective_baseline(
+                        solve_result,
+                        phase_runtime.objective_function,
+                    )
+
+                    # Append solve result to list of solves for this phase
                     phase_result.solve_results.append(solve_result)
 
                     # Emit a progress event to indicate the completion of the current solve iteration within the phase
@@ -241,6 +296,7 @@ def run_identification(
 
                     # If no refinement defined for current phase, proceed to next phase
                     if phase_runtime.refinement_policy is None:
+                        solve_result.accepted = True
                         break
 
                     # Emit progress event to indicate start of refinement
@@ -260,6 +316,9 @@ def run_identification(
                         identification_config.parameters,
                         parameter_map_size,
                         experiment_data,
+                        metrics=phase_runtime.metrics,
+                        objective_function=phase_runtime.objective_function,
+                        objective_value=solve_result.final_objective.get("cost"),
                     )
 
                     # Check if the refinement policy proposes a refinement action based on the current phase runtime and context.
@@ -270,6 +329,7 @@ def run_identification(
 
                     # If no refinement action is proposed, break the loop and proceed to the next phase.
                     if action is None:
+                        solve_result.accepted = True
                         _emit_solve_progress(
                             progress_callback,
                             kind="refinement_finished",
@@ -280,43 +340,16 @@ def run_identification(
                         )
                         break
 
-                    # If refinement action is proposed, summarise the target (to be refined)
-                    # before applying the refinement, for logging purposes.
-                    target_before = _summarise_refinement_policy_target(
+                    solve_result.accepted = action.accepts_current_solve
+
+                    # Apply the proposed refinement action to the phase runtime and record it in the phase result
+                    _apply_refinement_action(
                         phase_runtime,
+                        phase_result,
                         phase_runtime.refinement_policy,
-                    )
-
-                    # Apply refinement action to the phase runtime
-                    action.apply(phase_runtime, context)
-
-                    # After applying the refinement, prepare the phase runtime again to ensure that any new supports,
-                    # parameterisations or metrics are correctly initialised and ready for the next solve iteration.
-                    phase_runtime.prepare(experiment_data)
-
-                    # Summarise the refinement target after refinement for logging purposes.
-                    target_after = _summarise_refinement_policy_target(
-                        phase_runtime,
-                        phase_runtime.refinement_policy,
-                    )
-
-                    # Record the refinement event in the phase result, 
-                    # including the action taken and summaries of the target before and after refinement.
-                    phase_result.refinement_events.append(
-                        RefinementEvent(
-                            event_index=len(phase_result.refinement_events),
-                            policy=snapshot_refinement_policy(
-                                phase_runtime.refinement_policy
-                            ),
-                            action=snapshot_refinement_action(action),
-                            trigger_summary=summarise_refinement_action(
-                                action,
-                                before_summary=target_before,
-                                after_summary=target_after,
-                            ),
-                            before_summary=target_before,
-                            after_summary=target_after,
-                        )
+                        action,
+                        context,
+                        experiment_data,
                     )
 
                     # Emit progress event to indicate refinement has been applied
@@ -329,16 +362,37 @@ def run_identification(
                         message="refinement applied",
                     )
 
+                    # If the refinement action is terminal (e.g. RestoreBasisModelAction), update
+                    # the parameter maps and break the loop to proceed to the next phase.
+                    if action.terminal:
+                        # Synchronise the phase runtime's parameter maps with the restored
+                        # parameterisations after the terminal refinement action.
+                        phase_runtime.update_constitutive_parameter_maps(
+                            identification_config.parameters,
+                            parameter_map_size,
+                        )
+                        break
+
+                    # Reinitialise the phase runtime's DOFs from the updated parameter maps
+                    phase_runtime.initialise_dofs(
+                        identification_config.parameters,
+                        parameter_map_size,
+                    )
+
                     # Increment the solve iteration counter and continue the loop
                     solve_iteration += 1
 
-                # After solve loop, snapshot the phase's final state 
+                # After solve loop, snapshot the phase's final state
                 # (spatial parameterisations and their DOF values)
                 phase_result.final_snapshot = (
                     snapshot_phase(
                         phase_runtime.spatial_parameterisations
                     )
                 )
+                completed_phase_maps[phase_index] = {
+                    name: np.asarray(parameter.map, dtype=np.float64).copy()
+                    for name, parameter in identification_config.parameters.items()
+                }
 
                 # Append the completed phase result to the overall identification history
                 history.phases.append(phase_result)
@@ -443,6 +497,220 @@ def _prepare_phase_constitutive_law(
         fixed_elastic_parameter_maps=fixed_elastic_parameter_maps,
         cache_radial_return=cache_radial_return,
     )
+
+
+def _get_phase_reference_metrics(
+    source_phase_index: int,
+    phase_runtime: "PhaseRuntime",
+    completed_phase_maps: dict[int, dict[str, np.ndarray]],
+    reference_metric_results: dict[int, list[MetricResult]],
+    constitutive_law: IConstitutiveLaw,
+    experiment_data: ExperimentData,
+    parameter_map_size: np.ndarray,
+) -> list[MetricResult]:
+    """Evaluate this phase's metrics on a completed phase, once."""
+
+    if source_phase_index not in reference_metric_results:
+        # Retrieve identified parameter maps for selected baseline phase
+        source_maps = completed_phase_maps[source_phase_index]
+        # Evaluate stress for selected baseline phase using its
+        # identified parameter maps and the constitutive law.
+        reference_stress = constitutive_law.calculate_stress(
+            experiment_data.strain,
+            source_maps,
+        )
+        # Evaluate the metrics for current phase using the baseline stress
+        reference_metric_results[source_phase_index] = evaluate_metrics(
+            reference_stress,
+            constitutive_law,
+            parameter_map_size,
+            phase_runtime.spatial_parameterisations,
+            phase_runtime.metrics,
+            experiment_data,
+            include_egi_diagnostics=True,
+        )
+    return reference_metric_results[source_phase_index]
+
+
+def _map_rms(values: np.ndarray) -> float:
+    finite_values = values[np.isfinite(values)]
+    if finite_values.size == 0:
+        return 0.0
+    return float(np.sqrt(np.mean(finite_values**2)))
+
+
+def _seed_initial_basis_function(
+    phase_runtime: "PhaseRuntime",
+    basis: SpatialParameterisationBasisFunction,
+    parameter: ConstitutiveParameter,
+    experiment_data: ExperimentData,
+    previous_phase_metric_results: list[MetricResult] | None,
+    egi_smoothing_points: int,
+) -> None:
+    """Add one metric-informed or deterministic seed basis function."""
+
+    centre = _previous_phase_egi_centre(
+        phase_runtime,
+        experiment_data,
+        previous_phase_metric_results,
+        egi_smoothing_points,
+    )
+    if centre is None:
+        centre = (
+            float(0.5 * (np.nanmin(basis.x) + np.nanmax(basis.x))),
+            float(0.5 * (np.nanmin(basis.y) + np.nanmax(basis.y))),
+        )
+
+    kernel, height = _default_initial_basis(
+        centre,
+        basis,
+        parameter,
+    )
+
+    assert basis.support.kernels is not None
+    basis.support.kernels.append(kernel)
+    for _, parameterisation in phase_runtime.get_parameterisations_using_support(
+        basis.support,
+    ):
+        if not isinstance(
+            parameterisation,
+            SpatialParameterisationBasisFunction,
+        ):
+            continue
+        parameterisation.heights.append(
+            height if parameterisation is basis else None
+        )
+
+
+def _previous_phase_egi_centre(
+    phase_runtime: "PhaseRuntime",
+    experiment_data: ExperimentData,
+    previous_phase_metric_results: list[MetricResult] | None,
+    egi_smoothing_points: int = 3,
+) -> tuple[float, float] | None:
+    """Return the maximum smoothed previous-phase EGI location, if available."""
+
+    if (
+        previous_phase_metric_results is None
+        or not isinstance(
+            phase_runtime.objective_function,
+            CombinedForceAndEquilibriumGapObjective,
+        )
+    ):
+        return None
+
+    egi_results = [
+        result
+        for metric, result in zip(
+            phase_runtime.metrics,
+            previous_phase_metric_results,
+            strict=True,
+        )
+        if isinstance(metric, EquilibriumGapMetric)
+    ]
+    if not egi_results:
+        return None
+
+    objective = phase_runtime.objective_function
+    egi_map = combine_equilibrium_gap_maps(
+        egi_results,
+        egi_baseline_values=objective.egi_baselines_for(len(egi_results)),
+        window_weights=objective.egi_window_weights,
+    )
+
+    x = experiment_data.specimen_geometry.x
+    y = experiment_data.specimen_geometry.y
+    specimen_mask = (
+        experiment_data.specimen_geometry.region_of_interest.sample_specimen_mask(
+            x,
+            y,
+        )
+    )
+    smoothed_map = uniform_filter(
+        np.where(np.isfinite(egi_map), egi_map, 0.0),
+        size=egi_smoothing_points,
+    )
+    valid_support = uniform_filter(
+        np.isfinite(egi_map).astype(float),
+        size=egi_smoothing_points,
+    )
+    candidates = np.where(
+        specimen_mask & (valid_support > 0.0),
+        smoothed_map,
+        np.nan,
+    )
+    if not np.any(np.isfinite(candidates)):
+        return None
+
+    row, column = np.unravel_index(
+        np.nanargmax(candidates),
+        candidates.shape,
+    )
+    return float(x[row, column]), float(y[row, column])
+
+
+def _default_initial_basis(
+    centre: tuple[float, float],
+    basis: SpatialParameterisationBasisFunction,
+    parameter: ConstitutiveParameter,
+) -> tuple[BasisFunctionKernelUnivariate, DegreeOfFreedom]:
+    """Create one univariate Gaussian with conventional initial DOFs."""
+
+    x, y = basis.x, basis.y
+    spacing = min(
+        float(np.nanmedian(np.diff(x, axis=1))),
+        float(np.nanmedian(np.diff(y, axis=0))),
+    )
+    diagonal = float(
+        np.hypot(
+            np.nanmax(x) - np.nanmin(x),
+            np.nanmax(y) - np.nanmin(y),
+        )
+    )
+    parameter_range = parameter.upper_bound - parameter.lower_bound
+    minimum_variance = (3.0 * spacing) ** 2
+    maximum_variance = max(
+        diagonal**2,
+        minimum_variance * (1.0 + 1.0e-6),
+    )
+    initial_variance = float(np.sqrt(minimum_variance * maximum_variance))
+
+    return (
+        BasisFunctionKernelUnivariate(
+            DegreeOfFreedom(
+                centre[0],
+                float(np.nanmin(x)),
+                float(np.nanmax(x)),
+            ),
+            DegreeOfFreedom(
+                centre[1],
+                float(np.nanmin(y)),
+                float(np.nanmax(y)),
+            ),
+            DegreeOfFreedom(
+                initial_variance,
+                minimum_variance,
+                maximum_variance,
+                scaling="log",
+            ),
+        ),
+        DegreeOfFreedom(
+            basis.initial_height_fraction * parameter_range,
+            -parameter_range,
+            parameter_range,
+        ),
+    )
+
+def _record_objective_baseline(
+    solve_result: SolveResult,
+    objective_function: object,
+) -> None:
+    """Add resolved combined-objective baselines to durable solve diagnostics."""
+
+    if isinstance(objective_function, CombinedForceAndEquilibriumGapObjective):
+        solve_result.final_objective["baseline"] = (
+            objective_function.baseline_diagnostics()
+        )
 
 
 def _emit_phase_progress(
@@ -585,6 +853,42 @@ def _summarise_refinement_policy_target(
     return summarise_refinement_target(target)
 
 
+def _apply_refinement_action(
+    phase_runtime: "PhaseRuntime",
+    phase_result: PhaseResult,
+    refinement_policy: IRefinementPolicy,
+    action,
+    context: RefinementContext,
+    experiment_data: ExperimentData,
+) -> None:
+    """Apply, prepare, and record one phase-local structural change."""
+
+    target_before = _summarise_refinement_policy_target(
+        phase_runtime,
+        refinement_policy,
+    )
+    action.apply(phase_runtime, context)
+    phase_runtime.prepare(experiment_data)
+    target_after = _summarise_refinement_policy_target(
+        phase_runtime,
+        refinement_policy,
+    )
+    phase_result.refinement_events.append(
+        RefinementEvent(
+            event_index=len(phase_result.refinement_events),
+            policy=snapshot_refinement_policy(refinement_policy),
+            action=snapshot_refinement_action(action),
+            trigger_summary=summarise_refinement_action(
+                action,
+                before_summary=target_before,
+                after_summary=target_after,
+            ),
+            before_summary=target_before,
+            after_summary=target_after,
+        )
+    )
+
+
 @dataclass(slots=True)
 class PhaseRuntime:
     """Prepared runtime state for one identification phase.
@@ -596,6 +900,8 @@ class PhaseRuntime:
 
     spatial_parameterisations: dict[str, list[ISpatialParameterisation]]
     metrics: list[IMetric]
+    objective_function: IObjectiveFunction | None = None
+    optimiser: IOptimiser | None = None
     refinement_policy: IRefinementPolicy | None = None
     spatial_state: PhaseSpatialState = field(init=False)
 
@@ -611,33 +917,184 @@ class PhaseRuntime:
         self,
         experiment_data: ExperimentData,
     ) -> None:
-        """Prepare shared supports and metrics for the current runtime state."""
+        """Prepare shared supports and metrics for the current runtime state.
 
-        # Update the spatial state to reflect any changes to the spatial parameterisations
+        The parameterisations may have changed, so this method ensures that the spatial state
+        and metrics are consistent with the current parameterisations.
+
+        parameterisations = the current unknown field definitions
+        spatial state = the routing/indexing that knows which DOFs belong to which support or parameterisation
+        metrics = the objective evaluation components
+        prepare() = “make sure all three agree with the current experiment and current parameterisation layout”
+
+        """
+
+        # Update the spatial state (mapping of which DOFs belong to which support or parameterisation)
+        # to reflect any changes to the spatial parameterisations
         self.rebuild_spatial_state()
-        # Prepare any shared supports and metrics for the current runtime state
+
+        # Prepare any shared supports for the current runtime state so they are ready
+        # for evaluation with the current experiment data
         self.spatial_state.prepare(experiment_data)
+
+        # Prepare each metric for the current runtime state so they are ready for evaluation
+        # with the current experiment data
         for metric in self.metrics:
             metric.initialise(experiment_data)
 
-    def initialise_from_constitutive_parameters(
+
+    def initialise_parameterisation_structure(
+        self,
+        constitutive_parameters: dict[str, ConstitutiveParameter],
+        size: np.ndarray,
+        experiment_data: ExperimentData,
+        previous_phase_metric_results: list[MetricResult] | None,
+    ) -> None:
+        """Initialise parameterisations sequentially from their residual maps."""
+
+        parameter_map_relative_residual_tolerance = 0.01 # e.g. 0.01 is 1% of parameter range
+        egi_smoothing_points = 3
+
+        for parameter_name, parameterisations in self.spatial_parameterisations.items():
+            parameter = constitutive_parameters[parameter_name]
+            residual_map = np.asarray(parameter.map, dtype=np.float64).copy()
+            parameter_range = parameter.upper_bound - parameter.lower_bound
+
+            for parameterisation_index, parameterisation in enumerate(
+                parameterisations,
+            ):
+                residual_parameter = ConstitutiveParameter(
+                    residual_map,
+                    (
+                        parameter.lower_bound
+                        if parameterisation_index == 0
+                        else -parameter_range
+                    ),
+                    (
+                        parameter.upper_bound
+                        if parameterisation_index == 0
+                        else parameter_range
+                    ),
+                )
+
+                if (
+                    isinstance(
+                        parameterisation,
+                        SpatialParameterisationBasisFunction,
+                    )
+                    and not parameterisation.kernels
+                ):
+                    residual_rms = _map_rms(residual_map)
+
+                    if (
+                        residual_rms
+                        > parameter_map_relative_residual_tolerance
+                        * parameter_range
+                    ):
+                        parameterisation.fit_to_map(
+                            residual_map,
+                            parameter_range=parameter_range,
+                            max_basis_functions=parameterisation.initial_kernels_max,
+                        )
+                    else:
+                        _seed_initial_basis_function(
+                            self,
+                            parameterisation,
+                            parameter,
+                            experiment_data,
+                            previous_phase_metric_results,
+                            egi_smoothing_points
+                        )
+                else:
+                    parameterisation.initialise_from_constitutive_parameter(
+                        residual_parameter,
+                    )
+
+                residual_map = residual_map - parameterisation.to_map(size)
+
+
+    def initialise_dofs(
         self,
         constitutive_parameters: dict[str, ConstitutiveParameter],
         size: np.ndarray,
     ) -> None:
-        """Initialise / update DOFs using the current maps (initial or identified)."""
+        """Initialise existing DOFs without changing parameterisation structure."""
 
         self.spatial_state.initialise_from_constitutive_parameters(
             constitutive_parameters,
             size,
         )
 
+    def evaluate_previous_phases_metrics(
+        self,
+        phase_index: int,
+        completed_phase_maps: dict[int, dict[str, np.ndarray]],
+        constitutive_law: IConstitutiveLaw,
+        experiment_data: ExperimentData,
+        parameter_map_size: np.ndarray,
+    ) -> dict[int, list[MetricResult]]:
+        """Evaluate this phase's metrics on every completed earlier phase."""
+
+        previous_phases_metrics: dict[int, list[MetricResult]] = {}
+        for source_phase_index in range(phase_index):
+            _get_phase_reference_metrics(
+                source_phase_index,
+                self,
+                completed_phase_maps,
+                previous_phases_metrics,
+                constitutive_law,
+                experiment_data,
+                parameter_map_size,
+            )
+        return previous_phases_metrics
+
+    def resolve_objective_baseline(
+        self,
+        previous_phases_metrics: dict[int, list[MetricResult]],
+    ) -> None:
+        """Resolve a prior-phase objective baseline, when configured."""
+
+        if self.objective_function is None:
+            raise RuntimeError("Phase runtime has no objective function.")
+
+        # Metric baselines are currently only required for the combined force-and-equilibrium-gap objective function.
+        if not isinstance(
+            self.objective_function,
+            CombinedForceAndEquilibriumGapObjective,
+        ):
+            return
+
+        # If the objective function is not configured to use a prior-phase baseline, no action is needed.
+        if (
+            self.objective_function.baseline.mode
+            is not CombinedObjectiveBaselineMode.PRIOR_PHASE
+        ):
+            return
+
+        # Resolve prior phase index to be used for baselines
+        source_phase_index = self.objective_function.baseline.phase_index
+        if source_phase_index is None:
+            raise RuntimeError("Validation did not provide a prior baseline phase.")
+
+        # Resolve the metrics to be used for baselines
+        try:
+            metric_results = previous_phases_metrics[source_phase_index]
+        except KeyError as error:
+            raise RuntimeError(
+                f"Prior baseline phase {source_phase_index} has not been evaluated."
+            ) from error
+
+        # Evaluate the baseline values from the defined phase metrics and store them
+        # in the objective function for use during optimisation.
+        self.objective_function.resolve_from_prior_phase(metric_results)
+
+
     def adopt_spatial_parameterisations(
         self,
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
     ) -> None:
         """Adopt optimiser output while keeping metrics linked to shared supports.
-        
+
         The optimiser returns a list of spatial parameterisations (which may include supports)
         that are different from the original ones. This step updates the phase runtime to use
         the new spatial parameterisations while preserving shared supports and metrics.
@@ -661,6 +1118,18 @@ class PhaseRuntime:
 
         if self.refinement_policy is not None:
             target = getattr(self.refinement_policy, "target", None)
+            for parameter_name, old_parameterisations in (
+                self.spatial_parameterisations.items()
+            ):
+                for old_parameterisation, new_parameterisation in zip(
+                    old_parameterisations,
+                    spatial_parameterisations[parameter_name],
+                    strict=True,
+                ):
+                    if target is old_parameterisation:
+                        self.refinement_policy.target = new_parameterisation
+                        target = new_parameterisation
+                        break
             replacement = support_replacements.get(id(target))
             if replacement is not None:
                 self.refinement_policy.target = replacement
@@ -687,9 +1156,13 @@ class PhaseRuntime:
         constitutive_parameters: dict[str, ConstitutiveParameter],
         parameter_map_size: np.ndarray,
         experiment_data: ExperimentData,
+        *,
+        metrics: list[IMetric] | None = None,
+        objective_function: object | None = None,
+        objective_value: float | None = None,
     ) -> RefinementContext:
         """Build solved-state data for phase-level refinement policies.
-        
+
         Gathers experiment data, constitutive law, constitutive parameters, parameter map size,
         and current parameter maps into a context object for use by refinement policies.
         """
@@ -703,6 +1176,9 @@ class PhaseRuntime:
                 param_name: np.asarray(parameter.map, dtype=np.float64)
                 for param_name, parameter in constitutive_parameters.items()
             },
+            metrics=list(self.metrics if metrics is None else metrics),
+            objective_function=objective_function,
+            objective_value=objective_value,
         )
 
     def collect_unique_supports(self) -> list[object]:
@@ -790,7 +1266,7 @@ def prepare_phase_runtime(
     phase: IdentificationPhase,
     experiment_data: ExperimentData,
 ) -> PhaseRuntime:
-    """Prepare one phase runtime once experiment data are available.
+    """Prepare phase runtime once experiment data are available.
 
     Validation has already checked that the phase configuration is legal.
     This step builds runtime working copies while preserving any support
@@ -798,19 +1274,31 @@ def prepare_phase_runtime(
     and metric state.
     """
 
-    # Copy spatial parameterisations, metrics, and policy together so shared
-    # support objects and policy object-targets remain shared in runtime copies.
+    # Deep copy all mutable phase components together so configuration remains
+    # declarative and shared runtime targets/supports retain their identity.
     (
         runtime_spatial_parameterisations,
         runtime_metrics,
+        runtime_objective_function,
+        runtime_optimiser,
         runtime_refinement_policy,
     ) = copy.deepcopy(
-        (phase.spatial_parameterisations, phase.metrics, phase.refinement_policy)
+        (
+            phase.spatial_parameterisations,
+            phase.metrics,
+            phase.objective_function,
+            phase.optimiser,
+            phase.refinement_policy,
+        )
     )
     phase_runtime = PhaseRuntime(
         spatial_parameterisations=runtime_spatial_parameterisations,
         metrics=runtime_metrics,
+        objective_function=runtime_objective_function,
+        optimiser=runtime_optimiser,
         refinement_policy=runtime_refinement_policy,
     )
+
+    # Prepare the phase runtime with experiment data, which may involve preparing shared supports and metrics.
     phase_runtime.prepare(experiment_data)
     return phase_runtime

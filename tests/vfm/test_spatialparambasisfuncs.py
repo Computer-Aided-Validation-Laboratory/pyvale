@@ -8,6 +8,7 @@ from rms import rms
 
 from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
 from pyvale.vfm.constparam import ConstitutiveParameter
+from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.hardening import HardeningLinear
 from pyvale.vfm.identification import run_identification
@@ -19,6 +20,8 @@ from pyvale.vfm.metricsbvf import MetricSBVF
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
 from pyvale.vfm.spatialparambasisfuncs import (
+    BasisFunctionKernelBivariate,
+    BasisFunctionKernelUnivariate,
     SpatialParameterisationBasisFunction,
 )
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
@@ -39,6 +42,22 @@ KNOWN_PARAMETERS_FILE = (
 PLOT_INITIALISATION = False
 
 PLOT_IDENTIFICATION = False
+
+
+def test_basis_parameterisation_accepts_unshared_kernels() -> None:
+    x, y = _unit_grid(2)
+    parameterisation = SpatialParameterisationBasisFunction(
+        x=x,
+        y=y,
+        kernels=[BasisFunctionKernelUnivariate(0.0, 0.0, 1.0)],
+        heights=[2.0],
+    )
+
+    assert parameterisation.support.kernels is parameterisation.kernels
+    np.testing.assert_allclose(
+        parameterisation.to_map(np.asarray(x.shape, dtype=np.uint32)),
+        2.0 * np.exp(-0.5 * (x**2 + y**2)),
+    )
 
 
 def _make_diagonal_bump_map(
@@ -118,7 +137,7 @@ def test_initialisation_fits_diagonal_gaussian_bumps() -> None:
     )
 
     parameterisation = SpatialParameterisationBasisFunction(x, y)
-    parameterisation.initialise_from_constitutive_parameter(
+    parameterisation.fit_to_parameter_map(
         constitutive_parameter
     )
 
@@ -272,3 +291,80 @@ def test_identification_of_heterogeneous_yield_strength() -> None:
     # known analytic field.
     assert abs_diff_rms < ident_abs_diff_rms_tolerance
     assert mean_abs_perc_diff < ident_abs_perc_diff_tolerance
+
+
+def test_bivariate_kernel_canonical_values_remove_axis_and_period_ambiguity() -> None:
+    first = BasisFunctionKernelBivariate(0.0, 0.0, 4.0, 1.0, 0.2)
+    swapped = BasisFunctionKernelBivariate(0.0, 0.0, 1.0, 4.0, 0.2 - np.pi / 2)
+    periodic = BasisFunctionKernelBivariate(0.0, 0.0, 4.0, 1.0, 0.2 + np.pi)
+
+    assert first.canonical_values() == pytest.approx(swapped.canonical_values())
+    assert first.canonical_values() == pytest.approx(periodic.canonical_values())
+
+
+def test_basis_initialisation_preserves_explicit_height_seed() -> None:
+    x, y = np.meshgrid(np.linspace(0.0, 1.0, 3), np.linspace(0.0, 1.0, 3))
+    parameterisation = SpatialParameterisationBasisFunction(x, y)
+    parameterisation.kernels.append(
+        BasisFunctionKernelBivariate(0.5, 0.5, 0.1, 0.05, 0.0)
+    )
+    parameterisation.heights.append(DegreeOfFreedom(42.0, -100.0, 100.0))
+    parameter = ConstitutiveParameter(np.full((3, 3), 300.0), 200.0, 700.0)
+
+    parameterisation.initialise_from_constitutive_parameter(parameter)
+
+    assert isinstance(parameterisation.heights[0], DegreeOfFreedom)
+    assert parameterisation.heights[0].value == 42.0
+
+
+def test_empty_basis_initialisation_does_not_create_structure() -> None:
+    x, y = np.meshgrid(np.linspace(0.0, 1.0, 3), np.linspace(0.0, 1.0, 3))
+    parameter = ConstitutiveParameter(np.full((3, 3), 300.0), 200.0, 700.0)
+    parameterisation = SpatialParameterisationBasisFunction(x, y)
+
+    parameterisation.initialise_from_constitutive_parameter(parameter)
+
+    assert parameterisation.kernels == []
+    parameterisation.fit_to_parameter_map(parameter, max_basis_functions=1)
+    assert len(parameterisation.kernels) == 1
+
+
+def test_rejected_map_fit_candidate_restores_all_accepted_dofs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    x, y = _unit_grid(11)
+    parameterisation = SpatialParameterisationBasisFunction(x, y)
+    target_map = np.ones_like(x)
+    fitted_values: list[tuple[float, float]] = []
+
+    def fake_fit(self, target_map, include_support_degrees_of_freedom):
+        _ = target_map, include_support_degrees_of_freedom
+        kernel = self.kernels[0]
+        assert isinstance(kernel.x, DegreeOfFreedom)
+        assert isinstance(self.heights[0], DegreeOfFreedom)
+        if not fitted_values:
+            kernel.x.value = 0.25
+            self.heights[0].value = 0.5
+            fitted_values.append((kernel.x.value, self.heights[0].value))
+            return
+        kernel.x.value = 0.9
+        self.heights[0].value = 3.0
+
+    monkeypatch.setattr(
+        SpatialParameterisationBasisFunction,
+        "_fit_internal_dofs",
+        fake_fit,
+    )
+    parameterisation.fit_to_map(
+        target_map,
+        parameter_range=4.0,
+        max_basis_functions=2,
+        minimum_relative_improvement=2.0,
+    )
+
+    assert len(parameterisation.kernels) == 1
+    kernel = parameterisation.kernels[0]
+    assert isinstance(kernel.x, DegreeOfFreedom)
+    assert isinstance(parameterisation.heights[0], DegreeOfFreedom)
+    assert kernel.x.value == 0.25
+    assert parameterisation.heights[0].value == 0.5
