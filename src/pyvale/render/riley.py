@@ -138,7 +138,7 @@ class Riley(IRenderer3D):
         )
 
         if images is not None:
-            images = np.ascontiguousarray(images.transpose(0, 1, 3, 4, 2))
+            images = np.ascontiguousarray(images.transpose(1, 0, 3, 4, 2))
 
         return RenderResult(images=images)
 

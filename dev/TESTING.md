@@ -79,6 +79,7 @@ Generated files belong beside the tests that consume them:
 
 | Area | Generator | Gold location |
 | --- | --- | --- |
+| Render conformance | `python scripts/gengold_render_conformance.py --write` | `tests/render/gold_<backend>/` |
 | PixInt2D render | `python scripts/gengold_pxint2d.py --write` | `tests/render/gold_pxint2d/` |
 | Riley render | `python scripts/gengold_riley_rabbits.py --write` | `tests/render/gold_riley/` |
 | Blender triangle | `python scripts/gengold_blender_triangle.py` | `tests/render/gold_blender/` |

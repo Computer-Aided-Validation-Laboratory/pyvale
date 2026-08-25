@@ -8,7 +8,7 @@ from .calibration import (
     calibration_image_count,
     render_calibration_images,
 )
-from .config import BlenderConfig, EBlenderEngine
+from .config import BlenderConfig, EBlenderDevice, EBlenderEngine
 from .shader import BlenderImageShader, BlenderMaterial, BlenderTextureShader
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "BlenderMaterial",
     "BlenderTextureShader",
     "EBlenderEngine",
+    "EBlenderDevice",
     "blender_available",
     "blender_gpu_available",
     "calibration_image_count",

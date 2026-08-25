@@ -18,12 +18,12 @@ from ..renderer3d import IRenderer3D
 from ..result import RenderResult
 from ..scene import Scene3D
 from ..verifyinput import raise_if_issues, verify_scene_3d
-from .config import BlenderConfig, EBlenderEngine
+from .config import BlenderConfig, EBlenderDevice, EBlenderEngine
 from .shader import BlenderImageShader, BlenderTextureShader
 
 
 class Blender(IRenderer3D):
-    """Render common meshes, cameras, lights, and deformation frames in Blender."""
+    """Render common scene data and deformation frames in Blender."""
 
     def __init__(self, config: BlenderConfig) -> None:
         """Store configuration used by subsequent requests."""
@@ -41,7 +41,9 @@ class Blender(IRenderer3D):
         )
         issues = list(verify_scene_3d(meshes, scene.cameras, scene.lights))
         if not isinstance(self.config, BlenderConfig):
-            issues.append(ValidationIssue("config", "TYPE", "Expected BlenderConfig."))
+            issues.append(ValidationIssue(
+                "config", "TYPE", "Expected BlenderConfig.",
+            ))
         elif (not isinstance(self.config.samples, int)
               or not isinstance(self.config.max_bounces, int)
               or not isinstance(self.config.threads, int)
@@ -55,11 +57,23 @@ class Blender(IRenderer3D):
             issues.append(ValidationIssue(
                 "config.engine", "VALUE", "Unsupported Blender engine.",
             ))
-        elif (not isinstance(self.config.render_deformed, bool)
-              or not isinstance(self.config.save_images, bool)
-              or not isinstance(self.config.save_scene, bool)):
+        elif not isinstance(self.config.device, EBlenderDevice):
+            issues.append(ValidationIssue(
+                "config.device", "VALUE", "Unsupported Cycles device.",
+            ))
+        elif (
+            not isinstance(self.config.render_deformed, bool)
+            or not isinstance(self.config.save_images, bool)
+            or not isinstance(self.config.save_scene, bool)
+            or not isinstance(self.config.use_denoising, bool)
+            or not isinstance(self.config.use_adaptive_sampling, bool)
+        ):
             issues.append(ValidationIssue(
                 "config", "TYPE", "Blender output controls must be booleans.",
+            ))
+        elif not isinstance(self.config.seed, int) or self.config.seed < 0:
+            issues.append(ValidationIssue(
+                "config.seed", "VALUE", "Expected a non-negative integer.",
             ))
         if len(scene.cameras) > 2:
             issues.append(ValidationIssue(
@@ -150,6 +164,10 @@ class Blender(IRenderer3D):
             max_bounces=self.config.max_bounces,
             threads=self.config.threads,
             engine=blender_module.RenderEngine(self.config.engine.value),
+            device=self.config.device.value,
+            seed=self.config.seed,
+            use_denoising=self.config.use_denoising,
+            use_adaptive_sampling=self.config.use_adaptive_sampling,
         )
         deformable = next((mesh for mesh in meshes
                            if mesh.displacements is not None), None)
@@ -252,7 +270,10 @@ def _normalise_images(images: np.ndarray) -> np.ndarray:
     return images.transpose(2, 0, 1)[None, :, :, :, None]
 
 
-def _normalise_deformed_images(images: np.ndarray, camera_count: int) -> np.ndarray:
+def _normalise_deformed_images(
+    images: np.ndarray,
+    camera_count: int,
+) -> np.ndarray:
     """Normalise legacy deformation stacks to ``frame, camera, y, x, channel``."""
     if images.ndim == 2:
         return images[None, None, :, :, None]

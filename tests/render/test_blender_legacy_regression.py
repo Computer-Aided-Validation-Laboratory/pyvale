@@ -139,13 +139,13 @@ def test_camera_from_resolution_matches_legacy_gold(tmp_path: Path) -> None:
     assert render.BlenderTools.blender_mm_per_pixel(camera) == pytest.approx(0.1)
 
 
-@pytest.mark.parametrize("field", ("samples", "max_bounces", "threads"))
+@pytest.mark.parametrize("field", ("samples", "max_bounces", "threads", "seed"))
 def test_blender_config_rejects_non_integral_controls(
     tmp_path: Path,
     field: str,
 ) -> None:
     """Invalid legacy render controls fail before Blender scene construction."""
-    values = {"samples": 2, "max_bounces": 12, "threads": 1}
+    values = {"samples": 2, "max_bounces": 12, "threads": 1, "seed": 0}
     values[field] = 2.5
     renderer = render.Blender(render.BlenderConfig(tmp_path, **values))
     with pytest.raises(render.RenderInputError, match="VALUE"):

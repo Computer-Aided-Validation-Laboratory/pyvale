@@ -26,9 +26,13 @@ class RenderData:
     dir_name: str = "images"
     samples: int = 2
     engine: RenderEngine = RenderEngine.CYCLES
+    device: str = "CPU"
     max_bounces: int = 12
     bit_size: int = 8
     threads:int = 4
+    seed: int = 0
+    use_denoising: bool = True
+    use_adaptive_sampling: bool = True
 
     def __post_init__(self) -> None:
         if self.base_dir is None:

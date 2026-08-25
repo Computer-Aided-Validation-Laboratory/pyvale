@@ -359,8 +359,15 @@ class Tools:
         bpy.context.scene.render.image_settings.file_format = "TIFF"
 
         if render_data.engine == RenderEngine.CYCLES:
+            bpy.context.scene.cycles.device = render_data.device
             bpy.context.scene.cycles.samples = render_data.samples
             bpy.context.scene.cycles.max_bounces = render_data.max_bounces
+            bpy.context.scene.cycles.seed = render_data.seed
+            bpy.context.scene.cycles.use_animated_seed = False
+            bpy.context.scene.cycles.use_denoising = render_data.use_denoising
+            bpy.context.scene.cycles.use_adaptive_sampling = (
+                render_data.use_adaptive_sampling
+            )
         elif render_data.engine == RenderEngine.EEVEE:
             bpy.context.scene.eevee.taa_render_samples = render_data.samples
 
@@ -457,5 +464,3 @@ class Tools:
             if device.type in accepted_gpus:
                 return True
         return False
-
-

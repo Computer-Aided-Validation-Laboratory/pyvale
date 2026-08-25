@@ -57,8 +57,11 @@ test-input/
 !tests/blender/3D_gold/*.npy
 !tests/render/gold_riley/*.npy
 !tests/render/gold_blender/*.npy
+!tests/render/gold_imagedef2d/*.npy
+!tests/render/gold_pixint_grid/*.npy
 !tests/render/gold_pxint2d/*.npy
 !tests/render/gold_pxint2d/**/*.npy
+!tests/render/gold_pixint_speck/*.npy
 !src/pyvale/render/pxint2d/data/**/*.csv
 
 # Image deformation test cases

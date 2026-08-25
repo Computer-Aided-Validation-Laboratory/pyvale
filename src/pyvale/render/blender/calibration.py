@@ -175,6 +175,10 @@ def render_calibration_images(
         max_bounces=config.max_bounces,
         threads=config.threads,
         engine=blender.RenderEngine(config.engine.value),
+        device=config.device.value,
+        seed=config.seed,
+        use_denoising=config.use_denoising,
+        use_adaptive_sampling=config.use_adaptive_sampling,
     )
     legacy_data = blender.CalibrationData(
         angle_lims=data.angle_lims,
