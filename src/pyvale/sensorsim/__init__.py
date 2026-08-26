@@ -55,6 +55,7 @@ from .rasternp import *
 from .imagedef2d import *
 
 from .errorintegrator import *
+from .errorgraph import *
 from .errorrand import *
 from .errorsysindep import *
 from .errorsysdep import *

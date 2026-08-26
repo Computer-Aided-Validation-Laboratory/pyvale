@@ -15,6 +15,7 @@ import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensscalar as pointsensscalar
 import pyvale.verif.pointsensvector as pointsensvector
 import pyvale.verif.pointsenstensor as pointsenstensor
+import pyvale.verif.pointsensgraph as pointsensgraph
 import pyvale.verif.pointsensmech as pointsensmech
 import pyvale.verif.analyticsimdatafactory as asd
 import pyvale.verif.analyticsimdatagenerator as asg
@@ -102,6 +103,21 @@ def test_gold_sens_tensor(get_sensors: Callable[[], Dict[str, Any]]) -> None:
     assert not fails, "\n".join(fails)
 
 
+@pytest.mark.parametrize(
+    "get_sensors",
+    [
+        pointsensgraph.sens_arrays_graph_dict,
+    ],
+    ids=[
+        "graph_topologies_2d",
+    ],
+)
+def test_gold_sens_graph(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+    sensors = get_sensors()
+    fails = pointsens.check_gold_measurements(sensors)
+    assert not fails, "\n".join(fails)
+
+
 #-------------------------------------------------------------------------------
 # Check that 'get_measurements' does not resample probability distributions
 
@@ -178,6 +194,21 @@ def test_get_meas_vector(get_sensors: Callable[[], Dict[str, Any]]) -> None:
     ],
 )
 def test_get_meas_tensor(get_sensors: Callable[[], Dict[str, Any]]) -> None:
+    sensors = get_sensors()
+    fails = check_get_meas(sensors)
+    assert not fails, "\n".join(fails)
+
+
+@pytest.mark.parametrize(
+    "get_sensors",
+    [
+        pointsensgraph.sens_arrays_graph_dict,
+    ],
+    ids=[
+        "graph_topologies_2d",
+    ],
+)
+def test_get_meas_graph(get_sensors: Callable[[], Dict[str, Any]]) -> None:
     sensors = get_sensors()
     fails = check_get_meas(sensors)
     assert not fails, "\n".join(fails)

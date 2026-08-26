@@ -9,6 +9,7 @@ from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.errorintegrator import (ErrIntegrator,
                                               ErrIntOpts)
+from pyvale.sensorsim.errorgraph import ErrGraph
 from pyvale.sensorsim.errorsimulator import IErrSimulator
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.sensordata import SensorData
@@ -33,11 +34,11 @@ class SensorsPoint(ISensorArray):
     interface). Further information can be found in the `ErrIntegrator` class
     and in implementations of the `IErrSimulator` interface.
 
-    In `pyvale`, function and methods with `sim` or `calc` in their name will 
-    cause probability distributions to be resampled and any additional 
-    calculations, such as interpolation, to be performed. Functions and methods 
-    with `get` in the name will directly return the previously calculated values 
-    without any computationally intensive calculations.
+    In `pyvale`, function and methods with `sim` or `calc` in their name
+    will cause probability distributions to be resampled and any additional
+    calculations, such as interpolation, to be performed. Functions and
+    methods with `get` in the name will directly return previously calculated
+    values without computationally intensive calculations.
 
     Calling the class method `sim_measurements()` will create and return an
     array of simulated sensor measurements with the following shape=(num_sensors
@@ -174,22 +175,34 @@ class SensorsPoint(ISensorArray):
 
         return self._truth
 
-    def get_error_integrator(self) -> ErrIntegrator:
-        """Gets the error integrator allowing the user to interpret error
-        sources in the error chain and to separate random and systematic error
+    def get_error_integrator(self) -> ErrIntegrator | ErrGraph | None:
+        """Gets the error integrator or error graph allowing the user to
+        interpret error sources and separate random and systematic error
         contributions.
 
         Returns
         -------
-        ErrIntegrator | None
-            The error integrator.
+        ErrIntegrator | ErrGraph | None
+            The active error integrator or graph.
         """
         return self._error_integrator
 
+    def set_error_graph(self, error_graph: ErrGraph | None) -> None:
+        """Sets the error graph that will be used to calculate sensor
+        measurement errors when `sim_measurements()` is called.
 
-    def set_error_chain(self,
-                        err_chain: list[IErrSimulator] | None,
-                        err_int_opts: ErrIntOpts | None = None) -> None:
+        Parameters
+        ----------
+        error_graph : ErrGraph | None
+            Directed acyclic graph of error calculators, or None to disable.
+        """
+        self._error_integrator = error_graph
+
+    def set_error_chain(
+        self,
+        err_chain: list[IErrSimulator] | ErrGraph | None,
+        err_int_opts: ErrIntOpts | None = None,
+    ) -> None:
         """Sets the error chain that will be used to calculate the sensor
         array measurement errors when `sim_measurements()` is called. See the
         `ErrIntegrator` class for further details as to how errors are 
@@ -197,8 +210,8 @@ class SensorsPoint(ISensorArray):
 
         Parameters
         ----------
-        err_chain : list[IErrSimulator] | None
-            Chain of user defined errors that will be evaluated in order as part
+        err_chain : list[IErrSimulator] | ErrGraph | None
+            Chain of user defined errors (or an ErrGraph) evaluated as part
             of the sensor simulation. Set to None to remove error calculation
             and perform direct interpolation of the simulation to the virtual
             sensor locations.
@@ -210,13 +223,19 @@ class SensorsPoint(ISensorArray):
             self._error_integrator = None
             return None
 
+        if isinstance(err_chain, ErrGraph):
+            self._error_integrator = err_chain
+            return None
+
         if err_int_opts is None:
             err_int_opts = ErrIntOpts()
 
-        self._error_integrator = ErrIntegrator(err_chain,
-                                               self._sensor_data,
-                                               self.get_measurement_shape(),
-                                               err_int_opts)
+        self._error_integrator = ErrIntegrator(
+            err_chain,
+            self._sensor_data,
+            self.get_measurement_shape(),
+            err_int_opts,
+        )
 
     def get_errors_systematic(self) -> np.ndarray | None:
         """Gets the systematic error array from the previously calculated sensor
@@ -268,25 +287,29 @@ class SensorsPoint(ISensorArray):
 
     def sim_measurements(self) -> np.ndarray:
         """Calculates a set of sensor measurements using the specified sensor
-        array parameters and the error intergator if specified. Calculates
-        measurements as: measurement = truth + systematic errors + random errors
-        . The truth is calculated once and is interpolated from the input
-        simulation field. The errors are calculated based on the user specified
-        error chain in the error integrator object. If no error integrator is
-        specified then only the truth is returned.
+        array parameters and the error integrator/graph if specified.
 
         Returns
         -------
         np.ndarray
             Array of sensor measurements including any simulated random and
-            systematic errors if an error integrator is specified. shape=(
-            num_sensors,num_field_components,num_time_steps).
+            systematic errors. shape=(num_sensors,num_field_components,
+            num_time_steps).
         """
         if self._error_integrator is None:
             self._measurements = self.get_truth()
+        elif isinstance(self._error_integrator, ErrGraph):
+            total_errs = self._error_integrator.calc_errors_from_graph(
+                self.get_truth()
+            )
+            self._measurements = self.get_truth() + total_errs
         else:
-            self._measurements = (self.get_truth() + 
-                self._error_integrator.calc_errors_from_chain(self.get_truth()))
+            self._measurements = (
+                self.get_truth()
+                + self._error_integrator.calc_errors_from_chain(
+                    self.get_truth()
+                )
+            )
 
         return self._measurements
 
