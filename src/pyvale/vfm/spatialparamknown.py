@@ -24,7 +24,7 @@ class SpatialParameterisationKnown(ISpatialParameterisation):
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
-        self.value = constitutive_parameter.map
+        self.value = constitutive_parameter.map.copy()
 
     def to_map(
         self,

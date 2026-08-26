@@ -60,6 +60,7 @@ from .slicewise_utils import (
 
 from .optimiser import IOptimiser
 from .optimiserleastsquares import OptimiserLeastSquares
+from .optimiserpatternsearch import OptimiserPatternSearch
 from .optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
 
 from .metric import IMetric, MetricResult
@@ -92,12 +93,15 @@ from .objectivefuncfreandegi import (
 from .objectivefunccombinedfreegi import (
     CombinedForceAndEquilibriumGapObjective,
     CombinedForceAndEquilibriumGapObjectiveResult,
+    CombinedObjectiveBaseline,
+    CombinedObjectiveBaselineMode,
     infer_egi_window_length_weights,
 )
 from .progress import ConsoleProgressReporter, ProgressEvent
 
 from .refinement import (
     BasisAddRemoveRefinement,
+    EquilibriumGapBasisGrowthRefinement,
     IRefinementAction,
     IRefinementPolicy,
     SliceMergeSplitRefinement,
@@ -150,6 +154,7 @@ __all__ = [
     "resolve_cell_aligned_slice_boundaries",
     "IOptimiser",
     "OptimiserLeastSquares",
+    "OptimiserPatternSearch",
     "SliceWiseIndependentLeastSquares",
     "IMetric",
     "MetricResult",
@@ -172,6 +177,8 @@ __all__ = [
     "ScalarForceAndEquilibriumGapObjective",
     "CombinedForceAndEquilibriumGapObjective",
     "CombinedForceAndEquilibriumGapObjectiveResult",
+    "CombinedObjectiveBaseline",
+    "CombinedObjectiveBaselineMode",
     "infer_egi_window_length_weights",
     "ProgressEvent",
     "ConsoleProgressReporter",
@@ -179,6 +186,7 @@ __all__ = [
     "IRefinementAction",
     "SliceMergeSplitRefinement",
     "BasisAddRemoveRefinement",
+    "EquilibriumGapBasisGrowthRefinement",
     "VfmRegionOfInterest",
     "convert_mask_to_physical_roi",
 ]

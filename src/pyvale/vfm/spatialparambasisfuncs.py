@@ -24,10 +24,14 @@ MIN_FEATURE_SIZE_POINTS = 3
 # Upper bound on a kernel's Gaussian feature size, expressed as a multiple of
 # the domain diagonal. This sets the maximum allowed kernel variance. Exposed
 # here as a tunable knob (TODO: tune).
-MAX_FEATURE_SIZE_DOMAIN_MULTIPLE = 2.0
+MAX_FEATURE_SIZE_DOMAIN_MULTIPLE = 1.0
 
 CONVERGENCE_THRESHOLD = 0.01
 MAX_ADDITIONAL_KERNELS = 10
+
+
+def _resolve_dof_value(value: float | DegreeOfFreedom) -> float:
+    return float(value.value if isinstance(value, DegreeOfFreedom) else value)
 
 
 @dataclass(slots=True)
@@ -103,6 +107,17 @@ class BasisFunctionKernelBivariate:
     variance_y: float | DegreeOfFreedom
     # radians
     angle: float | DegreeOfFreedom
+
+    def canonical_values(self) -> tuple[float, float, float]:
+        """Return an axis-ordered, pi-periodic representation of the ellipse."""
+        variance_x = _resolve_dof_value(self.variance_x)
+        variance_y = _resolve_dof_value(self.variance_y)
+        angle = _resolve_dof_value(self.angle)
+        if variance_y > variance_x:
+            variance_x, variance_y = variance_y, variance_x
+            angle += 0.5 * np.pi
+        angle = (angle + 0.5 * np.pi) % np.pi - 0.5 * np.pi
+        return variance_x, variance_y, angle
 
     def get_num_degrees_of_freedom(self) -> int:
         num_dofs = 0
@@ -246,6 +261,23 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
     """
     Smoothly varying parameterisation built from a weighted sum of basis
     functions over the specimen grid
+
+    Attributes
+    ----------
+    support : SupportBasis
+        The support structure for the basis functions.
+    heights : list[float | DegreeOfFreedom | None]
+        The heights of the basis functions.
+    x : npt.NDArray[np.float64]
+        The x-coordinates of the specimen grid.
+    y : npt.NDArray[np.float64]
+        The y-coordinates of the specimen grid.
+    kernels : list[BasisFunctionKernel]
+        The basis function kernels.
+    initial_kernels_max : int
+        The maximum number of initial kernels to add during phase initialisation.
+    initial_height_fraction : float
+        The fraction of the initial height.
     """
 
     support: SupportBasis
@@ -253,6 +285,8 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
     x: npt.NDArray[np.float64]
     y: npt.NDArray[np.float64]
     kernels: list[BasisFunctionKernel]
+    initial_kernels_max: int
+    initial_height_fraction: float
 
     def __init__(
         self,
@@ -260,17 +294,26 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         y: npt.NDArray[np.float64] | None = None,
         support: SupportBasis | None = None,
         heights: list[float | DegreeOfFreedom | None] | None = None,
+        kernels: list[BasisFunctionKernel] | None = None,
+        *,
+        initial_kernels_max: int = 1,
+        initial_height_fraction: float = 0.01,
     ) -> None:
+        if initial_kernels_max < 1:
+            raise ValueError("initial_kernels_max must be at least one.")
+        if not 0.0 < initial_height_fraction <= 1.0:
+            raise ValueError(
+                "initial_height_fraction must lie in (0, 1]."
+            )
+
         if support is None:
             if x is None or y is None:
-                raise ValueError(
-                    "Provide either support or both x and y."
-                )
-            self.support = SupportBasis(x=x, y=y)
+                raise ValueError("Provide either support or both x and y.")
+            self.support = SupportBasis(x=x, y=y, kernels=kernels)
         else:
-            if x is not None or y is not None:
+            if x is not None or y is not None or kernels is not None:
                 raise ValueError(
-                    "Provide either support or x/y, not both."
+                    "Provide either support or x/y with kernels, not both."
                 )
             self.support = support
 
@@ -279,6 +322,10 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         assert self.support.kernels is not None
         self.kernels = self.support.kernels
         self.heights = [] if heights is None else heights
+
+        self.initial_kernels_max = initial_kernels_max
+        self.initial_height_fraction = initial_height_fraction
+
         self._ensure_heights_match_support()
 
     def get_num_degrees_of_freedom(self) -> int:
@@ -293,6 +340,12 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         self,
         constitutive_parameter: ConstitutiveParameter
     ) -> None:
+        """
+        Initialise the basis function parameterisation from a
+        constitutive parameter's map, fitting the heights of the
+        basis functions to match the target map. If no kernels are
+        present, new kernels will be added.
+        """
         target_map = constitutive_parameter.map
 
         constitutive_parameter_range = (
@@ -300,16 +353,73 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             - constitutive_parameter.lower_bound
         )
 
+        # Structural initialisation is phase-level policy. With no kernels there
+        # are no basis DOFs to initialise.
         if len(self.kernels) == 0:
-            self._initialise_support_from_map(
-                target_map,
-                constitutive_parameter_range,
-            )
+            return
+
+        # Explicit DOFs are caller-supplied seeds or previously identified
+        # values. Preserve them across phase preparation; only unresolved
+        # ``None`` height slots need fitting from the incoming map.
+        self._ensure_heights_match_support()
+        if all(isinstance(height, DegreeOfFreedom) for height in self.heights):
             return
 
         self._initialise_heights_from_support(
             constitutive_parameter,
             target_map,
+        )
+
+    def fit_to_parameter_map(
+        self,
+        constitutive_parameter: ConstitutiveParameter,
+        *,
+        max_basis_functions: int | None = None,
+        minimum_relative_improvement: float | None = None,
+    ) -> None:
+        """Add and fit Gaussian bases to a supplied parameter map.
+
+        This is the explicit counterpart to automatic initialisation, for
+        phase-level policies that choose when map fitting is appropriate.
+        """
+
+        self.fit_to_map(
+            constitutive_parameter.map,
+            parameter_range=(
+                constitutive_parameter.upper_bound
+                - constitutive_parameter.lower_bound
+            ),
+            max_basis_functions=max_basis_functions,
+            minimum_relative_improvement=minimum_relative_improvement,
+        )
+
+    def fit_to_map(
+        self,
+        target_map: npt.NDArray[np.float64],
+        *,
+        parameter_range: float,
+        max_basis_functions: int | None = None,
+        minimum_relative_improvement: float | None = None,
+    ) -> None:
+        """Add and fit Gaussian bases to a map with the given value range."""
+
+        if self.kernels:
+            raise ValueError("Parameter-map fitting requires an empty basis support.")
+        if parameter_range <= 0.0:
+            raise ValueError("parameter_range must be positive.")
+        if max_basis_functions is not None and max_basis_functions < 1:
+            raise ValueError("max_basis_functions must be at least one.")
+        if (
+            minimum_relative_improvement is not None
+            and minimum_relative_improvement < 0.0
+        ):
+            raise ValueError("minimum_relative_improvement must be non-negative.")
+
+        self._initialise_support_from_map(
+            target_map,
+            parameter_range,
+            max_basis_functions=max_basis_functions,
+            minimum_relative_improvement=minimum_relative_improvement,
         )
 
     def to_map(
@@ -533,6 +643,9 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         self,
         target_map: npt.NDArray[np.float64],
         const_param_range: float,
+        *,
+        max_basis_functions: int | None = None,
+        minimum_relative_improvement: float | None = None,
     ) -> None:
         kernel, height = self._initialise_kernel(
             target_map,
@@ -552,7 +665,15 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         if rmse < CONVERGENCE_THRESHOLD:
             return
 
-        for _ in range(MAX_ADDITIONAL_KERNELS):
+        maximum = (
+            MAX_ADDITIONAL_KERNELS + 1
+            if max_basis_functions is None
+            else max_basis_functions
+        )
+        for _ in range(maximum - 1):
+            previous_rmse = rmse
+            accepted_kernels = deepcopy(self.kernels)
+            accepted_heights = deepcopy(self.heights)
             kernel, height = self._initialise_kernel(
                 target_map,
                 const_param_range,
@@ -568,6 +689,16 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
                 self.to_map(np.array(target_map.shape)),
                 target_map
             )
+            if (
+                minimum_relative_improvement is not None
+                and (previous_rmse - rmse) / max(previous_rmse, 1.0e-12)
+                < minimum_relative_improvement
+            ):
+                # Fitting a candidate updates every existing kernel and height.
+                # Restore the complete accepted model, not only the new basis.
+                self.kernels[:] = accepted_kernels
+                self.heights[:] = accepted_heights
+                return
             if rmse < CONVERGENCE_THRESHOLD:
                 return
 
@@ -668,9 +799,6 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         min_y = np.min(self.y)
         max_y = np.max(self.y)
 
-        range_x = max_x - min_x
-        range_y = max_y - min_y
-
         parameter_map = self.to_map(np.array(target_map.shape))
         diff_map = target_map - parameter_map
 
@@ -688,14 +816,14 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
 
         dof_x = DegreeOfFreedom(
             centre_x,
-            min_x - (0.5 * range_x),
-            max_x + (0.5 * range_x),
+            min_x,
+            max_x,
         )
 
         dof_y = DegreeOfFreedom(
             centre_y,
-            min_y - (0.5 * range_y),
-            max_y + (0.5 * range_y),
+            min_y,
+            max_y,
         )
 
         dof_height = DegreeOfFreedom(
@@ -712,6 +840,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             float(variance_range[0]),
             variance_range[0],
             variance_range[1],
+            scaling="log",
         )
 
         return (
@@ -795,7 +924,7 @@ def _compute_variance_range(
     dx = x[0, 1] - x[0, 0]
     dy = y[1, 0] - y[0, 0]
 
-    point_spacing = np.hypot(dx, dy)
+    point_spacing = min(abs(dx), abs(dy))
 
     # smallest feature spans at least MIN_FEATURE_SIZE_POINTS data points
     min_feature_size = MIN_FEATURE_SIZE_POINTS * point_spacing
@@ -805,9 +934,10 @@ def _compute_variance_range(
         np.max(y) - np.min(y)
     )
 
-    # largest feature can span several times the domain, allowing very broad
-    # (near-flat) kernels
-    max_feature_size = MAX_FEATURE_SIZE_DOMAIN_MULTIPLE * domain_diagonal
+    max_feature_size = max(
+        MAX_FEATURE_SIZE_DOMAIN_MULTIPLE * domain_diagonal,
+        min_feature_size * (1.0 + 1.0e-6),
+    )
 
     threshold_factor = np.sqrt(-2.0 * np.log(feature_threshold))
 

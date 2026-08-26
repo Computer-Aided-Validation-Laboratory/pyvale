@@ -19,6 +19,7 @@ from pyvale.vfm.identificationresult import (
     IdentificationResult,
     ParameterisationSnapshot,
     PhaseResult,
+    SolveResult,
     load_identification_result,
     snapshot_phase,
     snapshot_refinement_action,
@@ -61,6 +62,7 @@ def test_identification_result_bundle_round_trips_maps_stress_and_history(
             phases=[
                 PhaseResult(
                     phase_index=0,
+                    solve_results=[SolveResult(accepted=False)],
                     final_snapshot=snapshot_phase(
                         {"yield_strength": [parameterisation]}
                     ),
@@ -91,6 +93,7 @@ def test_identification_result_bundle_round_trips_maps_stress_and_history(
     assert loaded_snapshot.summary["kind"] == "slice_wise"
     assert loaded_snapshot.summary["axis"] == "x"
     assert loaded_snapshot.summary["boundaries"] == [0.0, 1.0, 2.0]
+    assert loaded.history.phases[0].solve_results[0].accepted is False
 
 
 def test_basis_parameterisation_summary_stores_literal_kernel_geometry() -> None:

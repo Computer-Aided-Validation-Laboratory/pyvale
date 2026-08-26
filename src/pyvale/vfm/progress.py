@@ -1,5 +1,6 @@
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass(slots=True, frozen=True)
@@ -57,7 +58,7 @@ class ConsoleProgressReporter:
         if self._should_skip(event):
             return
 
-        print(event.message, flush=True)
+        print(f"[{datetime.now():%H:%M}] {event.message}", flush=True)
         self._last_printed_at = time.perf_counter()
 
     def _should_skip(

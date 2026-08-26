@@ -335,6 +335,7 @@ class SolveResult:
     runtime_seconds: float | None = None
     num_evaluations: int | None = None
     success: bool | None = None
+    accepted: bool | None = None
     status: int | str | None = None
     message: str | None = None
     initial_dofs: list[float] = field(default_factory=list)
@@ -964,6 +965,8 @@ def summarise_refinement_action(
         "action_type": type(action).__name__,
         "num_slices_before": before_summary.get("num_slices"),
         "num_slices_after": after_summary.get("num_slices"),
+        "num_kernels_before": before_summary.get("num_kernels"),
+        "num_kernels_after": after_summary.get("num_kernels"),
     }
     refined_boundaries = getattr(action, "refined_boundaries", None)
     if refined_boundaries is not None:
@@ -984,6 +987,11 @@ def snapshot_refinement_policy(
                 "max_refinements",
                 "merge_parameter_tolerance",
                 "split_error_threshold",
+                "max_basis_functions",
+                "relative_improvement_threshold",
+                "refinement_height_fraction",
+                "smoothing_points",
+                "minimum_separation_points",
             ),
         ),
     )

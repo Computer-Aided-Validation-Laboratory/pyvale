@@ -26,21 +26,19 @@ from pyvale.vfm.spatialparam import (
 )
 
 
-# TODO: do we need to have customisation for things like:
-#   - ftol
-#   - xtol
-#   - gtol
-#   - max_nfev
-#   if we need these, should treat the below as a dataclass and
-#   take these options as inputs in construction
 class OptimiserLeastSquares(IOptimiser):
     """
     Least-squares optimiser driving the parameter search.
 
-    Wraps ``scipy.optimize.least_squares`` (Levenberg-Marquardt) to
-    minimise a vector objective over the active, normalised degrees of
-    freedom. Requires an ``IVectorObjectiveFunction``
+    Wraps ``scipy.optimize.least_squares`` to minimise a vector objective
+    over active, normalised degrees of freedom. Bounds of ``[0, 1]`` keep
+    every degree of freedom within its configured physical bounds.
     """
+
+    def __init__(self, *, max_evaluations: int | None = None) -> None:
+        if max_evaluations is not None and max_evaluations < 1:
+            raise ValueError("max_evaluations must be positive or None.")
+        self.max_evaluations = max_evaluations
 
     def get_required_objective_function_type(self) -> type:
         return IVectorObjectiveFunction
@@ -69,7 +67,10 @@ class OptimiserLeastSquares(IOptimiser):
                     solve_iteration=0,
                     optimiser=snapshot_object(
                         self,
-                        options={"method": "lm"},
+                        options={
+                            "method": "trf",
+                            "max_evaluations": self.max_evaluations,
+                        },
                     ),
                     runtime_seconds=0.0,
                     num_evaluations=0,
@@ -85,10 +86,9 @@ class OptimiserLeastSquares(IOptimiser):
         result = least_squares(
             evaluate_candidate,
             dofs,
-            # TODO: add bounds
-            # TODO: should we change class name to align with least squares method?
-            # I suspect we might want to do that for LM so maybe for trf/dogbox too?
-            method="lm",
+            bounds=(np.zeros_like(dofs), np.ones_like(dofs)),
+            method="trf",
+            max_nfev=self.max_evaluations,
             args=(
                 constitutive_law,
                 parameter_map_size,
@@ -111,7 +111,10 @@ class OptimiserLeastSquares(IOptimiser):
                 solve_iteration=0,
                 optimiser=snapshot_object(
                     self,
-                    options={"method": "lm"},
+                    options={
+                        "method": "trf",
+                        "max_evaluations": self.max_evaluations,
+                    },
                 ),
                 runtime_seconds=runtime_seconds,
                 num_evaluations=int(result.nfev),

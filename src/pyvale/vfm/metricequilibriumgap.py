@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import enum
 import warnings
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -1523,3 +1524,72 @@ def _plot_virtual_window_raster(
         ax.axis("off")
 
     plt.show()
+
+
+def evaluate_batched_equilibrium_gap_metrics(
+    stress: npt.NDArray[np.float64],
+    metrics: list[IMetric],
+    include_egi_diagnostics: bool | None = None,
+) -> dict[int, MetricResult]:
+    """Evaluate compatible equilibrium-gap metrics in shared FFT batches.
+
+    Metrics are compatible when they use the same integration volume and
+    optimisation diagnostic setting. Results are keyed by the metrics'
+    original positions; unbatched metrics are omitted for the caller to
+    evaluate individually.
+    """
+    results: dict[int, MetricResult] = {}
+    remaining_egi_indices = [
+        index
+        for index, metric in enumerate(metrics)
+        if isinstance(metric, EquilibriumGapMetric)
+    ]
+    while remaining_egi_indices:
+        first_index = remaining_egi_indices.pop(0)
+        first_metric = metrics[first_index]
+        if not isinstance(first_metric, EquilibriumGapMetric):
+            raise RuntimeError("Expected an equilibrium-gap metric.")
+        first_operator = first_metric._operator
+        compatible_indices = [first_index]
+        incompatible_indices = []
+        for index in remaining_egi_indices:
+            metric = metrics[index]
+            if not isinstance(metric, EquilibriumGapMetric):
+                raise RuntimeError("Expected an equilibrium-gap metric.")
+            operator = metric._operator
+            if (
+                first_operator is not None
+                and operator is not None
+                and np.array_equal(first_operator.volume, operator.volume)
+                and (
+                    include_egi_diagnostics is not None
+                    or metric.include_optimisation_diagnostics
+                    == first_metric.include_optimisation_diagnostics
+                )
+            ):
+                compatible_indices.append(index)
+            else:
+                incompatible_indices.append(index)
+        remaining_egi_indices = incompatible_indices
+        if len(compatible_indices) < 2:
+            continue
+        egi_metrics = [
+            cast(EquilibriumGapMetric, metrics[index])
+            for index in compatible_indices
+        ]
+        batched_results = evaluate_equilibrium_gap_batch(
+            stress,
+            egi_metrics,
+            include_diagnostics=(
+                first_metric.include_optimisation_diagnostics
+                if include_egi_diagnostics is None
+                else include_egi_diagnostics
+            ),
+        )
+        for index, result in zip(
+            compatible_indices,
+            batched_results,
+            strict=True,
+        ):
+            results[index] = result
+    return results
