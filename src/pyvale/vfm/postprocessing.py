@@ -186,6 +186,37 @@ def load_constitutive_law_from_result(
             ),
         )
 
+    if (
+        law_snapshot.type_name == "CompiledLinearHardeningLaw"
+        and law_snapshot.module == "cython_stress_recon.pyvale_adapter"
+    ):
+        try:
+            from cython_stress_recon.pyvale_adapter import (
+                CompiledLinearHardeningLaw,
+            )
+        except ImportError as exc:
+            raise NotImplementedError(
+                "This result bundle uses the optional Cython stress backend. "
+                "Install cython-stress-recon in the active environment to "
+                "postprocess it."
+            ) from exc
+        hardening_law = _load_hardening_law_from_snapshot(
+            result.metadata.config.hardening_law
+        )
+        if not isinstance(hardening_law, HardeningLinear):
+            raise NotImplementedError(
+                "CompiledLinearHardeningLaw result bundles require "
+                "HardeningLinear."
+            )
+        return CompiledLinearHardeningLaw(
+            hardening_law,
+            **_constructor_options(
+                CompiledLinearHardeningLaw,
+                law_snapshot.options,
+                exclude={"hardening_function"},
+            ),
+        )
+
     raise NotImplementedError(
         "Unsupported constitutive law in result bundle: "
         f"{law_snapshot.type_name} ({law_snapshot.module})."

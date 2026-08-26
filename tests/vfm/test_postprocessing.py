@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.testing as npt
+import pytest
 
 from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
 from pyvale.vfm.hardening import HardeningLinear
@@ -118,6 +119,34 @@ def test_load_constitutive_law_from_result_restores_supported_labels() -> None:
     assert law.poissons_ratio_label == "nu"
     assert isinstance(law.hardening_function, HardeningLinear)
     assert law.hardening_function.get_required_parameters() == ["Y", "H"]
+
+
+def test_load_constitutive_law_from_result_restores_compiled_adapter() -> None:
+    pytest.importorskip("cython_stress_recon.pyvale_adapter")
+    from cython_stress_recon.pyvale_adapter import CompiledLinearHardeningLaw
+
+    result = IdentificationResult(
+        parameter_maps={},
+        metadata=IdentificationMetadata(
+            config=ConfigSnapshot(
+                constitutive_law=ObjectSnapshot(
+                    type_name="CompiledLinearHardeningLaw",
+                    module="cython_stress_recon.pyvale_adapter",
+                    options={"error_tolerance": 1.0e-6},
+                ),
+                hardening_law=ObjectSnapshot(
+                    type_name="HardeningLinear",
+                    module="pyvale.vfm.hardening",
+                    options={},
+                ),
+            )
+        ),
+    )
+
+    law = load_constitutive_law_from_result(result)
+
+    assert isinstance(law, CompiledLinearHardeningLaw)
+    assert law.error_tolerance == 1.0e-6
 
 
 def test_parameter_map_summary_uses_ordered_names() -> None:
