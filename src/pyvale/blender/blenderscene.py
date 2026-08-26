@@ -5,6 +5,8 @@
 # ==============================================================================
 import numpy as np
 from pathlib import Path
+import warnings
+
 import bpy
 
 # Pyvale
@@ -87,6 +89,16 @@ class Scene():
         new_cam.sensor_fit = 'HORIZONTAL'
         new_cam.sensor_width = cam_data.pixels_num[0] * cam_data.pixels_size[0]
         new_cam.sensor_height = cam_data.pixels_num[1] * cam_data.pixels_size[1]
+        if new_cam.sensor_width < 1.0 or new_cam.sensor_height < 1.0:
+            warnings.warn(
+                "Camera sensor size "
+                f"({new_cam.sensor_width:.4f} x {new_cam.sensor_height:.4f}) "
+                "mm is below Blender's 1 mm minimum and has been clamped, so "
+                "the rendered field of view is wider than the requested "
+                "camera definition.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
         new_cam.clip_end = ((cam_data.pos_world[2] - cam_data.roi_cent_world[2])
                             + 100)

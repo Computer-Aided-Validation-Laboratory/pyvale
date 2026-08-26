@@ -36,9 +36,16 @@ def main() -> None:
             "disp_y": np.zeros((3, 2)),
         },
     )
+    # The renderer centring puts the triangle hypotenuse through the world
+    # origin, so the camera aims at an interior region to keep the whole
+    # frame on the speckled specimen. The pixel size is chosen so the sensor
+    # width stays above Blender's 1 mm minimum, and the texture is sampled at
+    # the true millimetres-per-pixel of the rendered image.
+    pixels_size = 0.02
     camera = render.Camera(
-        np.array((64, 64)), np.array((0.00345, 0.00345)),
-        np.array((0.0, 0.0, 500.0)), Rotation.identity(), np.zeros(3), 15.0,
+        np.array((64, 64)), np.array((pixels_size, pixels_size)),
+        np.array((-40.0, -40.0, 500.0)), Rotation.identity(),
+        np.array((-40.0, -40.0, 0.0)), 15.0,
     )
     texture_resolution = camera.pixels_size[0] * 500.0 / camera.focal_length
     mesh = render.mesh3d_from_simdata(
