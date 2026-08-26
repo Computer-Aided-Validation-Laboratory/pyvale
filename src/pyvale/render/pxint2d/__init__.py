@@ -8,8 +8,8 @@
 from .grid import PixIntGrid2D
 from .model import (
     AnalyticRule,
-    EPxIntMapping,
     Eggbox,
+    EPxIntMapping,
     GaussianPSF,
     GaussRule,
     PxInt2DOpts,
@@ -19,7 +19,15 @@ from .model import (
 from .speck import AdditiveSpeckles, PixIntSpeck2D
 
 __all__ = [
-    "AdditiveSpeckles", "AnalyticRule", "EPxIntMapping", "Eggbox",
-    "GaussianPSF", "GaussRule", "PixIntGrid2D", "PixIntSpeck2D",
-    "PxInt2DOpts", "RectRule", "quantise_image",
+    "AdditiveSpeckles",
+    "AnalyticRule",
+    "EPxIntMapping",
+    "Eggbox",
+    "GaussRule",
+    "GaussianPSF",
+    "PixIntGrid2D",
+    "PixIntSpeck2D",
+    "PxInt2DOpts",
+    "RectRule",
+    "quantise_image",
 ]

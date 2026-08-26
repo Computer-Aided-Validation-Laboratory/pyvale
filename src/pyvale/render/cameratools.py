@@ -1,9 +1,4 @@
-# ============================================================================
-# pyvale: the python validation engine
-# License: MIT
-# Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
-# ============================================================================
-"""Generic orthographic camera-grid operations for image warping."""
+"""Generic orthographic camera-grid and stereo-camera operations."""
 
 import numpy as np
 from scipy.signal import convolve2d
@@ -13,186 +8,130 @@ from .camera import Camera
 from .camerastereo import CameraStereo
 
 
-class CameraTools:
-    """Camera-grid helpers shared by planar image-warp renderers."""
+def pixel_vec_leng(
+    field_of_view: np.ndarray,
+    pixel_size: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build pixel-centre coordinate vectors for an orthographic camera."""
+    return (
+        np.arange(pixel_size / 2.0, field_of_view[0], pixel_size),
+        np.arange(pixel_size / 2.0, field_of_view[1], pixel_size),
+    )
 
-    @staticmethod
-    def pixel_vec_leng(field_of_view: np.ndarray,
-                       leng_per_px: float) -> tuple[np.ndarray, np.ndarray]:
-        """Build pixel-centre coordinate vectors for an orthographic camera.
 
-        Parameters
-        ----------
-        field_of_view : numpy.ndarray
-            Physical image extent in ``(width, height)`` order.
-        leng_per_px : float
-            Physical length represented by one pixel.
+def pixel_grid_leng(
+    field_of_view: np.ndarray,
+    pixel_size: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build pixel-centre coordinate grids for an orthographic camera."""
+    return np.meshgrid(*pixel_vec_leng(field_of_view, pixel_size))
 
-        Returns
-        -------
-        tuple[numpy.ndarray, numpy.ndarray]
-            Pixel-centre coordinates along the horizontal and vertical axes.
-        """
-        return (
-            np.arange(leng_per_px / 2.0, field_of_view[0], leng_per_px),
-            np.arange(leng_per_px / 2.0, field_of_view[1], leng_per_px),
+
+def subpixel_vec_leng(
+    field_of_view: np.ndarray,
+    pixel_size: float,
+    subsample: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build sub-pixel-centre coordinate vectors."""
+    spacing = pixel_size / subsample
+    return (
+        np.arange(spacing / 2.0, field_of_view[0], spacing),
+        np.arange(spacing / 2.0, field_of_view[1], spacing),
+    )
+
+
+def subpixel_grid_leng(
+    field_of_view: np.ndarray,
+    pixel_size: float,
+    subsample: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build sub-pixel-centre coordinate grids."""
+    return np.meshgrid(
+        *subpixel_vec_leng(field_of_view, pixel_size, subsample),
+    )
+
+
+def crop_image_rectangle(
+    image: np.ndarray,
+    pixels_count: np.ndarray,
+) -> np.ndarray:
+    """Crop an image to its camera extent from the upper-left corner."""
+    return image[: pixels_count[1], : pixels_count[0]]
+
+
+def average_subpixel_image(image: np.ndarray, subsample: int) -> np.ndarray:
+    """Average square sub-pixel blocks into output pixels."""
+    if subsample <= 1:
+        return image
+
+    kernel = np.ones((subsample, subsample)) / (subsample**2)
+    convolved = convolve2d(image, kernel, mode="same")
+    start = round(subsample / 2.0) - 1
+    return convolved[start::subsample, start::subsample]
+
+
+def faceon_stereo_cameras(
+    camera: Camera,
+    stereo_angle: float,
+) -> CameraStereo:
+    """Create face-on stereo cameras from one reference view."""
+    baseline = camera.pos_world[2] * np.tan(np.radians(stereo_angle))
+    camera_1 = Camera(
+        pixels_count=camera.pixels_count.copy(),
+        pixel_size=camera.pixel_size.copy(),
+        pos_world=camera.pos_world + np.array((baseline, 0.0, 0.0)),
+        rot_world=Rotation.from_euler(
+            "xyz",
+            (0.0, np.radians(stereo_angle), 0.0),
+        ),
+        roi_cent_world=camera.roi_cent_world.copy(),
+        focal_length=camera.focal_length,
+        subsample=camera.subsample,
+    )
+    return CameraStereo(camera, camera_1)
+
+
+def symmetric_stereo_cameras(
+    camera: Camera,
+    stereo_angle: float,
+) -> CameraStereo:
+    """Create symmetric convergent cameras from one reference view."""
+    half_angle = stereo_angle / 2.0
+    baseline = (
+        2.0
+        * camera.pos_world[2]
+        * np.tan(
+            np.radians(half_angle),
         )
+    )
 
-    @staticmethod
-    def pixel_grid_leng(field_of_view: np.ndarray,
-                        leng_per_px: float) -> tuple[np.ndarray, np.ndarray]:
-        """Build pixel-centre coordinate grids for an orthographic camera.
-
-        Parameters
-        ----------
-        field_of_view : numpy.ndarray
-            Physical image extent in ``(width, height)`` order.
-        leng_per_px : float
-            Physical length represented by one pixel.
-
-        Returns
-        -------
-        tuple[numpy.ndarray, numpy.ndarray]
-            Horizontal and vertical pixel-centre grids.
-        """
-        return np.meshgrid(*CameraTools.pixel_vec_leng(field_of_view, leng_per_px))
-
-    @staticmethod
-    def subpixel_vec_leng(field_of_view: np.ndarray,
-                          leng_per_px: float,
-                          subsample: int) -> tuple[np.ndarray, np.ndarray]:
-        """Build sub-pixel-centre coordinate vectors.
-
-        Parameters
-        ----------
-        field_of_view : numpy.ndarray
-            Physical image extent in ``(width, height)`` order.
-        leng_per_px : float
-            Physical length represented by one output pixel.
-        subsample : int
-            Number of sub-pixels in each pixel direction.
-
-        Returns
-        -------
-        tuple[numpy.ndarray, numpy.ndarray]
-            Sub-pixel-centre coordinates along the two image axes.
-        """
-        spacing = leng_per_px / subsample
-        return (
-            np.arange(spacing / 2.0, field_of_view[0], spacing),
-            np.arange(spacing / 2.0, field_of_view[1], spacing),
-        )
-
-    @staticmethod
-    def subpixel_grid_leng(field_of_view: np.ndarray,
-                           leng_per_px: float,
-                           subsample: int) -> tuple[np.ndarray, np.ndarray]:
-        """Build sub-pixel-centre coordinate grids.
-
-        Parameters
-        ----------
-        field_of_view : numpy.ndarray
-            Physical image extent in ``(width, height)`` order.
-        leng_per_px : float
-            Physical length represented by one output pixel.
-        subsample : int
-            Number of sub-pixels in each pixel direction.
-
-        Returns
-        -------
-        tuple[numpy.ndarray, numpy.ndarray]
-            Horizontal and vertical sub-pixel-centre grids.
-        """
-        return np.meshgrid(
-            *CameraTools.subpixel_vec_leng(field_of_view, leng_per_px, subsample),
-        )
-
-    @staticmethod
-    def crop_image_rectangle(image: np.ndarray,
-                             pixels_count: np.ndarray) -> np.ndarray:
-        """Crop an image to its camera extent from the upper-left corner.
-
-        Parameters
-        ----------
-        image : numpy.ndarray
-            Source image with rows followed by columns.
-        pixels_count : numpy.ndarray
-            Requested image size in ``(width, height)`` order.
-
-        Returns
-        -------
-        numpy.ndarray
-            View of the requested upper-left image rectangle.
-        """
-        return image[:pixels_count[1], :pixels_count[0]]
-
-    @staticmethod
-    def average_subpixel_image(image: np.ndarray, subsample: int) -> np.ndarray:
-        """Average square sub-pixel blocks into output pixels.
-
-        Parameters
-        ----------
-        image : numpy.ndarray
-            Two-dimensional sub-pixel image.
-        subsample : int
-            Number of sub-pixels in each output-pixel direction.
-
-        Returns
-        -------
-        numpy.ndarray
-            Downsampled image. The input is returned unchanged for a factor of
-            one or less.
-        """
-        if subsample <= 1:
-            return image
-
-        kernel = np.ones((subsample, subsample)) / (subsample ** 2)
-        convolved = convolve2d(image, kernel, mode="same")
-        start = round(subsample / 2.0) - 1
-
-        return convolved[start::subsample, start::subsample]
-
-    @staticmethod
-    def faceon_stereo_cameras(
-        camera: Camera,
-        stereo_angle: float,
-    ) -> CameraStereo:
-        """Create face-on stereo cameras matching the legacy Blender helper."""
-        camera_0 = camera
-        baseline = camera.pos_world[2] * np.tan(np.radians(stereo_angle))
-        camera_1 = Camera(
-            camera.pixels_num.copy(), camera.pixels_size.copy(),
-            camera.pos_world + np.array((baseline, 0.0, 0.0)),
-            Rotation.from_euler(
-                "xyz", (0.0, np.radians(stereo_angle), 0.0),
+    def make_camera(offset: float, angle: float) -> Camera:
+        return Camera(
+            pixels_count=camera.pixels_count.copy(),
+            pixel_size=camera.pixel_size.copy(),
+            pos_world=camera.pos_world + np.array((offset, 0.0, 0.0)),
+            rot_world=Rotation.from_euler(
+                "xyz",
+                (0.0, np.radians(angle), 0.0),
             ),
-            camera.roi_cent_world.copy(), camera.focal_length, camera.sub_sample,
+            roi_cent_world=camera.roi_cent_world.copy(),
+            focal_length=camera.focal_length,
+            subsample=camera.subsample,
         )
-        return CameraStereo(camera_0, camera_1)
 
-    @staticmethod
-    def symmetric_stereo_cameras(
-        camera: Camera,
-        stereo_angle: float,
-    ) -> CameraStereo:
-        """Create symmetric convergent stereo cameras from one reference view."""
-        baseline = 2.0 * camera.pos_world[2] * np.tan(
-            np.radians(stereo_angle) / 2.0,
-        )
-        common = (camera.pixels_num.copy(), camera.pixels_size.copy())
-        camera_0 = Camera(
-            *common,
-            camera.pos_world - np.array((baseline / 2.0, 0.0, 0.0)),
-            Rotation.from_euler("xyz", (0.0, -np.radians(stereo_angle / 2.0), 0.0)),
-            camera.roi_cent_world.copy(), camera.focal_length, camera.sub_sample,
-        )
-        camera_1 = Camera(
-            *common,
-            camera.pos_world + np.array((baseline / 2.0, 0.0, 0.0)),
-            Rotation.from_euler("xyz", (0.0, np.radians(stereo_angle / 2.0), 0.0)),
-            camera.roi_cent_world.copy(), camera.focal_length, camera.sub_sample,
-        )
-        return CameraStereo(camera_0, camera_1)
+    return CameraStereo(
+        make_camera(-baseline / 2.0, -half_angle),
+        make_camera(baseline / 2.0, half_angle),
+    )
 
 
-__all__ = ["CameraTools"]
+__all__ = [
+    "average_subpixel_image",
+    "crop_image_rectangle",
+    "faceon_stereo_cameras",
+    "pixel_grid_leng",
+    "pixel_vec_leng",
+    "subpixel_grid_leng",
+    "subpixel_vec_leng",
+    "symmetric_stereo_cameras",
+]

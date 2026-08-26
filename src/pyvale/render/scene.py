@@ -8,21 +8,10 @@
 from dataclasses import dataclass
 
 import numpy as np
-import riley
 
 from .camera import Camera, Camera2D
 from .light import Light
-from .mesh import Mesh2D, Mesh3D
-
-
-RenderMesh = Mesh3D | riley.Mesh
-"""A mesh accepted by a 3D render scene.
-
-``render.Mesh3D`` is the common mesh used by Blender and future common
-backends.
-``riley.Mesh`` is accepted so Riley can expose its complete native shader model
-without a pyvale wrapper.
-"""
+from .mesh import Mesh2D
 
 
 @dataclass(slots=True)
@@ -31,22 +20,20 @@ class Scene3D:
 
     Parameters
     ----------
-    meshes : list[RenderMesh]
-        Backend-compatible meshes. Blender requires common :class:`Mesh3D`
-        data;
-        Riley requires native :class:`riley.Mesh` data.
+    meshes : list[object]
+        Meshes accepted by the selected backend.
     cameras : list[Camera]
         One or more common perspective cameras.
     lights : list[Light] or None, optional
         Explicit scene lights. ``None`` leaves lighting to the backend.
     """
 
-    meshes: list[RenderMesh]
+    meshes: list[object]
     cameras: list[Camera]
     lights: list[Light] | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Scene2D:
     """A complete planar image-warp rendering request.
 
@@ -66,4 +53,4 @@ class Scene2D:
     source_image: np.ndarray | None = None
 
 
-__all__ = ["RenderMesh", "Scene3D", "Scene2D"]
+__all__ = ["Scene2D", "Scene3D"]

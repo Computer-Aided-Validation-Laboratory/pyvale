@@ -82,13 +82,13 @@ def _path_or_none(path: str | None) -> Path | None:
 def _camera_from_riley(camera: riley.Camera) -> render.Camera:
     """Convert a packaged Riley camera to its public Pyvale counterpart."""
     return render.Camera(
-        pixels_num=np.asarray(camera.pixels_num),
-        pixels_size=np.asarray(camera.pixels_size),
+        pixels_count=np.asarray(camera.pixels_num),
+        pixel_size=np.asarray(camera.pixels_size),
         pos_world=np.asarray(camera.pos_world),
         rot_world=Rotation.from_euler("xyz", camera.rot_world),
         roi_cent_world=np.asarray(camera.roi_cent_world),
         focal_length=camera.focal_length,
-        sub_sample=camera.sub_sample,
+        subsample=camera.sub_sample,
         distortion_model=camera.distortion_model,
         distortion_k1=camera.distortion_k1,
         distortion_k2=camera.distortion_k2,

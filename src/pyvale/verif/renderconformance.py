@@ -130,7 +130,7 @@ def _case(
 def _camera_2d() -> render.Camera2D:
     return render.Camera2D(
         pixels_count=np.array((IMAGE_SIZE, IMAGE_SIZE)),
-        leng_per_px=0.1,
+        pixel_size=0.1,
         roi_cent_world=np.zeros(3),
         background=0.15,
         subsample=1,
@@ -139,8 +139,8 @@ def _camera_2d() -> render.Camera2D:
 
 def _camera_3d() -> render.Camera:
     return render.Camera(
-        pixels_num=np.array((IMAGE_SIZE, IMAGE_SIZE)),
-        pixels_size=np.array((0.1, 0.1)),
+        pixels_count=np.array((IMAGE_SIZE, IMAGE_SIZE)),
+        pixel_size=np.array((0.1, 0.1)),
         pos_world=np.array((0.0, 0.0, 2.0)),
         rot_world=Rotation.identity(),
         roi_cent_world=np.zeros(3),

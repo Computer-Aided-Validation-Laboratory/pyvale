@@ -45,8 +45,7 @@ class RenderInputError(ValueError):
         """Create an error whose text combines all validation issues."""
         self.issues = issues
         text = "\n".join(
-            f"{issue.path} [{issue.code}]: {issue.message}"
-            for issue in issues
+            f"{issue.path} [{issue.code}]: {issue.message}" for issue in issues
         )
         super().__init__(text)
 

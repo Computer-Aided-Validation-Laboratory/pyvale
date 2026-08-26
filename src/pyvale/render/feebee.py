@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from .capabilities import RenderCapabilities
-from .errors import RenderInputError, ValidationIssue
+from .errors import ValidationIssue
 from .mesh import EElementType, Mesh3D
 from .renderer3d import IRenderer3D
 from .result import RenderResult
@@ -63,7 +63,7 @@ class EFeebeeTextureSampler(Enum):
     QUINTIC_SPLINE = "quintic_spline"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FeebeeMaterial:
     """Material properties for one Feebee mesh shader.
 
@@ -95,14 +95,10 @@ class FeebeeMaterial:
 
     def __post_init__(self) -> None:
         """Store the immutable colour vector as a float array."""
-        object.__setattr__(
-            self,
-            "colour",
-            np.ascontiguousarray(self.colour, dtype=np.float64),
-        )
+        self.colour = np.ascontiguousarray(self.colour, dtype=np.float64)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FeebeeColourShader:
     """Face-colour shader with a Feebee material.
 
@@ -120,14 +116,10 @@ class FeebeeColourShader:
 
     def __post_init__(self) -> None:
         """Store contiguous double-precision face-colour data."""
-        object.__setattr__(
-            self,
-            "colours",
-            np.ascontiguousarray(self.colours, dtype=np.float64),
-        )
+        self.colours = np.ascontiguousarray(self.colours, dtype=np.float64)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FeebeeTextureShader:
     """Texture shader with nodal UV coordinates and a Feebee material.
 
@@ -147,11 +139,11 @@ class FeebeeTextureShader:
 
     def __post_init__(self) -> None:
         """Store contiguous texture-coordinate and image arrays."""
-        object.__setattr__(self, "uvs", np.ascontiguousarray(self.uvs))
-        object.__setattr__(self, "texture", np.ascontiguousarray(self.texture))
+        self.uvs = np.ascontiguousarray(self.uvs)
+        self.texture = np.ascontiguousarray(self.texture)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FeebeeConfig:
     """Global options for a Feebee render request.
 
@@ -182,20 +174,21 @@ class FeebeeConfig:
     scene_refractive_index: float = 1.0003
     antialiasing_samples: int = 1
     shading: EFeebeeShading = EFeebeeShading.FLAT
-    texture_sampler: EFeebeeTextureSampler = EFeebeeTextureSampler.NEAREST_NEIGHBOUR
+    texture_sampler: EFeebeeTextureSampler = (
+        EFeebeeTextureSampler.NEAREST_NEIGHBOUR
+    )
     max_depth: int | None = None
     min_refractive_depth: int | None = None
     output_dir: Path | None = None
 
     def __post_init__(self) -> None:
         """Store background colour and output directory in normal form."""
-        object.__setattr__(
-            self,
-            "background_colour",
-            np.ascontiguousarray(self.background_colour, dtype=np.float64),
+        self.background_colour = np.ascontiguousarray(
+            self.background_colour,
+            dtype=np.float64,
         )
         if self.output_dir is not None:
-            object.__setattr__(self, "output_dir", Path(self.output_dir))
+            self.output_dir = Path(self.output_dir)
 
 
 class Feebee(IRenderer3D):
@@ -250,9 +243,13 @@ class Feebee(IRenderer3D):
         if isinstance(self.config, FeebeeConfig):
             issues.extend(_verify_config(self.config))
         else:
-            issues.append(ValidationIssue(
-                "config", "TYPE", "Expected render.FeebeeConfig.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "config",
+                    "TYPE",
+                    "Expected render.FeebeeConfig.",
+                )
+            )
 
         if scene.lights:
             issues.append(
@@ -266,10 +263,13 @@ class Feebee(IRenderer3D):
         frame_count: int | None = None
         for mesh_index, mesh in enumerate(scene.meshes):
             if not isinstance(mesh, Mesh3D):
-                issues.append(ValidationIssue(
-                    f"scene.meshes[{mesh_index}]", "TYPE",
-                    "Feebee requires common render.Mesh3D objects.",
-                ))
+                issues.append(
+                    ValidationIssue(
+                        f"scene.meshes[{mesh_index}]",
+                        "TYPE",
+                        "Feebee requires common render.Mesh3D objects.",
+                    )
+                )
                 continue
             path = f"meshes[{mesh_index}]"
             issues.extend(_verify_mesh(mesh, path))
@@ -328,9 +328,7 @@ def _verify_config(config: FeebeeConfig) -> tuple[ValidationIssue, ...]:
                 "Expected three finite, non-negative RGB values.",
             ),
         )
-    if (
-        not _is_positive_finite(config.scene_refractive_index)
-    ):
+    if not _is_positive_finite(config.scene_refractive_index):
         issues.append(
             ValidationIssue(
                 "config.scene_refractive_index",
@@ -348,7 +346,9 @@ def _verify_config(config: FeebeeConfig) -> tuple[ValidationIssue, ...]:
         )
     if not isinstance(config.shading, EFeebeeShading):
         issues.append(
-            ValidationIssue("config.shading", "TYPE", "Expected EFeebeeShading."),
+            ValidationIssue(
+                "config.shading", "TYPE", "Expected EFeebeeShading."
+            ),
         )
     if not isinstance(config.texture_sampler, EFeebeeTextureSampler):
         issues.append(
@@ -372,9 +372,13 @@ def _verify_depths(
         ("config.max_depth", max_depth, 1),
         ("config.min_refractive_depth", min_refractive_depth, 0),
     ):
-        if value is not None and (not isinstance(value, int) or value < minimum):
+        if value is not None and (
+            not isinstance(value, int) or value < minimum
+        ):
             issues.append(
-                ValidationIssue(path, "VALUE", f"Expected an integer >= {minimum}."),
+                ValidationIssue(
+                    path, "VALUE", f"Expected an integer >= {minimum}."
+                ),
             )
     if (
         isinstance(max_depth, int)
@@ -410,7 +414,10 @@ def _verify_mesh(mesh: Mesh3D, path: str) -> tuple[ValidationIssue, ...]:
                 "Unsupported Feebee element type.",
             ),
         )
-    elif mesh.connectivity.ndim == 2 and mesh.connectivity.shape[1] != expected_nodes:
+    elif (
+        mesh.connectivity.ndim == 2
+        and mesh.connectivity.shape[1] != expected_nodes
+    ):
         issues.append(
             ValidationIssue(
                 path + ".connectivity",
@@ -476,7 +483,9 @@ def _verify_mesh(mesh: Mesh3D, path: str) -> tuple[ValidationIssue, ...]:
                     "Texture coordinates must be finite.",
                 ),
             )
-        if shader.texture.ndim not in (2, 3) or not _is_finite_array(shader.texture):
+        if shader.texture.ndim not in (2, 3) or not _is_finite_array(
+            shader.texture
+        ):
             issues.append(
                 ValidationIssue(
                     path + ".shader.texture",
@@ -528,9 +537,7 @@ def _verify_material(
         issues.append(
             ValidationIssue(path + ".priority", "TYPE", "Expected an integer."),
         )
-    if material.is_shell and (
-        not _is_positive_finite(material.thickness)
-    ):
+    if material.is_shell and (not _is_positive_finite(material.thickness)):
         issues.append(
             ValidationIssue(
                 path + ".thickness",
@@ -549,7 +556,7 @@ def _is_finite_array(values: np.ndarray) -> bool:
         return False
 
 
-def _is_positive_finite(value: float | int | np.number) -> bool:
+def _is_positive_finite(value: float | np.number) -> bool:
     """Return whether a scalar is finite and strictly positive."""
     try:
         return bool(np.isfinite(value) and value > 0.0)
@@ -561,7 +568,10 @@ def _mesh_frame_count(mesh: Mesh3D) -> int | None:
     """Return the animation frame count represented by one valid mesh."""
     if mesh.displacements is not None:
         return mesh.displacements.shape[0]
-    if isinstance(mesh.shader, FeebeeColourShader) and mesh.shader.colours.ndim == 3:
+    if (
+        isinstance(mesh.shader, FeebeeColourShader)
+        and mesh.shader.colours.ndim == 3
+    ):
         return mesh.shader.colours.shape[0]
     return None
 

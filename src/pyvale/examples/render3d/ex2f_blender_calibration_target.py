@@ -19,7 +19,7 @@ def main() -> None:
 
 
     _, camera, lights = build_scene()
-    stereo = render.CameraTools.faceon_stereo_cameras(camera, 15.0)
+    stereo = render.faceon_stereo_cameras(camera, 15.0)
     result = render.render_calibration_images(
         render.BlenderCalibrationTarget(
             np.array((15.0, 10.0, 1.0)), dataset.cal_target(), 0.1,

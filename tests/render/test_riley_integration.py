@@ -28,10 +28,16 @@ def test_riley_returns_canonical_image_layout() -> None:
         func_shader_coord_mode=riley.FuncCoordMode.world_reference,
     )
     camera = render.Camera(
-        np.array((32, 32)), np.array((0.02, 0.02)), np.array((0.0, 0.0, 2.0)),
-        Rotation.identity(), np.zeros(3), 1.0,
+        pixels_count=np.array((32, 32)),
+        pixel_size=np.array((0.02, 0.02)),
+        pos_world=np.array((0.0, 0.0, 2.0)),
+        rot_world=Rotation.identity(),
+        roi_cent_world=np.zeros(3),
+        focal_length=1.0,
     )
-    config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.memory)
+    config = riley.create_raster_config(
+        1, save_strategy=riley.SaveStrategy.memory
+    )
     result = render.Riley(config).render(render.Scene3D([mesh], [camera]))
     assert result.images is not None
     assert result.images.shape == (1, 1, 32, 32, 1)
@@ -45,6 +51,9 @@ def test_riley_rabbit_multimesh_golden_regression() -> None:
     assert result.images is not None
     golden_path = Path(__file__).parent / "gold_riley" / "rabbits.npy"
     assert_render_allclose(
-        result.images, np.load(golden_path), "riley_rabbit_multimesh",
-        rtol=0.0, atol=0.0,
+        result.images,
+        np.load(golden_path),
+        "riley_rabbit_multimesh",
+        rtol=0.0,
+        atol=0.0,
     )

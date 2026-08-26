@@ -1,16 +1,16 @@
 """Unified Blender renderer adapter."""
 
 import importlib
-from pathlib import Path
 import sys
 import warnings
+from pathlib import Path
 
 import numpy as np
 from scipy.spatial.transform import Rotation
 
 from pyvale.sensorsim.simtools import centre_mesh_nodes
 
-from ..camera import Camera
+from ..capabilities import RenderCapabilities
 from ..errors import ValidationIssue
 from ..light import ELightType, Light
 from ..mesh import EElementType, Mesh3D
@@ -24,6 +24,13 @@ from .shader import BlenderImageShader, BlenderTextureShader
 
 class Blender(IRenderer3D):
     """Render common scene data and deformation frames in Blender."""
+
+    capabilities = RenderCapabilities(
+        element_types=frozenset((EElementType.TRI3,)),
+        supports_lights=True,
+        supports_camera_distortion=False,
+        supports_psf=False,
+    )
 
     def __init__(self, config: BlenderConfig) -> None:
         """Store configuration used by subsequent requests."""
@@ -41,26 +48,44 @@ class Blender(IRenderer3D):
         )
         issues = list(verify_scene_3d(meshes, scene.cameras, scene.lights))
         if not isinstance(self.config, BlenderConfig):
-            issues.append(ValidationIssue(
-                "config", "TYPE", "Expected BlenderConfig.",
-            ))
-        elif (not isinstance(self.config.samples, int)
-              or not isinstance(self.config.max_bounces, int)
-              or not isinstance(self.config.threads, int)
-              or self.config.samples <= 0 or self.config.max_bounces <= 0
-              or self.config.threads <= 0):
-            issues.append(ValidationIssue(
-                "config", "VALUE",
-                "Samples, bounces, and threads must be positive integers.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "config",
+                    "TYPE",
+                    "Expected BlenderConfig.",
+                )
+            )
+        elif (
+            not isinstance(self.config.samples, int)
+            or not isinstance(self.config.max_bounces, int)
+            or not isinstance(self.config.threads, int)
+            or self.config.samples <= 0
+            or self.config.max_bounces <= 0
+            or self.config.threads <= 0
+        ):
+            issues.append(
+                ValidationIssue(
+                    "config",
+                    "VALUE",
+                    "Samples, bounces, and threads must be positive integers.",
+                )
+            )
         elif not isinstance(self.config.engine, EBlenderEngine):
-            issues.append(ValidationIssue(
-                "config.engine", "VALUE", "Unsupported Blender engine.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "config.engine",
+                    "VALUE",
+                    "Unsupported Blender engine.",
+                )
+            )
         elif not isinstance(self.config.device, EBlenderDevice):
-            issues.append(ValidationIssue(
-                "config.device", "VALUE", "Unsupported Cycles device.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "config.device",
+                    "VALUE",
+                    "Unsupported Cycles device.",
+                )
+            )
         elif (
             not isinstance(self.config.render_deformed, bool)
             or not isinstance(self.config.save_images, bool)
@@ -68,41 +93,65 @@ class Blender(IRenderer3D):
             or not isinstance(self.config.use_denoising, bool)
             or not isinstance(self.config.use_adaptive_sampling, bool)
         ):
-            issues.append(ValidationIssue(
-                "config", "TYPE", "Blender output controls must be booleans.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "config",
+                    "TYPE",
+                    "Blender output controls must be booleans.",
+                )
+            )
         elif not isinstance(self.config.seed, int) or self.config.seed < 0:
-            issues.append(ValidationIssue(
-                "config.seed", "VALUE", "Expected a non-negative integer.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "config.seed",
+                    "VALUE",
+                    "Expected a non-negative integer.",
+                )
+            )
         if len(scene.cameras) > 2:
-            issues.append(ValidationIssue(
-                "cameras", "COUNT",
-                "Blender currently supports at most two cameras.",
-            ))
-        if sum(
-            isinstance(mesh, Mesh3D) and mesh.displacements is not None
-            for mesh in scene.meshes
-        ) > 1:
-            issues.append(ValidationIssue(
-                "meshes", "DEFORMATION",
-                "Only one deformable mesh is currently supported.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "cameras",
+                    "COUNT",
+                    "Blender currently supports at most two cameras.",
+                )
+            )
+        if (
+            sum(
+                isinstance(mesh, Mesh3D) and mesh.displacements is not None
+                for mesh in scene.meshes
+            )
+            > 1
+        ):
+            issues.append(
+                ValidationIssue(
+                    "meshes",
+                    "DEFORMATION",
+                    "Only one deformable mesh is currently supported.",
+                )
+            )
         if scene.lights is not None and any(
             light.light_type not in ELightType for light in scene.lights
         ):
-            issues.append(ValidationIssue(
-                "lights", "TYPE", "Unsupported Blender light.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "lights",
+                    "TYPE",
+                    "Unsupported Blender light.",
+                )
+            )
         reason = _blender_unavailable_reason()
         if reason is not None:
             issues.append(ValidationIssue("blender", "UNAVAILABLE", reason))
         for mesh_index, mesh in enumerate(scene.meshes):
             if not isinstance(mesh, Mesh3D):
-                issues.append(ValidationIssue(
-                    f"scene.meshes[{mesh_index}]", "TYPE",
-                    "Blender requires common render.Mesh3D objects.",
-                ))
+                issues.append(
+                    ValidationIssue(
+                        f"scene.meshes[{mesh_index}]",
+                        "TYPE",
+                        "Blender requires common render.Mesh3D objects.",
+                    )
+                )
                 continue
             if mesh.element_type is not EElementType.TRI3:
                 warnings.warn(
@@ -117,8 +166,7 @@ class Blender(IRenderer3D):
         """Construct and render one validated Blender scene."""
         blender_module = importlib.import_module("pyvale.blender")
         meshes = tuple(
-            _triangulate_mesh_for_blender(mesh)
-            for mesh in render_scene.meshes
+            _triangulate_mesh_for_blender(mesh) for mesh in render_scene.meshes
         )
         scene = blender_module.Scene()
         parts = [scene.add_part(mesh, 3) for mesh in meshes]
@@ -142,10 +190,12 @@ class Blender(IRenderer3D):
                 )
                 blender_module.Tools.clear_material_nodes(part)
                 blender_module.Tools.add_image_texture(
-                    material, image_array=mesh.shader.image,
+                    material,
+                    image_array=mesh.shader.image,
                 )
                 blender_module.Tools.uv_unwrap_part(
-                    part, mesh.shader.millimetres_per_pixel,
+                    part,
+                    mesh.shader.millimetres_per_pixel,
                 )
         for camera in render_scene.cameras:
             scene.add_camera(camera)
@@ -169,17 +219,20 @@ class Blender(IRenderer3D):
             use_denoising=self.config.use_denoising,
             use_adaptive_sampling=self.config.use_adaptive_sampling,
         )
-        deformable = next((mesh for mesh in meshes
-                           if mesh.displacements is not None), None)
+        deformable = next(
+            (mesh for mesh in meshes if mesh.displacements is not None), None
+        )
         if not self.config.render_deformed:
             deformable = None
         if deformable is None:
             image = scene.render_single_image(
-                render_data, stage_image=not self.config.save_images,
+                render_data,
+                stage_image=not self.config.save_images,
             )
             if self.config.save_scene:
-                blender_module.Tools.save_blender_file(self.config.output_dir,
-                                                       over_write=True)
+                blender_module.Tools.save_blender_file(
+                    self.config.output_dir, over_write=True
+                )
             if image is None:
                 return RenderResult(None, _image_paths(self.config.output_dir))
             return RenderResult(_normalise_images(np.asarray(image)))
@@ -192,17 +245,24 @@ class Blender(IRenderer3D):
             deformable.displacements,
         )
         image = scene.render_deformed_images(
-            deformation_mesh, 3, render_data,
-            part, stage_image=not self.config.save_images,
+            deformation_mesh,
+            3,
+            render_data,
+            part,
+            stage_image=not self.config.save_images,
         )
         if self.config.save_scene:
-            blender_module.Tools.save_blender_file(self.config.output_dir,
-                                                   over_write=True)
+            blender_module.Tools.save_blender_file(
+                self.config.output_dir, over_write=True
+            )
         if image is None:
             return RenderResult(None, _image_paths(self.config.output_dir))
-        return RenderResult(_normalise_deformed_images(
-            np.asarray(image), len(render_scene.cameras),
-        ))
+        return RenderResult(
+            _normalise_deformed_images(
+                np.asarray(image),
+                len(render_scene.cameras),
+            )
+        )
 
 
 def _legacy_light(blender_module: object, light: Light) -> object:
@@ -212,10 +272,14 @@ def _legacy_light(blender_module: object, light: Light) -> object:
     rotation = Rotation.identity()
     if np.linalg.norm(direction) > 0.0:
         rotation = Rotation.align_vectors(
-            np.asarray(((0.0, 0.0, -1.0))), direction[None, :],
+            np.asarray((0.0, 0.0, -1.0)),
+            direction[None, :],
         )[0]
     return blender_module.LightData(
-        light.pos_world, rotation, light.intensity, light_type,
+        light.pos_world,
+        rotation,
+        light.intensity,
+        light_type,
         light.shadow_soft_size,
     )
 
@@ -234,14 +298,16 @@ def _triangulate_mesh_for_blender(mesh: Mesh3D) -> Mesh3D:
         EElementType.QUAD9: pv.CellType.BIQUADRATIC_QUAD,
     }
     nodes_per_element = mesh.connectivity.shape[1]
-    cells = np.column_stack((
-        np.full(
-            mesh.connectivity.shape[0],
-            nodes_per_element,
-            dtype=np.uintp,
-        ),
-        mesh.connectivity,
-    )).ravel()
+    cells = np.column_stack(
+        (
+            np.full(
+                mesh.connectivity.shape[0],
+                nodes_per_element,
+                dtype=np.uintp,
+            ),
+            mesh.connectivity,
+        )
+    ).ravel()
     grid = pv.UnstructuredGrid(
         cells,
         np.full(mesh.connectivity.shape[0], cell_types[mesh.element_type]),
@@ -279,7 +345,10 @@ def _normalise_deformed_images(
         return images[None, None, :, :, None]
     frames = images.shape[2] // camera_count
     return images.reshape(
-        images.shape[0], images.shape[1], frames, camera_count,
+        images.shape[0],
+        images.shape[1],
+        frames,
+        camera_count,
     ).transpose(2, 3, 0, 1)[:, :, :, :, None]
 
 
@@ -309,6 +378,6 @@ def _blender_unavailable_reason() -> str | None:
         return "Blender requires Python 3.13 and the pyvale blender extra."
     try:
         importlib.import_module("pyvale.blender")
-    except Exception as exception:
+    except Exception as exception:  # noqa: BLE001
         return f"Blender is not available: {exception}"
     return None

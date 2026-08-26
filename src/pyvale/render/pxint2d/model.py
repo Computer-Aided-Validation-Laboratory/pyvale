@@ -113,7 +113,9 @@ class PxInt2DOpts:
     def __post_init__(self) -> None:
         """Validate non-physical execution controls."""
         if self.workers < 1 or self.max_points_per_chunk < 1:
-            raise ValueError("workers and max_points_per_chunk must be positive.")
+            raise ValueError(
+                "workers and max_points_per_chunk must be positive."
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,10 +143,14 @@ class Eggbox:
         """Evaluate the eggbox texture at reference-world coordinates."""
         x_wave = 2.0 * np.pi / self.period[0]
         y_wave = 2.0 * np.pi / self.period[1]
-        return (self.mean - self.contrast
-                + 0.5 * self.contrast
-                * (1.0 + np.cos(x_wave * x_coord + self.phase[0]))
-                * (1.0 + np.cos(y_wave * y_coord + self.phase[1])))
+        return (
+            self.mean
+            - self.contrast
+            + 0.5
+            * self.contrast
+            * (1.0 + np.cos(x_wave * x_coord + self.phase[0]))
+            * (1.0 + np.cos(y_wave * y_coord + self.phase[1]))
+        )
 
 
 def quadrature_points(
@@ -152,14 +158,20 @@ def quadrature_points(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return unit-pixel points and weights for a numerical rule."""
     if isinstance(rule, RectRule):
-        points = (np.arange(rule.samples_per_axis) + 0.5) / rule.samples_per_axis
+        points = (
+            np.arange(rule.samples_per_axis) + 0.5
+        ) / rule.samples_per_axis
         weights = np.full(rule.samples_per_axis, 1.0 / rule.samples_per_axis)
     else:
         points, weights = np.polynomial.legendre.leggauss(rule.points_per_axis)
         points = 0.5 * (points + 1.0)
         weights = 0.5 * weights
     points_x, points_y = np.meshgrid(points, points)
-    return points_x.ravel(), points_y.ravel(), np.outer(weights, weights).ravel()
+    return (
+        points_x.ravel(),
+        points_y.ravel(),
+        np.outer(weights, weights).ravel(),
+    )
 
 
 def quantise_image(image: np.ndarray, bits: int) -> np.ndarray:
@@ -172,6 +184,13 @@ def quantise_image(image: np.ndarray, bits: int) -> np.ndarray:
 
 
 __all__ = [
-    "AnalyticRule", "EPxIntMapping", "Eggbox", "GaussianPSF", "GaussRule",
-    "PxInt2DOpts", "RectRule", "quadrature_points", "quantise_image",
+    "AnalyticRule",
+    "EPxIntMapping",
+    "Eggbox",
+    "GaussRule",
+    "GaussianPSF",
+    "PxInt2DOpts",
+    "RectRule",
+    "quadrature_points",
+    "quantise_image",
 ]

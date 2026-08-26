@@ -16,12 +16,12 @@ import pyvale.render.blender.adapter as blender_adapter
 def make_camera() -> render.Camera:
     """Create a small valid perspective camera."""
     return render.Camera(
-        np.array((16, 16)),
-        np.array((0.1, 0.1)),
-        np.array((0.0, 0.0, 2.0)),
-        Rotation.identity(),
-        np.zeros(3),
-        1.0,
+        pixels_count=np.array((16, 16)),
+        pixel_size=np.array((0.1, 0.1)),
+        pos_world=np.array((0.0, 0.0, 2.0)),
+        rot_world=Rotation.identity(),
+        roi_cent_world=np.zeros(3),
+        focal_length=1.0,
     )
 
 
@@ -63,7 +63,9 @@ def test_blender_available_reflects_backend_probe(monkeypatch) -> None:
     assert blender_adapter.blender_available()
 
 
-def test_blender_gpu_probe_is_safe_when_backend_is_unavailable(monkeypatch) -> None:
+def test_blender_gpu_probe_is_safe_when_backend_is_unavailable(
+    monkeypatch,
+) -> None:
     """The legacy GPU capability query returns false without Blender."""
     monkeypatch.setattr(
         blender_adapter,
@@ -83,12 +85,14 @@ def test_blender_warns_for_non_tri3_meshes(monkeypatch, tmp_path) -> None:
     )
     mesh = render.Mesh3D(
         render.EElementType.QUAD4,
-        np.array((
-            (-1.0, -1.0, 0.0),
-            (1.0, -1.0, 0.0),
-            (1.0, 1.0, 0.0),
-            (-1.0, 1.0, 0.0),
-        )),
+        np.array(
+            (
+                (-1.0, -1.0, 0.0),
+                (1.0, -1.0, 0.0),
+                (1.0, 1.0, 0.0),
+                (-1.0, 1.0, 0.0),
+            )
+        ),
         np.array(((0, 1, 2, 3),)),
         object(),
     )

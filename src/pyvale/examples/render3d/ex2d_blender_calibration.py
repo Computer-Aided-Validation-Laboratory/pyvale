@@ -17,7 +17,7 @@ def main() -> None:
     output_dir = Path.cwd() / "pyvale-output" / "render-blender-calibration"
     output_dir.mkdir(parents=True, exist_ok=True)
     _, camera, _ = build_scene()
-    stereo = render.CameraTools.faceon_stereo_cameras(camera, 15.0)
+    stereo = render.faceon_stereo_cameras(camera, 15.0)
     stereo.save_calibration(output_dir)
     print(render.calibration_image_count(render.BlenderCalibrationData()))
 

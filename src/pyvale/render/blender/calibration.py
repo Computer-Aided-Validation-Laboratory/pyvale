@@ -5,9 +5,9 @@
 # ============================================================================
 """Blender calibration-target configuration helpers."""
 
-from collections.abc import Sequence
-from dataclasses import dataclass
 import importlib
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -52,7 +52,7 @@ class BlenderCalibrationData:
     max_images: int | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class BlenderCalibrationTarget:
     """A textured planar target used to generate calibration images.
 
@@ -71,12 +71,12 @@ class BlenderCalibrationTarget:
     size: np.ndarray
     image_path: Path
     millimetres_per_pixel: float
-    material: BlenderMaterial = BlenderMaterial()
+    material: BlenderMaterial = field(default_factory=BlenderMaterial)
 
     def __post_init__(self) -> None:
         """Normalise target array and texture path inputs."""
-        object.__setattr__(self, "size", np.asarray(self.size, dtype=np.float64))
-        object.__setattr__(self, "image_path", Path(self.image_path))
+        self.size = np.asarray(self.size, dtype=np.float64)
+        self.image_path = Path(self.image_path)
 
 
 def calibration_image_count(data: BlenderCalibrationData) -> int:
@@ -92,7 +92,9 @@ def calibration_image_count(data: BlenderCalibrationData) -> int:
     int
         Number of target poses in the historical nine-position lateral sweep.
     """
-    plunge_steps = (data.plunge_lims[1] - data.plunge_lims[0]) / data.plunge_step
+    plunge_steps = (
+        data.plunge_lims[1] - data.plunge_lims[0]
+    ) / data.plunge_step
     angle_steps = (data.angle_lims[1] - data.angle_lims[0]) / data.angle_step
     return int((plunge_steps + 1.0) * (angle_steps + 1.0) ** 2 * 9)
 
@@ -101,7 +103,7 @@ def render_calibration_images(
     target: BlenderCalibrationTarget,
     cameras: CameraStereo | Sequence[Camera],
     config: BlenderConfig,
-    data: BlenderCalibrationData = BlenderCalibrationData(),
+    data: BlenderCalibrationData | None = None,
     lights: Sequence[Light] | None = None,
 ) -> RenderResult:
     """Render a legacy-compatible Blender calibration-target pose sweep.
@@ -142,12 +144,16 @@ def render_calibration_images(
         raise ValueError("data.max_images must be positive when specified.")
     if target.size.shape != (3,) or np.any(target.size <= 0.0):
         raise ValueError("target.size must contain three positive dimensions.")
+    if data is None:
+        data = BlenderCalibrationData()
+
     if isinstance(cameras, CameraStereo):
-        camera_data = (cameras.cam_data_0, cameras.cam_data_1)
+        camera_data = (cameras.camera_0, cameras.camera_1)
     else:
         camera_data = tuple(cameras)
-    if len(camera_data) != 2 or not all(isinstance(camera, Camera)
-                                         for camera in camera_data):
+    if len(camera_data) != 2 or not all(
+        isinstance(camera, Camera) for camera in camera_data
+    ):
         raise ValueError("Calibration rendering requires exactly two Cameras.")
 
     blender = importlib.import_module("pyvale.blender")
@@ -158,7 +164,8 @@ def render_calibration_images(
     for light in lights or ():
         scene.add_light(_legacy_light(blender, light))
     scene.add_speckle(
-        target_object, target.image_path,
+        target_object,
+        target.image_path,
         blender.MaterialData(
             roughness=target.material.roughness,
             metallic=target.material.metallic,
@@ -169,7 +176,9 @@ def render_calibration_images(
     )
     config.output_dir.mkdir(parents=True, exist_ok=True)
     render_data = blender.RenderData(
-        cam_data=tuple(_legacy_calibration_camera(camera) for camera in camera_data),
+        cam_data=tuple(
+            _legacy_calibration_camera(camera) for camera in camera_data
+        ),
         base_dir=config.output_dir,
         samples=config.samples,
         max_bounces=config.max_bounces,
@@ -189,7 +198,9 @@ def render_calibration_images(
         y_limit=data.y_limit,
         max_images=data.max_images,
     )
-    blender.Tools.render_calibration_images(render_data, legacy_data, target_object)
+    blender.Tools.render_calibration_images(
+        render_data, legacy_data, target_object
+    )
     paths = tuple(sorted((config.output_dir / "calimages").glob("*.tiff")))
     return RenderResult(None, paths)
 
@@ -197,12 +208,15 @@ def render_calibration_images(
 def _legacy_calibration_camera(camera: Camera) -> SimpleNamespace:
     """Supply the derived camera data required by the legacy target loop."""
     values = {
-        field: getattr(camera, field)
-        for field in camera.__dataclass_fields__
+        field: getattr(camera, field) for field in camera.__dataclass_fields__
     }
-    values["image_dist"] = float(np.linalg.norm(
-        camera.pos_world - camera.roi_cent_world,
-    ))
+    values["pixels_num"] = camera.pixels_count
+    values["pixels_size"] = camera.pixel_size
+    values["image_dist"] = float(
+        np.linalg.norm(
+            camera.pos_world - camera.roi_cent_world,
+        )
+    )
     return SimpleNamespace(**values)
 
 

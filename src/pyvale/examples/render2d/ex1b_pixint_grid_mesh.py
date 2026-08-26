@@ -29,7 +29,7 @@ mesh = render.Mesh2D(
     displacements,
 )
 camera = render.Camera2D(
-    pixels_count=np.array((32, 32)), leng_per_px=1.0,
+    pixels_count=np.array((32, 32)), pixel_size=1.0,
     roi_cent_world=np.zeros(3),
 )
 renderer = render.PixIntGrid2D(

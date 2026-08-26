@@ -15,11 +15,11 @@ def main() -> None:
 
 
     mesh, camera, lights = build_scene()
-    stereo = render.CameraTools.symmetric_stereo_cameras(camera, 15.0)
+    stereo = render.symmetric_stereo_cameras(camera, 15.0)
     output_dir = Path.cwd() / "pyvale-output" / "render-blender-stereo"
     renderer = render.Blender(render.BlenderConfig(output_dir))
     result = renderer.render(render.Scene3D(
-        [mesh], [stereo.cam_data_0, stereo.cam_data_1], lights,
+        [mesh], [stereo.camera_0, stereo.camera_1], lights,
     ))
     assert result.images is not None
     print(result.images.shape)

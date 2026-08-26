@@ -15,12 +15,12 @@ import pyvale.render as render
 def make_camera() -> render.Camera:
     """Create a small valid perspective camera."""
     return render.Camera(
-        np.array((16, 16)),
-        np.array((0.1, 0.1)),
-        np.array((0.0, 0.0, 2.0)),
-        Rotation.identity(),
-        np.zeros(3),
-        1.0,
+        pixels_count=np.array((16, 16)),
+        pixel_size=np.array((0.1, 0.1)),
+        pos_world=np.array((0.0, 0.0, 2.0)),
+        rot_world=Rotation.identity(),
+        roi_cent_world=np.zeros(3),
+        focal_length=1.0,
     )
 
 
@@ -60,11 +60,18 @@ def test_feebee_aggregates_unsupported_scene_features() -> None:
     )
 
     with pytest.raises(render.RenderInputError) as exception:
-        render.Feebee().verify_input(render.Scene3D(
-            (make_mesh(shader),), (make_camera(),), (light,),
-        ))
+        render.Feebee().verify_input(
+            render.Scene3D(
+                (make_mesh(shader),),
+                (make_camera(),),
+                (light,),
+            )
+        )
 
-    assert {issue.code for issue in exception.value.issues} == {"UNSUPPORTED", "VALUE"}
+    assert {issue.code for issue in exception.value.issues} == {
+        "UNSUPPORTED",
+        "VALUE",
+    }
 
 
 def test_feebee_checks_higher_order_connectivity() -> None:
@@ -83,9 +90,12 @@ def test_feebee_texture_shader_accepts_nodal_uvs() -> None:
         np.ones((4, 4)),
     )
 
-    render.Feebee().verify_input(render.Scene3D(
-        (make_mesh(shader),), (make_camera(),),
-    ))
+    render.Feebee().verify_input(
+        render.Scene3D(
+            (make_mesh(shader),),
+            (make_camera(),),
+        )
+    )
 
 
 def test_feebee_uses_a_static_colour_field_with_an_animated_mesh() -> None:
@@ -105,6 +115,9 @@ def test_feebee_reports_non_numeric_material_data_cleanly() -> None:
     shader = render.FeebeeColourShader(np.ones((1, 1, 3)), material)
 
     with pytest.raises(render.RenderInputError, match="refractive_index"):
-        render.Feebee().verify_input(render.Scene3D(
-            (make_mesh(shader),), (make_camera(),),
-        ))
+        render.Feebee().verify_input(
+            render.Scene3D(
+                (make_mesh(shader),),
+                (make_camera(),),
+            )
+        )

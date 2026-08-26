@@ -48,7 +48,7 @@ class BlenderTextureShader:
         object.__setattr__(self, "image_path", Path(self.image_path))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class BlenderImageShader:
     """In-memory texture-image controls for a Blender mesh material.
 
@@ -72,6 +72,4 @@ class BlenderImageShader:
         if np.issubdtype(image.dtype, np.floating):
             upper = 1.0 if image.size and np.nanmax(image) <= 1.0 else 255.0
             image = np.clip(image * (255.0 / upper), 0.0, 255.0)
-        object.__setattr__(
-            self, "image", np.ascontiguousarray(image, dtype=np.uint8),
-        )
+        self.image = np.ascontiguousarray(image, dtype=np.uint8)

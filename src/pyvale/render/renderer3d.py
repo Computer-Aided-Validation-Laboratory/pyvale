@@ -6,6 +6,7 @@
 """The interface for 3D renderers."""
 
 from abc import ABC, abstractmethod
+
 from .result import RenderResult
 from .scene import Scene3D
 

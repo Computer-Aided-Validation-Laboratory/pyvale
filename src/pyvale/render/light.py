@@ -48,7 +48,9 @@ class Light:
     def __post_init__(self) -> None:
         """Convert position and direction to double-precision arrays."""
         self.pos_world = np.asarray(self.pos_world, dtype=np.float64)
-        self.direction_world = np.asarray(self.direction_world, dtype=np.float64)
+        self.direction_world = np.asarray(
+            self.direction_world, dtype=np.float64
+        )
 
 
 __all__ = ["ELightType", "Light"]

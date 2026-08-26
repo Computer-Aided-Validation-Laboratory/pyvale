@@ -13,7 +13,6 @@ import riley
 from .camera import Camera
 from .capabilities import RenderCapabilities
 from .errors import ValidationIssue
-from .light import Light
 from .mesh import EElementType
 from .renderer3d import IRenderer3D
 from .result import RenderResult
@@ -69,45 +68,70 @@ class Riley(IRenderer3D):
         issues: list[ValidationIssue] = []
 
         if not isinstance(scene, Scene3D):
-            issues.append(ValidationIssue(
-                "scene", "TYPE", "Expected a Scene3D.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "scene",
+                    "TYPE",
+                    "Expected a Scene3D.",
+                )
+            )
             raise_if_issues(tuple(issues))
             return
 
         if not isinstance(self.config, riley.RasterConfig):
-            issues.append(ValidationIssue(
-                "config", "TYPE", "Expected riley.RasterConfig.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "config",
+                    "TYPE",
+                    "Expected riley.RasterConfig.",
+                )
+            )
 
         if not scene.meshes:
-            issues.append(ValidationIssue(
-                "scene.meshes", "EMPTY", "At least one mesh is required.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "scene.meshes",
+                    "EMPTY",
+                    "At least one mesh is required.",
+                )
+            )
 
         if not scene.cameras:
-            issues.append(ValidationIssue(
-                "scene.cameras", "EMPTY", "At least one camera is required.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "scene.cameras",
+                    "EMPTY",
+                    "At least one camera is required.",
+                )
+            )
 
         if scene.lights:
-            issues.append(ValidationIssue(
-                "scene.lights", "UNSUPPORTED", "Riley does not support lights yet.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    "scene.lights",
+                    "UNSUPPORTED",
+                    "Riley does not support lights yet.",
+                )
+            )
 
         for mesh_index, mesh in enumerate(scene.meshes):
             if not isinstance(mesh, riley.Mesh):
-                issues.append(ValidationIssue(
-                    f"scene.meshes[{mesh_index}]", "TYPE",
-                    "Riley requires native riley.Mesh objects.",
-                ))
+                issues.append(
+                    ValidationIssue(
+                        f"scene.meshes[{mesh_index}]",
+                        "TYPE",
+                        "Riley requires native riley.Mesh objects.",
+                    )
+                )
                 continue
 
-            issues.extend(mesh_convention_issues(
-                mesh.coords,
-                mesh.connect,
-                f"scene.meshes[{mesh_index}]",
-            ))
+            issues.extend(
+                mesh_convention_issues(
+                    mesh.coords,
+                    mesh.connect,
+                    f"scene.meshes[{mesh_index}]",
+                )
+            )
 
         issues.extend(_verify_cameras(scene.cameras))
         raise_if_issues(tuple(issues))
@@ -148,28 +172,45 @@ def _verify_cameras(cameras: tuple[Camera, ...]) -> tuple[ValidationIssue, ...]:
 
     issues: list[ValidationIssue] = []
     for index, camera in enumerate(cameras):
-
         path = f"scene.cameras[{index}]"
         if not isinstance(camera, Camera):
-            issues.append(ValidationIssue(
-                path, "TYPE", "Expected a render.Camera.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    path,
+                    "TYPE",
+                    "Expected a render.Camera.",
+                )
+            )
             continue
 
-        if camera.pixels_num.shape != (2,) or np.any(camera.pixels_num <= 0):
-            issues.append(ValidationIssue(
-                path + ".pixels_num", "VALUE", "Expected two positive counts.",
-            ))
+        if camera.pixels_count.shape != (2,) or np.any(
+            camera.pixels_count <= 0
+        ):
+            issues.append(
+                ValidationIssue(
+                    path + ".pixels_count",
+                    "VALUE",
+                    "Expected two positive counts.",
+                )
+            )
 
-        if camera.pixels_size.shape != (2,) or np.any(camera.pixels_size <= 0.0):
-            issues.append(ValidationIssue(
-                path + ".pixels_size", "VALUE", "Expected two positive sizes.",
-            ))
+        if camera.pixel_size.shape != (2,) or np.any(camera.pixel_size <= 0.0):
+            issues.append(
+                ValidationIssue(
+                    path + ".pixel_size",
+                    "VALUE",
+                    "Expected two positive sizes.",
+                )
+            )
 
-        if camera.focal_length <= 0.0 or camera.sub_sample <= 0:
-            issues.append(ValidationIssue(
-                path, "VALUE", "Focal length and sub-sampling must be positive.",
-            ))
+        if camera.focal_length <= 0.0 or camera.subsample <= 0:
+            issues.append(
+                ValidationIssue(
+                    path,
+                    "VALUE",
+                    "Focal length and sub-sampling must be positive.",
+                )
+            )
 
     return tuple(issues)
 
@@ -177,13 +218,15 @@ def _verify_cameras(cameras: tuple[Camera, ...]) -> tuple[ValidationIssue, ...]:
 def _camera_to_riley(camera: Camera) -> riley.Camera:
     """Convert one common perspective camera to a Riley camera."""
     return riley.Camera(
-        pixels_num=tuple(int(value) for value in camera.pixels_num),
-        pixels_size=tuple(float(value) for value in camera.pixels_size),
+        pixels_num=tuple(int(value) for value in camera.pixels_count),
+        pixels_size=tuple(float(value) for value in camera.pixel_size),
         pos_world=tuple(float(value) for value in camera.pos_world),
-        rot_world=tuple(float(value) for value in camera.rot_world.as_euler("xyz")),
+        rot_world=tuple(
+            float(value) for value in camera.rot_world.as_euler("xyz")
+        ),
         roi_cent_world=tuple(float(value) for value in camera.roi_cent_world),
         focal_length=camera.focal_length,
-        sub_sample=camera.sub_sample,
+        sub_sample=camera.subsample,
         distortion_model=int(camera.distortion_model),
         distortion_k1=camera.distortion_k1,
         distortion_k2=camera.distortion_k2,

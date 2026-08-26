@@ -38,9 +38,11 @@ def map_points(
             raise ValueError("NEWTON_ONE_ELEM requires exactly one element.")
         return _newton_candidates(mesh, deformed, x_coord, y_coord, (0,))
 
-    if mode in (EPxIntMapping.NEWTON_MESH_UNSTRUCT,
-                EPxIntMapping.NEWTON_MESH_STRUCT,
-                EPxIntMapping.STRUCTURED_QUAD9):
+    if mode in (
+        EPxIntMapping.NEWTON_MESH_UNSTRUCT,
+        EPxIntMapping.NEWTON_MESH_STRUCT,
+        EPxIntMapping.STRUCTURED_QUAD9,
+    ):
         return _newton_mesh(mesh, deformed, x_coord, y_coord)
     raise ValueError(f"Unsupported mapping mode {mode!r}.")
 
@@ -81,10 +83,12 @@ def _vtk(
         9: pv.CellType.BIQUADRATIC_QUAD,
     }
     nodes = mesh.connectivity.shape[1]
-    cells = np.hstack((
-        np.full((len(mesh.connectivity), 1), nodes, dtype=np.intp),
-        mesh.connectivity,
-    )).ravel()
+    cells = np.hstack(
+        (
+            np.full((len(mesh.connectivity), 1), nodes, dtype=np.intp),
+            mesh.connectivity,
+        )
+    ).ravel()
 
     grid = pv.UnstructuredGrid(
         cells,
@@ -99,7 +103,8 @@ def _vtk(
     valid = np.asarray(sampled.point_data["vtkValidPointMask"], dtype=bool)
     return (
         np.asarray(sampled.point_data["reference_x"], dtype=np.float64),
-        np.asarray(sampled.point_data["reference_y"], dtype=np.float64), valid,
+        np.asarray(sampled.point_data["reference_y"], dtype=np.float64),
+        valid,
     )
 
 
@@ -127,7 +132,11 @@ def _newton_mesh(
 
         for element_index in candidates:
             result = _newton_element(
-                mesh, deformed, int(element_index), x_coord, y_coord,
+                mesh,
+                deformed,
+                int(element_index),
+                x_coord,
+                y_coord,
             )
             if result is not None:
                 reference_x[point_index], reference_y[point_index] = result
@@ -150,7 +159,9 @@ def _newton_candidates(
 
     for point_index, (x_coord, y_coord) in enumerate(zip(query_x, query_y)):
         for element_index in candidates:
-            result = _newton_element(mesh, deformed, element_index, x_coord, y_coord)
+            result = _newton_element(
+                mesh, deformed, element_index, x_coord, y_coord
+            )
             if result is not None:
                 reference_x[point_index], reference_y[point_index] = result
                 valid[point_index] = True
@@ -177,10 +188,12 @@ def _newton_element(
         values, d_xi, d_eta = shape_functions(mesh.element_type, xi, eta)
         mapped = values @ element_deformed
         residual = mapped - (query_x, query_y)
-        jacobian = np.array((
-            d_xi @ element_deformed,
-            d_eta @ element_deformed,
-        )).T
+        jacobian = np.array(
+            (
+                d_xi @ element_deformed,
+                d_eta @ element_deformed,
+            )
+        ).T
         determinant = float(np.linalg.det(jacobian))
 
         if abs(determinant) < 1.0e-14:

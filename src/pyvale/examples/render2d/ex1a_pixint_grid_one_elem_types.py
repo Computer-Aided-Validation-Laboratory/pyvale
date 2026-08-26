@@ -37,7 +37,7 @@ def make_mesh(element_type: render.EElementType) -> render.Mesh2D:
 
 
 camera = render.Camera2D(
-    pixels_count=np.array((32, 32)), leng_per_px=0.5,
+    pixels_count=np.array((32, 32)), pixel_size=0.5,
     roi_cent_world=np.array((-8.0, -8.0, 0.0)),
 )
 renderer = render.PixIntGrid2D(

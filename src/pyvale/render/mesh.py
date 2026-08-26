@@ -64,7 +64,8 @@ class Mesh3D:
         )
         if self.displacements is not None:
             self.displacements = np.ascontiguousarray(
-                self.displacements, dtype=np.float64,
+                self.displacements,
+                dtype=np.float64,
             )
 
 
@@ -121,9 +122,8 @@ class Mesh2D:
                 "connectivity does not match the element topology.",
             )
 
-        if (
-            np.any(self.connectivity < 0)
-            or np.any(self.connectivity >= self.coords.shape[0])
+        if np.any(self.connectivity < 0) or np.any(
+            self.connectivity >= self.coords.shape[0]
         ):
             raise ValueError("connectivity contains an invalid node index.")
 
@@ -136,4 +136,4 @@ class Mesh2D:
             raise ValueError("Displacement nodes must match mesh nodes.")
 
 
-__all__ = ["EElementType", "Mesh3D", "Mesh2D"]
+__all__ = ["EElementType", "Mesh2D", "Mesh3D"]

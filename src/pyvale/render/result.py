@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class RenderResult:
     """Output from a three-dimensional renderer.
 
@@ -28,7 +28,7 @@ class RenderResult:
     output_paths: tuple[Path, ...] = ()
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ImageWarpResult:
     """Output from a planar image-warp renderer.
 

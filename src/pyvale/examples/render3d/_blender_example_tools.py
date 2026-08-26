@@ -32,10 +32,14 @@ def build_scene() -> tuple[render.Mesh3D, render.Camera, list[render.Light]]:
     )
 
     camera = render.Camera(
-        np.array((128, 128)), np.array((0.00345, 0.00345)),
-        np.array((0.0, 0.0, 500.0)), Rotation.identity(), np.zeros(3), 15.0,
+        pixels_count=np.array((128, 128)),
+        pixel_size=np.array((0.00345, 0.00345)),
+        pos_world=np.array((0.0, 0.0, 500.0)),
+        rot_world=Rotation.identity(),
+        roi_cent_world=np.zeros(3),
+        focal_length=15.0,
     )
-    resolution = render.BlenderTools.blender_mm_per_pixel(camera)
+    resolution = render.blender_mm_per_pixel(camera)
     mesh = render.mesh3d_from_simdata(
         sim_data,
         render.BlenderTextureShader(

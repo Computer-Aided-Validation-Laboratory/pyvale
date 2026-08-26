@@ -15,8 +15,12 @@ import pyvale.render as render
 def make_camera() -> render.Camera:
     """Create a small valid perspective camera."""
     return render.Camera(
-        np.array((16, 16)), np.array((0.1, 0.1)), np.array((0.0, 0.0, 2.0)),
-        Rotation.identity(), np.zeros(3), 1.0,
+        pixels_count=np.array((16, 16)),
+        pixel_size=np.array((0.1, 0.1)),
+        pos_world=np.array((0.0, 0.0, 2.0)),
+        rot_world=Rotation.identity(),
+        roi_cent_world=np.zeros(3),
+        focal_length=1.0,
     )
 
 
@@ -25,7 +29,8 @@ def make_mesh(shader: object) -> render.Mesh3D:
     return render.Mesh3D(
         render.EElementType.TRI3,
         np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))),
-        np.array(((0, 1, 2))), shader,
+        np.array(((0, 1, 2))),
+        shader,
     )
 
 
@@ -34,9 +39,30 @@ def test_camera2d_defaults_to_one_sample_per_pixel() -> None:
     assert render.Camera2D().subsample == 1
 
 
+def test_camera2d_keeps_normalised_background() -> None:
+    """Derived output codes do not overwrite the public normalised value."""
+    camera = render.Camera2D(background=0.25, bits=8)
+
+    assert camera.background == 0.25
+    assert camera.background_code == 64.0
+
+
+def test_render_utilities_are_available_at_the_render_package_level() -> None:
+    """Public helpers require no utility class or nested module lookup."""
+    functions = (
+        render.average_subpixel_image,
+        render.blender_camera_from_resolution,
+        render.calculate_edge_function,
+        render.faceon_stereo_cameras,
+        render.save_image,
+    )
+
+    assert all(callable(function) for function in functions)
+
+
 def test_scene3d_keeps_mutable_scene_lists() -> None:
     """Scene collections remain the caller's ordinary mutable lists."""
-    meshes: list[render.RenderMesh] = []
+    meshes: list[object] = []
     cameras = [make_camera()]
 
     scene = render.Scene3D(meshes, cameras)
@@ -74,7 +100,10 @@ def test_riley_rejects_lights_before_backend_call(monkeypatch) -> None:
 
     renderer = render.Riley(riley_adapter.riley.RasterConfig())
     light = render.Light(
-        render.ELightType.POINT, np.zeros(3), np.array((0.0, 0.0, -1.0)), 1.0,
+        render.ELightType.POINT,
+        np.zeros(3),
+        np.array((0.0, 0.0, -1.0)),
+        1.0,
     )
     with pytest.raises(render.RenderInputError, match="UNSUPPORTED"):
         renderer.render(render.Scene3D([], [make_camera()], [light]))
@@ -101,8 +130,7 @@ def test_mesh3d_from_simdata_normalises_displacement_layout() -> None:
     from pyvale.dataio import SimData
 
     sim_data = SimData(
-        coords=np.array(((0.0, 0.0, 0.0), (1.0, 0.0, 0.0),
-                         (0.0, 1.0, 0.0))),
+        coords=np.array(((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))),
         connect={"connect1": np.array(((0, 1, 2),))},
         node_vars={
             "x": np.array(((0.0, 1.0), (0.0, 1.0), (0.0, 1.0))),
@@ -111,7 +139,9 @@ def test_mesh3d_from_simdata_normalises_displacement_layout() -> None:
         },
     )
     mesh = render.mesh3d_from_simdata(
-        sim_data, object(), displacement_keys=("x", "y", "z"),
+        sim_data,
+        object(),
+        displacement_keys=("x", "y", "z"),
     )
     assert mesh.displacements is not None
     assert mesh.displacements.shape == (2, 3, 3)
@@ -123,12 +153,14 @@ def test_mesh3d_from_simdata_extracts_a_volume_surface() -> None:
     from pyvale.dataio import SimData
 
     sim_data = SimData(
-        coords=np.array((
-            (0.0, 0.0, 0.0),
-            (1.0, 0.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 0.0, 1.0),
-        )),
+        coords=np.array(
+            (
+                (0.0, 0.0, 0.0),
+                (1.0, 0.0, 0.0),
+                (0.0, 1.0, 0.0),
+                (0.0, 0.0, 1.0),
+            )
+        ),
         connect={"connect1": np.array(((0, 1, 2, 3),))},
     )
 
@@ -144,11 +176,13 @@ def test_mesh2d_from_simdata_uses_xy_displacements() -> None:
     from pyvale.dataio import SimData
 
     sim_data = SimData(
-        coords=np.array((
-            (0.0, 0.0, 0.0),
-            (1.0, 0.0, 0.0),
-            (0.0, 1.0, 0.0),
-        )),
+        coords=np.array(
+            (
+                (0.0, 0.0, 0.0),
+                (1.0, 0.0, 0.0),
+                (0.0, 1.0, 0.0),
+            )
+        ),
         connect={"connect1": np.array(((0, 1, 2),))},
         node_vars={
             "x": np.array(((0.0, 1.0), (0.0, 1.0), (0.0, 1.0))),
@@ -168,11 +202,13 @@ def test_mesh2d_from_simdata_rejects_non_xy_meshes() -> None:
     from pyvale.dataio import SimData
 
     sim_data = SimData(
-        coords=np.array((
-            (0.0, 0.0, 1.0),
-            (1.0, 0.0, 1.0),
-            (0.0, 1.0, 1.0),
-        )),
+        coords=np.array(
+            (
+                (0.0, 0.0, 1.0),
+                (1.0, 0.0, 1.0),
+                (0.0, 1.0, 1.0),
+            )
+        ),
         connect={"connect1": np.array(((0, 1, 2),))},
     )
 
