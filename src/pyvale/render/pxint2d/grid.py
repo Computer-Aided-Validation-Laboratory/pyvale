@@ -86,7 +86,7 @@ class PixIntGrid2D(IImageWarp2D):
                 "mesh coordinates and displacements must be finite.",
             )
 
-        if np.any(camera.pixels_count <= 0) or camera.pixel_size <= 0.0:
+        if np.any(camera.pixels_num <= 0) or camera.pixels_size <= 0.0:
             raise ValueError("camera geometry must be positive.")
 
         if (
@@ -160,7 +160,7 @@ class PixIntGrid2D(IImageWarp2D):
 
         pixels = values.reshape(-1, points_per_pixel) @ weights
         mask = valid.reshape(-1, points_per_pixel).all(axis=1)
-        image = pixels.reshape(camera.pixels_count[1], camera.pixels_count[0])
+        image = pixels.reshape(camera.pixels_num[1], camera.pixels_num[0])
         mask = mask.reshape(image.shape)
         if self.options.psf is not None:
             psf = self.options.psf
@@ -234,7 +234,7 @@ class PixIntGrid2D(IImageWarp2D):
             + 0.5 * self.texture.contrast * (cos_x + cos_y)
             + 0.25 * self.texture.contrast * (plus + minus)
         )
-        image = image.reshape(camera.pixels_count[1], camera.pixels_count[0])
+        image = image.reshape(camera.pixels_num[1], camera.pixels_num[0])
         return np.flipud(image), np.flipud(np.ones_like(image, dtype=bool))
 
 
@@ -242,9 +242,9 @@ def _pixel_geometry(
     camera: Camera2D,
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
     """Return bottom-left pixel origins and square physical pixel size."""
-    width, height = (int(value) for value in camera.pixels_count)
-    pixel_x = camera.pixel_size
-    pixel_y = camera.pixel_size
+    width, height = (int(value) for value in camera.pixels_num)
+    pixel_x = camera.pixels_size
+    pixel_y = camera.pixels_size
     x_coords = camera.roi_cent_world[0] - 0.5 * width * pixel_x
     y_coords = camera.roi_cent_world[1] - 0.5 * height * pixel_y
     identifiers = np.arange(width * height)

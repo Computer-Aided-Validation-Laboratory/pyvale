@@ -75,9 +75,9 @@ class Scene():
         rotation_euler = cam_data.rot_world.as_euler("xyz", degrees=False)
         camera.rotation_euler = rotation_euler
 
-        pixels_count = (int(cam_data.pixels_count[0]), int(cam_data.pixels_count[1]))
-        camera['sensor_px'] = pixels_count
-        camera['px_size'] = cam_data.pixel_size
+        pixels_num = (int(cam_data.pixels_num[0]), int(cam_data.pixels_num[1]))
+        camera['sensor_px'] = pixels_num
+        camera['px_size'] = cam_data.pixels_size
         camera['k1'] = cam_data.distortion_k1
         camera['k2'] = cam_data.distortion_k2
         camera['k3'] = cam_data.distortion_k3
@@ -87,8 +87,8 @@ class Scene():
         new_cam.lens_unit = 'MILLIMETERS'
         new_cam.lens = cam_data.focal_length
         new_cam.sensor_fit = 'HORIZONTAL'
-        new_cam.sensor_width = cam_data.pixels_count[0] * cam_data.pixel_size[0]
-        new_cam.sensor_height = cam_data.pixels_count[1] * cam_data.pixel_size[1]
+        new_cam.sensor_width = cam_data.pixels_num[0] * cam_data.pixels_size[0]
+        new_cam.sensor_height = cam_data.pixels_num[1] * cam_data.pixels_size[1]
         if new_cam.sensor_width < 1.0 or new_cam.sensor_height < 1.0:
             warnings.warn(
                 "Camera sensor size "
@@ -317,9 +317,9 @@ class Scene():
         None | np.ndarray
             Nothing is returned if the image(s) is saved to disk (when save set
             to True). When save is set to False, the image array is returned.
-            For a 2D system, an array with shape=(pixels_count_y, pixels_count_x) is
+            For a 2D system, an array with shape=(pixels_num_y, pixels_num_x) is
             returned. For a 3D system, a stack of arrays with
-            shape=(pixels_count_y, pixels_count_x, 2) is returned.
+            shape=(pixels_num_y, pixels_num_x, 2) is returned.
         """
         bpy.context.scene.render.engine = render_data.engine.value
         bpy.context.scene.render.image_settings.color_mode = "BW"
@@ -355,8 +355,8 @@ class Scene():
             for cam in [obj for obj in bpy.data.objects if obj.type == "CAMERA"]:
                 bpy.context.scene.camera = cam
                 cam_data_render = render_data.cam_data[cam_count]
-                bpy.context.scene.render.resolution_x = cam_data_render.pixels_count[0]
-                bpy.context.scene.render.resolution_y = cam_data_render.pixels_count[1]
+                bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
+                bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
                 filename = "blenderimage_" + str(image_count) + "_" + str(cam_count) + ".tiff"
                 filepath = save_dir / filename
                 bpy.context.scene.render.filepath = str(filepath)
@@ -372,8 +372,8 @@ class Scene():
                 return image_arrays
         else:
             image_count = 0
-            bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_count[0]
-            bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_count[1]
+            bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
+            bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_num[1]
             filename = "blenderimage_" + str(image_count) + ".tiff"
             filepath = save_dir / filename
             bpy.context.scene.render.filepath = str(filepath)
@@ -415,8 +415,8 @@ class Scene():
         None | np.ndarray
             Either nothing is returned if the image is saved
                 to disk or a stack of image arrays are returned with the following
-                dimensions: shape=(pixels_count_y, pixels_count_x, (num_timesteps + 1)
-                for 2D setups and shape=(pixels_count_y, pixels_count_x, (num_timesteps + 1)*2)
+                dimensions: shape=(pixels_num_y, pixels_num_x, (num_timesteps + 1)
+                for 2D setups and shape=(pixels_num_y, pixels_num_x, (num_timesteps + 1)*2)
                 for 3D setups. The additional image is the reference image. For
                 3D setups, the images in the stack alternate between camera 0 and
                 camera 1.
@@ -465,8 +465,8 @@ class Scene():
                     for cam in [obj for obj in bpy.data.objects if obj.type == "CAMERA"]:
                         bpy.context.scene.camera = cam
                         cam_data_render = render_data.cam_data[cam_count]
-                        bpy.context.scene.render.resolution_x = cam_data_render.pixels_count[0]
-                        bpy.context.scene.render.resolution_y = cam_data_render.pixels_count[1]
+                        bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
+                        bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
                         filename = "blenderimage_" + str(timestep) + "_" + str(cam_count) + ".tiff"
                         filepath = save_dir / filename
                         bpy.context.scene.render.filepath = str(filepath)
@@ -478,8 +478,8 @@ class Scene():
                             bpy.ops.render.render(write_still=True)
                         cam_count += 1
                 else:
-                    bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_count[0]
-                    bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_count[1]
+                    bpy.context.scene.render.resolution_x = render_data.cam_data.pixels_num[0]
+                    bpy.context.scene.render.resolution_y = render_data.cam_data.pixels_num[1]
                     filename = "blenderimage_" + str(timestep) + ".tiff"
                     filepath = save_dir / filename
                     bpy.context.scene.render.filepath = str(filepath)

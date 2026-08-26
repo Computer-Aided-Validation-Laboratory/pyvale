@@ -145,8 +145,8 @@ def render_triangle(output_dir: Path) -> np.ndarray:
         np.array(((0, 1, 2),)), object(),
     )
     camera = render.Camera(
-        pixels_count=np.array((32, 32)),
-        pixel_size=np.array((0.02, 0.02)),
+        pixels_num=np.array((32, 32)),
+        pixels_size=np.array((0.02, 0.02)),
         pos_world=np.array((0.0, 0.0, 2.0)),
         rot_world=Rotation.identity(),
         roi_cent_world=np.zeros(3),
@@ -177,17 +177,17 @@ def riley_rabbit_scene() -> render.Scene3D:
     """
     meshes = dataset.riley_rabbit_meshes()
     coords = np.concatenate([mesh.coords for mesh in meshes])
-    pixels_count = np.array((320, 160))
-    pixel_size = np.array((5.3e-6, 5.3e-6))
+    pixels_num = np.array((320, 160))
+    pixels_size = np.array((5.3e-6, 5.3e-6))
     focal_length = 50.0e-3
     rotation = Rotation.identity()
     position = riley.pos_fill_frame_from_rot(
-        coords, tuple(pixels_count), tuple(pixel_size), focal_length,
+        coords, tuple(pixels_num), tuple(pixels_size), focal_length,
         tuple(rotation.as_euler("xyz")), 1.1,
     )
     camera = render.Camera(
-        pixels_count=pixels_count,
-        pixel_size=pixel_size,
+        pixels_num=pixels_num,
+        pixels_size=pixels_size,
         pos_world=np.asarray(position),
         rot_world=rotation,
         roi_cent_world=np.mean(coords, axis=0),
@@ -199,7 +199,7 @@ def riley_rabbit_scene() -> render.Scene3D:
 def pxint2d_camera() -> render.Camera2D:
     """Create the RCC-compatible 32 by 32 orthographic test camera."""
     return render.Camera2D(
-        pixels_count=np.array((32, 32)), pixel_size=1.0,
+        pixels_num=np.array((32, 32)), pixels_size=1.0,
         roi_cent_world=np.zeros(3), subsample=1,
     )
 

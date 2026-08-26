@@ -234,7 +234,7 @@ class PixIntSpeck2D(IImageWarp2D):
                 "analytic Speck2D integration is not yet available."
             )
 
-        if np.any(camera.pixels_count <= 0) or camera.pixel_size <= 0.0:
+        if np.any(camera.pixels_num <= 0) or camera.pixels_size <= 0.0:
             raise ValueError("camera geometry must be positive.")
 
     def _render(self, scene: Scene2D) -> ImageWarpResult:
@@ -291,7 +291,7 @@ class PixIntSpeck2D(IImageWarp2D):
 
         raw = coverage.reshape(-1, points_per_pixel) @ weights
         mask = valid.reshape(-1, points_per_pixel).all(axis=1)
-        raw = raw.reshape(camera.pixels_count[1], camera.pixels_count[0])
+        raw = raw.reshape(camera.pixels_num[1], camera.pixels_num[0])
         mask = mask.reshape(raw.shape)
         if self.options.psf is not None:
             psf = self.options.psf

@@ -43,9 +43,9 @@ class Camera:
 
     Parameters
     ----------
-    pixels_count : numpy.ndarray
+    pixels_num : numpy.ndarray
         Image pixel counts in ``(width, height)`` order.
-    pixel_size : numpy.ndarray
+    pixels_size : numpy.ndarray
         Physical pixel dimensions in ``(width, height)`` order.
     pos_world : numpy.ndarray
         Camera position in world coordinates, with shape ``(3,)``.
@@ -80,8 +80,8 @@ class Camera:
         Point-spread-function support radius in pixels.
     """
 
-    pixels_count: np.ndarray
-    pixel_size: np.ndarray
+    pixels_num: np.ndarray
+    pixels_size: np.ndarray
     pos_world: np.ndarray
     rot_world: Rotation
     roi_cent_world: np.ndarray
@@ -107,16 +107,16 @@ class Camera:
 
     def __post_init__(self) -> None:
         """Normalise arrays and supply an unset optical centre."""
-        self.pixels_count = np.asarray(self.pixels_count, dtype=np.int32)
-        self.pixel_size = np.asarray(self.pixel_size, dtype=np.float64)
+        self.pixels_num = np.asarray(self.pixels_num, dtype=np.int32)
+        self.pixels_size = np.asarray(self.pixels_size, dtype=np.float64)
         self.pos_world = np.asarray(self.pos_world, dtype=np.float64)
         self.roi_cent_world = np.asarray(self.roi_cent_world, dtype=np.float64)
 
         if self.c0 is None:
-            self.c0 = float(self.pixels_count[0]) / 2.0
+            self.c0 = float(self.pixels_num[0]) / 2.0
 
         if self.c1 is None:
-            self.c1 = float(self.pixels_count[1]) / 2.0
+            self.c1 = float(self.pixels_num[1]) / 2.0
 
         if isinstance(self.distortion_model, int):
             self.distortion_model = EDistortionModel(self.distortion_model)
@@ -131,9 +131,9 @@ class Camera2D:
 
     Parameters
     ----------
-    pixels_count : numpy.ndarray, optional
+    pixels_num : numpy.ndarray, optional
         Image pixel counts in ``(width, height)`` order.
-    pixel_size : float, optional
+    pixels_size : float, optional
         Physical length represented by one pixel.
     bits : int, optional
         Number of quantisation bits in the output image.
@@ -160,10 +160,10 @@ class Camera2D:
         Affine offsets between planar world and camera coordinates.
     """
 
-    pixels_count: np.ndarray = field(
+    pixels_num: np.ndarray = field(
         default_factory=lambda: np.array((1000, 1000), dtype=np.int32),
     )
-    pixel_size: float = 1.0e-3
+    pixels_size: float = 1.0e-3
     bits: int = 8
     roi_cent_world: np.ndarray = field(
         default_factory=lambda: np.zeros(3, dtype=np.float64),
@@ -180,9 +180,9 @@ class Camera2D:
 
     def __post_init__(self) -> None:
         """Normalise arrays and calculate derived camera quantities."""
-        self.pixels_count = np.asarray(self.pixels_count, dtype=np.int32)
+        self.pixels_num = np.asarray(self.pixels_num, dtype=np.int32)
         self.roi_cent_world = np.asarray(self.roi_cent_world, dtype=np.float64)
-        self.field_of_view = self.pixel_size * self.pixels_count.astype(
+        self.field_of_view = self.pixels_size * self.pixels_num.astype(
             np.float64
         )
         self.dynamic_range = 2**self.bits

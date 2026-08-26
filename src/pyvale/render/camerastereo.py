@@ -74,20 +74,20 @@ class CameraStereo:
             Reconstructed stereo camera system.
         """
         parameters = yaml.safe_load(calib_path.read_text())
-        pixels_count_0 = np.array(
+        pixels_num_0 = np.array(
             (
                 int(parameters["Cam0_Cx [pixels]"] * 2),
                 int(parameters["Cam0_Cy [pixels]"] * 2),
             )
         )
-        pixels_count_1 = np.array(
+        pixels_num_1 = np.array(
             (
                 int(parameters["Cam1_Cx [pixels]"] * 2),
                 int(parameters["Cam1_Cy [pixels]"] * 2),
             )
         )
 
-        pixel_size = focal_length / parameters["Cam0_Fx [pixels]"]
+        pixels_size = focal_length / parameters["Cam0_Fx [pixels]"]
         stereo_rotation = Rotation.from_euler(
             "xyz",
             (
@@ -113,16 +113,16 @@ class CameraStereo:
         pos_world_1 = pos_world_0 - distance
 
         camera_0 = Camera(
-            pixels_count=pixels_count_0,
-            pixel_size=np.full(2, pixel_size),
+            pixels_num=pixels_num_0,
+            pixels_size=np.full(2, pixels_size),
             pos_world=pos_world_0,
             rot_world=rot_world_0,
             roi_cent_world=np.zeros(3),
             focal_length=focal_length,
         )
         camera_1 = Camera(
-            pixels_count=pixels_count_1,
-            pixel_size=np.full(2, pixel_size),
+            pixels_num=pixels_num_1,
+            pixels_size=np.full(2, pixels_size),
             pos_world=pos_world_1,
             rot_world=rot_world_1,
             roi_cent_world=np.zeros(3),
@@ -151,10 +151,10 @@ class CameraStereo:
         rotation = self.stereo_rotation.as_euler("xyz", degrees=True)
         parameters = {
             "Cam0_Fx [pixels]": float(
-                self.camera_0.focal_length / self.camera_0.pixel_size[0]
+                self.camera_0.focal_length / self.camera_0.pixels_size[0]
             ),
             "Cam0_Fy [pixels]": float(
-                self.camera_0.focal_length / self.camera_0.pixel_size[1]
+                self.camera_0.focal_length / self.camera_0.pixels_size[1]
             ),
             "Cam0_Fs [pixels]": 0,
             "Cam0_Kappa 1": self.camera_0.distortion_k1,
@@ -165,10 +165,10 @@ class CameraStereo:
             "Cam0_Cx [pixels]": float(self.camera_0.c0),
             "Cam0_Cy [pixels]": float(self.camera_0.c1),
             "Cam1_Fx [pixels]": float(
-                self.camera_1.focal_length / self.camera_1.pixel_size[0]
+                self.camera_1.focal_length / self.camera_1.pixels_size[0]
             ),
             "Cam1_Fy [pixels]": float(
-                self.camera_1.focal_length / self.camera_1.pixel_size[1]
+                self.camera_1.focal_length / self.camera_1.pixels_size[1]
             ),
             "Cam1_Fs [pixels]": 0,
             "Cam1_Kappa 1": self.camera_1.distortion_k1,
@@ -210,8 +210,8 @@ class CameraStereo:
         camera_0 = self.camera_0
         camera_1 = self.camera_1
         lines = (
-            f"Cam0_Fx [pixels]; {camera_0.focal_length / camera_0.pixel_size[0]}",
-            f"Cam0_Fy [pixels]; {camera_0.focal_length / camera_0.pixel_size[1]}",
+            f"Cam0_Fx [pixels]; {camera_0.focal_length / camera_0.pixels_size[0]}",
+            f"Cam0_Fy [pixels]; {camera_0.focal_length / camera_0.pixels_size[1]}",
             "Cam0_Fs [pixels];0",
             f"Cam0_Kappa 1;{camera_0.distortion_k1}",
             f"Cam0_Kappa 2;{camera_0.distortion_k2}",
@@ -220,8 +220,8 @@ class CameraStereo:
             f"Cam0_P2;{camera_0.distortion_p2}",
             f"Cam0_Cx [pixels];{camera_0.c0}",
             f"Cam0_Cy [pixels];{camera_0.c1}",
-            f"Cam1_Fx [pixels]; {camera_1.focal_length / camera_1.pixel_size[0]}",
-            f"Cam1_Fy [pixels]; {camera_1.focal_length / camera_1.pixel_size[1]}",
+            f"Cam1_Fx [pixels]; {camera_1.focal_length / camera_1.pixels_size[0]}",
+            f"Cam1_Fy [pixels]; {camera_1.focal_length / camera_1.pixels_size[1]}",
             "Cam1_Fs [pixels];0",
             f"Cam1_Kappa 1;{camera_1.distortion_k1}",
             f"Cam1_Kappa 2;{camera_1.distortion_k2}",

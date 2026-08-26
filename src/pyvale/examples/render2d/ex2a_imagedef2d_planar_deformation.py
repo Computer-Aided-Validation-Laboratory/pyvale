@@ -16,8 +16,8 @@ import pyvale.render as render
 
 
 camera = render.Camera2D(
-    pixels_count=np.array((32, 32)),
-    pixel_size=1.0,
+    pixels_num=np.array((32, 32)),
+    pixels_size=1.0,
     roi_cent_world=np.array((0.0, 0.0, 0.0)),
     subsample=1,
 )

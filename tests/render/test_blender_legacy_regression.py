@@ -26,8 +26,8 @@ _GOLD = Path(__file__).parents[1] / "blender" / "2D_gold"
 
 def _camera(pixels: tuple[int, int] = (20, 20)) -> render.Camera:
     return render.Camera(
-        pixels_count=np.asarray(pixels),
-        pixel_size=np.array((0.00345, 0.00345)),
+        pixels_num=np.asarray(pixels),
+        pixels_size=np.array((0.00345, 0.00345)),
         pos_world=np.array((0.0, 0.0, 500.0)),
         rot_world=Rotation.identity(),
         roi_cent_world=np.zeros(3),
@@ -38,7 +38,7 @@ def _camera(pixels: tuple[int, int] = (20, 20)) -> render.Camera:
 def _mesh(camera: render.Camera) -> render.Mesh3D:
     sim_data = renderverif.scaled_mechanical_2d()
     resolution = (
-        camera.pixel_size[0] * camera.pos_world[2] / camera.focal_length
+        camera.pixels_size[0] * camera.pos_world[2] / camera.focal_length
     )
     shader = render.BlenderTextureShader(
         dataset.dic_pattern_5mpx_path(), resolution

@@ -210,8 +210,8 @@ def _legacy_calibration_camera(camera: Camera) -> SimpleNamespace:
     values = {
         field: getattr(camera, field) for field in camera.__dataclass_fields__
     }
-    values["pixels_num"] = camera.pixels_count
-    values["pixels_size"] = camera.pixel_size
+    values["pixels_num"] = camera.pixels_num
+    values["pixels_size"] = camera.pixels_size
     values["image_dist"] = float(
         np.linalg.norm(
             camera.pos_world - camera.roi_cent_world,

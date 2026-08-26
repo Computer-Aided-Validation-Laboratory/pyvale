@@ -128,10 +128,8 @@ class ImageDef2D(IImageWarp2D):
                 "mesh.displacement must have shape (frames, nodes, 2)."
             )
 
-        if source_image.shape != tuple(camera.pixels_count[::-1]):
-            raise ValueError(
-                "source_image shape must match camera pixels_count."
-            )
+        if source_image.shape != tuple(camera.pixels_num[::-1]):
+            raise ValueError("source_image shape must match camera pixels_num.")
 
     def _render(self, scene: Scene2D) -> ImageWarpResult:
         """Warp every displacement frame in a validated request.
@@ -227,10 +225,10 @@ class ImageDef2D(IImageWarp2D):
         )
 
         coords_raster[:, 0] = (
-            (coords_raster[:, 0] + 1) / 2 * cam_data.pixels_count[0]
+            (coords_raster[:, 0] + 1) / 2 * cam_data.pixels_num[0]
         )
         coords_raster[:, 1] = (
-            (1 - coords_raster[:, 1]) / 2 * cam_data.pixels_count[1]
+            (1 - coords_raster[:, 1]) / 2 * cam_data.pixels_num[1]
         )
 
         elem_coords = np.ascontiguousarray(coords_raster[connectivity, :])
@@ -239,8 +237,8 @@ class ImageDef2D(IImageWarp2D):
         elem_coord_max = np.max(elem_coords, axis=1)
 
         crop_mask = np.zeros([elem_coords.shape[0], 4], dtype=np.int8)
-        crop_mask[elem_coord_min[:, 0] <= (cam_data.pixels_count[0] - 1), 0] = 1
-        crop_mask[elem_coord_min[:, 1] <= (cam_data.pixels_count[1] - 1), 1] = 1
+        crop_mask[elem_coord_min[:, 0] <= (cam_data.pixels_num[0] - 1), 0] = 1
+        crop_mask[elem_coord_min[:, 1] <= (cam_data.pixels_num[1] - 1), 1] = 1
         crop_mask[elem_coord_max[:, 0] >= 0, 2] = 1
         crop_mask[elem_coord_max[:, 1] >= 0, 3] = 1
         crop_mask = np.sum(crop_mask, axis=1) == 4
@@ -258,20 +256,20 @@ class ImageDef2D(IImageWarp2D):
             elem_coord_min[:, 0]
         )
         elem_bound_boxes_inds[:, 1] = calculate_elem_bound_box_high(
-            elem_coord_max[:, 0], cam_data.pixels_count[0] - 1
+            elem_coord_max[:, 0], cam_data.pixels_num[0] - 1
         )
         elem_bound_boxes_inds[:, 2] = calculate_elem_bound_box_low(
             elem_coord_min[:, 1]
         )
         elem_bound_boxes_inds[:, 3] = calculate_elem_bound_box_high(
-            elem_coord_max[:, 1], cam_data.pixels_count[1] - 1
+            elem_coord_max[:, 1], cam_data.pixels_num[1] - 1
         )
 
         num_edges: int = 3
         if elem_coords.shape[1] > 3:
             num_edges = 4
 
-        mask_subpixel_buffer = np.full(subsample * cam_data.pixels_count, 0.0).T
+        mask_subpixel_buffer = np.full(subsample * cam_data.pixels_num, 0.0).T
         for ee in range(elem_coords.shape[0]):
             bound_subpx_x = np.arange(
                 elem_bound_boxes_inds[ee, 0],
@@ -378,11 +376,11 @@ class ImageDef2D(IImageWarp2D):
             Smoothly interpolated sub-pixel image.
         """
         (px_vec_xm, px_vec_ym) = pixel_vec_leng(
-            cam_data.field_of_view, cam_data.pixel_size
+            cam_data.field_of_view, cam_data.pixels_size
         )
 
         (subpx_vec_xm, subpx_vec_ym) = subpixel_vec_leng(
-            cam_data.field_of_view, cam_data.pixel_size, cam_data.subsample
+            cam_data.field_of_view, cam_data.pixels_size, cam_data.subsample
         )
 
         spline_interp = RectBivariateSpline(px_vec_xm, px_vec_ym, input_im.T)
@@ -453,7 +451,7 @@ class ImageDef2D(IImageWarp2D):
             disp_x = np.hstack((np.zeros((num_nodes, 1)), disp_x))
             disp_y = np.hstack((np.zeros((num_nodes, 1)), disp_y))
 
-        image_input = crop_image_rectangle(image_input, cam_data.pixels_count)
+        image_input = crop_image_rectangle(image_input, cam_data.pixels_num)
 
         if id_opts.mask_input_image or id_opts.def_complex_geom:
             if print_on:
@@ -528,8 +526,8 @@ class ImageDef2D(IImageWarp2D):
         """
 
         if image_mask is not None and (
-            image_mask.shape[0] != cam_data.pixels_count[1]
-            or image_mask.shape[1] != cam_data.pixels_count[0]
+            image_mask.shape[0] != cam_data.pixels_num[1]
+            or image_mask.shape[1] != cam_data.pixels_num[0]
         ):
             if image_mask.size == 0:
                 warnings.warn(
@@ -541,15 +539,15 @@ class ImageDef2D(IImageWarp2D):
                     "mask of whole image."
                 )
             image_mask = np.ones(
-                [cam_data.pixels_count[1], cam_data.pixels_count[0]]
+                [cam_data.pixels_num[1], cam_data.pixels_num[0]]
             )
 
         (px_grid_xm, px_grid_ym) = pixel_grid_leng(
-            cam_data.field_of_view, cam_data.pixel_size
+            cam_data.field_of_view, cam_data.pixels_size
         )
 
         (subpx_grid_xm, subpx_grid_ym) = subpixel_grid_leng(
-            cam_data.field_of_view, cam_data.pixel_size, cam_data.subsample
+            cam_data.field_of_view, cam_data.pixels_size, cam_data.subsample
         )
 
         if print_on:
@@ -813,10 +811,10 @@ def _interp_subpx_image(
     def_subpx_y = def_subpx_y[::-1, :]
 
     def_subpx_x_in_px = (
-        def_subpx_x * (cam_data.subsample / cam_data.pixel_size) - 0.5
+        def_subpx_x * (cam_data.subsample / cam_data.pixels_size) - 0.5
     )
     def_subpx_y_in_px = (
-        def_subpx_y * (cam_data.subsample / cam_data.pixel_size) - 0.5
+        def_subpx_y * (cam_data.subsample / cam_data.pixels_size) - 0.5
     )
 
     def_image_subpx = ndimage.map_coordinates(
@@ -871,8 +869,8 @@ def _deform_image_mask(
     def_px_x = def_px_x[::-1, :]
     def_px_y = def_px_y[::-1, :]
 
-    def_px_x_in_px = def_px_x * (1 / cam_data.pixel_size) - 0.5
-    def_px_y_in_px = def_px_y * (1 / cam_data.pixel_size) - 0.5
+    def_px_x_in_px = def_px_x * (1 / cam_data.pixels_size) - 0.5
+    def_px_y_in_px = def_px_y * (1 / cam_data.pixels_size) - 0.5
 
     def_mask = ndimage.map_coordinates(
         image_mask,

@@ -10,30 +10,30 @@ from .camerastereo import CameraStereo
 
 def pixel_vec_leng(
     field_of_view: np.ndarray,
-    pixel_size: float,
+    pixels_size: float,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build pixel-centre coordinate vectors for an orthographic camera."""
     return (
-        np.arange(pixel_size / 2.0, field_of_view[0], pixel_size),
-        np.arange(pixel_size / 2.0, field_of_view[1], pixel_size),
+        np.arange(pixels_size / 2.0, field_of_view[0], pixels_size),
+        np.arange(pixels_size / 2.0, field_of_view[1], pixels_size),
     )
 
 
 def pixel_grid_leng(
     field_of_view: np.ndarray,
-    pixel_size: float,
+    pixels_size: float,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build pixel-centre coordinate grids for an orthographic camera."""
-    return np.meshgrid(*pixel_vec_leng(field_of_view, pixel_size))
+    return np.meshgrid(*pixel_vec_leng(field_of_view, pixels_size))
 
 
 def subpixel_vec_leng(
     field_of_view: np.ndarray,
-    pixel_size: float,
+    pixels_size: float,
     subsample: int,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build sub-pixel-centre coordinate vectors."""
-    spacing = pixel_size / subsample
+    spacing = pixels_size / subsample
     return (
         np.arange(spacing / 2.0, field_of_view[0], spacing),
         np.arange(spacing / 2.0, field_of_view[1], spacing),
@@ -42,21 +42,21 @@ def subpixel_vec_leng(
 
 def subpixel_grid_leng(
     field_of_view: np.ndarray,
-    pixel_size: float,
+    pixels_size: float,
     subsample: int,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build sub-pixel-centre coordinate grids."""
     return np.meshgrid(
-        *subpixel_vec_leng(field_of_view, pixel_size, subsample),
+        *subpixel_vec_leng(field_of_view, pixels_size, subsample),
     )
 
 
 def crop_image_rectangle(
     image: np.ndarray,
-    pixels_count: np.ndarray,
+    pixels_num: np.ndarray,
 ) -> np.ndarray:
     """Crop an image to its camera extent from the upper-left corner."""
-    return image[: pixels_count[1], : pixels_count[0]]
+    return image[: pixels_num[1], : pixels_num[0]]
 
 
 def average_subpixel_image(image: np.ndarray, subsample: int) -> np.ndarray:
@@ -77,8 +77,8 @@ def faceon_stereo_cameras(
     """Create face-on stereo cameras from one reference view."""
     baseline = camera.pos_world[2] * np.tan(np.radians(stereo_angle))
     camera_1 = Camera(
-        pixels_count=camera.pixels_count.copy(),
-        pixel_size=camera.pixel_size.copy(),
+        pixels_num=camera.pixels_num.copy(),
+        pixels_size=camera.pixels_size.copy(),
         pos_world=camera.pos_world + np.array((baseline, 0.0, 0.0)),
         rot_world=Rotation.from_euler(
             "xyz",
@@ -107,8 +107,8 @@ def symmetric_stereo_cameras(
 
     def make_camera(offset: float, angle: float) -> Camera:
         return Camera(
-            pixels_count=camera.pixels_count.copy(),
-            pixel_size=camera.pixel_size.copy(),
+            pixels_num=camera.pixels_num.copy(),
+            pixels_size=camera.pixels_size.copy(),
             pos_world=camera.pos_world + np.array((offset, 0.0, 0.0)),
             rot_world=Rotation.from_euler(
                 "xyz",

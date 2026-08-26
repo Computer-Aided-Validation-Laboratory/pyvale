@@ -21,6 +21,31 @@ _RILEY_EXAMPLES = (
         "render3d/ex1a_riley_quickstart.py",
         "pyvale-output/render-riley-quickstart/cam0_frame0_field0.bmp",
     ),
+    pytest.param(
+        "render3d/ex1b_riley_sphere200.py",
+        "pyvale-output/render-riley-sphere200/cam0_frame0_field0.bmp",
+    ),
+    pytest.param(
+        "render3d/ex1c_riley_psf.py",
+        "pyvale-output/render-riley-psf/global_subpx_full/"
+        "cam0_frame0_field0.bmp",
+    ),
+    pytest.param(
+        "render3d/ex1d_riley_rabbits.py",
+        "pyvale-output/render-riley-rabbits/cam0_frame0_field0.bmp",
+    ),
+    pytest.param(
+        "render3d/ex1e_riley_dicuq.py",
+        "pyvale-output/render-riley-dicuq/cam0_frame0_field0.bmp",
+    ),
+    pytest.param(
+        "render3d/ex1f_riley_dic_from_exodus.py",
+        "pyvale-output/render-riley-exodus/cam0_frame0_field0.bmp",
+    ),
+    pytest.param(
+        "render3d/ex1g_riley_stereocal.py",
+        "pyvale-output/render-riley-stereocal/cam0_frame0_field0.bmp",
+    ),
 )
 
 _BLENDER_EXAMPLES = (
@@ -59,10 +84,12 @@ def test_blender_render3d_example(
     work_dir = run_example(example, ("pyvale-output",), timeout=300.0)
 
     if example.endswith("ex2f_blender_calibration_target.py"):
-        images = tuple((
-            work_dir
-            / "pyvale-output"
-            / "render-blender-calibration-images"
-            / "calimages"
-        ).glob("*.tiff"))
+        images = tuple(
+            (
+                work_dir
+                / "pyvale-output"
+                / "render-blender-calibration-images"
+                / "calimages"
+            ).glob("*.tiff")
+        )
         assert len(images) == 10

@@ -32,8 +32,8 @@ def build_scene() -> tuple[render.Mesh3D, render.Camera, list[render.Light]]:
     )
 
     camera = render.Camera(
-        pixels_count=np.array((128, 128)),
-        pixel_size=np.array((0.00345, 0.00345)),
+        pixels_num=np.array((128, 128)),
+        pixels_size=np.array((0.00345, 0.00345)),
         pos_world=np.array((0.0, 0.0, 500.0)),
         rot_world=Rotation.identity(),
         roi_cent_world=np.zeros(3),

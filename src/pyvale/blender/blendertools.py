@@ -289,7 +289,7 @@ class Tools:
         -------
         np.ndarray
             The rendered image as an array with the following dimensions:
-            shape=(pixels_count_y, pixels_count_x)
+            shape=(pixels_num_y, pixels_num_x)
         """
         image = Image.open(filepath)
         image_array = np.asarray(image)
@@ -431,8 +431,8 @@ class Tools:
                                         break
                                     bpy.context.scene.camera = cam
                                     cam_data_render = render_data.cam_data[cam_count]
-                                    bpy.context.scene.render.resolution_x = cam_data_render.pixels_count[0]
-                                    bpy.context.scene.render.resolution_y = cam_data_render.pixels_count[1]
+                                    bpy.context.scene.render.resolution_x = cam_data_render.pixels_num[0]
+                                    bpy.context.scene.render.resolution_y = cam_data_render.pixels_num[1]
                                     filename = "blendercal_" + str(render_counter) + "_" + str(cam_count) + ".tiff"
                                     bpy.context.scene.render.filepath = str(save_dir / filename)
                                     bpy.ops.render.render(write_still=True)

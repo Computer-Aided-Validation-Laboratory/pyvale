@@ -41,16 +41,16 @@ def main() -> None:
     # frame on the speckled specimen. The pixel size is chosen so the sensor
     # width stays above Blender's 1 mm minimum, and the texture is sampled at
     # the true millimetres-per-pixel of the rendered image.
-    pixel_size = 0.02
+    pixels_size = 0.02
     camera = render.Camera(
-        pixels_count=np.array((64, 64)),
-        pixel_size=np.array((pixel_size, pixel_size)),
+        pixels_num=np.array((64, 64)),
+        pixels_size=np.array((pixels_size, pixels_size)),
         pos_world=np.array((-40.0, -40.0, 500.0)),
         rot_world=Rotation.identity(),
         roi_cent_world=np.array((-40.0, -40.0, 0.0)),
         focal_length=15.0,
     )
-    texture_resolution = camera.pixel_size[0] * 500.0 / camera.focal_length
+    texture_resolution = camera.pixels_size[0] * 500.0 / camera.focal_length
     mesh = render.mesh3d_from_simdata(
         sim_data,
         render.BlenderTextureShader(

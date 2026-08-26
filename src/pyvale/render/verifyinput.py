@@ -204,21 +204,21 @@ def verify_scene_3d(
     for camera_index, camera in enumerate(cameras):
         path = f"cameras[{camera_index}]"
 
-        if camera.pixels_count.shape != (2,) or np.any(
-            camera.pixels_count <= 0
-        ):
+        if camera.pixels_num.shape != (2,) or np.any(camera.pixels_num <= 0):
             issues.append(
                 ValidationIssue(
-                    path + ".pixels_count",
+                    path + ".pixels_num",
                     "VALUE",
                     "Expected two positive counts.",
                 )
             )
 
-        if camera.pixel_size.shape != (2,) or np.any(camera.pixel_size <= 0.0):
+        if camera.pixels_size.shape != (2,) or np.any(
+            camera.pixels_size <= 0.0
+        ):
             issues.append(
                 ValidationIssue(
-                    path + ".pixel_size",
+                    path + ".pixels_size",
                     "VALUE",
                     "Expected two positive sizes.",
                 )

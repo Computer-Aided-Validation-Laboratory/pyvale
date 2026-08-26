@@ -28,8 +28,8 @@ def test_riley_returns_canonical_image_layout() -> None:
         func_shader_coord_mode=riley.FuncCoordMode.world_reference,
     )
     camera = render.Camera(
-        pixels_count=np.array((32, 32)),
-        pixel_size=np.array((0.02, 0.02)),
+        pixels_num=np.array((32, 32)),
+        pixels_size=np.array((0.02, 0.02)),
         pos_world=np.array((0.0, 0.0, 2.0)),
         rot_world=Rotation.identity(),
         roi_cent_world=np.zeros(3),
@@ -41,6 +41,52 @@ def test_riley_returns_canonical_image_layout() -> None:
     result = render.Riley(config).render(render.Scene3D([mesh], [camera]))
     assert result.images is not None
     assert result.images.shape == (1, 1, 32, 32, 1)
+
+
+def test_common_mesh_matches_native_riley_mesh() -> None:
+    """Mesh3D conversion preserves native Riley rendering exactly."""
+    coords = np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0)))
+    connectivity = np.array(((0, 1, 2),))
+    native_mesh = riley.Mesh(
+        riley.MeshType.tri3,
+        coords,
+        connectivity,
+        shader_type=riley.ShaderType.func,
+        func_shader_builtin=riley.FuncShaderBuiltin.checker,
+        func_shader_coord_mode=riley.FuncCoordMode.world_reference,
+    )
+    common_mesh = render.Mesh3D(
+        element_type=render.EElementType.TRI3,
+        coords=coords,
+        connectivity=connectivity,
+        shader=render.RileyFunctionShader(
+            builtin=riley.FuncShaderBuiltin.checker,
+            coord_mode=riley.FuncCoordMode.world_reference,
+        ),
+    )
+    camera = render.Camera(
+        pixels_num=np.array((32, 32)),
+        pixels_size=np.array((0.02, 0.02)),
+        pos_world=np.array((0.0, 0.0, 2.0)),
+        rot_world=Rotation.identity(),
+        roi_cent_world=np.zeros(3),
+        focal_length=1.0,
+    )
+
+    def render_mesh(mesh: object) -> np.ndarray:
+        config = riley.create_raster_config(
+            1,
+            total_threads=1,
+            save_strategy=riley.SaveStrategy.memory,
+        )
+        result = render.Riley(config).render(render.Scene3D([mesh], [camera]))
+        assert result.images is not None
+        return result.images
+
+    np.testing.assert_array_equal(
+        render_mesh(common_mesh),
+        render_mesh(native_mesh),
+    )
 
 
 def test_riley_rabbit_multimesh_golden_regression() -> None:

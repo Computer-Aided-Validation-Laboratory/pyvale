@@ -13,9 +13,14 @@ import riley
 from .camera import Camera
 from .capabilities import RenderCapabilities
 from .errors import ValidationIssue
-from .mesh import EElementType
+from .mesh import EElementType, Mesh3D
 from .renderer3d import IRenderer3D
 from .result import RenderResult
+from .rileyshader import (
+    RileyFunctionShader,
+    RileyNodalShader,
+    RileyTextureShader,
+)
 from .scene import Scene3D
 from .verifyinput import mesh_convention_issues, raise_if_issues
 
@@ -115,20 +120,34 @@ class Riley(IRenderer3D):
             )
 
         for mesh_index, mesh in enumerate(scene.meshes):
-            if not isinstance(mesh, riley.Mesh):
+            if not isinstance(mesh, (Mesh3D, riley.Mesh)):
                 issues.append(
                     ValidationIssue(
                         f"scene.meshes[{mesh_index}]",
                         "TYPE",
-                        "Riley requires native riley.Mesh objects.",
+                        "Riley requires render.Mesh3D or riley.Mesh objects.",
                     )
                 )
                 continue
 
+            if isinstance(mesh, Mesh3D) and not isinstance(
+                mesh.shader,
+                (RileyFunctionShader, RileyNodalShader, RileyTextureShader),
+            ):
+                issues.append(
+                    ValidationIssue(
+                        f"scene.meshes[{mesh_index}].shader",
+                        "TYPE",
+                        "Expected a Riley shader description.",
+                    )
+                )
+
             issues.extend(
                 mesh_convention_issues(
                     mesh.coords,
-                    mesh.connect,
+                    mesh.connectivity
+                    if isinstance(mesh, Mesh3D)
+                    else mesh.connect,
                     f"scene.meshes[{mesh_index}]",
                 )
             )
@@ -154,8 +173,12 @@ class Riley(IRenderer3D):
         if self.output_dir is not None:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        meshes = [
+            _mesh_to_riley(mesh) if isinstance(mesh, Mesh3D) else mesh
+            for mesh in scene.meshes
+        ]
         images = riley.raster(
-            list(scene.meshes),
+            meshes,
             [_camera_to_riley(camera) for camera in scene.cameras],
             self.config,
             out_dir=output_dir,
@@ -183,21 +206,21 @@ def _verify_cameras(cameras: tuple[Camera, ...]) -> tuple[ValidationIssue, ...]:
             )
             continue
 
-        if camera.pixels_count.shape != (2,) or np.any(
-            camera.pixels_count <= 0
-        ):
+        if camera.pixels_num.shape != (2,) or np.any(camera.pixels_num <= 0):
             issues.append(
                 ValidationIssue(
-                    path + ".pixels_count",
+                    path + ".pixels_num",
                     "VALUE",
                     "Expected two positive counts.",
                 )
             )
 
-        if camera.pixel_size.shape != (2,) or np.any(camera.pixel_size <= 0.0):
+        if camera.pixels_size.shape != (2,) or np.any(
+            camera.pixels_size <= 0.0
+        ):
             issues.append(
                 ValidationIssue(
-                    path + ".pixel_size",
+                    path + ".pixels_size",
                     "VALUE",
                     "Expected two positive sizes.",
                 )
@@ -218,8 +241,8 @@ def _verify_cameras(cameras: tuple[Camera, ...]) -> tuple[ValidationIssue, ...]:
 def _camera_to_riley(camera: Camera) -> riley.Camera:
     """Convert one common perspective camera to a Riley camera."""
     return riley.Camera(
-        pixels_num=tuple(int(value) for value in camera.pixels_count),
-        pixels_size=tuple(float(value) for value in camera.pixel_size),
+        pixels_num=tuple(int(value) for value in camera.pixels_num),
+        pixels_size=tuple(float(value) for value in camera.pixels_size),
         pos_world=tuple(float(value) for value in camera.pos_world),
         rot_world=tuple(
             float(value) for value in camera.rot_world.as_euler("xyz")
@@ -241,6 +264,65 @@ def _camera_to_riley(camera: Camera) -> riley.Camera:
         psf_sigma_y=camera.psf_sigma_y,
         psf_theta=camera.psf_theta,
         psf_support_rad=camera.psf_support_rad,
+    )
+
+
+_RILEY_MESH_TYPES = {
+    EElementType.TRI3: riley.MeshType.tri3,
+    EElementType.TRI6: riley.MeshType.tri6,
+    EElementType.QUAD4: riley.MeshType.quad4newton,
+    EElementType.QUAD8: riley.MeshType.quad8,
+    EElementType.QUAD9: riley.MeshType.quad9,
+}
+
+
+def _mesh_to_riley(mesh: Mesh3D) -> riley.Mesh:
+    """Convert a common mesh and Riley shader to native Riley input."""
+    common = {
+        "mesh_type": _RILEY_MESH_TYPES[mesh.element_type],
+        "coords": mesh.coords,
+        "connect": mesh.connectivity,
+        "disp": mesh.displacements,
+    }
+    shader = mesh.shader
+
+    if isinstance(shader, RileyTextureShader):
+        return riley.Mesh(
+            shader_type=riley.ShaderType.tex,
+            uvs=shader.uvs,
+            texture=shader.texture,
+            sample=shader.sample,
+            sample_mode=shader.sample_mode,
+            bits=shader.bits,
+            scaling_type=shader.scaling,
+            **common,
+        )
+
+    if isinstance(shader, RileyNodalShader):
+        return riley.Mesh(
+            shader_type=riley.ShaderType.nodal,
+            nodal_field=shader.field,
+            bits=shader.bits,
+            scaling_type=shader.scaling,
+            scale_over=shader.scale_over,
+            **common,
+        )
+
+    if isinstance(shader, RileyFunctionShader):
+        return riley.Mesh(
+            shader_type=riley.ShaderType.func,
+            uvs=shader.uvs,
+            func_shader_builtin=shader.builtin,
+            func_shader_coord_mode=shader.coord_mode,
+            func_shader_params=shader.parameters,
+            bits=shader.bits,
+            scaling_type=shader.scaling,
+            **common,
+        )
+
+    raise TypeError(
+        "Riley Mesh3D.shader must be RileyFunctionShader, "
+        "RileyTextureShader, or RileyNodalShader."
     )
 
 

@@ -29,7 +29,7 @@ pattern = render.AdditiveSpeckles.jittered_lattice(
     bounds=(-20.0, 20.0, -20.0, 20.0),
 )
 camera = render.Camera2D(
-    pixels_count=np.array((32, 32)), pixel_size=1.0,
+    pixels_num=np.array((32, 32)), pixels_size=1.0,
     roi_cent_world=np.zeros(3),
 )
 scene = render.Scene2D(mesh=mesh, camera=camera)

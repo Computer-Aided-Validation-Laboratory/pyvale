@@ -82,6 +82,11 @@ from .pxint2d import (
 from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
 from .riley import Riley
+from .rileyshader import (
+    RileyFunctionShader,
+    RileyNodalShader,
+    RileyTextureShader,
+)
 from .scene import Scene2D, Scene3D
 
 __all__ = [
@@ -132,6 +137,9 @@ __all__ = [
     "RenderInputError",
     "RenderResult",
     "Riley",
+    "RileyFunctionShader",
+    "RileyNodalShader",
+    "RileyTextureShader",
     "Scene2D",
     "Scene3D",
     "ValidationIssue",

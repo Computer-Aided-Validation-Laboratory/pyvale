@@ -15,8 +15,8 @@ import pyvale.render as render
 def make_camera() -> render.Camera:
     """Create a small valid perspective camera."""
     return render.Camera(
-        pixels_count=np.array((16, 16)),
-        pixel_size=np.array((0.1, 0.1)),
+        pixels_num=np.array((16, 16)),
+        pixels_size=np.array((0.1, 0.1)),
         pos_world=np.array((0.0, 0.0, 2.0)),
         rot_world=Rotation.identity(),
         roi_cent_world=np.zeros(3),

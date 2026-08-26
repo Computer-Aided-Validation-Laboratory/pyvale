@@ -73,26 +73,32 @@ def preview_range(backend: str) -> tuple[float, float]:
 
 
 def _translation_case() -> RenderConformanceCase:
-    coords = np.array((
-        (-1.05, -0.85),
-        (0.85, -0.65),
-        (-0.35, 1.05),
-    ))
+    coords = np.array(
+        (
+            (-1.05, -0.85),
+            (0.85, -0.65),
+            (-0.35, 1.05),
+        )
+    )
     displacement = np.tile((0.30, 0.20), (3, 1))
     return _case("tri3_deforming", coords, ((0, 1, 2),), displacement)
 
 
 def _shared_edge_case() -> RenderConformanceCase:
-    coords = np.array((
-        (-0.95, -0.95),
-        (0.95, -0.95),
-        (0.95, 0.95),
-        (-0.95, 0.95),
-    ))
-    displacement = np.column_stack((
-        0.18 + 0.12 * coords[:, 0],
-        0.10 - 0.08 * coords[:, 0],
-    ))
+    coords = np.array(
+        (
+            (-0.95, -0.95),
+            (0.95, -0.95),
+            (0.95, 0.95),
+            (-0.95, 0.95),
+        )
+    )
+    displacement = np.column_stack(
+        (
+            0.18 + 0.12 * coords[:, 0],
+            0.10 - 0.08 * coords[:, 0],
+        )
+    )
     return _case(
         "tri3_shared_edge",
         coords,
@@ -102,11 +108,13 @@ def _shared_edge_case() -> RenderConformanceCase:
 
 
 def _clipping_case() -> RenderConformanceCase:
-    coords = np.array((
-        (0.35, -0.75),
-        (1.35, -0.55),
-        (0.80, 0.75),
-    ))
+    coords = np.array(
+        (
+            (0.35, -0.75),
+            (1.35, -0.55),
+            (0.80, 0.75),
+        )
+    )
     displacement = np.tile((0.55, 0.45), (3, 1))
     return _case("tri3_clipping", coords, ((0, 1, 2),), displacement)
 
@@ -129,8 +137,8 @@ def _case(
 
 def _camera_2d() -> render.Camera2D:
     return render.Camera2D(
-        pixels_count=np.array((IMAGE_SIZE, IMAGE_SIZE)),
-        pixel_size=0.1,
+        pixels_num=np.array((IMAGE_SIZE, IMAGE_SIZE)),
+        pixels_size=0.1,
         roi_cent_world=np.zeros(3),
         background=0.15,
         subsample=1,
@@ -139,8 +147,8 @@ def _camera_2d() -> render.Camera2D:
 
 def _camera_3d() -> render.Camera:
     return render.Camera(
-        pixels_count=np.array((IMAGE_SIZE, IMAGE_SIZE)),
-        pixel_size=np.array((0.1, 0.1)),
+        pixels_num=np.array((IMAGE_SIZE, IMAGE_SIZE)),
+        pixels_size=np.array((0.1, 0.1)),
         pos_world=np.array((0.0, 0.0, 2.0)),
         rot_world=Rotation.identity(),
         roi_cent_world=np.zeros(3),
@@ -206,15 +214,19 @@ def _render_riley(
     params = riley.FuncShaderParams(
         linear_coeffs=(0.55, 0.12, -0.08),
     )
-    mesh = riley.Mesh(
-        riley.MeshType.tri3,
-        np.pad(case.coords, ((0, 0), (0, 1))),
-        case.connectivity,
-        disp=np.pad(case.displacements, ((0, 0), (0, 0), (0, 1))),
-        shader_type=riley.ShaderType.func,
-        func_shader_builtin=riley.FuncShaderBuiltin.linear,
-        func_shader_coord_mode=riley.FuncCoordMode.world_reference,
-        func_shader_params=params,
+    mesh = render.Mesh3D(
+        element_type=render.EElementType.TRI3,
+        coords=np.pad(case.coords, ((0, 0), (0, 1))),
+        connectivity=case.connectivity,
+        displacements=np.pad(
+            case.displacements,
+            ((0, 0), (0, 0), (0, 1)),
+        ),
+        shader=render.RileyFunctionShader(
+            builtin=riley.FuncShaderBuiltin.linear,
+            coord_mode=riley.FuncCoordMode.world_reference,
+            parameters=params,
+        ),
     )
     config = riley.create_raster_config(
         2,
@@ -235,13 +247,15 @@ def _render_imagedef2d(
 ) -> np.ndarray:
     output_dir.mkdir(parents=True, exist_ok=True)
     axis = np.linspace(0.0, 1.0, IMAGE_SIZE)
-    source_image = 255.0 * (
-        0.25 + 0.5 * axis[None, :] + 0.25 * axis[:, None]
-    )
+    source_image = 255.0 * (0.25 + 0.5 * axis[None, :] + 0.25 * axis[:, None])
     scene = render.Scene2D(_mesh_2d(case), _camera_2d(), source_image)
-    return render.ImageDef2D(
-        render.ImageDefOpts(save_path=output_dir),
-    ).render(scene).images
+    return (
+        render.ImageDef2D(
+            render.ImageDefOpts(save_path=output_dir),
+        )
+        .render(scene)
+        .images
+    )
 
 
 def _render_pixint_grid(
