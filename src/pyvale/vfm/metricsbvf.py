@@ -52,14 +52,15 @@ class MetricSBVF(IMetric):
     virtual work as the objective to minimise
     """
 
-    mesh_size: npt.NDArray[np.uint32]
-    """Number of virtual-mesh elements along each axis, e.g. ``[15, 15]``"""
+    mesh_size: npt.NDArray[np.uint32] = field(
+        default_factory=lambda: np.asarray((15, 15), dtype=np.uint32)
+    )
+    """Number of virtual-mesh elements along each axis, defaulting to ``[15, 15]``."""
 
-    # TODO: option to adjust fraction of largest timesteps used for
-    #   calculating VF scaling factor
-    vf_scaling_fraction: float | None = None
-    """Optional fraction of the largest-magnitude timesteps used to compute
-    the virtual-field scaling factor. When ``None`` all timesteps are used."""
+    vf_scaling_fraction: float | None = 0.3
+    """Fraction of the largest-magnitude timesteps used to compute the
+    virtual-field scaling factor, defaulting to the top 30%. Set to ``None``
+    to disable scaling."""
 
     stress_area_scale: float = 1.0
     """Convert ``stress * area`` to force for the experiment-data units.
