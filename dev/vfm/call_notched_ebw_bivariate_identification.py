@@ -46,8 +46,8 @@ DATASET = Path("/home/robh/1_Projects/pyvale-vfm-test-data/notched-ebw/synthetic
 INPUT_PATH = DATASET / "prepared"
 OUTPUT_ROOT = DATASET / "identification"
 
-ELASTIC_MODULUS_MPA = 190_000.0
-POISSONS_RATIO = 0.28
+ELASTIC_MODULUS_MPA = 210_000.0
+POISSONS_RATIO = 0.3
 INITIAL_YIELD_STRENGTH_MPA = 360.0
 INITIAL_HARDENING_MODULUS_MPA = 3_700.0
 
@@ -88,10 +88,10 @@ def main() -> None:
         dtype=np.uint32,
     )
     parameters = {
-        "elastic_modulus": ConstitutiveParameter(ELASTIC_MODULUS_MPA, 150_000.0, 250_000.0, parameter_map_size),
-        "poissons_ratio": ConstitutiveParameter(POISSONS_RATIO, 0.2, 0.4, parameter_map_size),
-        "yield_strength": ConstitutiveParameter(INITIAL_YIELD_STRENGTH_MPA, *YIELD_BOUNDS_MPA, parameter_map_size),
-        "hardening_modulus": ConstitutiveParameter(INITIAL_HARDENING_MODULUS_MPA, *HARDENING_BOUNDS_MPA, parameter_map_size),
+        "elastic_modulus": ConstitutiveParameter(args.elastic_modulus, 150_000.0, 250_000.0, parameter_map_size),
+        "poissons_ratio": ConstitutiveParameter(args.poissons_ratio, 0.2, 0.4, parameter_map_size),
+        "yield_strength": ConstitutiveParameter(args.initial_yield_strength, *YIELD_BOUNDS_MPA, parameter_map_size),
+        "hardening_modulus": ConstitutiveParameter(args.initial_hardening_modulus, *HARDENING_BOUNDS_MPA, parameter_map_size),
     }
 
     phase_0 = IdentificationPhase(
@@ -103,14 +103,14 @@ def main() -> None:
         },
         metrics=[MetricSBVF(mesh_size=SBVF_MESH_SIZE, vf_scaling_fraction=SBVF_SCALING_FRACTION)],
         objective_function=VectorFirstResultPassthrough(),
-        optimiser=OptimiserLeastSquares(max_evaluations=PHASE_0_MAX_EVALUATIONS),
+        optimiser=OptimiserLeastSquares(max_evaluations=args.phase_0_max_evaluations),
     )
 
     x = experiment_data.specimen_geometry.x
     y = experiment_data.specimen_geometry.y
-    force_metric_phase_1 = SliceWiseForceReconstructionMetric(slice_config=SliceConfig(axis="x", num_slices=FORCE_SLICES))
-    equilibrium_gap_metrics_phase_1 = [EquilibriumGapMetric(window_size=window) for window in EGI_WINDOWS]
-    egi_window_weights = [window[0] for window in EGI_WINDOWS]
+    force_metric_phase_1 = SliceWiseForceReconstructionMetric(slice_config=SliceConfig(axis="x", num_slices=args.force_slices))
+    equilibrium_gap_metrics_phase_1 = [EquilibriumGapMetric(window_size=window) for window in args.egi_windows]
+    egi_window_weights = [window[0] for window in args.egi_windows]
     yield_strength_basis = SpatialParameterisationBasisFunction(
         x=x,
         y=y,
@@ -126,7 +126,7 @@ def main() -> None:
         },
         metrics=[force_metric_phase_1, *equilibrium_gap_metrics_phase_1],
         objective_function=CombinedForceAndEquilibriumGapObjective(
-            force_weight=FORCE_WEIGHT,
+            force_weight=args.force_weight,
             egi_window_weights=egi_window_weights,
             baseline=CombinedObjectiveBaseline.prior_phase(0),
         ),
@@ -139,8 +139,8 @@ def main() -> None:
         ),
         refinement_policy=EquilibriumGapBasisGrowthRefinement(
             target=yield_strength_basis,
-            max_basis_functions=MAX_BASIS_FUNCTIONS,
-            relative_improvement_threshold=MINIMUM_OBJECTIVE_IMPROVEMENT,
+            max_basis_functions=args.max_basis_functions,
+            relative_improvement_threshold=args.minimum_objective_improvement,
         ),
     )
 
@@ -152,15 +152,22 @@ def main() -> None:
         progress_callback=ConsoleProgressReporter().report if args.show_progress else None,
     )
 
-    output_dir = args.output_root / experiment_data_file.parent.name / "bivariate_gaussian"
+    output_dir = args.output_root / args.run_name
     result_file = result.save_to_yaml(output_dir)
     summary = {
         "input": str(experiment_data_file),
         "result": str(result_file),
-        "maximum_basis_functions": MAX_BASIS_FUNCTIONS,
-        "minimum_objective_improvement": MINIMUM_OBJECTIVE_IMPROVEMENT,
-        "force_weight": FORCE_WEIGHT,
-        "egi_windows": EGI_WINDOWS,
+        "run_name": args.run_name,
+        "elastic_modulus_mpa": args.elastic_modulus,
+        "poissons_ratio": args.poissons_ratio,
+        "initial_yield_strength_mpa": args.initial_yield_strength,
+        "initial_hardening_modulus_mpa": args.initial_hardening_modulus,
+        "phase_0_max_evaluations": args.phase_0_max_evaluations,
+        "maximum_basis_functions": args.max_basis_functions,
+        "minimum_objective_improvement": args.minimum_objective_improvement,
+        "force_weight": args.force_weight,
+        "force_slices": args.force_slices,
+        "egi_windows": args.egi_windows,
         "stress_backend": args.stress_backend,
         "phases": ["homogeneous", "bivariate_gaussian"],
     }
@@ -172,6 +179,17 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=INPUT_PATH)
     parser.add_argument("--output-root", type=Path, default=OUTPUT_ROOT)
+    parser.add_argument("--run-name", default="prepared/bivariate_gaussian")
+    parser.add_argument("--elastic-modulus", type=float, default=ELASTIC_MODULUS_MPA)
+    parser.add_argument("--poissons-ratio", type=float, default=POISSONS_RATIO)
+    parser.add_argument("--initial-yield-strength", type=float, default=INITIAL_YIELD_STRENGTH_MPA)
+    parser.add_argument("--initial-hardening-modulus", type=float, default=INITIAL_HARDENING_MODULUS_MPA)
+    parser.add_argument("--phase-0-max-evaluations", type=int, default=PHASE_0_MAX_EVALUATIONS)
+    parser.add_argument("--force-weight", type=float, default=FORCE_WEIGHT)
+    parser.add_argument("--force-slices", type=int, default=FORCE_SLICES)
+    parser.add_argument("--egi-windows", type=_parse_egi_windows, default=EGI_WINDOWS, help="Comma-separated odd square window sizes, e.g. 15,29,41.")
+    parser.add_argument("--max-basis-functions", type=int, default=MAX_BASIS_FUNCTIONS)
+    parser.add_argument("--minimum-objective-improvement", type=float, default=MINIMUM_OBJECTIVE_IMPROVEMENT)
     parser.add_argument("--minimum-mesh-size", type=float, default=MINIMUM_MESH_SIZE)
     parser.add_argument("--max-iterations", type=int, default=MAX_ITERATIONS)
     parser.add_argument("--max-evaluations", type=int, default=PHASE_1_MAX_EVALUATIONS, help="Maximum pattern-search evaluations in phase 1.")
@@ -181,9 +199,22 @@ def _parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if not 0.0 < args.minimum_mesh_size <= INITIAL_MESH_SIZE:
         parser.error(f"--minimum-mesh-size must lie in (0, {INITIAL_MESH_SIZE}].")
-    if args.max_iterations < 1 or args.max_evaluations < 1 or args.parallel_workers < 1:
+    if args.max_iterations < 1 or args.max_evaluations < 1 or args.parallel_workers < 1 or args.phase_0_max_evaluations < 1:
         parser.error("Iteration, evaluation, and worker counts must be positive.")
+    if not 0.0 <= args.force_weight <= 1.0:
+        parser.error("--force-weight must lie in [0, 1].")
+    if args.force_slices < 2 or args.max_basis_functions < 1:
+        parser.error("Force slices must be at least two and max bases must be positive.")
+    if not 0.0 <= args.minimum_objective_improvement < 1.0:
+        parser.error("--minimum-objective-improvement must lie in [0, 1).")
     return args
+
+
+def _parse_egi_windows(value: str) -> tuple[tuple[int, int], ...]:
+    sizes = tuple(int(item.strip()) for item in value.split(",") if item.strip())
+    if not sizes or any(size < 3 or size % 2 == 0 for size in sizes):
+        raise argparse.ArgumentTypeError("EGI windows must be odd integers of at least 3.")
+    return tuple((size, size) for size in sizes)
 
 
 def _create_constitutive_law(stress_backend: str):

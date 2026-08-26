@@ -289,6 +289,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
     initial_kernels_max: int
     initial_height_fraction: float
     kernel_type: Literal["univariate", "bivariate"]
+    centre_bounds_span_factor: float
 
     def __init__(
         self,
@@ -301,6 +302,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         initial_kernels_max: int = 1,
         initial_height_fraction: float = 0.01,
         kernel_type: Literal["univariate", "bivariate"] = "univariate",
+        centre_bounds_span_factor: float = 1.0,
     ) -> None:
         if initial_kernels_max < 1:
             raise ValueError("initial_kernels_max must be at least one.")
@@ -312,6 +314,8 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             raise ValueError(
                 "kernel_type must be 'univariate' or 'bivariate'."
             )
+        if centre_bounds_span_factor < 1.0:
+            raise ValueError("centre_bounds_span_factor must be at least 1.0.")
 
         if support is None:
             if x is None or y is None:
@@ -333,6 +337,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         self.initial_kernels_max = initial_kernels_max
         self.initial_height_fraction = initial_height_fraction
         self.kernel_type = kernel_type
+        self.centre_bounds_span_factor = centre_bounds_span_factor
 
         self._ensure_heights_match_support()
 
@@ -430,6 +435,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         parameter_range: float,
         max_basis_functions: int | None = None,
         minimum_relative_improvement: float | None = None,
+        fit_mask: npt.NDArray[np.bool_] | None = None,
     ) -> None:
         """Add and fit Gaussian bases to a map with the given value range."""
 
@@ -450,6 +456,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             parameter_range,
             max_basis_functions=max_basis_functions,
             minimum_relative_improvement=minimum_relative_improvement,
+            fit_mask=fit_mask,
         )
 
     def to_map(
@@ -617,6 +624,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         self,
         target_map: npt.NDArray[np.float64],
         include_support_degrees_of_freedom: bool,
+        fit_mask: npt.NDArray[np.bool_] | None = None,
     ) -> None:
         degrees_of_freedom = self._collect_internal_degrees_of_freedom(
             include_support_degrees_of_freedom
@@ -642,6 +650,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
                     prev_rmses,
                     converged_dofs,
                     include_support_degrees_of_freedom,
+                    fit_mask,
                 ),
                 normalised_dofs,
                 method="L-BFGS-B",
@@ -676,21 +685,31 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         *,
         max_basis_functions: int | None = None,
         minimum_relative_improvement: float | None = None,
+        fit_mask: npt.NDArray[np.bool_] | None = None,
     ) -> None:
         kernel, height = self._initialise_kernel(
             target_map,
             const_param_range,
+            fit_mask=fit_mask,
         )
         self.kernels.append(kernel)
         self.heights.append(height)
-        self._fit_internal_dofs(
-            target_map,
-            include_support_degrees_of_freedom=True,
-        )
+        if fit_mask is None:
+            self._fit_internal_dofs(
+                target_map,
+                include_support_degrees_of_freedom=True,
+            )
+        else:
+            self._fit_internal_dofs(
+                target_map,
+                include_support_degrees_of_freedom=True,
+                fit_mask=fit_mask,
+            )
 
         rmse = _calc_rmse(
             self.to_map(np.array(target_map.shape)),
-            target_map
+            target_map,
+            fit_mask,
         )
         if rmse < CONVERGENCE_THRESHOLD:
             return
@@ -707,17 +726,26 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             kernel, height = self._initialise_kernel(
                 target_map,
                 const_param_range,
+                fit_mask=fit_mask,
             )
             self.kernels.append(kernel)
             self.heights.append(height)
-            self._fit_internal_dofs(
-                target_map,
-                include_support_degrees_of_freedom=True,
-            )
+            if fit_mask is None:
+                self._fit_internal_dofs(
+                    target_map,
+                    include_support_degrees_of_freedom=True,
+                )
+            else:
+                self._fit_internal_dofs(
+                    target_map,
+                    include_support_degrees_of_freedom=True,
+                    fit_mask=fit_mask,
+                )
 
             rmse = _calc_rmse(
                 self.to_map(np.array(target_map.shape)),
-                target_map
+                target_map,
+                fit_mask,
             )
             if (
                 minimum_relative_improvement is not None
@@ -798,11 +826,13 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         prev_rmses: list[float],
         converged_dofs: npt.NDArray[np.float64],
         include_support_degrees_of_freedom: bool,
+        fit_mask: npt.NDArray[np.bool_] | None = None,
     ) -> float:
         rmse = self._calc_rmse_from_dofs(
             normalised_dofs,
             target_map,
             include_support_degrees_of_freedom,
+            fit_mask,
         )
 
         if prev_rmses:
@@ -822,15 +852,27 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         self,
         target_map: npt.NDArray[np.float64],
         const_param_range: float,
+        fit_mask: npt.NDArray[np.bool_] | None = None,
     ) -> tuple[BasisFunctionKernel, DegreeOfFreedom]:
-        min_x = np.min(self.x)
-        max_x = np.max(self.x)
-
-        min_y = np.min(self.y)
-        max_y = np.max(self.y)
+        data_min_x = np.min(self.x)
+        data_max_x = np.max(self.x)
+        data_min_y = np.min(self.y)
+        data_max_y = np.max(self.y)
+        x_padding = 0.5 * (self.centre_bounds_span_factor - 1.0) * (
+            data_max_x - data_min_x
+        )
+        y_padding = 0.5 * (self.centre_bounds_span_factor - 1.0) * (
+            data_max_y - data_min_y
+        )
+        min_x = data_min_x - x_padding
+        max_x = data_max_x + x_padding
+        min_y = data_min_y - y_padding
+        max_y = data_max_y + y_padding
 
         parameter_map = self.to_map(np.array(target_map.shape))
         diff_map = target_map - parameter_map
+        if fit_mask is not None:
+            diff_map = np.where(fit_mask, diff_map, 0.0)
 
         smoothed_diff_map = uniform_filter(diff_map, size=5)
         abs_smoothed_diff_map = np.abs(smoothed_diff_map)
@@ -880,6 +922,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         degrees_of_freedom: npt.NDArray[np.float64],
         target_map: npt.NDArray[np.float64],
         include_support_degrees_of_freedom: bool,
+        fit_mask: npt.NDArray[np.bool_] | None = None,
     ) -> float:
         internal_dofs = self._collect_internal_degrees_of_freedom(
             include_support_degrees_of_freedom
@@ -907,7 +950,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             np.array(target_map.shape)
         )
 
-        return _calc_rmse(map, target_map)
+        return _calc_rmse(map, target_map, fit_mask)
 
 
 def _resolve_height_value(
@@ -925,17 +968,22 @@ def _resolve_height_value(
 
 def _calc_rmse(
     map: npt.NDArray[np.float64],
-    target_map: npt.NDArray[np.float64]
+    target_map: npt.NDArray[np.float64],
+    fit_mask: npt.NDArray[np.bool_] | None = None,
 ) -> float:
     # Normalise by the peak magnitude of the target rather than by the
     # per-point target value. A per-point relative error is dominated by the
     # near-zero background between features, which drives the optimiser to park
     # kernels outside the domain (where they contribute nothing) instead of
     # placing them on the features.
-    scale = np.max(np.abs(target_map))
+    if fit_mask is None:
+        fit_mask = np.ones(target_map.shape, dtype=bool)
+    if fit_mask.shape != target_map.shape:
+        raise ValueError("fit_mask must have the same shape as target_map")
+    scale = np.max(np.abs(target_map[fit_mask]))
     if scale == 0.0:
         scale = 1.0
-    return np.sqrt(np.mean(((target_map - map) / scale) ** 2))
+    return np.sqrt(np.mean(((target_map[fit_mask] - map[fit_mask]) / scale) ** 2))
 
 
 def _compute_variance_range(

@@ -347,6 +347,39 @@ def test_bivariate_basis_map_fitting_creates_only_bivariate_kernels() -> None:
     )
 
 
+def test_basis_centre_bounds_can_span_twice_the_data_domain() -> None:
+    x, y = np.meshgrid(np.linspace(10.0, 14.0, 5), np.linspace(-2.0, 2.0, 5))
+    parameterisation = SpatialParameterisationBasisFunction(
+        x,
+        y,
+        centre_bounds_span_factor=2.0,
+    )
+    parameterisation.fit_to_map(np.ones_like(x), parameter_range=4.0, max_basis_functions=1)
+
+    kernel = parameterisation.kernels[0]
+    assert isinstance(kernel.x, DegreeOfFreedom)
+    assert isinstance(kernel.y, DegreeOfFreedom)
+    assert kernel.x.lower_bound == pytest.approx(8.0)
+    assert kernel.x.upper_bound == pytest.approx(16.0)
+    assert kernel.y.lower_bound == pytest.approx(-4.0)
+    assert kernel.y.upper_bound == pytest.approx(4.0)
+
+
+def test_basis_map_fit_accepts_a_spatial_fit_mask() -> None:
+    x, y = _unit_grid(9)
+    target = np.where(x < 0.5, 1.0, 0.0)
+    fit_mask = x < 0.5
+    parameterisation = SpatialParameterisationBasisFunction(x, y)
+    parameterisation.fit_to_map(
+        target,
+        parameter_range=4.0,
+        max_basis_functions=1,
+        fit_mask=fit_mask,
+    )
+    fitted = parameterisation.to_map(np.asarray(target.shape, dtype=np.uint32))
+    assert np.isfinite(fitted[fit_mask]).all()
+
+
 def test_rejected_map_fit_candidate_restores_all_accepted_dofs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
