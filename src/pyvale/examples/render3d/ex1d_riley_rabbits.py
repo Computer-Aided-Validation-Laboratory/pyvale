@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import riley
+from riley.python import sceneops
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
@@ -38,17 +39,13 @@ topologies = (
 )
 texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
 meshes: list[render.Mesh3D] = []
+mesh_groups: list[sceneops.MeshGroup] = []
 
 for topology_index, (element_type, data_name) in enumerate(topologies):
-    for rabbit_index, rabbit_name in enumerate(("riley", "feebs")):
+    pair_start = len(meshes)
+    for rabbit_name in ("riley", "feebs"):
         coords, connectivity, uvs = load_rabbit(rabbit_name, data_name)
-        grid_index = 2 * topology_index + rabbit_index
-        column = grid_index % 4
-        row = grid_index // 4
-        centre = 0.5 * (coords.min(axis=0) + coords.max(axis=0))
-        coords = coords - centre + np.array((1.8 * column, -1.8 * row, 0.0))
-
-        shader_index = grid_index % 3
+        shader_index = len(meshes) % 3
         if shader_index == 0:
             shader = render.RileyTextureShader(uvs=uvs, texture=texture)
         elif shader_index == 1:
@@ -62,6 +59,7 @@ for topology_index, (element_type, data_name) in enumerate(topologies):
                 coord_mode=riley.FuncCoordMode.uv,
                 parameters=riley.FuncShaderParams(coord_scale=(36.0, 36.0)),
                 uvs=uvs,
+                scaling=riley.ScaleStrategy.auto,
             )
 
         meshes.append(
@@ -73,10 +71,33 @@ for topology_index, (element_type, data_name) in enumerate(topologies):
             )
         )
 
+    sceneops.overlap_mesh_group_bounds(
+        meshes,
+        sceneops.mesh_group_single(pair_start),
+        sceneops.mesh_group_single(pair_start + 1),
+        sceneops.BoundsOverlapSpec(
+            overlap_frac=(0.85, 0.8, 0.0),
+            enabled_axes=(True, True, False),
+            direct=(
+                sceneops.EOverlapDirect.POSITIVE,
+                sceneops.EOverlapDirect.NEGATIVE,
+                sceneops.EOverlapDirect.CURRENT,
+            ),
+        ),
+    )
+    mesh_groups.append(sceneops.mesh_group_span(pair_start, 2))
+
+sceneops.arrange_mesh_groups_grid(
+    meshes,
+    mesh_groups,
+    sceneops.GridSpec(gap=(0.18, 0.28, 0.0), max_divs=(3, 2, 1)),
+)
+
 # %%
 # 2. Create and position a camera around every mesh
 # ------------------------------------------------------------
-all_coords = np.vstack([mesh.coords for mesh in meshes])
+# Riley's camera helpers require native Riley meshes.
+native_meshes = [render.to_native_mesh(mesh) for mesh in meshes]
 pixels_num = np.array((1600, 800))
 pixels_size = np.array((5.3e-6, 5.3e-6))
 focal_length = 50.0e-3
@@ -84,8 +105,8 @@ camera = render.Camera(
     pixels_num=pixels_num,
     pixels_size=pixels_size,
     pos_world=np.asarray(
-        riley.pos_fill_frame_from_rot(
-            all_coords,
+        riley.pos_fill_frame_from_rot_over_meshes(
+            native_meshes,
             tuple(pixels_num),
             tuple(pixels_size),
             focal_length,
@@ -94,7 +115,7 @@ camera = render.Camera(
         )
     ),
     rot_world=Rotation.identity(),
-    roi_cent_world=np.asarray(riley.roi_cent_from_coords(all_coords)),
+    roi_cent_world=np.asarray(riley.roi_cent_over_meshes(native_meshes)),
     focal_length=focal_length,
     subsample=2,
 )
@@ -108,6 +129,7 @@ config = riley.create_raster_config(
     save_strategy=riley.SaveStrategy.disk,
 )
 config.background_value = 127.5
+config.image_save_mode = riley.ImageSaveMode.grey
 config.save_scaling = riley.ScaleStrategy.none
 output_dir = Path.cwd() / "pyvale-output" / "render-riley-rabbits"
 renderer = render.Riley(config, output_dir)

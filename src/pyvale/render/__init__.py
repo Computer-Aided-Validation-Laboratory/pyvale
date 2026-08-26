@@ -81,7 +81,7 @@ from .pxint2d import (
 )
 from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
-from .riley import Riley
+from .riley import Riley, to_native_camera, to_native_mesh
 from .rileyshader import (
     RileyFunctionShader,
     RileyNodalShader,
@@ -137,6 +137,8 @@ __all__ = [
     "RenderInputError",
     "RenderResult",
     "Riley",
+    "to_native_camera",
+    "to_native_mesh",
     "RileyFunctionShader",
     "RileyNodalShader",
     "RileyTextureShader",

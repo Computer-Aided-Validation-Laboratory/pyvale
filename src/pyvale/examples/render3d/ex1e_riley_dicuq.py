@@ -1,10 +1,10 @@
 """Render a deforming stereo DIC experiment from CSV simulation data."""
 
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 import riley
-from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
 from pyvale import render
@@ -26,34 +26,36 @@ mesh = render.Mesh3D(
 )
 
 # %%
-# 2. Create and position a stereo camera pair
+# 2. Create and position a distorted stereo camera pair
 # ------------------------------------------------------------
-pixels_num = np.array((2464, 2056))
-pixels_size = np.array((3.45e-6, 3.45e-6))
+# The cameras are built natively so they can be saved in Riley's exchange
+# format without any conversion of their parameters.
+pixels_num = (2464, 2056)
+pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
-roi_centre = np.asarray(riley.roi_cent_from_coords(coords))
+roi_centre = riley.roi_cent_from_coords(coords)
 
 
-def make_camera(angle_degrees: float) -> render.Camera:
+def make_camera(angle_degrees: float) -> riley.Camera:
     """Create one distorted camera aimed at the specimen."""
-    rotation = Rotation.from_euler("y", angle_degrees, degrees=True)
+    rot_world = (0.0, np.deg2rad(angle_degrees), 0.0)
     position = riley.pos_fill_frame_from_rot(
         coords,
-        tuple(pixels_num),
-        tuple(pixels_size),
+        pixels_num,
+        pixels_size,
         focal_length,
-        tuple(rotation.as_euler("xyz")),
+        rot_world,
         0.65,
     )
-    return render.Camera(
+    return riley.Camera(
         pixels_num=pixels_num,
         pixels_size=pixels_size,
-        pos_world=np.asarray(position),
-        rot_world=rotation,
+        pos_world=position,
+        rot_world=rot_world,
         roi_cent_world=roi_centre,
         focal_length=focal_length,
-        subsample=2,
-        distortion_model=render.EDistortionModel.BROWN_CONRADY,
+        sub_sample=2,
+        distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
         distortion_k1=-0.2,
         distortion_k2=0.1,
         distortion_p1=0.0001,
@@ -63,7 +65,6 @@ def make_camera(angle_degrees: float) -> render.Camera:
 
 camera_0 = make_camera(0.0)
 camera_1 = make_camera(20.0)
-stereo = render.CameraStereo(camera_0, camera_1)
 
 # %%
 # 3. Configure and build the renderer
@@ -80,10 +81,26 @@ output_dir = Path.cwd() / "pyvale-output" / "render-riley-dicuq"
 renderer = render.Riley(config, output_dir)
 
 # %%
-# 4. Build the scene, render it, and save the stereo calibration
+# 4. Build the scene and render the deforming specimen
 # ------------------------------------------------------------
 scene = render.Scene3D(meshes=[mesh], cameras=[camera_0, camera_1])
 result = renderer.render(scene)
-stereo.save_calibration(output_dir)
+
+# %%
+# 5. Save the stereo pair in Riley's exchange format
+# ------------------------------------------------------------
+# The calibration example (ex1g) loads its cameras from this file.
+riley.save_stereo_pair(
+    str(output_dir),
+    "stereo_data_opengl.csv",
+    camera_0,
+    camera_1,
+)
+riley.save_stereo_pair(
+    str(output_dir),
+    "stereo_data_opencv.csv",
+    replace(camera_0, coord_sys=riley.CameraCoordSys.opencv),
+    replace(camera_1, coord_sys=riley.CameraCoordSys.opencv),
+)
 print(f"Rendered the stereo DIC images to {output_dir}")
 print(f"{result.images=}")

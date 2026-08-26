@@ -173,13 +173,13 @@ class Riley(IRenderer3D):
         if self.output_dir is not None:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        meshes = [
-            _mesh_to_riley(mesh) if isinstance(mesh, Mesh3D) else mesh
-            for mesh in scene.meshes
+        meshes = [to_native_mesh(mesh) for mesh in scene.meshes]
+        cameras = [
+            to_native_camera(camera) for camera in scene.cameras
         ]
         images = riley.raster(
             meshes,
-            [_camera_to_riley(camera) for camera in scene.cameras],
+            cameras,
             self.config,
             out_dir=output_dir,
         )
@@ -190,20 +190,25 @@ class Riley(IRenderer3D):
         return RenderResult(images=images)
 
 
-def _verify_cameras(cameras: tuple[Camera, ...]) -> tuple[ValidationIssue, ...]:
+def _verify_cameras(
+    cameras: tuple[Camera | riley.Camera, ...],
+) -> tuple[ValidationIssue, ...]:
     """Perform the common cheap camera checks without requiring common meshes."""
 
     issues: list[ValidationIssue] = []
     for index, camera in enumerate(cameras):
         path = f"scene.cameras[{index}]"
-        if not isinstance(camera, Camera):
+        if not isinstance(camera, (Camera, riley.Camera)):
             issues.append(
                 ValidationIssue(
                     path,
                     "TYPE",
-                    "Expected a render.Camera.",
+                    "Expected a render.Camera or riley.Camera.",
                 )
             )
+            continue
+
+        if not isinstance(camera, Camera):
             continue
 
         if camera.pixels_num.shape != (2,) or np.any(camera.pixels_num <= 0):
@@ -238,8 +243,15 @@ def _verify_cameras(cameras: tuple[Camera, ...]) -> tuple[ValidationIssue, ...]:
     return tuple(issues)
 
 
-def _camera_to_riley(camera: Camera) -> riley.Camera:
-    """Convert one common perspective camera to a Riley camera."""
+def to_native_camera(camera: Camera | riley.Camera) -> riley.Camera:
+    """Convert one common perspective camera to a Riley camera.
+
+    Native :class:`riley.Camera` instances are returned unchanged so scenes
+    may mix cameras built through the render API with cameras loaded
+    directly from Riley.
+    """
+    if isinstance(camera, riley.Camera):
+        return camera
     return riley.Camera(
         pixels_num=tuple(int(value) for value in camera.pixels_num),
         pixels_size=tuple(float(value) for value in camera.pixels_size),
@@ -276,8 +288,16 @@ _RILEY_MESH_TYPES = {
 }
 
 
-def _mesh_to_riley(mesh: Mesh3D) -> riley.Mesh:
-    """Convert a common mesh and Riley shader to native Riley input."""
+def to_native_mesh(mesh: Mesh3D | riley.Mesh) -> riley.Mesh:
+    """Convert one common mesh to a native Riley mesh.
+
+    Native :class:`riley.Mesh` instances are returned unchanged so scenes
+    may mix meshes built through the render API with meshes built directly
+    through Riley.
+    """
+    if isinstance(mesh, riley.Mesh):
+        return mesh
+
     common = {
         "mesh_type": _RILEY_MESH_TYPES[mesh.element_type],
         "coords": mesh.coords,
@@ -326,4 +346,4 @@ def _mesh_to_riley(mesh: Mesh3D) -> riley.Mesh:
     )
 
 
-__all__ = ["Riley"]
+__all__ = ["Riley", "to_native_camera", "to_native_mesh"]

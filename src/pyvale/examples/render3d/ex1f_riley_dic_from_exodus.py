@@ -1,10 +1,10 @@
 """Render a stereo DIC experiment directly from an Exodus result file."""
 
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 import riley
-from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
 from pyvale import render
@@ -28,39 +28,50 @@ surface_mesh.shader = render.RileyTextureShader(
         surface_mesh.coords,
         (2464, 2056),
         uv_span_max=0.8,
+        proj_plane=(
+            np.array((0.0, 0.0, -1.0), dtype=np.float64),
+            np.array((0.0, 0.0, 0.0), dtype=np.float64),
+        ),
     ),
     texture=texture,
 )
 surface_mesh.displacements = surface_mesh.displacements[[0, -1]]
 
 # %%
-# 2. Create and position the stereo cameras
+# 2. Create and position a distorted stereo camera pair
 # ------------------------------------------------------------
-pixels_num = np.array((2464, 2056))
-pixels_size = np.array((3.45e-6, 3.45e-6))
+# The cameras are built natively so they can be saved in Riley's exchange
+# format without any conversion of their parameters.
+pixels_num = (2464, 2056)
+pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
-roi_centre = np.asarray(riley.roi_cent_from_coords(surface_mesh.coords))
+roi_centre = riley.roi_cent_from_coords(surface_mesh.coords)
 
 
-def make_camera(angle_degrees: float) -> render.Camera:
-    """Create one camera aimed at the extracted surface."""
-    rotation = Rotation.from_euler("y", angle_degrees, degrees=True)
+def make_camera(angle_degrees: float) -> riley.Camera:
+    """Create one distorted camera aimed at the extracted surface."""
+    rot_world = (0.0, np.deg2rad(angle_degrees), 0.0)
     position = riley.pos_fill_frame_from_rot(
         surface_mesh.coords,
-        tuple(pixels_num),
-        tuple(pixels_size),
+        pixels_num,
+        pixels_size,
         focal_length,
-        tuple(rotation.as_euler("xyz")),
+        rot_world,
         0.65,
     )
-    return render.Camera(
+    return riley.Camera(
         pixels_num=pixels_num,
         pixels_size=pixels_size,
-        pos_world=np.asarray(position),
-        rot_world=rotation,
+        pos_world=position,
+        rot_world=rot_world,
         roi_cent_world=roi_centre,
         focal_length=focal_length,
-        subsample=2,
+        sub_sample=2,
+        distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
+        distortion_k1=-0.2,
+        distortion_k2=0.1,
+        distortion_p1=0.0001,
+        distortion_p2=-0.0001,
     )
 
 
@@ -75,6 +86,7 @@ config = riley.create_raster_config(
     save_strategy=riley.SaveStrategy.disk,
 )
 config.background_value = 128.0
+config.tile_size_max = 128
 config.save_scaling = riley.ScaleStrategy.none
 output_dir = Path.cwd() / "pyvale-output" / "render-riley-exodus"
 renderer = render.Riley(config, output_dir)
@@ -83,5 +95,21 @@ renderer = render.Riley(config, output_dir)
 # 4. Build the scene and render the extracted surface
 # ------------------------------------------------------------
 result = renderer.render(render.Scene3D(meshes=[surface_mesh], cameras=cameras))
+
+# %%
+# 5. Save the stereo pair in Riley's exchange format
+# ------------------------------------------------------------
+riley.save_stereo_pair(
+    str(output_dir),
+    "stereo_data_opengl.csv",
+    cameras[0],
+    cameras[1],
+)
+riley.save_stereo_pair(
+    str(output_dir),
+    "stereo_data_opencv.csv",
+    replace(cameras[0], coord_sys=riley.CameraCoordSys.opencv),
+    replace(cameras[1], coord_sys=riley.CameraCoordSys.opencv),
+)
 print(f"Rendered Exodus-driven DIC images to {output_dir}")
 print(f"{result.images=}")

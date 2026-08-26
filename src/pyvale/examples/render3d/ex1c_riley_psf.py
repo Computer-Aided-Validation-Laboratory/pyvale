@@ -1,4 +1,14 @@
-"""Compare Riley point-spread-function buffer modes through ``pyvale.render``."""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
+"""
+Riley: Rendering quickstart
+================================================================================
+Compare Riley point-spread-function buffer modes through ``pyvale.render``.
+"""
 
 from pathlib import Path
 
@@ -15,7 +25,9 @@ from pyvale import render
 coords, connectivity, uvs, _ = riley.load_sim_csvs(
     dataset.riley_sphere200_case_path()
 )
+
 texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+
 mesh = render.Mesh3D(
     element_type=render.EElementType.TRI6,
     coords=coords,
