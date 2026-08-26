@@ -73,7 +73,7 @@ from .objectivefunc import (
     IScalarObjectiveFunction,
     IVectorObjectiveFunction,
 )
-from .objectivefuncscalar import ScalarFirstResultPassthrough
+from .objectivefuncscalar import ScalarFirstResultPassthrough, ScalarFirstResultRms
 from .objectivefuncvector import (
     VectorConcatenateObjective,
     VectorFirstResultPassthrough,
@@ -165,6 +165,7 @@ __all__ = [
     "IScalarObjectiveFunction",
     "IVectorObjectiveFunction",
     "ScalarFirstResultPassthrough",
+    "ScalarFirstResultRms",
     "VectorFirstResultPassthrough",
     "VectorConcatenateObjective",
     "VectorWeightedObjective",

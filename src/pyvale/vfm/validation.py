@@ -398,16 +398,39 @@ def _collect_egi_basis_growth_errors(
         return []
 
     errors: list[str] = []
-    if not isinstance(phase.objective_function, CombinedForceAndEquilibriumGapObjective):
-        errors.append(
-            f"phase {phase_index}: EGI basis growth requires a "
-            "CombinedForceAndEquilibriumGapObjective"
-        )
-    if not any(isinstance(metric, EquilibriumGapMetric) for metric in phase.metrics):
+    egi_count = sum(
+        isinstance(metric, EquilibriumGapMetric) for metric in phase.metrics
+    )
+    if not egi_count:
         errors.append(
             f"phase {phase_index}: EGI basis growth requires at least one "
             "EquilibriumGapMetric"
         )
+    if not isinstance(
+        phase.objective_function,
+        CombinedForceAndEquilibriumGapObjective,
+    ):
+        if policy.baseline_phase_index is None:
+            errors.append(
+                f"phase {phase_index}: EGI basis growth with a non-combined "
+                "objective requires baseline_phase_index"
+            )
+        elif policy.baseline_phase_index >= phase_index:
+            errors.append(
+                f"phase {phase_index}: EGI refinement baseline must reference "
+                f"an earlier phase, got {policy.baseline_phase_index}"
+            )
+        if policy.egi_window_weights is None:
+            errors.append(
+                f"phase {phase_index}: EGI basis growth with a non-combined "
+                "objective requires egi_window_weights"
+            )
+        elif len(policy.egi_window_weights) != egi_count:
+            errors.append(
+                f"phase {phase_index}: EGI refinement has "
+                f"{len(policy.egi_window_weights)} window weights but phase "
+                f"defines {egi_count} EGI metrics"
+            )
     if (
         isinstance(policy.target, tuple)
         and len(policy.target) == 2

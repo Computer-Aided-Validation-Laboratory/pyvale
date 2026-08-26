@@ -20,6 +20,7 @@ from pyvale.vfm.identificationconfig import (
     IdentificationPhase,
 )
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.metricsbvf import MetricSBVF
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
 from pyvale.vfm.objectivefunccombinedfreegi import (
     CombinedForceAndEquilibriumGapObjective,
@@ -185,6 +186,19 @@ def _build_refinement_context(
         parameter_map_size=parameter_map_size,
         parameter_maps=parameter_maps,
     )
+
+
+def test_sbvf_prepare_invalidates_cached_virtual_fields_once() -> None:
+    metric = MetricSBVF(
+        mesh_size=np.array([2, 2], dtype=np.uint32),
+        perturbation_type="dof",
+        perturbation_factor=0.05,
+    )
+    metric._sensitivity_based_virtual_fields = [object()]
+
+    metric.initialise(_build_experiment_data())
+
+    assert metric._sensitivity_based_virtual_fields is None
 
 
 class _StaticEquilibriumGapMetric(EquilibriumGapMetric):
@@ -381,6 +395,52 @@ def test_egi_basis_growth_rejects_and_restores_complete_candidate() -> None:
     assert len(restored_basis.kernels) == 1
     assert isinstance(restored_basis.heights[0], DegreeOfFreedom)
     assert restored_basis.heights[0].value == accepted_height
+
+
+def test_egi_basis_growth_uses_egi_improvement_for_vector_objective() -> None:
+    experiment_data = _build_experiment_data()
+    shape = np.asarray(experiment_data.specimen_geometry.x.shape, dtype=np.uint32)
+    parameter = ConstitutiveParameter(2.0, 0.5, 5.0, shape)
+    metric = _StaticEquilibriumGapMetric(window_size=(3, 3))
+    basis = SpatialParameterisationBasisFunction(
+        experiment_data.specimen_geometry.x,
+        experiment_data.specimen_geometry.y,
+    )
+    runtime = PhaseRuntime(
+        {"yield_strength": [SpatialParameterisationHomogeneous(), basis]},
+        [metric],
+        objective_function=VectorFirstResultPassthrough(),
+    )
+    baseline_result = metric.evaluate_equilibrium_gap(np.empty(0)).metric_result
+    policy = EquilibriumGapBasisGrowthRefinement(
+        target=basis,
+        max_basis_functions=2,
+        minimum_separation_points=0.0,
+        egi_window_weights=(1.0,),
+        baseline_phase_index=0,
+    )
+    policy.resolve_from_prior_phase([metric], [baseline_result])
+    runtime.initialise_parameterisation_structure(
+        {"yield_strength": parameter},
+        shape,
+        experiment_data,
+        [baseline_result],
+    )
+    context = _build_refinement_context(
+        experiment_data,
+        {"yield_strength": parameter.map},
+    )
+    context.metrics = [metric]
+    context.objective_function = runtime.objective_function
+
+    candidate_action = policy.propose(runtime, context)
+    assert candidate_action is not None
+    candidate_action.apply(runtime, context)
+    assert len(basis.kernels) == 2
+
+    rejected_action = policy.propose(runtime, context)
+    assert rejected_action is not None
+    assert not rejected_action.accepts_current_solve
 
 
 def test_phase_spatial_state_collects_shared_basis_support_dofs_once() -> None:

@@ -1,5 +1,6 @@
 from copy import copy, deepcopy
 from dataclasses import dataclass, field
+from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -70,6 +71,18 @@ class MetricSBVF(IMetric):
     supply ``1e6`` explicitly.
     """
 
+    perturbation_type: Literal["constitutive_parameter", "dof"] = (
+        "constitutive_parameter"
+    )
+    """Quantity perturbed to construct the stress sensitivities."""
+
+    perturbation_factor: float = 0.15
+    """Perturbation magnitude used by the selected perturbation type.
+
+    Constitutive-parameter perturbations are relative to the current physical
+    parameter map. DOF perturbations are additive in normalised DOF space.
+    """
+
     _virtual_fields_mesh: VirtualFieldsMesh | None = field(
         default=None,
         init=False
@@ -102,6 +115,14 @@ class MetricSBVF(IMetric):
         init=False
     )
 
+    def __post_init__(self) -> None:
+        if self.perturbation_type not in {"constitutive_parameter", "dof"}:
+            raise ValueError(
+                "perturbation_type must be 'constitutive_parameter' or 'dof'."
+            )
+        if not 0.0 < self.perturbation_factor < 1.0:
+            raise ValueError("perturbation_factor must lie in (0, 1).")
+
 
     def initialise(
         self,
@@ -119,6 +140,9 @@ class MetricSBVF(IMetric):
             experiment_data.boundary_conditions.edge_conditions,
             self.mesh_size
         )
+        # A prepare call follows every structural refinement. Rebuild the
+        # SBVFs once on the next evaluation, then reuse them during the solve.
+        self._sensitivity_based_virtual_fields = None
 
     def evaluate(
         self,
@@ -148,7 +172,9 @@ class MetricSBVF(IMetric):
                 parameter_map_size,
                 spatial_parameterisations,
                 experiment_data.delta_timesteps,
-                perturbation_type = "constitutive_parameter",
+                perturbation_type=self.perturbation_type,
+                perturbation_factor_param=self.perturbation_factor,
+                perturbation_factor_dof=self.perturbation_factor,
             )
 
             # Generate sensitivity-based virtual fields (SBVF) from

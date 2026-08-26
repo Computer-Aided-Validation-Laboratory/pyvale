@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 import copy
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
@@ -13,7 +14,12 @@ from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
-from pyvale.vfm.equilibriumgapaggregation import combine_equilibrium_gap_maps
+from pyvale.vfm.equilibriumgapaggregation import (
+    EquilibriumGapAggregationResult,
+    aggregate_equilibrium_gap_results,
+    calculate_nan_rms,
+    extract_equilibrium_gap_temporal_rms,
+)
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
 from pyvale.vfm.objectivefunccombinedfreegi import (
     CombinedForceAndEquilibriumGapObjective,
@@ -330,7 +336,9 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
     """Grow Gaussian bases from the normalised EGI residual map.
 
     Add one EGI-seeded Gaussian after each accepted solve and retain it only
-    when the scalar objective improves sufficiently.
+    when the configured improvement measure improves sufficiently. Combined
+    FRE+EGI objectives retain their objective-cost measure; other objectives
+    use the combined EGI scalar.
     """
 
     target: RefinementTarget
@@ -339,7 +347,13 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
     refinement_height_fraction: float = 0.05
     smoothing_points: int = 3
     minimum_separation_points: float = 3.0
+    egi_window_weights: Sequence[float] | npt.NDArray[np.float64] | None = None
+    baseline_phase_index: int | None = None
     _accepted_cost: float | None = field(default=None, init=False, repr=False)
+    _resolved_egi_baseline_values: npt.NDArray[np.float64] | None = field(
+        default=None, init=False, repr=False,
+    )
+    last_combined_egi: float | None = field(default=None, init=False)
     _accepted_spatial_parameterisations: dict[str, list[ISpatialParameterisation]] | None = field(
         default=None, init=False, repr=False,
     )
@@ -353,21 +367,79 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
             raise ValueError("refinement_height_fraction must lie in (0, 1].")
         if self.smoothing_points < 1 or self.minimum_separation_points < 0.0:
             raise ValueError("smoothing_points and minimum_separation_points must be non-negative.")
+        if self.baseline_phase_index is not None and self.baseline_phase_index < 0:
+            raise ValueError("baseline_phase_index must be non-negative.")
+
+    def resolve_from_prior_phase(
+        self,
+        metrics: list[object],
+        metric_results: list[object],
+    ) -> None:
+        """Resolve EGI baselines for objectives that do not provide them."""
+
+        egi_results = _select_egi_metric_results(metrics, metric_results)
+        self._resolved_egi_baseline_values = np.asarray(
+            [
+                calculate_nan_rms(extract_equilibrium_gap_temporal_rms(result))
+                for result in egi_results
+            ],
+            dtype=np.float64,
+        )
+
+    def combine_egi_results(
+        self,
+        egi_results: list[object],
+        objective_function: object | None,
+    ) -> EquilibriumGapAggregationResult:
+        """Combine EGI maps using objective-coupled or policy settings."""
+
+        if isinstance(
+            objective_function,
+            CombinedForceAndEquilibriumGapObjective,
+        ):
+            baselines = objective_function.egi_baselines_for(len(egi_results))
+            window_weights = objective_function.egi_window_weights
+        else:
+            if self._resolved_egi_baseline_values is None:
+                raise ValueError(
+                    "EGI basis growth baselines have not been resolved from "
+                    "the configured prior phase."
+                )
+            baselines = self._resolved_egi_baseline_values
+            window_weights = self.egi_window_weights
+        return aggregate_equilibrium_gap_results(
+            egi_results,
+            egi_baseline_values=baselines,
+            window_weights=window_weights,
+        )
 
     def propose(
         self,
         runtime: PhaseRuntime,
         context: RefinementContext,
     ) -> IRefinementAction | None:
-        if context.objective_value is None:
-            raise ValueError("EGI basis growth requires a scalar objective value.")
-        if not np.isfinite(context.objective_value):
-            raise ValueError("EGI basis growth requires a finite objective value.")
+        egi_results = _evaluate_egi_metric_results(context)
+        egi_aggregation = self.combine_egi_results(
+            egi_results,
+            context.objective_function,
+        )
+        self.last_combined_egi = egi_aggregation.combined_egi_spatial_rms
+        if isinstance(
+            context.objective_function,
+            CombinedForceAndEquilibriumGapObjective,
+        ):
+            if context.objective_value is None or not np.isfinite(context.objective_value):
+                raise ValueError("EGI basis growth requires a finite objective value.")
+            cost = float(context.objective_value)
+        else:
+            cost = self.last_combined_egi
+            if not np.isfinite(cost):
+                raise ValueError("EGI basis growth requires a finite combined EGI value.")
         if self._accepted_cost is None:
-            self._accept(runtime, context.objective_value)
+            self._accept(runtime, cost)
         else:
             improvement = (
-                (self._accepted_cost - context.objective_value)
+                (self._accepted_cost - cost)
                 / max(abs(self._accepted_cost), 1.0e-12)
             )
             if improvement < self.relative_improvement_threshold:
@@ -375,14 +447,14 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
                 return RestoreBasisModelAction(
                     self._accepted_spatial_parameterisations,
                 )
-            self._accept(runtime, context.objective_value)
+            self._accept(runtime, cost)
 
         parameter_name, basis = _resolve_basis_parameterisation(runtime, self.target)
         return self._new_egi_basis_action(
             context,
             parameter_name,
             basis,
-            _evaluate_egi_metric_results(context),
+            egi_results,
             height_fraction=self.refinement_height_fraction,
         )
 
@@ -407,16 +479,10 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
     ) -> IRefinementAction | None:
         if len(basis.kernels) >= self.max_basis_functions:
             return None
-        objective = context.objective_function
-        if not isinstance(objective, CombinedForceAndEquilibriumGapObjective):
-            raise TypeError(
-                "EGI basis growth requires CombinedForceAndEquilibriumGapObjective."
-            )
-        egi_map = combine_equilibrium_gap_maps(
+        egi_map = self.combine_egi_results(
             egi_results,
-            egi_baseline_values=objective.egi_baselines_for(len(egi_results)),
-            window_weights=objective.egi_window_weights,
-        )
+            context.objective_function,
+        ).combined_baseline_scaled_egi_map
         centre = _select_egi_centre(
             egi_map,
             basis,

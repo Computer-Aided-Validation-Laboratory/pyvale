@@ -9,6 +9,7 @@ from scipy.ndimage import uniform_filter
 from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.equilibriumgapaggregation import combine_equilibrium_gap_maps
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.spatialparambasisfuncs import (
     BasisFunctionKernel,
     SpatialParameterisationBasisFunction,
@@ -45,7 +46,11 @@ from pyvale.vfm.objectivefunccombinedfreegi import (
 )
 from pyvale.vfm.optimiser import IOptimiser, evaluate_metrics
 from pyvale.vfm.progress import ProgressEvent, emit_progress
-from pyvale.vfm.refinement import IRefinementAction, IRefinementPolicy
+from pyvale.vfm.refinement import (
+    EquilibriumGapBasisGrowthRefinement,
+    IRefinementAction,
+    IRefinementPolicy,
+)
 from pyvale.vfm.refinement import RefinementContext
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.validation import run_validation
@@ -185,6 +190,9 @@ def run_identification(
 
                 # Resolve the baseline metric values for the current phase's objective function, if applicable.
                 phase_runtime.resolve_objective_baseline(
+                    previous_phases_metrics,
+                )
+                phase_runtime.resolve_refinement_baseline(
                     previous_phases_metrics,
                 )
 
@@ -329,6 +337,13 @@ def run_identification(
                         phase_runtime,
                         context,
                     )
+                    if isinstance(
+                        phase_runtime.refinement_policy,
+                        EquilibriumGapBasisGrowthRefinement,
+                    ):
+                        solve_result.final_objective["combined_egi"] = (
+                            phase_runtime.refinement_policy.last_combined_egi
+                        )
 
                     # If no refinement action is proposed, break the loop and proceed to the next phase.
                     if action is None:
@@ -522,16 +537,27 @@ def _get_phase_reference_metrics(
             experiment_data.strain,
             source_maps,
         )
-        # Evaluate the metrics for current phase using the baseline stress
-        reference_metric_results[source_phase_index] = evaluate_metrics(
-            reference_stress,
-            constitutive_law,
-            parameter_map_size,
-            phase_runtime.spatial_parameterisations,
-            phase_runtime.metrics,
-            experiment_data,
-            include_egi_diagnostics=True,
-        )
+        # Global SBVFs do not provide spatial initialisation information and
+        # cannot be constructed before this phase's parameterisations are
+        # initialised. Preserve result alignment with an empty placeholder.
+        reference_metric_results[source_phase_index] = []
+        for metric in phase_runtime.metrics:
+            if isinstance(
+                metric,
+                (SliceWiseForceReconstructionMetric, EquilibriumGapMetric),
+            ):
+                result = evaluate_metrics(
+                    reference_stress,
+                    constitutive_law,
+                    parameter_map_size,
+                    phase_runtime.spatial_parameterisations,
+                    [metric],
+                    experiment_data,
+                    include_egi_diagnostics=True,
+                )[0]
+            else:
+                result = MetricResult()
+            reference_metric_results[source_phase_index].append(result)
     return reference_metric_results[source_phase_index]
 
 
@@ -595,10 +621,6 @@ def _previous_phase_egi_centre(
 
     if (
         previous_phase_metric_results is None
-        or not isinstance(
-            phase_runtime.objective_function,
-            CombinedForceAndEquilibriumGapObjective,
-        )
     ):
         return None
 
@@ -614,12 +636,24 @@ def _previous_phase_egi_centre(
     if not egi_results:
         return None
 
-    objective = phase_runtime.objective_function
-    egi_map = combine_equilibrium_gap_maps(
-        egi_results,
-        egi_baseline_values=objective.egi_baselines_for(len(egi_results)),
-        window_weights=objective.egi_window_weights,
-    )
+    policy = phase_runtime.refinement_policy
+    if isinstance(policy, EquilibriumGapBasisGrowthRefinement):
+        egi_map = policy.combine_egi_results(
+            egi_results,
+            phase_runtime.objective_function,
+        ).combined_baseline_scaled_egi_map
+    elif isinstance(
+        phase_runtime.objective_function,
+        CombinedForceAndEquilibriumGapObjective,
+    ):
+        objective = phase_runtime.objective_function
+        egi_map = combine_equilibrium_gap_maps(
+            egi_results,
+            egi_baseline_values=objective.egi_baselines_for(len(egi_results)),
+            window_weights=objective.egi_window_weights,
+        )
+    else:
+        return None
 
     x = experiment_data.specimen_geometry.x
     y = experiment_data.specimen_geometry.y
@@ -1082,6 +1116,32 @@ class PhaseRuntime:
         # Evaluate the baseline values from the defined phase metrics and store them
         # in the objective function for use during optimisation.
         self.objective_function.resolve_from_prior_phase(metric_results)
+
+    def resolve_refinement_baseline(
+        self,
+        previous_phases_metrics: dict[int, list[MetricResult]],
+    ) -> None:
+        """Resolve prior-phase EGI scaling for non-combined objectives."""
+
+        policy = self.refinement_policy
+        if (
+            not isinstance(policy, EquilibriumGapBasisGrowthRefinement)
+            or isinstance(
+                self.objective_function,
+                CombinedForceAndEquilibriumGapObjective,
+            )
+        ):
+            return
+        source_phase_index = policy.baseline_phase_index
+        if source_phase_index is None:
+            raise RuntimeError("Validation did not provide an EGI baseline phase.")
+        try:
+            metric_results = previous_phases_metrics[source_phase_index]
+        except KeyError as error:
+            raise RuntimeError(
+                f"Prior EGI baseline phase {source_phase_index} has not been evaluated."
+            ) from error
+        policy.resolve_from_prior_phase(self.metrics, metric_results)
 
 
     def adopt_spatial_parameterisations(
