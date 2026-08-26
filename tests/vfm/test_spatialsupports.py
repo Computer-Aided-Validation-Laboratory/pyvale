@@ -36,6 +36,7 @@ from pyvale.vfm.refinement import SliceMergeSplitRefinement
 from pyvale.vfm.spatialparam import PhaseSpatialState
 from pyvale.vfm.spatialparamhomogeneous import SpatialParameterisationHomogeneous
 from pyvale.vfm.spatialparambasisfuncs import (
+    BasisFunctionKernelBivariate,
     BasisFunctionKernelUnivariate,
     SpatialParameterisationBasisFunction,
     SupportBasis,
@@ -235,6 +236,55 @@ def test_phase_initialisation_seeds_one_egi_basis_for_homogeneous_map() -> None:
     assert isinstance(basis.heights[0], DegreeOfFreedom)
     assert basis.heights[0].value == 0.01 * (
         parameter.upper_bound - parameter.lower_bound
+    )
+
+
+def test_bivariate_basis_type_is_used_for_initial_seed_and_refinement() -> None:
+    experiment_data = _build_experiment_data()
+    shape = np.asarray(experiment_data.specimen_geometry.x.shape, dtype=np.uint32)
+    parameter = ConstitutiveParameter(2.0, 0.5, 5.0, shape)
+    metric = _StaticEquilibriumGapMetric(window_size=(3, 3))
+    objective = CombinedForceAndEquilibriumGapObjective(
+        egi_window_weights=(1.0,),
+    )
+    basis = SpatialParameterisationBasisFunction(
+        experiment_data.specimen_geometry.x,
+        experiment_data.specimen_geometry.y,
+        kernel_type="bivariate",
+    )
+    runtime = PhaseRuntime(
+        {"yield_strength": [SpatialParameterisationHomogeneous(), basis]},
+        [metric],
+        objective_function=objective,
+    )
+    runtime.initialise_parameterisation_structure(
+        {"yield_strength": parameter},
+        shape,
+        experiment_data,
+        [metric.evaluate_equilibrium_gap(np.empty(0)).metric_result],
+    )
+    assert isinstance(basis.kernels[0], BasisFunctionKernelBivariate)
+
+    policy = EquilibriumGapBasisGrowthRefinement(
+        target=basis,
+        max_basis_functions=2,
+        minimum_separation_points=0.0,
+    )
+    context = _build_refinement_context(
+        experiment_data,
+        {"yield_strength": parameter.map},
+    )
+    context.metrics = [metric]
+    context.objective_function = objective
+    context.objective_value = 10.0
+    action = policy.propose(runtime, context)
+    assert action is not None
+    action.apply(runtime, context)
+
+    assert len(basis.kernels) == 2
+    assert all(
+        isinstance(kernel, BasisFunctionKernelBivariate)
+        for kernel in basis.kernels
     )
 
 
@@ -623,6 +673,12 @@ def test_run_identification_handles_shared_slice_support_with_general_optimiser(
     assert result.parameter_maps["hardening_modulus"].shape == (
         experiment_data.specimen_geometry.x.shape
     )
+    solve_snapshot = result.history.phases[0].solve_results[0].final_snapshot
+    assert solve_snapshot is not None
+    assert set(solve_snapshot.spatial_parameterisations) == {
+        "yield_strength",
+        "hardening_modulus",
+    }
 
 
 def test_validate_slicewise_independent_phase_is_pure_validation() -> None:

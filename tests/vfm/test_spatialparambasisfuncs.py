@@ -329,6 +329,24 @@ def test_empty_basis_initialisation_does_not_create_structure() -> None:
     assert len(parameterisation.kernels) == 1
 
 
+def test_bivariate_basis_map_fitting_creates_only_bivariate_kernels() -> None:
+    x, y = np.meshgrid(np.linspace(0.0, 1.0, 5), np.linspace(0.0, 1.0, 5))
+    parameter = ConstitutiveParameter(np.full((5, 5), 300.0), 200.0, 700.0)
+    parameterisation = SpatialParameterisationBasisFunction(
+        x,
+        y,
+        kernel_type="bivariate",
+    )
+
+    parameterisation.fit_to_parameter_map(parameter, max_basis_functions=1)
+
+    assert len(parameterisation.kernels) == 1
+    assert isinstance(
+        parameterisation.kernels[0],
+        BasisFunctionKernelBivariate,
+    )
+
+
 def test_rejected_map_fit_candidate_restores_all_accepted_dofs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

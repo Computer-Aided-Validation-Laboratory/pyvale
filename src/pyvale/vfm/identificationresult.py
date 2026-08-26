@@ -248,7 +248,7 @@ class IdentificationMetadata:
 @dataclass(slots=True)
 class ParameterisationSnapshot:
     """
-    Snapshot of a single spatial parameterisation at the end of a phase.
+    Snapshot of a single spatial parameterisation at a saved history point.
 
     ``parameterisation`` is kept for in-memory compatibility with existing
     callers, but it is deliberately omitted from saved YAML. The durable part
@@ -304,7 +304,7 @@ class ParameterisationSnapshot:
 @dataclass(slots=True)
 class PhaseSnapshot:
     """
-    Snapshot of one identification phase, captured at the end of the phase.
+    Snapshot of an identification phase at a saved history point.
     """
 
     spatial_parameterisations: dict[str, list[ParameterisationSnapshot]] = field(
@@ -342,6 +342,7 @@ class SolveResult:
     final_dofs: list[float] = field(default_factory=list)
     initial_objective: Summary = field(default_factory=dict)
     final_objective: Summary = field(default_factory=dict)
+    final_snapshot: PhaseSnapshot | None = None
     details: Summary = field(default_factory=dict)
     children: list["SolveResult"] = field(default_factory=list)
 

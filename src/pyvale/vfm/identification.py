@@ -10,7 +10,7 @@ from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.equilibriumgapaggregation import combine_equilibrium_gap_maps
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
 from pyvale.vfm.spatialparambasisfuncs import (
-    BasisFunctionKernelUnivariate,
+    BasisFunctionKernel,
     SpatialParameterisationBasisFunction,
 )
 from pyvale.vfm.constlaw import EIdentificationType, IConstitutiveLaw
@@ -265,6 +265,9 @@ def run_identification(
                     # Gather identified DOFs for logging
                     solve_result.final_dofs = _collect_dof_values(
                         phase_runtime.spatial_state.collect_degrees_of_freedom()
+                    )
+                    solve_result.final_snapshot = snapshot_phase(
+                        phase_runtime.spatial_parameterisations
                     )
 
                     # Store the resolved objective baseline in the solve result for logging
@@ -653,8 +656,8 @@ def _default_initial_basis(
     centre: tuple[float, float],
     basis: SpatialParameterisationBasisFunction,
     parameter: ConstitutiveParameter,
-) -> tuple[BasisFunctionKernelUnivariate, DegreeOfFreedom]:
-    """Create one univariate Gaussian with conventional initial DOFs."""
+) -> tuple[BasisFunctionKernel, DegreeOfFreedom]:
+    """Create one Gaussian with conventional initial DOFs."""
 
     x, y = basis.x, basis.y
     spacing = min(
@@ -676,17 +679,9 @@ def _default_initial_basis(
     initial_variance = float(np.sqrt(minimum_variance * maximum_variance))
 
     return (
-        BasisFunctionKernelUnivariate(
-            DegreeOfFreedom(
-                centre[0],
-                float(np.nanmin(x)),
-                float(np.nanmax(x)),
-            ),
-            DegreeOfFreedom(
-                centre[1],
-                float(np.nanmin(y)),
-                float(np.nanmax(y)),
-            ),
+        basis.create_kernel(
+            DegreeOfFreedom(centre[0], float(np.nanmin(x)), float(np.nanmax(x))),
+            DegreeOfFreedom(centre[1], float(np.nanmin(y)), float(np.nanmax(y))),
             DegreeOfFreedom(
                 initial_variance,
                 minimum_variance,

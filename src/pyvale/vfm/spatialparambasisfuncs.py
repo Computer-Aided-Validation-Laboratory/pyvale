@@ -1,5 +1,6 @@
 from copy import copy, deepcopy
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -287,6 +288,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
     kernels: list[BasisFunctionKernel]
     initial_kernels_max: int
     initial_height_fraction: float
+    kernel_type: Literal["univariate", "bivariate"]
 
     def __init__(
         self,
@@ -298,12 +300,17 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         *,
         initial_kernels_max: int = 1,
         initial_height_fraction: float = 0.01,
+        kernel_type: Literal["univariate", "bivariate"] = "univariate",
     ) -> None:
         if initial_kernels_max < 1:
             raise ValueError("initial_kernels_max must be at least one.")
         if not 0.0 < initial_height_fraction <= 1.0:
             raise ValueError(
                 "initial_height_fraction must lie in (0, 1]."
+            )
+        if kernel_type not in {"univariate", "bivariate"}:
+            raise ValueError(
+                "kernel_type must be 'univariate' or 'bivariate'."
             )
 
         if support is None:
@@ -325,8 +332,31 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
 
         self.initial_kernels_max = initial_kernels_max
         self.initial_height_fraction = initial_height_fraction
+        self.kernel_type = kernel_type
 
         self._ensure_heights_match_support()
+
+    def create_kernel(
+        self,
+        x: float | DegreeOfFreedom,
+        y: float | DegreeOfFreedom,
+        variance: float | DegreeOfFreedom,
+    ) -> BasisFunctionKernel:
+        """Create a Gaussian kernel matching this parameterisation's type."""
+
+        if self.kernel_type == "bivariate":
+            return BasisFunctionKernelBivariate(
+                x=x,
+                y=y,
+                variance_x=variance,
+                variance_y=copy(variance),
+                angle=DegreeOfFreedom(
+                    0.0,
+                    -0.5 * np.pi,
+                    0.5 * np.pi,
+                ),
+            )
+        return BasisFunctionKernelUnivariate(x=x, y=y, variance=variance)
 
     def get_num_degrees_of_freedom(self) -> int:
         return sum(
@@ -843,14 +873,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             scaling="log",
         )
 
-        return (
-            BasisFunctionKernelUnivariate(
-                dof_x,
-                dof_y,
-                dof_variance,
-            ),
-            dof_height,
-        )
+        return self.create_kernel(dof_x, dof_y, dof_variance), dof_height
 
     def _calc_rmse_from_dofs(
         self,

@@ -1,4 +1,4 @@
-"""Post-process the univariate-Gaussian VFM identification of a notched weld."""
+"""Post-process the Gaussian VFM identification of a notched weld."""
 
 from __future__ import annotations
 
@@ -36,6 +36,8 @@ from pyvale.vfm.postprocessing import (
     plot_grid_map,
     plot_individual_maps,
     plot_map_collection,
+    plot_phase_objective_histories,
+    plot_solve_parameter_maps,
     plot_stress_strain_tiled,
     plot_yielded_datapoints,
     write_summary_json,
@@ -55,14 +57,16 @@ RESULT_BUNDLE = (
     DATASET_ROOT
     / "identification"
     / "prepared"
-    / "univariate_gaussian"
+    # / "univariate_gaussian"
+    / "bivariate_gaussian"
     / "identification_result.yaml"
 )
 POSTPROCESSING_OUTPUT_DIR = (
     DATASET_ROOT
     / "identification"
     / "prepared"
-    / "univariate_gaussian_postprocessing_output"
+    # / "univariate_gaussian_postprocessing_output"
+    / "bivariate_gaussian_postprocessing_output"
 )
 DIAGNOSTIC_AXIS = "x"
 DIAGNOSTIC_SLICES = 63
@@ -163,6 +167,13 @@ def main() -> None:
         yielded_datapoints=yielded_datapoints,
         transparent_names=transparent_parameter_names,
     )
+    plot_solve_parameter_maps(
+        experiment_data,
+        result,
+        figure_dir / "identified_parameter_maps_by_solve.png",
+        cmap=SEQUENTIAL_CMAP,
+    )
+    plot_phase_objective_histories(result, figure_dir)
     if plasticity is not None:
         plot_yielded_datapoints(
             plasticity.yielded_datapoints,

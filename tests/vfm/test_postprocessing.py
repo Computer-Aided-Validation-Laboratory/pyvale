@@ -1,14 +1,20 @@
 import numpy as np
 import numpy.testing as npt
 import pytest
+from types import SimpleNamespace
 
+from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
 from pyvale.vfm.hardening import HardeningLinear
 from pyvale.vfm.identificationresult import (
     ConfigSnapshot,
+    IdentificationHistory,
     IdentificationMetadata,
     IdentificationResult,
     ObjectSnapshot,
+    PhaseResult,
+    SolveResult,
+    snapshot_phase,
 )
 from pyvale.vfm.postprocessing import (
     ParameterErrorDiagnostics,
@@ -16,11 +22,19 @@ from pyvale.vfm.postprocessing import (
     check_stress_against_saved,
     component_history_map,
     compute_parameter_error_diagnostics,
+    evaluate_snapshot_parameter_maps,
     load_constitutive_law_from_result,
     parameter_map_summary,
+    plot_phase_objective_histories,
+    plot_solve_parameter_maps,
     plot_stress_strain_tiled,
     resolve_egi_window,
 )
+from pyvale.vfm.spatialparambasisfuncs import (
+    BasisFunctionKernelBivariate,
+    SpatialParameterisationBasisFunction,
+)
+from pyvale.vfm.spatialparamhomogeneous import SpatialParameterisationHomogeneous
 
 
 def test_check_stress_against_saved_reports_match_and_difference() -> None:
@@ -33,6 +47,94 @@ def test_check_stress_against_saved_reports_match_and_difference() -> None:
     assert check.matches_saved_stress is True
     assert check.max_abs_difference is not None
     assert np.isclose(check.max_abs_difference, 1.0e-10)
+
+
+def test_evaluate_snapshot_parameter_maps_rebuilds_additive_bivariate_map() -> None:
+    x, y = np.meshgrid(np.linspace(0.0, 1.0, 5), np.linspace(0.0, 1.0, 4))
+    homogeneous = SpatialParameterisationHomogeneous(value=250.0)
+    basis = SpatialParameterisationBasisFunction(
+        x=x,
+        y=y,
+        kernels=[
+            BasisFunctionKernelBivariate(
+                x=0.4,
+                y=0.6,
+                variance_x=0.08,
+                variance_y=0.03,
+                angle=0.35,
+            )
+        ],
+        heights=[DegreeOfFreedom(40.0, -100.0, 100.0)],
+        kernel_type="bivariate",
+    )
+    snapshot = snapshot_phase(
+        {"yield_strength": [homogeneous, basis]}
+    )
+    experiment_data = SimpleNamespace(
+        specimen_geometry=SimpleNamespace(x=x, y=y)
+    )
+
+    reconstructed = evaluate_snapshot_parameter_maps(snapshot, experiment_data)
+
+    expected = homogeneous.to_map(np.asarray(x.shape)) + basis.to_map(
+        np.asarray(x.shape)
+    )
+    npt.assert_allclose(reconstructed["yield_strength"], expected)
+
+
+def test_plot_solve_maps_and_phase_objectives(tmp_path) -> None:
+    x, y = np.meshgrid(np.linspace(0.0, 1.0, 3), np.linspace(0.0, 1.0, 2))
+    snapshot = snapshot_phase(
+        {
+            "yield_strength": [SpatialParameterisationHomogeneous(250.0)],
+            "hardening_modulus": [SpatialParameterisationHomogeneous(3000.0)],
+        }
+    )
+    result = IdentificationResult(
+        parameter_maps={},
+        history=IdentificationHistory(
+            phases=[
+                PhaseResult(
+                    phase_index=0,
+                    solve_results=[
+                        SolveResult(
+                            solve_iteration=0,
+                            accepted=True,
+                            final_objective={"cost": 0.25},
+                            final_snapshot=snapshot,
+                        ),
+                        SolveResult(
+                            solve_iteration=1,
+                            accepted=False,
+                            final_objective={"cost": 0.30},
+                            final_snapshot=snapshot,
+                        ),
+                    ],
+                )
+            ]
+        ),
+    )
+    roi = SimpleNamespace(
+        sample_specimen_mask=lambda grid_x, grid_y: np.ones(
+            grid_x.shape,
+            dtype=bool,
+        )
+    )
+    experiment_data = SimpleNamespace(
+        specimen_geometry=SimpleNamespace(x=x, y=y, region_of_interest=roi)
+    )
+
+    solve_maps_path = tmp_path / "solve_maps.png"
+    plot_solve_parameter_maps(
+        experiment_data,
+        result,
+        solve_maps_path,
+        cmap="viridis",
+    )
+    plot_phase_objective_histories(result, tmp_path)
+
+    assert solve_maps_path.is_file()
+    assert (tmp_path / "objective_history_phase_1.png").is_file()
 
 
 def test_check_stress_against_saved_handles_missing_reference() -> None:

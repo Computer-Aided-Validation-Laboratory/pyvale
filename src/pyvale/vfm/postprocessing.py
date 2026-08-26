@@ -21,7 +21,12 @@ from pyvale.vfm.hardening import (
     HardeningVoce,
     IHardeningFunction,
 )
-from pyvale.vfm.identificationresult import IdentificationResult, ObjectSnapshot
+from pyvale.vfm.identificationresult import (
+    IdentificationResult,
+    ObjectSnapshot,
+    ParameterisationSnapshot,
+    PhaseSnapshot,
+)
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
 from pyvale.vfm.metricsliceforce import (
     ForceReconstructionErrorResult,
@@ -726,6 +731,100 @@ def parameter_label(name: str) -> str:
     return labels.get(name, name.replace("_", " ").title())
 
 
+def evaluate_snapshot_parameter_maps(
+    snapshot: PhaseSnapshot,
+    experiment_data: ExperimentData,
+) -> dict[str, npt.NDArray[np.float64]]:
+    """Evaluate identified parameter maps from a durable phase snapshot."""
+
+    maps: dict[str, npt.NDArray[np.float64]] = {}
+    for name, parameterisations in snapshot.spatial_parameterisations.items():
+        identified = [
+            item
+            for item in parameterisations
+            if item.summary.get("kind") != "known"
+        ]
+        if not identified:
+            continue
+        parameter_map = np.zeros(
+            experiment_data.specimen_geometry.x.shape,
+            dtype=np.float64,
+        )
+        for parameterisation in identified:
+            parameter_map += _evaluate_parameterisation_snapshot(
+                parameterisation,
+                experiment_data,
+            )
+        maps[name] = parameter_map
+    return maps
+
+
+def _evaluate_parameterisation_snapshot(
+    snapshot: ParameterisationSnapshot,
+    experiment_data: ExperimentData,
+) -> npt.NDArray[np.float64]:
+    summary = snapshot.summary
+    kind = summary.get("kind")
+    shape = experiment_data.specimen_geometry.x.shape
+    if kind == "homogeneous":
+        return np.full(shape, float(summary["value"]), dtype=np.float64)
+    if kind == "basis_functions":
+        return _evaluate_basis_snapshot(summary, experiment_data)
+    if kind == "slice_wise":
+        return _evaluate_slice_snapshot(summary, experiment_data)
+    raise ValueError(
+        f"Cannot evaluate saved parameterisation type "
+        f"'{snapshot.parameterisation_type}' with summary kind '{kind}'."
+    )
+
+
+def _evaluate_basis_snapshot(
+    summary: dict,
+    experiment_data: ExperimentData,
+) -> npt.NDArray[np.float64]:
+    x = experiment_data.specimen_geometry.x
+    y = experiment_data.specimen_geometry.y
+    parameter_map = np.zeros(x.shape, dtype=np.float64)
+    for kernel in summary.get("kernels", []):
+        centre_x, centre_y = (float(value) for value in kernel["centre"])
+        dx = x - centre_x
+        dy = y - centre_y
+        kernel_type = kernel["kernel_type"]
+        if kernel_type == "BasisFunctionKernelUnivariate":
+            variance = float(kernel["variance"])
+            exponent = -0.5 * (dx**2 + dy**2) / variance
+        elif kernel_type == "BasisFunctionKernelBivariate":
+            variance_x, variance_y = (
+                float(value) for value in kernel["variance"]
+            )
+            angle = float(kernel["angle"])
+            local_x = np.cos(angle) * dx + np.sin(angle) * dy
+            local_y = -np.sin(angle) * dx + np.cos(angle) * dy
+            exponent = -0.5 * (
+                local_x**2 / variance_x + local_y**2 / variance_y
+            )
+        else:
+            raise ValueError(f"Unsupported saved basis kernel '{kernel_type}'.")
+        parameter_map += float(kernel["height"]) * np.exp(exponent)
+    return parameter_map
+
+
+def _evaluate_slice_snapshot(
+    summary: dict,
+    experiment_data: ExperimentData,
+) -> npt.NDArray[np.float64]:
+    boundaries = np.asarray(summary["boundaries"], dtype=np.float64)
+    values = np.asarray(summary["values"], dtype=np.float64)
+    coordinate = (
+        experiment_data.specimen_geometry.x
+        if summary["axis"] == "x"
+        else experiment_data.specimen_geometry.y
+    )
+    indices = np.searchsorted(boundaries, coordinate, side="right") - 1
+    indices = np.clip(indices, 0, values.size - 1)
+    return values[indices]
+
+
 def specimen_mask(
     experiment_data: ExperimentData,
 ) -> npt.NDArray[np.bool_]:
@@ -815,6 +914,165 @@ def plot_map_collection(
         ax.axis("off")
     fig.savefig(output_path, dpi=200)
     plt.close(fig)
+
+
+def plot_solve_parameter_maps(
+    experiment_data: ExperimentData,
+    result: IdentificationResult,
+    output_path: Path,
+    *,
+    cmap: str,
+) -> None:
+    """Plot every solve's identified parameter maps in chronological rows."""
+
+    solve_maps = []
+    for phase in result.history.phases:
+        for solve in phase.solve_results:
+            if solve.final_snapshot is None:
+                raise ValueError(
+                    "Solve-map plotting requires per-solve snapshots. "
+                    "Rerun the identification with solve snapshot recording enabled."
+                )
+            solve_maps.append(
+                (
+                    phase.phase_index,
+                    solve,
+                    evaluate_snapshot_parameter_maps(
+                        solve.final_snapshot,
+                        experiment_data,
+                    ),
+                )
+            )
+    if not solve_maps:
+        return
+
+    names = ordered_parameter_names(
+        {
+            name: parameter_map
+            for _, _, maps in solve_maps
+            for name, parameter_map in maps.items()
+        }
+    )
+    if not names:
+        return
+
+    limits = {
+        name: (
+            min(
+                float(np.nanmin(maps[name]))
+                for _, _, maps in solve_maps
+                if name in maps
+            ),
+            max(
+                float(np.nanmax(maps[name]))
+                for _, _, maps in solve_maps
+                if name in maps
+            ),
+        )
+        for name in names
+    }
+    rows = len(solve_maps)
+    cols = len(names)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(
+        rows,
+        cols,
+        figsize=(5.2 * cols, 3.5 * rows),
+        squeeze=False,
+        constrained_layout=True,
+    )
+    fig.suptitle("Identified Parameter Maps at Each Solve")
+    column_images = []
+    for row, (phase_index, solve, maps) in enumerate(solve_maps):
+        for column, name in enumerate(names):
+            ax = axes[row, column]
+            if name not in maps:
+                ax.axis("off")
+                continue
+            image = imshow_map(
+                ax,
+                experiment_data,
+                maps[name],
+                cmap=cmap,
+                vmin=limits[name][0],
+                vmax=limits[name][1],
+            )
+            if row == 0:
+                ax.set_title(parameter_label(name))
+            if column == 0:
+                status = (
+                    "accepted"
+                    if solve.accepted
+                    else "rejected"
+                    if solve.accepted is False
+                    else "unknown"
+                )
+                ax.set_ylabel(
+                    f"Phase {phase_index + 1}, solve {solve.solve_iteration + 1}\n"
+                    f"{status}"
+                )
+            column_images.append((column, image))
+    for column, name in enumerate(names):
+        image = next(
+            image
+            for image_column, image in column_images
+            if image_column == column
+        )
+        fig.colorbar(image, ax=axes[:, column], label=parameter_label(name))
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
+
+
+def plot_phase_objective_histories(
+    result: IdentificationResult,
+    output_dir: Path,
+) -> None:
+    """Save one accepted/rejected objective scatter plot per phase."""
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for phase in result.history.phases:
+        points = [
+            (
+                solve.solve_iteration + 1,
+                solve.final_objective.get("cost"),
+                solve.accepted,
+            )
+            for solve in phase.solve_results
+            if solve.final_objective.get("cost") is not None
+        ]
+        if not points:
+            continue
+        fig, ax = plt.subplots(figsize=(6, 4), constrained_layout=True)
+        x_values = [point[0] for point in points]
+        costs = [float(point[1]) for point in points]
+        ax.plot(x_values, costs, color="0.7", linewidth=1.0, zorder=1)
+        for accepted, marker, color, label in (
+            (True, "o", "tab:green", "Accepted"),
+            (False, "X", "tab:red", "Rejected"),
+            (None, "s", "tab:gray", "Acceptance unknown"),
+        ):
+            selected = [point for point in points if point[2] is accepted]
+            if selected:
+                ax.scatter(
+                    [point[0] for point in selected],
+                    [float(point[1]) for point in selected],
+                    marker=marker,
+                    color=color,
+                    s=60,
+                    label=label,
+                    zorder=2,
+                )
+        ax.set_title(f"Phase {phase.phase_index + 1} Final Objective by Solve")
+        ax.set_xlabel("Solve iteration")
+        ax.set_ylabel("Final objective value")
+        ax.set_xticks(x_values)
+        ax.grid(alpha=0.25)
+        ax.legend()
+        fig.savefig(
+            output_dir / f"objective_history_phase_{phase.phase_index + 1}.png",
+            dpi=200,
+        )
+        plt.close(fig)
 
 
 def component_history_map(
@@ -1022,9 +1280,10 @@ def imshow_map(
     cmap: str,
     symmetric: bool = False,
     alpha: npt.NDArray[np.float64] | None = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
 ):
     masked_data = masked_map(experiment_data, np.asarray(data, dtype=np.float64))
-    vmin = vmax = None
     if symmetric:
         max_abs = (
             float(np.nanmax(np.abs(masked_data)))

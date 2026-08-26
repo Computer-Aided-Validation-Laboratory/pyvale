@@ -20,7 +20,7 @@ from pyvale.vfm.objectivefunccombinedfreegi import (
 )
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.spatialparambasisfuncs import (
-    BasisFunctionKernelUnivariate,
+    BasisFunctionKernel,
     SpatialParameterisationBasisFunction,
     SupportBasis,
 )
@@ -327,7 +327,7 @@ class RemoveBasisFunctionAction(IRefinementAction):
 
 @dataclass(slots=True)
 class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
-    """Grow univariate Gaussian bases from the normalised EGI residual map.
+    """Grow Gaussian bases from the normalised EGI residual map.
 
     Add one EGI-seeded Gaussian after each accepted solve and retain it only
     when the scalar objective improves sufficiently.
@@ -426,7 +426,7 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
         )
         if centre is None:
             return None
-        kernel, height = _default_univariate_basis(
+        kernel, height = _default_basis(
             centre,
             basis,
             context.constitutive_parameters[parameter_name],
@@ -563,12 +563,12 @@ def _kernel_value(value: float | DegreeOfFreedom) -> float:
     return float(value.value if isinstance(value, DegreeOfFreedom) else value)
 
 
-def _default_univariate_basis(
+def _default_basis(
     centre: tuple[float, float],
     basis: SpatialParameterisationBasisFunction,
     parameter: ConstitutiveParameter,
     height_fraction: float,
-) -> tuple[BasisFunctionKernelUnivariate, DegreeOfFreedom]:
+) -> tuple[BasisFunctionKernel, DegreeOfFreedom]:
     x, y = basis.x, basis.y
     spacing = min(
         float(np.nanmedian(np.diff(x, axis=1))),
@@ -580,7 +580,7 @@ def _default_univariate_basis(
     maximum_variance = max(diagonal**2, minimum_variance * (1.0 + 1.0e-6))
     initial_variance = float(np.sqrt(minimum_variance * maximum_variance))
     return (
-        BasisFunctionKernelUnivariate(
+        basis.create_kernel(
             DegreeOfFreedom(centre[0], float(np.nanmin(x)), float(np.nanmax(x))),
             DegreeOfFreedom(centre[1], float(np.nanmin(y)), float(np.nanmax(y))),
             DegreeOfFreedom(
