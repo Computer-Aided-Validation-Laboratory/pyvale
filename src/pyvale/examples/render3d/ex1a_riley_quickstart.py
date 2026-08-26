@@ -4,12 +4,23 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Renderin quickstart with Riley
+"""Rendering quickstart with Riley
 ================================================================================
 
-Render a single triangle with Riley through the unified pyvale render module.
-"""
+Here we render a single triangle with Riley through the unified pyvale render 
+module.
 
+The common workflow for a rendering simulation is pyvale is:
+1. Load and/or create meshes assigning shaders and displacement fields
+2. Create cameras and position them in the scene
+3. Set render configuration and use this to build the render backend
+4. Build the scene then render images to memory and/or disk
+
+Riley is the default rendering backend for digital image correlation (DIC) 
+uncertainty quantification with pyvale. Riley supports full 3D rendering for 
+stereo DIC but is also the default for 2D image simulation due to its 
+computation speed and verification suite independent of DIC.
+"""
 
 from pathlib import Path
 
@@ -23,8 +34,9 @@ import riley
 # 1. Make the triangle mesh
 # -------------------------------
 
-coords = np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0),
-                   (0.0, 1.0, 0.0)))
+coords = np.array(((-1.0, -1.0, 0.0), 
+                   ( 1.0, -1.0, 0.0),
+                   ( 0.0,  1.0, 0.0)))
 connect = np.array(((0, 1, 2),))
 
 mesh = riley.Mesh(
@@ -37,7 +49,7 @@ mesh = riley.Mesh(
 )
 
 #%%
-# 2. Build and position a camera
+# 2. Create and position a camera
 # -------------------------------
 # Use Riley's camera auto-positioning to fill the FOV
 
@@ -61,7 +73,7 @@ pos_world = riley.pos_fill_frame_from_rot(
 camera.pos_world = np.array(pos_world)
 
 #%%
-# 1. Load physics simulation data
+# 3. Build renderer backend 
 # -------------------------------
 
 config = riley.create_raster_config(
@@ -70,15 +82,14 @@ config = riley.create_raster_config(
 config.report = 1
 config.background_value = 0.5
 output_dir = Path.cwd() / "pyvale-output" / "render-riley-quickstart"
-
+renderer = render.Riley(config, output_dir)
 
 #%%
-# 1. Load physics simulation data
+# 4. Render images from scene
 # -------------------------------
 
-result = render.Riley(config, output_dir).render(
-    render.Scene3D([mesh], [camera]),
-)
+scene = render.Scene3D([mesh], [camera])
+result = renderer.render(scene)
 
 assert result.images is not None
 print(f"{result.images.shape=}")
