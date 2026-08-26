@@ -23,6 +23,7 @@ pyvale-output/
 pyvale-input/
 test-output/
 test-input/
+tests/strain/test/
 
 # MOOSE / gmsh
 *-opt
