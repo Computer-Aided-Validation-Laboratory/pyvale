@@ -1181,9 +1181,8 @@ def test_run_identification_emits_lightweight_progress_events() -> None:
     slice_finished = next(
         event for event in events if event.kind == "slice_finished"
     )
-    assert slice_finished.phase_index == 0
-    assert slice_finished.phase_count == 1
-    assert slice_finished.solve_attempt_index == 0
-    assert slice_finished.slice_index is not None
-    assert slice_finished.slice_count == 2
-    assert slice_finished.evaluation_count is not None
+    assert slice_finished.kind == "slice_finished"
+    assert "Phase 1/1, solve 1, Slice" in slice_finished.message
+    assert "finished" in slice_finished.message
+    assert "evaluations:" in slice_finished.message
+    assert slice_finished.elapsed_seconds is not None
