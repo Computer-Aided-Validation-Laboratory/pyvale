@@ -34,6 +34,7 @@ class Blender(IRenderer3D):
 
     def __init__(self, config: BlenderConfig) -> None:
         """Store configuration used by subsequent requests."""
+        raise_if_blender_unavailable()
         self.config = config
 
     def verify_input(
@@ -340,7 +341,9 @@ def _normalise_deformed_images(
     images: np.ndarray,
     camera_count: int,
 ) -> np.ndarray:
-    """Normalise legacy deformation stacks to ``frame, camera, y, x, channel``."""
+    """Normalise legacy deformation stacks to
+    ``frame, camera, y, x, channel``.
+    """
     if images.ndim == 2:
         return images[None, None, :, :, None]
     frames = images.shape[2] // camera_count
@@ -350,6 +353,13 @@ def _normalise_deformed_images(
         frames,
         camera_count,
     ).transpose(2, 3, 0, 1)[:, :, :, :, None]
+
+
+def raise_if_blender_unavailable() -> None:
+    """Raise RenderInputError if the optional Blender backend is missing."""
+    reason = _blender_unavailable_reason()
+    if reason is not None:
+        raise_if_issues((ValidationIssue("blender", "UNAVAILABLE", reason),))
 
 
 def blender_available() -> bool:

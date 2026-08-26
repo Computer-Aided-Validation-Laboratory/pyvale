@@ -17,7 +17,7 @@ from ..camera import Camera
 from ..camerastereo import CameraStereo
 from ..light import Light
 from ..result import RenderResult
-from .adapter import _blender_unavailable_reason, _legacy_light
+from .adapter import _legacy_light, raise_if_blender_unavailable
 from .config import BlenderConfig
 from .shader import BlenderMaterial
 
@@ -131,9 +131,7 @@ def render_calibration_images(
     RenderInputError
         If input is invalid or the Blender backend is unavailable.
     """
-    reason = _blender_unavailable_reason()
-    if reason is not None:
-        raise RuntimeError(reason)
+    raise_if_blender_unavailable()
     if not isinstance(target, BlenderCalibrationTarget):
         raise TypeError("target must be a BlenderCalibrationTarget.")
     if not isinstance(config, BlenderConfig):

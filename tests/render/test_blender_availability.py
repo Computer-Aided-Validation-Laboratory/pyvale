@@ -35,21 +35,45 @@ def make_mesh() -> render.Mesh3D:
     )
 
 
-def test_blender_reports_unavailable_before_scene_construction(
+def test_blender_reports_unavailable_at_construction(
     monkeypatch,
     tmp_path,
 ) -> None:
-    """An unavailable optional backend is a render validation error."""
+    """An unavailable optional backend fails immediately on instantiation."""
     reason = "Blender requires Python 3.13 and the blender extra."
     monkeypatch.setattr(
         blender_adapter,
         "_blender_unavailable_reason",
         lambda: reason,
     )
-    renderer = render.Blender(render.BlenderConfig(tmp_path))
-
     with pytest.raises(render.RenderInputError, match="UNAVAILABLE"):
-        renderer.render(render.Scene3D([make_mesh()], [make_camera()]))
+        render.Blender(render.BlenderConfig(tmp_path))
+
+
+def test_render_calibration_images_reports_unavailable(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    """Calibration rendering fails immediately when Blender is unavailable."""
+    reason = "Blender requires Python 3.13 and the blender extra."
+    monkeypatch.setattr(
+        blender_adapter,
+        "_blender_unavailable_reason",
+        lambda: reason,
+    )
+    camera = make_camera()
+    stereo = render.faceon_stereo_cameras(camera, 15.0)
+    target = render.BlenderCalibrationTarget(
+        np.array((10.0, 10.0, 1.0)),
+        tmp_path / "dummy.tiff",
+        0.1,
+    )
+    with pytest.raises(render.RenderInputError, match="UNAVAILABLE"):
+        render.render_calibration_images(
+            target,
+            stereo,
+            render.BlenderConfig(tmp_path),
+        )
 
 
 def test_blender_available_reflects_backend_probe(monkeypatch) -> None:

@@ -1,6 +1,11 @@
 """Blender implementation of pyvale's unified renderer API."""
 
-from .adapter import Blender, blender_available, blender_gpu_available
+from .adapter import (
+    Blender,
+    blender_available,
+    blender_gpu_available,
+    raise_if_blender_unavailable,
+)
 from .blendertools import (
     blender_camera_from_resolution,
     blender_field_of_view,
@@ -33,5 +38,6 @@ __all__ = [
     "blender_mm_per_pixel",
     "calibration_image_count",
     "focal_length_from_resolution",
+    "raise_if_blender_unavailable",
     "render_calibration_images",
 ]

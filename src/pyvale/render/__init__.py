@@ -27,6 +27,7 @@ from .blender import (
     blender_mm_per_pixel,
     calibration_image_count,
     focal_length_from_resolution,
+    raise_if_blender_unavailable,
     render_calibration_images,
 )
 from .camera import Camera, Camera2D, EDistortionModel, EPSFType
@@ -164,6 +165,7 @@ __all__ = [
     "pixel_grid_leng",
     "pixel_vec_leng",
     "quantise_image",
+    "raise_if_blender_unavailable",
     "render_calibration_images",
     "save_image",
     "subpixel_grid_leng",

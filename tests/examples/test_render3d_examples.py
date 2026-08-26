@@ -46,13 +46,16 @@ _RILEY_EXAMPLES = (
         "render3d/ex1g_riley_stereocal.py",
         "pyvale-output/render-riley-stereocal/cam0_frame0_field0.bmp",
     ),
+    pytest.param(
+        "render3d/ex2d_blender_calibration.py",
+        "pyvale-output/render-blender-calibration/calibration/calibration.yaml",
+    ),
 )
 
 _BLENDER_EXAMPLES = (
     "render3d/ex2a_blender_scene.py",
     "render3d/ex2b_blender_deformation.py",
     "render3d/ex2c_blender_stereo.py",
-    "render3d/ex2d_blender_calibration.py",
     "render3d/ex2e_blender_stereo_deformation.py",
     "render3d/ex2f_blender_calibration_target.py",
 )
