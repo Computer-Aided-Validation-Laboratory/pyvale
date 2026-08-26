@@ -60,6 +60,7 @@ from .slicewise_utils import (
 
 from .optimiser import IOptimiser
 from .optimiserleastsquares import OptimiserLeastSquares
+from .optimiserpatternsearch import OptimiserPatternSearch
 from .optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
 
 from .metric import IMetric, MetricResult
@@ -153,6 +154,7 @@ __all__ = [
     "resolve_cell_aligned_slice_boundaries",
     "IOptimiser",
     "OptimiserLeastSquares",
+    "OptimiserPatternSearch",
     "SliceWiseIndependentLeastSquares",
     "IMetric",
     "MetricResult",
