@@ -16,10 +16,15 @@ from pyvale.sensorsim.simtools import centre_mesh_nodes
 from pyvale.verif.renderverif import assert_render_allclose
 
 
-pytestmark = pytest.mark.skipif(
-    not render.blender_available(),
-    reason="Blender requires Python 3.13 and the optional Blender extra.",
-)
+pytestmark = [
+    pytest.mark.skipif(
+        not render.blender_available(),
+        reason="Blender requires Python 3.13 and the optional Blender extra.",
+    ),
+    pytest.mark.filterwarnings(
+        "ignore:Blender support is verified only for Tri3 meshes",
+    ),
+]
 
 _GOLD = Path(__file__).parents[1] / "blender" / "2D_gold"
 

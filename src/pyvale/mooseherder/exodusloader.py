@@ -85,7 +85,12 @@ class ExodusLoader(IOutputLoader):
         if key not in self._data.variables or key is None:
             return None
 
-        return nc.chartostring(np.array(self._data.variables[key][:]))
+        # netCDF4's chartostring triggers NumPy's deprecated in-place shape
+        # setting, so the character-to-string conversion is done here with a
+        # view and decode instead.
+        raw = np.array(self._data.variables[key][:])
+        chars = raw.view(f"S{raw.shape[-1]}").reshape(raw.shape[:-1])
+        return np.char.decode(chars, "utf-8")
 
 
     def get_var(self, key: str, time_inds: np.ndarray | None = None
