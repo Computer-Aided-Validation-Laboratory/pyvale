@@ -3,27 +3,6 @@
 A glossary of abbreviations used across the `pyvale` source code, grouped by
 usage. Keep new abbreviations consistent with these forms where possible.
 
-## Core Numeric Terms
-- `resid`: residual
-- `norm`: normalized or normalised
-- `interp`: interpolated or interpolation when the shorter form is clear
-- `det`: determinant
-- `rel`: relative
-- `para`: parametric
-- `conv`: converged or convergence
-- `dom`: domain
-- `targ`: target
-- `inv`: inverse
-- `comp`: component
-- `elem`: element
-- `func`: function or functions
-- `vec`: vector
-- `buff`: buffer
-- `tex`: texture
-- `samp`: sample
-- `tol`: tolerance
-- `align`: alignment
-
 ## Loop Iterators
 
 Double-letter iterators are the numpy-style convention sanctioned in
