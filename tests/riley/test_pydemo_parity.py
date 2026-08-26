@@ -98,15 +98,9 @@ def test_packaged_demo_matches_pyvale_example(
     native_dir, pyvale_dir = demo_directories
 
     monkeypatch.chdir(native_dir)
-    if demo == "demo_stereocal":
-        # The stereo-calibration demo consumes the dicuq demo's stereo pair.
-        importlib.import_module("riley.pydemos.demo_dicuq").main()
     importlib.import_module(f"riley.pydemos.{demo}").main()
 
     monkeypatch.chdir(pyvale_dir)
-    if example == "ex1g_riley_stereocal.py":
-        # The stereo-calibration example consumes the ex1e example's outputs.
-        runpy.run_path(str(_EXAMPLES / "ex1e_riley_dicuq.py"))
     runpy.run_path(str(_EXAMPLES / example))
 
     _assert_same_tree(
