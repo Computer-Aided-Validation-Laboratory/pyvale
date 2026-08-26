@@ -8,7 +8,7 @@ pyvale-env/
 .venv/
 .pytest_cache/
 
-# Output files
+# Output files, references and temp
 *.npy
 *.dat
 *.png
@@ -23,6 +23,8 @@ pyvale-output/
 pyvale-input/
 test-output/
 test-input/
+tests/strain/test/
+refs/
 
 # MOOSE / gmsh
 *-opt
