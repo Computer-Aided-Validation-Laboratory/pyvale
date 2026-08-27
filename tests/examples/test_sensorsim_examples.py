@@ -39,6 +39,11 @@ _EXTENDED_EXAMPLES = (
     "extsensorsim/ex4g_spatavgerrs_scal2d.py",
     "extsensorsim/ex5a_expsim_thermmech2d.py",
     "extsensorsim/ex5b_expsim_thermmech3d.py",
+    "extsensorsim/ex6a_errgraph_parallel_branches.py",
+    "extsensorsim/ex6b_errgraph_diamond_dependency.py",
+    "extsensorsim/ex6c_errgraph_chain_conversion_and_inspection.py",
+    "extsensorsim/ex6d_errgraph_complex_sensor_network.py",
+    "extsensorsim/ex6e_errgraph_expsim_montecarlo.py",
 )
 
 

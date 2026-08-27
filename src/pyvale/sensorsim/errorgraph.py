@@ -187,6 +187,14 @@ class ErrGraph:
         """Alias for reseed_error_graph."""
         self.reseed_error_graph(seed)
 
+    def reseed_error_chain(self, seed: int | None = None) -> None:
+        """Compatibility alias for reseed_error_graph."""
+        self.reseed_error_graph(seed)
+
+    def calc_errors_from_chain(self, truth: np.ndarray) -> np.ndarray:
+        """Compatibility alias for calc_errors_from_graph."""
+        return self.calc_errors_from_graph(truth)
+
     def set_sensor_data_initial(self, sensor_data: SensorData) -> None:
         """Update nominal initial sensor data."""
         self._sens_data_initial = copy.deepcopy(sensor_data)
@@ -330,6 +338,20 @@ class ErrGraph:
             return node.custom_op(in_state, error_array, sens_perturbed)
 
         raise ValueError(f"Unsupported EErrOp: {node.op}")
+
+    @property
+    def nodes(self) -> dict[str, ErrNode]:
+        """Dictionary of node identifiers to ErrNode instances."""
+        return self._nodes
+
+    @property
+    def execution_order(self) -> tuple[str, ...]:
+        """Topological execution order of node names."""
+        return self._execution_order
+
+    def get_execution_order(self) -> tuple[str, ...]:
+        """Topological execution order of node names."""
+        return self._execution_order
 
     def get_errs_systematic(self) -> np.ndarray:
         """Gets the total systematic error array."""

@@ -39,16 +39,24 @@ sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
 #%%
 # 2. Build virtual sensor array
 # -----------------------------
+# Pyvale provides several placement utilities:
+# - `gen_pos_grid_inside()`: Uniform grid excluding boundary edges.
+# - `gen_pos_grid_boundary()`: Uniform grid inclusive of boundary limits.
+# - `gen_pos_cylinder()` / `gen_pos_sphere()`: Cylindrical / spherical surfaces.
 sim_dims = sens.simtools.get_sim_dims(sim_data)
-sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
-                                                x_lims=(12.5,12.5),
-                                                y_lims=sim_dims["y"],
-                                                z_lims=sim_dims["z"])
+sens_pos: np.ndarray = sens.gen_pos_grid_boundary(
+    num_sensors=(1, 4, 1),
+    x_lims=(12.5, 12.5),
+    y_lims=sim_dims["y"],
+    z_lims=sim_dims["z"],
+)
 
-sample_times = np.linspace(0.0,np.max(sim_data.time),50)
+sample_times = np.linspace(0.0, float(np.max(sim_data.time)), 50)
 
-sens_data = sens.SensorData(positions=sens_pos,
-                            sample_times=sample_times)
+sens_data = sens.SensorData(
+    positions=sens_pos,
+    sample_times=sample_times,
+)
 
 sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,

@@ -109,7 +109,9 @@ def _gen_pyvista_grid(sim_data: SimData,
     cell_types = np.array([],dtype=np.int64)
 
     for cc in sim_data.connect:
-        this_connect = np.ascontiguousarray(sim_data.connect[cc], dtype=np.int64)
+        this_connect = np.ascontiguousarray(
+            sim_data.connect[cc], dtype=np.int64
+        )
         (n_elems,nodes_per_elem) = this_connect.shape
 
         this_cell_type = _get_pyvista_cell_type(nodes_per_elem,spatial_dims)
@@ -140,16 +142,17 @@ def extract_surf_mesh(
 
     return _extract_surf_mesh(sim_data, enforce_convention=enforce_convention)
 
-#TODO: make this support triangular prisms in 3D.
-def _get_pyvista_cell_type(nodes_per_elem: int, 
-                           spat_dim: EDim) -> CellType | None:
+def _get_pyvista_cell_type(
+    nodes_per_elem: int,
+    spat_dim: EDim | int,
+) -> CellType | None:
     """Helper function to identify the pyvista element type in the mesh.
 
     Parameters
     ----------
     nodes_per_elem : int
         Number of nodes per element.
-    spat_dim : EDim
+    spat_dim : EDim | int
         Number of spatial dimensions in the simulation (TWOD or THREED).
 
     Returns
@@ -174,11 +177,19 @@ def _get_pyvista_cell_type(nodes_per_elem: int,
             cell_type = CellType.BIQUADRATIC_QUAD
     elif spat_dim == EDim.THREED or spat_dim == 3:
         if nodes_per_elem == 8:
-            cell_type =  CellType.HEXAHEDRON
+            cell_type = CellType.HEXAHEDRON
         elif nodes_per_elem == 4:
             cell_type = CellType.TETRA
+        elif nodes_per_elem == 6:
+            cell_type = CellType.WEDGE
+        elif nodes_per_elem == 5:
+            cell_type = CellType.PYRAMID
         elif nodes_per_elem == 10:
             cell_type = CellType.QUADRATIC_TETRA
+        elif nodes_per_elem == 15:
+            cell_type = CellType.QUADRATIC_WEDGE
+        elif nodes_per_elem == 13:
+            cell_type = CellType.QUADRATIC_PYRAMID
         elif nodes_per_elem == 20:
             cell_type = CellType.QUADRATIC_HEXAHEDRON
         elif nodes_per_elem == 27:

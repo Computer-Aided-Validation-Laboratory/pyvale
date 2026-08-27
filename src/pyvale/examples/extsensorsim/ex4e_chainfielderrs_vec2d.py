@@ -232,3 +232,8 @@ for kk in disp_keys:
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center
+#
+# .. note::
+#    For non-linear error dependencies, parallel branches, and complex
+#    transducer topologies, see the Directed Acyclic Graph (DAG) examples
+#    `ex6a_*` through `ex6e_*`.

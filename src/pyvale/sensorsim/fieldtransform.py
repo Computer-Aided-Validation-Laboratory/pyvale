@@ -386,3 +386,38 @@ def transform_tensor_3d_batch(trans_mat: np.ndarray, tensor: np.ndarray
                                             + trans_mat[1,2]*tensor[:,zz,:]))
 
     return tensor_trans
+
+
+def validate_rotation_planar_2d(
+    rmat: np.ndarray,
+    tol: float = 1e-6,
+) -> None:
+    """Validates that a 3D rotation matrix represents a purely planar rotation
+    about the Z-axis (in the X-Y plane).
+
+    Parameters
+    ----------
+    rmat : np.ndarray
+        3x3 rotation / transformation matrix.
+    tol : float, optional
+        Tolerance for checking out-of-plane elements (default 1e-6).
+
+    Raises
+    ------
+    ValueError
+        If any out-of-plane rotation component exceeds tolerance.
+    """
+    if rmat.shape[0] < 3 or rmat.shape[1] < 3:
+        return
+
+    if (
+        abs(rmat[2, 2] - 1.0) > tol
+        or abs(rmat[0, 2]) > tol
+        or abs(rmat[1, 2]) > tol
+        or abs(rmat[2, 0]) > tol
+        or abs(rmat[2, 1]) > tol
+    ):
+        raise ValueError(
+            "Out-of-plane rotation detected for 2D field. Rotations "
+            "for 2D fields must be purely planar around the Z-axis."
+        )

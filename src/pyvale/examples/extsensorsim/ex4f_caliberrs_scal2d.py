@@ -39,7 +39,16 @@ def calib_assumed(signal: np.ndarray) -> np.ndarray:
 
 
 def calib_truth(signal: np.ndarray) -> np.ndarray:
-    return -0.01897 + 25.41881*signal - 0.42456*signal**2 + 0.04365*signal**3
+    return (
+        -0.01897
+        + 25.41881 * signal
+        - 0.42456 * signal**2
+        + 0.04365 * signal**3
+    )
+
+
+def calib_truth_prime(signal: np.ndarray) -> np.ndarray:
+    return 25.41881 - 2.0 * 0.42456 * signal + 3.0 * 0.04365 * signal**2
 
 #%%
 # We are first going to do a quick analytical calculation for the minimum
@@ -48,55 +57,50 @@ def calib_truth(signal: np.ndarray) -> np.ndarray:
 # so we perform the calculation over this range and print the min/max
 # expected error over this range.
 n_cal_divs = 10000
-signal_calib_range = np.array((0.0,6.0),dtype=np.float64)
-milli_volts = np.linspace(signal_calib_range[0],
-                            signal_calib_range[1],
-                            n_cal_divs)
+signal_calib_range = np.array((0.0, 6.0), dtype=np.float64)
+milli_volts = np.linspace(
+    signal_calib_range[0], signal_calib_range[1], n_cal_divs
+)
 temp_truth = calib_truth(milli_volts)
 temp_assumed = calib_assumed(milli_volts)
 calib_error = temp_assumed - temp_truth
 
 print()
-print(80*"-")
-print(f"Max calibrated temperature: {np.min(temp_truth)} degC")
-print(f"Min calibrated temperature: {np.max(temp_truth)} degC")
+print(80 * "-")
+print(f"Max calibrated temperature: {np.min(temp_truth):.2f} degC")
+print(f"Min calibrated temperature: {np.max(temp_truth):.2f} degC")
 print()
-print(f"Calibration error over signal:"
-        + f" {signal_calib_range[0]} to {signal_calib_range[1]} mV")
-print(f"Max calib error: {np.max(calib_error)}")
-print(f"Min calib error: {np.min(calib_error)}")
-print(80*"-")
+print(
+    f"Calibration error over signal: {signal_calib_range[0]} to "
+    f"{signal_calib_range[1]} mV"
+)
+print(f"Max calib error: {np.max(calib_error):.4f} degC")
+print(f"Min calib error: {np.min(calib_error):.4f} degC")
+print(80 * "-")
 print()
-
-# %%
-# .. image:: ../../../../_static/ext_ex4f_term_out_0.png
-#    :alt: Terminal output.
-#    :width: 700px
-#    :align: center
 
 #%%
 # 1. Load physics simulation data
 # -------------------------------
 data_path: Path = dataset.thermal_2d_path()
 sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
-sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
-                                               sim_data=sim_data,
-                                               disp_keys=None)
+sim_data = sens.scale_length_units(
+    scale=1000.0, sim_data=sim_data, disp_keys=None
+)
 
 #%%
 # 2. Build virtual sensor array
 # -----------------------------
+sim_dims = sens.simtools.get_sim_dims(sim_data)
+sens_pos = sens.gen_pos_grid_inside(
+    num_sensors=(3, 2, 1),
+    x_lims=sim_dims["x"],
+    y_lims=sim_dims["y"],
+    z_lims=(0.0, 0.0),
+)
 
-sim_dims: dict[str,tuple[float,float]] = sens.simtools.get_sim_dims(sim_data)
-sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(3,2,1),
-                                                x_lims=sim_dims["x"],
-                                                y_lims=sim_dims["y"],
-                                                z_lims=(0.0,0.0))
-
-sample_times: np.ndarray = np.linspace(0.0,np.max(sim_data.time),50)
-
-sens_data = sens.SensorData(positions=sens_pos,
-                            sample_times=sample_times)
+sample_times = np.linspace(0.0, float(np.max(sim_data.time)), 50)
+sens_data = sens.SensorData(positions=sens_pos, sample_times=sample_times)
 
 sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
     sim_data,
@@ -107,38 +111,36 @@ sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
 )
 
 #%%
-# 2.1. Add simulated measurement errors
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# With our assumed and true calibration functions we can build our
-# calibration error object and add it to our error chain as normal. Note
-# that the truth calibration function must be inverted numerically so to
-# increase accuracy the number of divisions can be increased. However, 1e4
-# divisions should be suitable for most applications.
+# 2.1. Add simulated measurement errors (Table vs. Newton-Raphson)
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# `ErrSysCalibration` supports two inversion modes:
+# 1. `use_newton=False` (default): Fast 1D lookup table linear interpolation.
+# 2. `use_newton=True`: Exact Newton-Raphson root finding, achieving machine
+#    precision without lookup table discretization error.
 
-cal_err = sens.ErrSysCalibration(calib_assumed,
-                                 calib_truth,
-                                 signal_calib_range,
-                                 n_cal_divs=10000)
-sens_array.set_error_chain([cal_err,])
+cal_err_newton = sens.ErrSysCalibration(
+    assumed_calib=calib_assumed,
+    truth_calib=calib_truth,
+    truth_calib_prime=calib_truth_prime,
+    cal_range=(signal_calib_range[0], signal_calib_range[1]),
+    use_newton=True,
+)
+sens_array.set_error_chain([cal_err_newton])
 
 #%%
 # 3. Run a simulated experiment
 # ------------------------------------
 measurements = sens_array.sim_measurements()
 
-print(80*"-")
-
+print(80 * "-")
 sens_print = 0
 comp_print = 0
 time_last = 5
-time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
+time_print = slice(measurements.shape[2] - time_last, measurements.shape[2])
 
-print(f"These are the last {time_last} virtual measurements of sensor "
-        + f"{sens_print}:")
-
-sens.print_measurements(sens_array,sens_print,comp_print,time_print)
-
-print(80*"-")
+print(f"Last {time_last} virtual measurements of sensor {sens_print}:")
+sens.print_measurements(sens_array, sens_print, comp_print, time_print)
+print(80 * "-")
 
 # %%
 # .. image:: ../../../../_static/ext_ex4f_term_out_1.png

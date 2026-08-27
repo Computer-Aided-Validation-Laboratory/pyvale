@@ -259,14 +259,18 @@ def _perturb_sensor_positions(sens_pos_nominal: np.ndarray,
     return sens_pos_perturbed
 
 
-def _perturb_sample_times(sim_time: np.ndarray,
-                         time_nominal: np.ndarray | None,
-                         time_offset: np.ndarray | None,
-                         time_rand: IGenRandom | None,
-                         time_drift: IDriftCalculator | None
-                         ) -> np.ndarray | None:
+def _perturb_sample_times(
+    sim_time: np.ndarray,
+    time_nominal: np.ndarray | None,
+    time_offset: np.ndarray | None,
+    time_rand: IGenRandom | None,
+    time_drift: IDriftCalculator | None,
+) -> np.ndarray | None:
     """Helper function for calculating perturbed sensor sampling times for the
     purpose of calculating field based systematic errors.
+
+    Supports both uniform time perturbations across all sensors and per-sensor
+    independent time perturbations with shape (num_sensors, num_times).
 
     Parameters
     ----------
@@ -276,24 +280,24 @@ def _perturb_sample_times(sim_time: np.ndarray,
         Nominal sensor sampling times. If None then the simulation time steps
         are assumed to be the sampling times.
     time_offset : np.ndarray | None
-        Array of time offsets to apply to all sensors. If None then no offsets
-        are applied.
+        Array of time offsets to apply. Can have shape (num_times,),
+        (num_sensors, 1), or (num_sensors, num_times).
     time_rand : IGenRandom | None
-        Random generator for perturbing the sampling times of all sensors. If
-        None then no random perturbation of sampling times occurs.
+        Random generator for perturbing sampling times.
     time_drift : IDriftCalculator | None
-        Drift function for calculating temporal sampling drift. If None then no
-        temporal drift is applied.
+        Drift function for calculating temporal sampling drift.
 
     Returns
     -------
     np.ndarray | None
-        Array of perturbed sample times
+        Array of perturbed sample times.
     """
     if time_nominal is None:
-        if (time_offset is not None
+        if (
+            time_offset is not None
             or time_rand is not None
-            or time_drift is not None):
+            or time_drift is not None
+        ):
             time_nominal = sim_time
         else:
             return None
@@ -303,10 +307,12 @@ def _perturb_sample_times(sim_time: np.ndarray,
     if time_offset is not None:
         time_perturbed = time_perturbed + time_offset
     if time_rand is not None:
-        time_perturbed = time_perturbed + time_rand.generate(
-            shape=time_nominal.shape)
+        rand_shape = time_perturbed.shape
+        if isinstance(rand_shape, tuple) and len(rand_shape) == 1:
+            rand_shape = rand_shape[0]
+        time_perturbed = time_perturbed + time_rand.generate(shape=rand_shape)
     if time_drift is not None:
-        time_perturbed = time_perturbed + time_drift.calc_drift(time_nominal)
+        time_perturbed = time_perturbed + time_drift.calc_drift(time_perturbed)
 
     return time_perturbed
 
