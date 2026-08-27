@@ -33,7 +33,7 @@ def transform_vector_2d(trans_mat: np.ndarray, vector: np.ndarray
 
     vector_trans[xx,:] = (trans_mat[0,0]*vector[xx,:]
                         + trans_mat[0,1]*vector[yy,:])
-    vector_trans[yy,:] = (trans_mat[0,1]*vector[xx,:]
+    vector_trans[yy,:] = (trans_mat[1,0]*vector[xx,:]
                         + trans_mat[1,1]*vector[yy,:])
     return vector_trans
 
@@ -96,7 +96,7 @@ def transform_vector_2d_batch(trans_mat: np.ndarray, vector: np.ndarray
 
     vector_trans[:,xx,:] = (trans_mat[0,0]*vector[:,xx,:]
                             + trans_mat[0,1]*vector[:,yy,:])
-    vector_trans[:,yy,:] = (trans_mat[0,1]*vector[:,xx,:]
+    vector_trans[:,yy,:] = (trans_mat[1,0]*vector[:,xx,:]
                             + trans_mat[1,1]*vector[:,yy,:])
 
     return vector_trans
