@@ -28,6 +28,12 @@ from .fieldinterp import *
 from .fieldinterpmesh import *
 from .fieldinterppoints import*
 
+from .integrationrules import *
+from .spatialkernels import *
+from .temporalwindows import *
+from .spatialwindows import *
+from .sensorsspatial import *
+
 from .integratorspatial import *
 from .integratorquadrature import *
 from .integratorrectangle import *

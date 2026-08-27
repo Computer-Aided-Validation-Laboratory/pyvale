@@ -44,6 +44,13 @@ _EXTENDED_EXAMPLES = (
     "extsensorsim/ex6c_errgraph_chain_conversion_and_inspection.py",
     "extsensorsim/ex6d_errgraph_complex_sensor_network.py",
     "extsensorsim/ex6e_errgraph_expsim_montecarlo.py",
+    "extsensorsim/ex7a_line_sensors_fbg_fiber.py",
+    "extsensorsim/ex7b_area_sensors_foil_strain_gauge.py",
+    "extsensorsim/ex7c_volume_sensors_rtd_calorimeter.py",
+    "extsensorsim/ex7d_spatial_kernels_gaussian_psf.py",
+    "extsensorsim/ex7e_temporal_windowing_shutter_lag.py",
+    "extsensorsim/ex7f_spatiotemp_window_dag_errors.py",
+    "extsensorsim/ex7g_spatiotemp_expsim_montecarlo.py",
 )
 
 

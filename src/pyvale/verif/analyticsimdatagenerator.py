@@ -484,21 +484,37 @@ class AnalyticSimDataGen:
         expr = self.field_sym_funcs[field_key]
         sym_map = {sym.name: sym for sym in self.case_data.symbols}
 
-        res = sympy.integrate(
-            expr, (sym_map["x"], bounds_x[0], bounds_x[1])
-        )
-        res = sympy.integrate(
-            res, (sym_map["y"], bounds_y[0], bounds_y[1])
-        )
+        if bounds_x[0] == bounds_x[1]:
+            expr = expr.subs(sym_map["x"], bounds_x[0])
+        else:
+            expr = sympy.integrate(
+                expr, (sym_map["x"], bounds_x[0], bounds_x[1])
+            )
+
+        if bounds_y[0] == bounds_y[1]:
+            expr = expr.subs(sym_map["y"], bounds_y[0])
+        else:
+            expr = sympy.integrate(
+                expr, (sym_map["y"], bounds_y[0], bounds_y[1])
+            )
+
         if bounds_z is not None and "z" in sym_map:
-            res = sympy.integrate(
-                res, (sym_map["z"], bounds_z[0], bounds_z[1])
-            )
+            if bounds_z[0] == bounds_z[1]:
+                expr = expr.subs(sym_map["z"], bounds_z[0])
+            else:
+                expr = sympy.integrate(
+                    expr, (sym_map["z"], bounds_z[0], bounds_z[1])
+                )
+
         if bounds_t is not None and "t" in sym_map:
-            res = sympy.integrate(
-                res, (sym_map["t"], bounds_t[0], bounds_t[1])
-            )
-        return float(res)
+            if bounds_t[0] == bounds_t[1]:
+                expr = expr.subs(sym_map["t"], bounds_t[0])
+            else:
+                expr = sympy.integrate(
+                    expr, (sym_map["t"], bounds_t[0], bounds_t[1])
+                )
+
+        return float(expr)
 
 
     def get_visualisation_grid(self,

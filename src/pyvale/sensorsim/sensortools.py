@@ -7,7 +7,96 @@
 """Sensor positioning and placement utility functions."""
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 from pyvale.sensorsim.sensorarray import ISensorArray
+
+
+def orient_from_direction(
+    direction: tuple[float, float, float] | np.ndarray
+) -> Rotation:
+    """Computes a 3D Rotation aligning the canonical local primary axis
+    e1 = (1, 0, 0) with the target 3D direction vector.
+
+    Parameters
+    ----------
+    direction : tuple[float, float, float] | np.ndarray
+        Target 3D direction vector.
+
+    Returns
+    -------
+    Rotation
+        scipy Rotation object.
+    """
+    d = np.array(direction, dtype=float).ravel()
+    norm = np.linalg.norm(d)
+    if norm == 0.0:
+        return Rotation.identity()
+    d = d / norm
+
+    e1 = np.array([1.0, 0.0, 0.0])
+    dot = np.dot(e1, d)
+
+    if np.isclose(dot, 1.0):
+        return Rotation.identity()
+    if np.isclose(dot, -1.0):
+        return Rotation.from_euler("z", 180.0, degrees=True)
+
+    axis = np.cross(e1, d)
+    axis_norm = np.linalg.norm(axis)
+    if axis_norm > 0.0:
+        axis = axis / axis_norm
+    angle = np.arccos(np.clip(dot, -1.0, 1.0))
+    return Rotation.from_rotvec(angle * axis)
+
+
+def orient_from_normal_and_tangent(
+    normal: tuple[float, float, float] | np.ndarray,
+    tangent: tuple[float, float, float] | np.ndarray,
+) -> Rotation:
+    """Computes an orthogonal 3D Rotation frame from a surface normal and
+    tangent vector, where e3 = normal, e1 = tangent (projected onto surface),
+    and e2 = e3 x e1.
+
+    Parameters
+    ----------
+    normal : tuple[float, float, float] | np.ndarray
+        Out-of-plane surface normal vector (maps to local e3).
+    tangent : tuple[float, float, float] | np.ndarray
+        In-plane primary gauge direction (maps to local e1).
+
+    Returns
+    -------
+    Rotation
+        scipy Rotation object with columns [e1, e2, e3].
+    """
+    n = np.array(normal, dtype=float).ravel()
+    t = np.array(tangent, dtype=float).ravel()
+
+    n_norm = np.linalg.norm(n)
+    if n_norm > 0.0:
+        e3 = n / n_norm
+    else:
+        e3 = np.array([0.0, 0.0, 1.0])
+
+    # Project tangent to be strictly orthogonal to e3
+    t_proj = t - np.dot(t, e3) * e3
+    t_norm = np.linalg.norm(t_proj)
+    if t_norm > 0.0:
+        e1 = t_proj / t_norm
+    else:
+        # Fallback if tangent was parallel to normal
+        fallback = (
+            np.array([1.0, 0.0, 0.0])
+            if abs(e3[0]) < 0.9
+            else np.array([0.0, 1.0, 0.0])
+        )
+        t_proj = fallback - np.dot(fallback, e3) * e3
+        e1 = t_proj / np.linalg.norm(t_proj)
+
+    e2 = np.cross(e3, e1)
+    rot_matrix = np.column_stack((e1, e2, e3))
+    return Rotation.from_matrix(rot_matrix)
+
 
 
 def gen_pos_grid_inside(
