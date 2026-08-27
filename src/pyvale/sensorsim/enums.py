@@ -34,3 +34,43 @@ class EIntegrationMode(Enum):
     ACCUMULATE = auto()
 
 
+class EDifferentialMode(Enum):
+    """Enumeration specifying the differential sensor reduction mode.
+
+    DIFFERENCE:
+        Scalar difference M = M_B - M_A (e.g. Delta T, Delta P, Delta u).
+    STRAIN:
+        Tensile engineering strain:
+        eps = ((u_B - u_A) . e_AB) / L_0
+        where L_0 is the initial undeformed gauge length.
+    RATIO:
+        Ratio of measurements M = M_B / M_A.
+    CUSTOM:
+        User-defined reduction callable func(meas_a, meas_b) -> np.ndarray.
+    """
+
+    DIFFERENCE = auto()
+    STRAIN = auto()
+    RATIO = auto()
+    CUSTOM = auto()
+
+
+class ERayMode(Enum):
+    """Enumeration specifying the measurement mode for ray sensors.
+
+    DISTANCE:
+        Measures standoff distance d = ||x_hit - x_0|| from ray origin to the
+        deformed surface intersection.
+    SURFACE_FIELD:
+        Samples an underlying physical field (temperature, radiance, pressure)
+        at the dynamic surface intersection point x_hit.
+    LINE_OF_SIGHT:
+        Integrates a field along the ray path segment from origin to surface.
+    """
+
+    DISTANCE = auto()
+    SURFACE_FIELD = auto()
+    LINE_OF_SIGHT = auto()
+
+
+

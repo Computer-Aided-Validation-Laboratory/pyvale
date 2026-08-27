@@ -49,6 +49,44 @@ def orient_from_direction(
     return Rotation.from_rotvec(angle * axis)
 
 
+def orient_from_normal(
+    normal: tuple[float, float, float] | np.ndarray
+) -> Rotation:
+    """Computes a 3D Rotation aligning the canonical local surface normal
+    e3 = (0, 0, 1) with the target 3D normal vector.
+
+    Parameters
+    ----------
+    normal : tuple[float, float, float] | np.ndarray
+        Target 3D surface normal vector.
+
+    Returns
+    -------
+    Rotation
+        scipy Rotation object.
+    """
+    n = np.array(normal, dtype=float).ravel()
+    norm = np.linalg.norm(n)
+    if norm == 0.0:
+        return Rotation.identity()
+    n = n / norm
+
+    e3 = np.array([0.0, 0.0, 1.0])
+    dot = np.dot(e3, n)
+
+    if np.isclose(dot, 1.0):
+        return Rotation.identity()
+    if np.isclose(dot, -1.0):
+        return Rotation.from_euler("x", 180.0, degrees=True)
+
+    axis = np.cross(e3, n)
+    axis_norm = np.linalg.norm(axis)
+    if axis_norm > 0.0:
+        axis = axis / axis_norm
+    angle = np.arccos(np.clip(dot, -1.0, 1.0))
+    return Rotation.from_rotvec(angle * axis)
+
+
 def orient_from_normal_and_tangent(
     normal: tuple[float, float, float] | np.ndarray,
     tangent: tuple[float, float, float] | np.ndarray,

@@ -51,6 +51,13 @@ _EXTENDED_EXAMPLES = (
     "extsensorsim/ex7e_temporal_windowing_shutter_lag.py",
     "extsensorsim/ex7f_spatiotemp_window_dag_errors.py",
     "extsensorsim/ex7g_spatiotemp_expsim_montecarlo.py",
+    "extsensorsim/ex8a_derived_fields_stress_invariants.py",
+    "extsensorsim/ex8b_load_cells_surface_traction.py",
+    "extsensorsim/ex8c_flux_sensors_heat_and_flow.py",
+    "extsensorsim/ex8d_differential_sensors_extensometer.py",
+    "extsensorsim/ex8e_ray_sensors_lidar_and_pyrometer.py",
+    "extsensorsim/ex8f_sensor_library_typical_transducers.py",
+    "extsensorsim/ex8g_derived_expsim_montecarlo.py",
 )
 
 
