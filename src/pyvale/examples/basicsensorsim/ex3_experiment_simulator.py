@@ -123,7 +123,7 @@ strain_sens: sens.SensorsPoint = sens.SensorFactory.tensor_point(
     sim_data,
     strain_sens_data,
     norm_comp_keys=("strain_xx","strain_yy","strain_zz"),
-    dev_comp_keys=("strain_xy","strain_yz","strain_xz"),
+    dev_comp_keys=("strain_xy", "strain_xz", "strain_yz"),
     spatial_dims=sens.EDim.THREED,
     descriptor=sens.DescriptorFactory.strain(sens.EDim.THREED),
 )

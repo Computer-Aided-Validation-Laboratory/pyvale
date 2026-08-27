@@ -37,7 +37,7 @@ sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
 disp_keys = ("disp_x","disp_y","disp_z")
 norm_comp_keys = ("strain_xx","strain_yy","strain_zz")
-dev_comp_keys = ("strain_xy","strain_yz","strain_xz")
+dev_comp_keys = ("strain_xy", "strain_xz", "strain_yz")
 
 sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,

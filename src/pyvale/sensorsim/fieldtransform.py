@@ -61,11 +61,11 @@ def transform_vector_3d(trans_mat: np.ndarray, vector: np.ndarray
     vector_trans[xx,:] = (trans_mat[0,0]*vector[xx,:]
                           + trans_mat[0,1]*vector[yy,:]
                           + trans_mat[0,2]*vector[zz,:])
-    vector_trans[yy,:] = (trans_mat[0,1]*vector[xx,:]
+    vector_trans[yy,:] = (trans_mat[1,0]*vector[xx,:]
                           + trans_mat[1,1]*vector[yy,:]
                           + trans_mat[1,2]*vector[zz,:])
-    vector_trans[zz,:] = (trans_mat[0,2]*vector[xx,:]
-                          + trans_mat[1,2]*vector[yy,:]
+    vector_trans[zz,:] = (trans_mat[2,0]*vector[xx,:]
+                          + trans_mat[2,1]*vector[yy,:]
                           + trans_mat[2,2]*vector[zz,:])
 
     return vector_trans
@@ -95,10 +95,9 @@ def transform_vector_2d_batch(trans_mat: np.ndarray, vector: np.ndarray
     (xx,yy) = (0,1)
 
     vector_trans[:,xx,:] = (trans_mat[0,0]*vector[:,xx,:]
-                            + trans_mat[0,1]*vector[:,yy,:])
+                          + trans_mat[0,1]*vector[:,yy,:])
     vector_trans[:,yy,:] = (trans_mat[1,0]*vector[:,xx,:]
-                            + trans_mat[1,1]*vector[:,yy,:])
-
+                          + trans_mat[1,1]*vector[:,yy,:])
     return vector_trans
 
 
@@ -119,7 +118,7 @@ def transform_vector_3d_batch(trans_mat: np.ndarray, vector: np.ndarray
     Returns
     -------
     np.ndarray
-        Transformed vector field with shape=(num_sensors,2,num_time_steps),
+        Transformed vector field with shape=(num_sensors,3,num_time_steps),
         where the second dimension is the X, Y and Z components of the
         transformed vector field.
     """
@@ -129,11 +128,11 @@ def transform_vector_3d_batch(trans_mat: np.ndarray, vector: np.ndarray
     vector_trans[:,xx,:] = (trans_mat[0,0]*vector[:,xx,:]
                             + trans_mat[0,1]*vector[:,yy,:]
                             + trans_mat[0,2]*vector[:,zz,:])
-    vector_trans[:,yy,:] = (trans_mat[0,1]*vector[:,xx,:]
+    vector_trans[:,yy,:] = (trans_mat[1,0]*vector[:,xx,:]
                             + trans_mat[1,1]*vector[:,yy,:]
                             + trans_mat[1,2]*vector[:,zz,:])
-    vector_trans[:,zz,:] = (trans_mat[0,2]*vector[:,xx,:]
-                            + trans_mat[1,2]*vector[:,yy,:]
+    vector_trans[:,zz,:] = (trans_mat[2,0]*vector[:,xx,:]
+                            + trans_mat[2,1]*vector[:,yy,:]
                             + trans_mat[2,2]*vector[:,zz,:])
 
     return vector_trans
@@ -157,22 +156,26 @@ def transform_tensor_2d(trans_mat: np.ndarray, tensor: np.ndarray
         the XX, YY and XY components of the tensor field.
     """
     tensor_trans = np.zeros_like(tensor)
-    (xx,yy,xy) = (0,1,2)
+    (xx, yy, xy) = (0, 1, 2)
 
-    tensor_trans[xx,:] = (trans_mat[0,0]*(trans_mat[0,0]*tensor[xx,:]
-                                          + trans_mat[0,1]*tensor[xy,:])
-                        + trans_mat[0,1]*(trans_mat[0,0]*tensor[xy,:]
-                                          + trans_mat[0,1]*tensor[yy,:]))
+    tensor_trans[xx, :] = (
+        trans_mat[0, 0] * trans_mat[0, 0] * tensor[xx, :]
+        + 2.0 * trans_mat[0, 0] * trans_mat[0, 1] * tensor[xy, :]
+        + trans_mat[0, 1] * trans_mat[0, 1] * tensor[yy, :]
+    )
 
-    tensor_trans[yy,:] = (trans_mat[0,1]*(trans_mat[0,1]*tensor[xx,:]
-                                          + trans_mat[1,1]*tensor[xy,:])
-                        + trans_mat[1,1]*(trans_mat[0,1]*tensor[xy,:]
-                                          + trans_mat[1,1]*tensor[yy,:]))
+    tensor_trans[yy, :] = (
+        trans_mat[1, 0] * trans_mat[1, 0] * tensor[xx, :]
+        + 2.0 * trans_mat[1, 0] * trans_mat[1, 1] * tensor[xy, :]
+        + trans_mat[1, 1] * trans_mat[1, 1] * tensor[yy, :]
+    )
 
-    tensor_trans[xy,:] = (trans_mat[0,1]*(trans_mat[0,0]*tensor[xx,:]
-                                          + trans_mat[0,1]*tensor[xy,:])
-                        + trans_mat[1,1]*(trans_mat[0,0]*tensor[xy,:]
-                                          + trans_mat[0,1]*tensor[yy,:]))
+    tensor_trans[xy, :] = (
+        trans_mat[0, 0] * trans_mat[1, 0] * tensor[xx, :]
+        + (trans_mat[0, 0] * trans_mat[1, 1] + trans_mat[0, 1] * trans_mat[1, 0])
+        * tensor[xy, :]
+        + trans_mat[0, 1] * trans_mat[1, 1] * tensor[yy, :]
+    )
 
     return tensor_trans
 
@@ -196,67 +199,33 @@ def transform_tensor_3d(trans_mat: np.ndarray, tensor: np.ndarray
         the XX, YY, ZZ, XY, XZ and YZ components of the field.
     """
     tensor_trans = np.zeros_like(tensor)
-    (xx,yy,zz,xy,xz,yz) = (0,1,2,3,4,5)
+    (xx, yy, zz, xy, xz, yz) = (0, 1, 2, 3, 4, 5)
 
-    tensor_trans[xx,:] = (trans_mat[0,0]*(trans_mat[0,0]*tensor[xx,:]
-                                          + trans_mat[0,1]*tensor[xy,:]
-                                          + trans_mat[0,2]*tensor[xz,:])
-                        + trans_mat[0,1]*(trans_mat[0,0]*tensor[xy,:]
-                                          + trans_mat[0,1]*tensor[yy,:]
-                                          + trans_mat[0,2]*tensor[yz,:])
-                        + trans_mat[0,2]*(trans_mat[0,0]*tensor[xz,:]
-                                          + trans_mat[0,1]*tensor[yz,:]
-                                          + trans_mat[0,2]*tensor[zz,:]))
+    t00, t01, t02 = trans_mat[0, 0], trans_mat[0, 1], trans_mat[0, 2]
+    t10, t11, t12 = trans_mat[1, 0], trans_mat[1, 1], trans_mat[1, 2]
+    t20, t21, t22 = trans_mat[2, 0], trans_mat[2, 1], trans_mat[2, 2]
 
-    tensor_trans[yy,:] = (trans_mat[0,1]*(trans_mat[0,1]*tensor[xx,:]
-                                          + trans_mat[1,1]*tensor[xy,:]
-                                          + trans_mat[1,2]*tensor[xz,:])
-                        + trans_mat[1,1]*(trans_mat[0,1]*tensor[xy,:]
-                                          + trans_mat[1,1]*tensor[yy,:]
-                                          + trans_mat[1,2]*tensor[yz,:])
-                        + trans_mat[1,2]*(trans_mat[0,1]*tensor[xz,:]
-                                          + trans_mat[1,1]*tensor[yz,:]
-                                          + trans_mat[1,2]*tensor[zz,:]))
+    sxx, syy, szz = tensor[xx, :], tensor[yy, :], tensor[zz, :]
+    sxy, sxz, syz = tensor[xy, :], tensor[xz, :], tensor[yz, :]
 
-    tensor_trans[zz,:] = (trans_mat[0,2]*(trans_mat[0,2]*tensor[xx,:]
-                                          + trans_mat[1,2]*tensor[xy,:]
-                                          + trans_mat[2,2]*tensor[xz,:])
-                        + trans_mat[1,2]*(trans_mat[0,2]*tensor[xy,:]
-                                          + trans_mat[1,2]*tensor[yy,:]
-                                          + trans_mat[2,2]*tensor[yz,:])
-                        + trans_mat[2,2]*(trans_mat[0,2]*tensor[xz,:]
-                                          + trans_mat[1,2]*tensor[yz,:]
-                                          + trans_mat[2,2]*tensor[zz,:]))
+    ts00 = t00 * sxx + t01 * sxy + t02 * sxz
+    ts01 = t00 * sxy + t01 * syy + t02 * syz
+    ts02 = t00 * sxz + t01 * syz + t02 * szz
 
-    tensor_trans[xy,:] = (trans_mat[0,1]*(trans_mat[0,0]*tensor[xx,:]
-                                          + trans_mat[0,1]*tensor[xy,:]
-                                          + trans_mat[0,2]*tensor[xz,:])
-                        + trans_mat[1,1]*(trans_mat[0,0]*tensor[xy,:]
-                                          + trans_mat[0,1]*tensor[yy,:]
-                                          + trans_mat[0,2]*tensor[yz,:])
-                        + trans_mat[1,2]*(trans_mat[0,0]*tensor[xz,:]
-                                          + trans_mat[0,1]*tensor[yz,:]
-                                          + trans_mat[0,2]*tensor[zz,:]))
+    ts10 = t10 * sxx + t11 * sxy + t12 * sxz
+    ts11 = t10 * sxy + t11 * syy + t12 * syz
+    ts12 = t10 * sxz + t11 * syz + t12 * szz
 
-    tensor_trans[xz,:] = (trans_mat[0,2]*(trans_mat[0,0]*tensor[xx,:]
-                                          + trans_mat[0,1]*tensor[xy,:]
-                                          + trans_mat[0,2]*tensor[xz,:])
-                        + trans_mat[1,2]*(trans_mat[0,0]*tensor[xy,:]
-                                          + trans_mat[0,1]*tensor[yy,:]
-                                          + trans_mat[0,2]*tensor[yz,:])
-                        + trans_mat[2,2]*(trans_mat[0,0]*tensor[xz,:]
-                                          + trans_mat[0,1]*tensor[yz,:]
-                                          + trans_mat[0,2]*tensor[zz,:]))
+    ts20 = t20 * sxx + t21 * sxy + t22 * sxz
+    ts21 = t20 * sxy + t21 * syy + t22 * syz
+    ts22 = t20 * sxz + t21 * syz + t22 * szz
 
-    tensor_trans[yz,:] = (trans_mat[0,2]*(trans_mat[0,1]*tensor[xx,:]
-                                         + trans_mat[1,1]*tensor[xy,:]
-                                         + trans_mat[1,2]*tensor[xz,:])
-                        + trans_mat[1,2]*(trans_mat[0,1]*tensor[xy,:]
-                                          + trans_mat[1,1]*tensor[yy,:]
-                                          + trans_mat[1,2]*tensor[yz,:])
-                        + trans_mat[2,2]*(trans_mat[0,1]*tensor[xz,:]
-                                          + trans_mat[1,1]*tensor[yz,:]
-                                          + trans_mat[1,2]*tensor[zz,:]))
+    tensor_trans[xx, :] = ts00 * t00 + ts01 * t01 + ts02 * t02
+    tensor_trans[yy, :] = ts10 * t10 + ts11 * t11 + ts12 * t12
+    tensor_trans[zz, :] = ts20 * t20 + ts21 * t21 + ts22 * t22
+    tensor_trans[xy, :] = ts00 * t10 + ts01 * t11 + ts02 * t12
+    tensor_trans[xz, :] = ts00 * t20 + ts01 * t21 + ts02 * t22
+    tensor_trans[yz, :] = ts10 * t20 + ts11 * t21 + ts12 * t22
 
     return tensor_trans
 
@@ -282,22 +251,26 @@ def transform_tensor_2d_batch(trans_mat: np.ndarray, tensor: np.ndarray
         the rows are the XX, YY and XY components of the tensor field.
     """
     tensor_trans = np.zeros_like(tensor)
-    (xx,yy,xy) = (0,1,2)
+    (xx, yy, xy) = (0, 1, 2)
 
-    tensor_trans[:,xx,:] = (trans_mat[0,0]*(trans_mat[0,0]*tensor[:,xx,:]
-                                            + trans_mat[0,1]*tensor[:,xy,:])
-                          + trans_mat[0,1]*(trans_mat[0,0]*tensor[:,xy,:]
-                                            + trans_mat[0,1]*tensor[:,yy,:]))
+    tensor_trans[:, xx, :] = (
+        trans_mat[0, 0] * trans_mat[0, 0] * tensor[:, xx, :]
+        + 2.0 * trans_mat[0, 0] * trans_mat[0, 1] * tensor[:, xy, :]
+        + trans_mat[0, 1] * trans_mat[0, 1] * tensor[:, yy, :]
+    )
 
-    tensor_trans[:,yy,:] = (trans_mat[0,1]*(trans_mat[0,1]*tensor[:,xx,:]
-                                            + trans_mat[1,1]*tensor[:,xy,:])
-                          + trans_mat[1,1]*(trans_mat[0,1]*tensor[:,xy,:]
-                                            + trans_mat[1,1]*tensor[:,yy,:]))
+    tensor_trans[:, yy, :] = (
+        trans_mat[1, 0] * trans_mat[1, 0] * tensor[:, xx, :]
+        + 2.0 * trans_mat[1, 0] * trans_mat[1, 1] * tensor[:, xy, :]
+        + trans_mat[1, 1] * trans_mat[1, 1] * tensor[:, yy, :]
+    )
 
-    tensor_trans[:,xy,:] = (trans_mat[0,1]*(trans_mat[0,0]*tensor[:,xx,:]
-                                            + trans_mat[0,1]*tensor[:,xy,:])
-                          + trans_mat[1,1]*(trans_mat[0,0]*tensor[:,xy,:]
-                                            + trans_mat[0,1]*tensor[:,yy,:]))
+    tensor_trans[:, xy, :] = (
+        trans_mat[0, 0] * trans_mat[1, 0] * tensor[:, xx, :]
+        + (trans_mat[0, 0] * trans_mat[1, 1] + trans_mat[0, 1] * trans_mat[1, 0])
+        * tensor[:, xy, :]
+        + trans_mat[0, 1] * trans_mat[1, 1] * tensor[:, yy, :]
+    )
 
     return tensor_trans
 
@@ -323,67 +296,33 @@ def transform_tensor_3d_batch(trans_mat: np.ndarray, tensor: np.ndarray
         the rows are the XX, YY, ZZ, XY, XZ and YZ components of the field.
     """
     tensor_trans = np.zeros_like(tensor)
-    (xx,yy,zz,xy,xz,yz) = (0,1,2,3,4,5)
+    (xx, yy, zz, xy, xz, yz) = (0, 1, 2, 3, 4, 5)
 
-    tensor_trans[:,xx,:] = (trans_mat[0,0]*(trans_mat[0,0]*tensor[:,xx,:]
-                                            + trans_mat[0,1]*tensor[:,xy,:]
-                                            + trans_mat[0,2]*tensor[:,xz,:])
-                          + trans_mat[0,1]*(trans_mat[0,0]*tensor[:,xy,:]
-                                            + trans_mat[0,1]*tensor[:,yy,:]
-                                            + trans_mat[0,2]*tensor[:,yz,:])
-                          + trans_mat[0,2]*(trans_mat[0,0]*tensor[:,xz,:]
-                                            + trans_mat[0,1]*tensor[:,yz,:]
-                                            + trans_mat[0,2]*tensor[:,zz,:]))
+    t00, t01, t02 = trans_mat[0, 0], trans_mat[0, 1], trans_mat[0, 2]
+    t10, t11, t12 = trans_mat[1, 0], trans_mat[1, 1], trans_mat[1, 2]
+    t20, t21, t22 = trans_mat[2, 0], trans_mat[2, 1], trans_mat[2, 2]
 
-    tensor_trans[:,yy,:] = (trans_mat[0,1]*(trans_mat[0,1]*tensor[:,xx,:]
-                                            + trans_mat[1,1]*tensor[:,xy,:]
-                                            + trans_mat[1,2]*tensor[:,xz,:])
-                          + trans_mat[1,1]*(trans_mat[0,1]*tensor[:,xy,:]
-                                            + trans_mat[1,1]*tensor[:,yy,:]
-                                            + trans_mat[1,2]*tensor[:,yz,:])
-                          + trans_mat[1,2]*(trans_mat[0,1]*tensor[:,xz,:]
-                                            + trans_mat[1,1]*tensor[:,yz,:]
-                                            + trans_mat[1,2]*tensor[:,zz,:]))
+    sxx, syy, szz = tensor[:, xx, :], tensor[:, yy, :], tensor[:, zz, :]
+    sxy, sxz, syz = tensor[:, xy, :], tensor[:, xz, :], tensor[:, yz, :]
 
-    tensor_trans[:,zz,:] = (trans_mat[0,2]*(trans_mat[0,2]*tensor[:,xx,:]
-                                            + trans_mat[1,2]*tensor[:,xy,:]
-                                            + trans_mat[2,2]*tensor[:,xz,:])
-                          + trans_mat[1,2]*(trans_mat[0,2]*tensor[:,xy,:]
-                                            + trans_mat[1,2]*tensor[:,yy,:]
-                                            + trans_mat[2,2]*tensor[:,yz,:])
-                          + trans_mat[2,2]*(trans_mat[0,2]*tensor[:,xz,:]
-                                            + trans_mat[1,2]*tensor[:,yz,:]
-                                            + trans_mat[2,2]*tensor[:,zz,:]))
+    ts00 = t00 * sxx + t01 * sxy + t02 * sxz
+    ts01 = t00 * sxy + t01 * syy + t02 * syz
+    ts02 = t00 * sxz + t01 * syz + t02 * szz
 
-    tensor_trans[:,xy,:] = (trans_mat[0,1]*(trans_mat[0,0]*tensor[:,xx,:]
-                                            + trans_mat[0,1]*tensor[:,xy,:]
-                                            + trans_mat[0,2]*tensor[:,xz,:])
-                          + trans_mat[1,1]*(trans_mat[0,0]*tensor[:,xy,:]
-                                            + trans_mat[0,1]*tensor[:,yy,:]
-                                            + trans_mat[0,2]*tensor[:,yz,:])
-                          + trans_mat[1,2]*(trans_mat[0,0]*tensor[:,xz,:]
-                                            + trans_mat[0,1]*tensor[:,yz,:]
-                                            + trans_mat[0,2]*tensor[:,zz,:]))
+    ts10 = t10 * sxx + t11 * sxy + t12 * sxz
+    ts11 = t10 * sxy + t11 * syy + t12 * syz
+    ts12 = t10 * sxz + t11 * syz + t12 * szz
 
-    tensor_trans[:,xz,:] = (trans_mat[0,2]*(trans_mat[0,0]*tensor[:,xx,:]
-                                            + trans_mat[0,1]*tensor[:,xy,:]
-                                            + trans_mat[0,2]*tensor[:,xz,:])
-                          + trans_mat[1,2]*(trans_mat[0,0]*tensor[:,xy,:]
-                                            + trans_mat[0,1]*tensor[:,yy,:]
-                                            + trans_mat[0,2]*tensor[:,yz,:])
-                          + trans_mat[2,2]*(trans_mat[0,0]*tensor[:,xz,:]
-                                            + trans_mat[0,1]*tensor[:,yz,:]
-                                            + trans_mat[0,2]*tensor[:,zz,:]))
+    ts20 = t20 * sxx + t21 * sxy + t22 * sxz
+    ts21 = t20 * sxy + t21 * syy + t22 * syz
+    ts22 = t20 * sxz + t21 * syz + t22 * szz
 
-    tensor_trans[:,yz,:] = (trans_mat[0,2]*(trans_mat[0,1]*tensor[:,xx,:]
-                                            + trans_mat[1,1]*tensor[:,xy,:]
-                                            + trans_mat[1,2]*tensor[:,xz,:])
-                          + trans_mat[1,2]*(trans_mat[0,1]*tensor[:,xy,:]
-                                            + trans_mat[1,1]*tensor[:,yy,:]
-                                            + trans_mat[1,2]*tensor[:,yz,:])
-                          + trans_mat[2,2]*(trans_mat[0,1]*tensor[:,xz,:]
-                                            + trans_mat[1,1]*tensor[:,yz,:]
-                                            + trans_mat[1,2]*tensor[:,zz,:]))
+    tensor_trans[:, xx, :] = ts00 * t00 + ts01 * t01 + ts02 * t02
+    tensor_trans[:, yy, :] = ts10 * t10 + ts11 * t11 + ts12 * t12
+    tensor_trans[:, zz, :] = ts20 * t20 + ts21 * t21 + ts22 * t22
+    tensor_trans[:, xy, :] = ts00 * t10 + ts01 * t11 + ts02 * t12
+    tensor_trans[:, xz, :] = ts00 * t20 + ts01 * t21 + ts02 * t22
+    tensor_trans[:, yz, :] = ts10 * t20 + ts11 * t21 + ts12 * t22
 
     return tensor_trans
 

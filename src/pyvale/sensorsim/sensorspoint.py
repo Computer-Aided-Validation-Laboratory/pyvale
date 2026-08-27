@@ -142,6 +142,16 @@ class SensorsPoint(ISensorArray):
         """
         return self._field
 
+    def get_sensor_data(self) -> SensorData:
+        """Gets the sensor array configuration data.
+
+        Returns
+        -------
+        SensorData
+            The sensor data object.
+        """
+        return self._sensor_data
+
 
     def calc_truth(self) -> np.ndarray:
         """Calculates the ground truth sensor values by interpolating the

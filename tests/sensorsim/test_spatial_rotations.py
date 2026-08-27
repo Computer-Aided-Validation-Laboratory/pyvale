@@ -12,6 +12,12 @@ import pytest
 from scipy.spatial.transform import Rotation
 
 from pyvale.sensorsim.enums import EIntegrationMode
+from pyvale.sensorsim.fieldtransform import (
+    transform_tensor_3d,
+    transform_tensor_3d_batch,
+    transform_vector_3d,
+    transform_vector_3d_batch,
+)
 from pyvale.sensorsim.spatialwindows import (
     SpatialWindowPoint,
     SpatialWindowLine,
@@ -25,6 +31,68 @@ from pyvale.sensorsim.sensortools import (
     orient_from_direction,
     orient_from_normal_and_tangent,
 )
+
+
+def test_vector_transform_matches_matrix_product() -> None:
+    """Vector helpers implement the standard matrix-vector product."""
+    matrix = Rotation.from_euler(
+        "xyz", (17.0, -31.0, 48.0), degrees=True
+    ).as_matrix().T
+    vector = np.array(
+        ((1.0, 4.0), (-2.0, 5.0), (3.0, -6.0))
+    )
+    expected = matrix @ vector
+
+    assert np.allclose(transform_vector_3d(matrix, vector), expected)
+
+    vector_batch = np.stack((vector, 2.0 * vector))
+    expected_batch = np.einsum("ij,njt->nit", matrix, vector_batch)
+    assert np.allclose(
+        transform_vector_3d_batch(matrix, vector_batch), expected_batch
+    )
+
+
+def test_tensor_transform_matches_matrix_product() -> None:
+    """Tensor helpers use component order xx, yy, zz, xy, xz, yz."""
+    matrix = Rotation.from_euler(
+        "xyz", (17.0, -31.0, 48.0), degrees=True
+    ).as_matrix().T
+    tensor_matrix = np.array(
+        (
+            (11.0, 2.0, 3.0),
+            (2.0, 13.0, 5.0),
+            (3.0, 5.0, 17.0),
+        )
+    )
+    tensor = np.array(
+        (
+            (tensor_matrix[0, 0],),
+            (tensor_matrix[1, 1],),
+            (tensor_matrix[2, 2],),
+            (tensor_matrix[0, 1],),
+            (tensor_matrix[0, 2],),
+            (tensor_matrix[1, 2],),
+        )
+    )
+    expected_matrix = matrix @ tensor_matrix @ matrix.T
+    expected = np.array(
+        (
+            (expected_matrix[0, 0],),
+            (expected_matrix[1, 1],),
+            (expected_matrix[2, 2],),
+            (expected_matrix[0, 1],),
+            (expected_matrix[0, 2],),
+            (expected_matrix[1, 2],),
+        )
+    )
+
+    assert np.allclose(transform_tensor_3d(matrix, tensor), expected)
+
+    tensor_batch = np.stack((tensor, 2.0 * tensor))
+    expected_batch = np.stack((expected, 2.0 * expected))
+    assert np.allclose(
+        transform_tensor_3d_batch(matrix, tensor_batch), expected_batch
+    )
 
 
 def test_spatial_window_line() -> None:

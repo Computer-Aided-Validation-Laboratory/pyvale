@@ -8,8 +8,10 @@
 universal simulation plotter, and off-screen screenshot export.
 """
 
+from collections.abc import Generator
 from pathlib import Path
 import numpy as np
+import pytest
 import pyvista as pv
 
 from pyvale import verif
@@ -41,6 +43,15 @@ from pyvale.sensorsim.sensorlibrary import SensorLibrary
 from pyvale.sensorsim.sensorsdifferential import SensorsDifferential
 from pyvale.sensorsim.sensorsray import SensorsRay, ERayMode
 from pyvale.sensorsim.enums import EDim
+
+
+@pytest.fixture(autouse=True)
+def cleanup_pyvista() -> Generator[None, None, None]:
+    """Ensures all PyVista render windows and VTK contexts are closed after
+    each test to prevent memory leaks.
+    """
+    yield
+    pv.close_all()
 
 
 def test_vis_line_sensor_mesh() -> None:
@@ -147,7 +158,7 @@ def test_vis_differential_sensor_meshes() -> None:
 
 def test_plot_sensors_on_sim_headless_export(tmp_path: Path) -> None:
     """Verifies that plot_sensors_on_sim runs off-screen and exports a PNG
-    image to disk.
+    image to disk without leaking memory.
     """
     sim_data, _ = verif.scalar_quadratic_2d()
     n_pts = sim_data.coords.shape[0]
@@ -177,8 +188,80 @@ def test_plot_sensors_on_sim_headless_export(tmp_path: Path) -> None:
         geom_opts=geom_opts,
         image_save_opts=save_opts,
     )
-    assert pv_plot is not None
-    pv_plot.close()
+    try:
+        assert pv_plot is not None
+        assert out_file.exists()
+        assert out_file.stat().st_size > 0
+    finally:
+        pv_plot.close()
+        pv.close_all()
 
-    assert out_file.exists()
-    assert out_file.stat().st_size > 0
+
+def test_plot_line_sensor_on_sim(tmp_path: Path) -> None:
+    """Verifies that 1D line sensors (e.g. FBG fiber) can be rendered
+    on a simulation field with headless screenshot export.
+    """
+    sim_data, _ = verif.scalar_quadratic_2d()
+
+    fiber = SensorLibrary.fbg_fiber(
+        sim_data,
+        point_start=(0.0, 3.75, 0.0),
+        point_end=(10.0, 3.75, 0.0),
+        spatial_dims=EDim.TWOD,
+    )
+
+    comp_key = next(iter(sim_data.node_vars.keys()))
+    out_file = tmp_path / "test_line_vis.png"
+    vis_opts = VisOptsSimSensors()
+    geom_opts = VisOptsSensorGeom(line_radius=0.75)
+    save_opts = VisOptsImageSave(path=out_file)
+
+    pv_plot = plot_sensors_on_sim(
+        sensor_array=fiber,
+        component=comp_key,
+        vis_opts=vis_opts,
+        geom_opts=geom_opts,
+        image_save_opts=save_opts,
+    )
+    try:
+        assert pv_plot is not None
+        assert out_file.exists()
+        assert out_file.stat().st_size > 0
+    finally:
+        pv_plot.close()
+        pv.close_all()
+
+
+def test_plot_ray_sensor_on_sim(tmp_path: Path) -> None:
+    """Verifies that 3D ray sensors (LIDAR / pyrometer) can be rendered
+    on a simulation field with headless screenshot export.
+    """
+    sim_data, _ = verif.scalar_quadratic_2d()
+
+    ray_sensor = SensorLibrary.pyrometer(
+        sim_data,
+        sensor_position=np.array([5.0, 3.75, 10.0]),
+        aim_direction=np.array([0.0, 0.0, -1.0]),
+        spatial_dims=EDim.TWOD,
+    )
+
+    comp_key = next(iter(sim_data.node_vars.keys()))
+    out_file = tmp_path / "test_ray_vis.png"
+    vis_opts = VisOptsSimSensors()
+    geom_opts = VisOptsSensorGeom(ray_tube_radius=0.5)
+    save_opts = VisOptsImageSave(path=out_file)
+
+    pv_plot = plot_sensors_on_sim(
+        sensor_array=ray_sensor,
+        component=comp_key,
+        vis_opts=vis_opts,
+        geom_opts=geom_opts,
+        image_save_opts=save_opts,
+    )
+    try:
+        assert pv_plot is not None
+        assert out_file.exists()
+        assert out_file.stat().st_size > 0
+    finally:
+        pv_plot.close()
+        pv.close_all()
