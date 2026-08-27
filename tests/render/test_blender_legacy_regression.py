@@ -7,13 +7,14 @@ import pytest
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
-import pyvale.blender as legacy_blender
 import pyvale.render as render
 import pyvale.verif.renderverif as renderverif
 from pyvale.render.blender.adapter import _triangulate_mesh_for_blender
 from pyvale.sensorsim.simtools import centre_mesh_nodes
 
 from pyvale.verif.renderverif import assert_render_allclose
+
+legacy_blender = pytest.importorskip("pyvale.blender", reason="Blender backend unavailable")
 
 
 pytestmark = [
