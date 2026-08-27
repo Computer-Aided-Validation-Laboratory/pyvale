@@ -58,6 +58,13 @@ _EXTENDED_EXAMPLES = (
     "extsensorsim/ex8e_ray_sensors_lidar_and_pyrometer.py",
     "extsensorsim/ex8f_sensor_library_typical_transducers.py",
     "extsensorsim/ex8g_derived_expsim_montecarlo.py",
+    "extsensorsim/ex9a_postproc_disp_to_velocity_and_accel.py",
+    "extsensorsim/ex9b_postproc_velocity_to_displacement.py",
+    "extsensorsim/ex9c_postproc_slope_to_displacement_spatial.py",
+    "extsensorsim/ex9d_postproc_disp_array_to_strain.py",
+    "extsensorsim/ex9e_postproc_force_disp_stiffness_and_work.py",
+    "extsensorsim/ex9f_postproc_custom_user_algorithms.py",
+    "extsensorsim/ex9g_postproc_montecarlo_uncertainty.py",
 )
 
 

@@ -18,6 +18,12 @@ import numpy as np
 from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.exceptions import ExpSimError
+from pyvale.sensorsim.measurementdata import MeasurementData
+from pyvale.sensorsim.postprocessor import (
+    IMeasurementProcessor,
+    ProcessingPipeline,
+)
+from pyvale.sensorsim.postprocessgraph import PostProcessGraph
 
 
 class EExpSimPara(enum.Enum):
@@ -25,8 +31,9 @@ class EExpSimPara(enum.Enum):
     """
 
     ALL = enum.auto()
-    """Each worker performs 'ALL' N simulated experiments for each combination of
-    simulation data and sensor arrays. This is the best option of point sensors.
+    """Each worker performs 'ALL' N simulated experiments for each combination
+    of simulation data and sensor arrays. This is the best option of point
+    sensors.
     """
 
     SPLIT = enum.auto()
@@ -110,14 +117,24 @@ class ExperimentSimulator:
     dictionary of sensor arrays to a dictionary of simulations over a given
     number of user defined experiments.
     """
-    __slots__ = ("_sim_dict","_sens_dict","_exp_sim_opts","_save_keys")
+    __slots__ = (
+        "_sim_dict",
+        "_sens_dict",
+        "_exp_sim_opts",
+        "_save_keys",
+        "_post_proc_graph",
+    )
 
-    def __init__(self,
-                 sim_dict: dict[str,SimData],
-                 sensor_arrays: dict[str,ISensorArray],
-                 exp_sim_opts: ExpSimOpts | None = None,
-                 exp_save_keys: ExpSimSaveKeys | None = None,
-                 ) -> None:
+    def __init__(
+        self,
+        sim_dict: dict[str, SimData],
+        sensor_arrays: dict[str, ISensorArray],
+        exp_sim_opts: ExpSimOpts | None = None,
+        exp_save_keys: ExpSimSaveKeys | None = None,
+        post_processors: (
+            dict[str, IMeasurementProcessor | ProcessingPipeline] | None
+        ) = None,
+    ) -> None:
         """
         Parameters
         ----------
@@ -126,7 +143,13 @@ class ExperimentSimulator:
         sensor_arrays : dict[str,ISensorArray]
             The sensor arrays that will be applied to each simulation to
             generate the virtual experiment data.
-
+        exp_sim_opts : ExpSimOpts | None, optional
+            Simulation and parallelisation options.
+        exp_save_keys : ExpSimSaveKeys | None, optional
+            Keys used for saving experiment output arrays.
+        post_processors : dict[str, IMeasurementProcessor] | None, optional
+            Post-processing pipeline or DAG steps to evaluate on simulated
+            sensor measurements.
         """
 
         self._sim_dict = sim_dict
@@ -141,6 +164,11 @@ class ExperimentSimulator:
             self._save_keys = ExpSimSaveKeys()
         else:
             self._save_keys = exp_save_keys
+
+        if post_processors is not None:
+            self._post_proc_graph = PostProcessGraph(post_processors)
+        else:
+            self._post_proc_graph = None
 
 
     def get_exp_save_keys(self) -> ExpSimSaveKeys:
@@ -257,6 +285,42 @@ class ExperimentSimulator:
                                             sens_vars)
 
         #-----------------------------------------------------------------------
+        # 4) Run post-processing pipelines and derived quantity DAGs if defined
+        if self._post_proc_graph is not None:
+            time_str_key = self._save_keys.sens_times
+            for sim_key in self._sim_dict:
+                raw_meas: dict[str, MeasurementData] = {}
+                for sens_key, sens_arr in self._sens_dict.items():
+                    vals = exp_data[(sim_key, sens_key, self._save_keys.meas)]
+                    sens_data = sens_arr.get_sensor_data()
+                    desc = sens_arr.get_descriptor()
+                    units_str = desc.units if desc is not None else ""
+                    t_steps = sens_data.sample_times
+                    if t_steps is None:
+                        t_steps = self._sim_dict[sim_key].time
+                    raw_meas[sens_key] = MeasurementData(
+                        values=vals,
+                        sample_times=t_steps,
+                        positions=sens_data.positions,
+                        components=sens_arr.get_field().get_all_components(),
+                        units=units_str,
+                        descriptor=desc,
+                    )
+
+                proc_results = self._post_proc_graph.execute(raw_meas)
+                for proc_name in (
+                    self._post_proc_graph.get_all_processor_names()
+                ):
+                    p_data = proc_results[proc_name]
+                    exp_data[(sim_key, proc_name, self._save_keys.meas)] = (
+                        p_data.values
+                    )
+                    if time_str_key is not None:
+                        exp_data[(sim_key, proc_name, time_str_key)] = (
+                            p_data.sample_times
+                        )
+
+        #-----------------------------------------------------------------------
         # dict[tuple[str,...],shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
         return exp_data
 
@@ -266,8 +330,8 @@ class ExperimentSimulator:
                       sens_funcs: list[tuple[str,str]],
                       sens_vars: list[tuple[str,str]],
                       ) -> dict[tuple[str,...],np.ndarray]:
-        """Runs virtual experiments in parallel based on the `ALL` strategy where 
-        `num_exp` experiments are run on each worker.
+        """Runs virtual experiments in parallel based on the `ALL` strategy
+        where `num_exp` experiments are run on each worker.
         
 
         Parameters
