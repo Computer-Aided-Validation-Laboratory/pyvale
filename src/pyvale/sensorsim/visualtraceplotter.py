@@ -112,10 +112,7 @@ def plot_time_traces(sensor_array: SensorsPoint,
     measurements = sensor_array.get_measurements()
     num_sens = sensor_array._sensor_data.positions.shape[0]
     descriptor = sensor_array._descriptor
-    sensors_perturbed = (sensor_array
-        .get_error_integrator()
-        .get_sens_data_accumulated()
-    )
+    sensors_perturbed = sensor_array.get_sensor_data_perturbed()
 
     comp_ind = 0
     if comp_key is not None:
@@ -136,20 +133,29 @@ def plot_time_traces(sensor_array: SensorsPoint,
     if trace_opts.sensors_to_plot is None:
         if num_sens <= trace_opts.total_sensors:
             sensors_to_plot = range(num_sens)
-            logger.debug(f"Only {num_sens} sensors to plot. Plotting all sensors")
+            logger.debug(
+                f"Only {num_sens} sensors to plot. Plotting all sensors"
+            )
         else:
-            n = num_sens/trace_opts.total_sensors
+            n = num_sens / trace_opts.total_sensors
             step = math.ceil(n)
-            logger.info(f"Lots of sensors... Plotting sensor after every {step}... ")
+            logger.info(
+                f"Lots of sensors... Plotting sensor after every {step}... "
+            )
             sensors_to_plot = range(0, num_sens, step)
     else:
         sensors_to_plot = trace_opts.sensors_to_plot
-        sensor_list = [x+1 for x in range(num_sens)]
-        fake_sensors = list(filter(lambda x: x not in sensor_list, sensors_to_plot))
+        sensor_list = [x + 1 for x in range(num_sens)]
+        fake_sensors = list(
+            filter(lambda x: x not in sensor_list, sensors_to_plot)
+        )
         print(f"The sensors {fake_sensors} do not exist")
         for i in sensors_to_plot:
             if i not in sensor_list:
-                logger.warning(f"[{i}] not a valid sensor number. Removing from sensors to plot")
+                logger.warning(
+                    f"[{i}] not a valid sensor number. Removing from "
+                    f"sensors to plot"
+                )
                 sensors_to_plot.remove(i)
         sensors_to_plot = sensors_to_plot
 
@@ -157,28 +163,37 @@ def plot_time_traces(sensor_array: SensorsPoint,
         logger.warning("No sensors found to plot")
 
     if trace_opts.sensors_per_plot is None:
-        sensors_per_plot = len(sensors_to_plot)+1
+        sensors_per_plot = len(sensors_to_plot) + 1
     elif trace_opts.sensors_per_plot > num_sens:
-        logger.warning(f"Sensors per plot cannot be more than the total number of sensors. Defaulting to {num_sens} sensors per plot")
-        sensors_per_plot = len(sensors_to_plot)+1
+        logger.warning(
+            f"Sensors per plot cannot be more than the total number of "
+            f"sensors. Defaulting to {num_sens} sensors per plot"
+        )
+        sensors_per_plot = len(sensors_to_plot) + 1
     else:
         sensors_per_plot = trace_opts.sensors_per_plot
 
     if sensors_per_plot > 10:
-        logger.warning(f"More than 10 sensors per plot may affect plot readability, Defaulting to 10 sensors per plot...")
+        logger.warning(
+            "More than 10 sensors per plot may affect plot readability, "
+            "Defaulting to 10 sensors per plot..."
+        )
         sensors_per_plot = 10
 
-
-    #---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Figure canvas setup
 
-    if trace_opts.one_line == False:
+    if trace_opts.one_line is False:
         coords = subplot_calc(sensors_to_plot, sensors_per_plot)
     else:
-        coords = (1,math.ceil(len(sensors_to_plot)/sensors_per_plot))
+        coords = (1, math.ceil(len(sensors_to_plot) / sensors_per_plot))
 
-    fig, ax = plt.subplots(coords[0], coords[1], figsize=plot_opts.single_fig_size_landscape,
-                           layout="constrained")
+    fig, ax = plt.subplots(
+        coords[0],
+        coords[1],
+        figsize=plot_opts.single_fig_size_landscape,
+        layout="constrained",
+    )
     fig.set_dpi(plot_opts.resolution)
 
 

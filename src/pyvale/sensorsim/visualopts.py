@@ -225,10 +225,12 @@ class TraceOptsSensor:
     time range is plotted. Defaults to None.
     """
 
-    sensors_per_plot: int | None = None
-    """The maximum amount of sensors that should be plot on a subplot. If none then
-    maximum will be the total number of sensors. Defaults to None.
+    max_sensors_per_subplot: int | None = None
+    """The maximum amount of sensors that should be plot on a subplot. If None
+    then all sensors are plotted on one subplot. Defaults to None.
     """
+
+    sensors_per_plot: int | None = None
 
     one_line: bool | None = None
     """If True, create subplot on horizontal axis only
@@ -496,12 +498,44 @@ class VisOptsAnimation:
     save_path: Path | None = None
 
 
+@dataclass(slots=True)
+class VisOptsSensorGeom:
+    """Controls the visual appearance of 3D sensor measurement geometries
+    in PyVista renderings.
+    """
 
+    show_nominal: bool = True
+    """Whether to render nominal sensor geometries."""
 
+    show_perturbed: bool = False
+    """Whether to render perturbed sensor geometries under field errors."""
 
+    show_quadrature_points: bool = False
+    """Whether to render internal quadrature integration sampling points."""
 
+    line_radius: float = 0.5
+    """Tube radius in mm for 1D line sensor visualisations."""
 
+    area_opacity: float = 0.75
+    """Opacity (0.0 to 1.0) for 2D area sensor patches."""
 
+    volume_opacity: float = 0.35
+    """Opacity (0.0 to 1.0) for 3D volume sensor shells."""
 
+    ray_tube_radius: float = 0.25
+    """Radius of ray-casting beam tubes."""
 
+    ray_cone_opacity: float = 0.25
+    """Opacity of optical FOV view cones."""
 
+    color_nominal: str = "red"
+    """Surface color for nominal sensor geometries."""
+
+    color_perturbed: str = "orange"
+    """Surface color for perturbed sensor geometries."""
+
+    color_quad_points: str = "black"
+    """Color for internal integration quadrature points."""
+
+    show_wireframe_edges: bool = True
+    """Whether to render contrasting wireframe edges on area/volume shells."""

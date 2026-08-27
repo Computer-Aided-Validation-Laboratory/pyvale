@@ -67,6 +67,8 @@ from .generatorsrandom import *
 
 from .visualopts import *
 from .visualtools import *
+from .visualsensormeshes import *
+from .visualsimplotter import *
 from .visualsimsensors import *
 from .visualsimanimator import *
 from .visualexpplotter import *

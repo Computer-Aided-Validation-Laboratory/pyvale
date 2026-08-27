@@ -187,6 +187,20 @@ class SensorsPoint(ISensorArray):
         """
         return self._error_integrator
 
+    def get_sensor_data_perturbed(self) -> SensorData | None:
+        """Gets the perturbed sensor data object if the error integrator or
+        error graph contains perturbed positions.
+
+        Returns
+        -------
+        SensorData | None
+            Perturbed sensor data if available, otherwise None.
+        """
+        if self._error_integrator is not None:
+            if hasattr(self._error_integrator, "get_sensor_data_perturbed"):
+                return self._error_integrator.get_sensor_data_perturbed()
+        return None
+
     def set_error_graph(self, error_graph: ErrGraph | None) -> None:
         """Sets the error graph that will be used to calculate sensor
         measurement errors when `sim_measurements()` is called.

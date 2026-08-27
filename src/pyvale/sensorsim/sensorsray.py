@@ -254,6 +254,58 @@ class SensorsRay(ISensorArray):
         self._truth = truth
         return self._truth
 
+    def calc_ray_intersections(
+        self, time_step: int = -1
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Calculates 3D intersection hit points, distances, and valid hit
+        booleans for visual rendering and analysis.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray, np.ndarray]
+            - hits: shape (n_rays, 3) 3D surface intersection points
+            - dists: shape (n_rays,) distance from origin to hit point
+            - valid: shape (n_rays,) boolean flag indicating if ray hit mesh
+        """
+        n_rays = self._ray_origins.shape[0]
+        surface = self._build_surface_grid()
+        base_points = np.array(surface.points, copy=True)
+
+        tt = time_step if time_step >= 0 else len(self._sample_times) - 1
+        t_val = self._sample_times[tt]
+
+        if self._disp_field is not None:
+            t_arr = np.array([t_val])
+            disp_samples = self._disp_field.sample_field(
+                base_points, times=t_arr
+            )
+            n_disp = disp_samples.shape[1]
+            deformed_points = np.array(base_points, copy=True)
+            deformed_points[:, :n_disp] += disp_samples[:, :n_disp, 0]
+            surface.points = deformed_points
+
+        hits = np.zeros((n_rays, 3), dtype=np.float64)
+        dists = np.zeros(n_rays, dtype=np.float64)
+        valid = np.zeros(n_rays, dtype=bool)
+
+        for rr in range(n_rays):
+            p0 = self._ray_origins[rr]
+            d = self._ray_directions[rr]
+            p1 = p0 + self._max_distance * d
+
+            pts, _ = surface.ray_trace(p0, p1, first_point=True)
+            if pts.size >= 3:
+                hit_pt = pts[:3] if pts.ndim == 1 else pts[0]
+                hits[rr] = hit_pt
+                dists[rr] = float(np.linalg.norm(hit_pt - p0))
+                valid[rr] = True
+            else:
+                hits[rr] = p1
+                dists[rr] = self._max_distance
+                valid[rr] = False
+
+        return (hits, dists, valid)
+
     def get_truth(self) -> np.ndarray:
         if self._truth is None:
             self._truth = self.calc_truth()

@@ -112,6 +112,26 @@ fig.savefig(save_fig, dpi=200, bbox_inches="tight")
 print(f"Saved plot to: {save_fig}")
 
 # %%
+# 5. 3D Differential Sensor Geometry Visualisation with PyVista
+# -------------------------------------------------------------
+vis_opts = sens.VisOptsSimSensors(interactive=show_plots)
+geom_opts = sens.VisOptsSensorGeom(line_radius=0.5)
+img_save = sens.VisOptsImageSave(
+    path=output_path / "ext_ex8d_extensometer_3d_geom.png"
+)
+pv_plot = sens.plot_sensors_on_sim(
+    sensor_array=extensometer,
+    component="disp_x",
+    vis_opts=vis_opts,
+    geom_opts=geom_opts,
+    image_save_opts=img_save,
+)
+if show_plots:
+    pv_plot.show()
+else:
+    pv_plot.close()
+
+# %%
 # .. image:: ../../../../_static/ext_ex8d_differential.png
 #    :alt: Differential Sensors and Clip-On Extensometers
 #    :width: 700px

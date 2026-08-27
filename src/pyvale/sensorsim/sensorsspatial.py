@@ -191,6 +191,12 @@ class SensorsSpatial(ISensorArray):
     def get_error_integrator(self) -> ErrIntegrator | ErrGraph | None:
         return self._error_integrator
 
+    def get_sensor_data_perturbed(self) -> SensorData | None:
+        if self._error_integrator is not None:
+            if hasattr(self._error_integrator, "get_sensor_data_perturbed"):
+                return self._error_integrator.get_sensor_data_perturbed()
+        return None
+
     def set_error_graph(self, error_graph: ErrGraph | None) -> None:
         self._error_integrator = error_graph
 

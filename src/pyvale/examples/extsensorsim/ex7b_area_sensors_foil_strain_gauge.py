@@ -148,6 +148,30 @@ fig.savefig(save_fig, dpi=200, bbox_inches="tight")
 print(f"Saved plot to: {save_fig}")
 
 # %%
+# 6. 3D Area Sensor Geometry Visualisation with PyVista
+# -----------------------------------------------------
+vis_opts = sens.VisOptsSimSensors(interactive=show_plots)
+geom_opts = sens.VisOptsSensorGeom(
+    area_opacity=0.8,
+    color_nominal="orange",
+    show_wireframe_edges=True,
+)
+img_save = sens.VisOptsImageSave(
+    path=output_path / "ext_ex7b_strain_gauge_3d_geom.png"
+)
+pv_plot = sens.plot_sensors_on_sim(
+    sensor_array=rosette,
+    component="strain_xx",
+    vis_opts=vis_opts,
+    geom_opts=geom_opts,
+    image_save_opts=img_save,
+)
+if show_plots:
+    pv_plot.show()
+else:
+    pv_plot.close()
+
+# %%
 # .. image:: ../../../../_static/ext_ex7b_strain_rosette.png
 #    :alt: Strain gauge rosette simulated measurements
 #    :width: 700px

@@ -115,6 +115,30 @@ fig.savefig(save_fig, dpi=200, bbox_inches="tight")
 print(f"Saved plot to: {save_fig}")
 
 # %%
+# 5. 3D Ray and View Cone Geometry Visualisation with PyVista
+# -----------------------------------------------------------
+vis_opts = sens.VisOptsSimSensors(interactive=show_plots)
+geom_opts = sens.VisOptsSensorGeom(
+    ray_tube_radius=0.3,
+    ray_cone_opacity=0.3,
+    color_nominal="red",
+)
+img_save = sens.VisOptsImageSave(
+    path=output_path / "ext_ex8e_ray_sensors_3d_geom.png"
+)
+pv_plot = sens.plot_sensors_on_sim(
+    sensor_array=pyrometer_sensor,
+    component="temperature",
+    vis_opts=vis_opts,
+    geom_opts=geom_opts,
+    image_save_opts=img_save,
+)
+if show_plots:
+    pv_plot.show()
+else:
+    pv_plot.close()
+
+# %%
 # .. image:: ../../../../_static/ext_ex8e_ray_sensors.png
 #    :alt: Ray-Casting Optical LIDAR and Pyrometer Transducers
 #    :width: 700px
