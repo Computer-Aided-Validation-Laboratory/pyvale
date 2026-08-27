@@ -13,14 +13,13 @@ from pathlib import Path
 import numpy as np
 import yaml
 from scipy.spatial.transform import Rotation
-from pyvale.sensorsim.cameradata import CameraData
-from pyvale.blender.blenderexceptions import BlenderError
+from pyvale.render.camera import Camera
 
 
 class CameraStereo:
     __slots__ = ("cam_data_0","cam_data_1","stereo_dist","stereo_rotation")
 
-    def __init__(self, cam_data_0: CameraData, cam_data_1: CameraData) -> None:
+    def __init__(self, cam_data_0: Camera, cam_data_1: Camera) -> None:
         self.cam_data_0 = cam_data_0
         self.cam_data_1 = cam_data_1
 
@@ -84,13 +83,13 @@ class CameraStereo:
         dist = rot_world_0.inv().apply(dist_rot)
         pos_world_1 = pos_world_0 - dist
 
-        cam_data_0 = CameraData(pixels_num=pixels_num_cam0,
+        cam_data_0 = Camera(pixels_num=pixels_num_cam0,
                                 pixels_size=np.array([pixels_size, pixels_size]),
                                 pos_world=pos_world_0,
                                 rot_world=rot_world_0,
                                 roi_cent_world=np.array([0, 0, 0]),
                                 focal_length=focal_length)
-        cam_data_1 = CameraData(pixels_num=pixels_num_cam1,
+        cam_data_1 = Camera(pixels_num=pixels_num_cam1,
                                 pixels_size=np.array([pixels_size, pixels_size]),
                                 pos_world=pos_world_1,
                                 rot_world=rot_world_1,
@@ -124,11 +123,11 @@ class CameraStereo:
             "Cam0_Fy [pixels]": float(self.cam_data_0.focal_length /
                                  self.cam_data_0.pixels_size[1]),
             "Cam0_Fs [pixels]": 0,
-            "Cam0_Kappa 1": self.cam_data_0.k1,
-            "Cam0_Kappa 2": self.cam_data_0.k2,
-            "Cam0_Kappa 3": self.cam_data_0.k3,
-            "Cam0_P1": self.cam_data_0.p1,
-            "Cam0_P2": self.cam_data_0.p2,
+            "Cam0_Kappa 1": self.cam_data_0.distortion_k1,
+            "Cam0_Kappa 2": self.cam_data_0.distortion_k2,
+            "Cam0_Kappa 3": self.cam_data_0.distortion_k3,
+            "Cam0_P1": self.cam_data_0.distortion_p1,
+            "Cam0_P2": self.cam_data_0.distortion_p2,
             "Cam0_Cx [pixels]": float(self.cam_data_0.c0),
             "Cam0_Cy [pixels]": float(self.cam_data_0.c1),
             "Cam1_Fx [pixels]": float(self.cam_data_1.focal_length /
@@ -136,11 +135,11 @@ class CameraStereo:
             "Cam1_Fy [pixels]": float(self.cam_data_1.focal_length /
                                  self.cam_data_1.pixels_size[1]),
             "Cam1_Fs [pixels]": 0,
-            "Cam1_Kappa 1": self.cam_data_1.k1,
-            "Cam1_Kappa 2": self.cam_data_1.k2,
-            "Cam1_Kappa 3": self.cam_data_1.k3,
-            "Cam1_P1": self.cam_data_1.p1,
-            "Cam1_P2": self.cam_data_1.p2,
+            "Cam1_Kappa 1": self.cam_data_1.distortion_k1,
+            "Cam1_Kappa 2": self.cam_data_1.distortion_k2,
+            "Cam1_Kappa 3": self.cam_data_1.distortion_k3,
+            "Cam1_P1": self.cam_data_1.distortion_p1,
+            "Cam1_P2": self.cam_data_1.distortion_p2,
             "Cam1_Cx [pixels]": float(self.cam_data_1.c0),
             "Cam1_Cy [pixels]": float(self.cam_data_1.c1),
             "Tx [mm]": float(self.stereo_dist[0]),
@@ -151,7 +150,7 @@ class CameraStereo:
             "Psi [deg]": float(stereo_rotation[2])
         }
         if not base_dir.is_dir():
-            raise BlenderError("The specified save directory does not exist")
+            raise ValueError("The specified save directory does not exist")
 
         save_dir = base_dir / "calibration"
         if not save_dir.is_dir():
@@ -180,7 +179,7 @@ class CameraStereo:
             "The specified save directory does not exist"
         """
         if not base_dir.is_dir():
-            raise BlenderError("The specified save directory does not exist")
+            raise ValueError("The specified save directory does not exist")
 
         save_dir = base_dir / "calibration"
         if not save_dir.is_dir():
@@ -191,21 +190,21 @@ class CameraStereo:
             file.write(f'Cam0_Fx [pixels]; {self.cam_data_0.focal_length/ self.cam_data_0.pixels_size[0]}\n')
             file.write(f'Cam0_Fy [pixels]; {self.cam_data_0.focal_length/ self.cam_data_0.pixels_size[1]}\n')
             file.write("Cam0_Fs [pixels];0\n")
-            file.write(f'Cam0_Kappa 1;{self.cam_data_0.k1}\n')
-            file.write(f'Cam0_Kappa 2;{self.cam_data_0.k2}\n')
-            file.write(f'Cam0_Kappa 3;{self.cam_data_0.k3}\n')
-            file.write(f'Cam0_P1;{self.cam_data_0.p1}\n')
-            file.write(f'Cam0_P2;{self.cam_data_0.p2}\n')
+            file.write(f'Cam0_Kappa 1;{self.cam_data_0.distortion_k1}\n')
+            file.write(f'Cam0_Kappa 2;{self.cam_data_0.distortion_k2}\n')
+            file.write(f'Cam0_Kappa 3;{self.cam_data_0.distortion_k3}\n')
+            file.write(f'Cam0_P1;{self.cam_data_0.distortion_p1}\n')
+            file.write(f'Cam0_P2;{self.cam_data_0.distortion_p2}\n')
             file.write(f'Cam0_Cx [pixels];{self.cam_data_0.c0}\n')
             file.write(f'Cam0_Cy [pixels];{self.cam_data_0.c1}\n')
             file.write(f'Cam1_Fx [pixels]; {self.cam_data_1.focal_length/ self.cam_data_1.pixels_size[0]}\n')
             file.write(f'Cam1_Fy [pixels]; {self.cam_data_1.focal_length/ self.cam_data_1.pixels_size[1]}\n')
             file.write("Cam1_Fs [pixels];0\n")
-            file.write(f'Cam1_Kappa 1;{self.cam_data_1.k1}\n')
-            file.write(f'Cam1_Kappa 2;{self.cam_data_1.k2}\n')
-            file.write(f'Cam1_Kappa 3;{self.cam_data_1.k3}\n')
-            file.write(f'Cam1_P1;{self.cam_data_1.p1}\n')
-            file.write(f'Cam1_P2;{self.cam_data_1.p2}\n')
+            file.write(f'Cam1_Kappa 1;{self.cam_data_1.distortion_k1}\n')
+            file.write(f'Cam1_Kappa 2;{self.cam_data_1.distortion_k2}\n')
+            file.write(f'Cam1_Kappa 3;{self.cam_data_1.distortion_k3}\n')
+            file.write(f'Cam1_P1;{self.cam_data_1.distortion_p1}\n')
+            file.write(f'Cam1_P2;{self.cam_data_1.distortion_p2}\n')
             file.write(f'Cam1_Cx [pixels];{self.cam_data_1.c0}\n')
             file.write(f'Cam1_Cy [pixels];{self.cam_data_1.c1}\n')
             file.write(f"Tx [mm];{self.stereo_dist[0]}\n")

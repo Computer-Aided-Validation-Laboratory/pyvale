@@ -1,5 +1,3 @@
-#===============================================================================
-# pyvale: the python validation engine
-# License: MIT
-# Copyright (C) 2025 The Computer Aided Validation Team
-#===============================================================================
+"""Packaged example and regression data for :mod:`pyvale`."""
+
+from .dataset import *

@@ -11,16 +11,14 @@ import yaml
 from scipy.spatial.transform import Rotation
 
 import pyvale.blender as blender
-import pyvale.dataset as dataset
-import pyvale.mooseherder as mh
+import pyvale.data as dataset
 import pyvale.sensorsim as sens
+import pyvale.verif.renderverif as renderverif
 
 
 def get_sample_scene_2d():
-    data_path = dataset.mechanical_2d_path()
-    sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
+    sim_data = renderverif.scaled_mechanical_2d()
     disp_comps = ("disp_x", "disp_y")
-    sim_data = sens.scale_length_units(1000.0, sim_data, disp_comps)
     render_mesh = sens.create_render_mesh(
         sim_data,
         ("disp_y", "disp_x"),
@@ -59,10 +57,8 @@ def get_sample_scene_2d():
 
 
 def get_sample_scene_2d_no_light():
-    data_path = dataset.mechanical_2d_path()
-    sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
+    sim_data = renderverif.scaled_mechanical_2d()
     disp_comps = ("disp_x", "disp_y")
-    sim_data = sens.scale_length_units(1000.0, sim_data, disp_comps)
     render_mesh = sens.create_render_mesh(
         sim_data,
         ("disp_y", "disp_x"),
@@ -94,10 +90,8 @@ def get_sample_scene_2d_no_light():
 
 
 def get_sample_scene_2d_no_cam():
-    data_path = dataset.mechanical_2d_path()
-    sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
+    sim_data = renderverif.scaled_mechanical_2d()
     disp_comps = ("disp_x", "disp_y")
-    sim_data = sens.scale_length_units(1000.0, sim_data, disp_comps)
     render_mesh = sens.create_render_mesh(
         sim_data,
         ("disp_y", "disp_x"),
@@ -119,10 +113,8 @@ def get_sample_scene_2d_no_cam():
 
 
 def get_sample_scene_3d_no_cam():
-    data_path = dataset.mechanical_2d_path()
-    sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
+    sim_data = renderverif.scaled_mechanical_2d()
     disp_comps = ("disp_x", "disp_y")
-    sim_data = sens.scale_length_units(1000.0, sim_data, disp_comps)
     render_mesh = sens.create_render_mesh(
         sim_data,
         ("disp_y", "disp_x"),

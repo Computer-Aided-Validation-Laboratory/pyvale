@@ -5,16 +5,17 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyvale"
-version = "2026.7.0"
+version = "2026.8.0"
 description = "Your virtual engineering lab: An all-in-one package for sensor simulation, uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
-requires-python = "==3.13.*"
+requires-python = ">=3.11"
 dependencies = [
   "numpy>=2.0.0",
+  "numba>=0.60",
   "scipy>=1.14.0",
   "matplotlib>=3.8",
   "pyvista>=0.43.3",
@@ -25,10 +26,15 @@ dependencies = [
   "imageio>=2.36.1",
   "imageio-ffmpeg>=0.5.1",
   "pyyaml>=6.0.0",
-  "bpy==5.1.2",
   "pyqtgraph>=0.13.7",
   "opencv-python>=4.13.0.92",
   "pandas>=2.3.1",
+  "riley-raster>=2026.8.0",
+]
+
+[project.optional-dependencies]
+blender = [
+  "bpy==5.1.2; python_version == '3.13'",
 ]
 
 [dependency-groups]
@@ -80,7 +86,15 @@ pythonpath = [
     "tests"
 ]
 filterwarnings = [
-    "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning"
+    "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning",
+    "ignore:Setting the shape on a NumPy array:DeprecationWarning:vtkmodules.util.numpy_support",
+]
+markers = [
+    "example: smoke test for a documented gallery example",
+    "example_module(name): documented example sub-module for filtering",
+    "example_slow: longer-running documented gallery example",
+    "blender: requires the optional Blender renderer backend",
+    "riley: native Riley demonstration parity test",
 ]
 
 [project.urls]
@@ -92,6 +106,7 @@ build.verbose = true
 logging.level = "INFO"
 ninja.make-fallback = false
 build-dir = "build"
+wheel.packages = ["src/pyvale"]
 
 [tool.uv]
 required-version = ">=0.9.17"

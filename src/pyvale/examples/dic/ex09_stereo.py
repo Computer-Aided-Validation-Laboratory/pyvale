@@ -23,7 +23,7 @@ from dataclasses import fields
 
 import pyvale.dic as dic
 import pyvale.calib as calib
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 # %% 
 # Load in the ground truth calibration parameters. These are the parameters

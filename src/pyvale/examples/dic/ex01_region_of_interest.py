@@ -17,14 +17,14 @@ This example looks at the current core functionality of the Region of Interest
 from pathlib import Path
 
 # pyvale modules
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.dic as dic
 
 # %% 
 # We'll begin by selecting our Region of Interest (ROI) using the interactive selection tool.
 # First, we create an instance of the ROI class. We pass a reference image to it, which is
 # displayed as the underlay during ROI selection.
-ref_img = dataset.dic_plate_with_hole_ref()
+ref_img = dataset.dic_plate_with_hole_cam0_ref()
 roi = dic.RegionOfInterest(ref_image=ref_img)
 roi.interactive_selection()
 
@@ -96,6 +96,5 @@ roi.save_image(region_img)
 # You can also manually modify the ROI mask. A good starting point is:
 # `roi.rect_boundary(0, 0, 0, 0)` — this sets the ROI to include the full image.
 # From there, you can manipulate `roi.mask` as you would any other 2D NumPy array.
-
 
 

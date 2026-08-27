@@ -8,8 +8,22 @@ import numpy as np
 import pytest
 
 import pyvale.dataio as io
+import pyvale.dataio.meshconv as meshconv
 import pyvale.mooseherder as mh
-import pyvale.dataset as dataset
+import pyvale.data as dataset
+
+
+_SUPPORTED_CUBE_ELEMENTS = (
+    dataset.EElemTest.TET4,
+    dataset.EElemTest.TET10,
+    dataset.EElemTest.HEX8,
+    dataset.EElemTest.HEX20,
+    dataset.EElemTest.HEX27,
+)
+
+
+def test_meshconv_adapter_exposes_riley_element_symmetries() -> None:
+    assert len(meshconv.ELEMENT_SYMMETRIES[meshconv.EElementType.HEX27]) == 24
 
 
 def _quad_coords() -> np.ndarray:
@@ -134,9 +148,98 @@ def test_check_mesh_convention_passes_for_canonical_quad() -> None:
 
     check = io.check_mesh_convention(mesh)
 
-    assert check.is_valid
-    assert check.failed_checks == tuple()
-    assert check.connectivity_failures["connect1"] == tuple()
+    assert check == {}
+    assert io.check_mesh_convention is meshconv.check_mesh_convention
+
+
+def test_element_specs_are_reexported_from_riley_adapter() -> None:
+    assert io.ELEMENT_SPECS is meshconv.ELEMENT_SPECS
+    assert (
+        io.ELEMENT_SPECS[io.EElementType.TRI6].surf_reverse_perm
+        == (0, 2, 1, 5, 4, 3)
+    )
+
+    with pytest.raises(TypeError):
+        io.ELEMENT_SPECS[io.EElementType.TRI3] = (
+            io.ELEMENT_SPECS[io.EElementType.TRI3]
+        )
+
+
+def test_mesh_convention_is_reexported_and_applied_by_adapter() -> None:
+    coords = np.array(
+        ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
+        dtype=np.float64,
+    )
+    convention = io.MeshConvention({
+        io.EElementType.TRI3: (1, 2, 0),
+    })
+    mesh = io.SimData(
+        num_spat_dims=2,
+        mesh_type=io.EMeshType.SURF,
+        coords=coords,
+        connect={"connect1": np.array(((2, 0, 1),), dtype=np.int64)},
+    )
+
+    mesh_out = io.enforce_mesh_convention(mesh, convention)
+
+    assert mesh_out.connect is not None
+    assert np.array_equal(
+        mesh_out.connect["connect1"],
+        np.array(((0, 1, 2),), dtype=np.int64),
+    )
+
+
+def test_sim_data_classifies_quad4_as_a_surface_mesh() -> None:
+    mesh = io.SimData(
+        coords=_quad_coords(),
+        connect={"connect1": np.array(((0, 1, 2, 3),), dtype=np.int64)},
+    )
+
+    assert mesh.mesh_type is io.EMeshType.SURF
+    assert not io.is_volume_mesh(mesh)
+
+
+def test_sim_data_classifies_curved_quad8_as_a_surface_mesh() -> None:
+    coords = np.array(
+        (
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.5, 0.02, 0.0),
+            (1.0, 0.5, 0.02),
+            (0.5, 0.98, 0.0),
+            (0.0, 0.5, -0.02),
+        ),
+        dtype=np.float64,
+    )
+    mesh = io.SimData(
+        coords=coords,
+        connect={"connect1": np.arange(8, dtype=np.int64).reshape(1, -1)},
+    )
+
+    assert mesh.mesh_type is io.EMeshType.SURF
+    assert not io.is_volume_mesh(mesh)
+
+
+@pytest.mark.parametrize(
+    "element_type",
+    (dataset.EElemTest.TET4, dataset.EElemTest.HEX8),
+)
+def test_exodus_loader_classifies_volume_meshes(
+    element_type: dataset.EElemTest,
+) -> None:
+    mesh = mh.ExodusLoader(
+        dataset.element_case_output_path(element_type),
+    ).load_all_sim_data()
+
+    assert mesh.mesh_type is io.EMeshType.VOL
+    assert io.is_volume_mesh(mesh)
+
+    surface = io.extract_surf_mesh(mesh)
+
+    assert surface.mesh_type is io.EMeshType.SURF
+    assert not io.is_volume_mesh(surface)
 
 
 def test_enforce_mesh_convention_corrects_legacy_connectivity() -> None:
@@ -149,6 +252,7 @@ def test_enforce_mesh_convention_corrects_legacy_connectivity() -> None:
     mesh_out = io.enforce_mesh_convention(mesh)
 
     assert mesh_out is not mesh
+    assert mesh_out.mesh_type is io.EMeshType.SURF
     assert mesh_out.connect is not None
     assert mesh_out.connect["connect1"].shape == (1, 4)
     assert np.array_equal(mesh_out.connect["connect1"], np.array(((0, 1, 2, 3),)))
@@ -163,10 +267,12 @@ def test_check_mesh_convention_reports_failed_checks() -> None:
 
     check = io.check_mesh_convention(mesh)
 
-    assert not check.is_valid
-    assert "zero_based_indexing" in check.failed_checks
-    assert "row_major_connectivity" in check.failed_checks
-    assert "ccw_winding" in check.failed_checks
+    assert check["connect1"] == [
+        io.MeshCheckCode.ROW_MAJOR_CONNECTIVITY,
+        io.MeshCheckCode.ZERO_BASED_INDEXING,
+        io.MeshCheckCode.CCW_WINDING,
+        io.MeshCheckCode.RIGHT_HANDED_GEOMETRY,
+    ]
 
 
 def test_enforce_mesh_convention_raises_for_invalid_indices() -> None:
@@ -187,12 +293,12 @@ def test_check_and_enforce_winding_for_quads() -> None:
         connect={"connect1": np.array(((0, 3, 2, 1),), dtype=np.int64)},
     )
 
-    assert io.check_cw_winding(mesh)
-    assert not io.check_ccw_winding(mesh)
+    check = io.check_mesh_convention(mesh)
+    assert io.MeshCheckCode.CCW_WINDING in check["connect1"]
 
-    mesh_out = io.enforce_ccw_winding(mesh)
+    mesh_out = io.enforce_mesh_convention(mesh)
 
-    assert io.check_ccw_winding(mesh_out)
+    assert not io.check_mesh_convention(mesh_out)
     assert np.array_equal(mesh_out.connect["connect1"], np.array(((0, 1, 2, 3),)))
 
 
@@ -204,12 +310,76 @@ def test_enforce_mesh_convention_fixes_tet_handedness() -> None:
     )
 
     check = io.check_mesh_convention(mesh)
-    assert not check.is_right_handed
+    assert io.MeshCheckCode.RIGHT_HANDED_GEOMETRY in check["connect1"]
 
     mesh_out = io.enforce_mesh_convention(mesh)
 
-    assert io.check_mesh_convention(mesh_out).is_valid
+    assert not io.check_mesh_convention(mesh_out)
     assert np.array_equal(mesh_out.connect["connect1"], np.array(((0, 1, 2, 3),)))
+
+
+@pytest.mark.parametrize("element_type", _SUPPORTED_CUBE_ELEMENTS)
+def test_cube_mesh_convention_is_valid_after_enforcement(
+    element_type: dataset.EElemTest,
+) -> None:
+    """All supported raw cube meshes reach the shared convention."""
+    mesh = mh.ExodusLoader(
+        dataset.element_case_output_path(element_type),
+        enforce_convention=False,
+    ).load_all_sim_data()
+
+    raw_check = io.check_mesh_convention(mesh)
+    enforced = io.enforce_mesh_convention(mesh)
+    enforced_check = io.check_mesh_convention(enforced)
+
+    assert io.MeshCheckCode.ZERO_BASED_INDEXING in raw_check["connect1"]
+    assert io.MeshCheckCode.ROW_MAJOR_CONNECTIVITY in raw_check["connect1"]
+    assert not enforced_check
+
+
+@pytest.mark.parametrize("element_type", _SUPPORTED_CUBE_ELEMENTS)
+def test_cube_mesh_convention_enforcement_is_idempotent(
+    element_type: dataset.EElemTest,
+) -> None:
+    """Applying convention enforcement twice must not alter a cube mesh."""
+    mesh = mh.ExodusLoader(
+        dataset.element_case_output_path(element_type),
+        enforce_convention=False,
+    ).load_all_sim_data()
+
+    enforced_once = io.enforce_mesh_convention(mesh)
+    enforced_twice = io.enforce_mesh_convention(enforced_once)
+
+    assert enforced_once.connect is not None
+    assert enforced_twice.connect is not None
+    assert tuple(enforced_once.connect) == tuple(enforced_twice.connect)
+    for key, connectivity in enforced_once.connect.items():
+        assert np.array_equal(connectivity, enforced_twice.connect[key])
+
+
+def test_tet14_cube_is_explicitly_unsupported_by_convention_tools() -> None:
+    """TET14 remains a documented unsupported volume topology."""
+    mesh = mh.ExodusLoader(
+        dataset.element_case_output_path(dataset.EElemTest.TET14),
+        enforce_convention=False,
+    ).load_all_sim_data()
+
+    with pytest.raises(NotImplementedError, match="supported nodes-per-element"):
+        io.check_mesh_convention(mesh)
+
+
+@pytest.mark.parametrize("element_type", _SUPPORTED_CUBE_ELEMENTS)
+def test_extracted_cube_surface_passes_the_convention_checker(
+    element_type: dataset.EElemTest,
+) -> None:
+    """Extracted cube faces validate against their local outward directions."""
+    mesh = mh.ExodusLoader(
+        dataset.element_case_output_path(element_type),
+        enforce_convention=False,
+    ).load_all_sim_data()
+    surface = io.extract_surf_mesh(io.enforce_mesh_convention(mesh))
+
+    assert not io.check_mesh_convention(surface)
 
 
 def test_extract_surf_mesh_handles_multiple_connectivity_tables() -> None:
@@ -420,4 +590,3 @@ def test_extract_surf_mesh_hex27() -> None:
     assert surf.coords.shape == (98, 3)
     _assert_extracted_surface_points_outward(surf)
     _assert_higher_order_surface_edge_order(surf)
-

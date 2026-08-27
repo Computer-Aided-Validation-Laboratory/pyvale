@@ -1,39 +1,26 @@
-.. _examples_all:
-
 Examples
-================
+========
 
-Sensor Simulation Basics
-------------------------
 .. toctree::
-   :maxdepth: 2
+   :caption: Example Galleries
+   :maxdepth: 1
+   :glob:
 
-   examples_basics_sensorsim
+   basicsensorsim/ex*
+   extsensorsim/ex*
+   dic/ex*
+   mooseherder/ex*
 
-DIC & Strain Calculations
--------------------------
 .. toctree::
-   :maxdepth: 2
+   :caption: 3D Render Examples
+   :maxdepth: 1
+   :glob:
 
-   examples_dic
+   render3d/ex*
 
-Blender Image Deformation
--------------------------
 .. toctree::
-   :maxdepth: 2
+   :caption: 2D Image-Warp Examples
+   :maxdepth: 1
+   :glob:
 
-   examples_blender
-
-Sensor Simulation Extended
---------------------------
-.. toctree::
-   :maxdepth: 2
-
-   examples_ext_sensorsim
-
-Mooseherder
--------------------------------------
-.. toctree::
-   :maxdepth: 2
-
-   examples_mooseherder
+   render2d/ex*

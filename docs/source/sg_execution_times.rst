@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:00.000** total execution time for 44 files **from all galleries**:
+**00:00.000** total execution time for 59 files **from all galleries**:
 
 .. container::
 
@@ -32,76 +32,79 @@ Computation times
    * - Example
      - Time
      - Mem (MB)
-   * - :ref:`sphx_glr_examples_basics_ex1a_basicscalars_therm2d.py` (``../../src/pyvale/examples/basics/ex1a_basicscalars_therm2d.py``)
+   * - :ref:`sphx_glr_examples_basicsensorsim_ex0_quickstart.py` (``../../src/pyvale/examples/basicsensorsim/ex0_quickstart.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex1b_sensormodel_therm2d.py` (``../../src/pyvale/examples/basics/ex1b_sensormodel_therm2d.py``)
+   * - :ref:`sphx_glr_examples_basicsensorsim_ex1_scalar_sensors.py` (``../../src/pyvale/examples/basicsensorsim/ex1_scalar_sensors.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex1c_customsens_therm3d.py` (``../../src/pyvale/examples/basics/ex1c_customsens_therm3d.py``)
+   * - :ref:`sphx_glr_examples_basicsensorsim_ex2_vector_tensor_sensors.py` (``../../src/pyvale/examples/basicsensorsim/ex2_vector_tensor_sensors.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex1d_basicerrors_therm3d.py` (``../../src/pyvale/examples/basics/ex1d_basicerrors_therm3d.py``)
+   * - :ref:`sphx_glr_examples_basicsensorsim_ex3_experiment_simulator.py` (``../../src/pyvale/examples/basicsensorsim/ex3_experiment_simulator.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex1e_fielderrs_therm3d.py` (``../../src/pyvale/examples/basics/ex1e_fielderrs_therm3d.py``)
+   * - :ref:`sphx_glr_examples_dic_ex02_plate_with_hole.py` (``../../src/pyvale/examples/dic/ex02_plate_with_hole.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex1f_caliberrs_therm2d.py` (``../../src/pyvale/examples/basics/ex1f_caliberrs_therm2d.py``)
+   * - :ref:`sphx_glr_examples_dic_ex03_plate_with_hole_strain.py` (``../../src/pyvale/examples/dic/ex03_plate_with_hole_strain.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex1g_spatavg_therm2d.py` (``../../src/pyvale/examples/basics/ex1g_spatavg_therm2d.py``)
+   * - :ref:`sphx_glr_examples_dic_ex04_dic_blender.py` (``../../src/pyvale/examples/dic/ex04_dic_blender.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex2a_basicvectors_disp2d.py` (``../../src/pyvale/examples/basics/ex2a_basicvectors_disp2d.py``)
+   * - :ref:`sphx_glr_examples_dic_ex07_incremental.py` (``../../src/pyvale/examples/dic/ex07_incremental.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex2b_vectorsens_disp2d.py` (``../../src/pyvale/examples/basics/ex2b_vectorsens_disp2d.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex1_byosimdata.py` (``../../src/pyvale/examples/extsensorsim/ex1_byosimdata.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex2c_sensangle_disp2d.py` (``../../src/pyvale/examples/basics/ex2c_sensangle_disp2d.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex2_meshfreesensors.py` (``../../src/pyvale/examples/extsensorsim/ex2_meshfreesensors.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex2d_chainfielderrs_disp2d.py` (``../../src/pyvale/examples/basics/ex2d_chainfielderrs_disp2d.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex3a_scal2d.py` (``../../src/pyvale/examples/extsensorsim/ex3a_scal2d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex2e_vectorfields3d_disp3d.py` (``../../src/pyvale/examples/basics/ex2e_vectorfields3d_disp3d.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex3b_scal3d.py` (``../../src/pyvale/examples/extsensorsim/ex3b_scal3d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex3a_basictensors_strain2d.py` (``../../src/pyvale/examples/basics/ex3a_basictensors_strain2d.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex3c_vec2d.py` (``../../src/pyvale/examples/extsensorsim/ex3c_vec2d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex3b_tensorsens2d_strain2d.py` (``../../src/pyvale/examples/basics/ex3b_tensorsens2d_strain2d.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex3d_vec3d.py` (``../../src/pyvale/examples/extsensorsim/ex3d_vec3d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex3c_tensorsens3d_strain3d.py` (``../../src/pyvale/examples/basics/ex3c_tensorsens3d_strain3d.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex3e_tens2d.py` (``../../src/pyvale/examples/extsensorsim/ex3e_tens2d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex4a_expsim2d_thermmech2d.py` (``../../src/pyvale/examples/basics/ex4a_expsim2d_thermmech2d.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex3f_tens3d.py` (``../../src/pyvale/examples/extsensorsim/ex3f_tens3d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex4b_expsim3d_thermmech3d.py` (``../../src/pyvale/examples/basics/ex4b_expsim3d_thermmech3d.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex4a_basicerrs_scal2d.py` (``../../src/pyvale/examples/extsensorsim/ex4a_basicerrs_scal2d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_basics_ex5_nomesh.py` (``../../src/pyvale/examples/basics/ex5_nomesh.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex4b_fielderrs_scal3d.py` (``../../src/pyvale/examples/extsensorsim/ex4b_fielderrs_scal3d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex1_2_blenderdeformed.py` (``../../src/pyvale/examples/dic/ex1_2_blenderdeformed.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex4c_angleerrs_vec2d.py` (``../../src/pyvale/examples/extsensorsim/ex4c_angleerrs_vec2d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex1_region_of_interest.py` (``../../src/pyvale/examples/dic/ex1_region_of_interest.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex4d_fieldlockerrs_vec3d.py` (``../../src/pyvale/examples/extsensorsim/ex4d_fieldlockerrs_vec3d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex2_plate_with_hole.py` (``../../src/pyvale/examples/dic/ex2_plate_with_hole.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex4e_chainfielderrs_vec2d.py` (``../../src/pyvale/examples/extsensorsim/ex4e_chainfielderrs_vec2d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex3_plate_with_hole_strain.py` (``../../src/pyvale/examples/dic/ex3_plate_with_hole_strain.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex4f_caliberrs_scal2d.py` (``../../src/pyvale/examples/extsensorsim/ex4f_caliberrs_scal2d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex4_dic_blender.py` (``../../src/pyvale/examples/dic/ex4_dic_blender.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex4g_spatavgerrs_scal2d.py` (``../../src/pyvale/examples/extsensorsim/ex4g_spatavgerrs_scal2d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex5_dic_challenge.py` (``../../src/pyvale/examples/dic/ex5_dic_challenge.py``)
+   * - :ref:`sphx_glr_examples_extsensorsim_ex5a_expsim_thermmech2d.py` (``../../src/pyvale/examples/extsensorsim/ex5a_expsim_thermmech2d.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_extsensorsim_ex5b_expsim_thermmech3d.py` (``../../src/pyvale/examples/extsensorsim/ex5b_expsim_thermmech3d.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex0_create_moose_config.py` (``../../src/pyvale/examples/mooseherder/ex0_create_moose_config.py``)
@@ -149,18 +152,60 @@ Computation times
    * - :ref:`sphx_glr_examples_mooseherder_ex8_read_existing_sweep_output.py` (``../../src/pyvale/examples/mooseherder/ex8_read_existing_sweep_output.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex1_1_blenderscene.py` (``../../src/pyvale/examples/renderblender/ex1_1_blenderscene.py``)
+   * - :ref:`sphx_glr_examples_render__blender_example_tools.py` (``../../src/pyvale/examples/render/_blender_example_tools.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex1_2_blenderdeformed.py` (``../../src/pyvale/examples/renderblender/ex1_2_blenderdeformed.py``)
+   * - :ref:`sphx_glr_examples_render__riley_demo_tools.py` (``../../src/pyvale/examples/render/_riley_demo_tools.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex2_1_stereoscene.py` (``../../src/pyvale/examples/renderblender/ex2_1_stereoscene.py``)
+   * - :ref:`sphx_glr_examples_render_ex1a_riley_quickstart.py` (``../../src/pyvale/examples/render/ex1a_riley_quickstart.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex2_2_stereodeformed.py` (``../../src/pyvale/examples/renderblender/ex2_2_stereodeformed.py``)
+   * - :ref:`sphx_glr_examples_render_ex1b_riley_sphere200.py` (``../../src/pyvale/examples/render/ex1b_riley_sphere200.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_renderblender_ex3_1_blendercalibration.py` (``../../src/pyvale/examples/renderblender/ex3_1_blendercalibration.py``)
+   * - :ref:`sphx_glr_examples_render_ex1c_riley_psf.py` (``../../src/pyvale/examples/render/ex1c_riley_psf.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex1d_riley_rabbits.py` (``../../src/pyvale/examples/render/ex1d_riley_rabbits.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex1e_riley_dicuq.py` (``../../src/pyvale/examples/render/ex1e_riley_dicuq.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex1f_riley_dic_from_exodus.py` (``../../src/pyvale/examples/render/ex1f_riley_dic_from_exodus.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex1g_riley_stereocal.py` (``../../src/pyvale/examples/render/ex1g_riley_stereocal.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex2a_blender_scene.py` (``../../src/pyvale/examples/render/ex2a_blender_scene.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex2b_blender_deformation.py` (``../../src/pyvale/examples/render/ex2b_blender_deformation.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex2c_blender_stereo.py` (``../../src/pyvale/examples/render/ex2c_blender_stereo.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex2d_blender_calibration.py` (``../../src/pyvale/examples/render/ex2d_blender_calibration.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex2e_blender_stereo_deformation.py` (``../../src/pyvale/examples/render/ex2e_blender_stereo_deformation.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex2f_blender_calibration_target.py` (``../../src/pyvale/examples/render/ex2f_blender_calibration_target.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex3_imagedef2d_planar_deformation.py` (``../../src/pyvale/examples/render/ex3_imagedef2d_planar_deformation.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex4_pixint_grid_one_elem_types.py` (``../../src/pyvale/examples/render/ex4_pixint_grid_one_elem_types.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex4a_pixint_grid_mesh.py` (``../../src/pyvale/examples/render/ex4a_pixint_grid_mesh.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render_ex5_pixint_speck_newton.py` (``../../src/pyvale/examples/render/ex5_pixint_speck_newton.py``)
      - 00:00.000
      - 0.0

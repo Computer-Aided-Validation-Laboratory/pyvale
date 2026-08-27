@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-from .simdata import SimData
+from .simdata import EMeshType, SimData
 from .simdata import SimLoadConfig
 from .loadopts import (SimLoadOpts,ExpLoadOpts)
 from .loadtools import (str_to_path,
@@ -16,13 +16,18 @@ from .loadtools import (str_to_path,
                            load_connectivity,
                            check_sim_data_consistency,
                            inv_group_dict)
-from .meshtools import (MeshConventionCheck,
+from .meshconv import (MeshCheckCode,
+                        EElementType,
+                        ElementSpec,
+                        ELEMENT_SPECS,
+                        ELEMENT_SYMMETRIES,
+                        MeshConvention,
+                        MeshConvErr,
+                        MeshConvCheck,
                         check_mesh_convention,
                         enforce_mesh_convention,
-                        check_cw_winding,
-                        check_ccw_winding,
-                        enforce_cw_winding,
-                        enforce_ccw_winding,
+                        is_mesh_2d,
+                        is_volume_mesh,
                         extract_surf_mesh,
                         extract_surf_between)
 from .simloaderbytime import SimLoaderByTime

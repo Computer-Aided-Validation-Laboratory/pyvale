@@ -80,7 +80,7 @@ git switch -c branchname
 
 ### Developer Guidance
 
-Much of Pyvale is written in Python. See our [Pyvale Developer Guide](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/designspec/README.md) for guidance on how to write Python code that best aligns with Pyvale's code values.
+Much of Pyvale is written in Python. See our [Pyvale Developer Guide](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/dev/README.md) for guidance on how to write Python code that best aligns with Pyvale's code values.
 
 ### Docstrings
 
