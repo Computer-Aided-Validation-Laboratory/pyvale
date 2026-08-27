@@ -13,9 +13,10 @@ from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.errorintegrator import ErrIntegrator
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
+from pyvale.sensorsim.sensordata import SensorData
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
 from pyvale.render.camera import Camera2D
-from pyvale.sensorsim.cameratools import CameraTools
+from pyvale.render.cameratools import pixel_grid_leng
 
 
 
@@ -37,7 +38,24 @@ class CameraBasic2D(ISensorArray):
         if descriptor is not None:
             self._descriptor = descriptor
 
-        self._sensor_data = CameraTools.build_sensor_data_from_camera_2d(self._cam_data)
+        pixel_grid = pixel_grid_leng(
+            self._cam_data.field_of_view,
+            self._cam_data.pixels_size,
+        )
+        positions = np.zeros((pixel_grid[0].size, 3))
+        positions[:, :2] = np.column_stack(
+            (pixel_grid[0].ravel(), pixel_grid[1].ravel())
+        ) - self._cam_data.world_to_cam
+        angles = (
+            None
+            if self._cam_data.angle is None
+            else (self._cam_data.angle,)
+        )
+        self._sensor_data = SensorData(
+            positions=positions,
+            sample_times=self._cam_data.sample_times,
+            angles=angles,
+        )
 
         self._truth = None
         self._measurements = None
@@ -58,8 +76,8 @@ class CameraBasic2D(ISensorArray):
                 self.get_sample_times().shape[0])
 
     def get_image_measurements_shape(self) -> tuple[int,int,int,int]:
-        return (self._cam_data.num_pixels[1],
-                self._cam_data.num_pixels[0],
+        return (self._cam_data.pixels_num[1],
+                self._cam_data.pixels_num[0],
                 len(self._field.get_all_components()),
                 self.get_sample_times().shape[0])
 
@@ -142,5 +160,4 @@ class CameraBasic2D(ISensorArray):
         image_shape = self.get_image_measurements_shape()
         #shape=(n_pixels_y,n_pixels_x,n_field_comps,n_time_steps)
         return np.reshape(self._measurements,image_shape)
-
 

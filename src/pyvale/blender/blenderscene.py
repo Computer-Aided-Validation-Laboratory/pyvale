@@ -11,8 +11,7 @@ import bpy
 
 # Pyvale
 import pyvale.sensorsim.simtools as simtools
-from pyvale.sensorsim.camerastereo import CameraStereo
-from pyvale.render import Camera, Mesh3D
+from pyvale.render import Camera, CameraStereo, Mesh3D
 
 from pyvale.blender.blenderexceptions import BlenderError
 from pyvale.blender.blendertools import Tools
@@ -494,7 +493,6 @@ class Scene():
             # TODO: Potentially change the way images are stacked for stereo systems
             # Change it so it suits Joel's code
             return image_arrays
-
 
 
 

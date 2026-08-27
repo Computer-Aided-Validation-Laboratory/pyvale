@@ -26,9 +26,6 @@ from pyvale.sensorsim.visualtools import (
     create_pv_plotter,
     get_colour_lims,
 )
-from pyvale.sensorsim.imagetools import ImageTools
-
-
 #TODO: Docstrings
 
 def add_sim_field(pv_plot: pv.Plotter,
@@ -349,5 +346,4 @@ def plot_sensors_on_sim(
         )
 
     return pv_plot
-
 

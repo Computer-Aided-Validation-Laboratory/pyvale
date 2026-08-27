@@ -10,7 +10,7 @@ from PIL import Image
 import bpy
 
 # Pyvale
-from pyvale.sensorsim.cameratools import CameraTools
+from pyvale.render.blender.blendertools import blender_field_of_view
 
 from pyvale.blender.blenderexceptions import BlenderError
 from pyvale.blender.blenderrenderdata import RenderEngine, RenderData
@@ -385,7 +385,7 @@ class Tools:
         for ii in range(plunge_steps):
             plunge = calibration_data.plunge_lims[0] + calibration_data.plunge_step * ii
             # Plunge
-            (FOV_x, FOV_y) = CameraTools.blender_FOV(render_data.cam_data[0])
+            (FOV_x, FOV_y) = blender_field_of_view(render_data.cam_data[0])
 
             if calibration_data.x_limit is None:
                 calibration_data.x_limit = int(round((FOV_x / 2) - (part.dimensions[0] / 2)))
