@@ -81,7 +81,10 @@ def main() -> None:
         else args.input
     )
     experiment_data = ExperimentData.load_from_file(experiment_data_file)
-    constitutive_law = _create_constitutive_law(args.stress_backend)
+    constitutive_law = _create_constitutive_law(
+        args.stress_backend,
+        minimum_yield_strength=YIELD_BOUNDS_MPA[0],
+    )
 
     parameter_map_size = np.asarray(
         experiment_data.specimen_geometry.x.shape,
@@ -99,7 +102,11 @@ def main() -> None:
             "elastic_modulus": [SpatialParameterisationKnown()],
             "poissons_ratio": [SpatialParameterisationKnown()],
             "yield_strength": [SpatialParameterisationHomogeneous()],
-            "hardening_modulus": [SpatialParameterisationHomogeneous()],
+            "hardening_modulus": [
+                SpatialParameterisationKnown()
+                if args.fix_hardening
+                else SpatialParameterisationHomogeneous()
+            ],
         },
         metrics=[MetricSBVF(mesh_size=SBVF_MESH_SIZE, vf_scaling_fraction=SBVF_SCALING_FRACTION)],
         objective_function=VectorFirstResultPassthrough(),
@@ -115,6 +122,7 @@ def main() -> None:
         x=x,
         y=y,
         kernel_type="bivariate",
+        centre_bounds_span_factor=args.centre_bounds_span_factor,
     )
 
     phase_1 = IdentificationPhase(
@@ -122,7 +130,11 @@ def main() -> None:
             "elastic_modulus": [SpatialParameterisationKnown()],
             "poissons_ratio": [SpatialParameterisationKnown()],
             "yield_strength": [SpatialParameterisationHomogeneous(), yield_strength_basis],
-            "hardening_modulus": [SpatialParameterisationHomogeneous()],
+            "hardening_modulus": [
+                SpatialParameterisationKnown()
+                if args.fix_hardening
+                else SpatialParameterisationHomogeneous()
+            ],
         },
         metrics=[force_metric_phase_1, *equilibrium_gap_metrics_phase_1],
         objective_function=CombinedForceAndEquilibriumGapObjective(
@@ -131,7 +143,7 @@ def main() -> None:
             baseline=CombinedObjectiveBaseline.prior_phase(0),
         ),
         optimiser=OptimiserPatternSearch(
-            initial_mesh_size=INITIAL_MESH_SIZE,
+            initial_mesh_size=args.initial_mesh_size,
             minimum_mesh_size=args.minimum_mesh_size,
             max_iterations=args.max_iterations,
             max_evaluations=args.max_evaluations,
@@ -165,6 +177,9 @@ def main() -> None:
         "phase_0_max_evaluations": args.phase_0_max_evaluations,
         "maximum_basis_functions": args.max_basis_functions,
         "minimum_objective_improvement": args.minimum_objective_improvement,
+        "initial_mesh_size": args.initial_mesh_size,
+        "centre_bounds_span_factor": args.centre_bounds_span_factor,
+        "hardening_fixed": args.fix_hardening,
         "force_weight": args.force_weight,
         "force_slices": args.force_slices,
         "egi_windows": args.egi_windows,
@@ -190,6 +205,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--egi-windows", type=_parse_egi_windows, default=EGI_WINDOWS, help="Comma-separated odd square window sizes, e.g. 15,29,41.")
     parser.add_argument("--max-basis-functions", type=int, default=MAX_BASIS_FUNCTIONS)
     parser.add_argument("--minimum-objective-improvement", type=float, default=MINIMUM_OBJECTIVE_IMPROVEMENT)
+    parser.add_argument("--initial-mesh-size", type=float, default=INITIAL_MESH_SIZE, help="Initial normalised pattern-search mesh size.")
+    parser.add_argument("--centre-bounds-span-factor", type=float, default=1.0, help="Multiplier applied to the coordinate span used for Gaussian centre bounds.")
+    parser.add_argument("--fix-hardening", action="store_true", help="Hold the supplied initial hardening modulus fixed in both phases.")
     parser.add_argument("--minimum-mesh-size", type=float, default=MINIMUM_MESH_SIZE)
     parser.add_argument("--max-iterations", type=int, default=MAX_ITERATIONS)
     parser.add_argument("--max-evaluations", type=int, default=PHASE_1_MAX_EVALUATIONS, help="Maximum pattern-search evaluations in phase 1.")
@@ -197,8 +215,10 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--stress-backend", choices=("numpy", "cython"), default=STRESS_BACKEND, help="Stress-reconstruction backend; overrides STRESS_BACKEND.")
     parser.add_argument("--no-progress", action="store_false", dest="show_progress", default=SHOW_PROGRESS, help="Disable console progress messages during identification.")
     args = parser.parse_args()
-    if not 0.0 < args.minimum_mesh_size <= INITIAL_MESH_SIZE:
-        parser.error(f"--minimum-mesh-size must lie in (0, {INITIAL_MESH_SIZE}].")
+    if not 0.0 < args.initial_mesh_size <= 1.0:
+        parser.error("--initial-mesh-size must lie in (0, 1].")
+    if not 0.0 < args.minimum_mesh_size <= args.initial_mesh_size:
+        parser.error("--minimum-mesh-size must lie in (0, initial mesh size].")
     if args.max_iterations < 1 or args.max_evaluations < 1 or args.parallel_workers < 1 or args.phase_0_max_evaluations < 1:
         parser.error("Iteration, evaluation, and worker counts must be positive.")
     if not 0.0 <= args.force_weight <= 1.0:
@@ -207,6 +227,8 @@ def _parse_args() -> argparse.Namespace:
         parser.error("Force slices must be at least two and max bases must be positive.")
     if not 0.0 <= args.minimum_objective_improvement < 1.0:
         parser.error("--minimum-objective-improvement must lie in [0, 1).")
+    if not np.isfinite(args.centre_bounds_span_factor) or args.centre_bounds_span_factor < 1.0:
+        parser.error("--centre-bounds-span-factor must be finite and at least 1.")
     return args
 
 
@@ -217,7 +239,11 @@ def _parse_egi_windows(value: str) -> tuple[tuple[int, int], ...]:
     return tuple((size, size) for size in sizes)
 
 
-def _create_constitutive_law(stress_backend: str):
+def _create_constitutive_law(
+    stress_backend: str,
+    *,
+    minimum_yield_strength: float,
+):
     if stress_backend == "numpy":
         return IsotropicVonMisesElastoplasticity(HardeningLinear())
     try:
@@ -228,7 +254,10 @@ def _create_constitutive_law(stress_backend: str):
             "is not installed. Install the sibling project into this Python "
             "environment or select --stress-backend numpy."
         ) from exc
-    return CompiledLinearHardeningLaw(HardeningLinear())
+    return CompiledLinearHardeningLaw(
+        HardeningLinear(),
+        minimum_yield_strength=minimum_yield_strength,
+    )
 
 
 if __name__ == "__main__":
