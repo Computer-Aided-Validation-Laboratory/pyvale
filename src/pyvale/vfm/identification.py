@@ -711,11 +711,12 @@ def _default_initial_basis(
         minimum_variance * (1.0 + 1.0e-6),
     )
     initial_variance = float(np.sqrt(minimum_variance * maximum_variance))
+    min_x, max_x, min_y, max_y = basis.get_centre_bounds()
 
     return (
         basis.create_kernel(
-            DegreeOfFreedom(centre[0], float(np.nanmin(x)), float(np.nanmax(x))),
-            DegreeOfFreedom(centre[1], float(np.nanmin(y)), float(np.nanmax(y))),
+            DegreeOfFreedom(centre[0], min_x, max_x),
+            DegreeOfFreedom(centre[1], min_y, max_y),
             DegreeOfFreedom(
                 initial_variance,
                 minimum_variance,
@@ -1200,9 +1201,19 @@ class PhaseRuntime:
         """Write this phase's parameter maps back to the identification state."""
 
         for param_name, parameterisation_list in self.spatial_parameterisations.items():
-            constitutive_parameters[param_name].map = evaluate_parameterisations_to_map(
+            parameter = constitutive_parameters[param_name]
+            assembled_map = evaluate_parameterisations_to_map(
                 parameterisation_list,
                 parameter_map_size,
+            )
+            # Individually bounded additive parameterisations can still sum
+            # outside the constitutive parameter's physical bounds. Keep the
+            # accepted phase state feasible before it seeds a refinement or
+            # subsequent phase.
+            parameter.map = np.clip(
+                assembled_map,
+                parameter.lower_bound,
+                parameter.upper_bound,
             )
 
     def build_refinement_context(

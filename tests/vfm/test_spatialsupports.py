@@ -443,6 +443,41 @@ def test_egi_basis_growth_uses_egi_improvement_for_vector_objective() -> None:
     assert not rejected_action.accepts_current_solve
 
 
+def test_egi_basis_growth_uses_configured_expanded_centre_bounds() -> None:
+    experiment_data = _build_experiment_data()
+    shape = np.asarray(experiment_data.specimen_geometry.x.shape, dtype=np.uint32)
+    parameter = ConstitutiveParameter(2.0, 0.5, 5.0, shape)
+    metric = _StaticEquilibriumGapMetric(window_size=(3, 3))
+    basis = SpatialParameterisationBasisFunction(
+        experiment_data.specimen_geometry.x,
+        experiment_data.specimen_geometry.y,
+        centre_bounds_span_factor=2.0,
+    )
+    runtime = PhaseRuntime(
+        {"yield_strength": [SpatialParameterisationHomogeneous(), basis]},
+        [metric],
+        objective_function=VectorFirstResultPassthrough(),
+    )
+    baseline_result = metric.evaluate_equilibrium_gap(np.empty(0)).metric_result
+    runtime.initialise_parameterisation_structure(
+        {"yield_strength": parameter},
+        shape,
+        experiment_data,
+        [baseline_result],
+    )
+
+    kernel = basis.kernels[0]
+    assert isinstance(kernel.x, DegreeOfFreedom)
+    assert isinstance(kernel.y, DegreeOfFreedom)
+    expected = basis.get_centre_bounds()
+    assert (kernel.x.lower_bound, kernel.x.upper_bound) == pytest.approx(expected[:2])
+    assert (kernel.y.lower_bound, kernel.y.upper_bound) == pytest.approx(expected[2:])
+    assert kernel.x.lower_bound < float(np.nanmin(basis.x))
+    assert kernel.x.upper_bound > float(np.nanmax(basis.x))
+    assert kernel.y.lower_bound < float(np.nanmin(basis.y))
+    assert kernel.y.upper_bound > float(np.nanmax(basis.y))
+
+
 def test_phase_spatial_state_collects_shared_basis_support_dofs_once() -> None:
     x_grid_1d = np.linspace(0.0, 1.0, 5)
     y_grid_1d = np.linspace(0.0, 1.0, 4)

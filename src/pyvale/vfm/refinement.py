@@ -645,10 +645,11 @@ def _default_basis(
     minimum_variance = (3.0 * spacing) ** 2
     maximum_variance = max(diagonal**2, minimum_variance * (1.0 + 1.0e-6))
     initial_variance = float(np.sqrt(minimum_variance * maximum_variance))
+    min_x, max_x, min_y, max_y = basis.get_centre_bounds()
     return (
         basis.create_kernel(
-            DegreeOfFreedom(centre[0], float(np.nanmin(x)), float(np.nanmax(x))),
-            DegreeOfFreedom(centre[1], float(np.nanmin(y)), float(np.nanmax(y))),
+            DegreeOfFreedom(centre[0], min_x, max_x),
+            DegreeOfFreedom(centre[1], min_y, max_y),
             DegreeOfFreedom(
                 initial_variance,
                 minimum_variance,

@@ -363,6 +363,25 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             )
         return BasisFunctionKernelUnivariate(x=x, y=y, variance=variance)
 
+    def get_centre_bounds(self) -> tuple[float, float, float, float]:
+        """Return configured ``x_min, x_max, y_min, y_max`` centre bounds."""
+        data_min_x = float(np.nanmin(self.x))
+        data_max_x = float(np.nanmax(self.x))
+        data_min_y = float(np.nanmin(self.y))
+        data_max_y = float(np.nanmax(self.y))
+        x_padding = 0.5 * (self.centre_bounds_span_factor - 1.0) * (
+            data_max_x - data_min_x
+        )
+        y_padding = 0.5 * (self.centre_bounds_span_factor - 1.0) * (
+            data_max_y - data_min_y
+        )
+        return (
+            data_min_x - x_padding,
+            data_max_x + x_padding,
+            data_min_y - y_padding,
+            data_max_y + y_padding,
+        )
+
     def get_num_degrees_of_freedom(self) -> int:
         return sum(
             isinstance(height, DegreeOfFreedom) or height is None
@@ -854,20 +873,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         const_param_range: float,
         fit_mask: npt.NDArray[np.bool_] | None = None,
     ) -> tuple[BasisFunctionKernel, DegreeOfFreedom]:
-        data_min_x = np.min(self.x)
-        data_max_x = np.max(self.x)
-        data_min_y = np.min(self.y)
-        data_max_y = np.max(self.y)
-        x_padding = 0.5 * (self.centre_bounds_span_factor - 1.0) * (
-            data_max_x - data_min_x
-        )
-        y_padding = 0.5 * (self.centre_bounds_span_factor - 1.0) * (
-            data_max_y - data_min_y
-        )
-        min_x = data_min_x - x_padding
-        max_x = data_max_x + x_padding
-        min_y = data_min_y - y_padding
-        max_y = data_max_y + y_padding
+        min_x, max_x, min_y, max_y = self.get_centre_bounds()
 
         parameter_map = self.to_map(np.array(target_map.shape))
         diff_map = target_map - parameter_map
