@@ -1,35 +1,32 @@
 # ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
-# Copyright (C) 2025 The Computer Aided Validation Team
+# Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
 """Render UVs: Map into a texture pixel region
 ================================================================================
 
-Here we place a packaged plate-with-hole mesh inside an explicitly selected
-pixel rectangle in the speckle texture. Pixel bounds are useful when the
-specimen location in an experimental texture is already known.
+Here we place a three-dimensional plate-with-hole mesh into an explicitly
+selected pixel rectangle in a speckle texture. The oblique physical view keeps
+the hole and the plate thickness visible while the UV region is changed.
 """
 
 from pathlib import Path
 
-import riley
+from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
-
-from pyvale.examples._renderuv_tools import render_uv_variant
+from pyvale.examples.renderuvs.tools import render_uv_example
 
 # %%
-# 1. Load the packaged plate-with-hole mesh
+# 1. Load and orient the packaged plate-with-hole mesh
 # ------------------------------------------------------------
-# We use the native PyVale CSV loader and keep only the static reference mesh
-# needed to explain UV placement.
-
+# The native PyVale CSV loader provides the three-dimensional surface mesh.
+# Rotating about its centre makes the hole and exposed side edges legible.
 data_dir = dataset.riley_platehole_csv_case_path()
-
 simulation = io.SimLoaderByField(
     load_dir=data_dir,
     coords_file="coords.csv",
@@ -38,44 +35,48 @@ simulation = io.SimLoaderByField(
     connect_files="connect.csv",
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_all_sim_data()
-
-mesh = render.mesh3d_from_simdata(simulation, shader=None)
+base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
+oriented_mesh = render.mesh_rotate(
+    base_mesh,
+    Rotation.from_euler("xyz", (0.0, 22.0, 8.0), degrees=True),
+    pivot=render.mesh_center(base_mesh),
+)
 
 # %%
 # 2. Generate UVs inside a specified pixel rectangle
 # ------------------------------------------------------------
 # The rectangle leaves a substantial texture border and ``CONTAIN`` keeps the
 # whole plate visible without changing its physical aspect ratio.
-
 texture = render.image_load(dataset.riley_speckle_texture_path())
-
-texture_shape = texture.shape[:2]
-height, width = texture_shape
+height, width = texture.shape[:2]
 pixel_bounds = (0.2 * width, 0.15 * height, 0.8 * width, 0.85 * height)
-
 uvs = render.uv_project_planar_pixels(
-    mesh.coords,
-    texture_shape,
+    oriented_mesh.coords,
+    texture.shape[:2],
     pixel_bounds,
     plane=render.EUVPlane.XY,
     fit=render.EUVFit.CONTAIN,
+)
+textured_mesh = render.Mesh3D(
+    element_type=oriented_mesh.element_type,
+    coords=oriented_mesh.coords,
+    connectivity=oriented_mesh.connectivity,
+    shader=render.RileyTextureShader(uvs=uvs, texture=texture),
 )
 
 # %%
 # 3. Render the mapped pixel region
 # ------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1c_uv_pixel_region"
-
-render_uv_variant(
-    mesh.coords, mesh.connectivity, uvs, texture, output_dir / "region",
-)
+camera_rotation = Rotation.from_euler("xyz", (14.0, -24.0, 0.0), degrees=True)
+render_uv_example(textured_mesh, output_dir / "region", camera_rotation)
 
 print(f"Rendered the pixel-region UV mapping to {output_dir}")
 
 # %%
-# The plate mapped into the selected speckle-image region is shown below.
+# The three-dimensional plate is mapped into the selected speckle-image region.
 #
 # .. image:: ../../_static/renderuvs_ex1c_uv_pixel_region.png
-#    :alt: Plate with a hole mapped into a selected texture pixel region
+#    :alt: Oblique plate with a hole mapped into a selected texture region
 #    :width: 500px
 #    :align: center

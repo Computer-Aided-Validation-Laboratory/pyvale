@@ -1,85 +1,97 @@
 # ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
-# Copyright (C) 2025 The Computer Aided Validation Team
+# Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
 """Render UVs: Axis-aligned planar projection
 ================================================================================
 
-Here we generate UV coordinates by projecting the same regular grid in the
-XY, YZ, and XZ planes. Riley then renders each result with a calibration
-texture so that the texture orientation is easy to inspect.
+This example maps a textured, three-dimensional calibration plate after
+orienting it in the XY, YZ, and XZ planes. The plate thickness and oblique
+camera views make each physical orientation visible in the rendered result.
 """
 
 from pathlib import Path
 
-import numpy as np
-import riley
+from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
+import pyvale.dataio as io
 from pyvale import render
+from pyvale.examples.renderuvs.tools import render_uv_example
 
-from pyvale.examples._renderuv_tools import (
-    TEXTURE_SHAPE,
-    embed_grid,
-    rectangle_grid,
-    render_uv_variant,
+# %%
+# 1. Load the packaged three-dimensional calibration plate
+# ------------------------------------------------------------
+# The calibration plate is a TRI3 surface mesh with front, back, and side
+# faces. Its exposed edges make planar-projection orientation easy to inspect.
+data_dir = dataset.riley_stereocal_case_path()
+simulation = io.SimLoaderByField(
+    load_dir=data_dir,
+    coords_file="coords.csv",
+    time_step_file=None,
+    node_field_files=None,
+    connect_files="connect.csv",
+    load_opts=io.SimLoadOpts(coord_header=None),
+).load_all_sim_data()
+base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
+texture = render.image_load(dataset.riley_cal_target_texture_path())
+mesh_center = render.mesh_center(base_mesh)
+
+# %%
+# 2. Orient the plate in each axis-aligned projection plane
+# ------------------------------------------------------------
+# Each rotation moves the broad plate face into the requested world plane.
+# UVs are then generated from the same plane, while an oblique camera reveals
+# the plate thickness and its physical orientation.
+variants = (
+    (
+        "xy",
+        render.EUVPlane.XY,
+        Rotation.identity(),
+        Rotation.from_euler("y", 10.0, degrees=True),
+    ),
+    (
+        "yz",
+        render.EUVPlane.YZ,
+        Rotation.from_euler("y", 88.0, degrees=True),
+        Rotation.from_euler("y", 78.0, degrees=True),
+    ),
+    (
+        "xz",
+        render.EUVPlane.XZ,
+        Rotation.from_euler("x", 80.0, degrees=True),
+        Rotation.from_euler("x", 70.0, degrees=True),
+    ),
 )
 
 # %%
-# 1. Create regular grids in the three axis-aligned planes
+# 3. Generate and render the three mappings
 # ------------------------------------------------------------
-# The verification module creates one regular Quad4 grid. We embed copies in
-# each three-dimensional plane, avoiding any additional packaged mesh data.
-
-display_coords, connectivity = rectangle_grid()
-
-plane_coords = {
-    "xy": embed_grid(display_coords, np.array((1, 0, 0)),
-                     np.array((0, 1, 0))),
-    "yz": embed_grid(display_coords, np.array((0, 1, 0)),
-                     np.array((0, 0, 1))),
-    "xz": embed_grid(display_coords, np.array((1, 0, 0)),
-                     np.array((0, 0, 1))),
-}
-
-planes = {
-    "xy": render.EUVPlane.XY,
-    "yz": render.EUVPlane.YZ,
-    "xz": render.EUVPlane.XZ,
-}
-
-# %%
-# 2. Generate centred UV coordinates for each plane
-# ------------------------------------------------------------
-# The texture shape uses NumPy order, ``(height, width)``. A span of 0.9 leaves
-# a five-percent border around the projected grid.
-uv_sets = {
-    name: render.uv_project_planar_centered(
-        coords,
-        TEXTURE_SHAPE,
-        span=0.9,
-        plane=planes[name],
-    )
-    for name, coords in plane_coords.items()
-}
-
-# %%
-# 3. Render the three mappings with Riley
-# ------------------------------------------------------------
-# All three UV sets are rendered on the same face-on display grid. This makes
-# the texture results directly comparable while the UVs themselves were
-# generated from three differently embedded grids.
-
-texture = render.image_load(dataset.riley_cal_target_texture_path())
-
+# ``uv_project_planar_centered`` maps the selected physical plane into a
+# centred texture region, leaving a five-percent border on every side.
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1a_uv_planar_axes"
 
-for name, uvs in uv_sets.items():
-    render_uv_variant(
-        display_coords, connectivity, uvs, texture, output_dir / name,
+for variant_name, projection_plane, mesh_rotation, camera_rotation in variants:
+    oriented_mesh = render.mesh_rotate(
+        base_mesh,
+        mesh_rotation,
+        pivot=mesh_center,
     )
+    uvs = render.uv_project_planar_centered(
+        oriented_mesh.coords,
+        texture.shape[:2],
+        span=0.9,
+        plane=projection_plane,
+    )
+    textured_mesh = render.Mesh3D(
+        element_type=oriented_mesh.element_type,
+        coords=oriented_mesh.coords,
+        connectivity=oriented_mesh.connectivity,
+        shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+    )
+    render_uv_example(textured_mesh, output_dir / variant_name, camera_rotation)
 
 print(f"Rendered axis-aligned UV projections to {output_dir}")
 
@@ -87,6 +99,6 @@ print(f"Rendered axis-aligned UV projections to {output_dir}")
 # The XY, YZ, and XZ variants are shown from left to right below.
 #
 # .. image:: ../../_static/renderuvs_ex1a_uv_planar_axes.png
-#    :alt: Calibration texture mapped using XY, YZ, and XZ planar UVs
+#    :alt: Three-dimensional calibration plate with XY, YZ, and XZ UV maps
 #    :width: 900px
 #    :align: center
