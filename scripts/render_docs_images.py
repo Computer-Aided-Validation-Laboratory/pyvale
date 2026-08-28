@@ -4,12 +4,12 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Build documentation artifacts from Render2D and Render3D examples.
+"""Build documentation artifacts from Render2D, Render3D, and Render UVs.
 
 Run the render examples first so their standard directories exist below
 ``pyvale-output``. This script selects the documented first-frame outputs,
-converts them to PNG, combines stereo pairs side by side, and links the
-artifacts into the Sphinx ``_static`` directory.
+converts them to PNG, combines stereo pairs and comparison variants side by
+side, and links the artifacts into the Sphinx ``_static`` directory.
 """
 
 from __future__ import annotations
@@ -119,6 +119,38 @@ IMAGE_ARTIFACTS = (
             "calimages/blendercal_1_1.tiff",
         ),
     ),
+    ImageArtifact(
+        "renderuvs_ex1a_uv_planar_axes",
+        (
+            "xy/cam0_frame0_field0.bmp",
+            "yz/cam0_frame0_field0.bmp",
+            "xz/cam0_frame0_field0.bmp",
+        ),
+    ),
+    ImageArtifact(
+        "renderuvs_ex1b_uv_texture_aspect",
+        (
+            "contain/cam0_frame0_field0.bmp",
+            "fit_u/cam0_frame0_field0.bmp",
+            "fit_v/cam0_frame0_field0.bmp",
+            "stretch/cam0_frame0_field0.bmp",
+        ),
+    ),
+    ImageArtifact(
+        "renderuvs_ex1c_uv_pixel_region",
+        ("region/cam0_frame0_field0.bmp",),
+    ),
+    ImageArtifact(
+        "renderuvs_ex1d_uv_arbitrary_plane",
+        ("tilted/cam0_frame0_field0.bmp",),
+    ),
+    ImageArtifact(
+        "renderuvs_ex1e_uv_transform",
+        (
+            "original/cam0_frame0_field0.bmp",
+            "transformed/cam0_frame0_field0.bmp",
+        ),
+    ),
 )
 
 CALIBRATION_EXAMPLE = "render3d_ex2d_blender_calibration"
@@ -172,23 +204,23 @@ def image_to_uint8(image: np.ndarray) -> np.ndarray:
     return np.clip(np.rint(scaled), 0.0, 255.0).astype(np.uint8)
 
 
-def combine_stereo(images: tuple[np.ndarray, ...]) -> np.ndarray:
-    """Return one image, or combine a camera pair with a white separator."""
+def combine_images(images: tuple[np.ndarray, ...]) -> np.ndarray:
+    """Return one image or combine comparison images with white separators."""
     if len(images) == 1:
         return images[0]
-    if len(images) != 2:
-        raise ValueError("Documentation artifacts support one or two cameras.")
+    first = images[0]
+    if any(image.ndim != first.ndim for image in images[1:]):
+        raise ValueError("Combined images must have matching channel layouts.")
+    if any(image.shape[0] != first.shape[0] for image in images[1:]):
+        raise ValueError("Combined images must have matching heights.")
 
-    camera_0, camera_1 = images
-    if camera_0.ndim != camera_1.ndim:
-        raise ValueError("Stereo images must have matching channel layouts.")
-    if camera_0.shape[0] != camera_1.shape[0]:
-        raise ValueError("Stereo images must have matching heights.")
-
-    separator_shape = list(camera_0.shape)
+    separator_shape = list(first.shape)
     separator_shape[1] = STEREO_GAP_PX
     separator = np.full(separator_shape, 255, dtype=np.uint8)
-    return np.concatenate((camera_0, separator, camera_1), axis=1)
+    combined: list[np.ndarray] = [first]
+    for image in images[1:]:
+        combined.extend((separator, image))
+    return np.concatenate(combined, axis=1)
 
 
 def replace_static_link(artifact: Path) -> Path:
@@ -221,7 +253,8 @@ def validate_sources() -> None:
     if missing:
         paths = "\n".join(f"  - {path}" for path in missing)
         raise FileNotFoundError(
-            "Run all Render2D and Render3D examples before generating "
+            "Run all Render2D, Render3D, and Render UV examples before "
+            "generating "
             f"documentation artifacts. Missing:\n{paths}"
         )
 
@@ -240,7 +273,7 @@ def main() -> None:
             for source in artifact.sources
         )
         output_path = IMAGES_ROOT / artifact.filename
-        iio.imwrite(output_path, combine_stereo(images))
+        iio.imwrite(output_path, combine_images(images))
         replace_static_link(output_path)
         generated.append(output_path)
 

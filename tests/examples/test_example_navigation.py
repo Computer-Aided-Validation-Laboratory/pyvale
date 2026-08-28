@@ -19,6 +19,7 @@ GROUPS = (
     ("examples_basics_sensorsim", "basicsensorsim"),
     ("examples_dic", "dic"),
     ("examples_render3d", "render3d"),
+    ("examples_renderuvs", "renderuvs"),
     ("examples_ext_sensorsim", "extsensorsim"),
     ("examples_mooseherder", "mooseherder"),
     ("examples_render2d", "render2d"),

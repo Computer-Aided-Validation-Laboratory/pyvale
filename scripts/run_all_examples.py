@@ -37,6 +37,7 @@ EXAMPLE_DIRS = [
 #    "dic",
 #    "mooseherder",
     "render3d",
+    "renderuvs",
     "render2d",
 ]
 

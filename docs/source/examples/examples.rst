@@ -27,6 +27,14 @@ Render 3D
 
    examples_render3d
 
+Render UVs
+----------
+
+.. toctree::
+   :maxdepth: 2
+
+   examples_renderuvs
+
 Extended Sensor Simulation
 --------------------------
 

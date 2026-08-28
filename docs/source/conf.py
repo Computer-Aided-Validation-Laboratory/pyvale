@@ -146,6 +146,7 @@ sphinx_gallery_conf = {
         '../../src/pyvale/examples/basicsensorsim',
         '../../src/pyvale/examples/dic',
         '../../src/pyvale/examples/render3d',
+        '../../src/pyvale/examples/renderuvs',
         '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/mooseherder',
         '../../src/pyvale/examples/render2d',
@@ -156,6 +157,7 @@ sphinx_gallery_conf = {
         'examples/basicsensorsim',
         'examples/dic',
         'examples/render3d',
+        'examples/renderuvs',
         'examples/extsensorsim',
         'examples/mooseherder',
         'examples/render2d',
@@ -163,7 +165,9 @@ sphinx_gallery_conf = {
     # Generate every example page, but only execute unattended examples.
     'filename_pattern': safe_example_pattern,
     # Private helper modules support examples but are not gallery tutorials.
-    'ignore_pattern': r'/(?:_blender_example_tools|_riley_demo_tools)\.py$',
+    'ignore_pattern': (
+        r'(?:^|/)(?:_blender_example_tools|_riley_demo_tools)\.py$'
+    ),
     # Specify that examples should be ordered according to filename
     'within_subsection_order': FileNameSortKey,
     # Directory where function granular galleries are stored

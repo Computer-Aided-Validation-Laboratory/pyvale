@@ -3,13 +3,14 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
-"""Blender Scene for 2D DIC
+
+"""Blender: Scene for 2D DIC
 ================================================================================
 
-This example demonstrates how to set up and render a single-camera 2D DIC
-scene with Blender using the unified pyvale render API.
-
-Test case: mechanical analysis of a plate with a hole loaded in tension.
+This example demonstrates how to set up and render a single camera 2D DIC
+scene with Blender using the unified pyvale render API. The test case for this 
+exmaple is a solid mechanics finite element model of a plate with a hole loaded 
+in tension.
 
 Workflow:
 1. Load simulation data, scale units, and create a textured surface mesh.
@@ -34,14 +35,15 @@ from pyvale.sensorsim import scale_length_units
 # --------------------------------------------------------------------------
 # Load the mechanical plate-with-a-hole simulation in Exodus format (*.e).
 # All geometry and displacements are scaled to millimetres for Blender.
+# Then convert the volumetric SimData into a surface Mesh3D. Volumetric meshes
+# are skinned and conventions are enforced automatically.
+
 data_path = dataset.render_mechanical_3d_path()
 sim_data = ExodusLoader(data_path).load_all_sim_data()
 
 disp_keys = ("disp_x", "disp_y", "disp_z")
 sim_data = scale_length_units(1000.0, sim_data, disp_keys)
 
-# Convert the volumetric SimData into a surface Mesh3D. Volumetric meshes
-# are skinned and conventions are enforced automatically.
 surface_mesh = render.mesh3d_from_simdata(
     sim_data,
     shader=None,

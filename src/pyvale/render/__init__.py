@@ -89,6 +89,19 @@ from .rileyshader import (
     RileyTextureShader,
 )
 from .scene import Scene2D, Scene3D
+from .uvtools import (
+    EUVFit,
+    EUVOrigin,
+    EUVPlane,
+    UVPlane,
+    UVTransform,
+    pixels_to_uvs,
+    project_uvs_planar,
+    project_uvs_planar_centered,
+    project_uvs_planar_pixels,
+    transform_uvs,
+    uvs_to_pixels,
+)
 
 __all__ = [
     "AdditiveSpeckles",
@@ -112,6 +125,9 @@ __all__ = [
     "EFeebeeTextureSampler",
     "EImageType",
     "ELightType",
+    "EUVFit",
+    "EUVOrigin",
+    "EUVPlane",
     "EPSFType",
     "EPxIntMapping",
     "Eggbox",
@@ -146,6 +162,8 @@ __all__ = [
     "Scene2D",
     "Scene3D",
     "ValidationIssue",
+    "UVPlane",
+    "UVTransform",
     "average_subpixel_image",
     "blender_available",
     "blender_camera_from_resolution",
@@ -164,6 +182,10 @@ __all__ = [
     "mesh3d_from_simdata",
     "pixel_grid_leng",
     "pixel_vec_leng",
+    "pixels_to_uvs",
+    "project_uvs_planar",
+    "project_uvs_planar_centered",
+    "project_uvs_planar_pixels",
     "quantise_image",
     "raise_if_blender_unavailable",
     "render_calibration_images",
@@ -171,4 +193,6 @@ __all__ = [
     "subpixel_grid_leng",
     "subpixel_vec_leng",
     "symmetric_stereo_cameras",
+    "transform_uvs",
+    "uvs_to_pixels",
 ]
