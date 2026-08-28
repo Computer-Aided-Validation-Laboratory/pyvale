@@ -10,5 +10,6 @@ Module user guides
    :maxdepth: 1
 
    guide_theory_dic.rst
+   guide_theory_dic_stereo.rst
 
 

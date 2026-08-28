@@ -25,17 +25,6 @@
 namespace util {
 
 
-    std::vector<int> niter_arr;
-    std::vector<double> u_arr;
-    std::vector<double> v_arr;
-    std::vector<double> p_arr;
-    std::vector<double> ftol_arr;
-    std::vector<double> xtol_arr;
-    std::vector<double> cost_arr;
-    std::vector<uint8_t> conv_arr;
-    bool at_end;
-
-
 
     void extract_image(double *img_def_stack, 
                        int image_number,

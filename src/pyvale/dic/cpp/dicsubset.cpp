@@ -12,61 +12,97 @@
 #include "./dicsubset.hpp"
 #include "./dicshapefunc.hpp"
 
-
+// common_cpp header files
+#include "../../common_cpp/util.hpp"
 
 namespace subset {
 
-     void get_px_from_img(subset::Pixels &ss_ref, 
+     void fill_from_img(subset::Pixels &ss_ref, 
                     const int ss_x, const int ss_y, 
                     const int px_hori,
                     const int px_vert,
-                    const double *img_def){
+                    const Image &img){
+
+        switch (img.type) {
+            case PixelType::UINT8:  fill_impl(ss_ref, img.data8,  ss_x, ss_y, px_hori); break;
+            case PixelType::UINT16: fill_impl(ss_ref, img.data16, ss_x, ss_y, px_hori); break;
+            case PixelType::UINT32: fill_impl(ss_ref, img.data32, ss_x, ss_y, px_hori); break;
+        }
+    }
+
+    template<typename T>
+    void fill_impl(subset::Pixels &ss_ref,
+                const std::vector<T> &data,
+                int ss_x, int ss_y,
+                int px_hori) {
 
         int count = 0;
-        int idx;
+        ss_ref.sum = 0.0;
 
-        for (int px_y = ss_y; px_y < ss_y+ss_ref.size; px_y++){
-            for (int px_x = ss_x; px_x < ss_x+ss_ref.size; px_x++){
-
-                // get coordinate values
-                ss_ref.x[count] = px_x; 
-                ss_ref.y[count] = px_y; 
-
-                // get pixel values
-                idx = px_y * px_hori + px_x;
-                ss_ref.vals[count] = img_def[idx];
+        for (int y = ss_y; y < ss_y + ss_ref.size_y; ++y) {
+            for (int x = ss_x; x < ss_x + ss_ref.size_x; ++x) {
+                int idx = y * px_hori + x;
+                if (ss_ref.has_coords()) {
+                    ss_ref.x[count] = x;
+                    ss_ref.y[count] = y;
+                }
+                ss_ref.vals[count] = data[idx];
+                ss_ref.sum += data[idx];
                 count++;
-
-                // debugging
-                //std::cout << px_x << " " << px_y << " ";
-                //std::cout << img_def[idx] << std::endl;
             }
         }
     }
 
-    void get_subpx_from_img(subset::Pixels &ss_def, 
+    double zncc(const subset::Pixels &ss_ref, const subset::Pixels &ss_def) {
+        double mean_ref = 0.0;
+        double mean_def = 0.0;
+
+        for (int i = 0; i < ss_ref.num_px; ++i) {
+            mean_ref += ss_ref.vals[i];
+            mean_def += ss_def.vals[i];
+        }
+
+        mean_ref /= ss_ref.num_px;
+        mean_def /= ss_def.num_px;
+
+        double sum_squared_ref = 0.0;
+        double sum_squared_def = 0.0;
+
+        for (int i = 0; i < ss_ref.num_px; ++i) {
+            sum_squared_ref += (ss_ref.vals[i] - mean_ref) * (ss_ref.vals[i] - mean_ref);
+            sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
+        }
+
+        const double inv_sum_squared = 1.0 / std::sqrt(sum_squared_ref * sum_squared_def);
+
+        double zncc = 0.0;
+        for (int i = 0; i < ss_ref.num_px; ++i) {
+            const double def_norm = (ss_def.vals[i] - mean_def);
+            const double ref_norm = (ss_ref.vals[i] - mean_ref);
+            zncc += ref_norm * def_norm;
+        }
+
+        return zncc * inv_sum_squared;
+    }
+
+    void fill_from_img_subpx(subset::Pixels &ss_def, 
                           const double subpx_x, const double subpx_y, 
                           const Interpolator &interp_def){
 
         int count = 0;
 
-        for (int y = 0; y < ss_def.size; y++){
-            for (int x = 0; x < ss_def.size; x++){
-                if (count >= ss_def.size*ss_def.size){
-                    std::cerr << "issue with count for subpixel subset population" << std::endl;
-                    std::cerr << "count: " << count << std::endl;
-                    std::cerr << "subset size: " << ss_def.size << std::endl;
-                    std::cerr << "num px (size*size): " << ss_def.size*ss_def.size << std::endl;
-                    std::cerr << "subpixel value: " << subpx_x+x << " " << subpx_y+y << std::endl;
-                    std::cerr << "subset coordinates: " << " " <<  subpx_x << " " << subpx_y << " " << std::endl;
-                    exit(EXIT_FAILURE);
-                }
+        for (int y = 0; y < ss_def.size_y; y++){
+            for (int x = 0; x < ss_def.size_x; x++){
                 // get coordinate values
-                ss_def.x[count] = subpx_x+x; 
-                ss_def.y[count] = subpx_y+y; 
+                const double px_x = subpx_x + x;
+                const double px_y = subpx_y + y;
+                if (ss_def.has_coords()) {
+                    ss_def.x[count] = px_x; 
+                    ss_def.y[count] = px_y; 
+                }
 
                 // get pixel values
-                ss_def.vals[count] = interp_def.eval(0, 0, ss_def.x[count], ss_def.y[count]);
+                ss_def.vals[count] = interp_def.eval(0, 0, px_x, px_y);
 
                 // debugging
                 //std::cout << ss_def.x[count] << " " << ss_def.y[count] << " " << ss_def.vals[count] << std::endl;
@@ -74,53 +110,85 @@ namespace subset {
                 count++;
             }
         }
-        if (count!=ss_def.size*ss_def.size){
-            std::cerr << "count for subpixel population is not the same as the number of subset pixels.";
-            std::cout << "count: " << count << std::endl;
-            std::cerr << "number of pixels: " << ss_def.size*ss_def.size << std::endl; 
-            exit(EXIT_FAILURE);
-        }
     }
 
-    void get_subpx_from_shape_params(subset::Pixels &ss_def, 
-                                     const double subpx_x, const double subpx_y,
+    void fill_from_shape_params(subset::Pixels &ss, 
+                                     const double cx, const double cy,
                                      const std::vector<double>& p,
-                                     const Interpolator &interp_def){
+                                     const Interpolator &interp,
+                                     util::ShapeFunc shape_func){
+
+        // Get the right shape function
+        void (*get_pixel)(double&, double&, const double, const double, const std::vector<double>&);
+        switch (shape_func) {
+            case util::ShapeFunc::AFFINE:
+                get_pixel = &Affine::get_pixel;
+                break;
+            case util::ShapeFunc::RIGID:
+                get_pixel = &Rigid::get_pixel;
+                break;
+            case util::ShapeFunc::QUAD:
+                get_pixel = &Quad::get_pixel;
+                break;
+        }
+
+
+        // NOTE: Assuming an odd number subset size
+        const double half_x = (ss.size_x - 1) / 2.0;
+        const double half_y = (ss.size_y - 1) / 2.0;
 
         int count = 0;
-
-        for (int y = 0; y < ss_def.size; y++){
-            for (int x = 0; x < ss_def.size; x++){
-                if (count >= ss_def.size*ss_def.size){
-                    std::cerr << "issue with count for subpixel subset population" << std::endl;
-                    std::cerr << "count: " << count << std::endl;
-                    std::cerr << "subset size: " << ss_def.size << std::endl;
-                    std::cerr << "num px (size*size): " << ss_def.size*ss_def.size << std::endl;
-                    std::cerr << "subpixel value: " << subpx_x+x << " " << subpx_y+y << std::endl;
-                    std::cerr << "subset coordinates: " << " " <<  subpx_x << " " << subpx_y << " " << std::endl;
-                    exit(EXIT_FAILURE);
+        ss.sum = 0.0;
+        for (int y = 0; y < ss.size_y; y++){
+            const double rel_y = y - half_y;
+            for (int x = 0; x < ss.size_x; x++){
+                double px_x = 0.0;
+                double px_y = 0.0;
+                get_pixel(px_x, px_y, x - half_x, rel_y, p);
+                px_x += cx;
+                px_y += cy;
+                if (ss.has_coords()) {
+                    ss.x[count] = px_x;
+                    ss.y[count] = px_y;
                 }
-
-                // get coordinate values based on shape function parameters
-                shapefunc::get_pixel(ss_def.x[count], ss_def.y[count], subpx_x+x, subpx_y+y, p);
-                
-                // get pixel values from interpolator
-                ss_def.vals[count] = interp_def.eval(0, 0, ss_def.x[count], ss_def.y[count]);
-
+                ss.vals[count] = interp.eval(cx, cy, px_x, px_y);
+                ss.sum += ss.vals[count];
                 count++;
             }
         }
-        if (count!=ss_def.size*ss_def.size){
-            std::cerr << "count for subpixel population is not the same as the number of subset pixels.";
-            std::cout << "count: " << count << std::endl;
-            std::cerr << "number of pixels: " << ss_def.size*ss_def.size << std::endl; 
-            exit(EXIT_FAILURE);
+    }
+
+    void fill_from_centre_coords(subset::Pixels &ss_def,
+                             const double cx, const double cy,
+                             const Interpolator &interp_def) {
+
+        // NOTE: Assuming an odd number subset size
+        const double half_x = (ss_def.size_x - 1) / 2.0;
+        const double half_y = (ss_def.size_y - 1) / 2.0;
+
+        int count = 0;
+        ss_def.sum = 0.0;
+        for (int y = 0; y < ss_def.size_y; y++) {
+            for (int x = 0; x < ss_def.size_x; x++) {
+                const double px_x = cx + x - half_x;
+                const double px_y = cy + y - half_y;
+                if (ss_def.has_coords()) {
+                    ss_def.x[count] = px_x;
+                    ss_def.y[count] = px_y;
+                }
+                ss_def.vals[count] = interp_def.eval(cx, cy,
+                                                    px_x,
+                                                    px_y);
+                ss_def.sum += ss_def.vals[count];
+                count++;
+            }
         }
     }
 
-    subset::Grid create_grid(const bool *img_roi, const int ss_step, 
-                           const int ss_size, const int px_hori, 
-                           const int px_vert, const bool partial) {
+    subset::Grid create_grid(const bool *img_roi, const int ss_step,
+                             const int ss_size_x, const int ss_size_y,
+                             const int px_hori, const int px_vert,
+                             const bool partial) {
         
         //Timer timer("subset grid generation for subset size " + std::to_string(ss_size) + " [px] with step " + std::to_string(ss_step) + " [px]:" );
 
@@ -139,16 +207,18 @@ namespace subset {
         ss_grid.num_in_mask = num_ss_x * num_ss_y;
         ss_grid.num = 0;
         ss_grid.step = ss_step;
-        ss_grid.size = ss_size;
+        ss_grid.size_x = ss_size_x;
+        ss_grid.size_y = ss_size_y;
 
         ss_grid.mask.resize(ss_grid.num_in_mask, -1);
         ss_grid.coords.resize(2*ss_grid.num_in_mask, -1);
 
 
-        // temp array for storing subset coords for each thread
-        std::vector<int> thread_counts(omp_get_max_threads(), 0);
+        // Store validity by grid location so subset indices are independent of
+        // OpenMP scheduling and thread count.
+        std::vector<unsigned char> valid_grid(ss_grid.num_in_mask, 0);
 
-       // First pass: count valid subsets per thread
+        // First pass: determine which grid locations contain valid subsets.
         #pragma omp parallel for collapse(2)
         for (int j = 0; j < num_ss_y; j++) {
             for (int i = 0; i < num_ss_x; i++) {
@@ -159,8 +229,8 @@ namespace subset {
                 // pixel range of subset
                 const int xmin = ss_x;
                 const int ymin = ss_y;
-                const int xmax = ss_x + ss_size-1;
-                const int ymax = ss_y + ss_size-1;
+                const int xmax = ss_x + ss_size_x-1;
+                const int ymax = ss_y + ss_size_y-1;
 
                 bool valid = true;
                 int valid_count = 0;
@@ -186,84 +256,39 @@ namespace subset {
                 }
 
                 if (partial && valid) {
-                    valid = (valid_count >= (ss_size * ss_size) * 0.70);
+                    valid = (valid_count >= (ss_size_x * ss_size_y) * 0.70);
                 }
 
-                if (valid) {
-                    int tid = omp_get_thread_num();
-                    thread_counts[tid]++;
-                }
+                valid_grid[j * num_ss_x + i] = static_cast<unsigned char>(valid);
             }
         }
 
-        // Compute prefix sum to get offsets
-        std::vector<int> thread_offsets(omp_get_max_threads(), 0);
-        for (int t = 1; t < thread_offsets.size(); t++)
-            thread_offsets[t] = thread_offsets[t-1] + thread_counts[t-1];
+        // Compute deterministic row-major subset indices.
+        int total_valid = 0;
+        for (int grid_idx = 0; grid_idx < ss_grid.num_in_mask; ++grid_idx) {
+            if (valid_grid[grid_idx]) {
+                ss_grid.mask[grid_idx] = total_valid++;
+            }
+        }
 
-        int total_valid = thread_offsets.back() + thread_counts.back();
         ss_grid.coords.resize(2 * total_valid);
         ss_grid.num = total_valid;
+        ss_grid.active_ss.resize(total_valid, true);
+        ss_grid.active_total = total_valid;
 
-        // Reset thread counts to use as writing indices
-        std::fill(thread_counts.begin(), thread_counts.end(), 0);
-
+        // Populate coordinates using the deterministic indices in mask.
         #pragma omp parallel for collapse(2)
         for (int j = 0; j < num_ss_y; j++) {
             for (int i = 0; i < num_ss_x; i++) {
 
-                // calculate the coordinates of the subset
-                const int ss_x = i * ss_step;
-                const int ss_y = j * ss_step;
-
-                // pixel range of subset
-                const int xmin = ss_x;
-                const int ymin = ss_y;
-                const int xmax = ss_x + ss_size-1;
-                const int ymax = ss_y + ss_size-1;
-
-                // check if subset is within image and ROI.
-                bool valid = true;
-                int  valid_count = 0;
-
-                for (int px_y = ymin; px_y <= ymax && valid; px_y++) {
-                    for (int px_x = xmin; px_x <= xmax && valid; px_x++) {
-
-                        // When no partial subset filling all px must be within roi
-                        if (!partial) {
-                            if (!px_in_img_dims(px_x, px_y, px_hori, px_vert) ||
-                                !px_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
-                                valid = false;
-                                break;
-                            }
-                        } 
-
-                        // When partial count num of px in roi. if its outside
-                        // the image its still not valid
-                        else {
-                            if (!px_in_img_dims(px_x, px_y, px_hori, px_vert)) {
-                                valid = false;
-                                break;
-                            }
-                            if (px_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) valid_count++;
-                        }
-                    }
-
-                    if (!valid && !partial) break;
-                }
-
-                if (partial && valid) {
-                    valid = (valid_count >= (ss_size * ss_size) * 0.70);
-                }
-
-                // if its a valid subset. add it to a list of coordinates
-                if (valid) {
-                    const int tid = omp_get_thread_num();
-                    const int offset = thread_offsets[tid] + thread_counts[tid];
-                    ss_grid.coords[2*offset] = ss_x;
-                    ss_grid.coords[2*offset + 1] = ss_y;
-                    ss_grid.mask[j * num_ss_x + i] = offset;
-                    thread_counts[tid]++;
+                const int offset = ss_grid.mask[j * num_ss_x + i];
+                if (offset != -1) {
+                    const int ss_x = i * ss_step;
+                    const int ss_y = j * ss_step;
+                    ss_grid.coords[2*offset] =
+                        ss_x + static_cast<double>(ss_size_x)/2 - 0.5;
+                    ss_grid.coords[2*offset + 1] =
+                        ss_y + static_cast<double>(ss_size_y)/2 - 0.5;
                 }
             }
         }
@@ -299,27 +324,6 @@ namespace subset {
             }
         }
         return ss_grid;
-    }
-
-
-    inline bool px_in_img_dims(const int px_x, const int px_y, const int px_hori, 
-                        const int px_vert) {
-
-        if (px_x < 0 || px_y < 0 ||
-            px_x >= px_hori || px_y >= px_vert) {
-            return false;
-        }
-        return true;
-    }
-
-    inline bool px_in_roi(const int px_x, const int px_y, const int px_hori, 
-                        const int px_vert, const bool *img_roi) {
-
-        int idx = px_y * px_hori + px_x;
-        if (!img_roi[idx]) {
-            return false;
-        }
-        return true;
     }
 
 }

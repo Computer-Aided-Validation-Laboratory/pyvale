@@ -5,8 +5,9 @@ project(${SKBUILD_PROJECT_NAME} LANGUAGES CXX)
 # ----------------------------
 # C++ standard
 # ----------------------------
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ----------------------------
 # Ensure CMAKE_BUILD_TYPE and install config
@@ -24,7 +25,11 @@ message(STATUS "CMake install config name: ${CMAKE_INSTALL_CONFIG_NAME}")
 # ----------------------------
 find_package(pybind11 REQUIRED)
 find_package(OpenMP REQUIRED)
-
+#find_package(OpenCV REQUIRED)
+find_package(TIFF REQUIRED)
+message(STATUS "TIFF_FOUND = ${TIFF_FOUND}")
+message(STATUS "TIFF_INCLUDE_DIR = ${TIFF_INCLUDE_DIR}")
+message(STATUS "TIFF_LIBRARIES = ${TIFF_LIBRARIES}")
 # ----------------------------
 # Eigen3
 # ----------------------------
@@ -61,7 +66,7 @@ endif()
 function(apply_compile_flags target_name)
     if(MSVC)
         # Windows (MSVC)
-        target_compile_options(${target_name} PRIVATE /std:c++17 /openmp)
+        target_compile_options(${target_name} PRIVATE /openmp)
         if(CMAKE_BUILD_TYPE STREQUAL "Debug")
             message(STATUS "Applying MSVC debug flags for ${target_name}")
             target_compile_options(${target_name} PRIVATE /Od /Zi)
@@ -71,7 +76,7 @@ function(apply_compile_flags target_name)
         endif()
     else()
         # Linux / macOS
-        target_compile_options(${target_name} PRIVATE -std=c++17 -fopenmp)
+        target_compile_options(${target_name} PRIVATE -fopenmp)
         if(CMAKE_BUILD_TYPE STREQUAL "Debug")
             message(STATUS "Applying debug flags for ${target_name}")
             target_compile_options(${target_name} PRIVATE -O0 -g)
@@ -90,8 +95,8 @@ endfunction()
 file(GLOB COMMON_SRC_FILES src/pyvale/common_cpp/*.cpp)
 
 pybind11_add_module(common_cpp MODULE ${COMMON_SRC_FILES})
-target_include_directories(common_cpp PRIVATE src/pyvale/common_cpp)
-target_link_libraries(common_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+target_include_directories(common_cpp PRIVATE src/pyvale/common_cpp ${TIFF_INCLUDE_DIR})
+target_link_libraries(common_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(common_cpp)
 install(TARGETS common_cpp LIBRARY DESTINATION pyvale/common_cpp)
 
@@ -100,11 +105,11 @@ install(TARGETS common_cpp LIBRARY DESTINATION pyvale/common_cpp)
 # ----------------------------
 file(GLOB DIC_SRC_FILES src/pyvale/dic/cpp/*.cpp)
 
-pybind11_add_module(dic2dcpp MODULE ${DIC_SRC_FILES} ${COMMON_SRC_FILES})
-target_include_directories(dic2dcpp PRIVATE src/pyvale/common_cpp src/pyvale/dic)
-target_link_libraries(dic2dcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
-apply_compile_flags(dic2dcpp)
-install(TARGETS dic2dcpp LIBRARY DESTINATION pyvale/dic)
+pybind11_add_module(diccpp MODULE ${DIC_SRC_FILES} ${COMMON_SRC_FILES})
+target_include_directories(diccpp PRIVATE src/pyvale/common_cpp src/pyvale/dic ${TIFF_INCLUDE_DIR})
+target_link_libraries(diccpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
+apply_compile_flags(diccpp)
+install(TARGETS diccpp LIBRARY DESTINATION pyvale/dic)
 
 # ----------------------------
 # DIC Calibration
@@ -112,8 +117,8 @@ install(TARGETS dic2dcpp LIBRARY DESTINATION pyvale/dic)
 file(GLOB CALIB_SRC_FILES src/pyvale/calib/cpp/*.cpp)
 
 pybind11_add_module(calibcpp MODULE ${CALIB_SRC_FILES} ${COMMON_SRC_FILES})
-target_include_directories(calibcpp PRIVATE src/pyvale/common_cpp src/pyvale/calib)
-target_link_libraries(calibcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+target_include_directories(calibcpp PRIVATE src/pyvale/common_cpp src/pyvale/calib ${TIFF_INCLUDE_DIR})
+target_link_libraries(calibcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(calibcpp)
 install(TARGETS calibcpp LIBRARY DESTINATION pyvale/calib)
 
@@ -123,8 +128,8 @@ install(TARGETS calibcpp LIBRARY DESTINATION pyvale/calib)
 file(GLOB STRAIN_SRC_FILES src/pyvale/strain/cpp/*.cpp)
 
 pybind11_add_module(strain_cpp MODULE ${STRAIN_SRC_FILES} ${COMMON_SRC_FILES})
-target_include_directories(strain_cpp PRIVATE src/pyvale/common_cpp src/pyvale/strain)
-target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+target_include_directories(strain_cpp PRIVATE src/pyvale/common_cpp src/pyvale/strain ${TIFF_INCLUDE_DIR})
+target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES}) 
 apply_compile_flags(strain_cpp)
 install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)
 

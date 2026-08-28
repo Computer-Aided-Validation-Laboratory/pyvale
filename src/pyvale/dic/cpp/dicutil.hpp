@@ -11,6 +11,7 @@
 // STD library Header files
 #include <vector>
 #include <string>
+#include <ostream>
 
 // common_cpp header files
 
@@ -19,6 +20,41 @@
 
 namespace util {
 
+    enum class CorrCrit {
+        SSD,
+        NSSD,
+        ZNSSD
+    };
+
+    enum class ShapeFunc {
+        RIGID,
+        AFFINE,
+        QUAD
+    };
+
+    enum class InterpRoutine {
+        BSPLINE,
+        HERMITE
+    };
+
+    enum class ScanMethod {
+        MULTIWINDOW_RG,
+        SINGLEWINDOW_RG,
+        MULTIWINDOW,
+        RASTER
+    };
+
+
+    enum class IncrementalCond {
+        IMAGE,
+        ITER,
+        COST
+    };
+
+    enum class FFTPrecision {
+        FLOAT32,
+        FLOAT64
+    };
 
     // Custom hash from above
     struct PairHash {
@@ -39,17 +75,29 @@ namespace util {
         int num_params;
         double precision;
         double threshold;
-        double bf_threshold;
         int max_disp;
-        std::pair<int, int> rg_seed;
-        std::string corr_crit;
-        std::string shape_func;
-        std::string interp_routine;
-        std::string scan_method;
-        std::vector<std::string> filenames;
-        bool fft_mad;
-        double fft_mad_scale;
+        int epi_distance;
+        std::vector<int> rg_seeds;
+        CorrCrit corr_crit;
+        ShapeFunc shape_func;
+        InterpRoutine interp_routine;
+        ScanMethod scan_method;
+        std::vector<std::string> basenames;
+        std::vector<std::string> fullpaths;
+        bool fft_filter;
+        bool fft_save;
+        FFTPrecision fft_precision;
+        double fft_filter_threshold;
+        int fft_filter_radius;
+        double fft_filter_corr_power;
         unsigned int debug_level;
+        bool stereo;
+        bool incremental;
+        IncrementalCond incremental_update_cond;
+        double incremental_update_val;
+        int multiwindow_overlap;
+        std::vector<int> multiwindow_subset_size;
+        std::vector<int> multiwindow_search_area;
     };
 
 

@@ -33,6 +33,7 @@ def simdata_mech_2d() -> io.SimData:
 def simdata_mesh_2d_nomesh() -> io.SimData:
     sim_data = simdata_mech_2d()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 def simdata_mech_3d() -> io.SimData:
@@ -47,6 +48,7 @@ def simdata_mech_3d() -> io.SimData:
 def simdata_mech_3d_nomesh() -> io.SimData:
     sim_data = simdata_mech_3d()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 
@@ -95,7 +97,8 @@ def sens_pos_3d(sim_data: io.SimData) -> dict[str,np.ndarray]:
     #                 (0.0,5.0,5.0),    # yz
     #                 (10.0,5.0,5.0),)) # yz
 
-    # assert np.allclose(check,sens_pos["cent-cube"]), "Cube coords wrong in mech.sens_pos_3d"
+    # assert np.allclose(check,sens_pos["cent-cube"]), \
+    #     "Cube coords wrong in mech.sens_pos_3d"
 
     return sens_pos
 

@@ -12,13 +12,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-14, macos-15-intel, macos-26]
+        os: [ubuntu-latest, windows-latest, macos-14, macos-26]
         env-type: [pip]
         include:
           - os: macos-14
             llvm: llvm@15
-          - os: macos-15-intel
-            llvm: llvm@18
           - os: macos-26
             llvm: llvm@20
     steps:
@@ -54,8 +52,10 @@ jobs:
 
       - name: Install libtiff (Windows)
         if: startsWith(matrix.os, 'windows')
+        shell: pwsh
         run: |
-          vcpkg install tiff
+          vcpkg install tiff:x64-windows-static
+          echo "CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static" >> $env:GITHUB_ENV
 
       - name: Install libtiff (Ubuntu)
         if: startsWith(matrix.os, 'ubuntu')

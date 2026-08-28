@@ -1,6 +1,6 @@
 .. _guide_theory_dic:
 
-DIC Theory Overview
+DIC
 ======================================
 
 Digital Image Correlation (DIC) is a technique for measuring
@@ -147,15 +147,17 @@ further updates would produce only negligible changes in the parameters and the
 cost function.
 
 
-Sub-pixel Accuracy With Interpolation
---------------------------------------
+Interpolation Methods for Sub-pixel Accuracy
+---------------------------------------------
 
 DIC aims for precision beyond the integer values defined by the image's pixel grid. Integer-pixel
 matching is a good start, but physical displacements do not perfectly map to pixel
 boundaries. To capture this, we refine the measurement to *sub-pixel*
-accuracy using interpolation. Instead of treating the image as a discrete
-array, we approximate it as a smooth surface. This is done using **cubic B-spline
-interpolation**.
+accuracy using interpolation. Pyvale supports two interpolation methods selectable via the
+:code:`interpolation_routine` parameter in :code:`calculate_2d()` and :code:`calculate_3d()`:
+
+- **BSPLINE** (default): Cubic B-spline interpolation (described below).
+- **HERMITE**: Hermite cubic interpolation, an alternative method that can be faster for some use cases.
 
 Cubic B-spline Interpolation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
