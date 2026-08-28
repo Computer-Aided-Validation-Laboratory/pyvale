@@ -394,6 +394,54 @@ class SliceWiseForceReconstructionMetric(IMetric):
             spatial_weights=spatial_weights,
         )
 
+    def normalised_residual_stress_adjoint(
+        self,
+        cotangent: npt.NDArray[np.float64],
+        experiment_data: ExperimentData,
+    ) -> npt.NDArray[np.float64]:
+        """Back-propagate an FRE cotangent to the stress field."""
+        if self.slice_partition is None:
+            raise RuntimeError("Slice partition has not been resolved.")
+        timesteps, _, rows, columns = experiment_data.strain.shape
+        expected_shape = (timesteps, self.slice_partition.num_slices)
+        if cotangent.shape != expected_shape:
+            raise ValueError(f"Expected cotangent shape {expected_shape}.")
+
+        axis = self.slice_partition.axis
+        component = 0 if axis == "x" else 1
+        applied_force = _extract_force_component(
+            experiment_data.boundary_conditions.force,
+            axis,
+        )
+        force_cotangent = np.divide(
+            np.nan_to_num(cotangent, nan=0.0),
+            applied_force[:, np.newaxis],
+            out=np.zeros_like(cotangent, dtype=np.float64),
+            where=np.abs(applied_force[:, np.newaxis]) > np.finfo(np.float64).eps,
+        )
+        result = np.zeros((timesteps, 3, rows, columns), dtype=np.float64)
+        result_flat = result[:, component].reshape(timesteps, -1)
+        finite_points = np.all(np.isfinite(experiment_data.strain), axis=(0, 1)).ravel()
+        thickness = float(experiment_data.specimen_geometry.thickness)
+        for slice_index, (point_indices, area_weights) in enumerate(
+            zip(
+                self.slice_partition.slice_force_point_indices,
+                self.slice_partition.slice_force_point_area_integral_weights,
+                strict=True,
+            )
+        ):
+            point_indices, area_weights = _filter_operator_points(
+                point_indices,
+                area_weights,
+                finite_points,
+            )
+            result_flat[:, point_indices] += (
+                thickness
+                * force_cotangent[:, slice_index, np.newaxis]
+                * area_weights[np.newaxis]
+            )
+        return result
+
 
 def compute_force_temporal_weights(
     applied_longitudinal_force: npt.NDArray[np.float64],

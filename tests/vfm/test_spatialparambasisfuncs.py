@@ -21,6 +21,7 @@ from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
 from pyvale.vfm.spatialparambasisfuncs import (
     BasisFunctionKernelBivariate,
+    BasisFunctionKernelBivariateSPD,
     BasisFunctionKernelUnivariate,
     SpatialParameterisationBasisFunction,
 )
@@ -300,6 +301,58 @@ def test_bivariate_kernel_canonical_values_remove_axis_and_period_ambiguity() ->
 
     assert first.canonical_values() == pytest.approx(swapped.canonical_values())
     assert first.canonical_values() == pytest.approx(periodic.canonical_values())
+
+
+def test_spd_kernel_matches_equivalent_rotated_bivariate_kernel() -> None:
+    x, y = np.meshgrid(np.linspace(-2.0, 2.0, 21), np.linspace(-2.0, 2.0, 21))
+    angle = 0.37
+    rotation = np.array(
+        [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
+    )
+    covariance = rotation @ np.diag([0.8, 0.2]) @ rotation.T
+    values, vectors = np.linalg.eigh(covariance)
+    log_covariance = (vectors * np.log(values)) @ vectors.T
+    spd = SpatialParameterisationBasisFunction(
+        x,
+        y,
+        heights=[1.0],
+        kernels=[
+            BasisFunctionKernelBivariateSPD(
+                0.0,
+                0.0,
+                log_covariance[0, 0],
+                log_covariance[0, 1],
+                log_covariance[1, 1],
+                1.0,
+            )
+        ],
+        kernel_type="bivariate_spd",
+    )
+    conventional = SpatialParameterisationBasisFunction(
+        x,
+        y,
+        heights=[1.0],
+        kernels=[BasisFunctionKernelBivariate(0.0, 0.0, 0.8, 0.2, angle)],
+        kernel_type="bivariate",
+    )
+
+    assert np.allclose(spd.to_map(np.array(x.shape)), conventional.to_map(np.array(x.shape)))
+
+
+def test_spd_kernel_creation_uses_linear_log_covariance_coordinates() -> None:
+    x, y = np.meshgrid(np.linspace(0.0, 1.0, 5), np.linspace(0.0, 1.0, 5))
+    parameterisation = SpatialParameterisationBasisFunction(
+        x, y, kernel_type="bivariate_spd"
+    )
+    kernel = parameterisation.create_kernel(
+        0.5,
+        0.5,
+        DegreeOfFreedom(0.1, 0.01, 1.0, scaling="log"),
+    )
+
+    assert isinstance(kernel, BasisFunctionKernelBivariateSPD)
+    assert np.linalg.eigvalsh(kernel.covariance()) == pytest.approx([0.1, 0.1])
+    assert all(dof.scaling == "linear" for dof in kernel.collect_degrees_of_freedom())
 
 
 def test_basis_initialisation_preserves_explicit_height_seed() -> None:

@@ -28,6 +28,8 @@ class EquilibriumGapAggregationResult:
         Positive scalar baseline values, one per EGI window size.
     window_weights : npt.NDArray[np.float64]
         Normalised weights used to combine the window sizes.
+    spatial_weights : tuple[npt.NDArray[np.float64], ...] | None
+        Optional centre weights applied as ``sqrt(weight)`` to each map.
     """
 
     combined_baseline_scaled_egi_map: npt.NDArray[np.float64]
@@ -35,6 +37,7 @@ class EquilibriumGapAggregationResult:
     baseline_scaled_egi_temporal_rms_maps: tuple[npt.NDArray[np.float64], ...]
     egi_baseline_values: npt.NDArray[np.float64]
     window_weights: npt.NDArray[np.float64]
+    spatial_weights: tuple[npt.NDArray[np.float64], ...] | None
 
 
 def aggregate_equilibrium_gap_results(
@@ -42,6 +45,7 @@ def aggregate_equilibrium_gap_results(
     *,
     egi_baseline_values: Sequence[float] | npt.NDArray[np.float64] | None = None,
     window_weights: Sequence[float] | npt.NDArray[np.float64] | None = None,
+    spatial_weights: Sequence[npt.NDArray[np.float64]] | None = None,
 ) -> EquilibriumGapAggregationResult:
     """Combine one or more single-window EGI results into a map and scalar.
 
@@ -84,6 +88,10 @@ def aggregate_equilibrium_gap_results(
         window_weights,
         len(egi_temporal_rms_maps),
     )
+    resolved_spatial_weights = _resolve_spatial_weights(
+        spatial_weights,
+        egi_temporal_rms_maps,
+    )
 
     # Scale each EGI temporal RMS map by its baseline value.
     baseline_scaled_egi_temporal_rms_maps = []
@@ -115,11 +123,21 @@ def aggregate_equilibrium_gap_results(
         dtype=np.float64,
     )
     # Loop over each baseline-scaled EGI temporal RMS map and its corresponding window weight
-    for baseline_scaled_egi_temporal_rms_map, window_weight in zip(
-        baseline_scaled_egi_temporal_rms_maps,
-        resolved_window_weights,
-        strict=True,
+    for map_index, (
+        baseline_scaled_egi_temporal_rms_map,
+        window_weight,
+    ) in enumerate(
+        zip(
+            baseline_scaled_egi_temporal_rms_maps,
+            resolved_window_weights,
+            strict=True,
+        )
     ):
+        if resolved_spatial_weights is not None:
+            baseline_scaled_egi_temporal_rms_map = (
+                baseline_scaled_egi_temporal_rms_map
+                * np.sqrt(resolved_spatial_weights[map_index])
+            )
         # Identify valid (finite) points in the current baseline-scaled EGI temporal RMS map
         valid = np.isfinite(baseline_scaled_egi_temporal_rms_map)
         # Accumulate the weighted sum for valid points
@@ -155,6 +173,7 @@ def aggregate_equilibrium_gap_results(
         ),
         egi_baseline_values=resolved_egi_baseline_values,
         window_weights=resolved_window_weights,
+        spatial_weights=resolved_spatial_weights,
     )
 
 
@@ -163,6 +182,7 @@ def combine_equilibrium_gap_maps(
     *,
     egi_baseline_values: Sequence[float] | npt.NDArray[np.float64] | None = None,
     window_weights: Sequence[float] | npt.NDArray[np.float64] | None = None,
+    spatial_weights: Sequence[npt.NDArray[np.float64]] | None = None,
 ) -> npt.NDArray[np.float64]:
     """Return the baseline-scaled, window-weighted combined EGI map."""
 
@@ -170,6 +190,7 @@ def combine_equilibrium_gap_maps(
         metric_results,
         egi_baseline_values=egi_baseline_values,
         window_weights=window_weights,
+        spatial_weights=spatial_weights,
     ).combined_baseline_scaled_egi_map
 
 
@@ -178,6 +199,7 @@ def calculate_combined_equilibrium_gap_spatial_rms(
     *,
     egi_baseline_values: Sequence[float] | npt.NDArray[np.float64] | None = None,
     window_weights: Sequence[float] | npt.NDArray[np.float64] | None = None,
+    spatial_weights: Sequence[npt.NDArray[np.float64]] | None = None,
 ) -> float:
     """Return the spatial RMS of the combined EGI map."""
 
@@ -185,6 +207,7 @@ def calculate_combined_equilibrium_gap_spatial_rms(
         metric_results,
         egi_baseline_values=egi_baseline_values,
         window_weights=window_weights,
+        spatial_weights=spatial_weights,
     ).combined_egi_spatial_rms
 
 
@@ -353,6 +376,42 @@ def _resolve_window_weights(
             f"{resolved.shape} vs ({count},)."
         )
     return _normalise_nonnegative_weights(resolved)
+
+
+def _resolve_spatial_weights(
+    spatial_weights: Sequence[npt.NDArray[np.float64]] | None,
+    maps: Sequence[npt.NDArray[np.float64]],
+) -> tuple[npt.NDArray[np.float64], ...] | None:
+    if spatial_weights is None:
+        return None
+    if len(spatial_weights) != len(maps):
+        raise ValueError(
+            "spatial_weights must contain one map per EGI metric result: "
+            f"{len(spatial_weights)} vs {len(maps)}."
+        )
+
+    resolved: list[npt.NDArray[np.float64]] = []
+    for map_index, (weights, values) in enumerate(
+        zip(spatial_weights, maps, strict=True)
+    ):
+        array = np.asarray(weights, dtype=np.float64)
+        if array.shape != values.shape:
+            raise ValueError(
+                f"EGI spatial weight map {map_index} has shape {array.shape}; "
+                f"expected {values.shape}."
+            )
+        valid = np.isfinite(values)
+        if np.any(~np.isfinite(array[valid])) or np.any(array[valid] < 0.0):
+            raise ValueError(
+                "EGI spatial weights must be finite and non-negative on "
+                "valid EGI centres."
+            )
+        if not np.any(array[valid] > 0.0):
+            raise ValueError(
+                f"EGI spatial weight map {map_index} has no positive valid weight."
+            )
+        resolved.append(array.copy())
+    return tuple(resolved)
 
 
 def _normalise_nonnegative_weights(

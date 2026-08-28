@@ -45,6 +45,7 @@ from .spatialparam import ISpatialParameterisation
 from .spatialparamknown import SpatialParameterisationKnown
 from .spatialparamhomogeneous import SpatialParameterisationHomogeneous
 from .spatialparambasisfuncs import (
+    BasisFunctionKernelBivariateSPD,
     SpatialParameterisationBasisFunction,
     SupportBasis,
 )
@@ -64,9 +65,19 @@ from .optimiserpatternsearch import OptimiserPatternSearch
 from .optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
 
 from .metric import IMetric, MetricResult
-from .metricsbvf import MetricSBVF
+from .metricsbvf import (
+    MetricSBVF,
+    calculate_local_parameter_stress_sensitivity,
+    calculate_parameter_stress_sensitivities,
+)
 from .metricsliceforce import SliceWiseForceReconstructionMetric
 from .metricequilibriumgap import EquilibriumGapMetric
+from .spatialweighting import (
+    SensitivitySpatialWeightingConfig,
+    SensitivitySpatialWeights,
+    calculate_sensitivity_spatial_weights,
+    resolve_sensitivity_spatial_weights,
+)
 
 from .objectivefunc import (
     IObjectiveFunction,
@@ -93,6 +104,7 @@ from .objectivefuncfreandegi import (
 from .objectivefunccombinedfreegi import (
     CombinedForceAndEquilibriumGapObjective,
     CombinedForceAndEquilibriumGapObjectiveResult,
+    CombinedObjectiveResidualCotangents,
     CombinedObjectiveBaseline,
     CombinedObjectiveBaselineMode,
     infer_egi_window_length_weights,
@@ -102,6 +114,7 @@ from .progress import ConsoleProgressReporter, ProgressEvent
 from .refinement import (
     BasisAddRemoveRefinement,
     EquilibriumGapBasisGrowthRefinement,
+    SensitivityCorrectionBasisGrowthRefinement,
     IRefinementAction,
     IRefinementPolicy,
     SliceMergeSplitRefinement,
@@ -146,6 +159,7 @@ __all__ = [
     "SpatialParameterisationKnown",
     "SpatialParameterisationHomogeneous",
     "SpatialParameterisationBasisFunction",
+    "BasisFunctionKernelBivariateSPD",
     "SupportBasis",
     "SliceWiseSpatialParameterisation",
     "SupportSlice",
@@ -159,8 +173,14 @@ __all__ = [
     "IMetric",
     "MetricResult",
     "MetricSBVF",
+    "calculate_parameter_stress_sensitivities",
+    "calculate_local_parameter_stress_sensitivity",
     "SliceWiseForceReconstructionMetric",
     "EquilibriumGapMetric",
+    "SensitivitySpatialWeightingConfig",
+    "SensitivitySpatialWeights",
+    "calculate_sensitivity_spatial_weights",
+    "resolve_sensitivity_spatial_weights",
     "IObjectiveFunction",
     "IScalarObjectiveFunction",
     "IVectorObjectiveFunction",
@@ -178,6 +198,7 @@ __all__ = [
     "ScalarForceAndEquilibriumGapObjective",
     "CombinedForceAndEquilibriumGapObjective",
     "CombinedForceAndEquilibriumGapObjectiveResult",
+    "CombinedObjectiveResidualCotangents",
     "CombinedObjectiveBaseline",
     "CombinedObjectiveBaselineMode",
     "infer_egi_window_length_weights",
@@ -188,6 +209,7 @@ __all__ = [
     "SliceMergeSplitRefinement",
     "BasisAddRemoveRefinement",
     "EquilibriumGapBasisGrowthRefinement",
+    "SensitivityCorrectionBasisGrowthRefinement",
     "VfmRegionOfInterest",
     "convert_mask_to_physical_roi",
 ]

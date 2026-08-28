@@ -514,7 +514,7 @@ def _calculate_stress_sensitivities_parameter(
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         delta_timesteps: npt.NDArray[np.float64],
         perturbation_factor: float,
-    ) -> list[StressSensitivity]:
+) -> list[StressSensitivity]:
     """Calculate stress sensitivity maps for the provided spatial parameterisations by perturbing each parameter map datapoint.
 
     Perturb DOF in physical space
@@ -523,96 +523,115 @@ def _calculate_stress_sensitivities_parameter(
 
     """
 
-    stress_sensitivities = []
-    # Loop through each constitutive parameter
-    for param_name, sps in spatial_parameterisations.items():
+    parameter_maps = {
+        parameter_name: evaluate_parameterisations_to_map(sps, parameter_map_size)
+        for parameter_name, sps in spatial_parameterisations.items()
+    }
+    active_parameter_names = tuple(
+        parameter_name
+        for parameter_name, sps in spatial_parameterisations.items()
+        if get_num_degrees_of_freedom(sps) > 0
+    )
+    sensitivities = calculate_parameter_stress_sensitivities(
+        strain,
+        stress_reference,
+        constitutive_law,
+        parameter_maps,
+        active_parameter_names,
+        perturbation_factor,
+    )
+    return list(sensitivities.values())
 
-        # If constitutive parameter is not being identified: skip
-        if get_num_degrees_of_freedom(sps) == 0:
-            continue
 
-        # get parameter map for current spatial parameterisation
-        map = evaluate_parameterisations_to_map(sps, parameter_map_size)
+def calculate_parameter_stress_sensitivities(
+    strain: npt.NDArray[np.float64],
+    stress_reference: npt.NDArray[np.float64],
+    constitutive_law: IConstitutiveLaw,
+    parameter_maps: dict[str, npt.NDArray[np.float64]],
+    active_parameter_names: tuple[str, ...] | list[str],
+    perturbation_factor: float = 0.15,
+) -> dict[str, StressSensitivity]:
+    """Return total and incremental stress sensitivities for active parameters.
 
-        # Perturb parameter map by multiplying by (1 - perturbation_factor)
-        perturbed_map = map * (1 - perturbation_factor)
+    Each active parameter map is reduced by the same relative fraction while
+    all other maps remain fixed. Inputs are copied before perturbation, so the
+    accepted phase-start parameter maps are never mutated.
+    """
 
-        # Create copy of original spatial parameterisation maps
-        perturbed_spatial_parameter_maps = {
-            parameter_name: evaluate_parameterisations_to_map(sps, parameter_map_size)
-            for parameter_name, sps
-            in spatial_parameterisations.items()
-        }
+    if not 0.0 < perturbation_factor < 1.0:
+        raise ValueError("perturbation_factor must lie in (0, 1).")
+    if not active_parameter_names:
+        raise ValueError("At least one active parameter name is required.")
 
-        # Update parameter map for current parameter with perturbed map
-        perturbed_spatial_parameter_maps[param_name] = perturbed_map
-
-        # Compute perturbed stress using perturbed spatial parameter maps
-        perturbed_stress = constitutive_law.calculate_stress(
-            strain, perturbed_spatial_parameter_maps
-        )
-
-        # Compute stress sensitivity as difference between reference stress and perturbed stress
-        total_stress_sensitivity = stress_reference - perturbed_stress
-
-        # Compute incremental stress sensitivity as difference in stress sensitivity between consecutive timesteps
-        # First timestep has zero incremental sensitivity as there is no previous step to compare to
-        incremental_stress_sensitivity = np.zeros_like(total_stress_sensitivity)
-        incremental_stress_sensitivity[1:, :, :, :] = np.diff(
-            total_stress_sensitivity,
-            axis=0,
-        )
-
-        # Store sensitivities for current perturbed DOF
-        stress_sensitivities.append(
-            StressSensitivity(
-                total=total_stress_sensitivity,
-                incremental=incremental_stress_sensitivity,
+    reference = np.asarray(stress_reference, dtype=np.float64)
+    resolved_maps = {
+        name: np.asarray(parameter_map, dtype=np.float64)
+        for name, parameter_map in parameter_maps.items()
+    }
+    sensitivities: dict[str, StressSensitivity] = {}
+    for parameter_name in active_parameter_names:
+        if parameter_name in sensitivities:
+            raise ValueError(f"Duplicate active parameter name '{parameter_name}'.")
+        if parameter_name not in resolved_maps:
+            raise KeyError(
+                f"Active parameter '{parameter_name}' does not have a parameter map."
             )
+
+        perturbed_maps = {
+            name: parameter_map.copy()
+            for name, parameter_map in resolved_maps.items()
+        }
+        perturbed_maps[parameter_name] *= 1.0 - perturbation_factor
+        perturbed_stress = np.asarray(
+            constitutive_law.calculate_stress(strain, perturbed_maps),
+            dtype=np.float64,
+        )
+        if perturbed_stress.shape != reference.shape:
+            raise ValueError(
+                "Perturbed and reference stress shapes differ: "
+                f"{perturbed_stress.shape} vs {reference.shape}."
+            )
+
+        total = reference - perturbed_stress
+        incremental = np.zeros_like(total)
+        incremental[1:] = np.diff(total, axis=0)
+        sensitivities[parameter_name] = StressSensitivity(
+            total=total,
+            incremental=incremental,
         )
 
-        plot_debug = False
-        if plot_debug:
-            # Debug: plot perturbed stress
-            step = 14
-            component = 0
-            img = perturbed_stress[step, component, :, :]   # 10th step, 1st component, all y, all x
-            plt.figure()
-            im1 = plt.imshow(img, aspect='auto', origin='lower', cmap='viridis')
-            plt.colorbar(label='Stress')
-            plt.xlabel('x')
-            plt.ylabel('y')
-            #include param name and dof index in title
-            plt.title(f'Perturbed stress: {param_name}, step {step}, component {component}')
-            vmin = np.nanpercentile(img, 5)
-            vmax = np.nanpercentile(img, 95)
-            im1.set_clim(vmin, vmax)
-            im1=plt.show()
+    return sensitivities
 
-            # Debug: plot total SS stress
-            img = total_stress_sensitivity[step, component, :, :]   # 10th step, 1st component, all y, all x
-            plt.figure()
-            im2 = plt.imshow(img, aspect='auto', origin='lower', cmap='viridis')
-            plt.colorbar(label='Stress')
-            plt.xlabel('x')
-            plt.ylabel('y')
-            plt.title(f'Total stress sensitivity: {param_name}, step {step}, component {component}')
-            vmin = np.nanpercentile(img, 5)
-            vmax = np.nanpercentile(img, 95)
-            im2.set_clim(vmin, vmax)
-            im2=plt.show()
 
-            # Debug: plot incremental SS stress
-            img = incremental_stress_sensitivity[step, component, :, :]   # 10th step, 1st component, all y, all x
-            plt.figure()
-            im3 = plt.imshow(img, aspect='auto', origin='lower', cmap='viridis')
-            plt.colorbar(label='Stress')
-            plt.xlabel('x')
-            plt.ylabel('y')
-            plt.title(f'Incremental stress sensitivity: {param_name}, step {step}, component {component}')
-            vmin = np.nanpercentile(img, 5)
-            vmax = np.nanpercentile(img, 95)
-            im3.set_clim(vmin, vmax)
-            im3=plt.show()
+def calculate_local_parameter_stress_sensitivity(
+    strain: npt.NDArray[np.float64],
+    stress_reference: npt.NDArray[np.float64],
+    constitutive_law: IConstitutiveLaw,
+    parameter_maps: dict[str, npt.NDArray[np.float64]],
+    parameter_name: str,
+    perturbation_factor: float = 0.01,
+) -> npt.NDArray[np.float64]:
+    """Estimate pointwise ``d(stress)/d(parameter)`` with one map solve.
 
-    return stress_sensitivities
+    This is valid for PyVale's pointwise constitutive updates: perturbing the
+    full map yields independent local stress responses, which are divided by
+    the local physical perturbation before metric adjoints are applied.
+    """
+    sensitivity = calculate_parameter_stress_sensitivities(
+        strain,
+        stress_reference,
+        constitutive_law,
+        parameter_maps,
+        [parameter_name],
+        perturbation_factor,
+    )[parameter_name].total
+    delta = (
+        perturbation_factor
+        * np.asarray(parameter_maps[parameter_name], dtype=np.float64)
+    )
+    return np.divide(
+        sensitivity,
+        delta[np.newaxis, np.newaxis],
+        out=np.zeros_like(sensitivity),
+        where=np.abs(delta[np.newaxis, np.newaxis]) > np.finfo(np.float64).eps,
+    )

@@ -7,14 +7,27 @@ et al. (2026).
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+import time
 
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.vfm.equilibriumgapaggregation import (
+    extract_equilibrium_gap_temporal_rms,
+)
 from pyvale.vfm.metric import MetricResult
+from pyvale.vfm.constlaw import IConstitutiveLaw
+from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.objectivefunc import IScalarObjectiveFunction
 from pyvale.vfm.objectivefuncfreandegi import (
     calculate_force_reconstruction_spatiotemporal_rms,
+)
+from pyvale.vfm.spatialweighting import (
+    SensitivitySpatialWeightingConfig,
+    SensitivitySpatialWeights,
+    calculate_sensitivity_spatial_weights,
 )
 
 
@@ -79,6 +92,14 @@ class CombinedForceAndEquilibriumGapObjectiveResult:
     force_weight: float
 
 
+@dataclass(slots=True, frozen=True)
+class CombinedObjectiveResidualCotangents:
+    """Derivatives of the scalar objective with respect to signed residuals."""
+
+    equilibrium_gap: tuple[npt.NDArray[np.float64], ...]
+    force: npt.NDArray[np.float64]
+
+
 class CombinedForceAndEquilibriumGapObjective(IScalarObjectiveFunction):
     """Scalar objective combining normalised EGI and FRE contributions.
 
@@ -100,9 +121,18 @@ class CombinedForceAndEquilibriumGapObjective(IScalarObjectiveFunction):
         baseline: CombinedObjectiveBaseline | None = None,
         egi_baseline_values: Sequence[float] | npt.NDArray[np.float64] | None = None,
         force_baseline_value: float | None = None,
+        spatial_weighting: SensitivitySpatialWeightingConfig | None = None,
     ) -> None:
         if not 0.0 <= force_weight <= 1.0:
             raise ValueError("force_weight must lie in [0, 1].")
+        if spatial_weighting is not None and not isinstance(
+            spatial_weighting,
+            SensitivitySpatialWeightingConfig,
+        ):
+            raise TypeError(
+                "spatial_weighting must be a "
+                "SensitivitySpatialWeightingConfig or None."
+            )
         if baseline is not None and (
             egi_baseline_values is not None or force_baseline_value is not None
         ):
@@ -123,10 +153,13 @@ class CombinedForceAndEquilibriumGapObjective(IScalarObjectiveFunction):
                 force_baseline_value,
             )
         self.force_weight = float(force_weight)
+        self.spatial_weighting = spatial_weighting
         self.baseline = baseline or CombinedObjectiveBaseline.unit()
         self.egi_window_weights = _normalised_weights(egi_window_weights)
         self.resolved_egi_baseline_values: npt.NDArray[np.float64] | None = None
         self.resolved_force_baseline_value: float | None = None
+        self.resolved_spatial_weights: SensitivitySpatialWeights | None = None
+        self.spatial_weighting_runtime_seconds: float | None = None
         self._validate_baseline_configuration()
         self.last_result: CombinedForceAndEquilibriumGapObjectiveResult | None = None
 
@@ -134,12 +167,21 @@ class CombinedForceAndEquilibriumGapObjective(IScalarObjectiveFunction):
         force_results, egi_results = _split_metric_results(metric_results)
         if len(force_results) != 1:
             raise ValueError("Objective requires exactly one FRE metric result.")
+        egi_spatial_weights = self._egi_spatial_weights_for_results(egi_results)
         egi_scalars = np.asarray(
-            [_extract_egi_scalar(result) for result in egi_results],
+            [
+                _extract_egi_scalar(result, spatial_weights=spatial_weights)
+                for result, spatial_weights in zip(
+                    egi_results,
+                    egi_spatial_weights,
+                    strict=True,
+                )
+            ],
             dtype=np.float64,
         )
         force_scalar = calculate_force_reconstruction_spatiotemporal_rms(
-            force_results[0]
+            force_results[0],
+            spatial_weights=self._force_spatial_weights(),
         )
         egi_baselines, force_baseline = self._resolve_baselines(
             egi_scalars,
@@ -170,6 +212,38 @@ class CombinedForceAndEquilibriumGapObjective(IScalarObjectiveFunction):
         )
         return float(total_cost)
 
+    def residual_cotangents(
+        self,
+        metric_results: list[MetricResult],
+    ) -> CombinedObjectiveResidualCotangents:
+        """Differentiate the exact scalar aggregation wrt EGI and FRE fields."""
+        force_results, egi_results = _split_metric_results(metric_results)
+        if len(force_results) != 1:
+            raise ValueError("Objective requires exactly one FRE metric result.")
+        self.evaluate(metric_results)
+        assert self.last_result is not None
+
+        egi_spatial_weights = self._egi_spatial_weights_for_results(egi_results)
+        egi_cotangents = tuple(
+            _egi_scalar_cotangent(result, spatial_weights=spatial_weights)
+            * (
+                (1.0 - self.force_weight)
+                * self.egi_window_weights[index]
+                / self.last_result.egi_baselines[index]
+            )
+            for index, (result, spatial_weights) in enumerate(
+                zip(egi_results, egi_spatial_weights, strict=True)
+            )
+        )
+        force_cotangent = _force_scalar_cotangent(
+            force_results[0],
+            spatial_weights=self._force_spatial_weights(),
+        ) * (self.force_weight / self.last_result.force_baseline)
+        return CombinedObjectiveResidualCotangents(
+            equilibrium_gap=egi_cotangents,
+            force=force_cotangent,
+        )
+
     def resolve_from_prior_phase(self, metric_results: list[MetricResult]) -> None:
         """Set baseline values from metrics evaluated on a referenced phase."""
 
@@ -178,14 +252,115 @@ class CombinedForceAndEquilibriumGapObjective(IScalarObjectiveFunction):
         force_results, egi_results = _split_metric_results(metric_results)
         if len(force_results) != 1:
             raise ValueError("Objective requires exactly one FRE metric result.")
+        egi_spatial_weights = self._egi_spatial_weights_for_results(egi_results)
         egi_values = np.asarray(
-            [_extract_egi_scalar(result) for result in egi_results],
+            [
+                _extract_egi_scalar(result, spatial_weights=spatial_weights)
+                for result, spatial_weights in zip(
+                    egi_results,
+                    egi_spatial_weights,
+                    strict=True,
+                )
+            ],
             dtype=np.float64,
         )
         force_value = calculate_force_reconstruction_spatiotemporal_rms(
-            force_results[0]
+            force_results[0],
+            spatial_weights=self._force_spatial_weights(),
         )
         self._set_resolved_baselines(egi_values, force_value)
+
+    def resolve_spatial_weights(
+        self,
+        *,
+        constitutive_law: IConstitutiveLaw,
+        parameter_maps: dict[str, npt.NDArray[np.float64]],
+        active_parameter_names: Sequence[str],
+        metrics: Sequence[object],
+        experiment_data: ExperimentData,
+    ) -> None:
+        """Resolve and freeze sensitivity-derived weights for this phase."""
+
+        if self.spatial_weighting is None:
+            return
+        force_metrics = [
+            metric
+            for metric in metrics
+            if isinstance(metric, SliceWiseForceReconstructionMetric)
+        ]
+        egi_metrics = [
+            metric
+            for metric in metrics
+            if isinstance(metric, EquilibriumGapMetric)
+        ]
+        if len(force_metrics) != 1:
+            raise ValueError(
+                "Sensitivity spatial weighting requires exactly one "
+                "SliceWiseForceReconstructionMetric."
+            )
+        if not egi_metrics:
+            raise ValueError(
+                "Sensitivity spatial weighting requires at least one "
+                "EquilibriumGapMetric."
+            )
+
+        started_at = time.perf_counter()
+        stress_reference = constitutive_law.calculate_stress(
+            experiment_data.strain,
+            parameter_maps,
+        )
+        self.resolved_spatial_weights = calculate_sensitivity_spatial_weights(
+            experiment_data.strain,
+            stress_reference,
+            constitutive_law,
+            parameter_maps,
+            list(active_parameter_names),
+            egi_metrics,
+            force_metrics[0],
+            experiment_data,
+            self.spatial_weighting,
+        )
+        self.spatial_weighting_runtime_seconds = time.perf_counter() - started_at
+
+    def egi_spatial_weights_for(
+        self,
+        number_of_windows: int,
+    ) -> tuple[npt.NDArray[np.float64], ...] | None:
+        """Return frozen EGI centre weights, or ``None`` when disabled."""
+
+        if self.spatial_weighting is None:
+            return None
+        if self.resolved_spatial_weights is None:
+            raise ValueError("Sensitivity spatial weights have not been resolved.")
+        weights = self.resolved_spatial_weights.equilibrium_gap_weights
+        if len(weights) != number_of_windows:
+            raise ValueError(
+                "Resolved EGI spatial weights do not match the EGI results: "
+                f"{len(weights)} vs {number_of_windows}."
+            )
+        return tuple(weight.copy() for weight in weights)
+
+    def spatial_weighting_diagnostics(self) -> dict[str, object]:
+        """Return compact diagnostics without serialising full weight maps."""
+
+        if self.spatial_weighting is None:
+            return {"enabled": False}
+        if self.resolved_spatial_weights is None:
+            return {"enabled": True, "resolved": False}
+        return {
+            "enabled": True,
+            "resolved": True,
+            "perturbation_factor": self.spatial_weighting.perturbation_factor,
+            "weight_floor": self.spatial_weighting.weight_floor,
+            "scaling_percentile": self.spatial_weighting.scaling_percentile,
+            "parameter_names": list(self.resolved_spatial_weights.parameter_names),
+            "runtime_seconds": self.spatial_weighting_runtime_seconds,
+            "force_weights": _array_summary(self.resolved_spatial_weights.force_weights),
+            "egi_weights": [
+                _array_summary(weights)
+                for weights in self.resolved_spatial_weights.equilibrium_gap_weights
+            ],
+        }
 
     def baseline_diagnostics(self) -> dict[str, object]:
         """Return the configured source and resolved values for result metadata."""
@@ -220,6 +395,22 @@ class CombinedForceAndEquilibriumGapObjective(IScalarObjectiveFunction):
                 f"({number_of_windows},)."
             )
         return self.resolved_egi_baseline_values.copy()
+
+    def _egi_spatial_weights_for_results(
+        self,
+        egi_results: Sequence[MetricResult],
+    ) -> tuple[npt.NDArray[np.float64] | None, ...]:
+        weights = self.egi_spatial_weights_for(len(egi_results))
+        if weights is None:
+            return (None,) * len(egi_results)
+        return weights
+
+    def _force_spatial_weights(self) -> npt.NDArray[np.float64] | None:
+        if self.spatial_weighting is None:
+            return None
+        if self.resolved_spatial_weights is None:
+            raise ValueError("Sensitivity spatial weights have not been resolved.")
+        return self.resolved_spatial_weights.force_weights
 
     def _validate_baseline_configuration(self) -> None:
         if not isinstance(self.baseline.mode, CombinedObjectiveBaselineMode):
@@ -324,11 +515,124 @@ def _split_metric_results(
     return force_results, egi_results
 
 
-def _extract_egi_scalar(metric_result: MetricResult) -> float:
+def _extract_egi_scalar(
+    metric_result: MetricResult,
+    *,
+    spatial_weights: npt.NDArray[np.float64] | None = None,
+) -> float:
+    if spatial_weights is not None:
+        temporal_rms = extract_equilibrium_gap_temporal_rms(metric_result)
+        spatial = np.asarray(spatial_weights, dtype=np.float64)
+        if temporal_rms.shape != spatial.shape:
+            raise ValueError(
+                "EGI spatial weights do not match the residual map: "
+                f"{spatial.shape} vs {temporal_rms.shape}."
+            )
+        valid_centres = np.isfinite(temporal_rms)
+        if (
+            np.any(~np.isfinite(spatial[valid_centres]))
+            or np.any(spatial[valid_centres] < 0.0)
+        ):
+            raise ValueError(
+                "EGI spatial weights must be finite and non-negative on "
+                "valid EGI centres."
+            )
+        weighted = temporal_rms * np.sqrt(spatial)
+        finite = weighted[np.isfinite(weighted)]
+        if finite.size == 0:
+            return float("nan")
+        return float(np.sqrt(np.mean(finite**2)))
+
     value = (metric_result.additional_fields or {}).get(
         "weighted_spatiotemporal_rms"
     )
     return _non_negative_scalar(value, "EGI weighted_spatiotemporal_rms")
+
+
+def _egi_scalar_cotangent(
+    metric_result: MetricResult,
+    *,
+    spatial_weights: npt.NDArray[np.float64] | None,
+) -> npt.NDArray[np.float64]:
+    metadata = metric_result.additional_fields or {}
+    gap = np.asarray(metadata.get("normalised_gap", metric_result.residual), dtype=np.float64)
+    temporal_weights = np.asarray(metadata["temporal_weights"], dtype=np.float64)
+    scalar = _extract_egi_scalar(metric_result, spatial_weights=spatial_weights)
+    cotangent = np.zeros_like(gap)
+    if scalar <= 0.0:
+        return cotangent
+    valid = np.isfinite(gap)
+    if spatial_weights is None:
+        valid_count = int(np.sum(valid))
+        cotangent[valid] = (
+            gap[valid]
+            * np.broadcast_to(temporal_weights[:, None, None], gap.shape)[valid]
+            / (scalar * valid_count)
+        )
+        return cotangent
+
+    spatial = np.asarray(spatial_weights, dtype=np.float64)
+    valid_per_centre = np.sum(valid, axis=0)
+    valid_centres = valid_per_centre > 0
+    centre_count = int(np.sum(valid_centres))
+    denominator = scalar * centre_count * valid_per_centre
+    scale = np.divide(
+        spatial,
+        denominator,
+        out=np.zeros_like(spatial),
+        where=denominator > 0.0,
+    )
+    cotangent = (
+        np.nan_to_num(gap, nan=0.0)
+        * temporal_weights[:, None, None]
+        * scale[None]
+    )
+    cotangent[~valid] = 0.0
+    return cotangent
+
+
+def _force_scalar_cotangent(
+    metric_result: MetricResult,
+    *,
+    spatial_weights: npt.NDArray[np.float64] | None,
+) -> npt.NDArray[np.float64]:
+    metadata = metric_result.additional_fields or {}
+    residual = np.asarray(
+        metadata.get("normalised_residual", metric_result.residual),
+        dtype=np.float64,
+    )
+    temporal = np.asarray(metadata.get("temporal_weights", 1.0), dtype=np.float64)
+    resolved_spatial = (
+        metadata.get("spatial_weights")
+        if spatial_weights is None
+        else spatial_weights
+    )
+    spatial = np.asarray(
+        1.0 if resolved_spatial is None else resolved_spatial,
+        dtype=np.float64,
+    )
+    scalar = calculate_force_reconstruction_spatiotemporal_rms(
+        metric_result,
+        spatial_weights=spatial_weights,
+    )
+    if scalar <= 0.0:
+        return np.zeros_like(residual)
+    weights = temporal[:, None] * spatial
+    result = np.nan_to_num(residual, nan=0.0) * weights / scalar
+    result[~np.isfinite(residual)] = 0.0
+    return result
+
+
+def _array_summary(values: npt.NDArray[np.float64]) -> dict[str, object]:
+    resolved = np.asarray(values, dtype=np.float64)
+    finite = resolved[np.isfinite(resolved)]
+    return {
+        "shape": list(resolved.shape),
+        "finite_count": int(finite.size),
+        "min": None if finite.size == 0 else float(np.min(finite)),
+        "mean": None if finite.size == 0 else float(np.mean(finite)),
+        "max": None if finite.size == 0 else float(np.max(finite)),
+    }
 
 
 def _positive_scalar(value: object, name: str) -> float:

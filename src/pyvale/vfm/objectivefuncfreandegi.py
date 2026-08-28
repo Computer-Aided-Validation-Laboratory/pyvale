@@ -185,6 +185,8 @@ def combine_force_reconstruction_errors(
 
 def calculate_force_reconstruction_spatiotemporal_rms(
     metric_result: MetricResult,
+    *,
+    spatial_weights: npt.NDArray[np.float64] | None = None,
 ) -> float:
     """Compute weighted RMS of a force-reconstruction residual."""
 
@@ -202,9 +204,13 @@ def calculate_force_reconstruction_spatiotemporal_rms(
             axis=0,
         )
 
-    spatial_weights = metadata.get("spatial_weights")
-    if spatial_weights is not None:
-        resolved_spatial_weights = np.asarray(spatial_weights, dtype=np.float64)
+    resolved_weight_source = (
+        metadata.get("spatial_weights")
+        if spatial_weights is None
+        else spatial_weights
+    )
+    if resolved_weight_source is not None:
+        resolved_spatial_weights = np.asarray(resolved_weight_source, dtype=np.float64)
         if resolved_spatial_weights.ndim == 0:
             weighted_residual = weighted_residual * np.sqrt(float(resolved_spatial_weights))
         else:

@@ -173,6 +173,15 @@ def run_identification(
                     config=snapshot_phase_config(phase_index, phase),
                 )
 
+                # Resolve optional phase-start sensitivity weights before
+                # prior-phase metrics are evaluated. This ensures baseline
+                # and candidate objectives use the same frozen weights.
+                phase_runtime.resolve_spatial_weighting(
+                    identification_config.constitutive_law,
+                    identification_config.parameters,
+                    experiment_data,
+                )
+
                 # Evaluate current metrics on all previously identified phases.
                 # phase results. These may not always be used, but can be used to
                 # resolve baseline values to normalise metrics and / or for initialising DOFs.
@@ -205,6 +214,44 @@ def run_identification(
                     experiment_data,
                     previous_phases_metrics.get(phase_index - 1),
                 )
+
+                # Optionally screen the initial EGI-seeded basis before the
+                # first joint phase solve. Accepted phase-start maps remain
+                # frozen during screening; the winning basis is then restored
+                # as active for the normal joint optimisation.
+                if isinstance(
+                    phase_runtime.refinement_policy,
+                    EquilibriumGapBasisGrowthRefinement,
+                ):
+                    initial_screening_action = (
+                        phase_runtime.refinement_policy.propose_initial_multistart(
+                            phase_runtime,
+                            phase_runtime.build_refinement_context(
+                                identification_config.constitutive_law,
+                                identification_config.parameters,
+                                parameter_map_size,
+                                experiment_data,
+                                metrics=phase_runtime.metrics,
+                                objective_function=phase_runtime.objective_function,
+                            ),
+                        )
+                    )
+                    if initial_screening_action is not None:
+                        _apply_refinement_action(
+                            phase_runtime,
+                            phase_result,
+                            phase_runtime.refinement_policy,
+                            initial_screening_action,
+                            phase_runtime.build_refinement_context(
+                                identification_config.constitutive_law,
+                                identification_config.parameters,
+                                parameter_map_size,
+                                experiment_data,
+                                metrics=phase_runtime.metrics,
+                                objective_function=phase_runtime.objective_function,
+                            ),
+                            experiment_data,
+                        )
 
                 # Prepare a phase-local constitutive law for optimisation,
                 # which may include precomputed inputs for the radial return algorithm
@@ -741,6 +788,9 @@ def _record_objective_baseline(
         solve_result.final_objective["baseline"] = (
             objective_function.baseline_diagnostics()
         )
+        solve_result.final_objective["spatial_weighting"] = (
+            objective_function.spatial_weighting_diagnostics()
+        )
 
 
 def _emit_phase_progress(
@@ -971,6 +1021,44 @@ class PhaseRuntime:
         # with the current experiment data
         for metric in self.metrics:
             metric.initialise(experiment_data)
+
+    def resolve_spatial_weighting(
+        self,
+        constitutive_law: IConstitutiveLaw,
+        constitutive_parameters: dict[str, ConstitutiveParameter],
+        experiment_data: ExperimentData,
+    ) -> None:
+        """Resolve optional objective weights from the accepted phase-start maps."""
+
+        if not isinstance(
+            self.objective_function,
+            CombinedForceAndEquilibriumGapObjective,
+        ):
+            return
+        if self.objective_function.spatial_weighting is None:
+            return
+
+        active_parameter_names = tuple(
+            parameter_name
+            for parameter_name, parameterisations in (
+                self.spatial_parameterisations.items()
+            )
+            if any(
+                not isinstance(parameterisation, SpatialParameterisationKnown)
+                for parameterisation in parameterisations
+            )
+        )
+        parameter_maps = {
+            parameter_name: np.asarray(parameter.map, dtype=np.float64).copy()
+            for parameter_name, parameter in constitutive_parameters.items()
+        }
+        self.objective_function.resolve_spatial_weights(
+            constitutive_law=constitutive_law,
+            parameter_maps=parameter_maps,
+            active_parameter_names=active_parameter_names,
+            metrics=self.metrics,
+            experiment_data=experiment_data,
+        )
 
 
     def initialise_parameterisation_structure(

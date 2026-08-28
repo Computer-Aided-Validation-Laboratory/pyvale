@@ -98,6 +98,39 @@ def _stress_with_central_inclusion(
     stress[:, :, rows // 2, cols // 2] *= scale
     return stress
 
+
+@pytest.mark.parametrize(
+    "virtual_field_type",
+    (
+        EquilibriumGapVirtualFieldType.SINGLE_POS_POS,
+        EquilibriumGapVirtualFieldType.TWO_AVERAGED,
+    ),
+)
+def test_normalised_gap_stress_adjoint_matches_finite_difference(
+    virtual_field_type: EquilibriumGapVirtualFieldType,
+) -> None:
+    experiment_data = _rectangle_experiment_data(rows=9, cols=11)
+    metric = EquilibriumGapMetric(
+        window_size=(5, 5),
+        valid_window_fill_fraction=1.0,
+        virtual_field_type=virtual_field_type,
+    )
+    metric.initialise(experiment_data)
+    rng = np.random.default_rng(42)
+    stress = rng.normal(size=(3, 3, 9, 11)) + 2.0
+    direction = rng.normal(size=stress.shape)
+    result = metric.evaluate_equilibrium_gap(stress)
+    cotangent = rng.normal(size=result.normalised_gap.shape)
+    cotangent[~np.isfinite(result.normalised_gap)] = 0.0
+    stress_cotangent = metric.normalised_gap_stress_adjoint(stress, cotangent)
+    predicted = float(np.sum(stress_cotangent * direction))
+    step = 1.0e-6
+    plus = metric.evaluate_equilibrium_gap(stress + step * direction).normalised_gap
+    minus = metric.evaluate_equilibrium_gap(stress - step * direction).normalised_gap
+    observed = float(np.nansum(cotangent * (plus - minus)) / (2.0 * step))
+
+    assert predicted == pytest.approx(observed, rel=2.0e-6, abs=1.0e-9)
+
 # Run test 3 times with different virtual field types to ensure
 # that the equilibrium gap metric behaves correctly for each type.
 @pytest.mark.parametrize(

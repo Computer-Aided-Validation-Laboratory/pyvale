@@ -803,6 +803,15 @@ def _evaluate_basis_snapshot(
             exponent = -0.5 * (
                 local_x**2 / variance_x + local_y**2 / variance_y
             )
+        elif kernel_type == "BasisFunctionKernelBivariateSPD":
+            inverse_covariance = np.linalg.inv(
+                np.asarray(kernel["covariance"], dtype=np.float64)
+            )
+            exponent = -0.5 * (
+                inverse_covariance[0, 0] * dx**2
+                + 2.0 * inverse_covariance[0, 1] * dx * dy
+                + inverse_covariance[1, 1] * dy**2
+            )
         else:
             raise ValueError(f"Unsupported saved basis kernel '{kernel_type}'.")
         parameter_map += float(kernel["height"]) * np.exp(exponent)

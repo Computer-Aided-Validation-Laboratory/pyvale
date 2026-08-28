@@ -318,6 +318,26 @@ def _collect_identification_config_errors(
             phase.objective_function,
             CombinedForceAndEquilibriumGapObjective,
         ):
+            if phase.objective_function.spatial_weighting is not None:
+                force_metric_count = sum(
+                    isinstance(metric, SliceWiseForceReconstructionMetric)
+                    for metric in phase.metrics
+                )
+                egi_metric_count = sum(
+                    isinstance(metric, EquilibriumGapMetric)
+                    for metric in phase.metrics
+                )
+                if force_metric_count != 1:
+                    errors.append(
+                        f"phase {i}: sensitivity spatial weighting requires "
+                        "exactly one SliceWiseForceReconstructionMetric, got "
+                        f"{force_metric_count}"
+                    )
+                if egi_metric_count < 1:
+                    errors.append(
+                        f"phase {i}: sensitivity spatial weighting requires "
+                        "at least one EquilibriumGapMetric"
+                    )
             baseline = phase.objective_function.baseline
             if baseline.mode is CombinedObjectiveBaselineMode.PRIOR_PHASE:
                 if baseline.phase_index is None or baseline.phase_index < 0:

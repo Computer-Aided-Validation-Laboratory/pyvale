@@ -782,6 +782,7 @@ def summarise_parameterisation(
     try:
         from pyvale.vfm.spatialparambasisfuncs import (
             BasisFunctionKernelBivariate,
+            BasisFunctionKernelBivariateSPD,
             BasisFunctionKernelUnivariate,
             SpatialParameterisationBasisFunction,
         )
@@ -888,6 +889,24 @@ def summarise_parameterisation(
                         "angle": _jsonify_value(_resolve_value(kernel.angle)),
                     }
                 )
+            elif isinstance(kernel, BasisFunctionKernelBivariateSPD):
+                covariance = kernel.covariance()
+                values, vectors = np.linalg.eigh(covariance)
+                order = np.argsort(values)[::-1]
+                values = values[order]
+                major_vector = vectors[:, order[0]]
+                angle = float(np.arctan2(major_vector[1], major_vector[0]))
+                angle = (angle + 0.5 * np.pi) % np.pi - 0.5 * np.pi
+                kernel_summary.update(
+                    {
+                        "covariance": _jsonify_value(covariance),
+                        "log_covariance": _jsonify_value(kernel.log_covariance()),
+                        "reference_variance": kernel.reference_variance,
+                        "variance": _jsonify_value(values),
+                        "width": _jsonify_value(np.sqrt(values)),
+                        "angle": angle,
+                    }
+                )
             kernels.append(kernel_summary)
 
         return {
@@ -972,6 +991,12 @@ def summarise_refinement_action(
     refined_boundaries = getattr(action, "refined_boundaries", None)
     if refined_boundaries is not None:
         summary["refined_boundary_count"] = int(np.asarray(refined_boundaries).size)
+    screening = getattr(action, "screening_diagnostics", None)
+    if isinstance(screening, dict):
+        summary["multistart_selected_candidate"] = screening.get(
+            "selected_candidate_label"
+        )
+        summary["multistart_selected_cost"] = screening.get("selected_cost")
     return summary
 
 
@@ -993,6 +1018,11 @@ def snapshot_refinement_policy(
                 "refinement_height_fraction",
                 "smoothing_points",
                 "minimum_separation_points",
+                "multistart_enabled",
+                "multistart_offset_fraction",
+                "multistart_screening_iterations",
+                "sensitivity_perturbation_factor",
+                "correction_feature_fraction",
             ),
         ),
     )
@@ -1003,7 +1033,13 @@ def snapshot_refinement_action(
 ) -> ObjectSnapshot:
     """Return a lightweight action snapshot for refinement history."""
 
-    return snapshot_object(action, options={})
+    screening = getattr(action, "screening_diagnostics", None)
+    options = (
+        {}
+        if screening is None
+        else {"screening_diagnostics": _jsonify_value(screening)}
+    )
+    return snapshot_object(action, options=options)
 
 # ==================================================================================
 # File loading helpers

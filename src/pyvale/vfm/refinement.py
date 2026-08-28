@@ -8,12 +8,13 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import numpy.typing as npt
-from scipy.ndimage import uniform_filter
+from scipy.ndimage import label, uniform_filter
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.metricsbvf import calculate_local_parameter_stress_sensitivity
 from pyvale.vfm.equilibriumgapaggregation import (
     EquilibriumGapAggregationResult,
     aggregate_equilibrium_gap_results,
@@ -24,13 +25,15 @@ from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
 from pyvale.vfm.objectivefunccombinedfreegi import (
     CombinedForceAndEquilibriumGapObjective,
 )
-from pyvale.vfm.spatialparam import ISpatialParameterisation
+from pyvale.vfm.optimiserpatternsearch import OptimiserPatternSearch
+from pyvale.vfm.spatialparam import ISpatialParameterisation, PhaseSpatialState
 from pyvale.vfm.spatialparambasisfuncs import (
     BasisFunctionKernel,
     SpatialParameterisationBasisFunction,
     SupportBasis,
 )
 from pyvale.vfm.dof import DegreeOfFreedom
+from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 from pyvale.vfm.spatialparamslicewise import SliceConfig, SupportSlice
 
 if TYPE_CHECKING:
@@ -290,6 +293,7 @@ class AddBasisFunctionAction(IRefinementAction):
     kernel: object
     seed_parameterisation: SpatialParameterisationBasisFunction
     seed_height: DegreeOfFreedom
+    screening_diagnostics: dict[str, object] | None = None
 
     def apply(
         self,
@@ -308,6 +312,28 @@ class AddBasisFunctionAction(IRefinementAction):
                 parameterisation.heights.append(self.seed_height)
             else:
                 parameterisation.heights.append(None)
+
+
+@dataclass(slots=True)
+class ReplaceBasisFunctionAction(IRefinementAction):
+    """Replace one seeded basis after optional multi-start screening."""
+
+    support: SupportBasis
+    kernel_index: int
+    kernel: BasisFunctionKernel
+    seed_parameterisation: SpatialParameterisationBasisFunction
+    seed_height: DegreeOfFreedom
+    screening_diagnostics: dict[str, object]
+
+    def apply(
+        self,
+        runtime: PhaseRuntime,
+        context: RefinementContext,
+    ) -> None:
+        _ = runtime, context
+        assert self.support.kernels is not None
+        self.support.kernels[self.kernel_index] = self.kernel
+        self.seed_parameterisation.heights[self.kernel_index] = self.seed_height
 
 
 @dataclass(slots=True)
@@ -349,6 +375,9 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
     minimum_separation_points: float = 3.0
     egi_window_weights: Sequence[float] | npt.NDArray[np.float64] | None = None
     baseline_phase_index: int | None = None
+    multistart_enabled: bool = False
+    multistart_offset_fraction: float = 0.10
+    multistart_screening_iterations: int = 10
     _accepted_cost: float | None = field(default=None, init=False, repr=False)
     _resolved_egi_baseline_values: npt.NDArray[np.float64] | None = field(
         default=None, init=False, repr=False,
@@ -369,6 +398,10 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
             raise ValueError("smoothing_points and minimum_separation_points must be non-negative.")
         if self.baseline_phase_index is not None and self.baseline_phase_index < 0:
             raise ValueError("baseline_phase_index must be non-negative.")
+        if not 0.0 < self.multistart_offset_fraction <= 1.0:
+            raise ValueError("multistart_offset_fraction must lie in (0, 1].")
+        if self.multistart_screening_iterations < 1:
+            raise ValueError("multistart_screening_iterations must be positive.")
 
     def resolve_from_prior_phase(
         self,
@@ -399,6 +432,9 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
         ):
             baselines = objective_function.egi_baselines_for(len(egi_results))
             window_weights = objective_function.egi_window_weights
+            spatial_weights = objective_function.egi_spatial_weights_for(
+                len(egi_results)
+            )
         else:
             if self._resolved_egi_baseline_values is None:
                 raise ValueError(
@@ -407,10 +443,12 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
                 )
             baselines = self._resolved_egi_baseline_values
             window_weights = self.egi_window_weights
+            spatial_weights = None
         return aggregate_equilibrium_gap_results(
             egi_results,
             egi_baseline_values=baselines,
             window_weights=window_weights,
+            spatial_weights=spatial_weights,
         )
 
     def propose(
@@ -451,6 +489,7 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
 
         parameter_name, basis = _resolve_basis_parameterisation(runtime, self.target)
         return self._new_egi_basis_action(
+            runtime,
             context,
             parameter_name,
             basis,
@@ -470,6 +509,7 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
 
     def _new_egi_basis_action(
         self,
+        runtime: PhaseRuntime,
         context: RefinementContext,
         parameter_name: str,
         basis: SpatialParameterisationBasisFunction,
@@ -498,7 +538,192 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
             context.constitutive_parameters[parameter_name],
             height_fraction,
         )
-        return AddBasisFunctionAction(basis.support, kernel, basis, height)
+        screening_diagnostics = None
+        if self.multistart_enabled:
+            kernel, height, screening_diagnostics = _screen_basis_candidates(
+                runtime=runtime,
+                context=context,
+                parameter_name=parameter_name,
+                basis=basis,
+                template_kernel=kernel,
+                template_height=height,
+                offset_fraction=self.multistart_offset_fraction,
+                screening_iterations=self.multistart_screening_iterations,
+            )
+        return AddBasisFunctionAction(
+            basis.support,
+            kernel,
+            basis,
+            height,
+            screening_diagnostics,
+        )
+
+    def propose_initial_multistart(
+        self,
+        runtime: PhaseRuntime,
+        context: RefinementContext,
+    ) -> IRefinementAction | None:
+        """Screen the EGI-seeded basis created during phase initialisation."""
+
+        if not self.multistart_enabled:
+            return None
+        parameter_name, basis = _resolve_basis_parameterisation(
+            runtime,
+            self.target,
+        )
+        if len(basis.kernels) != 1 or len(basis.heights) != 1:
+            return None
+        height = basis.heights[0]
+        if not isinstance(height, DegreeOfFreedom):
+            raise TypeError("Initial multi-start basis height must be active.")
+        kernel, screened_height, diagnostics = _screen_basis_candidates(
+            runtime=runtime,
+            context=context,
+            parameter_name=parameter_name,
+            basis=basis,
+            template_kernel=basis.kernels[0],
+            template_height=height,
+            offset_fraction=self.multistart_offset_fraction,
+            screening_iterations=self.multistart_screening_iterations,
+        )
+        return ReplaceBasisFunctionAction(
+            support=basis.support,
+            kernel_index=0,
+            kernel=kernel,
+            seed_parameterisation=basis,
+            seed_height=screened_height,
+            screening_diagnostics=diagnostics,
+        )
+
+
+@dataclass(slots=True)
+class SensitivityCorrectionBasisGrowthRefinement(
+    EquilibriumGapBasisGrowthRefinement
+):
+    """Grow a Gaussian from the objective's predicted material correction."""
+
+    sensitivity_perturbation_factor: float = 0.01
+    correction_feature_fraction: float = 0.2
+    last_correction_map: npt.NDArray[np.float64] | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+
+    def __post_init__(self) -> None:
+        EquilibriumGapBasisGrowthRefinement.__post_init__(self)
+        if not 0.0 < self.sensitivity_perturbation_factor < 1.0:
+            raise ValueError(
+                "sensitivity_perturbation_factor must lie in (0, 1)."
+            )
+        if not 0.0 < self.correction_feature_fraction <= 1.0:
+            raise ValueError("correction_feature_fraction must lie in (0, 1].")
+
+    def _new_egi_basis_action(
+        self,
+        runtime: PhaseRuntime,
+        context: RefinementContext,
+        parameter_name: str,
+        basis: SpatialParameterisationBasisFunction,
+        egi_results: list[object],
+        *,
+        height_fraction: float,
+    ) -> IRefinementAction | None:
+        _ = egi_results
+        if len(basis.kernels) >= self.max_basis_functions:
+            return None
+        objective = context.objective_function
+        if not isinstance(objective, CombinedForceAndEquilibriumGapObjective):
+            raise TypeError(
+                "Sensitivity-correction growth requires "
+                "CombinedForceAndEquilibriumGapObjective."
+            )
+
+        egi_metrics: list[EquilibriumGapMetric] = []
+        metric_results = []
+        force_metric: SliceWiseForceReconstructionMetric | None = None
+        for metric in context.metrics:
+            if isinstance(metric, EquilibriumGapMetric):
+                egi_metrics.append(metric)
+                metric_results.append(
+                    metric.evaluate_equilibrium_gap(context.stress).metric_result
+                )
+            elif isinstance(metric, SliceWiseForceReconstructionMetric):
+                if force_metric is not None:
+                    raise ValueError(
+                        "Sensitivity-correction growth requires one FRE metric."
+                    )
+                force_metric = metric
+                metric_results.append(
+                    metric.evaluate_force_recon_error(
+                        context.stress,
+                        context.experiment_data,
+                    ).metric_result
+                )
+        if force_metric is None:
+            raise ValueError(
+                "Sensitivity-correction growth requires one FRE metric."
+            )
+
+        cotangents = objective.residual_cotangents(metric_results)
+        stress_gradient = force_metric.normalised_residual_stress_adjoint(
+            cotangents.force,
+            context.experiment_data,
+        )
+        for metric, cotangent in zip(
+            egi_metrics,
+            cotangents.equilibrium_gap,
+            strict=True,
+        ):
+            stress_gradient += metric.normalised_gap_stress_adjoint(
+                context.stress,
+                cotangent,
+            )
+
+        local_stress_sensitivity = calculate_local_parameter_stress_sensitivity(
+            context.experiment_data.strain,
+            context.stress,
+            context.constitutive_law,
+            context.parameter_maps,
+            parameter_name,
+            self.sensitivity_perturbation_factor,
+        )
+        correction = -np.nansum(
+            stress_gradient * local_stress_sensitivity,
+            axis=(0, 1),
+        )
+        self.last_correction_map = correction.copy()
+        proposal = _basis_from_correction_map(
+            correction,
+            basis,
+            context.experiment_data,
+            context.constitutive_parameters[parameter_name],
+            height_fraction=height_fraction,
+            smoothing_points=self.smoothing_points,
+            minimum_separation_points=self.minimum_separation_points,
+            feature_fraction=self.correction_feature_fraction,
+        )
+        if proposal is None:
+            return None
+        kernel, height, diagnostics = proposal
+        parameter_direction = (
+            height.value * basis._evaluate_kernel_response(kernel)
+        )
+        directional_derivative = float(
+            np.sum(-correction * parameter_direction)
+        )
+        diagnostics["predicted_objective_directional_derivative"] = (
+            directional_derivative
+        )
+        if directional_derivative >= 0.0:
+            return None
+        return AddBasisFunctionAction(
+            basis.support,
+            kernel,
+            basis,
+            height,
+            diagnostics,
+        )
 
 @dataclass(slots=True)
 class FitBasisFunctionsToMapAction(IRefinementAction):
@@ -625,6 +850,106 @@ def _select_egi_centre(
     return None
 
 
+def _basis_from_correction_map(
+    correction: npt.NDArray[np.float64],
+    basis: SpatialParameterisationBasisFunction,
+    experiment_data: ExperimentData,
+    parameter: ConstitutiveParameter,
+    *,
+    height_fraction: float,
+    smoothing_points: int,
+    minimum_separation_points: float,
+    feature_fraction: float,
+) -> tuple[BasisFunctionKernel, DegreeOfFreedom, dict[str, object]] | None:
+    """Fit one continuous Gaussian seed to the dominant signed correction."""
+    x = experiment_data.specimen_geometry.x
+    y = experiment_data.specimen_geometry.y
+    specimen = (
+        experiment_data.specimen_geometry.region_of_interest.sample_specimen_mask(
+            x, y
+        )
+    )
+    finite = specimen & np.isfinite(correction)
+    support = uniform_filter(finite.astype(float), size=smoothing_points)
+    smoothed = np.divide(
+        uniform_filter(np.where(finite, correction, 0.0), size=smoothing_points),
+        support,
+        out=np.zeros_like(correction),
+        where=support > 0.0,
+    )
+    candidates = np.where(finite & (support > 0.0), np.abs(smoothed), -np.inf)
+    spacing = min(
+        abs(float(np.nanmedian(np.diff(x, axis=1)))),
+        abs(float(np.nanmedian(np.diff(y, axis=0)))),
+    )
+    minimum_separation = minimum_separation_points * spacing
+    peak_index: tuple[int, int] | None = None
+    for flat_index in np.argsort(candidates.ravel())[::-1]:
+        index = np.unravel_index(flat_index, candidates.shape)
+        if not np.isfinite(candidates[index]) or candidates[index] <= 0.0:
+            break
+        centre = (float(x[index]), float(y[index]))
+        if all(
+            np.hypot(
+                centre[0] - _kernel_value(kernel.x),
+                centre[1] - _kernel_value(kernel.y),
+            ) >= minimum_separation
+            for kernel in basis.kernels
+        ):
+            peak_index = index
+            break
+    if peak_index is None:
+        return None
+
+    peak_value = float(smoothed[peak_index])
+    feature_mask = (
+        finite
+        & (np.sign(smoothed) == np.sign(peak_value))
+        & (np.abs(smoothed) >= feature_fraction * abs(peak_value))
+    )
+    components, _ = label(feature_mask)
+    feature_mask &= components == components[peak_index]
+    weights = np.where(feature_mask, np.abs(smoothed), 0.0)
+    weight_sum = float(np.sum(weights))
+    if weight_sum <= 0.0:
+        return None
+    centre_x = float(np.sum(weights * x) / weight_sum)
+    centre_y = float(np.sum(weights * y) / weight_sum)
+    dx = x - centre_x
+    dy = y - centre_y
+    covariance = np.array(
+        [
+            [np.sum(weights * dx * dx), np.sum(weights * dx * dy)],
+            [np.sum(weights * dx * dy), np.sum(weights * dy * dy)],
+        ],
+        dtype=np.float64,
+    ) / weight_sum
+    covariance += np.eye(2) * spacing**2
+
+    min_x, max_x, min_y, max_y = basis.get_centre_bounds()
+    kernel = basis.create_kernel_from_covariance(
+        DegreeOfFreedom(centre_x, min_x, max_x),
+        DegreeOfFreedom(centre_y, min_y, max_y),
+        covariance,
+    )
+    parameter_span = parameter.upper_bound - parameter.lower_bound
+    height = DegreeOfFreedom(
+        float(np.sign(peak_value) * height_fraction * parameter_span),
+        -parameter_span,
+        parameter_span,
+    )
+    diagnostics: dict[str, object] = {
+        "policy": "sensitivity_correction",
+        "peak_correction_gradient": peak_value,
+        "proposed_sign": float(np.sign(peak_value)),
+        "centre": [centre_x, centre_y],
+        "covariance": covariance.tolist(),
+        "feature_point_count": int(np.sum(feature_mask)),
+        "correction_l2": float(np.sqrt(np.sum(correction[finite] ** 2))),
+    }
+    return kernel, height, diagnostics
+
+
 def _kernel_value(value: float | DegreeOfFreedom) -> float:
     return float(value.value if isinstance(value, DegreeOfFreedom) else value)
 
@@ -659,6 +984,194 @@ def _default_basis(
         ),
         DegreeOfFreedom(height_fraction * span, -span, span),
     )
+
+
+def _screen_basis_candidates(
+    *,
+    runtime: PhaseRuntime,
+    context: RefinementContext,
+    parameter_name: str,
+    basis: SpatialParameterisationBasisFunction,
+    template_kernel: BasisFunctionKernel,
+    template_height: DegreeOfFreedom,
+    offset_fraction: float,
+    screening_iterations: int,
+) -> tuple[BasisFunctionKernel, DegreeOfFreedom, dict[str, object]]:
+    """Screen five centre seeds while only the proposed basis remains active."""
+
+    if not isinstance(runtime.optimiser, OptimiserPatternSearch):
+        raise TypeError(
+            "Multi-start basis screening requires OptimiserPatternSearch."
+        )
+    if context.objective_function is None:
+        raise ValueError("Multi-start basis screening requires an objective.")
+
+    min_x, max_x, min_y, max_y = basis.get_centre_bounds()
+    raw_centre = (
+        _kernel_value(template_kernel.x),
+        _kernel_value(template_kernel.y),
+    )
+    delta_x = offset_fraction * (max_x - min_x)
+    delta_y = offset_fraction * (max_y - min_y)
+    candidate_specs = (
+        ("peak", raw_centre),
+        ("x_minus", (raw_centre[0] - delta_x, raw_centre[1])),
+        ("x_plus", (raw_centre[0] + delta_x, raw_centre[1])),
+        ("y_minus", (raw_centre[0], raw_centre[1] - delta_y)),
+        ("y_plus", (raw_centre[0], raw_centre[1] + delta_y)),
+    )
+
+    screened: list[dict[str, object]] = []
+    winners: list[tuple[BasisFunctionKernel, DegreeOfFreedom]] = []
+    for label, proposed_centre in candidate_specs:
+        start_centre = (
+            float(np.clip(proposed_centre[0], min_x, max_x)),
+            float(np.clip(proposed_centre[1], min_y, max_y)),
+        )
+        candidate_kernel = copy.deepcopy(template_kernel)
+        _set_kernel_centre(candidate_kernel, start_centre)
+        candidate_height = copy.deepcopy(template_height)
+        screening_model = _build_screening_model(
+            context,
+            parameter_name,
+            basis,
+            candidate_kernel,
+            candidate_height,
+        )
+        number_of_dofs = PhaseSpatialState(
+            screening_model
+        ).get_num_degrees_of_freedom()
+        max_evaluations = (
+            1 + screening_iterations * (2 * number_of_dofs + 1)
+        )
+        optimiser = _screening_optimiser(
+            runtime.optimiser,
+            screening_iterations,
+            max_evaluations,
+        )
+        outcome = optimiser.optimise(
+            context.constitutive_law,
+            context.parameter_map_size,
+            screening_model,
+            [copy.copy(metric) for metric in context.metrics],
+            copy.deepcopy(context.objective_function),
+            context.experiment_data,
+        )
+        if outcome.solve_result is None:
+            raise RuntimeError("Multi-start screening did not return diagnostics.")
+        optimised_basis = outcome.spatial_parameterisations[parameter_name][-1]
+        if not isinstance(
+            optimised_basis,
+            SpatialParameterisationBasisFunction,
+        ):
+            raise TypeError("Multi-start screening lost the candidate basis.")
+        optimised_kernel = copy.deepcopy(optimised_basis.kernels[0])
+        optimised_height = optimised_basis.heights[0]
+        if not isinstance(optimised_height, DegreeOfFreedom):
+            raise TypeError("Screened basis height must remain active.")
+        refined_centre = (
+            _kernel_value(optimised_kernel.x),
+            _kernel_value(optimised_kernel.y),
+        )
+        solve = outcome.solve_result
+        screened.append({
+            "label": label,
+            "proposed_position": [
+                float(proposed_centre[0]),
+                float(proposed_centre[1]),
+            ],
+            "starting_position": [start_centre[0], start_centre[1]],
+            "refined_position": [refined_centre[0], refined_centre[1]],
+            "cost": float(solve.final_objective["cost"]),
+            "evaluations": int(solve.num_evaluations),
+            "iterations": int(solve.final_objective.get("iterations", 0)),
+            "status": solve.status,
+            "started_on_bound": bool(
+                np.isclose(start_centre[0], min_x)
+                or np.isclose(start_centre[0], max_x)
+                or np.isclose(start_centre[1], min_y)
+                or np.isclose(start_centre[1], max_y)
+            ),
+            "refined_on_bound": bool(
+                np.isclose(refined_centre[0], min_x)
+                or np.isclose(refined_centre[0], max_x)
+                or np.isclose(refined_centre[1], min_y)
+                or np.isclose(refined_centre[1], max_y)
+            ),
+        })
+        winners.append((optimised_kernel, copy.deepcopy(optimised_height)))
+
+    selected_index = int(np.argmin([float(entry["cost"]) for entry in screened]))
+    selected_kernel, selected_height = winners[selected_index]
+    diagnostics: dict[str, object] = {
+        "enabled": True,
+        "offset_fraction": float(offset_fraction),
+        "screening_iterations": int(screening_iterations),
+        "raw_egi_peak": [raw_centre[0], raw_centre[1]],
+        "offset_distance": [float(delta_x), float(delta_y)],
+        "selected_candidate_index": selected_index,
+        "selected_candidate_label": screened[selected_index]["label"],
+        "selected_cost": screened[selected_index]["cost"],
+        "candidates": screened,
+    }
+    return selected_kernel, selected_height, diagnostics
+
+
+def _build_screening_model(
+    context: RefinementContext,
+    parameter_name: str,
+    basis: SpatialParameterisationBasisFunction,
+    kernel: BasisFunctionKernel,
+    height: DegreeOfFreedom,
+) -> dict[str, list[ISpatialParameterisation]]:
+    screening_model: dict[str, list[ISpatialParameterisation]] = {
+        name: [SpatialParameterisationKnown(np.asarray(values).copy())]
+        for name, values in context.parameter_maps.items()
+    }
+    candidate_basis = SpatialParameterisationBasisFunction(
+        x=basis.x,
+        y=basis.y,
+        kernels=[copy.deepcopy(kernel)],
+        heights=[copy.deepcopy(height)],
+        kernel_type=basis.kernel_type,
+        centre_bounds_span_factor=basis.centre_bounds_span_factor,
+    )
+    screening_model[parameter_name].append(candidate_basis)
+    return screening_model
+
+
+def _screening_optimiser(
+    source: OptimiserPatternSearch,
+    iterations: int,
+    max_evaluations: int,
+) -> OptimiserPatternSearch:
+    return OptimiserPatternSearch(
+        initial_mesh_size=source.initial_mesh_size,
+        minimum_mesh_size=source.minimum_mesh_size,
+        mesh_contraction_factor=source.mesh_contraction_factor,
+        mesh_expansion_factor=source.mesh_expansion_factor,
+        pattern_step_size=source.pattern_step_size,
+        max_iterations=iterations,
+        max_evaluations=max_evaluations,
+        objective_absolute_tolerance=source.objective_absolute_tolerance,
+        objective_relative_tolerance=source.objective_relative_tolerance,
+        parallel_workers=source.parallel_workers,
+        random_seed=source.random_seed,
+        max_batch_size=source.max_batch_size,
+    )
+
+
+def _set_kernel_centre(
+    kernel: BasisFunctionKernel,
+    centre: tuple[float, float],
+) -> None:
+    if not isinstance(kernel.x, DegreeOfFreedom) or not isinstance(
+        kernel.y,
+        DegreeOfFreedom,
+    ):
+        raise TypeError("Multi-start basis centres must be active DOFs.")
+    kernel.x.value = float(centre[0])
+    kernel.y.value = float(centre[1])
 
 
 def _evaluate_slice_force_error_ratio(

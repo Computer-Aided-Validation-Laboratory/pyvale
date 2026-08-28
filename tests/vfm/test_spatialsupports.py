@@ -27,6 +27,7 @@ from pyvale.vfm.objectivefunccombinedfreegi import (
 )
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
+from pyvale.vfm.optimiserpatternsearch import OptimiserPatternSearch
 from pyvale.vfm.optimiserslicewiseindependent import (
     SliceWiseIndependentLeastSquares,
 )
@@ -61,6 +62,11 @@ from pyvale.vfm.metric import IMetric
 from pyvale.vfm.objectivefunc import IVectorObjectiveFunction
 from pyvale.vfm.optimiser import IOptimiser
 from pyvale.vfm.progress import ProgressEvent
+from pyvale.vfm.identificationresult import (
+    OptimisationOutcome,
+    SolveResult,
+    snapshot_refinement_action,
+)
 
 
 class _DummyConstitutiveLaw(IConstitutiveLaw):
@@ -300,6 +306,121 @@ def test_bivariate_basis_type_is_used_for_initial_seed_and_refinement() -> None:
         isinstance(kernel, BasisFunctionKernelBivariate)
         for kernel in basis.kernels
     )
+
+
+def test_initial_egi_basis_multistart_screens_five_candidate_centres(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    experiment_data = _build_experiment_data()
+    shape = np.asarray(experiment_data.specimen_geometry.x.shape, dtype=np.uint32)
+    parameter = ConstitutiveParameter(2.0, 0.5, 5.0, shape)
+    metric = _StaticEquilibriumGapMetric(window_size=(3, 3))
+    objective = CombinedForceAndEquilibriumGapObjective(
+        egi_window_weights=(1.0,),
+    )
+    basis = SpatialParameterisationBasisFunction(
+        experiment_data.specimen_geometry.x,
+        experiment_data.specimen_geometry.y,
+        kernel_type="bivariate",
+    )
+    runtime = PhaseRuntime(
+        {"yield_strength": [SpatialParameterisationHomogeneous(), basis]},
+        [metric],
+        objective_function=objective,
+        optimiser=OptimiserPatternSearch(max_iterations=100, max_evaluations=1000),
+    )
+    baseline_result = metric.evaluate_equilibrium_gap(np.empty(0)).metric_result
+    runtime.initialise_parameterisation_structure(
+        {"yield_strength": parameter},
+        shape,
+        experiment_data,
+        [baseline_result],
+    )
+    policy = EquilibriumGapBasisGrowthRefinement(
+        target=basis,
+        max_basis_functions=2,
+        minimum_separation_points=0.0,
+        multistart_enabled=True,
+        multistart_offset_fraction=0.10,
+        multistart_screening_iterations=10,
+    )
+    context = _build_refinement_context(
+        experiment_data,
+        {"yield_strength": parameter.map},
+    )
+    context.metrics = [metric]
+    context.objective_function = objective
+
+    starts: list[tuple[float, float]] = []
+    costs = [5.0, 4.0, 1.0, 3.0, 2.0]
+
+    def fake_optimise(
+        self,
+        constitutive_law,
+        parameter_map_size,
+        spatial_parameterisations,
+        metrics,
+        objective_function,
+        experiment_data,
+        progress_callback=None,
+    ):
+        _ = (
+            self,
+            constitutive_law,
+            parameter_map_size,
+            metrics,
+            objective_function,
+            experiment_data,
+            progress_callback,
+        )
+        state = PhaseSpatialState(spatial_parameterisations)
+        assert state.get_num_degrees_of_freedom() == 6
+        candidate = spatial_parameterisations["yield_strength"][-1]
+        assert isinstance(candidate, SpatialParameterisationBasisFunction)
+        assert len(spatial_parameterisations["yield_strength"]) == 2
+        assert candidate.kernels is not None
+        kernel = candidate.kernels[0]
+        assert isinstance(kernel.x, DegreeOfFreedom)
+        assert isinstance(kernel.y, DegreeOfFreedom)
+        starts.append((kernel.x.value, kernel.y.value))
+        cost = costs[len(starts) - 1]
+        return OptimisationOutcome(
+            spatial_parameterisations=spatial_parameterisations,
+            solve_result=SolveResult(
+                num_evaluations=131,
+                status="max_iterations",
+                final_objective={"cost": cost, "iterations": 10},
+            ),
+        )
+
+    monkeypatch.setattr(OptimiserPatternSearch, "optimise", fake_optimise)
+
+    action = policy.propose_initial_multistart(runtime, context)
+
+    assert action is not None
+    raw_x, raw_y = starts[0]
+    min_x, max_x, min_y, max_y = basis.get_centre_bounds()
+    assert starts == pytest.approx([
+        (raw_x, raw_y),
+        (np.clip(raw_x - 0.1, min_x, max_x), raw_y),
+        (np.clip(raw_x + 0.1, min_x, max_x), raw_y),
+        (raw_x, np.clip(raw_y - 0.1, min_y, max_y)),
+        (raw_x, np.clip(raw_y + 0.1, min_y, max_y)),
+    ])
+    diagnostics = action.screening_diagnostics
+    assert diagnostics["selected_candidate_label"] == "x_plus"
+    assert diagnostics["selected_cost"] == pytest.approx(1.0)
+    assert [item["evaluations"] for item in diagnostics["candidates"]] == [131] * 5
+    assert [item["iterations"] for item in diagnostics["candidates"]] == [10] * 5
+
+    action.apply(runtime, context)
+    selected_kernel = basis.kernels[0]
+    assert isinstance(selected_kernel.x, DegreeOfFreedom)
+    assert selected_kernel.x.value == pytest.approx(raw_x + 0.1)
+    snapshot = snapshot_refinement_action(action)
+    assert snapshot.options["screening_diagnostics"][
+        "selected_candidate_label"
+    ] == "x_plus"
 
 
 def test_phase_initialisation_fits_material_basis_residual() -> None:

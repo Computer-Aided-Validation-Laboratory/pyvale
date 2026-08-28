@@ -205,9 +205,63 @@ class BasisFunctionKernelBivariate:
                 self.angle.value = dof
 
 
+@dataclass(slots=True)
+class BasisFunctionKernelBivariateSPD:
+    """Gaussian whose covariance is an exponentiated symmetric matrix."""
+
+    x: float | DegreeOfFreedom
+    y: float | DegreeOfFreedom
+    s11: float | DegreeOfFreedom
+    s12: float | DegreeOfFreedom
+    s22: float | DegreeOfFreedom
+    reference_variance: float
+
+    def log_covariance(self) -> npt.NDArray[np.float64]:
+        return np.array(
+            [[_resolve_dof_value(self.s11), _resolve_dof_value(self.s12)],
+             [_resolve_dof_value(self.s12), _resolve_dof_value(self.s22)]],
+            dtype=np.float64,
+        )
+
+    def covariance(self) -> npt.NDArray[np.float64]:
+        values, vectors = np.linalg.eigh(self.log_covariance())
+        return self.reference_variance * (
+            (vectors * np.exp(values)) @ vectors.T
+        )
+
+    def get_num_degrees_of_freedom(self) -> int:
+        return sum(
+            isinstance(value, DegreeOfFreedom)
+            for value in (self.x, self.y, self.s11, self.s12, self.s22)
+        )
+
+    def collect_degrees_of_freedom(self) -> list[DegreeOfFreedom]:
+        return [
+            copy(value)
+            for value in (self.x, self.y, self.s11, self.s12, self.s22)
+            if isinstance(value, DegreeOfFreedom)
+        ]
+
+    def update_from_degrees_of_freedom(
+        self,
+        degrees_of_freedom: list[DegreeOfFreedom] | npt.NDArray[np.float64],
+    ) -> None:
+        dof_index = 0
+        for name in ("x", "y", "s11", "s12", "s22"):
+            current = getattr(self, name)
+            if not isinstance(current, DegreeOfFreedom):
+                continue
+            updated = degrees_of_freedom[dof_index]
+            current.value = float(
+                updated.value if isinstance(updated, DegreeOfFreedom) else updated
+            )
+            dof_index += 1
+
+
 BasisFunctionKernel = (
     BasisFunctionKernelUnivariate
     | BasisFunctionKernelBivariate
+    | BasisFunctionKernelBivariateSPD
 )
 
 
@@ -288,7 +342,7 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
     kernels: list[BasisFunctionKernel]
     initial_kernels_max: int
     initial_height_fraction: float
-    kernel_type: Literal["univariate", "bivariate"]
+    kernel_type: Literal["univariate", "bivariate", "bivariate_spd"]
     centre_bounds_span_factor: float
 
     def __init__(
@@ -301,7 +355,9 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
         *,
         initial_kernels_max: int = 1,
         initial_height_fraction: float = 0.01,
-        kernel_type: Literal["univariate", "bivariate"] = "univariate",
+        kernel_type: Literal[
+            "univariate", "bivariate", "bivariate_spd"
+        ] = "univariate",
         centre_bounds_span_factor: float = 1.0,
     ) -> None:
         if initial_kernels_max < 1:
@@ -310,9 +366,10 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
             raise ValueError(
                 "initial_height_fraction must lie in (0, 1]."
             )
-        if kernel_type not in {"univariate", "bivariate"}:
+        if kernel_type not in {"univariate", "bivariate", "bivariate_spd"}:
             raise ValueError(
-                "kernel_type must be 'univariate' or 'bivariate'."
+                "kernel_type must be 'univariate', 'bivariate', or "
+                "'bivariate_spd'."
             )
         if centre_bounds_span_factor < 1.0:
             raise ValueError("centre_bounds_span_factor must be at least 1.0.")
@@ -361,7 +418,75 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
                     0.5 * np.pi,
                 ),
             )
+        if self.kernel_type == "bivariate_spd":
+            variance_value = _resolve_dof_value(variance)
+            if isinstance(variance, DegreeOfFreedom):
+                variance_min = variance.lower_bound
+                variance_max = variance.upper_bound
+            else:
+                variance_min, variance_max = _compute_variance_range(self.x, self.y)
+            reference = float(np.sqrt(variance_min * variance_max))
+            half_span = 0.5 * float(np.log(variance_max / variance_min))
+            isotropic_scale = float(np.log(variance_value / reference))
+            return BasisFunctionKernelBivariateSPD(
+                x=x,
+                y=y,
+                s11=DegreeOfFreedom(isotropic_scale, -half_span, half_span),
+                s12=DegreeOfFreedom(0.0, -half_span, half_span),
+                s22=DegreeOfFreedom(isotropic_scale, -half_span, half_span),
+                reference_variance=reference,
+            )
         return BasisFunctionKernelUnivariate(x=x, y=y, variance=variance)
+
+    def create_kernel_from_covariance(
+        self,
+        x: float | DegreeOfFreedom,
+        y: float | DegreeOfFreedom,
+        covariance: npt.NDArray[np.float64],
+    ) -> BasisFunctionKernel:
+        """Create this parameterisation's kernel from an SPD covariance."""
+        covariance = np.asarray(covariance, dtype=np.float64)
+        values, vectors = np.linalg.eigh(covariance)
+        variance_min, variance_max = _compute_variance_range(self.x, self.y)
+        values = np.clip(values, variance_min, variance_max)
+        covariance = (vectors * values) @ vectors.T
+        if self.kernel_type == "bivariate_spd":
+            reference = float(np.sqrt(variance_min * variance_max))
+            half_span = 0.5 * float(np.log(variance_max / variance_min))
+            log_values = np.log(values / reference)
+            log_covariance = (vectors * log_values) @ vectors.T
+            return BasisFunctionKernelBivariateSPD(
+                x=x,
+                y=y,
+                s11=DegreeOfFreedom(float(log_covariance[0, 0]), -half_span, half_span),
+                s12=DegreeOfFreedom(float(log_covariance[0, 1]), -half_span, half_span),
+                s22=DegreeOfFreedom(float(log_covariance[1, 1]), -half_span, half_span),
+                reference_variance=reference,
+            )
+        if self.kernel_type == "bivariate":
+            order = np.argsort(values)[::-1]
+            major, minor = values[order]
+            major_vector = vectors[:, order[0]]
+            angle = float(np.arctan2(major_vector[1], major_vector[0]))
+            angle = (angle + 0.5 * np.pi) % np.pi - 0.5 * np.pi
+            return BasisFunctionKernelBivariate(
+                x=x,
+                y=y,
+                variance_x=DegreeOfFreedom(float(major), variance_min, variance_max, scaling="log"),
+                variance_y=DegreeOfFreedom(float(minor), variance_min, variance_max, scaling="log"),
+                angle=DegreeOfFreedom(angle, -0.5 * np.pi, 0.5 * np.pi),
+            )
+        isotropic_variance = float(np.sqrt(np.linalg.det(covariance)))
+        return self.create_kernel(
+            x,
+            y,
+            DegreeOfFreedom(
+                isotropic_variance,
+                variance_min,
+                variance_max,
+                scaling="log",
+            ),
+        )
 
     def get_centre_bounds(self) -> tuple[float, float, float, float]:
         """Return configured ``x_min, x_max, y_min, y_max`` centre bounds."""
@@ -607,6 +732,13 @@ class SpatialParameterisationBasisFunction(ISpatialParameterisation):
                 exponent = -0.5 * (
                     (local_x ** 2) / variance_x
                     + (local_y ** 2) / variance_y
+                )
+            case BasisFunctionKernelBivariateSPD():
+                inverse_covariance = np.linalg.inv(kernel.covariance())
+                exponent = -0.5 * (
+                    inverse_covariance[0, 0] * dx**2
+                    + 2.0 * inverse_covariance[0, 1] * dx * dy
+                    + inverse_covariance[1, 1] * dy**2
                 )
 
         return np.exp(exponent)

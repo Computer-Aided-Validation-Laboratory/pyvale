@@ -8,7 +8,7 @@ from typing import cast
 import numpy as np
 import numpy.typing as npt
 from scipy.fft import irfftn, next_fast_len, rfftn
-from scipy.signal import correlate, correlate2d
+from scipy.signal import convolve, correlate, correlate2d
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import EEdgeCondition, ExperimentData
@@ -239,6 +239,60 @@ class EquilibriumGapMetric(IMetric):
             raw_gap,
             include_diagnostics=include_diagnostics,
         )
+
+    def normalised_gap_stress_adjoint(
+        self,
+        stress: npt.NDArray[np.float64],
+        cotangent: npt.NDArray[np.float64],
+    ) -> npt.NDArray[np.float64]:
+        """Back-propagate a normalised-gap cotangent to the stress field."""
+        if self._operator is None:
+            raise RuntimeError("Equilibrium gap operator has not been prepared.")
+        if cotangent.shape != (stress.shape[0], *stress.shape[2:]):
+            raise ValueError("cotangent shape must match the normalised gap shape.")
+
+        raw_cotangent = np.nan_to_num(cotangent, nan=0.0).copy()
+        raw_cotangent[:, ~self._operator.valid_centre_mask] = 0.0
+        if self.normalise_by_force_and_window:
+            denominator = (
+                np.abs(self._operator.longitudinal_force)
+                * self._operator.nominal_window_point_count
+            )
+            raw_cotangent = np.divide(
+                raw_cotangent,
+                denominator[:, np.newaxis, np.newaxis],
+                out=np.zeros_like(raw_cotangent),
+                where=denominator[:, np.newaxis, np.newaxis] > 0.0,
+            )
+
+        raw_by_field = _evaluate_raw_gap_by_field(stress, self._operator)
+        if len(raw_by_field) == 1:
+            field_cotangents = [raw_cotangent]
+        else:
+            field_cotangents = [
+                0.5 * np.sign(raw_gap) * raw_cotangent
+                for raw_gap in raw_by_field
+            ]
+
+        stress_cotangent = np.zeros_like(stress, dtype=np.float64)
+        finite_stress = np.isfinite(stress)
+        for virtual_strain, field_cotangent in zip(
+            self._operator.virtual_strain_fields,
+            field_cotangents,
+            strict=True,
+        ):
+            for component_index in range(3):
+                stress_cotangent[:, component_index] += (
+                    self._operator.volume[np.newaxis]
+                    * convolve(
+                        field_cotangent,
+                        virtual_strain[component_index][np.newaxis],
+                        mode="same",
+                        method="fft",
+                    )
+                )
+        stress_cotangent[~finite_stress] = 0.0
+        return stress_cotangent
 
     def _result_from_raw_gap(
         self,
@@ -1047,7 +1101,23 @@ def _evaluate_raw_gap(
     """
     Evaluate the raw equilibrium gap metric for a given stress history and operator.
     """
-    raw_gap_by_field = []
+    raw_gap_by_field = _evaluate_raw_gap_by_field(stress, operator)
+
+    if len(raw_gap_by_field) == 1:
+        return raw_gap_by_field[0]
+
+    return 0.5 * (
+        np.abs(raw_gap_by_field[0])
+        + np.abs(raw_gap_by_field[1])
+    )
+
+
+def _evaluate_raw_gap_by_field(
+    stress: npt.NDArray[np.float64],
+    operator: _EquilibriumGapOperator,
+) -> list[npt.NDArray[np.float64]]:
+    """Evaluate the signed raw gap separately for every virtual field."""
+    raw_gap_by_field: list[npt.NDArray[np.float64]] = []
     for virtual_strain in operator.virtual_strain_fields:
         # Initialise gap as zeros array of shape (timesteps, rows, cols)
         gap = np.zeros(
@@ -1073,16 +1143,7 @@ def _evaluate_raw_gap(
         # Append the computed gap for this virtual strain field to the list of raw gaps
         raw_gap_by_field.append(gap)
 
-    # If there is only one virtual strain field, return the raw gap for that field.
-    if len(raw_gap_by_field) == 1:
-        return raw_gap_by_field[0]
-
-    # If there are two virtual strain fields, return the average of the absolute values 
-    # of the raw gaps for both fields.
-    return 0.5 * (
-        np.abs(raw_gap_by_field[0])
-        + np.abs(raw_gap_by_field[1])
-    )
+    return raw_gap_by_field
 
 
 def _normalise_raw_gap(
