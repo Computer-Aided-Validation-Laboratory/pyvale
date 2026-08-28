@@ -29,68 +29,64 @@ from scipy.spatial.transform import Rotation
 import pyvale.render as render
 
 
-def main() -> None:
-    # %%
-    # 1. Define base camera and build convergent stereo system
-    # --------------------------------------------------------------------------
-    cam_base = render.Camera(
-        pixels_num=np.array((1540, 1040)),
-        pixels_size=np.array((0.00345, 0.00345)),
-        pos_world=np.array((0.0, 0.0, 400.0)),
-        rot_world=Rotation.identity(),
-        roi_cent_world=np.zeros(3),
-        focal_length=15.0,
-    )
+# %%
+# 1. Define base camera and build convergent stereo system
+# --------------------------------------------------------------------------
+cam_base = render.Camera(
+    pixels_num=np.array((1540, 1040)),
+    pixels_size=np.array((0.00345, 0.00345)),
+    pos_world=np.array((0.0, 0.0, 400.0)),
+    rot_world=Rotation.identity(),
+    roi_cent_world=np.zeros(3),
+    focal_length=15.0,
+)
 
-    stereo_angle = 15.0  # degrees
-    stereo = render.faceon_stereo_cameras(cam_base, stereo_angle)
+stereo_angle = 15.0  # degrees
+stereo = render.faceon_stereo_cameras(cam_base, stereo_angle)
 
-    print("Stereo baseline distance (mm):", stereo.stereo_dist)
-    print("Stereo rotation (Euler xyz deg):")
-    print(stereo.stereo_rotation.as_euler("xyz", degrees=True))
+print("Stereo baseline distance (mm):", stereo.stereo_dist)
+print("Stereo rotation (Euler xyz deg):")
+print(stereo.stereo_rotation.as_euler("xyz", degrees=True))
 
-    # %%
-    # 2. Export calibration in YAML and MatchID formats
-    # --------------------------------------------------------------------------
-    output_dir = Path.cwd() / "pyvale-output" / "render-blender-calibration"
-    output_dir.mkdir(parents=True, exist_ok=True)
+# %%
+# 2. Export calibration in YAML and MatchID formats
+# --------------------------------------------------------------------------
+output_dir = Path.cwd() / "pyvale-output" / "render-blender-calibration"
+output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save standard Pyvale YAML calibration:
-    stereo.save_calibration(output_dir)
-    yaml_path = output_dir / "calibration" / "calibration.yaml"
-    print(f"Saved Pyvale calibration to: {yaml_path}")
+# Save standard Pyvale YAML calibration:
+stereo.save_calibration(output_dir)
+yaml_path = output_dir / "calibration" / "calibration.yaml"
+print(f"Saved Pyvale calibration to: {yaml_path}")
 
-    # Save MatchID compatible calibration:
-    stereo.save_calibration_mid(output_dir)
-    mid_path = output_dir / "calibration" / "calibration.caldat"
-    print(f"Saved MatchID calibration to: {mid_path}")
+# Save MatchID compatible calibration:
+stereo.save_calibration_mid(output_dir)
+mid_path = output_dir / "calibration" / "calibration.caldat"
+print(f"Saved MatchID calibration to: {mid_path}")
 
-    # %%
-    # 3. Reload and inspect calibration parameters
-    # --------------------------------------------------------------------------
-    reloaded = render.CameraStereo.from_calibration(
-        calib_path=yaml_path,
-        pos_world_0=cam_base.pos_world,
-        rot_world_0=cam_base.rot_world,
-        focal_length=cam_base.focal_length,
-    )
-    assert np.allclose(reloaded.stereo_dist, stereo.stereo_dist)
-    print("Successfully verified round-trip calibration parameters.")
+# %%
+# 3. Reload and inspect calibration parameters
+# --------------------------------------------------------------------------
+reloaded = render.CameraStereo.from_calibration(
+    calib_path=yaml_path,
+    pos_world_0=cam_base.pos_world,
+    rot_world_0=cam_base.rot_world,
+    focal_length=cam_base.focal_length,
+)
+assert np.allclose(reloaded.stereo_dist, stereo.stereo_dist)
+print("Successfully verified round-trip calibration parameters.")
 
-    # %%
-    # 4. Plan calibration target pose sweeps
-    # --------------------------------------------------------------------------
-    # For experimental DIC calibration, targets are translated and rotated
-    # through the field of view. We can compute the total pose count:
-    cal_data = render.BlenderCalibrationData(
-        angle_lims=(-10.0, 10.0),
-        angle_step=5.0,
-        plunge_lims=(-5.0, 5.0),
-        plunge_step=5.0,
-    )
-    total_images = render.calibration_image_count(cal_data)
-    print(f"Standard calibration sweep image count: {total_images}")
+# %%
+# 4. Plan calibration target pose sweeps
+# --------------------------------------------------------------------------
+# For experimental DIC calibration, targets are translated and rotated
+# through the field of view. We can compute the total pose count:
+cal_data = render.BlenderCalibrationData(
+    angle_lims=(-10.0, 10.0),
+    angle_step=5.0,
+    plunge_lims=(-5.0, 5.0),
+    plunge_step=5.0,
+)
+total_images = render.calibration_image_count(cal_data)
+print(f"Standard calibration sweep image count: {total_images}")
 
-
-if __name__ == "__main__":
-    main()
