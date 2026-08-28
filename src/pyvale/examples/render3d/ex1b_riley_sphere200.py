@@ -56,7 +56,7 @@ camera = render.Camera(
     pixels_size=pixels_size,
     pos_world=np.asarray(
         riley.pos_fill_frame_from_rot(
-            coords,
+            mesh.coords,
             tuple(pixels_num),
             tuple(pixels_size),
             focal_length,
@@ -81,12 +81,19 @@ config = riley.create_raster_config(
 )
 output_dir = Path.cwd() / "pyvale-output" / "render-riley-sphere200"
 
-render_engine = render.Riley(config, output_dir)
+renderer = render.Riley(config, output_dir)
 
 # %%
 # 4. Build the scene and render it
 # ------------------------------------------------------------
-result = render_engine.render(render.Scene3D(meshes=[mesh], cameras=[camera]))
+result = renderer.render(render.Scene3D(meshes=[mesh], cameras=[camera]))
 
 print(f"Rendered sphere render output to {output_dir}")
 print(f"{result.images=}")
+
+# %%
+# .. image:: ../../../../_static/basics_ex0_traces.png
+#    :alt: A sphere with a speckle pattern
+#    :width: 500px
+#    :align: center
+
