@@ -45,7 +45,10 @@ def test_scene_translate_and_rotate() -> None:
     m1 = _make_unit_box((-1.0, 0.0, 0.0))
     m2 = _make_unit_box((1.0, 0.0, 0.0))
 
-    translated = render.scene_translate([m1, m2], [5.0, 10.0, 0.0])
+    translated = render.scene_translate(
+        [m1, m2],
+        np.array((5.0, 10.0, 0.0)),
+    )
     np.testing.assert_allclose(
         render.mesh_center(translated[0]), np.array([4.0, 10.0, 0.0])
     )
@@ -54,7 +57,11 @@ def test_scene_translate_and_rotate() -> None:
     )
 
     rot = Rotation.from_euler("z", 90.0, degrees=True)
-    rotated = render.scene_rotate([m1, m2], rot, pivot=[0.0, 0.0, 0.0])
+    rotated = render.scene_rotate(
+        [m1, m2],
+        rot,
+        pivot=np.zeros(3),
+    )
     np.testing.assert_allclose(
         render.mesh_center(rotated[0]), np.array([0.0, -1.0, 0.0]), atol=1.0e-12
     )
@@ -66,12 +73,14 @@ def test_scene_translate_and_rotate() -> None:
 def test_scene_arrange_points() -> None:
     """Placing meshes at explicit points aligns bounding-box centers."""
     meshes = [_make_unit_box((0, 0, 0)) for _ in range(3)]
-    targets = [[10.0, 0.0, 0.0], [20.0, 5.0, 0.0], [30.0, -5.0, 0.0]]
+    targets = np.array(
+        ((10.0, 0.0, 0.0), (20.0, 5.0, 0.0), (30.0, -5.0, 0.0))
+    )
 
     arranged = render.scene_arrange_points(meshes, targets)
-    for m, target in zip(arranged, targets, strict=True):
+    for mesh, target in zip(arranged, targets, strict=True):
         np.testing.assert_allclose(
-            render.mesh_center(m), target, atol=1.0e-12
+            render.mesh_center(mesh), target, atol=1.0e-12
         )
 
 
@@ -92,7 +101,7 @@ def test_scene_arrange_grid_2x2() -> None:
     """Verify 2x2 grid layout and centering."""
     meshes = [_make_unit_box((0, 0, 0)) for _ in range(4)]
     arranged = render.scene_arrange_grid(
-        meshes, columns=2, spacing=(1.0, 1.0), center=True
+        meshes, columns=2, spacing=np.array((1.0, 1.0)), center=True
     )
 
     centers = [render.mesh_center(m) for m in arranged]

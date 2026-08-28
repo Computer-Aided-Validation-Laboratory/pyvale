@@ -41,7 +41,10 @@ def scene_bounds(
     if not meshes:
         return np.zeros(3), np.zeros(3)
 
-    lowers, uppers = zip(*(mesh_bounds(m) for m in meshes), strict=True)
+    lowers, uppers = zip(
+        *(mesh_bounds(mesh) for mesh in meshes),
+        strict=True,
+    )
 
     return np.min(np.array(lowers), axis=0), np.max(np.array(uppers), axis=0)
 
@@ -65,25 +68,25 @@ def scene_center(meshes: Sequence[Mesh2D | Mesh3D]) -> np.ndarray:
 
 def scene_translate(
     meshes: Sequence[MeshT],
-    translation: Sequence[float],
+    translation: np.ndarray,
 ) -> list[MeshT]:
     """Translate every mesh in a sequence by the same offset vector."""
-    return [mesh_translate(m, translation) for m in meshes]
+    return [mesh_translate(mesh, translation) for mesh in meshes]
 
 
 def scene_rotate(
     meshes: Sequence[MeshT],
     rotation: Rotation,
-    pivot: Sequence[float] | None = None,
+    pivot: np.ndarray | None = None,
 ) -> list[MeshT]:
     """Rotate all meshes around a shared pivot (default: scene center)."""
     p_vec = scene_center(meshes) if pivot is None else pivot
-    return [mesh_rotate(m, rotation, pivot=p_vec) for m in meshes]
+    return [mesh_rotate(mesh, rotation, pivot=p_vec) for mesh in meshes]
 
 
 def scene_arrange_points(
     meshes: Sequence[MeshT],
-    positions: Sequence[Sequence[float]],
+    positions: np.ndarray,
 ) -> list[MeshT]:
     """Move each mesh so its bounding box center lies at the matching target."""
 
@@ -94,8 +97,8 @@ def scene_arrange_points(
         )
 
     return [
-        mesh_center_at(m, pos)
-        for m, pos in zip(meshes, positions, strict=True)
+        mesh_center_at(mesh, position)
+        for mesh, position in zip(meshes, positions, strict=True)
     ]
 
 
@@ -111,16 +114,16 @@ def scene_arrange_line(
     arranged: list[MeshT] = []
     current_edge: float | None = None
 
-    for m in meshes:
-        low, high = mesh_bounds(m)
+    for mesh in meshes:
+        low, high = mesh_bounds(mesh)
         if current_edge is None:
-            arranged.append(m)
+            arranged.append(mesh)
             current_edge = high[axis]
         else:
             shift = (current_edge + spacing) - low[axis]
             delta = np.zeros_like(low)
             delta[axis] = shift
-            moved = mesh_translate(m, delta)
+            moved = mesh_translate(mesh, delta)
             arranged.append(moved)
             _, moved_high = mesh_bounds(moved)
             current_edge = moved_high[axis]
@@ -131,7 +134,7 @@ def scene_arrange_line(
 def scene_arrange_grid(
     meshes: Sequence[MeshT],
     columns: int = 3,
-    spacing: Sequence[float] = (0.0, 0.0),
+    spacing: np.ndarray = np.array((0.0, 0.0)),
     plane: str = "xy",
     center: bool = True,
 ) -> list[MeshT]:
@@ -160,38 +163,38 @@ def scene_arrange_grid(
     col_widths = np.zeros(columns, dtype=np.float64)
     row_heights = np.zeros(rows, dtype=np.float64)
 
-    for i, m in enumerate(meshes):
-        col = i % columns
-        row = i // columns
-        low, high = mesh_bounds(m)
-        w = high[u_axis] - low[u_axis]
-        h = high[v_axis] - low[v_axis]
-        col_widths[col] = max(col_widths[col], w)
-        row_heights[row] = max(row_heights[row], h)
+    for ii, mesh in enumerate(meshes):
+        col = ii % columns
+        row = ii // columns
+        low, high = mesh_bounds(mesh)
+        width = high[u_axis] - low[u_axis]
+        height = high[v_axis] - low[v_axis]
+        col_widths[col] = max(col_widths[col], width)
+        row_heights[row] = max(row_heights[row], height)
 
     col_offsets = np.zeros(columns, dtype=np.float64)
-    for c in range(1, columns):
-        col_offsets[c] = col_offsets[c - 1] + col_widths[c - 1] + gap_u
+    for cc in range(1, columns):
+        col_offsets[cc] = col_offsets[cc - 1] + col_widths[cc - 1] + gap_u
 
     row_offsets = np.zeros(rows, dtype=np.float64)
-    for r in range(1, rows):
-        row_offsets[r] = row_offsets[r - 1] + row_heights[r - 1] + gap_v
+    for rr in range(1, rows):
+        row_offsets[rr] = row_offsets[rr - 1] + row_heights[rr - 1] + gap_v
 
     arranged: list[MeshT] = []
-    for i, m in enumerate(meshes):
-        col = i % columns
-        row = i // columns
-        low, high = mesh_bounds(m)
-        w = high[u_axis] - low[u_axis]
-        h = high[v_axis] - low[v_axis]
+    for ii, mesh in enumerate(meshes):
+        col = ii % columns
+        row = ii // columns
+        low, high = mesh_bounds(mesh)
+        width = high[u_axis] - low[u_axis]
+        height = high[v_axis] - low[v_axis]
 
-        target_u = col_offsets[col] + 0.5 * (col_widths[col] - w)
-        target_v = row_offsets[row] + 0.5 * (row_heights[row] - h)
+        target_u = col_offsets[col] + 0.5 * (col_widths[col] - width)
+        target_v = row_offsets[row] + 0.5 * (row_heights[row] - height)
 
         delta = np.zeros_like(low)
         delta[u_axis] = target_u - low[u_axis]
         delta[v_axis] = target_v - low[v_axis]
-        arranged.append(mesh_translate(m, delta))
+        arranged.append(mesh_translate(mesh, delta))
 
     if center and arranged:
         sc = scene_center(arranged)
@@ -204,7 +207,7 @@ def scene_arrange_circle(
     meshes: Sequence[MeshT],
     radius: float = 100.0,
     plane: str = "xy",
-    center: Sequence[float] = (0.0, 0.0, 0.0),
+    center: np.ndarray = np.array((0.0, 0.0, 0.0)),
 ) -> list[MeshT]:
     """Place mesh centers evenly spaced around a circle."""
     if not meshes:
@@ -231,11 +234,11 @@ def scene_arrange_circle(
     angles = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
 
     arranged: list[MeshT] = []
-    for m, angle in zip(meshes, angles, strict=True):
+    for mesh, angle in zip(meshes, angles, strict=True):
         pos = c_vec.copy()
         pos[u_axis] += radius * np.cos(angle)
         pos[v_axis] += radius * np.sin(angle)
-        arranged.append(mesh_center_at(m, pos))
+        arranged.append(mesh_center_at(mesh, pos))
 
     return arranged
 

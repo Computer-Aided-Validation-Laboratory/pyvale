@@ -5,6 +5,7 @@
 # ============================================================================
 """Riley renderer adapter using Riley's native public mesh and shader API."""
 
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -16,13 +17,44 @@ from .errors import ValidationIssue
 from .mesh import EElementType, Mesh3D
 from .renderer3d import IRenderer3D
 from .result import RenderResult
-from .rileyshader import (
-    RileyFunctionShader,
-    RileyNodalShader,
-    RileyTextureShader,
-)
 from .scene import Scene3D
 from .verifyinput import mesh_convention_issues, raise_if_issues
+
+
+@dataclass(slots=True, kw_only=True)
+class RileyFunctionShader:
+    """An analytic Riley shader evaluated from mesh coordinates."""
+
+    builtin: riley.FuncShaderBuiltin = riley.FuncShaderBuiltin.checker
+    coord_mode: riley.FuncCoordMode = riley.FuncCoordMode.world_reference
+    parameters: riley.FuncShaderParams = field(
+        default_factory=riley.FuncShaderParams,
+    )
+    uvs: np.ndarray | None = None
+    bits: int = 8
+    scaling: riley.ScaleStrategy = riley.ScaleStrategy.none
+
+
+@dataclass(slots=True, kw_only=True)
+class RileyTextureShader:
+    """A Riley image texture and its nodal UV coordinates."""
+
+    uvs: np.ndarray
+    texture: np.ndarray
+    sample: riley.TextureSample = riley.TextureSample.cubic_catmull_rom
+    sample_mode: riley.TextureSampleMode = riley.TextureSampleMode.lut_lerp
+    bits: int = 8
+    scaling: riley.ScaleStrategy = riley.ScaleStrategy.none
+
+
+@dataclass(slots=True, kw_only=True)
+class RileyNodalShader:
+    """A scalar or colour field defined at mesh nodes."""
+
+    field: np.ndarray
+    bits: int = 8
+    scaling: riley.ScaleStrategy = riley.ScaleStrategy.auto
+    scale_over: riley.ScaleOver = riley.ScaleOver.over_frames
 
 
 class Riley(IRenderer3D):
@@ -173,9 +205,9 @@ class Riley(IRenderer3D):
         if self.output_dir is not None:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        meshes = [to_native_mesh(mesh) for mesh in scene.meshes]
+        meshes = [to_riley_mesh(mesh) for mesh in scene.meshes]
         cameras = [
-            to_native_camera(camera) for camera in scene.cameras
+            to_riley_camera(camera) for camera in scene.cameras
         ]
         images = riley.raster(
             meshes,
@@ -243,7 +275,7 @@ def _verify_cameras(
     return tuple(issues)
 
 
-def to_native_camera(camera: Camera | riley.Camera) -> riley.Camera:
+def to_riley_camera(camera: Camera | riley.Camera) -> riley.Camera:
     """Convert one common perspective camera to a Riley camera.
 
     Native :class:`riley.Camera` instances are returned unchanged so scenes
@@ -288,7 +320,7 @@ _RILEY_MESH_TYPES = {
 }
 
 
-def to_native_mesh(mesh: Mesh3D | riley.Mesh) -> riley.Mesh:
+def to_riley_mesh(mesh: Mesh3D | riley.Mesh) -> riley.Mesh:
     """Convert one common mesh to a native Riley mesh.
 
     Native :class:`riley.Mesh` instances are returned unchanged so scenes
@@ -346,4 +378,11 @@ def to_native_mesh(mesh: Mesh3D | riley.Mesh) -> riley.Mesh:
     )
 
 
-__all__ = ["Riley", "to_native_camera", "to_native_mesh"]
+__all__ = [
+    "Riley",
+    "RileyFunctionShader",
+    "RileyNodalShader",
+    "RileyTextureShader",
+    "to_riley_camera",
+    "to_riley_mesh",
+]

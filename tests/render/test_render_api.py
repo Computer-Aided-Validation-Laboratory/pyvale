@@ -54,7 +54,7 @@ def test_render_utilities_are_available_at_the_render_package_level() -> None:
         render.blender_camera_from_resolution,
         render.calculate_edge_function,
         render.stereo_build_faceon,
-        render.save_image,
+        render.image_save,
     )
 
     assert all(callable(function) for function in functions)

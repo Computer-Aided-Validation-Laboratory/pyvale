@@ -202,7 +202,7 @@ def _bounds(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return lower, upper, extent
 
 
-def pixels_to_uvs(
+def uv_from_pixels(
     pixel_coords: np.ndarray,
     texture_shape: tuple[int, int],
     origin: EUVOrigin = EUVOrigin.UPPER_LEFT,
@@ -224,7 +224,7 @@ def pixels_to_uvs(
     return np.ascontiguousarray(uvs)
 
 
-def uvs_to_pixels(
+def uv_to_pixels(
     uvs: np.ndarray,
     texture_shape: tuple[int, int],
     origin: EUVOrigin = EUVOrigin.UPPER_LEFT,
@@ -281,7 +281,7 @@ def _fit_projected(
     return target_center + (projected - source_center) * scale
 
 
-def project_uvs_planar_pixels(
+def uv_project_planar_pixels(
     coords: np.ndarray,
     texture_shape: tuple[int, int],
     pixel_bounds: tuple[float, float, float, float],
@@ -296,10 +296,10 @@ def project_uvs_planar_pixels(
     projected = _project(coords_in, plane)
     pixels = _fit_projected(projected, pixel_bounds, fit)
 
-    return pixels_to_uvs(pixels, texture_shape, origin)
+    return uv_from_pixels(pixels, texture_shape, origin)
 
 
-def project_uvs_planar(
+def uv_project_planar(
     coords: np.ndarray,
     plane: EUVPlane | UVPlane = EUVPlane.XY,
     uv_bounds: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0),
@@ -332,7 +332,7 @@ def project_uvs_planar(
 
     pixel_bounds = (x_bounds[0], y_bounds[0], x_bounds[1], y_bounds[1])
 
-    return project_uvs_planar_pixels(
+    return uv_project_planar_pixels(
         coords,
         texture_shape,
         pixel_bounds,
@@ -342,7 +342,7 @@ def project_uvs_planar(
     )
 
 
-def project_uvs_planar_centered(
+def uv_project_planar_centered(
     coords: np.ndarray,
     texture_shape: tuple[int, int],
     *,
@@ -357,7 +357,7 @@ def project_uvs_planar_centered(
 
     margin = 0.5 * (1.0 - span)
 
-    return project_uvs_planar(
+    return uv_project_planar(
         coords,
         plane,
         uv_bounds=(margin, margin, 1.0 - margin, 1.0 - margin),
@@ -367,7 +367,7 @@ def project_uvs_planar_centered(
     )
 
 
-def transform_uvs(
+def uv_transform(
     uvs: np.ndarray,
     transform: UVTransform,
 ) -> np.ndarray:
@@ -398,31 +398,16 @@ def transform_uvs(
     return np.ascontiguousarray(transformed, dtype=np.float64)
 
 
-# Prefixed naming conventions
-uv_project_planar = project_uvs_planar
-uv_project_planar_pixels = project_uvs_planar_pixels
-uv_project_planar_centered = project_uvs_planar_centered
-uv_transform = transform_uvs
-uv_from_pixels = pixels_to_uvs
-uv_to_pixels = uvs_to_pixels
-
-
 __all__ = [
     "EUVFit",
     "EUVOrigin",
     "EUVPlane",
     "UVPlane",
     "UVTransform",
-    "pixels_to_uvs",
-    "project_uvs_planar",
-    "project_uvs_planar_centered",
-    "project_uvs_planar_pixels",
-    "transform_uvs",
     "uv_from_pixels",
     "uv_project_planar",
     "uv_project_planar_centered",
     "uv_project_planar_pixels",
     "uv_to_pixels",
     "uv_transform",
-    "uvs_to_pixels",
 ]

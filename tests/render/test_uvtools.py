@@ -24,8 +24,8 @@ RECTANGLE = np.array(
 def test_pixel_uv_round_trip_for_both_origins() -> None:
     pixels = np.array(((0.0, 0.0), (200.0, 100.0), (81.5, 22.25)))
     for origin in render.EUVOrigin:
-        uvs = render.pixels_to_uvs(pixels, (101, 201), origin)
-        actual = render.uvs_to_pixels(uvs, (101, 201), origin)
+        uvs = render.uv_from_pixels(pixels, (101, 201), origin)
+        actual = render.uv_to_pixels(uvs, (101, 201), origin)
         assert np.allclose(actual, pixels)
         assert actual.flags.c_contiguous
         assert actual.dtype == np.float64
@@ -41,7 +41,7 @@ def test_pixel_uv_round_trip_for_both_origins() -> None:
 )
 def test_axis_aligned_projection(plane: render.EUVPlane,
                                  coords: np.ndarray) -> None:
-    uvs = render.project_uvs_planar_centered(
+    uvs = render.uv_project_planar_centered(
         coords, (101, 201), span=0.8, plane=plane,
     )
     assert uvs.shape == (4, 2)
@@ -51,7 +51,7 @@ def test_axis_aligned_projection(plane: render.EUVPlane,
 
 
 def test_stretch_fills_requested_uv_bounds() -> None:
-    uvs = render.project_uvs_planar(
+    uvs = render.uv_project_planar(
         RECTANGLE,
         uv_bounds=(0.2, 0.1, 0.7, 0.9),
         fit=render.EUVFit.STRETCH,
@@ -68,15 +68,15 @@ def test_custom_plane_with_up_controls_orientation() -> None:
     normal = np.cross(axis_u, axis_v)
     coords = RECTANGLE[:, [0]] * axis_u + RECTANGLE[:, [1]] * axis_v
     plane = render.UVPlane(normal, np.zeros(3), up=axis_v)
-    uvs = render.project_uvs_planar_centered(
+    uvs = render.uv_project_planar_centered(
         coords, (101, 201), plane=plane,
     )
     assert np.allclose(np.ptp(uvs, axis=0), (1.0, 1.0))
 
 
-def test_transform_uvs_uses_scale_rotate_translate_order() -> None:
+def test_uv_transform_uses_scale_rotate_translate_order() -> None:
     uvs = np.array(((0.5, 0.0), (1.0, 0.5)))
-    transformed = render.transform_uvs(
+    transformed = render.uv_transform(
         uvs,
         render.UVTransform(
             translation=(0.1, -0.2),
@@ -95,7 +95,7 @@ def test_riley_centered_projection_parity() -> None:
         uv_span_max=0.8,
         proj_plane=riley.EProjPlane.XY,
     )
-    actual = render.project_uvs_planar_centered(
+    actual = render.uv_project_planar_centered(
         RECTANGLE,
         (101, 201),
         span=0.8,
@@ -112,7 +112,7 @@ def test_riley_pixel_bounds_projection_parity() -> None:
         riley.EProjPlane.XY,
         riley.EPlanarProjMode.FIT_X,
     )
-    actual = render.project_uvs_planar_pixels(
+    actual = render.uv_project_planar_pixels(
         RECTANGLE,
         (101, 201),
         (20.0, 10.0, 180.0, 90.0),
@@ -135,7 +135,7 @@ def test_riley_arbitrary_plane_projection_parity() -> None:
         uv_span_max=0.75,
         proj_plane=(normal, origin),
     )
-    actual = render.project_uvs_planar_centered(
+    actual = render.uv_project_planar_centered(
         coords,
         (101, 201),
         span=0.75,
@@ -145,10 +145,10 @@ def test_riley_arbitrary_plane_projection_parity() -> None:
 
 
 def test_lower_left_origin_reverses_v_axis() -> None:
-    upper = render.project_uvs_planar_centered(
+    upper = render.uv_project_planar_centered(
         RECTANGLE, (101, 201), origin=render.EUVOrigin.UPPER_LEFT,
     )
-    lower = render.project_uvs_planar_centered(
+    lower = render.uv_project_planar_centered(
         RECTANGLE, (101, 201), origin=render.EUVOrigin.LOWER_LEFT,
     )
     assert np.allclose(lower[:, 0], upper[:, 0])
@@ -158,16 +158,16 @@ def test_lower_left_origin_reverses_v_axis() -> None:
 @pytest.mark.parametrize(
     ("call", "message"),
     (
-        (lambda: render.project_uvs_planar_centered(
+        (lambda: render.uv_project_planar_centered(
             RECTANGLE, (1, 10)), "at least 2"),
-        (lambda: render.project_uvs_planar_centered(
+        (lambda: render.uv_project_planar_centered(
             RECTANGLE[:2], (10, 10)), "zero area"),
-        (lambda: render.project_uvs_planar_centered(
+        (lambda: render.uv_project_planar_centered(
             RECTANGLE, (10, 10), span=0.0), "span"),
-        (lambda: render.project_uvs_planar_centered(
+        (lambda: render.uv_project_planar_centered(
             RECTANGLE, (10, 10), plane=render.UVPlane(
                 np.zeros(3), np.zeros(3))), "nonzero"),
-        (lambda: render.project_uvs_planar_centered(
+        (lambda: render.uv_project_planar_centered(
             RECTANGLE, (10, 10), plane=render.UVPlane(
                 np.array((0.0, 0.0, 1.0)), np.zeros(3),
                 np.array((0.0, 0.0, 2.0)))), "parallel"),

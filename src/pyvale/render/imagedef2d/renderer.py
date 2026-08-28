@@ -29,7 +29,7 @@ from pyvale.render.cameratools import (
     subpixel_vec_leng,
 )
 from pyvale.render.capabilities import RenderCapabilities
-from pyvale.render.imagetools import EImageType, save_image
+from pyvale.render.imagetools import EImageType, image_save
 from pyvale.render.imagewarp2d import IImageWarp2D
 from pyvale.render.mesh import EElementType
 from pyvale.render.rasterops import (
@@ -696,7 +696,7 @@ class ImageDef2D(IImageWarp2D):
             save_file = (
                 output_dir / f"{self.options.save_tag}_{image_number}.tiff"
             )
-            save_image(save_file, def_image, EImageType.TIFF, camera.bits)
+            image_save(save_file, def_image, EImageType.TIFF, camera.bits)
 
             output_paths.append(save_file)
 

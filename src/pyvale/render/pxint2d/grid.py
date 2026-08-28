@@ -162,6 +162,7 @@ class PixIntGrid2D(IImageWarp2D):
         mask = valid.reshape(-1, points_per_pixel).all(axis=1)
         image = pixels.reshape(camera.pixels_num[1], camera.pixels_num[0])
         mask = mask.reshape(image.shape)
+
         if self.options.psf is not None:
             psf = self.options.psf
             image = gaussian_filter(
@@ -209,9 +210,11 @@ class PixIntGrid2D(IImageWarp2D):
         cos_x = average(
             wave_x * ax, wave_x * bx, wave_x * off_x + self.texture.phase[0]
         )
+
         cos_y = average(
             wave_y * ay, wave_y * by, wave_y * off_y + self.texture.phase[1]
         )
+
         plus = average(
             wave_x * ax + wave_y * ay,
             wave_x * bx + wave_y * by,
@@ -220,6 +223,7 @@ class PixIntGrid2D(IImageWarp2D):
             + self.texture.phase[0]
             + self.texture.phase[1],
         )
+
         minus = average(
             wave_x * ax - wave_y * ay,
             wave_x * bx - wave_y * by,
@@ -228,13 +232,16 @@ class PixIntGrid2D(IImageWarp2D):
             + self.texture.phase[0]
             - self.texture.phase[1],
         )
+
         image = (
             self.texture.mean
             - 0.5 * self.texture.contrast
             + 0.5 * self.texture.contrast * (cos_x + cos_y)
             + 0.25 * self.texture.contrast * (plus + minus)
         )
+
         image = image.reshape(camera.pixels_num[1], camera.pixels_num[0])
+
         return np.flipud(image), np.flipud(np.ones_like(image, dtype=bool))
 
 
@@ -242,12 +249,14 @@ def _pixel_geometry(
     camera: Camera2D,
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
     """Return bottom-left pixel origins and square physical pixel size."""
+
     width, height = (int(value) for value in camera.pixels_num)
     pixel_x = camera.pixels_size
     pixel_y = camera.pixels_size
     x_coords = camera.roi_cent_world[0] - 0.5 * width * pixel_x
     y_coords = camera.roi_cent_world[1] - 0.5 * height * pixel_y
     identifiers = np.arange(width * height)
+
     return (
         x_coords + (identifiers % width) * pixel_x,
         y_coords + (identifiers // width) * pixel_y,

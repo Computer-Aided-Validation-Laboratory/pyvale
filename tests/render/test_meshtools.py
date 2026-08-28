@@ -43,7 +43,7 @@ def test_mesh_translate_preserves_purity_and_vectors() -> None:
     mesh = _make_sample_mesh3d()
     mesh.displacements = np.ones((1, 3, 3))
 
-    offset = [10.0, -2.0, 5.0]
+    offset = np.array((10.0, -2.0, 5.0))
     moved = render.mesh_translate(mesh, offset)
 
     expected_coords = mesh.coords + np.array(offset)
@@ -79,7 +79,7 @@ def test_mesh_rotate_with_pivot() -> None:
         shader=None,
     )
     rot = Rotation.from_euler("z", 180.0, degrees=True)
-    rotated = render.mesh_rotate(mesh, rot, pivot=[1.0, 0.0, 0.0])
+    rotated = render.mesh_rotate(mesh, rot, pivot=np.array((1.0, 0.0, 0.0)))
 
     expected = np.array([[0.0, 0.0, 0.0]])
     np.testing.assert_allclose(rotated.coords, expected, atol=1.0e-12)
@@ -117,19 +117,19 @@ def test_mesh_scale_uniform_and_axes() -> None:
         scaled_uniform.coords, np.array([[2.0, 4.0, 6.0]])
     )
 
-    scaled_axes = render.mesh_scale(mesh, [2.0, 3.0, 4.0])
+    scaled_axes = render.mesh_scale(mesh, np.array((2.0, 3.0, 4.0)))
     np.testing.assert_allclose(scaled_axes.coords, np.array([[2.0, 6.0, 12.0]]))
 
 
 def test_mesh_center_at() -> None:
     """Centering a mesh translates its center to the target."""
     mesh = _make_sample_mesh3d()
-    centered = render.mesh_center_at(mesh, [0.0, 0.0, 0.0])
+    centered = render.mesh_center_at(mesh, np.zeros(3))
     np.testing.assert_allclose(
         render.mesh_center(centered), np.zeros(3), atol=1.0e-12
     )
 
-    offset_target = [10.0, 20.0, 30.0]
+    offset_target = np.array((10.0, 20.0, 30.0))
     placed = render.mesh_center_at(mesh, offset_target)
     np.testing.assert_allclose(
         render.mesh_center(placed), offset_target, atol=1.0e-12
@@ -150,7 +150,7 @@ def test_mesh_transform_composite() -> None:
     # 3. Translate by (10, 0, 0) -> (10, 2, 0)
     transformed = render.mesh_transform(
         mesh,
-        translation=[10.0, 0.0, 0.0],
+        translation=np.array((10.0, 0.0, 0.0)),
         rotation=Rotation.from_euler("z", 90.0, degrees=True),
         scale=2.0,
     )

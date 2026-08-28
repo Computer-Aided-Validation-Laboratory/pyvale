@@ -32,7 +32,9 @@ from pyvale.examples._renderuv_tools import (
 # ------------------------------------------------------------
 # The verification module creates one regular Quad4 grid. We embed copies in
 # each three-dimensional plane, avoiding any additional packaged mesh data.
+
 display_coords, connectivity = rectangle_grid()
+
 plane_coords = {
     "xy": embed_grid(display_coords, np.array((1, 0, 0)),
                      np.array((0, 1, 0))),
@@ -41,6 +43,7 @@ plane_coords = {
     "xz": embed_grid(display_coords, np.array((1, 0, 0)),
                      np.array((0, 0, 1))),
 }
+
 planes = {
     "xy": render.EUVPlane.XY,
     "yz": render.EUVPlane.YZ,
@@ -53,7 +56,7 @@ planes = {
 # The texture shape uses NumPy order, ``(height, width)``. A span of 0.9 leaves
 # a five-percent border around the projected grid.
 uv_sets = {
-    name: render.project_uvs_planar_centered(
+    name: render.uv_project_planar_centered(
         coords,
         TEXTURE_SHAPE,
         span=0.9,
@@ -68,10 +71,11 @@ uv_sets = {
 # All three UV sets are rendered on the same face-on display grid. This makes
 # the texture results directly comparable while the UVs themselves were
 # generated from three differently embedded grids.
+
 texture = render.image_load(dataset.riley_cal_target_texture_path())
-output_dir = (
-    Path.cwd() / "pyvale-output" / "renderuvs_ex1a_uv_planar_axes"
-)
+
+output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1a_uv_planar_axes"
+
 for name, uvs in uv_sets.items():
     render_uv_variant(
         display_coords, connectivity, uvs, texture, output_dir / name,

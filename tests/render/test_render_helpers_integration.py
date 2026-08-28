@@ -28,7 +28,7 @@ def test_workflow_single_planar_specimen() -> None:
     """SimData -> mesh3d -> center_at -> UVs -> cam_look_at -> cam_frame."""
     sim = _make_quad_simdata()
     mesh = render.mesh3d_from_simdata(sim, shader=None)
-    centered_mesh = render.mesh_center_at(mesh, [0.0, 0.0, 0.0])
+    centered_mesh = render.mesh_center_at(mesh, np.zeros(3))
 
     np.testing.assert_allclose(
         render.mesh_center(centered_mesh), np.zeros(3), atol=1.0e-12
@@ -65,7 +65,7 @@ def test_workflow_multi_specimen_grid() -> None:
     meshes = [render.mesh3d_from_simdata(sim, shader=None) for _ in range(4)]
 
     grid_meshes = render.scene_arrange_grid(
-        meshes, columns=2, spacing=(5.0, 5.0), center=True
+        meshes, columns=2, spacing=np.array((5.0, 5.0)), center=True
     )
     low, high = render.scene_bounds(grid_meshes)
     assert low[0] < high[0]

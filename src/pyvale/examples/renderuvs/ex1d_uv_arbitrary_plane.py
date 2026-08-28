@@ -45,7 +45,7 @@ plane = render.UVPlane(
     origin=np.zeros(3),
     up=axis_v,
 )
-uvs = render.project_uvs_planar_centered(
+uvs = render.uv_project_planar_centered(
     tilted_coords,
     TEXTURE_SHAPE,
     span=0.9,

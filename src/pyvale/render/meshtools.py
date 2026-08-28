@@ -133,7 +133,7 @@ def mesh_center(mesh: Mesh2D | Mesh3D) -> np.ndarray:
     return 0.5 * (lower + upper)
 
 
-def mesh_translate(mesh: MeshT, translation: Sequence[float]) -> MeshT:
+def mesh_translate(mesh: MeshT, translation: np.ndarray) -> MeshT:
     """Translate a mesh by an offset vector without mutating the original.
 
     Note that translation shifts nodal coordinates but preserves nodal
@@ -147,7 +147,7 @@ def mesh_translate(mesh: MeshT, translation: Sequence[float]) -> MeshT:
 def mesh_rotate(
     mesh: MeshT,
     rotation: Rotation,
-    pivot: Sequence[float] | None = None,
+    pivot: np.ndarray | None = None,
 ) -> MeshT:
     """Rotate a mesh around a pivot point.
 
@@ -193,8 +193,8 @@ def mesh_rotate(
 
 def mesh_scale(
     mesh: MeshT,
-    scale: float | Sequence[float],
-    pivot: Sequence[float] | None = None,
+    scale: float | np.ndarray,
+    pivot: np.ndarray | None = None,
 ) -> MeshT:
     """Scale a mesh relative to a pivot point."""
     coords = np.asarray(mesh.coords, dtype=np.float64)
@@ -231,10 +231,10 @@ def mesh_scale(
 
 def mesh_transform(
     mesh: MeshT,
-    translation: Sequence[float] | None = None,
+    translation: np.ndarray | None = None,
     rotation: Rotation | None = None,
-    scale: float | Sequence[float] | None = None,
-    pivot: Sequence[float] | None = None,
+    scale: float | np.ndarray | None = None,
+    pivot: np.ndarray | None = None,
 ) -> MeshT:
     """Apply affine scaling, rotation, and translation in canonical order.
 
@@ -256,7 +256,7 @@ def mesh_transform(
 
 def mesh_center_at(
     mesh: MeshT,
-    target: Sequence[float] = (0.0, 0.0, 0.0),
+    target: np.ndarray = np.array((0.0, 0.0, 0.0)),
 ) -> MeshT:
     """Translate a mesh so its bounding box center lies at ``target``."""
 

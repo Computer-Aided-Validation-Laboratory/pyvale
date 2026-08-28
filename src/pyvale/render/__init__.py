@@ -78,7 +78,6 @@ from .imagetools import (
     image_normalise,
     image_resize,
     image_save,
-    save_image,
 )
 from .imagewarp2d import IImageWarp2D
 from .light import ELightType, Light
@@ -97,7 +96,6 @@ from .meshtools import (
     mesh_translate,
     select_frames,
 )
-from .meshops import mesh2d_from_simdata, mesh3d_from_simdata
 from .pxint2d import (
     AdditiveSpeckles,
     AnalyticRule,
@@ -119,11 +117,13 @@ from .rasterops import (
 )
 from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
-from .riley import Riley, to_native_camera, to_native_mesh
-from .rileyshader import (
+from .riley import (
+    Riley,
     RileyFunctionShader,
     RileyNodalShader,
     RileyTextureShader,
+    to_riley_camera,
+    to_riley_mesh,
 )
 from .scene import Scene2D, Scene3D
 from .scenetools import (
@@ -142,18 +142,12 @@ from .uvtools import (
     EUVPlane,
     UVPlane,
     UVTransform,
-    pixels_to_uvs,
-    project_uvs_planar,
-    project_uvs_planar_centered,
-    project_uvs_planar_pixels,
-    transform_uvs,
     uv_from_pixels,
     uv_project_planar,
     uv_project_planar_centered,
     uv_project_planar_pixels,
     uv_to_pixels,
     uv_transform,
-    uvs_to_pixels,
 )
 
 __all__ = [
@@ -255,14 +249,9 @@ __all__ = [
     "mesh_translate",
     "pixel_grid_leng",
     "pixel_vec_leng",
-    "pixels_to_uvs",
-    "project_uvs_planar",
-    "project_uvs_planar_centered",
-    "project_uvs_planar_pixels",
     "quantise_image",
     "raise_if_blender_unavailable",
     "render_calibration_images",
-    "save_image",
     "scene_arrange_circle",
     "scene_arrange_grid",
     "scene_arrange_line",
@@ -283,14 +272,12 @@ __all__ = [
     "stereo_calc_stand_off",
     "stereo_save_calibration_matchid",
     "stereo_save_calibration_yaml",
-    "to_native_camera",
-    "to_native_mesh",
-    "transform_uvs",
+    "to_riley_camera",
+    "to_riley_mesh",
     "uv_from_pixels",
     "uv_project_planar",
     "uv_project_planar_centered",
     "uv_project_planar_pixels",
     "uv_to_pixels",
     "uv_transform",
-    "uvs_to_pixels",
 ]

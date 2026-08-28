@@ -293,6 +293,7 @@ class PixIntSpeck2D(IImageWarp2D):
         mask = valid.reshape(-1, points_per_pixel).all(axis=1)
         raw = raw.reshape(camera.pixels_num[1], camera.pixels_num[0])
         mask = mask.reshape(raw.shape)
+
         if self.options.psf is not None:
             psf = self.options.psf
             raw = gaussian_filter(

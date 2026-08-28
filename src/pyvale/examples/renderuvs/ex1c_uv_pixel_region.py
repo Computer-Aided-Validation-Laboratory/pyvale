@@ -27,7 +27,9 @@ from pyvale.examples._renderuv_tools import render_uv_variant
 # ------------------------------------------------------------
 # We use the native PyVale CSV loader and keep only the static reference mesh
 # needed to explain UV placement.
+
 data_dir = dataset.riley_platehole_csv_case_path()
+
 simulation = io.SimLoaderByField(
     load_dir=data_dir,
     coords_file="coords.csv",
@@ -36,6 +38,7 @@ simulation = io.SimLoaderByField(
     connect_files="connect.csv",
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_all_sim_data()
+
 mesh = render.mesh3d_from_simdata(simulation, shader=None)
 
 # %%
@@ -43,11 +46,14 @@ mesh = render.mesh3d_from_simdata(simulation, shader=None)
 # ------------------------------------------------------------
 # The rectangle leaves a substantial texture border and ``CONTAIN`` keeps the
 # whole plate visible without changing its physical aspect ratio.
+
 texture = render.image_load(dataset.riley_speckle_texture_path())
+
 texture_shape = texture.shape[:2]
 height, width = texture_shape
 pixel_bounds = (0.2 * width, 0.15 * height, 0.8 * width, 0.85 * height)
-uvs = render.project_uvs_planar_pixels(
+
+uvs = render.uv_project_planar_pixels(
     mesh.coords,
     texture_shape,
     pixel_bounds,
@@ -58,9 +64,8 @@ uvs = render.project_uvs_planar_pixels(
 # %%
 # 3. Render the mapped pixel region
 # ------------------------------------------------------------
-output_dir = (
-    Path.cwd() / "pyvale-output" / "renderuvs_ex1c_uv_pixel_region"
-)
+output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1c_uv_pixel_region"
+
 render_uv_variant(
     mesh.coords, mesh.connectivity, uvs, texture, output_dir / "region",
 )

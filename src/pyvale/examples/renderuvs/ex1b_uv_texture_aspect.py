@@ -35,14 +35,16 @@ coords, connectivity = rectangle_grid(length_u=2.5, length_v=1.0)
 # %%
 # 2. Generate UVs using each fit mode
 # ------------------------------------------------------------
+
 fit_modes = {
     "contain": render.EUVFit.CONTAIN,
     "fit_u": render.EUVFit.FIT_U,
     "fit_v": render.EUVFit.FIT_V,
     "stretch": render.EUVFit.STRETCH,
 }
+
 uv_sets = {
-    name: render.project_uvs_planar(
+    name: render.uv_project_planar(
         coords,
         texture_shape=TEXTURE_SHAPE,
         fit=fit,
@@ -55,10 +57,10 @@ uv_sets = {
 # ------------------------------------------------------------
 # ``FIT_V`` can extend beyond the U texture bounds in this example, while
 # ``STRETCH`` deliberately changes the mapping aspect ratio.
+
 texture = render.image_load(dataset.riley_cal_target_texture_path())
-output_dir = (
-    Path.cwd() / "pyvale-output" / "renderuvs_ex1b_uv_texture_aspect"
-)
+output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1b_uv_texture_aspect"
+
 for name, uvs in uv_sets.items():
     render_uv_variant(coords, connectivity, uvs, texture, output_dir / name)
 

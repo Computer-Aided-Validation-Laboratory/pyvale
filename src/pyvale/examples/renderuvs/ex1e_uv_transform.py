@@ -45,7 +45,7 @@ texture = render.image_load(dataset.riley_cal_target_texture_path())
 # %%
 # 2. Generate the original UV coordinates
 # ------------------------------------------------------------
-original_uvs = render.project_uvs_planar_centered(
+original_uvs = render.uv_project_planar_centered(
     mesh.coords,
     texture.shape[:2],
     span=0.75,
@@ -62,7 +62,7 @@ transform = render.UVTransform(
     scale=(0.85, 0.85),
     pivot=(0.5, 0.5),
 )
-transformed_uvs = render.transform_uvs(original_uvs, transform)
+transformed_uvs = render.uv_transform(original_uvs, transform)
 
 # %%
 # 4. Render the original and transformed mappings

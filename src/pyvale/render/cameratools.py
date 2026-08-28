@@ -48,8 +48,8 @@ class StereoAngles:
 
 def cam_look_at(
     camera: Camera,
-    target: Sequence[float],
-    up: Sequence[float] = (0.0, 1.0, 0.0),
+    target: np.ndarray,
+    up: np.ndarray = np.array((0.0, 1.0, 0.0)),
 ) -> Camera:
     """Orient a camera so its optical axis points towards a target location.
 
@@ -57,9 +57,9 @@ def cam_look_at(
     ----------
     camera : Camera
         Camera to reorient.
-    target : Sequence[float]
+    target : numpy.ndarray
         3D world coordinates the camera should aim at.
-    up : Sequence[float], optional
+    up : numpy.ndarray, optional
         Preferred upward world direction (default is +Y).
 
     Returns
@@ -147,16 +147,16 @@ def cam_pos_fill_frame(
         raise ValueError("Cannot frame an empty set of points.")
 
     if isinstance(rot_world, Rotation):
-        rot_euler = tuple(float(x) for x in rot_world.as_euler("xyz"))
+        rot_euler = tuple(float(value) for value in rot_world.as_euler("xyz"))
     elif isinstance(rot_world, np.ndarray):
-        rot_euler = tuple(float(x) for x in rot_world)
+        rot_euler = tuple(float(value) for value in rot_world)
     else:
-        rot_euler = tuple(float(x) for x in rot_world)
+        rot_euler = tuple(float(value) for value in rot_world)
 
     pos = riley.pos_fill_frame_from_rot(
         pts,
-        tuple(int(x) for x in pixels_num),
-        tuple(float(x) for x in pixels_size),
+        tuple(int(value) for value in pixels_num),
+        tuple(float(value) for value in pixels_size),
         float(focal_length),
         rot_euler,
         float(fill),
@@ -223,7 +223,7 @@ def cam_frame_scene(
 ) -> Camera:
     """Position a camera along its view direction to frame all meshes."""
 
-    valid_coords = [m.coords for m in meshes if len(m.coords) > 0]
+    valid_coords = [mesh.coords for mesh in meshes if len(mesh.coords) > 0]
     if not valid_coords:
         raise ValueError("Cannot frame a scene with no mesh coordinates.")
 
@@ -276,7 +276,7 @@ def cam_project_points(
 def stereo_build_faceon(
     camera: Camera,
     convergence_degrees: float,
-    roi_pos: Sequence[float] | None = None,
+    roi_pos: np.ndarray | None = None,
 ) -> StereoCameras:
     """Build a pair with camera zero face-on and camera one converging.
 
@@ -302,7 +302,7 @@ def stereo_build_faceon(
 def stereo_build_symmetric(
     camera: Camera,
     convergence_degrees: float,
-    roi_pos: Sequence[float] | None = None,
+    roi_pos: np.ndarray | None = None,
 ) -> StereoCameras:
     """Build a symmetric convergent pair centred on a reference camera.
 
@@ -353,7 +353,7 @@ def stereo_calc_baseline(camera_0: Camera, camera_1: Camera) -> float:
 def stereo_calc_stand_off(
     camera_0: Camera,
     camera_1: Camera,
-    roi_pos: Sequence[float],
+    roi_pos: np.ndarray,
 ) -> float:
     """Calculate midpoint-to-ROI stand-off distance for a stereo pair."""
 
@@ -458,7 +458,7 @@ def stereo_save_calibration_matchid(
 
 def _stereo_target(
     camera: Camera,
-    roi_pos: Sequence[float] | None,
+    roi_pos: np.ndarray | None,
 ) -> np.ndarray:
     """Return a validated stereo convergence target."""
 

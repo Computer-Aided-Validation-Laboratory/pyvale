@@ -71,10 +71,6 @@ def image_save(
     out_img.save(out_path)
 
 
-# Backwards compatibility alias
-save_image = image_save
-
-
 def image_crop(
     image: np.ndarray,
     x: int,
@@ -183,5 +179,4 @@ __all__ = [
     "image_normalise",
     "image_resize",
     "image_save",
-    "save_image",
 ]

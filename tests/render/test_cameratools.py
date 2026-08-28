@@ -31,7 +31,7 @@ def _make_test_camera(
 def test_cam_look_at_optical_axis_alignment() -> None:
     """Verify camera basis points towards target and basis is orthonormal."""
     cam = _make_test_camera(pos=(0.0, 0.0, 10.0))
-    oriented = render.cam_look_at(cam, target=(0.0, 0.0, 0.0))
+    oriented = render.cam_look_at(cam, target=np.zeros(3))
 
     # Look along -Z: rot_world should be identity
     rot_mat = oriented.rot_world.as_matrix()
@@ -42,7 +42,7 @@ def test_cam_look_at_optical_axis_alignment() -> None:
 def test_cam_look_at_arbitrary_target() -> None:
     """Look from (1, 2, 3) to (4, 6, 3) with view vector (3, 4, 0)."""
     cam = _make_test_camera(pos=(1.0, 2.0, 3.0))
-    oriented = render.cam_look_at(cam, target=(4.0, 6.0, 3.0))
+    oriented = render.cam_look_at(cam, target=np.array((4.0, 6.0, 3.0)))
 
     rot_mat = oriented.rot_world.as_matrix()
     # Camera forward is -Z in camera coords, which must equal (3, 4, 0) / 5
@@ -55,7 +55,7 @@ def test_cam_look_at_degeneracy_raises() -> None:
     """Coincident camera position and target raises ValueError."""
     cam = _make_test_camera(pos=(1.0, 2.0, 3.0))
     with pytest.raises(ValueError, match="coincident"):
-        render.cam_look_at(cam, target=(1.0, 2.0, 3.0))
+        render.cam_look_at(cam, target=np.array((1.0, 2.0, 3.0)))
 
 
 def test_cam_project_points_optical_axis_centers() -> None:
@@ -148,7 +148,7 @@ def test_stereo_geometry_helpers_use_documented_pose_convention() -> None:
     assert extrinsics.rotation_cam1_from_cam0.approx_equal(Rotation.identity())
     assert np.isclose(render.stereo_calc_baseline(cam_0, cam_1), 2.0)
     assert np.isclose(
-        render.stereo_calc_stand_off(cam_0, cam_1, (1.0, 0.0, 0.0)),
+        render.stereo_calc_stand_off(cam_0, cam_1, np.array((1.0, 0.0, 0.0))),
         10.0,
     )
     np.testing.assert_allclose(angles.relative_euler_xyz_degrees, np.zeros(3))
