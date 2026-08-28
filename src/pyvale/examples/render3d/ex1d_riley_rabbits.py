@@ -8,23 +8,26 @@ from riley.python import sceneops
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
+import pyvale.dataio as io
 from pyvale import render
 
 
 def load_rabbit(
     rabbit: str,
     topology: str,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[io.SimData, np.ndarray]:
     """Load one static rabbit mesh and its UV coordinates."""
     data_dir = dataset.riley_rabbit_case_path(rabbit, topology)
-    coords = np.loadtxt(data_dir / "coords.csv", delimiter=",")
-    connectivity = np.loadtxt(
-        data_dir / "connectivity.csv",
-        delimiter=",",
-        dtype=np.uintp,
-    )
-    uvs = np.loadtxt(data_dir / "uvs.csv", delimiter=",")
-    return coords, connectivity, uvs
+    simulation = io.SimLoaderByField(
+        load_dir=data_dir,
+        coords_file="coords.csv",
+        time_step_file=None,
+        node_field_files=None,
+        connect_files="connectivity.csv",
+        load_opts=io.SimLoadOpts(coord_header=None),
+    ).load_all_sim_data()
+    uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
+    return simulation, uvs
 
 
 # %%
@@ -44,7 +47,7 @@ mesh_groups: list[sceneops.MeshGroup] = []
 for topology_index, (element_type, data_name) in enumerate(topologies):
     pair_start = len(meshes)
     for rabbit_name in ("riley", "feebs"):
-        coords, connectivity, uvs = load_rabbit(rabbit_name, data_name)
+        simulation, uvs = load_rabbit(rabbit_name, data_name)
         shader_index = len(meshes) % 3
         if shader_index == 0:
             shader = render.RileyTextureShader(uvs=uvs, texture=texture)
@@ -62,14 +65,10 @@ for topology_index, (element_type, data_name) in enumerate(topologies):
                 scaling=riley.ScaleStrategy.auto,
             )
 
-        meshes.append(
-            render.Mesh3D(
-                element_type=element_type,
-                coords=coords,
-                connectivity=connectivity,
-                shader=shader,
-            )
-        )
+        mesh = render.mesh3d_from_simdata(simulation, shader=shader)
+        if mesh.element_type is not element_type:
+            raise ValueError(f"Unexpected topology loaded from {data_name}.")
+        meshes.append(mesh)
 
     sceneops.overlap_mesh_group_bounds(
         meshes,

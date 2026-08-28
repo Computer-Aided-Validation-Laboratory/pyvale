@@ -50,7 +50,6 @@ mesh = render.Mesh3D(
 # %%
 # 2. Create and position a camera
 # -------------------------------
-# Use Riley's camera auto-positioning to fill the FOV
 
 camera = render.Camera(
     pixels_num=np.array((512, 512)),

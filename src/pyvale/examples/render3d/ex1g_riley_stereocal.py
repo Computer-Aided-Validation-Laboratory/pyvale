@@ -7,6 +7,7 @@ import riley
 from riley.pydemos.common import evenly_spaced_frame_indices
 
 import pyvale.data as dataset
+import pyvale.dataio as io
 from pyvale import render
 
 # Stereo pair matching the DIC UQ specimen position and camera parameters.
@@ -57,21 +58,42 @@ def create_stereo_cameras(
 # %%
 # 1. Load the moving calibration target and its texture
 # ------------------------------------------------------------
-coords, connectivity, uvs, displacements = riley.load_sim_csvs(
-    dataset.riley_stereocal_case_path()
+data_dir = dataset.riley_stereocal_case_path()
+simulation = io.SimLoaderByField(
+    load_dir=data_dir,
+    coords_file="coords.csv",
+    time_step_file=None,
+    node_field_files={
+        "disp_x": "field_disp_x.csv",
+        "disp_y": "field_disp_y.csv",
+        "disp_z": "field_disp_z.csv",
+    },
+    connect_files="connect.csv",
+    load_opts=io.SimLoadOpts(
+        coord_header=None,
+        node_field_header=None,
+    ),
+).load_all_sim_data()
+uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
+texture = riley.load_texture_u8(dataset.riley_cal_target_texture_path())
+mesh = render.mesh3d_from_simdata(
+    simulation,
+    shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+    displacement_keys=("disp_x", "disp_y", "disp_z"),
 )
 frame_indices = evenly_spaced_frame_indices(
-    displacements.shape[0],
+    mesh.displacements.shape[0],
     8,
 )
-displacements = displacements[frame_indices]
-texture = riley.load_texture_u8(dataset.riley_cal_target_texture_path())
+mesh.displacements = mesh.displacements[frame_indices]
+coords = mesh.coords
 
 # %%
 # 2. Shift the target onto the DIC UQ specimen position
 # ------------------------------------------------------------
 roi_pos_orig = riley.roi_cent_from_coords(coords)
 coords = coords + (np.asarray(MATCHED_ROI) - np.asarray(roi_pos_orig))
+mesh.coords = coords
 roi_pos = riley.roi_cent_from_coords(coords)
 
 # %%
@@ -87,19 +109,12 @@ riley.save_stereo_pair(str(output_dir), stereo_file_name, camera_0, camera_1)
 # 4. Load the saved cameras back and build the textured mesh
 # ------------------------------------------------------------
 camera_0, camera_1 = riley.load_stereo_pair(str(output_dir), stereo_file_name)
-mesh = render.Mesh3D(
-    element_type=render.EElementType.TRI3,
-    coords=coords,
-    connectivity=connectivity,
-    shader=render.RileyTextureShader(uvs=uvs, texture=texture),
-    displacements=displacements,
-)
 
 # %%
 # 5. Configure and build the renderer
 # ------------------------------------------------------------
 config = riley.create_raster_config(
-    num_frames=displacements.shape[0],
+    num_frames=mesh.displacements.shape[0],
     total_threads=8,
     save_strategy=riley.SaveStrategy.disk,
 )

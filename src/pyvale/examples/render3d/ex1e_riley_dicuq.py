@@ -7,23 +7,37 @@ import numpy as np
 import riley
 
 import pyvale.data as dataset
+import pyvale.dataio as io
 from pyvale import render
 
 # %%
 # 1. Load the deforming mesh and assign a speckle texture
 # ------------------------------------------------------------
-coords, connectivity, uvs, displacements = riley.load_sim_csvs(
-    dataset.riley_platehole_csv_case_path()
-)
-displacements = displacements[[0, -1]]
+data_dir = dataset.riley_platehole_csv_case_path()
+simulation = io.SimLoaderByField(
+    load_dir=data_dir,
+    coords_file="coords.csv",
+    time_step_file=None,
+    node_field_files={
+        "disp_x": "field_disp_x.csv",
+        "disp_y": "field_disp_y.csv",
+        "disp_z": "field_disp_z.csv",
+    },
+    connect_files="connect.csv",
+    load_opts=io.SimLoadOpts(
+        coord_header=None,
+        node_field_header=None,
+    ),
+).load_all_sim_data()
+uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
-mesh = render.Mesh3D(
-    element_type=render.EElementType.QUAD8,
-    coords=coords,
-    connectivity=connectivity,
+mesh = render.mesh3d_from_simdata(
+    simulation,
     shader=render.RileyTextureShader(uvs=uvs, texture=texture),
-    displacements=displacements,
+    displacement_keys=("disp_x", "disp_y", "disp_z"),
 )
+mesh.displacements = mesh.displacements[[0, -1]]
+coords = mesh.coords
 
 # %%
 # 2. Create and position a distorted stereo camera pair
@@ -70,7 +84,7 @@ camera_1 = make_camera(20.0)
 # 3. Configure and build the renderer
 # ------------------------------------------------------------
 config = riley.create_raster_config(
-    num_frames=displacements.shape[0],
+    num_frames=mesh.displacements.shape[0],
     total_threads=8,
     save_strategy=riley.SaveStrategy.disk,
 )
