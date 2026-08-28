@@ -42,6 +42,7 @@ def simdata_2d_analytic() -> io.SimData:
 def simdata_2d_analytic_nomesh() -> io.SimData:
     (sim_data,_) = asd.scalar_linear_2d()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 
@@ -57,6 +58,7 @@ def simdata_3d() -> io.SimData:
 def simdata_3d_nomesh() -> io.SimData:
     sim_data = simdata_3d()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 
@@ -86,13 +88,19 @@ def sens_pos_3d(sim_data) -> dict[str,np.ndarray]:
     x_lims = (sim_dims["x"][1],sim_dims["x"][1])
     y_lims = sim_dims["y"]
     z_lims = sim_dims["z"]
-    sens_pos["line-y-yz"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-y-yz"] = sens.gen_pos_grid_inside(n_sens,
+                                                     x_lims,
+                                                     y_lims,
+                                                     z_lims)
 
     n_sens = (1,4,1)
     x_lims = (9.4,9.4) # Monoblock offset front face
     y_lims = sim_dims["y"]
     z_lims = (sim_dims["z"][1],sim_dims["z"][1])
-    sens_pos["line-y-xy"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-y-xy"] = sens.gen_pos_grid_inside(n_sens,
+                                                     x_lims,
+                                                     y_lims,
+                                                     z_lims)
 
     return sens_pos
 
