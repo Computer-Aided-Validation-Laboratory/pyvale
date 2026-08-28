@@ -37,7 +37,9 @@ class CameraBasic2D(ISensorArray):
         if descriptor is not None:
             self._descriptor = descriptor
 
-        self._sensor_data = CameraTools.build_sensor_data_from_camera_2d(self._cam_data)
+        self._sensor_data = (
+            CameraTools.build_sensor_data_from_camera_2d(self._cam_data)
+        )
 
         self._truth = None
         self._measurements = None

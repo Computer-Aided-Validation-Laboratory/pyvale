@@ -6,12 +6,11 @@
 """Spatial layout and multi-object arrangement helpers for render scenes."""
 
 from collections.abc import Sequence
-from typing import TypeVar
 
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from .mesh import Mesh2D, Mesh3D
+from .mesh import Mesh3D
 from .meshtools import (
     mesh_bounds,
     mesh_center,
@@ -20,17 +19,15 @@ from .meshtools import (
     mesh_translate,
 )
 
-MeshT = TypeVar("MeshT", Mesh2D, Mesh3D)
-
 
 def scene_bounds(
-    meshes: Sequence[Mesh2D | Mesh3D],
+    meshes: Sequence[Mesh3D],
 ) -> tuple[np.ndarray, np.ndarray]:
     """Calculate the bounding box enclosing all meshes in a scene.
 
     Parameters
     ----------
-    meshes : Sequence[Mesh2D or Mesh3D]
+    meshes : Sequence[Mesh3D]
         Collection of meshes to measure.
 
     Returns
@@ -49,12 +46,12 @@ def scene_bounds(
     return np.min(np.array(lowers), axis=0), np.max(np.array(uppers), axis=0)
 
 
-def scene_center(meshes: Sequence[Mesh2D | Mesh3D]) -> np.ndarray:
+def scene_center(meshes: Sequence[Mesh3D]) -> np.ndarray:
     """Calculate the midpoint of the scene bounding box.
 
     Parameters
     ----------
-    meshes : Sequence[Mesh2D or Mesh3D]
+    meshes : Sequence[Mesh3D]
         Collection of meshes.
 
     Returns
@@ -67,29 +64,28 @@ def scene_center(meshes: Sequence[Mesh2D | Mesh3D]) -> np.ndarray:
 
 
 def scene_translate(
-    meshes: Sequence[MeshT],
+    meshes: Sequence[Mesh3D],
     translation: np.ndarray,
-) -> list[MeshT]:
+) -> list[Mesh3D]:
     """Translate every mesh in a sequence by the same offset vector."""
     return [mesh_translate(mesh, translation) for mesh in meshes]
 
 
 def scene_rotate(
-    meshes: Sequence[MeshT],
+    meshes: Sequence[Mesh3D],
     rotation: Rotation,
     pivot: np.ndarray | None = None,
-) -> list[MeshT]:
+) -> list[Mesh3D]:
     """Rotate all meshes around a shared pivot (default: scene center)."""
     p_vec = scene_center(meshes) if pivot is None else pivot
     return [mesh_rotate(mesh, rotation, pivot=p_vec) for mesh in meshes]
 
 
 def scene_arrange_points(
-    meshes: Sequence[MeshT],
+    meshes: Sequence[Mesh3D],
     positions: np.ndarray,
-) -> list[MeshT]:
+) -> list[Mesh3D]:
     """Move each mesh so its bounding box center lies at the matching target."""
-
     if len(meshes) != len(positions):
         raise ValueError(
             f"Number of meshes ({len(meshes)}) must match number of "
@@ -103,15 +99,15 @@ def scene_arrange_points(
 
 
 def scene_arrange_line(
-    meshes: Sequence[MeshT],
+    meshes: Sequence[Mesh3D],
     axis: int = 0,
     spacing: float = 0.0,
-) -> list[MeshT]:
+) -> list[Mesh3D]:
     """Arrange meshes in a line with a constant gap between bounding boxes."""
     if not meshes:
         return []
 
-    arranged: list[MeshT] = []
+    arranged: list[Mesh3D] = []
     current_edge: float | None = None
 
     for mesh in meshes:
@@ -132,14 +128,13 @@ def scene_arrange_line(
 
 
 def scene_arrange_grid(
-    meshes: Sequence[MeshT],
+    meshes: Sequence[Mesh3D],
     columns: int = 3,
     spacing: np.ndarray = np.array((0.0, 0.0)),
     plane: str = "xy",
     center: bool = True,
-) -> list[MeshT]:
+) -> list[Mesh3D]:
     """Arrange meshes in a 2D planar grid with defined gaps between boxes."""
-
     if not meshes:
         return []
 
@@ -180,7 +175,7 @@ def scene_arrange_grid(
     for rr in range(1, rows):
         row_offsets[rr] = row_offsets[rr - 1] + row_heights[rr - 1] + gap_v
 
-    arranged: list[MeshT] = []
+    arranged: list[Mesh3D] = []
     for ii, mesh in enumerate(meshes):
         col = ii % columns
         row = ii // columns
@@ -204,11 +199,11 @@ def scene_arrange_grid(
 
 
 def scene_arrange_circle(
-    meshes: Sequence[MeshT],
+    meshes: Sequence[Mesh3D],
     radius: float = 100.0,
     plane: str = "xy",
     center: np.ndarray = np.array((0.0, 0.0, 0.0)),
-) -> list[MeshT]:
+) -> list[Mesh3D]:
     """Place mesh centers evenly spaced around a circle."""
     if not meshes:
         return []
@@ -223,17 +218,11 @@ def scene_arrange_circle(
     else:
         raise ValueError(f"Unsupported plane '{plane}'. Choose xy, xz, or yz.")
 
-    c_vec = np.asarray(center, dtype=np.float64)
-    dims = 2 if isinstance(meshes[0], Mesh2D) else 3
-    if c_vec.size < dims:
-        c_vec = np.pad(c_vec, (0, dims - c_vec.size))
-    else:
-        c_vec = c_vec[:dims]
-
+    c_vec = np.asarray(center, dtype=np.float64)[:3]
     n = len(meshes)
     angles = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
 
-    arranged: list[MeshT] = []
+    arranged: list[Mesh3D] = []
     for mesh, angle in zip(meshes, angles, strict=True):
         pos = c_vec.copy()
         pos[u_axis] += radius * np.cos(angle)

@@ -38,7 +38,6 @@ EXAMPLE_DIRS = [
 #    "mooseherder",
     "render3d",
     "renderuvs",
-    "render2d",
 ]
 
 #: Examples that cannot run unattended because they open interactive GUI

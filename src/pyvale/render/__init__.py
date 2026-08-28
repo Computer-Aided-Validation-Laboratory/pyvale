@@ -3,12 +3,7 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
-"""Unified rendering APIs for pyvale.
-
-The namespace separates validated three-dimensional scene renderers from
-validated planar image-warp renderers. The default 3D implementation is
-:class:`Riley`; :class:`ImageDef2D` provides the initial 2D implementation.
-"""
+"""Unified rendering APIs for pyvale."""
 
 from .blender import (
     Blender,
@@ -30,7 +25,7 @@ from .blender import (
     raise_if_blender_unavailable,
     render_calibration_images,
 )
-from .camera import Camera, Camera2D, EDistortionModel, EPSFType
+from .camera import Camera, EDistortionModel, EPSFType
 from .cameratools import (
     StereoAngles,
     StereoCameras,
@@ -45,8 +40,6 @@ from .cameratools import (
     crop_image_rectangle,
     pixel_grid_leng,
     pixel_vec_leng,
-    subpixel_grid_leng,
-    subpixel_vec_leng,
     stereo_build_faceon,
     stereo_build_from_calibration,
     stereo_build_symmetric,
@@ -56,6 +49,8 @@ from .cameratools import (
     stereo_calc_stand_off,
     stereo_save_calibration_matchid,
     stereo_save_calibration_yaml,
+    subpixel_grid_leng,
+    subpixel_vec_leng,
 )
 from .capabilities import RenderCapabilities
 from .errors import RenderInputError, ValidationIssue
@@ -69,7 +64,6 @@ from .feebee import (
     FeebeeMaterial,
     FeebeeTextureShader,
 )
-from .imagedef2d import ImageDef2D, ImageDefOpts
 from .imagetools import (
     EImageType,
     image_crop,
@@ -79,13 +73,11 @@ from .imagetools import (
     image_resize,
     image_save,
 )
-from .imagewarp2d import IImageWarp2D
 from .light import ELightType, Light
-from .mesh import EElementType, Mesh2D, Mesh3D
+from .mesh import EElementType, Mesh3D
 from .meshtools import (
     evenly_spaced_frame_indices,
     first_last_frame_indices,
-    mesh2d_from_simdata,
     mesh3d_from_simdata,
     mesh_bounds,
     mesh_center,
@@ -96,19 +88,6 @@ from .meshtools import (
     mesh_translate,
     select_frames,
 )
-from .pxint2d import (
-    AdditiveSpeckles,
-    AnalyticRule,
-    Eggbox,
-    EPxIntMapping,
-    GaussianPSF,
-    GaussRule,
-    PixIntGrid2D,
-    PixIntSpeck2D,
-    PxInt2DOpts,
-    RectRule,
-    quantise_image,
-)
 from .rasterops import (
     calculate_edge_function,
     calculate_elem_bound_box_high,
@@ -116,7 +95,7 @@ from .rasterops import (
     format_image_number,
 )
 from .renderer3d import IRenderer3D
-from .result import ImageWarpResult, RenderResult
+from .result import RenderResult
 from .riley import (
     Riley,
     RileyFunctionShader,
@@ -125,7 +104,7 @@ from .riley import (
     to_riley_camera,
     to_riley_mesh,
 )
-from .scene import Scene2D, Scene3D
+from .scene import Scene3D
 from .scenetools import (
     scene_arrange_circle,
     scene_arrange_grid,
@@ -151,8 +130,6 @@ from .uvtools import (
 )
 
 __all__ = [
-    "AdditiveSpeckles",
-    "AnalyticRule",
     "Blender",
     "BlenderCalibrationData",
     "BlenderCalibrationTarget",
@@ -161,7 +138,6 @@ __all__ = [
     "BlenderMaterial",
     "BlenderTextureShader",
     "Camera",
-    "Camera2D",
     "EBlenderDevice",
     "EBlenderEngine",
     "EDistortionModel",
@@ -172,30 +148,17 @@ __all__ = [
     "EImageType",
     "ELightType",
     "EPSFType",
-    "EPxIntMapping",
     "EUVFit",
     "EUVOrigin",
     "EUVPlane",
-    "Eggbox",
     "Feebee",
     "FeebeeColourShader",
     "FeebeeConfig",
     "FeebeeMaterial",
     "FeebeeTextureShader",
-    "GaussRule",
-    "GaussianPSF",
-    "IImageWarp2D",
     "IRenderer3D",
-    "ImageDef2D",
-    "ImageDefOpts",
-    "ImageWarpResult",
     "Light",
-    "Mesh2D",
     "Mesh3D",
-    "PixIntGrid2D",
-    "PixIntSpeck2D",
-    "PxInt2DOpts",
-    "RectRule",
     "RenderCapabilities",
     "RenderInputError",
     "RenderResult",
@@ -203,7 +166,6 @@ __all__ = [
     "RileyFunctionShader",
     "RileyNodalShader",
     "RileyTextureShader",
-    "Scene2D",
     "Scene3D",
     "StereoAngles",
     "StereoCameras",
@@ -238,7 +200,6 @@ __all__ = [
     "image_normalise",
     "image_resize",
     "image_save",
-    "mesh2d_from_simdata",
     "mesh3d_from_simdata",
     "mesh_bounds",
     "mesh_center",
@@ -249,7 +210,6 @@ __all__ = [
     "mesh_translate",
     "pixel_grid_leng",
     "pixel_vec_leng",
-    "quantise_image",
     "raise_if_blender_unavailable",
     "render_calibration_images",
     "scene_arrange_circle",
@@ -261,8 +221,6 @@ __all__ = [
     "scene_rotate",
     "scene_translate",
     "select_frames",
-    "subpixel_grid_leng",
-    "subpixel_vec_leng",
     "stereo_build_faceon",
     "stereo_build_from_calibration",
     "stereo_build_symmetric",
@@ -272,6 +230,8 @@ __all__ = [
     "stereo_calc_stand_off",
     "stereo_save_calibration_matchid",
     "stereo_save_calibration_yaml",
+    "subpixel_grid_leng",
+    "subpixel_vec_leng",
     "to_riley_camera",
     "to_riley_mesh",
     "uv_from_pixels",

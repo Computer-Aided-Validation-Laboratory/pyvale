@@ -50,11 +50,3 @@ Mooseherder
    :maxdepth: 2
 
    examples_mooseherder
-
-Render 2D
----------
-
-.. toctree::
-   :maxdepth: 2
-
-   examples_render2d

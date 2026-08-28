@@ -47,22 +47,6 @@ class ImageArtifact:
 # first frame, and stereo camera ordering used in the documentation.
 IMAGE_ARTIFACTS = (
     ImageArtifact(
-        "render2d_ex1a_pixint_grid_one_elem_types",
-        ("quad9.npy",),
-    ),
-    ImageArtifact(
-        "render2d_ex1b_pixint_grid_mesh",
-        ("warped_images.npy",),
-    ),
-    ImageArtifact(
-        "render2d_ex1c_pixint_speck_newton",
-        ("warped_images.npy",),
-    ),
-    ImageArtifact(
-        "render2d_ex2a_imagedef2d_planar_deformation",
-        ("warped_images.npy",),
-    ),
-    ImageArtifact(
         "render3d_ex1a_riley_quickstart",
         ("cam0_frame0_field0.bmp",),
     ),

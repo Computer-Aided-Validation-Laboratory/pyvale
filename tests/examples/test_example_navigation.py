@@ -22,7 +22,6 @@ GROUPS = (
     ("examples_renderuvs", "renderuvs"),
     ("examples_ext_sensorsim", "extsensorsim"),
     ("examples_mooseherder", "mooseherder"),
-    ("examples_render2d", "render2d"),
 )
 
 

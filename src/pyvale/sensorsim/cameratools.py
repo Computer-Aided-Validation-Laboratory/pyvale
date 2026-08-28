@@ -172,7 +172,7 @@ class CameraTools:
         return avg_image
 
     @staticmethod
-    def build_sensor_data_from_camera_2d(cam_data: Camera2D) -> SensorData:
+    def build_sensor_data_from_camera_2d(cam_data: Camera) -> SensorData:
         pixels_vectorised = CameraTools.vectorise_pixel_grid_leng(cam_data.field_of_view,
                                                     cam_data.leng_per_px)
 

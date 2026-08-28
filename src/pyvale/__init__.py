@@ -14,6 +14,14 @@ sensor placement optimisation, testing simulation validation metrics and
 virtually testing digital shadows/twins.
 """
 
-from . import data, render
+from . import data, dataio, dic, mooseherder, render, sensorsim, strain
 
-__all__ = ["data", "render"]
+__all__ = [
+    "data",
+    "dataio",
+    "dic",
+    "mooseherder",
+    "render",
+    "sensorsim",
+    "strain",
+]

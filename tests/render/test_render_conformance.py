@@ -19,9 +19,6 @@ from pyvale.verif.renderverif import assert_render_allclose
 GOLD_ROOT = Path(__file__).parent
 BACKENDS = (
     "blender",
-    "imagedef2d",
-    "pixint_grid",
-    "pixint_speck",
     "riley",
 )
 

@@ -34,19 +34,6 @@ def make_mesh(shader: object) -> render.Mesh3D:
     )
 
 
-def test_camera2d_defaults_to_one_sample_per_pixel() -> None:
-    """The planar and perspective camera defaults use one sample per pixel."""
-    assert render.Camera2D().subsample == 1
-
-
-def test_camera2d_keeps_normalised_background() -> None:
-    """Derived output codes do not overwrite the public normalised value."""
-    camera = render.Camera2D(background=0.25, bits=8)
-
-    assert camera.background == 0.25
-    assert camera.background_code == 64.0
-
-
 def test_render_utilities_are_available_at_the_render_package_level() -> None:
     """Public helpers require no utility class or nested module lookup."""
     functions = (
@@ -169,48 +156,3 @@ def test_mesh3d_from_simdata_extracts_a_volume_surface() -> None:
     assert mesh.element_type is render.EElementType.TRI3
     assert mesh.coords.shape == (4, 3)
     assert mesh.connectivity.shape == (4, 3)
-
-
-def test_mesh2d_from_simdata_uses_xy_displacements() -> None:
-    """The 2D converter makes an XY mesh with frame-major displacement."""
-    from pyvale.dataio import SimData
-
-    sim_data = SimData(
-        coords=np.array(
-            (
-                (0.0, 0.0, 0.0),
-                (1.0, 0.0, 0.0),
-                (0.0, 1.0, 0.0),
-            )
-        ),
-        connect={"connect1": np.array(((0, 1, 2),))},
-        node_vars={
-            "x": np.array(((0.0, 1.0), (0.0, 1.0), (0.0, 1.0))),
-            "y": np.zeros((3, 2)),
-        },
-    )
-
-    mesh = render.mesh2d_from_simdata(sim_data, ("x", "y"))
-
-    assert mesh.coords.shape == (3, 2)
-    assert mesh.displacement.shape == (2, 3, 2)
-    assert mesh.displacement[1, 0, 0] == 1.0
-
-
-def test_mesh2d_from_simdata_rejects_non_xy_meshes() -> None:
-    """The first Mesh2D conversion API intentionally supports XY only."""
-    from pyvale.dataio import SimData
-
-    sim_data = SimData(
-        coords=np.array(
-            (
-                (0.0, 0.0, 1.0),
-                (1.0, 0.0, 1.0),
-                (0.0, 1.0, 1.0),
-            )
-        ),
-        connect={"connect1": np.array(((0, 1, 2),))},
-    )
-
-    with pytest.raises(ValueError, match="XY plane"):
-        render.mesh2d_from_simdata(sim_data)

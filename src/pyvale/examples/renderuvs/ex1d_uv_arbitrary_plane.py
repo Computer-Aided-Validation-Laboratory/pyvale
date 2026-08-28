@@ -40,11 +40,13 @@ tilted_coords = embed_grid(display_coords, axis_u, axis_v)
 # ------------------------------------------------------------
 # Supplying ``up`` removes the rotational ambiguity around the plane normal
 # and makes positive V follow the grid's vertical axis.
+
 plane = render.UVPlane(
     normal=np.cross(axis_u, axis_v),
     origin=np.zeros(3),
     up=axis_v,
 )
+
 uvs = render.uv_project_planar_centered(
     tilted_coords,
     TEXTURE_SHAPE,

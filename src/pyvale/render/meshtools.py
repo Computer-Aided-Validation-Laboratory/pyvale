@@ -7,7 +7,6 @@
 
 from collections.abc import Sequence
 from dataclasses import replace
-from typing import TypeVar
 
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -19,9 +18,7 @@ from pyvale.dataio.meshconv import (
 )
 from pyvale.dataio.simdata import SimData
 
-from .mesh import EElementType, Mesh2D, Mesh3D
-
-MeshT = TypeVar("MeshT", Mesh2D, Mesh3D)
+from .mesh import EElementType, Mesh3D
 
 
 def mesh3d_from_simdata(
@@ -64,42 +61,12 @@ def mesh3d_from_simdata(
     )
 
 
-def mesh2d_from_simdata(
-    sim_data: SimData,
-    displacement_keys: Sequence[str] | None = None,
-) -> Mesh2D:
-    """Build one XY-planar :class:`Mesh2D` from simulation data.
-
-    The input must already be a two-dimensional surface mesh in the XY plane.
-    Coordinates with a Z column are accepted only when every Z value is zero
-    within the shared mesh-convention tolerance.
-    """
-    prepared = enforce_mesh_convention(sim_data)
-    if not is_mesh_2d(prepared):
-        raise ValueError("mesh2d_from_simdata requires a surface mesh.")
-
-    coords, connectivity = _single_surface_table(prepared)
-    coords2d = _coords2d_xy(coords)
-    element_type = _element_type_from_nodes(connectivity.shape[1])
-    displacement = _displacements_from_simdata(prepared, displacement_keys)
-
-    if displacement is not None:
-        displacement = displacement[:, :, :2]
-
-    return Mesh2D(
-        element_type=element_type,
-        coords=coords2d,
-        connectivity=np.ascontiguousarray(connectivity, dtype=np.intp),
-        displacement=displacement,
-    )
-
-
-def mesh_bounds(mesh: Mesh2D | Mesh3D) -> tuple[np.ndarray, np.ndarray]:
+def mesh_bounds(mesh: Mesh3D) -> tuple[np.ndarray, np.ndarray]:
     """Calculate the axis-aligned bounding box of a mesh.
 
     Parameters
     ----------
-    mesh : Mesh2D or Mesh3D
+    mesh : Mesh3D
         Mesh to query.
 
     Returns
@@ -110,18 +77,17 @@ def mesh_bounds(mesh: Mesh2D | Mesh3D) -> tuple[np.ndarray, np.ndarray]:
     coords = np.asarray(mesh.coords, dtype=np.float64)
 
     if coords.size == 0:
-        dims = 2 if isinstance(mesh, Mesh2D) else 3
-        return np.zeros(dims), np.zeros(dims)
+        return np.zeros(3), np.zeros(3)
 
     return np.min(coords, axis=0), np.max(coords, axis=0)
 
 
-def mesh_center(mesh: Mesh2D | Mesh3D) -> np.ndarray:
+def mesh_center(mesh: Mesh3D) -> np.ndarray:
     """Calculate the center of the axis-aligned bounding box of a mesh.
 
     Parameters
     ----------
-    mesh : Mesh2D or Mesh3D
+    mesh : Mesh3D
         Mesh to query.
 
     Returns
@@ -133,7 +99,7 @@ def mesh_center(mesh: Mesh2D | Mesh3D) -> np.ndarray:
     return 0.5 * (lower + upper)
 
 
-def mesh_translate(mesh: MeshT, translation: np.ndarray) -> MeshT:
+def mesh_translate(mesh: Mesh3D, translation: np.ndarray) -> Mesh3D:
     """Translate a mesh by an offset vector without mutating the original.
 
     Note that translation shifts nodal coordinates but preserves nodal
@@ -145,37 +111,21 @@ def mesh_translate(mesh: MeshT, translation: np.ndarray) -> MeshT:
 
 
 def mesh_rotate(
-    mesh: MeshT,
+    mesh: Mesh3D,
     rotation: Rotation,
     pivot: np.ndarray | None = None,
-) -> MeshT:
+) -> Mesh3D:
     """Rotate a mesh around a pivot point.
 
     Displacement vectors are rotated as vector fields to match coordinate
     reorientation.
     """
     coords = np.asarray(mesh.coords, dtype=np.float64)
-    dims = coords.shape[1]
-
-    if pivot is None:
-        p_vec = np.zeros(dims, dtype=np.float64)
-    else:
-        p_vec = np.asarray(pivot, dtype=np.float64)
-
-    if dims == 2:
-        rot_mat = rotation.as_matrix()[:2, :2]
-        rel_coords = coords - p_vec
-        new_coords = (rel_coords @ rot_mat.T) + p_vec
-
-        new_disp = None
-        if getattr(mesh, "displacement", None) is not None:
-            disp = np.asarray(mesh.displacement, dtype=np.float64)
-            shape = disp.shape
-            flat_disp = disp.reshape(-1, 2)
-            rot_disp = flat_disp @ rot_mat.T
-            new_disp = rot_disp.reshape(shape)
-
-        return replace(mesh, coords=new_coords, displacement=new_disp)
+    p_vec = (
+        np.zeros(3, dtype=np.float64)
+        if pivot is None
+        else np.asarray(pivot, dtype=np.float64)
+    )
 
     rel_coords = coords - p_vec
     new_coords = rotation.apply(rel_coords) + p_vec
@@ -192,31 +142,20 @@ def mesh_rotate(
 
 
 def mesh_scale(
-    mesh: MeshT,
+    mesh: Mesh3D,
     scale: float | np.ndarray,
     pivot: np.ndarray | None = None,
-) -> MeshT:
+) -> Mesh3D:
     """Scale a mesh relative to a pivot point."""
     coords = np.asarray(mesh.coords, dtype=np.float64)
-    dims = coords.shape[1]
-
-    if pivot is None:
-        p_vec = np.zeros(dims, dtype=np.float64)
-    else:
-        p_vec = np.asarray(pivot, dtype=np.float64)
-
-    s_vec = np.broadcast_to(
-        np.asarray(scale, dtype=np.float64),
-        (dims,),
+    p_vec = (
+        np.zeros(3, dtype=np.float64)
+        if pivot is None
+        else np.asarray(pivot, dtype=np.float64)
     )
+    s_vec = np.broadcast_to(np.asarray(scale, dtype=np.float64), (3,))
 
     new_coords = (coords - p_vec) * s_vec + p_vec
-
-    if isinstance(mesh, Mesh2D):
-        new_disp = None
-        if mesh.displacement is not None:
-            new_disp = mesh.displacement * s_vec
-        return replace(mesh, coords=new_coords, displacement=new_disp)
 
     new_displacements = None
     if mesh.displacements is not None:
@@ -230,18 +169,18 @@ def mesh_scale(
 
 
 def mesh_transform(
-    mesh: MeshT,
+    mesh: Mesh3D,
     translation: np.ndarray | None = None,
     rotation: Rotation | None = None,
     scale: float | np.ndarray | None = None,
     pivot: np.ndarray | None = None,
-) -> MeshT:
+) -> Mesh3D:
     """Apply affine scaling, rotation, and translation in canonical order.
 
     Order: 1. Scale about pivot, 2. Rotate about pivot, 3. Translate.
     """
     transformed = mesh
-    
+
     if scale is not None:
         transformed = mesh_scale(transformed, scale, pivot=pivot)
 
@@ -255,14 +194,12 @@ def mesh_transform(
 
 
 def mesh_center_at(
-    mesh: MeshT,
+    mesh: Mesh3D,
     target: np.ndarray = np.array((0.0, 0.0, 0.0)),
-) -> MeshT:
+) -> Mesh3D:
     """Translate a mesh so its bounding box center lies at ``target``."""
-
     current_center = mesh_center(mesh)
-    dims = current_center.shape[0]
-    target_vec = np.asarray(target, dtype=np.float64)[:dims]
+    target_vec = np.asarray(target, dtype=np.float64)[:3]
     delta = target_vec - current_center
 
     return mesh_translate(mesh, delta)
@@ -273,7 +210,6 @@ def evenly_spaced_frame_indices(
     num_samples: int,
 ) -> np.ndarray:
     """Return sample indices evenly distributed from 0 to total_frames - 1."""
-
     if total_frames <= 0 or num_samples <= 0:
         return np.empty(0, dtype=np.intp)
 
@@ -292,7 +228,6 @@ def evenly_spaced_frame_indices(
 
 def first_last_frame_indices(total_frames: int) -> np.ndarray:
     """Return indices for the first and last frame."""
-
     if total_frames <= 0:
         return np.empty(0, dtype=np.intp)
 
@@ -335,22 +270,6 @@ def _coords3d(coords: np.ndarray) -> np.ndarray:
     return coords_out
 
 
-def _coords2d_xy(coords: np.ndarray) -> np.ndarray:
-    """Return XY coordinates, rejecting non-planar input."""
-    coords_out = np.ascontiguousarray(coords, dtype=np.float64)
-    if coords_out.ndim != 2 or coords_out.shape[1] not in (2, 3):
-        raise ValueError("SimData coordinates must have two or three columns.")
-
-    if coords_out.shape[1] == 3 and not np.allclose(
-        coords_out[:, 2],
-        0.0,
-        atol=1.0e-12,
-    ):
-        raise ValueError("mesh2d_from_simdata only supports the XY plane.")
-
-    return np.ascontiguousarray(coords_out[:, :2], dtype=np.float64)
-
-
 def _element_type_from_nodes(nodes_per_element: int) -> EElementType:
     """Map a connectivity width to the corresponding render topology."""
     mapping = {
@@ -375,7 +294,6 @@ def _displacements_from_simdata(
     displacement_keys: Sequence[str] | None,
 ) -> np.ndarray | None:
     """Extract nodal displacement fields into renderer array order."""
-
     if displacement_keys is None:
         return None
 
@@ -408,7 +326,6 @@ def _displacements_from_simdata(
 __all__ = [
     "evenly_spaced_frame_indices",
     "first_last_frame_indices",
-    "mesh2d_from_simdata",
     "mesh3d_from_simdata",
     "mesh_bounds",
     "mesh_center",
