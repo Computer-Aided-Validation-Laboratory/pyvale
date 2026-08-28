@@ -111,10 +111,6 @@ void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
     #pragma omp parallel for
     for (int ss = 0; ss < layout.num; ++ss) {
 
-        // another thread already failed
-        if (failed.load()) continue;
-
-
         if (!layout.active_ss[ss]) continue;
 
         // centre of subset
