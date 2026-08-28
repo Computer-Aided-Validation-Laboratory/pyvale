@@ -46,9 +46,7 @@ def render_backend_case(
     """Render one canonical case through the requested backend."""
     renderers = {
         "blender": _render_blender,
-        "imagedef2d": _render_imagedef2d,
-        "pixint_grid": _render_pixint_grid,
-        "pixint_speck": _render_pixint_speck,
+        "feebee": _render_feebee,
         "riley": _render_riley,
     }
     return renderers[backend](case, output_dir)
@@ -67,7 +65,7 @@ def feebee_scene(case: RenderConformanceCase) -> render.Scene3D:
 
 def preview_range(backend: str) -> tuple[float, float]:
     """Return the fixed intensity range for an 8-bit preview."""
-    if backend in {"blender", "imagedef2d"}:
+    if backend == "blender":
         return 0.0, 255.0
     return 0.0, 1.0
 
@@ -135,16 +133,6 @@ def _case(
     )
 
 
-def _camera_2d() -> render.Camera2D:
-    return render.Camera2D(
-        pixels_num=np.array((IMAGE_SIZE, IMAGE_SIZE)),
-        pixels_size=0.1,
-        roi_cent_world=np.zeros(3),
-        background=0.15,
-        subsample=1,
-    )
-
-
 def _camera_3d() -> render.Camera:
     return render.Camera(
         pixels_num=np.array((IMAGE_SIZE, IMAGE_SIZE)),
@@ -163,15 +151,6 @@ def _common_mesh(case: RenderConformanceCase, shader: object) -> render.Mesh3D:
         case.connectivity,
         shader,
         np.pad(case.displacements, ((0, 0), (0, 0), (0, 1))),
-    )
-
-
-def _mesh_2d(case: RenderConformanceCase) -> render.Mesh2D:
-    return render.Mesh2D(
-        render.EElementType.TRI3,
-        case.coords,
-        case.connectivity,
-        case.displacements,
     )
 
 
@@ -202,6 +181,22 @@ def _render_blender(
     result = render.Blender(config).render(
         render.Scene3D([mesh], [_camera_3d()], [light]),
     )
+    assert result.images is not None
+    return result.images
+
+
+def _render_feebee(
+    case: RenderConformanceCase,
+    output_dir: Path,
+) -> np.ndarray:
+    del output_dir
+    mesh = _common_mesh(
+        case,
+        render.FeebeeColourShader(
+            np.full((2, len(case.connectivity), 3), 0.65),
+        ),
+    )
+    result = render.Feebee().render(render.Scene3D([mesh], [_camera_3d()]))
     assert result.images is not None
     return result.images
 
@@ -239,59 +234,6 @@ def _render_riley(
     )
     assert result.images is not None
     return result.images
-
-
-def _render_imagedef2d(
-    case: RenderConformanceCase,
-    output_dir: Path,
-) -> np.ndarray:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    axis = np.linspace(0.0, 1.0, IMAGE_SIZE)
-    source_image = 255.0 * (0.25 + 0.5 * axis[None, :] + 0.25 * axis[:, None])
-    scene = render.Scene2D(_mesh_2d(case), _camera_2d(), source_image)
-    return (
-        render.ImageDef2D(
-            render.ImageDefOpts(save_path=output_dir),
-        )
-        .render(scene)
-        .images
-    )
-
-
-def _render_pixint_grid(
-    case: RenderConformanceCase,
-    output_dir: Path,
-) -> np.ndarray:
-    del output_dir
-    scene = render.Scene2D(_mesh_2d(case), _camera_2d())
-    renderer = render.PixIntGrid2D(
-        render.Eggbox(period=(0.8, 0.7), phase=(0.2, -0.3)),
-        render.PxInt2DOpts(integration=render.RectRule(2)),
-    )
-    return renderer.render(scene).images
-
-
-def _render_pixint_speck(
-    case: RenderConformanceCase,
-    output_dir: Path,
-) -> np.ndarray:
-    del output_dir
-    pattern = render.AdditiveSpeckles.jittered_lattice(
-        kind="gaussian",
-        speckle_diameter=0.32,
-        black_area_fraction=0.45,
-        jitter_pdf="uniform",
-        jitter=0.15,
-        seed=7,
-        bounds=(-2.2, 2.2, -2.2, 2.2),
-    )
-    renderer = render.PixIntSpeck2D(
-        pattern,
-        render.PxInt2DOpts(integration=render.RectRule(2)),
-    )
-    return renderer.render(
-        render.Scene2D(_mesh_2d(case), _camera_2d()),
-    ).images
 
 
 __all__ = [

@@ -15,7 +15,6 @@ from scipy.signal import convolve2d
 from scipy.spatial.transform import Rotation
 import matplotlib.image as mplim
 from PIL import Image
-from pyvale.render.camera import Camera2D
 from pyvale.sensorsim.sensordata import SensorData
 from pyvale.render.camera import Camera
 

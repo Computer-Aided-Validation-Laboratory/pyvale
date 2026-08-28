@@ -196,122 +196,6 @@ def riley_rabbit_scene() -> render.Scene3D:
     return render.Scene3D(meshes, [camera])
 
 
-def pxint2d_camera() -> render.Camera2D:
-    """Create the RCC-compatible 32 by 32 orthographic test camera."""
-    return render.Camera2D(
-        pixels_num=np.array((32, 32)), pixels_size=1.0,
-        roi_cent_world=np.zeros(3), subsample=1,
-    )
-
-
-def speckle_pattern(kind: str) -> render.AdditiveSpeckles:
-    """Create a deterministic RCC-equivalent disk or Gaussian pattern."""
-    if kind == "disk":
-        return render.AdditiveSpeckles.jittered_lattice(
-            kind="disk", speckle_diameter=5.0, black_area_fraction=0.6,
-            jitter_pdf="uniform", jitter=0.25, seed=3,
-            bounds=(-20.0, 20.0, -20.0, 20.0),
-            gaussian_edge_fraction=0.1, tail_sigmas=8.0,
-        )
-    return render.AdditiveSpeckles.jittered_lattice(
-        kind="gaussian", speckle_diameter=5.0, black_area_fraction=0.6,
-        jitter_pdf="gaussian", jitter=0.12, seed=3,
-        bounds=(-20.0, 20.0, -20.0, 20.0),
-        gaussian_edge_fraction=0.4, tail_sigmas=8.0,
-    )
-
-
-def rcc_quad9_mesh(case_name: str) -> render.Mesh2D:
-    """Load a copied RCC 32-pixel Quad9 fixture as a rendering mesh.
-
-    Parameters
-    ----------
-    case_name : str
-        Fixture directory name, for example ``"plate42_cam32_quad9_affine"``.
-
-    Returns
-    -------
-    render.Mesh2D
-        The Quad9 mesh with every displacement frame from the fixture.
-    """
-    directory = dataset.pxint2d_single_element_path(case_name)
-    coords = np.loadtxt(directory / "coords.csv", delimiter=",")[:, :2]
-    connect = np.loadtxt(
-        directory / "connectivity.csv", delimiter=",", dtype=np.intp,
-    )
-    displacement_x = np.loadtxt(directory / "field_disp_x.csv", delimiter=",")
-    displacement_y = np.loadtxt(directory / "field_disp_y.csv", delimiter=",")
-    values = np.stack((displacement_x, displacement_y), axis=2).transpose(1, 0, 2)
-    return render.Mesh2D(
-        render.EElementType.QUAD9,
-        coords,
-        connect[None, :],
-        values,
-    )
-
-
-def rcc_affine_displacements(mesh: render.Mesh2D) -> np.ndarray:
-    """Apply the copied RCC frame-three affine field to another mesh.
-
-    Parameters
-    ----------
-    mesh : render.Mesh2D
-        Mesh receiving the globally affine displacement field fitted to the
-        packaged RCC fixture nodes.
-
-    Returns
-    -------
-    numpy.ndarray
-        A zero frame followed by the affine displacement frame with shape
-        ``(2, nodes, 2)``.
-    """
-    directory = dataset.pxint2d_single_element_path(
-        "plate42_cam32_quad9_affine",
-    )
-    source_coords = np.loadtxt(directory / "coords.csv", delimiter=",")[:, :2]
-    source_x = np.loadtxt(directory / "field_disp_x.csv", delimiter=",")[:, 3]
-    source_y = np.loadtxt(directory / "field_disp_y.csv", delimiter=",")[:, 3]
-    design = np.column_stack((source_coords, np.ones(len(source_coords))))
-    coefficients, _, _, _ = np.linalg.lstsq(
-        design, np.column_stack((source_x, source_y)), rcond=None,
-    )
-    displacement = np.column_stack((mesh.coords, np.ones(len(mesh.coords))))
-    displacement = displacement @ coefficients
-    return np.stack((np.zeros_like(displacement), displacement))
-
-
-def pxint2d_affine_reference(
-    samples: int,
-    kind: str | None = None,
-) -> np.ndarray:
-    """Render one committed AFFINE Quad9 reference frame.
-
-    Parameters
-    ----------
-    samples : int
-        Sub-pixel sample count of the rectangular integration rule.
-    kind : str or None, optional
-        Speckle pattern kind (``"disk"`` or ``"gaussian"``). ``None`` selects
-        the analytic eggbox grid texture.
-
-    Returns
-    -------
-    numpy.ndarray
-        The globally affine displacement frame as a 32 by 32 greyscale image.
-    """
-    mesh = rcc_quad9_mesh("plate42_cam32_quad9_affine")
-    options = render.PxInt2DOpts(
-        mapping=render.EPxIntMapping.AFFINE,
-        integration=render.RectRule(samples),
-    )
-    if kind is None:
-        renderer = render.PixIntGrid2D(options=options)
-    else:
-        renderer = render.PixIntSpeck2D(speckle_pattern(kind), options=options)
-    result = renderer.render(render.Scene2D(mesh=mesh, camera=pxint2d_camera()))
-    return result.images[3, 0, :, :, 0]
-
-
 def scaled_mechanical_2d() -> io.SimData:
     """Load the mechanical 2D case scaled to millimetres for Blender scenes."""
     sim_data = mooseherder.ExodusLoader(
@@ -323,13 +207,8 @@ def scaled_mechanical_2d() -> io.SimData:
 
 __all__ = [
     "assert_render_allclose",
-    "pxint2d_affine_reference",
-    "pxint2d_camera",
-    "rcc_affine_displacements",
-    "rcc_quad9_mesh",
     "render_triangle",
     "riley_memory_config",
     "riley_rabbit_scene",
     "scaled_mechanical_2d",
-    "speckle_pattern",
 ]

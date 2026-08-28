@@ -724,30 +724,6 @@ def cal_target() -> Path:
     return _data_path("calibration", "cal_target.tiff")
 
 
-def pxint2d_single_element_path(case_name: str) -> Path:
-    """Return a packaged PixInt2D single-element fixture directory.
-
-    Parameters
-    ----------
-    case_name : str
-        Fixture directory name, for example ``"plate42_cam32_quad9_affine"``.
-
-    Returns
-    -------
-    pathlib.Path
-        Directory containing coordinates, connectivity, and displacement CSVs.
-
-    Raises
-    ------
-    DataSetError
-        If the requested fixture is not packaged with pyvale.
-    """
-    path = _data_path("render", "pxint2d", "single_elem", case_name)
-    if not path.is_dir():
-        raise DataSetError(f"Unknown PixInt2D fixture: {case_name}.")
-    return path
-
-
 def riley_speckle_texture_path() -> Path:
     """Return the texture packaged for the Riley parity examples."""
     return _data_path("render", "riley", "textures", "speckle.bmp")

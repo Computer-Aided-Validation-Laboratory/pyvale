@@ -18,9 +18,7 @@ from pyvale.verif.renderconformance import (
 
 BACKENDS = (
     "blender",
-    "imagedef2d",
-    "pixint_grid",
-    "pixint_speck",
+    "feebee",
     "riley",
 )
 GOLD_DIRECTORIES = {

@@ -14,7 +14,7 @@ from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.errorintegrator import ErrIntegrator
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
-from pyvale.render.camera import Camera2D
+from pyvale.render.camera import Camera
 from pyvale.sensorsim.cameratools import CameraTools
 
 
@@ -24,7 +24,7 @@ class CameraBasic2D(ISensorArray):
                  "_sensor_data","_truth","_measurements")
 
     def __init__(self,
-                 cam_data: Camera2D,
+                 cam_data: Camera,
                  field: IField,
                  descriptor: SensorDescriptor | None = None,
                  ) -> None:
