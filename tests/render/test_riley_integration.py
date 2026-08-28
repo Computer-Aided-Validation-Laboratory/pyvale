@@ -17,6 +17,29 @@ import riley
 from pyvale.verif.renderverif import assert_render_allclose
 
 
+def test_common_camera_reorders_scipy_angles_for_riley() -> None:
+    """Riley receives its native Z-Y-X angle storage order."""
+    camera = render.Camera(
+        pixels_num=np.array((32, 32)),
+        pixels_size=np.array((0.02, 0.02)),
+        pos_world=np.array((0.0, 0.0, 2.0)),
+        rot_world=Rotation.from_euler(
+            "xyz",
+            (10.0, 20.0, 30.0),
+            degrees=True,
+        ),
+        roi_cent_world=np.zeros(3),
+        focal_length=1.0,
+    )
+
+    native = render.to_riley_camera(camera)
+
+    np.testing.assert_allclose(
+        native.rot_world,
+        np.radians((30.0, 20.0, 10.0)),
+    )
+
+
 def test_riley_returns_canonical_image_layout() -> None:
     """Riley's field-major buffer is normalised by the pyvale adapter."""
     mesh = riley.Mesh(

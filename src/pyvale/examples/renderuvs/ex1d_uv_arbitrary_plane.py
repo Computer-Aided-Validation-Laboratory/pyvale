@@ -70,7 +70,7 @@ textured_mesh = render.Mesh3D(
 # 3. Render the arbitrary-plane mapping
 # ------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1d_uv_arbitrary_plane"
-render_uv_example(textured_mesh, output_dir / "tilted", plate_rotation)
+render_uv_example(textured_mesh, output_dir / "tilted", Rotation.identity())
 
 print(f"Rendered the arbitrary-plane UV mapping to {output_dir}")
 

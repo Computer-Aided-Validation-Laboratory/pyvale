@@ -49,7 +49,7 @@ fit_modes = (
     ("stretch", render.EUVFit.STRETCH),
 )
 mesh_rotation = Rotation.from_euler("xyz", (0.0, 24.0, 8.0), degrees=True)
-camera_rotation = Rotation.from_euler("xyz", (16.0, -24.0, 0.0), degrees=True)
+camera_rotation = Rotation.identity()
 oriented_mesh = render.mesh_rotate(
     base_mesh,
     mesh_rotation,

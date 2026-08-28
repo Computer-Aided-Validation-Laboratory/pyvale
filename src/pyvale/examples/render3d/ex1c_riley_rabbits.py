@@ -135,7 +135,18 @@ camera = render.Camera(
     focal_length=focal_length,
     subsample=2,
 )
-camera = render.cam_frame_scene(camera, meshes, fill=1.01)
+native_meshes = [render.to_riley_mesh(mesh) for mesh in meshes]
+camera.pos_world = np.asarray(
+    riley.pos_fill_frame_from_rot_over_meshes(
+        native_meshes,
+        tuple(camera.pixels_num),
+        tuple(camera.pixels_size),
+        camera.focal_length,
+        (0.0, 0.0, 0.0),
+        1.01,
+    )
+)
+camera.roi_cent_world = np.asarray(riley.roi_cent_over_meshes(native_meshes))
 
 # %%
 # 3. Configure and build the renderer

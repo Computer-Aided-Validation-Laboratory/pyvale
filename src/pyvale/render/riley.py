@@ -280,17 +280,18 @@ def to_riley_camera(camera: Camera | riley.Camera) -> riley.Camera:
 
     Native :class:`riley.Camera` instances are returned unchanged so scenes
     may mix cameras built through the render API with cameras loaded
-    directly from Riley.
+    directly from Riley. SciPy reports Euler angles in X-Y-Z order, whereas
+    Riley stores its camera angles in Z-Y-X order, so this adapter reverses
+    their storage order at the API boundary.
     """
     if isinstance(camera, riley.Camera):
         return camera
+    rotation_xyz = camera.rot_world.as_euler("xyz")
     return riley.Camera(
         pixels_num=tuple(int(value) for value in camera.pixels_num),
         pixels_size=tuple(float(value) for value in camera.pixels_size),
         pos_world=tuple(float(value) for value in camera.pos_world),
-        rot_world=tuple(
-            float(value) for value in camera.rot_world.as_euler("xyz")
-        ),
+        rot_world=tuple(float(value) for value in rotation_xyz[::-1]),
         roi_cent_world=tuple(float(value) for value in camera.roi_cent_world),
         focal_length=camera.focal_length,
         sub_sample=camera.subsample,

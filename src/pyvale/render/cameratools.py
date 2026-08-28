@@ -143,25 +143,50 @@ def cam_pos_fill_frame(
         Camera world coordinates [x, y, z] to frame the points.
     """
     pts = np.asarray(points, dtype=np.float64)
-    if pts.size == 0:
+    if pts.ndim != 2 or pts.shape[1] != 3:
+        raise ValueError("points must have shape (N, 3).")
+    if pts.shape[0] == 0:
         raise ValueError("Cannot frame an empty set of points.")
 
-    if isinstance(rot_world, Rotation):
-        rot_euler = tuple(float(value) for value in rot_world.as_euler("xyz"))
-    elif isinstance(rot_world, np.ndarray):
-        rot_euler = tuple(float(value) for value in rot_world)
-    else:
-        rot_euler = tuple(float(value) for value in rot_world)
+    if fill <= 0.0:
+        raise ValueError("fill must be positive.")
 
-    pos = riley.pos_fill_frame_from_rot(
-        pts,
-        tuple(int(value) for value in pixels_num),
-        tuple(float(value) for value in pixels_size),
-        float(focal_length),
-        rot_euler,
-        float(fill),
+    pixel_counts = np.asarray(pixels_num, dtype=np.float64)
+    pixel_sizes = np.asarray(pixels_size, dtype=np.float64)
+    if (
+        pixel_counts.shape != (2,)
+        or pixel_sizes.shape != (2,)
+        or np.any(pixel_counts <= 0.0)
+        or np.any(pixel_sizes <= 0.0)
+        or focal_length <= 0.0
+    ):
+        raise ValueError("Camera dimensions and focal length must be positive.")
+
+    if isinstance(rot_world, Rotation):
+        rotation = rot_world
+    else:
+        rotation = Rotation.from_euler(
+            "xyz",
+            np.asarray(rot_world, dtype=np.float64),
+        )
+
+    target = 0.5 * (np.min(pts, axis=0) + np.max(pts, axis=0))
+    camera_points = rotation.inv().apply(pts - target)
+    sensor_half_size = 0.5 * pixel_counts * pixel_sizes * fill
+
+    distance_x = (
+        camera_points[:, 2]
+        + focal_length * np.abs(camera_points[:, 0]) / sensor_half_size[0]
     )
-    return np.asarray(pos, dtype=np.float64)
+    distance_y = (
+        camera_points[:, 2]
+        + focal_length * np.abs(camera_points[:, 1]) / sensor_half_size[1]
+    )
+    distance = float(max(np.max(distance_x), np.max(distance_y)))
+    clearance = np.finfo(np.float64).eps * max(1.0, abs(distance))
+    distance = max(distance, float(np.max(camera_points[:, 2]))) + clearance
+
+    return target + rotation.apply(np.array((0.0, 0.0, distance)))
 
 
 def cam_frame_points(

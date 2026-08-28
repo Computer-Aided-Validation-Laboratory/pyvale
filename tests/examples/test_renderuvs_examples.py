@@ -11,7 +11,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
 import pytest
+from PIL import Image
 
 
 _RENDER_UV_EXAMPLES = (
@@ -50,5 +52,26 @@ def test_renderuv_example(
     example: str,
     output: str,
 ) -> None:
-    """Each Render UV example runs and writes its representative result."""
-    run_example(example, (output,), timeout=300.0)
+    """Each representative render is visible, centred, and uncropped."""
+    work_dir = run_example(example, (output,), timeout=300.0)
+    with Image.open(work_dir / output) as output_image:
+        image = np.asarray(output_image)
+
+    background = image[0, 0]
+    foreground = np.any(image != background, axis=2)
+    rows, columns = np.nonzero(foreground)
+
+    assert rows.size > 0
+    assert columns.min() > 0
+    assert rows.min() > 0
+    assert columns.max() < image.shape[1] - 1
+    assert rows.max() < image.shape[0] - 1
+
+    object_center = np.array(
+        (
+            0.5 * (columns.min() + columns.max()),
+            0.5 * (rows.min() + rows.max()),
+        )
+    )
+    image_center = 0.5 * np.array((image.shape[1] - 1, image.shape[0] - 1))
+    assert np.all(np.abs(object_center - image_center) < 0.1 * image_center)

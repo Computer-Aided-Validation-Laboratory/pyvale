@@ -112,6 +112,58 @@ def test_cam_frame_mesh_and_scene() -> None:
     np.testing.assert_allclose(framed_scene.pos_world, framed_mesh.pos_world)
 
 
+def test_cam_frame_mesh_respects_fill_for_oblique_camera() -> None:
+    """Framing keeps every projected node within the requested image fill."""
+    coords = np.array(
+        (
+            (-2.0, -1.0, -0.2),
+            (2.0, -1.0, -0.2),
+            (2.0, 1.0, 0.2),
+            (-2.0, 1.0, 0.2),
+        )
+    )
+    mesh = render.Mesh3D(
+        element_type=render.EElementType.QUAD4,
+        coords=coords,
+        connectivity=np.array(((0, 1, 2, 3),), dtype=np.uintp),
+        shader=None,
+    )
+    camera = _make_test_camera(pixels_num=(640, 480))
+    camera.rot_world = Rotation.from_euler(
+        "xyz",
+        (12.0, -20.0, 4.0),
+        degrees=True,
+    )
+
+    framed = render.cam_frame_mesh(camera, mesh, fill=0.8)
+    pixels = render.cam_project_points(framed, coords)
+    image_center = 0.5 * framed.pixels_num
+    image_half_size = 0.5 * framed.pixels_num
+    occupancy = np.abs(pixels - image_center) / image_half_size
+
+    assert np.max(occupancy) <= 0.8 + 1.0e-12
+    assert np.isclose(np.max(occupancy), 0.8)
+
+
+def test_cam_frame_mesh_fill_fraction_controls_camera_distance() -> None:
+    """A smaller fill fraction moves the camera away from the target."""
+    coords = np.array(
+        ((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))
+    )
+    mesh = render.Mesh3D(
+        element_type=render.EElementType.TRI3,
+        coords=coords,
+        connectivity=np.array(((0, 1, 2),), dtype=np.uintp),
+        shader=None,
+    )
+    camera = _make_test_camera()
+
+    framed_full = render.cam_frame_mesh(camera, mesh, fill=1.0)
+    framed_border = render.cam_frame_mesh(camera, mesh, fill=0.9)
+
+    assert framed_border.pos_world[2] > framed_full.pos_world[2]
+
+
 def test_stereo_build_symmetric_and_faceon() -> None:
     """Verify stereo baseline and symmetric / face-on angles."""
     cam = _make_test_camera(pos=(0.0, 0.0, 10.0))

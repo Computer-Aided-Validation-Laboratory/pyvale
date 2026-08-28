@@ -26,6 +26,7 @@ from pyvale.examples.renderuvs.tools import render_uv_example
 # ------------------------------------------------------------
 # The calibration plate is a TRI3 surface mesh with front, back, and side
 # faces. Its exposed edges make planar-projection orientation easy to inspect.
+
 data_dir = dataset.riley_stereocal_case_path()
 simulation = io.SimLoaderByField(
     load_dir=data_dir,
@@ -35,8 +36,10 @@ simulation = io.SimLoaderByField(
     connect_files="connect.csv",
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_all_sim_data()
+
 base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
 texture = render.image_load(dataset.riley_cal_target_texture_path())
+
 mesh_center = render.mesh_center(base_mesh)
 
 # %%

@@ -22,24 +22,20 @@ def render_uv_example(
     """Render one textured UV example with a camera framed around its mesh.
 
     The camera follows the supplied view rotation, looks at the mesh centre,
-    and is positioned with :func:`render.cam_frame_mesh` to fill 95 percent
+    and is positioned with :func:`render.cam_frame_mesh` to fill 90 percent
     of the frame.
     """
-    mesh_center = render.mesh_center(mesh)
     camera = render.Camera(
         pixels_num=np.array((480, 320)),
         pixels_size=np.array((8.0e-6, 8.0e-6)),
         pos_world=np.zeros(3),
         rot_world=camera_rotation,
-        roi_cent_world=mesh_center,
+        roi_cent_world=render.mesh_center(mesh),
         focal_length=35.0e-3,
+        subsample=4,
     )
-    camera = render.cam_frame_mesh(camera, mesh, fill=0.95)
-    camera = render.cam_look_at(
-        camera,
-        mesh_center,
-        up=camera_rotation.apply(np.array((0.0, 1.0, 0.0))),
-    )
+
+    camera = render.cam_frame_mesh(camera, mesh, fill=0.90)
 
     config = riley.create_raster_config(
         num_frames=1,

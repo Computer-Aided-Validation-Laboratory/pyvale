@@ -68,7 +68,7 @@ textured_mesh = render.Mesh3D(
 # 3. Render the mapped pixel region
 # ------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1c_uv_pixel_region"
-camera_rotation = Rotation.from_euler("xyz", (14.0, -24.0, 0.0), degrees=True)
+camera_rotation = Rotation.identity()
 render_uv_example(textured_mesh, output_dir / "region", camera_rotation)
 
 print(f"Rendered the pixel-region UV mapping to {output_dir}")

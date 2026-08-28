@@ -70,7 +70,7 @@ transformed_uvs = render.uv_transform(original_uvs, transform)
 # 4. Render the original and transformed mappings
 # ------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1e_uv_transform"
-camera_rotation = Rotation.from_euler("xyz", (12.0, -22.0, 0.0), degrees=True)
+camera_rotation = Rotation.identity()
 
 for variant_name, uvs in (
     ("original", original_uvs),
