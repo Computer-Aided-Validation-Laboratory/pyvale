@@ -1,4 +1,15 @@
-"""Render a stereo DIC experiment directly from an Exodus result file."""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
+"""
+Riley: DIC UQ from Exodus
+================================================================================
+Here we render the same plate with a hole in tension from the last example but 
+we load the data from an exodus file and generate the uv's using Riley's tools.
+"""
 
 from dataclasses import replace
 from pathlib import Path
@@ -17,12 +28,15 @@ simulation = ExodusLoader(
     dataset.riley_platehole_exodus_path(),
     enforce_convention=True,
 ).load_all_sim_data()
+
 texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+
 surface_mesh = render.mesh3d_from_simdata(
     simulation,
     shader=None,
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )
+
 surface_mesh.shader = render.RileyTextureShader(
     uvs=riley.project_uvs_planar_centered(
         surface_mesh.coords,
@@ -35,6 +49,9 @@ surface_mesh.shader = render.RileyTextureShader(
     ),
     texture=texture,
 )
+
+# To save time we only render the first and last frame. If you want to render
+# all frames comment this out.
 surface_mesh.displacements = surface_mesh.displacements[[0, -1]]
 
 # %%
@@ -49,7 +66,6 @@ roi_centre = riley.roi_cent_from_coords(surface_mesh.coords)
 
 
 def make_camera(angle_degrees: float) -> riley.Camera:
-    """Create one distorted camera aimed at the extracted surface."""
     rot_world = (0.0, np.deg2rad(angle_degrees), 0.0)
     position = riley.pos_fill_frame_from_rot(
         surface_mesh.coords,
@@ -88,10 +104,12 @@ config = riley.create_raster_config(
 config.background_value = 128.0
 config.tile_size_max = 128
 config.save_scaling = riley.ScaleStrategy.none
+
 output_dir = (
     Path.cwd() / "pyvale-output"
     / "render3d_ex1f_riley_dic_from_exodus"
 )
+
 renderer = render.Riley(config, output_dir)
 
 # %%
@@ -108,12 +126,14 @@ riley.save_stereo_pair(
     cameras[0],
     cameras[1],
 )
+
 riley.save_stereo_pair(
     str(output_dir),
     "stereo_data_opencv.csv",
     replace(cameras[0], coord_sys=riley.CameraCoordSys.opencv),
     replace(cameras[1], coord_sys=riley.CameraCoordSys.opencv),
 )
+
 print(f"Rendered Exodus-driven DIC images to {output_dir}")
 print(f"{result.images=}")
 

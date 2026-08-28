@@ -1,4 +1,17 @@
-"""Render multiple mesh topologies and shader types with Riley."""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
+
+"""Riley: Multi-Shader, Multi-Element Rabbits
+================================================================================
+
+Here we render a series of rabbit meshes of all different element types cycling
+through all support shaders for Riley to show how to build a scene with mixed
+element and shader types.
+"""
 
 from pathlib import Path
 

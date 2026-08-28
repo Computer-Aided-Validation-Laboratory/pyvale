@@ -1,4 +1,16 @@
-"""Render a deforming stereo DIC experiment from CSV simulation data."""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
+"""
+Riley: Digital Image Correlation UQ
+================================================================================
+In this example we render stereo camera images of a speckle pattern applued to
+a plate with a hole loaded in tension. For this case we specifically choose 
+parameters representative of typical stereo DIC setups.
+"""
 
 from dataclasses import replace
 from pathlib import Path
@@ -29,13 +41,16 @@ simulation = io.SimLoaderByField(
         node_field_header=None,
     ),
 ).load_all_sim_data()
+
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+
 mesh = render.mesh3d_from_simdata(
     simulation,
     shader=render.RileyTextureShader(uvs=uvs, texture=texture),
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )
+
 mesh.displacements = mesh.displacements[[0, -1]]
 coords = mesh.coords
 
@@ -61,6 +76,7 @@ def make_camera(angle_degrees: float) -> riley.Camera:
         rot_world,
         0.65,
     )
+
     return riley.Camera(
         pixels_num=pixels_num,
         pixels_size=pixels_size,
@@ -83,6 +99,7 @@ camera_1 = make_camera(20.0)
 # %%
 # 3. Configure and build the renderer
 # ------------------------------------------------------------
+
 config = riley.create_raster_config(
     num_frames=mesh.displacements.shape[0],
     total_threads=8,
@@ -91,7 +108,9 @@ config = riley.create_raster_config(
 config.background_value = 128.0
 config.tile_size_max = 128
 config.save_scaling = riley.ScaleStrategy.none
+
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1e_riley_dicuq"
+
 renderer = render.Riley(config, output_dir)
 
 # %%
@@ -110,6 +129,7 @@ riley.save_stereo_pair(
     camera_0,
     camera_1,
 )
+
 riley.save_stereo_pair(
     str(output_dir),
     "stereo_data_opencv.csv",

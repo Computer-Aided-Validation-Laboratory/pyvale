@@ -51,6 +51,7 @@ exclude_patterns = [
     '_build',
     'Thumbs.db',
     '.DS_Store',
+    'sg_execution_times.rst',
     # Sphinx-gallery generates untitled index and execution-time pages that
     # are only meant to be linked from the hand-written gallery root page.
     'examples/*/index.rst',
@@ -123,35 +124,46 @@ run_examples = os.environ.get("PYVALE_DOCS_RUN_EXAMPLES", "").lower() in (
     "1", "true", "yes",
 )
 
+# These examples should be documented but must not execute during gallery
+# builds because they require interactive input or unbundled local data. The
+# negative lookahead belongs in filename_pattern rather than ignore_pattern:
+# Sphinx-Gallery still generates their pages while excluding their execution.
+unsafe_example_names = (
+    "ex01_region_of_interest",
+    "ex05_dic_challenge",
+    "ex06_hrdic",
+    "ex08_calibration",
+    "ex09_stereo",
+    "ex10_stereo_platehole",
+    "ex11_dic_chal",
+)
+unsafe_example_pattern = "|".join(unsafe_example_names)
+safe_example_pattern = rf"/(?!({unsafe_example_pattern})\.py$)ex"
+
 sphinx_gallery_conf = {
     # Path to your example scripts
     'examples_dirs': [
         '../../src/pyvale/examples/basicsensorsim',
-        '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/dic',
-        '../../src/pyvale/examples/mooseherder',
         '../../src/pyvale/examples/render3d',
+        '../../src/pyvale/examples/extsensorsim',
+        '../../src/pyvale/examples/mooseherder',
         '../../src/pyvale/examples/render2d',
     ],
     # Path to where to save gallery generated output. Render3D galleries are
     # listed before the 2D image-warp galleries.
     'gallery_dirs': [
         'examples/basicsensorsim',
-        'examples/extsensorsim',
         'examples/dic',
-        'examples/mooseherder',
         'examples/render3d',
+        'examples/extsensorsim',
+        'examples/mooseherder',
         'examples/render2d',
     ],
-    # Pattern to identify example files
-    'filename_pattern': '/ex',
-    # Examples that cannot run unattended: interactive GUI windows or images
-    # that are not packaged with pyvale.
-    'ignore_pattern': (
-        r'ex01_region_of_interest|ex05_dic_challenge|ex06_hrdic'
-        r'|ex08_calibration|ex09_stereo|ex10_stereo_platehole'
-        r'|ex11_dic_chal'
-    ),
+    # Generate every example page, but only execute unattended examples.
+    'filename_pattern': safe_example_pattern,
+    # Private helper modules support examples but are not gallery tutorials.
+    'ignore_pattern': r'/(?:_blender_example_tools|_riley_demo_tools)\.py$',
     # Specify that examples should be ordered according to filename
     'within_subsection_order': FileNameSortKey,
     # Directory where function granular galleries are stored

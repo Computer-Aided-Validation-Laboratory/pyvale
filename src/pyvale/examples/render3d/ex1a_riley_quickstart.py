@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Rendering quickstart with Riley
+"""Riley: Rendering Quickstart
 ================================================================================
 
 Here we render a single triangle with Riley through the unified pyvale render

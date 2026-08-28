@@ -1,26 +1,52 @@
+.. _examples_all:
+
 Examples
 ========
 
-.. toctree::
-   :caption: Example Galleries
-   :maxdepth: 1
-   :glob:
-
-   basicsensorsim/ex*
-   extsensorsim/ex*
-   dic/ex*
-   mooseherder/ex*
+Basic Sensor Simulation
+-----------------------
 
 .. toctree::
-   :caption: 3D Render Examples
-   :maxdepth: 1
-   :glob:
+   :maxdepth: 2
 
-   render3d/ex*
+   examples_basics_sensorsim
+
+DIC
+---
 
 .. toctree::
-   :caption: 2D Image-Warp Examples
-   :maxdepth: 1
-   :glob:
+   :maxdepth: 2
 
-   render2d/ex*
+   examples_dic
+
+Render 3D
+---------
+
+.. toctree::
+   :maxdepth: 2
+
+   examples_render3d
+
+Extended Sensor Simulation
+--------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   examples_ext_sensorsim
+
+Mooseherder
+-----------
+
+.. toctree::
+   :maxdepth: 2
+
+   examples_mooseherder
+
+Render 2D
+---------
+
+.. toctree::
+   :maxdepth: 2
+
+   examples_render2d

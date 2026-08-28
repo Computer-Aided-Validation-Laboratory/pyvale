@@ -1,4 +1,15 @@
-"""Render a moving stereo-calibration target with Riley."""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
+"""
+Riley: Stereo Calibration Target
+================================================================================
+Here we render a series of images of a stereo calibration target with Riley. We
+also show how to save and load camera configurations into Riley.
+"""
 
 from pathlib import Path
 
@@ -10,6 +21,9 @@ import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 
+# %%
+# Setup
+# ------------------------------------------------------------
 # Stereo pair matching the DIC UQ specimen position and camera parameters.
 # The camera positions are the calibrated values from Riley's own demo so
 # this example is standalone: no other example needs to run first.
@@ -59,6 +73,7 @@ def create_stereo_cameras(
 # 1. Load the moving calibration target and its texture
 # ------------------------------------------------------------
 data_dir = dataset.riley_stereocal_case_path()
+
 simulation = io.SimLoaderByField(
     load_dir=data_dir,
     coords_file="coords.csv",
@@ -74,17 +89,21 @@ simulation = io.SimLoaderByField(
         node_field_header=None,
     ),
 ).load_all_sim_data()
+
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 texture = riley.load_texture_u8(dataset.riley_cal_target_texture_path())
+
 mesh = render.mesh3d_from_simdata(
     simulation,
     shader=render.RileyTextureShader(uvs=uvs, texture=texture),
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )
+
 frame_indices = evenly_spaced_frame_indices(
     mesh.displacements.shape[0],
     8,
 )
+
 mesh.displacements = mesh.displacements[frame_indices]
 coords = mesh.coords
 
@@ -100,8 +119,10 @@ roi_pos = riley.roi_cent_from_coords(coords)
 # 3. Create the stereo pair and save it in Riley's exchange format
 # ------------------------------------------------------------
 camera_0, camera_1 = create_stereo_cameras(tuple(roi_pos))
+
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1g_riley_stereocal"
 output_dir.mkdir(parents=True, exist_ok=True)
+
 stereo_file_name = "stereo_data_opengl.csv"
 riley.save_stereo_pair(str(output_dir), stereo_file_name, camera_0, camera_1)
 
