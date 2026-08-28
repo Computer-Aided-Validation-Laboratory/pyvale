@@ -40,7 +40,7 @@ simulation = io.SimLoaderByField(
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_all_sim_data()
 mesh = render.mesh3d_from_simdata(simulation, shader=None)
-texture = riley.load_texture_u8(dataset.riley_cal_target_texture_path())
+texture = render.image_load(dataset.riley_cal_target_texture_path())
 
 # %%
 # 2. Generate the original UV coordinates

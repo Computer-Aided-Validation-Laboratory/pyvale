@@ -55,7 +55,7 @@ uv_sets = {
 # ------------------------------------------------------------
 # ``FIT_V`` can extend beyond the U texture bounds in this example, while
 # ``STRETCH`` deliberately changes the mapping aspect ratio.
-texture = riley.load_texture_u8(dataset.riley_cal_target_texture_path())
+texture = render.image_load(dataset.riley_cal_target_texture_path())
 output_dir = (
     Path.cwd() / "pyvale-output" / "renderuvs_ex1b_uv_texture_aspect"
 )

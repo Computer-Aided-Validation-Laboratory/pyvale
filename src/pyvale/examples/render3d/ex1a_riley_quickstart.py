@@ -37,14 +37,15 @@ from pyvale import render
 coords = np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0)))
 connect = np.array(((0, 1, 2),))
 
+shader = render.RileyFunctionShader(
+    builtin=riley.FuncShaderBuiltin.checker,
+    coord_mode=riley.FuncCoordMode.world_reference,
+)
 mesh = render.Mesh3D(
     element_type=render.EElementType.TRI3,
     coords=coords,
     connectivity=connect,
-    shader=render.RileyFunctionShader(
-        builtin=riley.FuncShaderBuiltin.checker,
-        coord_mode=riley.FuncCoordMode.world_reference,
-    ),
+    shader=shader,
 )
 
 # %%

@@ -82,6 +82,62 @@ def cam_look_at(
     )
 
 
+def cam_pos_fill_frame(
+    points: np.ndarray,
+    pixels_num: tuple[int, int] | np.ndarray,
+    pixels_size: tuple[float, float] | np.ndarray,
+    focal_length: float,
+    rot_world: tuple[float, float, float] | np.ndarray | Rotation = (
+        0.0,
+        0.0,
+        0.0,
+    ),
+    fill: float = 1.0,
+) -> np.ndarray:
+    """Calculate the world camera position to fill a fraction of the sensor.
+
+    Parameters
+    ----------
+    points : numpy.ndarray
+        Array of 3D point coordinates (e.g. mesh.coords) to frame.
+    pixels_num : tuple[int, int] or numpy.ndarray
+        Camera sensor resolution in pixels (num_x, num_y).
+    pixels_size : tuple[float, float] or numpy.ndarray
+        Pixel physical dimensions in metres.
+    focal_length : float
+        Camera focal length in metres.
+    rot_world : tuple, numpy.ndarray, or Rotation, optional
+        Euler angles in radians (xyz) or a scipy Rotation (default (0, 0, 0)).
+    fill : float, optional
+        Target fraction of the sensor field of view to fill (default 1.0).
+
+    Returns
+    -------
+    numpy.ndarray
+        Camera world coordinates [x, y, z] to frame the points.
+    """
+    pts = np.asarray(points, dtype=np.float64)
+    if pts.size == 0:
+        raise ValueError("Cannot frame an empty set of points.")
+
+    if isinstance(rot_world, Rotation):
+        rot_euler = tuple(float(x) for x in rot_world.as_euler("xyz"))
+    elif isinstance(rot_world, np.ndarray):
+        rot_euler = tuple(float(x) for x in rot_world)
+    else:
+        rot_euler = tuple(float(x) for x in rot_world)
+
+    pos = riley.pos_fill_frame_from_rot(
+        pts,
+        tuple(int(x) for x in pixels_num),
+        tuple(float(x) for x in pixels_size),
+        float(focal_length),
+        rot_euler,
+        float(fill),
+    )
+    return np.asarray(pos, dtype=np.float64)
+
+
 def cam_frame_points(
     camera: Camera,
     points: np.ndarray,
@@ -107,20 +163,19 @@ def cam_frame_points(
     if pts.size == 0:
         raise ValueError("Cannot frame an empty set of points.")
 
-    rot_euler = tuple(camera.rot_world.as_euler("xyz"))
-    pos = riley.pos_fill_frame_from_rot(
+    pos = cam_pos_fill_frame(
         pts,
-        tuple(camera.pixels_num),
-        tuple(camera.pixels_size),
+        camera.pixels_num,
+        camera.pixels_size,
         camera.focal_length,
-        rot_euler,
+        camera.rot_world,
         fill,
     )
     roi = riley.roi_cent_from_coords(pts)
 
     return replace(
         camera,
-        pos_world=np.asarray(pos, dtype=np.float64),
+        pos_world=pos,
         roi_cent_world=np.asarray(roi, dtype=np.float64),
     )
 
@@ -311,6 +366,7 @@ __all__ = [
     "cam_frame_points",
     "cam_frame_scene",
     "cam_look_at",
+    "cam_pos_fill_frame",
     "cam_project_points",
     "cam_stereo_faceon",
     "cam_stereo_symmetric",

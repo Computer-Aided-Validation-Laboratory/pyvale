@@ -132,3 +132,33 @@ def test_cam_stereo_symmetric_and_faceon() -> None:
         - stereo_faceon.camera_0.pos_world[0]
     )
     assert np.isclose(actual_faceon_base, expected_faceon_base)
+
+
+def test_cam_pos_fill_frame() -> None:
+    """Verify cam_pos_fill_frame with tuple, array, and Rotation inputs."""
+    coords = np.array([[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [0.0, 1.0, 0.0]])
+    pixels_num = (512, 512)
+    pixels_size = (0.02, 0.02)
+    focal_length = 1.0
+
+    pos_tuple = render.cam_pos_fill_frame(
+        coords,
+        pixels_num,
+        pixels_size,
+        focal_length,
+        (0.0, 0.0, 0.0),
+        1.0,
+    )
+    assert pos_tuple.shape == (3,)
+    assert pos_tuple[2] > 0.0
+
+    pos_rot = render.cam_pos_fill_frame(
+        coords,
+        pixels_num,
+        pixels_size,
+        focal_length,
+        Rotation.identity(),
+        1.0,
+    )
+    np.testing.assert_allclose(pos_tuple, pos_rot, atol=1.0e-12)
+

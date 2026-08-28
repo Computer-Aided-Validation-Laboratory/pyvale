@@ -54,11 +54,12 @@ simulation = io.SimLoaderByField(
 ).load_all_sim_data()
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
-texture = riley.load_texture_u8(dataset.riley_cal_target_texture_path())
+texture = render.image_load(dataset.riley_cal_target_texture_path())
 
+shader = render.RileyTextureShader(uvs=uvs, texture=texture)
 mesh = render.mesh3d_from_simdata(
     simulation,
-    shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+    shader=shader,
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )
 
@@ -82,15 +83,20 @@ pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
 stereo_angle_deg = 20.0
 
+rot_world_0 = (0.0, 0.0, 0.0)
+rot_world_1 = (0.0, float(np.deg2rad(stereo_angle_deg)), 0.0)
+roi_cent = tuple(roi_pos)
+distortion_model = int(render.EDistortionModel.BROWN_CONRADY)
+
 camera_0 = riley.Camera(
     pixels_num=pixels_num,
     pixels_size=pixels_size,
     pos_world=MATCHED_CAM0_POS,
-    rot_world=(0.0, 0.0, 0.0),
-    roi_cent_world=tuple(roi_pos),
+    rot_world=rot_world_0,
+    roi_cent_world=roi_cent,
     focal_length=focal_length,
     sub_sample=2,
-    distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
+    distortion_model=distortion_model,
     distortion_k1=-0.2,
     distortion_k2=0.1,
     distortion_k3=0.0,
@@ -100,7 +106,7 @@ camera_0 = riley.Camera(
 
 camera_1 = copy.deepcopy(camera_0)
 camera_1.pos_world = MATCHED_CAM1_POS
-camera_1.rot_world = (0.0, float(np.deg2rad(stereo_angle_deg)), 0.0)
+camera_1.rot_world = rot_world_1
 
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1f_riley_stereocal"
 output_dir.mkdir(parents=True, exist_ok=True)

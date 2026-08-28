@@ -57,7 +57,7 @@ uvs = render.project_uvs_planar_centered(
 # ------------------------------------------------------------
 # We display the mapping face-on so its texture orientation can be inspected
 # independently of camera perspective.
-texture = riley.load_texture_u8(dataset.riley_cal_target_texture_path())
+texture = render.image_load(dataset.riley_cal_target_texture_path())
 output_dir = (
     Path.cwd() / "pyvale-output" / "renderuvs_ex1d_uv_arbitrary_plane"
 )

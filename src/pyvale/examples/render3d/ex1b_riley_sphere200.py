@@ -48,11 +48,12 @@ simulation = io.SimLoaderByField(
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 
-texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+texture = render.image_load(dataset.riley_speckle_texture_path())
 
+shader = render.RileyTextureShader(uvs=uvs, texture=texture)
 mesh = render.mesh3d_from_simdata(
     simulation,
-    shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+    shader=shader,
 )
 
 # %%
@@ -91,7 +92,8 @@ renderer = render.Riley(config, output_dir)
 # %%
 # 4. Build the scene and render it
 # ------------------------------------------------------------
-result = renderer.render(render.Scene3D(meshes=[mesh], cameras=[camera]))
+scene = render.Scene3D(meshes=[mesh], cameras=[camera])
+result = renderer.render(scene)
 
 print(f"Rendered sphere render output to {output_dir}")
 print(f"{result.images=}")

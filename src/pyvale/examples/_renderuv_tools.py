@@ -70,11 +70,12 @@ def render_uv_variant(
         raise ValueError(
             f"Unsupported connectivity with {nodes_per_element} nodes.",
         )
+    shader = render.RileyTextureShader(uvs=uvs, texture=texture)
     mesh = render.Mesh3D(
         element_type=element_types[nodes_per_element],
         coords=display_coords,
         connectivity=connectivity,
-        shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+        shader=shader,
     )
 
     pixels_num = np.array((480, 320))
@@ -96,8 +97,9 @@ def render_uv_variant(
         save_strategy=riley.SaveStrategy.disk,
     )
     config.background_value = 128.0
+    scene = render.Scene3D(meshes=[mesh], cameras=[camera])
     renderer = render.Riley(config, output_dir)
-    renderer.render(render.Scene3D(meshes=[mesh], cameras=[camera]))
+    renderer.render(scene)
 
 
 __all__ = [

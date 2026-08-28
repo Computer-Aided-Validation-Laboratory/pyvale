@@ -18,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import riley
+from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -46,7 +47,7 @@ simulation = io.SimLoaderByField(
 ).load_all_sim_data()
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
-texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+texture = render.image_load(dataset.riley_speckle_texture_path())
 
 mesh = render.mesh3d_from_simdata(
     simulation,
@@ -56,35 +57,52 @@ mesh = render.mesh3d_from_simdata(
 
 # We only render the first and last frame to save time. If you want to render 
 # all frames comment this out.
-mesh.displacements = mesh.displacements[[0, -1]]
+frame_indices = render.first_last_frame_indices(mesh.displacements.shape[0])
+mesh.displacements = render.select_frames(mesh.displacements, frame_indices)
 
 # %%
 # 2. Create and position a distorted stereo camera pair
 # ------------------------------------------------------------
-# The cameras are built natively so they can be saved in Riley's exchange
-# format without any conversion of their parameters.
-
 pixels_num = (2464, 2056)
 pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
-roi_centre = riley.roi_cent_from_coords(mesh.coords)
+roi_centre = tuple(render.mesh_center(mesh))
 
-camera_0 = riley.Camera(
-    pixels_num=pixels_num,
-    pixels_size=pixels_size,
-    pos_world=riley.pos_fill_frame_from_rot(
+rot_world_0 = (0.0, 0.0, 0.0)
+pos_world_0 = tuple(
+    render.cam_pos_fill_frame(
         mesh.coords,
         pixels_num,
         pixels_size,
         focal_length,
-        (0.0, 0.0, 0.0),
+        rot_world_0,
         0.65,
-    ),
-    rot_world=(0.0, 0.0, 0.0),
+    )
+)
+
+rot_world_1 = (0.0, float(np.deg2rad(20.0)), 0.0)
+pos_world_1 = tuple(
+    render.cam_pos_fill_frame(
+        mesh.coords,
+        pixels_num,
+        pixels_size,
+        focal_length,
+        rot_world_1,
+        0.65,
+    )
+)
+
+distortion_model = int(render.EDistortionModel.BROWN_CONRADY)
+
+camera_0 = riley.Camera(
+    pixels_num=pixels_num,
+    pixels_size=pixels_size,
+    pos_world=pos_world_0,
+    rot_world=rot_world_0,
     roi_cent_world=roi_centre,
     focal_length=focal_length,
     sub_sample=2,
-    distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
+    distortion_model=distortion_model,
     distortion_k1=-0.2,
     distortion_k2=0.1,
     distortion_p1=0.0001,
@@ -92,15 +110,8 @@ camera_0 = riley.Camera(
 )
 
 camera_1 = copy.deepcopy(camera_0)
-camera_1.rot_world = (0.0, float(np.deg2rad(20.0)), 0.0)
-camera_1.pos_world = riley.pos_fill_frame_from_rot(
-    mesh.coords,
-    pixels_num,
-    pixels_size,
-    focal_length,
-    camera_1.rot_world,
-    0.65,
-)
+camera_1.rot_world = rot_world_1
+camera_1.pos_world = pos_world_1
 
 # %%
 # 3. Configure and build the renderer

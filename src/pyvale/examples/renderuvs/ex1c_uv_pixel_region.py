@@ -43,7 +43,7 @@ mesh = render.mesh3d_from_simdata(simulation, shader=None)
 # ------------------------------------------------------------
 # The rectangle leaves a substantial texture border and ``CONTAIN`` keeps the
 # whole plate visible without changing its physical aspect ratio.
-texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+texture = render.image_load(dataset.riley_speckle_texture_path())
 texture_shape = texture.shape[:2]
 height, width = texture_shape
 pixel_bounds = (0.2 * width, 0.15 * height, 0.8 * width, 0.85 * height)

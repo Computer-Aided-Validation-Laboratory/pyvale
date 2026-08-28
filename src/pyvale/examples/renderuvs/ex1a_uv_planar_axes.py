@@ -68,7 +68,7 @@ uv_sets = {
 # All three UV sets are rendered on the same face-on display grid. This makes
 # the texture results directly comparable while the UVs themselves were
 # generated from three differently embedded grids.
-texture = riley.load_texture_u8(dataset.riley_cal_target_texture_path())
+texture = render.image_load(dataset.riley_cal_target_texture_path())
 output_dir = (
     Path.cwd() / "pyvale-output" / "renderuvs_ex1a_uv_planar_axes"
 )

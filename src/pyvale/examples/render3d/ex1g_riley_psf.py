@@ -34,11 +34,12 @@ simulation = io.SimLoaderByField(
 ).load_all_sim_data()
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
-texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+texture = render.image_load(dataset.riley_speckle_texture_path())
 
+shader = render.RileyTextureShader(uvs=uvs, texture=texture)
 mesh = render.mesh3d_from_simdata(
     simulation,
-    shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+    shader=shader,
 )
 
 # %%
@@ -85,8 +86,8 @@ for buffer_mode in buffer_modes:
     
     config.buffer_mode = buffer_mode
     output_dir = output_root / buffer_mode.name
-
-    result = render.Riley(config, output_dir).render(scene)
+    renderer = render.Riley(config, output_dir)
+    result = renderer.render(scene)
 
     print(f"Rendered {buffer_mode.name} output to {output_dir}")
     print(f"{result.images=}")

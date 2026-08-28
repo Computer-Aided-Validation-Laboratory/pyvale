@@ -58,7 +58,7 @@ topologies = (
     render.EElementType.QUAD9,
 )
 
-texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+texture = render.image_load(dataset.riley_speckle_texture_path())
 
 meshes: list[render.Mesh3D] = []
 mesh_groups: list[sceneops.MeshGroup] = []
@@ -157,8 +157,8 @@ renderer = render.Riley(config, output_dir)
 # %%
 # 4. Build the multi-mesh scene and render it
 # ------------------------------------------------------------
-
-result = renderer.render(render.Scene3D(meshes=meshes, cameras=[camera]))
+scene = render.Scene3D(meshes=meshes, cameras=[camera])
+result = renderer.render(scene)
 
 print(f"Rendered the rabbit topology comparison to {output_dir}")
 print(f"{result.images=}")

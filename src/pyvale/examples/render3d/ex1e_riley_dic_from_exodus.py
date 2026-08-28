@@ -30,7 +30,7 @@ simulation = ExodusLoader(
     enforce_convention=True,
 ).load_all_sim_data()
 
-texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+texture = render.image_load(dataset.riley_speckle_texture_path())
 
 surface_mesh = render.mesh3d_from_simdata(
     simulation,
@@ -38,49 +38,70 @@ surface_mesh = render.mesh3d_from_simdata(
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )
 
-surface_mesh.shader = render.RileyTextureShader(
-    uvs=riley.project_uvs_planar_centered(
-        surface_mesh.coords,
-        (2464, 2056),
-        uv_span_max=0.8,
-        proj_plane=(
-            np.array((0.0, 0.0, -1.0), dtype=np.float64),
-            np.array((0.0, 0.0, 0.0), dtype=np.float64),
-        ),
-    ),
-    texture=texture,
+uv_plane = render.UVPlane(
+    normal=np.array((0.0, 0.0, -1.0), dtype=np.float64),
+    origin=np.array((0.0, 0.0, 0.0), dtype=np.float64),
 )
+uvs = render.uv_project_planar_centered(
+    surface_mesh.coords,
+    (2056, 2464),
+    span=0.8,
+    plane=uv_plane,
+)
+surface_mesh.shader = render.RileyTextureShader(uvs=uvs, texture=texture)
 
 # To save time we only render the first and last frame. If you want to render
 # all frames comment this out.
-surface_mesh.displacements = surface_mesh.displacements[[0, -1]]
+frame_indices = render.first_last_frame_indices(
+    surface_mesh.displacements.shape[0]
+)
+surface_mesh.displacements = render.select_frames(
+    surface_mesh.displacements, frame_indices
+)
 
 # %%
 # 2. Create and position a distorted stereo camera pair
 # ------------------------------------------------------------
-# The cameras are built natively so they can be saved in Riley's format without 
-# any conversion of their parameters.
 pixels_num = (2464, 2056)
 pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
-roi_centre = riley.roi_cent_from_coords(surface_mesh.coords)
+roi_centre = tuple(render.mesh_center(surface_mesh))
 
-camera_0 = riley.Camera(
-    pixels_num=pixels_num,
-    pixels_size=pixels_size,
-    pos_world=riley.pos_fill_frame_from_rot(
+rot_world_0 = (0.0, 0.0, 0.0)
+pos_world_0 = tuple(
+    render.cam_pos_fill_frame(
         surface_mesh.coords,
         pixels_num,
         pixels_size,
         focal_length,
-        (0.0, 0.0, 0.0),
+        rot_world_0,
         0.65,
-    ),
-    rot_world=(0.0, 0.0, 0.0),
+    )
+)
+
+rot_world_1 = (0.0, float(np.deg2rad(20.0)), 0.0)
+pos_world_1 = tuple(
+    render.cam_pos_fill_frame(
+        surface_mesh.coords,
+        pixels_num,
+        pixels_size,
+        focal_length,
+        rot_world_1,
+        0.65,
+    )
+)
+
+distortion_model = int(render.EDistortionModel.BROWN_CONRADY)
+
+camera_0 = riley.Camera(
+    pixels_num=pixels_num,
+    pixels_size=pixels_size,
+    pos_world=pos_world_0,
+    rot_world=rot_world_0,
     roi_cent_world=roi_centre,
     focal_length=focal_length,
     sub_sample=2,
-    distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
+    distortion_model=distortion_model,
     distortion_k1=-0.2,
     distortion_k2=0.1,
     distortion_p1=0.0001,
@@ -88,15 +109,8 @@ camera_0 = riley.Camera(
 )
 
 camera_1 = copy.deepcopy(camera_0)
-camera_1.rot_world = (0.0, float(np.deg2rad(20.0)), 0.0)
-camera_1.pos_world = riley.pos_fill_frame_from_rot(
-    surface_mesh.coords,
-    pixels_num,
-    pixels_size,
-    focal_length,
-    camera_1.rot_world,
-    0.65,
-)
+camera_1.rot_world = rot_world_1
+camera_1.pos_world = pos_world_1
 
 cameras = [camera_0, camera_1]
 
