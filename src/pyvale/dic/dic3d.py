@@ -221,6 +221,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks.multiwindow_init(subset_size,
                                                                  subset_step,
+                                                                 w0, h1,
                                                                  max_displacement, 
                                                                  multiwindow_overlap, 
                                                                  multiwindow_subset_sizes, 

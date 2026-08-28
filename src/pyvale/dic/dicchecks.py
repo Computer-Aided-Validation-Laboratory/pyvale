@@ -47,6 +47,8 @@ class IncrementalMethod(str, Enum):
 
 def multiwindow_init(subset_size: int, 
                      subset_step: int,
+                     image_width: int,
+                     image_height: int,
                      max_displacement: int,
                      multiwindow_overlap: float,
                      multiwindow_subset_size: list[int],
@@ -71,6 +73,20 @@ def multiwindow_init(subset_size: int,
     if multiwindow_overlap < 0 or multiwindow_overlap > 1:
         raise ValueError(f"multiwindow_overlap must be a fractional value between 0 and 1."
                          f"Got {multiwindow_overlap}")
+
+
+    # check that the max displacement is a positive integer and that
+    # 2*max_displacement is less than the image size
+    if max_displacement <= 0:
+        raise ValueError(f"max_displacement must be a positive integer. Got {max_displacement}")
+
+    if 2*max_displacement >= image_width or 2*max_displacement >= image_height:
+        raise ValueError(
+            f"Subset search area must be less than the image size.\n"
+            f"\tSearch area diameter (2 * max_displacement): {2 * max_displacement} px\n"
+            f"\tImage width: {image_width} px\n"
+            f"\tImage height: {image_height} px"
+        )
 
     # if they are both empty then use max_displacement as the largest subset_size and multiwindow_search_area
     if len(multiwindow_subset_size) == 0 and len(multiwindow_search_area) == 0:

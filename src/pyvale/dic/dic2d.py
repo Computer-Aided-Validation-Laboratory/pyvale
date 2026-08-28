@@ -212,6 +212,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks.multiwindow_init(subset_size,
                                                                  subset_step,
+                                                                 w, h,
                                                                  max_displacement, 
                                                                  multiwindow_overlap, 
                                                                  multiwindow_subset_sizes,
