@@ -1,8 +1,8 @@
-"""Run two-phase bivariate-Gaussian VFM identification for a notched weld.
+"""Run two-phase Gaussian VFM identification for a notched weld.
 
 The first phase identifies homogeneous yield strength and hardening modulus.
-The second phase grows bivariate Gaussian basis functions in the yield-strength
-field from the combined equilibrium-gap indicator.
+The second phase grows Gaussian basis functions in the yield-strength field,
+with selectable conventional/SPD geometry and EGI/sensitivity growth rules.
 """
 
 from __future__ import annotations
@@ -30,6 +30,8 @@ from pyvale.vfm import (
     OptimiserPatternSearch,
     SliceConfig,
     SliceWiseForceReconstructionMetric,
+    SensitivitySpatialWeightingConfig,
+    SensitivityCorrectionBasisGrowthRefinement,
     SpatialParameterisationBasisFunction,
     SpatialParameterisationHomogeneous,
     SpatialParameterisationKnown,
@@ -64,12 +66,21 @@ INITIAL_MESH_SIZE = 0.1
 MINIMUM_MESH_SIZE = 5.0e-4
 MAX_ITERATIONS = 200
 PHASE_0_MAX_EVALUATIONS = 12
-PHASE_1_MAX_EVALUATIONS = 5000  # eval_count ~ 1 + (iter_count * ((2*dof_count) + 1)) i.e. for 8 dof, 1 + (iter_count * 17)
+# Six bivariate Gaussian bases give 38 phase-1 DOFs.  200 complete pattern
+# search polls can therefore require 1 + 200 * (2 * 38 + 1) = 15,401
+# evaluations; keep the evaluation ceiling above this so it does not truncate
+# the configured iteration budget during configuration investigations.
+PHASE_1_MAX_EVALUATIONS = 15_500
 PARALLEL_WORKERS = 12
+RANDOM_SEED = 0
 STRESS_BACKEND = "cython"
 SHOW_PROGRESS = True
 MAX_BASIS_FUNCTIONS = 6
 MINIMUM_OBJECTIVE_IMPROVEMENT = 0.05
+SENSITIVITY_PERTURBATION_FACTOR = 0.15
+SENSITIVITY_WEIGHT_FLOOR = 0.1
+MULTISTART_OFFSET_FRACTION = 0.10
+MULTISTART_SCREENING_ITERATIONS = 10
 
 
 def main() -> None:
@@ -121,9 +132,33 @@ def main() -> None:
     yield_strength_basis = SpatialParameterisationBasisFunction(
         x=x,
         y=y,
-        kernel_type="bivariate",
+        kernel_type=args.kernel_type,
         centre_bounds_span_factor=args.centre_bounds_span_factor,
     )
+
+    refinement_policy_type = (
+        EquilibriumGapBasisGrowthRefinement
+        if args.basis_growth_policy == "egi_peak"
+        else SensitivityCorrectionBasisGrowthRefinement
+    )
+    refinement_options = {
+        "target": yield_strength_basis,
+        "max_basis_functions": args.max_basis_functions,
+        "relative_improvement_threshold": args.minimum_objective_improvement,
+        "smoothing_points": args.refinement_smoothing_points,
+        "multistart_enabled": args.multistart_basis_placement,
+        "multistart_offset_fraction": args.multistart_offset_fraction,
+        "multistart_screening_iterations": args.multistart_screening_iterations,
+    }
+    if args.basis_growth_policy == "sensitivity_correction":
+        refinement_options.update(
+            {
+                "sensitivity_perturbation_factor": (
+                    args.correction_sensitivity_perturbation_factor
+                ),
+                "correction_feature_fraction": args.correction_feature_fraction,
+            }
+        )
 
     phase_1 = IdentificationPhase(
         spatial_parameterisations={
@@ -141,6 +176,14 @@ def main() -> None:
             force_weight=args.force_weight,
             egi_window_weights=egi_window_weights,
             baseline=CombinedObjectiveBaseline.prior_phase(0),
+            spatial_weighting=(
+                SensitivitySpatialWeightingConfig(
+                    perturbation_factor=args.sensitivity_perturbation_factor,
+                    weight_floor=args.sensitivity_weight_floor,
+                )
+                if args.sensitivity_spatial_weighting
+                else None
+            ),
         ),
         optimiser=OptimiserPatternSearch(
             initial_mesh_size=args.initial_mesh_size,
@@ -148,12 +191,9 @@ def main() -> None:
             max_iterations=args.max_iterations,
             max_evaluations=args.max_evaluations,
             parallel_workers=args.parallel_workers,
+            random_seed=args.random_seed,
         ),
-        refinement_policy=EquilibriumGapBasisGrowthRefinement(
-            target=yield_strength_basis,
-            max_basis_functions=args.max_basis_functions,
-            relative_improvement_threshold=args.minimum_objective_improvement,
-        ),
+        refinement_policy=refinement_policy_type(**refinement_options),
     )
 
     identification_config = IdentificationConfig(constitutive_law=constitutive_law, parameters=parameters, phases=[phase_0, phase_1])
@@ -179,11 +219,24 @@ def main() -> None:
         "minimum_objective_improvement": args.minimum_objective_improvement,
         "initial_mesh_size": args.initial_mesh_size,
         "centre_bounds_span_factor": args.centre_bounds_span_factor,
+        "kernel_type": args.kernel_type,
+        "basis_growth_policy": args.basis_growth_policy,
+        "correction_sensitivity_perturbation_factor": (
+            args.correction_sensitivity_perturbation_factor
+        ),
+        "correction_feature_fraction": args.correction_feature_fraction,
         "hardening_fixed": args.fix_hardening,
+        "sensitivity_spatial_weighting": args.sensitivity_spatial_weighting,
+        "sensitivity_perturbation_factor": args.sensitivity_perturbation_factor,
+        "sensitivity_weight_floor": args.sensitivity_weight_floor,
+        "multistart_basis_placement": args.multistart_basis_placement,
+        "multistart_offset_fraction": args.multistart_offset_fraction,
+        "multistart_screening_iterations": args.multistart_screening_iterations,
         "force_weight": args.force_weight,
         "force_slices": args.force_slices,
         "egi_windows": args.egi_windows,
         "stress_backend": args.stress_backend,
+        "random_seed": args.random_seed,
         "phases": ["homogeneous", "bivariate_gaussian"],
     }
     print(json.dumps(summary, indent=2))
@@ -204,14 +257,46 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--force-slices", type=int, default=FORCE_SLICES)
     parser.add_argument("--egi-windows", type=_parse_egi_windows, default=EGI_WINDOWS, help="Comma-separated odd square window sizes, e.g. 15,29,41.")
     parser.add_argument("--max-basis-functions", type=int, default=MAX_BASIS_FUNCTIONS)
+    parser.add_argument(
+        "--kernel-type",
+        choices=("bivariate", "bivariate_spd"),
+        default="bivariate",
+        help="Gaussian geometry coordinates used in phase 1.",
+    )
+    parser.add_argument(
+        "--basis-growth-policy",
+        choices=("egi_peak", "sensitivity_correction"),
+        default="egi_peak",
+        help="Rule used to place each Gaussian added after a solve.",
+    )
+    parser.add_argument(
+        "--correction-sensitivity-perturbation-factor",
+        type=float,
+        default=0.01,
+        help="Relative yield-map perturbation used by correction growth.",
+    )
+    parser.add_argument(
+        "--correction-feature-fraction",
+        type=float,
+        default=0.2,
+        help="Fraction of the dominant signed correction retained for fitting.",
+    )
     parser.add_argument("--minimum-objective-improvement", type=float, default=MINIMUM_OBJECTIVE_IMPROVEMENT)
+    parser.add_argument("--refinement-smoothing-points", type=int, default=3, help="Odd uniform-filter width used when selecting the next EGI basis centre.")
+    parser.add_argument("--multistart-basis-placement", action="store_true", help="Screen the EGI peak and four 10%%-offset centre seeds before each full basis solve.")
+    parser.add_argument("--multistart-offset-fraction", type=float, default=MULTISTART_OFFSET_FRACTION, help="Centre-span fraction used for the four multi-start offsets.")
+    parser.add_argument("--multistart-screening-iterations", type=int, default=MULTISTART_SCREENING_ITERATIONS, help="Pattern-search iterations allocated to each centre candidate.")
     parser.add_argument("--initial-mesh-size", type=float, default=INITIAL_MESH_SIZE, help="Initial normalised pattern-search mesh size.")
     parser.add_argument("--centre-bounds-span-factor", type=float, default=1.0, help="Multiplier applied to the coordinate span used for Gaussian centre bounds.")
     parser.add_argument("--fix-hardening", action="store_true", help="Hold the supplied initial hardening modulus fixed in both phases.")
+    parser.add_argument("--sensitivity-spatial-weighting", action="store_true", help="Use frozen phase-start sensitivity-derived EGI and FRE spatial weights.")
+    parser.add_argument("--sensitivity-perturbation-factor", type=float, default=SENSITIVITY_PERTURBATION_FACTOR, help="Relative constitutive-parameter perturbation used to calculate spatial weights.")
+    parser.add_argument("--sensitivity-weight-floor", type=float, default=SENSITIVITY_WEIGHT_FLOOR, help="Nonzero activity-weight floor before normalisation.")
     parser.add_argument("--minimum-mesh-size", type=float, default=MINIMUM_MESH_SIZE)
     parser.add_argument("--max-iterations", type=int, default=MAX_ITERATIONS)
     parser.add_argument("--max-evaluations", type=int, default=PHASE_1_MAX_EVALUATIONS, help="Maximum pattern-search evaluations in phase 1.")
     parser.add_argument("--parallel-workers", type=int, default=PARALLEL_WORKERS)
+    parser.add_argument("--random-seed", type=int, default=RANDOM_SEED, help="Seed for reproducible pattern-search direction bases.")
     parser.add_argument("--stress-backend", choices=("numpy", "cython"), default=STRESS_BACKEND, help="Stress-reconstruction backend; overrides STRESS_BACKEND.")
     parser.add_argument("--no-progress", action="store_false", dest="show_progress", default=SHOW_PROGRESS, help="Disable console progress messages during identification.")
     args = parser.parse_args()
@@ -225,10 +310,26 @@ def _parse_args() -> argparse.Namespace:
         parser.error("--force-weight must lie in [0, 1].")
     if args.force_slices < 2 or args.max_basis_functions < 1:
         parser.error("Force slices must be at least two and max bases must be positive.")
+    if args.refinement_smoothing_points < 1 or args.refinement_smoothing_points % 2 == 0:
+        parser.error("--refinement-smoothing-points must be a positive odd integer.")
+    if not 0.0 < args.multistart_offset_fraction <= 1.0:
+        parser.error("--multistart-offset-fraction must lie in (0, 1].")
+    if args.multistart_screening_iterations < 1:
+        parser.error("--multistart-screening-iterations must be positive.")
     if not 0.0 <= args.minimum_objective_improvement < 1.0:
         parser.error("--minimum-objective-improvement must lie in [0, 1).")
     if not np.isfinite(args.centre_bounds_span_factor) or args.centre_bounds_span_factor < 1.0:
         parser.error("--centre-bounds-span-factor must be finite and at least 1.")
+    if not 0.0 < args.sensitivity_perturbation_factor < 1.0:
+        parser.error("--sensitivity-perturbation-factor must lie in (0, 1).")
+    if not 0.0 < args.sensitivity_weight_floor <= 1.0:
+        parser.error("--sensitivity-weight-floor must lie in (0, 1].")
+    if not 0.0 < args.correction_sensitivity_perturbation_factor < 1.0:
+        parser.error(
+            "--correction-sensitivity-perturbation-factor must lie in (0, 1)."
+        )
+    if not 0.0 < args.correction_feature_fraction <= 1.0:
+        parser.error("--correction-feature-fraction must lie in (0, 1].")
     return args
 
 
