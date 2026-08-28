@@ -1,8 +1,8 @@
-# ============================================================================
+# ==============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
-# ============================================================================
+# ==============================================================================
 """Unified rendering APIs for pyvale.
 
 The namespace separates validated three-dimensional scene renderers from
@@ -34,6 +34,13 @@ from .camera import Camera, Camera2D, EDistortionModel, EPSFType
 from .camerastereo import CameraStereo
 from .cameratools import (
     average_subpixel_image,
+    cam_frame_mesh,
+    cam_frame_points,
+    cam_frame_scene,
+    cam_look_at,
+    cam_project_points,
+    cam_stereo_faceon,
+    cam_stereo_symmetric,
     crop_image_rectangle,
     faceon_stereo_cameras,
     pixel_grid_leng,
@@ -57,15 +64,31 @@ from .feebee import (
 from .imagedef2d import ImageDef2D, ImageDefOpts
 from .imagetools import (
     EImageType,
-    calculate_edge_function,
-    calculate_elem_bound_box_high,
-    calculate_elem_bound_box_low,
-    format_image_number,
+    image_crop,
+    image_grayscale,
+    image_load,
+    image_normalise,
+    image_resize,
+    image_save,
     save_image,
 )
 from .imagewarp2d import IImageWarp2D
 from .light import ELightType, Light
 from .mesh import EElementType, Mesh2D, Mesh3D
+from .meshtools import (
+    evenly_spaced_frame_indices,
+    first_last_frame_indices,
+    mesh2d_from_simdata,
+    mesh3d_from_simdata,
+    mesh_bounds,
+    mesh_center,
+    mesh_center_at,
+    mesh_rotate,
+    mesh_scale,
+    mesh_transform,
+    mesh_translate,
+    select_frames,
+)
 from .meshops import mesh2d_from_simdata, mesh3d_from_simdata
 from .pxint2d import (
     AdditiveSpeckles,
@@ -80,6 +103,12 @@ from .pxint2d import (
     RectRule,
     quantise_image,
 )
+from .rasterops import (
+    calculate_edge_function,
+    calculate_elem_bound_box_high,
+    calculate_elem_bound_box_low,
+    format_image_number,
+)
 from .renderer3d import IRenderer3D
 from .result import ImageWarpResult, RenderResult
 from .riley import Riley, to_native_camera, to_native_mesh
@@ -89,6 +118,16 @@ from .rileyshader import (
     RileyTextureShader,
 )
 from .scene import Scene2D, Scene3D
+from .scenetools import (
+    scene_arrange_circle,
+    scene_arrange_grid,
+    scene_arrange_line,
+    scene_arrange_points,
+    scene_bounds,
+    scene_center,
+    scene_rotate,
+    scene_translate,
+)
 from .uvtools import (
     EUVFit,
     EUVOrigin,
@@ -100,6 +139,12 @@ from .uvtools import (
     project_uvs_planar_centered,
     project_uvs_planar_pixels,
     transform_uvs,
+    uv_from_pixels,
+    uv_project_planar,
+    uv_project_planar_centered,
+    uv_project_planar_pixels,
+    uv_to_pixels,
+    uv_transform,
     uvs_to_pixels,
 )
 
@@ -125,11 +170,11 @@ __all__ = [
     "EFeebeeTextureSampler",
     "EImageType",
     "ELightType",
+    "EPSFType",
+    "EPxIntMapping",
     "EUVFit",
     "EUVOrigin",
     "EUVPlane",
-    "EPSFType",
-    "EPxIntMapping",
     "Eggbox",
     "Feebee",
     "FeebeeColourShader",
@@ -154,16 +199,14 @@ __all__ = [
     "RenderInputError",
     "RenderResult",
     "Riley",
-    "to_native_camera",
-    "to_native_mesh",
     "RileyFunctionShader",
     "RileyNodalShader",
     "RileyTextureShader",
     "Scene2D",
     "Scene3D",
-    "ValidationIssue",
     "UVPlane",
     "UVTransform",
+    "ValidationIssue",
     "average_subpixel_image",
     "blender_available",
     "blender_camera_from_resolution",
@@ -174,12 +217,34 @@ __all__ = [
     "calculate_elem_bound_box_high",
     "calculate_elem_bound_box_low",
     "calibration_image_count",
+    "cam_frame_mesh",
+    "cam_frame_points",
+    "cam_frame_scene",
+    "cam_look_at",
+    "cam_project_points",
+    "cam_stereo_faceon",
+    "cam_stereo_symmetric",
     "crop_image_rectangle",
+    "evenly_spaced_frame_indices",
     "faceon_stereo_cameras",
+    "first_last_frame_indices",
     "focal_length_from_resolution",
     "format_image_number",
+    "image_crop",
+    "image_grayscale",
+    "image_load",
+    "image_normalise",
+    "image_resize",
+    "image_save",
     "mesh2d_from_simdata",
     "mesh3d_from_simdata",
+    "mesh_bounds",
+    "mesh_center",
+    "mesh_center_at",
+    "mesh_rotate",
+    "mesh_scale",
+    "mesh_transform",
+    "mesh_translate",
     "pixel_grid_leng",
     "pixel_vec_leng",
     "pixels_to_uvs",
@@ -190,9 +255,26 @@ __all__ = [
     "raise_if_blender_unavailable",
     "render_calibration_images",
     "save_image",
+    "scene_arrange_circle",
+    "scene_arrange_grid",
+    "scene_arrange_line",
+    "scene_arrange_points",
+    "scene_bounds",
+    "scene_center",
+    "scene_rotate",
+    "scene_translate",
+    "select_frames",
     "subpixel_grid_leng",
     "subpixel_vec_leng",
     "symmetric_stereo_cameras",
+    "to_native_camera",
+    "to_native_mesh",
     "transform_uvs",
+    "uv_from_pixels",
+    "uv_project_planar",
+    "uv_project_planar_centered",
+    "uv_project_planar_pixels",
+    "uv_to_pixels",
+    "uv_transform",
     "uvs_to_pixels",
 ]

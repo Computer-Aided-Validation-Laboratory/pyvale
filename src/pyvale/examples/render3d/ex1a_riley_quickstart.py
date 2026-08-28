@@ -60,15 +60,7 @@ camera = render.Camera(
     focal_length=1.0,
 )
 
-pos_world = riley.pos_fill_frame_from_rot(
-    coords,
-    tuple(camera.pixels_num),
-    tuple(camera.pixels_size),
-    camera.focal_length,
-    tuple(camera.rot_world.as_euler("xyz")),
-    1.0,
-)
-camera.pos_world = np.array(pos_world)
+camera = render.cam_frame_mesh(camera, mesh, fill=1.0)
 
 # %%
 # 3. Build renderer backend
@@ -77,7 +69,9 @@ camera.pos_world = np.array(pos_world)
 config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.both)
 config.report = 1
 config.background_value = 0.5
+
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1a_riley_quickstart"
+
 renderer = render.Riley(config, output_dir)
 
 # %%

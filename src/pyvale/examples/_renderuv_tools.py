@@ -80,22 +80,15 @@ def render_uv_variant(
     pixels_num = np.array((480, 320))
     pixels_size = np.array((8.0e-6, 8.0e-6))
     focal_length = 35.0e-3
-    rotation = Rotation.identity()
     camera = render.Camera(
         pixels_num=pixels_num,
         pixels_size=pixels_size,
-        pos_world=np.asarray(riley.pos_fill_frame_from_rot(
-            mesh.coords,
-            tuple(pixels_num),
-            tuple(pixels_size),
-            focal_length,
-            tuple(rotation.as_euler("xyz")),
-            0.9,
-        )),
-        rot_world=rotation,
-        roi_cent_world=np.asarray(riley.roi_cent_from_coords(mesh.coords)),
+        pos_world=np.zeros(3),
+        rot_world=Rotation.identity(),
+        roi_cent_world=np.zeros(3),
         focal_length=focal_length,
     )
+    camera = render.cam_frame_mesh(camera, mesh, fill=0.9)
 
     config = riley.create_raster_config(
         num_frames=1,

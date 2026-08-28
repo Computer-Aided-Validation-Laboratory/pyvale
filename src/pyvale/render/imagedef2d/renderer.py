@@ -29,16 +29,15 @@ from pyvale.render.cameratools import (
     subpixel_vec_leng,
 )
 from pyvale.render.capabilities import RenderCapabilities
-from pyvale.render.imagetools import (
-    EImageType,
+from pyvale.render.imagetools import EImageType, save_image
+from pyvale.render.imagewarp2d import IImageWarp2D
+from pyvale.render.mesh import EElementType
+from pyvale.render.rasterops import (
     calculate_edge_function,
     calculate_elem_bound_box_high,
     calculate_elem_bound_box_low,
     format_image_number,
-    save_image,
 )
-from pyvale.render.imagewarp2d import IImageWarp2D
-from pyvale.render.mesh import EElementType
 from pyvale.render.result import ImageWarpResult
 from pyvale.render.scene import Scene2D
 from pyvale.render.verifyinput import mesh_convention_issues

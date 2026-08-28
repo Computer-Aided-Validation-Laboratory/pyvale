@@ -67,21 +67,13 @@ rotation = Rotation.identity()
 camera = render.Camera(
     pixels_num=pixels_num,
     pixels_size=pixels_size,
-    pos_world=np.asarray(
-        riley.pos_fill_frame_from_rot(
-            mesh.coords,
-            tuple(pixels_num),
-            tuple(pixels_size),
-            focal_length,
-            tuple(rotation.as_euler("xyz")),
-            1.0,
-        )
-    ),
+    pos_world=np.zeros(3),
     rot_world=rotation,
-    roi_cent_world=np.asarray(riley.roi_cent_from_coords(mesh.coords)),
+    roi_cent_world=np.zeros(3),
     focal_length=focal_length,
     subsample=2,
 )
+camera = render.cam_frame_mesh(camera, mesh, fill=1.0)
 
 # %%
 # 3. Configure and build the renderer

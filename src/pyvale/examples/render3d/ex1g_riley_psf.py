@@ -50,24 +50,16 @@ focal_length = 50.0e-3
 camera = render.Camera(
     pixels_num=pixels_num,
     pixels_size=pixels_size,
-    pos_world=np.asarray(
-        riley.pos_fill_frame_from_rot(
-            mesh.coords,
-            tuple(pixels_num),
-            tuple(pixels_size),
-            focal_length,
-            (0.0, 0.0, 0.0),
-            1.0,
-        )
-    ),
+    pos_world=np.zeros(3),
     rot_world=Rotation.identity(),
-    roi_cent_world=np.asarray(riley.roi_cent_from_coords(mesh.coords)),
+    roi_cent_world=np.zeros(3),
     focal_length=focal_length,
     subsample=2,
     psf_type=render.EPSFType.GAUSSIAN,
     psf_sigma_x=1.0,
     psf_support_rad=3.0,
 )
+camera = render.cam_frame_mesh(camera, mesh, fill=1.0)
 
 # %%
 # 3. Configure the two renderer variants

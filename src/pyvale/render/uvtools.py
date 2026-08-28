@@ -349,6 +349,15 @@ def transform_uvs(
     return np.ascontiguousarray(transformed, dtype=np.float64)
 
 
+# Prefixed naming conventions
+uv_project_planar = project_uvs_planar
+uv_project_planar_pixels = project_uvs_planar_pixels
+uv_project_planar_centered = project_uvs_planar_centered
+uv_transform = transform_uvs
+uv_from_pixels = pixels_to_uvs
+uv_to_pixels = uvs_to_pixels
+
+
 __all__ = [
     "EUVFit",
     "EUVOrigin",
@@ -360,5 +369,11 @@ __all__ = [
     "project_uvs_planar_centered",
     "project_uvs_planar_pixels",
     "transform_uvs",
+    "uv_from_pixels",
+    "uv_project_planar",
+    "uv_project_planar_centered",
+    "uv_project_planar_pixels",
+    "uv_to_pixels",
+    "uv_transform",
     "uvs_to_pixels",
 ]

@@ -17,7 +17,6 @@ from pathlib import Path
 
 import numpy as np
 import riley
-from riley.pydemos.common import evenly_spaced_frame_indices
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -63,21 +62,17 @@ mesh = render.mesh3d_from_simdata(
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )
 
-frame_indices = evenly_spaced_frame_indices(
+frame_indices = render.evenly_spaced_frame_indices(
     mesh.displacements.shape[0],
     8,
 )
-
-mesh.displacements = mesh.displacements[frame_indices]
+mesh.displacements = render.select_frames(mesh.displacements, frame_indices)
 
 # %%
 # 2. Shift the target onto the DIC UQ specimen position
 # ------------------------------------------------------------
-roi_pos_orig = riley.roi_cent_from_coords(mesh.coords)
-mesh.coords = (
-    mesh.coords + (np.asarray(MATCHED_ROI) - np.asarray(roi_pos_orig))
-)
-roi_pos = riley.roi_cent_from_coords(mesh.coords)
+mesh = render.mesh_center_at(mesh, MATCHED_ROI)
+roi_pos = render.mesh_center(mesh)
 
 # %%
 # 3. Create the stereo pair and save it in Riley's exchange format
