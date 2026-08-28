@@ -41,7 +41,18 @@ scene = render.Scene2D(
 )
 
 result = render.ImageDef2D().render(scene)
-output_dir = Path.cwd() / "pyvale-output" / "render-imagedef2d"
+output_dir = (
+    Path.cwd() / "pyvale-output"
+    / "render2d_ex2a_imagedef2d_planar_deformation"
+)
 output_dir.mkdir(parents=True, exist_ok=True)
 np.save(output_dir / "warped_images.npy", result.images)
 print(result.images.shape)
+
+# %%
+# The first warped frame is shown below.
+#
+# .. image:: ../../../../_static/render2d_ex2a_imagedef2d_planar_deformation.png
+#    :alt: Planar image deformation result
+#    :width: 500px
+#    :align: center

@@ -77,7 +77,7 @@ camera.pos_world = np.array(pos_world)
 config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.both)
 config.report = 1
 config.background_value = 0.5
-output_dir = Path.cwd() / "pyvale-output" / "render-riley-quickstart"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1a_riley_quickstart"
 renderer = render.Riley(config, output_dir)
 
 # %%
@@ -89,3 +89,11 @@ result = renderer.render(scene)
 
 assert result.images is not None
 print(f"{result.images.shape=}")
+
+# %%
+# The first rendered frame is shown below.
+#
+# .. image:: ../../../../_static/render3d_ex1a_riley_quickstart.png
+#    :alt: Riley checkerboard triangle quickstart render
+#    :width: 500px
+#    :align: center

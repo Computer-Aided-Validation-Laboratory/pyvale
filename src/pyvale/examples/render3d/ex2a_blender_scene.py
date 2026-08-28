@@ -80,11 +80,12 @@ light = render.Light(
 # %%
 # 3. Configure and build the Blender renderer backend
 # --------------------------------------------------------------------------
-output_dir = Path.cwd() / "pyvale-output" / "render-blender-scene"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex2a_blender_scene"
 config = render.BlenderConfig(
     output_dir=output_dir,
     samples=4,
     threads=8,
+    save_images=True,
     save_scene=True,
 )
 renderer = render.Blender(config)
@@ -95,8 +96,13 @@ renderer = render.Blender(config)
 scene = render.Scene3D([surface_mesh], [camera], [light])
 result = renderer.render(scene)
 
-assert result.images is not None
-print(f"Rendered image shape: {result.images.shape}")
+print(f"Rendered {len(result.output_paths)} image to disk.")
 print(f"Output saved to: {output_dir}")
 
-
+# %%
+# The first rendered frame is shown below.
+#
+# .. image:: ../../../../_static/render3d_ex2a_blender_scene.png
+#    :alt: Blender render of a speckled plate with a hole
+#    :width: 500px
+#    :align: center

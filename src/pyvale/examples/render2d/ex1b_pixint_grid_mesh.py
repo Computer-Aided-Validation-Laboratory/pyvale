@@ -40,7 +40,15 @@ renderer = render.PixIntGrid2D(
 )
 scene = render.Scene2D(mesh=mesh, camera=camera)
 result = renderer.render(scene)
-output_dir = Path.cwd() / "pyvale-output" / "render-pixint-grid-mesh"
+output_dir = Path.cwd() / "pyvale-output" / "render2d_ex1b_pixint_grid_mesh"
 output_dir.mkdir(parents=True, exist_ok=True)
 np.save(output_dir / "warped_images.npy", result.images)
 print(result.images.shape, result.masks.all())
+
+# %%
+# The first rendered frame is shown below.
+#
+# .. image:: ../../../../_static/render2d_ex1b_pixint_grid_mesh.png
+#    :alt: Eggbox field rendered through an unstructured Quad4 mesh
+#    :width: 500px
+#    :align: center

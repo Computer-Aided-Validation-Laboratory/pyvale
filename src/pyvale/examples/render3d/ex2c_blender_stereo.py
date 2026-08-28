@@ -83,11 +83,12 @@ light = render.Light(
 # %%
 # 4. Configure Blender renderer backend
 # --------------------------------------------------------------------------
-output_dir = Path.cwd() / "pyvale-output" / "render-blender-stereo"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex2c_blender_stereo"
 config = render.BlenderConfig(
     output_dir=output_dir,
     samples=4,
     threads=8,
+    save_images=True,
     save_scene=True,
 )
 renderer = render.Blender(config)
@@ -102,7 +103,13 @@ scene = render.Scene3D(
 )
 result = renderer.render(scene)
 
-assert result.images is not None
-print(f"Rendered stereo pair shape: {result.images.shape}")
+print(f"Rendered {len(result.output_paths)} stereo images.")
 print(f"Output saved to: {output_dir}")
 
+# %%
+# The first frame from both cameras is combined side by side below.
+#
+# .. image:: ../../../../_static/render3d_ex2c_blender_stereo.png
+#    :alt: Blender stereo render from both cameras
+#    :width: 900px
+#    :align: center

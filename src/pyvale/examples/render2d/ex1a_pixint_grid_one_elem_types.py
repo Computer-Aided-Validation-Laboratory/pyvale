@@ -46,7 +46,10 @@ renderer = render.PixIntGrid2D(
         integration=render.RectRule(2),
     ),
 )
-output_dir = Path.cwd() / "pyvale-output" / "render-pixint-grid-one-element"
+output_dir = (
+    Path.cwd() / "pyvale-output"
+    / "render2d_ex1a_pixint_grid_one_elem_types"
+)
 output_dir.mkdir(parents=True, exist_ok=True)
 for element_type in render.EElementType:
     mesh = make_mesh(element_type)
@@ -54,3 +57,11 @@ for element_type in render.EElementType:
     image = renderer.render(scene).images[0, 0, :, :, 0]
     np.save(output_dir / f"{element_type.value}.npy", image)
     print(element_type.value, image.shape, image.min(), image.max())
+
+# %%
+# The Quad9 result is used as the representative element variant below.
+#
+# .. image:: ../../../../_static/render2d_ex1a_pixint_grid_one_elem_types.png
+#    :alt: Eggbox field rendered through one Quad9 element
+#    :width: 500px
+#    :align: center

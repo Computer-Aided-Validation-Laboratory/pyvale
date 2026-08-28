@@ -41,6 +41,7 @@ test-input/
 !reports/images/*.svg
 !images/*.png
 !images/*.svg
+!images/*.yaml
 !docs/source/_static/*.png
 
 # Keep these as they are gold output for regression tests

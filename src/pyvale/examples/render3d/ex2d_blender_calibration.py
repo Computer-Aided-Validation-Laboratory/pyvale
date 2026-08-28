@@ -51,7 +51,10 @@ print(stereo.stereo_rotation.as_euler("xyz", degrees=True))
 # %%
 # 2. Export calibration in YAML and MatchID formats
 # --------------------------------------------------------------------------
-output_dir = Path.cwd() / "pyvale-output" / "render-blender-calibration"
+output_dir = (
+    Path.cwd() / "pyvale-output"
+    / "render3d_ex2d_blender_calibration"
+)
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # Save standard Pyvale YAML calibration:
@@ -90,3 +93,9 @@ cal_data = render.BlenderCalibrationData(
 total_images = render.calibration_image_count(cal_data)
 print(f"Standard calibration sweep image count: {total_images}")
 
+# %%
+# The generated Pyvale calibration file is embedded below.
+#
+# .. literalinclude:: ../../../../_static/render3d_ex2d_blender_calibration.yaml
+#    :language: yaml
+#    :caption: Generated stereo camera calibration

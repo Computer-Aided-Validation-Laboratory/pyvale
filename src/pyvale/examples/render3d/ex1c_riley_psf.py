@@ -71,7 +71,7 @@ camera = render.Camera(
 # %%
 # 3. Configure the two renderer variants
 # ------------------------------------------------------------
-output_root = Path.cwd() / "pyvale-output" / "render-riley-psf"
+output_root = Path.cwd() / "pyvale-output" / "render3d_ex1c_riley_psf"
 buffer_modes = (
     riley.BufferMode.global_subpx_full,
     riley.BufferMode.global_subpx_stripe,
@@ -92,3 +92,11 @@ for buffer_mode in buffer_modes:
     result = render.Riley(config, output_dir).render(scene)
     print(f"Rendered {buffer_mode.name} output to {output_dir}")
     print(f"{result.images=}")
+
+# %%
+# The ``global_subpx_full`` result is used as the representative buffer mode.
+#
+# .. image:: ../../../../_static/render3d_ex1c_riley_psf.png
+#    :alt: Speckled sphere rendered with a Gaussian point spread function
+#    :width: 500px
+#    :align: center

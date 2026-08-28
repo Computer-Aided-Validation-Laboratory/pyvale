@@ -100,7 +100,7 @@ roi_pos = riley.roi_cent_from_coords(coords)
 # 3. Create the stereo pair and save it in Riley's exchange format
 # ------------------------------------------------------------
 camera_0, camera_1 = create_stereo_cameras(tuple(roi_pos))
-output_dir = Path.cwd() / "pyvale-output" / "render-riley-stereocal"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1g_riley_stereocal"
 output_dir.mkdir(parents=True, exist_ok=True)
 stereo_file_name = "stereo_data_opengl.csv"
 riley.save_stereo_pair(str(output_dir), stereo_file_name, camera_0, camera_1)
@@ -129,3 +129,11 @@ result = renderer.render(
 )
 print(f"Rendered stereo-calibration images to {output_dir}")
 print(f"{result.images=}")
+
+# %%
+# The first calibration pose from both cameras is combined side by side below.
+#
+# .. image:: ../../../../_static/render3d_ex1g_riley_stereocal.png
+#    :alt: Riley stereo calibration target from both cameras
+#    :width: 900px
+#    :align: center

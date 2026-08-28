@@ -86,13 +86,15 @@ light = render.Light(
 # 4. Configure Blender backend for stereo deformation
 # --------------------------------------------------------------------------
 output_dir = (
-    Path.cwd() / "pyvale-output" / "render-blender-stereo-deformation"
+    Path.cwd() / "pyvale-output"
+    / "render3d_ex2e_blender_stereo_deformation"
 )
 config = render.BlenderConfig(
     output_dir=output_dir,
     samples=4,
     threads=8,
     render_deformed=True,
+    save_images=True,
     save_scene=True,
 )
 renderer = render.Blender(config)
@@ -107,10 +109,13 @@ scene = render.Scene3D(
 )
 result = renderer.render(scene)
 
-assert result.images is not None
-print(f"Rendered stereo deformation shape: {result.images.shape}")
-print(
-    f"Rendered {result.images.shape[0]} frames for "
-    f"{result.images.shape[1]} cameras."
-)
+print(f"Rendered {len(result.output_paths)} stereo deformation images.")
 print(f"Output saved to: {output_dir}")
+
+# %%
+# The first frame from both cameras is combined side by side below.
+#
+# .. image:: ../../../../_static/render3d_ex2e_blender_stereo_deformation.png
+#    :alt: Blender stereo deformation render from both cameras
+#    :width: 900px
+#    :align: center

@@ -79,7 +79,7 @@ config = riley.create_raster_config(
     total_threads=4,
     save_strategy=riley.SaveStrategy.disk,
 )
-output_dir = Path.cwd() / "pyvale-output" / "render-riley-sphere200"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1b_riley_sphere200"
 
 renderer = render.Riley(config, output_dir)
 
@@ -92,8 +92,9 @@ print(f"Rendered sphere render output to {output_dir}")
 print(f"{result.images=}")
 
 # %%
-# .. image:: ../../../../_static/basics_ex0_traces.png
+# The first rendered frame is shown below.
+#
+# .. image:: ../../../../_static/render3d_ex1b_riley_sphere200.png
 #    :alt: A sphere with a speckle pattern
 #    :width: 500px
 #    :align: center
-

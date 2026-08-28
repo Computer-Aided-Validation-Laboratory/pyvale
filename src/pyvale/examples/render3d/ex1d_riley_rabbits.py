@@ -130,7 +130,7 @@ config = riley.create_raster_config(
 config.background_value = 127.5
 config.image_save_mode = riley.ImageSaveMode.grey
 config.save_scaling = riley.ScaleStrategy.none
-output_dir = Path.cwd() / "pyvale-output" / "render-riley-rabbits"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1d_riley_rabbits"
 renderer = render.Riley(config, output_dir)
 
 # %%
@@ -139,3 +139,11 @@ renderer = render.Riley(config, output_dir)
 result = renderer.render(render.Scene3D(meshes=meshes, cameras=[camera]))
 print(f"Rendered the rabbit topology comparison to {output_dir}")
 print(f"{result.images=}")
+
+# %%
+# The first rendered frame containing all topology variants is shown below.
+#
+# .. image:: ../../../../_static/render3d_ex1d_riley_rabbits.png
+#    :alt: Riley rabbit meshes rendered with several element topologies
+#    :width: 700px
+#    :align: center

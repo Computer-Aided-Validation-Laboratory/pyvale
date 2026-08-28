@@ -17,20 +17,21 @@ import pytest
 _RENDER2D_EXAMPLES = (
     pytest.param(
         "render2d/ex1a_pixint_grid_one_elem_types.py",
-        "pyvale-output/render-pixint-grid-one-element/quad9.npy",
+        "pyvale-output/render2d_ex1a_pixint_grid_one_elem_types/quad9.npy",
     ),
     pytest.param(
         "render2d/ex1b_pixint_grid_mesh.py",
-        "pyvale-output/render-pixint-grid-mesh/warped_images.npy",
+        "pyvale-output/render2d_ex1b_pixint_grid_mesh/warped_images.npy",
     ),
     pytest.param(
         "render2d/ex1c_pixint_speck_newton.py",
-        "pyvale-output/render-pixint-speck/warped_images.npy",
+        "pyvale-output/render2d_ex1c_pixint_speck_newton/warped_images.npy",
         marks=pytest.mark.example_slow,
     ),
     pytest.param(
         "render2d/ex2a_imagedef2d_planar_deformation.py",
-        "pyvale-output/render-imagedef2d/warped_images.npy",
+        "pyvale-output/render2d_ex2a_imagedef2d_planar_deformation/"
+        "warped_images.npy",
     ),
 )
 

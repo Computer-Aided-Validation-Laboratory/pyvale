@@ -91,7 +91,7 @@ config = riley.create_raster_config(
 config.background_value = 128.0
 config.tile_size_max = 128
 config.save_scaling = riley.ScaleStrategy.none
-output_dir = Path.cwd() / "pyvale-output" / "render-riley-dicuq"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1e_riley_dicuq"
 renderer = render.Riley(config, output_dir)
 
 # %%
@@ -118,3 +118,11 @@ riley.save_stereo_pair(
 )
 print(f"Rendered the stereo DIC images to {output_dir}")
 print(f"{result.images=}")
+
+# %%
+# The first frame from both cameras is combined side by side below.
+#
+# .. image:: ../../../../_static/render3d_ex1e_riley_dicuq.png
+#    :alt: Riley stereo DIC render from both cameras
+#    :width: 900px
+#    :align: center

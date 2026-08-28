@@ -63,7 +63,8 @@ light = render.Light(
 # 3. Configure target pose sweep and Blender backend
 # --------------------------------------------------------------------------
 output_dir = (
-    Path.cwd() / "pyvale-output" / "render-blender-calibration-images"
+    Path.cwd() / "pyvale-output"
+    / "render3d_ex2f_blender_calibration_target"
 )
 config = render.BlenderConfig(
     output_dir=output_dir,
@@ -95,3 +96,11 @@ result = render.render_calibration_images(
 
 print(f"Rendered {len(result.output_paths)} calibration TIFF images.")
 print(f"Calibration images directory: {output_dir / 'calimages'}")
+
+# %%
+# The first calibration pose from both cameras is combined side by side below.
+#
+# .. image:: ../../../../_static/render3d_ex2f_blender_calibration_target.png
+#    :alt: Blender calibration target render from both cameras
+#    :width: 900px
+#    :align: center

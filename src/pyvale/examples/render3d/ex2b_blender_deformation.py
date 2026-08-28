@@ -84,12 +84,16 @@ light = render.Light(
 # %%
 # 4. Configure Blender backend for deformation rendering
 # --------------------------------------------------------------------------
-output_dir = Path.cwd() / "pyvale-output" / "render-blender-deformation"
+output_dir = (
+    Path.cwd() / "pyvale-output"
+    / "render3d_ex2b_blender_deformation"
+)
 config = render.BlenderConfig(
     output_dir=output_dir,
     samples=4,
     threads=8,
     render_deformed=True,
+    save_images=True,
     save_scene=True,
 )
 renderer = render.Blender(config)
@@ -100,9 +104,13 @@ renderer = render.Blender(config)
 scene = render.Scene3D([surface_mesh], [camera], [light])
 result = renderer.render(scene)
 
-assert result.images is not None
-print(f"Rendered deformation stack shape: {result.images.shape}")
-print(f"Rendered {result.images.shape[0]} deformation frames.")
+print(f"Rendered {len(result.output_paths)} deformation frames.")
 print(f"Output saved to: {output_dir}")
 
-
+# %%
+# The first deformation frame is shown below.
+#
+# .. image:: ../../../../_static/render3d_ex2b_blender_deformation.png
+#    :alt: Blender deformation render of a speckled plate with a hole
+#    :width: 500px
+#    :align: center
