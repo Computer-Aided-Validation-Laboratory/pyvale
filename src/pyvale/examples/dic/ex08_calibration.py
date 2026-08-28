@@ -43,8 +43,8 @@ import pyvale.calib as calib
 # Calibration has two stages: the dot detection, then a bundle adjustment 
 # to find the camera parameters that minimise
 # the reprojection error across every image pair.
-cam0 = "./calibration-example-data/cam0_*.bmp"
-cam1 = "./calibration-example-data/cam1_*.bmp"
+cam0 = "./calibration-data/cam0_*.bmp"
+cam1 = "./calibration-data/cam1_*.bmp"
 
 # %%
 # Dot detection needs the image pairs, the target dimensions and spacing, and

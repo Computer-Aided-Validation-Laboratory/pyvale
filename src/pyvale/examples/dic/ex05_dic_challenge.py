@@ -52,7 +52,7 @@ roi.rect_boundary(left=50,right=50,top=250-subset_radius,bottom=250-subset_radiu
 roi.show_image()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output"
+output_path = Path.cwd() / "pyvale-output" / "ex05"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -96,7 +96,7 @@ plt.xlabel("subset x location [px]")
 plt.ylabel("Displacement [px]")
 plt.grid(True)
 plt.axhline(y=0.5, color='red', linestyle='--', linewidth=4)
-plt.plot(dicdata.ss_x, dicdata.v[0,:])
+plt.plot(dicdata.ss_x, dicdata.v_px[0,:])
 plt.tight_layout()
 plt.show()
 

@@ -46,7 +46,7 @@ roi = dic.RegionOfInterest(ref_img)
 roi.interactive_selection()
 
 #output_path
-output_path = Path.cwd() / "pyvale-output"
+output_path = Path.cwd() / "pyvale-output" / "ex04"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -83,7 +83,7 @@ print(vmin,vmax)
 
 # loop over images and add to subplots
 for i in range(len(dicdata.filenames)):
-    im = axes[i].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[i], vmin=vmin, vmax=vmax)
+    im = axes[i].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v_px[i], vmin=vmin, vmax=vmax)
     axes[i].set_title(dicdata.filenames[i])
     fig.colorbar(im, ax=axes[i])
 

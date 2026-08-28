@@ -25,6 +25,7 @@ directory/folder as the code.
 import pyvale.dic as dic
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
 
 # %%
 # Because of the size of the images, we'll avoid using the interactive GUI for this example.
@@ -35,6 +36,11 @@ import numpy as np
 # image are not present in the deformed image.
 roi = dic.RegionOfInterest(ref_image="ref.tiff")
 roi.rect_boundary(left=0,right=0,top=0,bottom=0)
+
+# create a directory for the the different outputs
+output_path = Path.cwd() / "pyvale-output" / "ex06"
+if not output_path.is_dir():
+    output_path.mkdir(parents=True, exist_ok=True)
 
 
 # %%
@@ -60,7 +66,7 @@ dic.calculate_2d(reference="ref.tiff",
                  correlation_criteria="ZNSSD",
                  shape_function="AFFINE",
                  threshold=0.8,
-                 output_basepath="./")
+                 output_basepath=output_path)
 
 # %% 
 #  There's a couple of things to pay attention to here:
@@ -83,8 +89,8 @@ dic.calculate_2d(reference="ref.tiff",
 
 # %%
 # The results can be imported in a standard way:
-dic_files = "dic_results_*.csv"
-dicdata = dic.import_2d(data=dic_files)
+dic_files = output_path / "dic_results_def.csv"
+dicdata = dic.import_2d(data=dic_files, delimiter=",")
 
 # %%
 # And finally a simple plot of the displacements and correlation
@@ -93,8 +99,8 @@ fig, axes = plt.subplots(1, 3, figsize=(15, 10))
 axes = axes.flatten()
 
 # First deformation image
-im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u[0])
-im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v[0])
+im1 = axes[0].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.u_px[0])
+im2 = axes[1].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.v_px[0])
 im3 = axes[2].pcolor(dicdata.ss_x, dicdata.ss_y, dicdata.cost[0])
 
 # Titles

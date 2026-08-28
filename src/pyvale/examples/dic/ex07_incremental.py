@@ -41,11 +41,11 @@ import pyvale.dataset as dataset
 import pyvale.dic as dic
 
 subset_size = 31
-ref_img = dataset.dic_plate_rigid_ref()
-def_img = dataset.dic_plate_rigid_def()
+ref_img = dataset.dic_plate_rigid_cam0_ref()
+def_img = dataset.dic_plate_rigid_cam0_def()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "incremental"
+output_path = Path.cwd() / "pyvale-output" / "ex07"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 

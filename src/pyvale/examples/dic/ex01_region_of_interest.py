@@ -24,12 +24,12 @@ import pyvale.dic as dic
 # We'll begin by selecting our Region of Interest (ROI) using the interactive selection tool.
 # First, we create an instance of the ROI class. We pass a reference image to it, which is
 # displayed as the underlay during ROI selection.
-ref_img = dataset.dic_plate_with_hole_ref()
+ref_img = dataset.dic_plate_with_hole_cam0_ref()
 roi = dic.RegionOfInterest(ref_image=ref_img)
 roi.interactive_selection()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output"
+output_path = Path.cwd() / "pyvale-output" / "ex01"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 

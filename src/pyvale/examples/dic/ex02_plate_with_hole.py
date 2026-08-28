@@ -46,8 +46,7 @@ if not output_path.is_dir():
 # as input. This image will be shown as the underlay during any ROI selection or
 # visualization.
 roi = dic.RegionOfInterest(ref_img)
-roi.read_yaml("./ex10_roi.yaml")
-#roi.interactive_selection()
+roi.interactive_selection()
 
 # %%
 # Once you've closed the ROI interactive window, a mask and seed location coordinates
