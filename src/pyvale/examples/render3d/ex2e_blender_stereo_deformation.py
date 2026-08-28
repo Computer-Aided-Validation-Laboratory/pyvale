@@ -3,13 +3,13 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
-"""Blender Convergent Stereo Deformation
+"""
+Blender: Stereo Image Deformation
 ================================================================================
 
 This example demonstrates how to render a time sequence of deformed stereo
-DIC image pairs using Blender and the unified pyvale render API.
-
-Test case: mechanical analysis of a plate with a hole loaded in tension.
+DIC image pairs using Blender and the unified pyvale render API. The test case 
+is a mechanical analysis of a plate with a hole loaded in tension.
 
 Workflow:
 1. Load simulation data, scale units, and create a textured surface mesh.

@@ -4,7 +4,8 @@
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
 
-"""Blender: Stereo Scene
+"""
+Blender: Stereo Scene
 ================================================================================
 
 This example demonstrates how to set up and render a convergent stereo camera

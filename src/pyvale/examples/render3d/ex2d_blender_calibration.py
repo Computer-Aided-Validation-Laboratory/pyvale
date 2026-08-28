@@ -3,7 +3,9 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
-"""Stereo Camera Calibration & Parameters
+
+"""
+Blender: Stereo Camera Calibration & Parameters
 ================================================================================
 
 This tutorial demonstrates how to define a stereo camera system, export its

@@ -3,7 +3,9 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
-"""Blender 2D Deformation
+
+"""
+Blender: 2D Deformation
 ================================================================================
 
 This example demonstrates how to render a sequence of deformed 2D DIC images
