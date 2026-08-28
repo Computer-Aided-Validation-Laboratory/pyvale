@@ -214,10 +214,11 @@ namespace subset {
         ss_grid.coords.resize(2*ss_grid.num_in_mask, -1);
 
 
-        // temp array for storing subset coords for each thread
-        std::vector<int> thread_counts(omp_get_max_threads(), 0);
+        // Store validity by grid location so subset indices are independent of
+        // OpenMP scheduling and thread count.
+        std::vector<unsigned char> valid_grid(ss_grid.num_in_mask, 0);
 
-       // First pass: count valid subsets per thread
+        // First pass: determine which grid locations contain valid subsets.
         #pragma omp parallel for collapse(2)
         for (int j = 0; j < num_ss_y; j++) {
             for (int i = 0; i < num_ss_x; i++) {
@@ -258,83 +259,36 @@ namespace subset {
                     valid = (valid_count >= (ss_size_x * ss_size_y) * 0.70);
                 }
 
-                if (valid) {
-                    int tid = omp_get_thread_num();
-                    thread_counts[tid]++;
-                }
+                valid_grid[j * num_ss_x + i] = static_cast<unsigned char>(valid);
             }
         }
 
-        // Compute prefix sum to get offsets
-        std::vector<int> thread_offsets(omp_get_max_threads(), 0);
-        for (int t = 1; t < thread_offsets.size(); t++)
-            thread_offsets[t] = thread_offsets[t-1] + thread_counts[t-1];
+        // Compute deterministic row-major subset indices.
+        int total_valid = 0;
+        for (int grid_idx = 0; grid_idx < ss_grid.num_in_mask; ++grid_idx) {
+            if (valid_grid[grid_idx]) {
+                ss_grid.mask[grid_idx] = total_valid++;
+            }
+        }
 
-        int total_valid = thread_offsets.back() + thread_counts.back();
         ss_grid.coords.resize(2 * total_valid);
         ss_grid.num = total_valid;
         ss_grid.active_ss.resize(total_valid, true);
         ss_grid.active_total = total_valid;
 
-        // Reset thread counts to use as writing indices
-        std::fill(thread_counts.begin(), thread_counts.end(), 0);
-
+        // Populate coordinates using the deterministic indices in mask.
         #pragma omp parallel for collapse(2)
         for (int j = 0; j < num_ss_y; j++) {
             for (int i = 0; i < num_ss_x; i++) {
 
-                // calculate the coordinates of the subset
-                const int ss_x = i * ss_step;
-                const int ss_y = j * ss_step;
-
-                // pixel range of subset
-                const int xmin = ss_x;
-                const int ymin = ss_y;
-                const int xmax = ss_x + ss_size_x-1;
-                const int ymax = ss_y + ss_size_y-1;
-
-                // check if subset is within image and ROI.
-                bool valid = true;
-                int  valid_count = 0;
-
-                for (int px_y = ymin; px_y <= ymax && valid; px_y++) {
-                    for (int px_x = xmin; px_x <= xmax && valid; px_x++) {
-
-                        // When no partial subset filling all px must be within roi
-                        if (!partial) {
-                            if (!px_in_img_dims(px_x, px_y, px_hori, px_vert) ||
-                                !px_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
-                                valid = false;
-                                break;
-                            }
-                        } 
-
-                        // When partial count num of px in roi. if its outside
-                        // the image its still not valid
-                        else {
-                            if (!px_in_img_dims(px_x, px_y, px_hori, px_vert)) {
-                                valid = false;
-                                break;
-                            }
-                            if (px_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) valid_count++;
-                        }
-                    }
-
-                    if (!valid && !partial) break;
-                }
-
-                if (partial && valid) {
-                    valid = (valid_count >= (ss_size_x * ss_size_y) * 0.70);
-                }
-
-                // if its a valid subset. add it to a list of coordinates
-                if (valid) {
-                    const int tid = omp_get_thread_num();
-                    const int offset = thread_offsets[tid] + thread_counts[tid];
-                    ss_grid.coords[2*offset]     = ss_x + static_cast<double>(ss_size_x)/2-0.5;
-                    ss_grid.coords[2*offset + 1] = ss_y + static_cast<double>(ss_size_y)/2-0.5;
-                    ss_grid.mask[j * num_ss_x + i] = offset;
-                    thread_counts[tid]++;
+                const int offset = ss_grid.mask[j * num_ss_x + i];
+                if (offset != -1) {
+                    const int ss_x = i * ss_step;
+                    const int ss_y = j * ss_step;
+                    ss_grid.coords[2*offset] =
+                        ss_x + static_cast<double>(ss_size_x)/2 - 0.5;
+                    ss_grid.coords[2*offset + 1] =
+                        ss_y + static_cast<double>(ss_size_y)/2 - 0.5;
                 }
             }
         }
