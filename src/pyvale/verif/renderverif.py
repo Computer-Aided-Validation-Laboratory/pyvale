@@ -181,9 +181,13 @@ def riley_rabbit_scene() -> render.Scene3D:
     pixels_size = np.array((5.3e-6, 5.3e-6))
     focal_length = 50.0e-3
     rotation = Rotation.identity()
-    position = riley.pos_fill_frame_from_rot(
-        coords, tuple(pixels_num), tuple(pixels_size), focal_length,
-        tuple(rotation.as_euler("xyz")), 1.1,
+    position = render.cam_pos_frame_points(
+        coords,
+        pixels_num,
+        pixels_size,
+        focal_length,
+        rotation,
+        fov_scale=1.1,
     )
     camera = render.Camera(
         pixels_num=pixels_num,

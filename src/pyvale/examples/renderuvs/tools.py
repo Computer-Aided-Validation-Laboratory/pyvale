@@ -35,7 +35,8 @@ def render_uv_example(
         subsample=4,
     )
 
-    camera = render.cam_frame_mesh(camera, mesh, fill=0.90)
+    fov_scale = render.cam_coverage_to_fov_scale(0.90)
+    camera = render.cam_frame_mesh(camera, mesh, fov_scale=fov_scale)
 
     config = riley.create_raster_config(
         num_frames=1,

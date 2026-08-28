@@ -120,8 +120,6 @@ sceneops.arrange_mesh_groups_grid(
 # %%
 # 2. Create and position a camera around every mesh
 # ------------------------------------------------------------
-# Riley's camera helpers require native Riley meshes.
-
 pixels_num = np.array((1600, 800))
 pixels_size = np.array((5.3e-6, 5.3e-6))
 focal_length = 50.0e-3
@@ -135,18 +133,7 @@ camera = render.Camera(
     focal_length=focal_length,
     subsample=2,
 )
-native_meshes = [render.to_riley_mesh(mesh) for mesh in meshes]
-camera.pos_world = np.asarray(
-    riley.pos_fill_frame_from_rot_over_meshes(
-        native_meshes,
-        tuple(camera.pixels_num),
-        tuple(camera.pixels_size),
-        camera.focal_length,
-        (0.0, 0.0, 0.0),
-        1.01,
-    )
-)
-camera.roi_cent_world = np.asarray(riley.roi_cent_over_meshes(native_meshes))
+camera = render.cam_frame_scene(camera, meshes, fov_scale=1.01)
 
 # %%
 # 3. Configure and build the renderer

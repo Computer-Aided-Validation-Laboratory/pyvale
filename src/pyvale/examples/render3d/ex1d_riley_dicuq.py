@@ -70,25 +70,25 @@ roi_centre = tuple(render.mesh_center(mesh))
 
 rot_world_0 = (0.0, 0.0, 0.0)
 pos_world_0 = tuple(
-    riley.pos_fill_frame_from_rot(
+    render.cam_pos_frame_points(
         mesh.coords,
         pixels_num,
         pixels_size,
         focal_length,
         rot_world_0,
-        0.65,
+        fov_scale=0.65,
     )
 )
 
 rot_world_1 = (0.0, float(np.deg2rad(20.0)), 0.0)
 pos_world_1 = tuple(
-    riley.pos_fill_frame_from_rot(
+    render.cam_pos_frame_points(
         mesh.coords,
         pixels_num,
         pixels_size,
         focal_length,
         rot_world_1,
-        0.65,
+        fov_scale=0.65,
     )
 )
 

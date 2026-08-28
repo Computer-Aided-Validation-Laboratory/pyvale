@@ -61,7 +61,7 @@ camera = render.Camera(
     focal_length=1.0,
 )
 
-camera = render.cam_frame_mesh(camera, mesh, fill=1.0)
+camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
 
 # %%
 # 3. Build renderer backend

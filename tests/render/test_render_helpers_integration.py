@@ -52,7 +52,11 @@ def test_workflow_single_planar_specimen() -> None:
     )
 
     cam = render.cam_look_at(cam, target=render.mesh_center(centered_mesh))
-    cam = render.cam_frame_mesh(cam, centered_mesh, fill=0.9)
+    cam = render.cam_frame_mesh(
+        cam,
+        centered_mesh,
+        fov_scale=render.cam_coverage_to_fov_scale(0.9),
+    )
 
     scene = render.Scene3D(meshes=[centered_mesh], cameras=[cam])
     assert len(scene.meshes) == 1
@@ -79,7 +83,11 @@ def test_workflow_multi_specimen_grid() -> None:
         roi_cent_world=np.zeros(3),
         focal_length=50.0e-3,
     )
-    cam = render.cam_frame_scene(cam, grid_meshes, fill=0.95)
+    cam = render.cam_frame_scene(
+        cam,
+        grid_meshes,
+        fov_scale=render.cam_coverage_to_fov_scale(0.95),
+    )
     assert cam.pos_world[2] > 0.0
 
 
@@ -96,7 +104,11 @@ def test_workflow_stereo_setup() -> None:
         roi_cent_world=np.zeros(3),
         focal_length=50.0e-3,
     )
-    cam = render.cam_frame_mesh(cam, mesh, fill=0.8)
+    cam = render.cam_frame_mesh(
+        cam,
+        mesh,
+        fov_scale=render.cam_coverage_to_fov_scale(0.8),
+    )
     cam_0, cam_1 = render.stereo_build_symmetric(cam, convergence_degrees=15.0)
 
     assert cam_0.pos_world[0] < cam_1.pos_world[0]

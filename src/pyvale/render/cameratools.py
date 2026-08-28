@@ -9,6 +9,7 @@ helpers.
 
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
+from enum import IntEnum
 from pathlib import Path
 
 import numpy as np
@@ -23,6 +24,15 @@ from .mesh import Mesh3D
 
 StereoCameras = tuple[Camera, Camera]
 """The ordered pair of cameras that defines a stereo rig."""
+
+
+class EFrameFit(IntEnum):
+    """Rule used to fit world coordinates within the camera field of view."""
+
+    CONTAIN = 0
+    COVER = 1
+    HORIZONTAL = 2
+    VERTICAL = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,7 +118,21 @@ def cam_look_at(
     )
 
 
-def cam_pos_fill_frame(
+def cam_coverage_to_fov_scale(coverage: float) -> float:
+    """Convert target image coverage to Riley's field-of-view scale."""
+    if coverage <= 0.0:
+        raise ValueError("coverage must be positive.")
+    return riley.coverage_to_fov_scale(float(coverage))
+
+
+def cam_fov_scale_to_coverage(fov_scale: float) -> float:
+    """Convert Riley's field-of-view scale to target image coverage."""
+    if fov_scale <= 0.0:
+        raise ValueError("fov_scale must be positive.")
+    return riley.fov_scale_to_coverage(float(fov_scale))
+
+
+def cam_pos_frame_points(
     points: np.ndarray,
     pixels_num: tuple[int, int] | np.ndarray,
     pixels_size: tuple[float, float] | np.ndarray,
@@ -118,9 +142,11 @@ def cam_pos_fill_frame(
         0.0,
         0.0,
     ),
-    fill: float = 1.0,
+    fov_scale: float = 1.0,
+    fit_mode: EFrameFit = EFrameFit.CONTAIN,
+    target: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Calculate the world camera position to fill a fraction of the sensor.
+    """Calculate a camera position that frames a set of world points.
 
     Parameters
     ----------
@@ -134,8 +160,14 @@ def cam_pos_fill_frame(
         Camera focal length in metres.
     rot_world : tuple, numpy.ndarray, or Rotation, optional
         Euler angles in radians (xyz) or a scipy Rotation (default (0, 0, 0)).
-    fill : float, optional
-        Target fraction of the sensor field of view to fill (default 1.0).
+    fov_scale : float, optional
+        Scale applied to the fitted field of view. Values greater than one
+        leave a border and values below one crop the target (default 1.0).
+    fit_mode : EFrameFit, optional
+        Rule used to select the fitted sensor dimension.
+    target : numpy.ndarray or None, optional
+        Point placed at the image centre. The coordinate bounds centre is
+        used when omitted.
 
     Returns
     -------
@@ -148,10 +180,7 @@ def cam_pos_fill_frame(
     if pts.shape[0] == 0:
         raise ValueError("Cannot frame an empty set of points.")
 
-    if fill <= 0.0:
-        raise ValueError("fill must be positive.")
-
-    pixel_counts = np.asarray(pixels_num, dtype=np.float64)
+    pixel_counts = np.asarray(pixels_num)
     pixel_sizes = np.asarray(pixels_size, dtype=np.float64)
     if (
         pixel_counts.shape != (2,)
@@ -159,40 +188,45 @@ def cam_pos_fill_frame(
         or np.any(pixel_counts <= 0.0)
         or np.any(pixel_sizes <= 0.0)
         or focal_length <= 0.0
+        or fov_scale <= 0.0
     ):
-        raise ValueError("Camera dimensions and focal length must be positive.")
-
-    if isinstance(rot_world, Rotation):
-        rotation = rot_world
-    else:
-        rotation = Rotation.from_euler(
-            "xyz",
-            np.asarray(rot_world, dtype=np.float64),
+        raise ValueError(
+            "Camera dimensions, focal length, and fov_scale must be positive."
         )
 
-    target = 0.5 * (np.min(pts, axis=0) + np.max(pts, axis=0))
-    camera_points = rotation.inv().apply(pts - target)
-    sensor_half_size = 0.5 * pixel_counts * pixel_sizes * fill
+    if isinstance(rot_world, Rotation):
+        rotation_xyz = rot_world.as_euler("xyz")
+    else:
+        rotation_xyz = np.asarray(rot_world, dtype=np.float64)
+        if rotation_xyz.shape != (3,):
+            raise ValueError("rot_world must have shape (3,).")
 
-    distance_x = (
-        camera_points[:, 2]
-        + focal_length * np.abs(camera_points[:, 0]) / sensor_half_size[0]
-    )
-    distance_y = (
-        camera_points[:, 2]
-        + focal_length * np.abs(camera_points[:, 1]) / sensor_half_size[1]
-    )
-    distance = float(max(np.max(distance_x), np.max(distance_y)))
-    clearance = np.finfo(np.float64).eps * max(1.0, abs(distance))
-    distance = max(distance, float(np.max(camera_points[:, 2]))) + clearance
+    target_tuple = None
+    if target is not None:
+        target_array = np.asarray(target, dtype=np.float64)
+        if target_array.shape != (3,):
+            raise ValueError("target must have shape (3,).")
+        target_tuple = tuple(float(value) for value in target_array)
 
-    return target + rotation.apply(np.array((0.0, 0.0, distance)))
+    position = riley.pos_frame_coords(
+        pts,
+        tuple(int(value) for value in pixel_counts),
+        tuple(float(value) for value in pixel_sizes),
+        float(focal_length),
+        tuple(float(value) for value in rotation_xyz[::-1]),
+        fov_scale=float(fov_scale),
+        fit_mode=riley.FrameFitMode(int(fit_mode)),
+        target=target_tuple,
+    )
+    return np.asarray(position, dtype=np.float64)
 
 
 def cam_frame_points(
     camera: Camera,
     points: np.ndarray,
-    fill: float = 1.0,
+    fov_scale: float = 1.0,
+    fit_mode: EFrameFit = EFrameFit.CONTAIN,
+    target: np.ndarray | None = None,
 ) -> Camera:
     """Move a camera along its view direction to frame a set of points.
 
@@ -202,8 +236,13 @@ def cam_frame_points(
         Camera to position.
     points : numpy.ndarray
         Array of 3D point coordinates to fit inside the sensor.
-    fill : float, optional
-        Target fraction of the field of view to fill (default is 1.0).
+    fov_scale : float, optional
+        Scale applied to the fitted field of view (default is 1.0).
+    fit_mode : EFrameFit, optional
+        Rule used to select the fitted sensor dimension.
+    target : numpy.ndarray or None, optional
+        Point placed at the image centre. The bounds centre is used when
+        omitted.
 
     Returns
     -------
@@ -215,36 +254,51 @@ def cam_frame_points(
     if pts.size == 0:
         raise ValueError("Cannot frame an empty set of points.")
 
-    pos = cam_pos_fill_frame(
+    roi = np.asarray(riley.roi_cent_from_coords(pts), dtype=np.float64)
+    if target is not None:
+        roi = np.asarray(target, dtype=np.float64)
+
+    pos = cam_pos_frame_points(
         pts,
         camera.pixels_num,
         camera.pixels_size,
         camera.focal_length,
         camera.rot_world,
-        fill,
+        fov_scale=fov_scale,
+        fit_mode=fit_mode,
+        target=target,
     )
-    roi = riley.roi_cent_from_coords(pts)
 
     return replace(
         camera,
         pos_world=pos,
-        roi_cent_world=np.asarray(roi, dtype=np.float64),
+        roi_cent_world=roi,
     )
 
 
 def cam_frame_mesh(
     camera: Camera,
     mesh: Mesh3D,
-    fill: float = 1.0,
+    fov_scale: float = 1.0,
+    fit_mode: EFrameFit = EFrameFit.CONTAIN,
+    target: np.ndarray | None = None,
 ) -> Camera:
     """Position a camera along its view direction to frame a mesh."""
-    return cam_frame_points(camera, mesh.coords, fill=fill)
+    return cam_frame_points(
+        camera,
+        mesh.coords,
+        fov_scale=fov_scale,
+        fit_mode=fit_mode,
+        target=target,
+    )
 
 
 def cam_frame_scene(
     camera: Camera,
     meshes: Sequence[Mesh3D],
-    fill: float = 1.0,
+    fov_scale: float = 1.0,
+    fit_mode: EFrameFit = EFrameFit.CONTAIN,
+    target: np.ndarray | None = None,
 ) -> Camera:
     """Position a camera along its view direction to frame all meshes."""
 
@@ -254,7 +308,13 @@ def cam_frame_scene(
 
     all_pts = np.concatenate(valid_coords, axis=0)
 
-    return cam_frame_points(camera, all_pts, fill=fill)
+    return cam_frame_points(
+        camera,
+        all_pts,
+        fov_scale=fov_scale,
+        fit_mode=fit_mode,
+        target=target,
+    )
 
 
 def cam_project_points(
@@ -651,15 +711,18 @@ def average_subpixel_image(image: np.ndarray, subsample: int) -> np.ndarray:
 
 
 __all__ = [
+    "EFrameFit",
     "StereoAngles",
     "StereoCameras",
     "StereoExtrinsics",
     "average_subpixel_image",
+    "cam_coverage_to_fov_scale",
+    "cam_fov_scale_to_coverage",
     "cam_frame_mesh",
     "cam_frame_points",
     "cam_frame_scene",
     "cam_look_at",
-    "cam_pos_fill_frame",
+    "cam_pos_frame_points",
     "cam_project_points",
     "crop_image_rectangle",
     "pixel_grid_leng",

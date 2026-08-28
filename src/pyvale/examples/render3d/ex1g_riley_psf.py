@@ -60,7 +60,7 @@ camera = render.Camera(
     psf_sigma_x=1.0,
     psf_support_rad=3.0,
 )
-camera = render.cam_frame_mesh(camera, mesh, fill=1.0)
+camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
 
 # %%
 # 3. Configure the two renderer variants

@@ -7,6 +7,7 @@
 
 import numpy as np
 import pytest
+import riley
 from scipy.spatial.transform import Rotation
 
 import pyvale.render as render
@@ -105,15 +106,20 @@ def test_cam_frame_mesh_and_scene() -> None:
     )
     cam = _make_test_camera(pos=(0.0, 0.0, 2.0))
 
-    framed_mesh = render.cam_frame_mesh(cam, mesh, fill=0.9)
+    fov_scale = render.cam_coverage_to_fov_scale(0.9)
+    framed_mesh = render.cam_frame_mesh(cam, mesh, fov_scale=fov_scale)
     assert framed_mesh.pos_world[2] > 0.0
 
-    framed_scene = render.cam_frame_scene(cam, [mesh], fill=0.9)
+    framed_scene = render.cam_frame_scene(
+        cam,
+        [mesh],
+        fov_scale=fov_scale,
+    )
     np.testing.assert_allclose(framed_scene.pos_world, framed_mesh.pos_world)
 
 
-def test_cam_frame_mesh_respects_fill_for_oblique_camera() -> None:
-    """Framing keeps every projected node within the requested image fill."""
+def test_cam_frame_mesh_matches_riley_for_oblique_camera() -> None:
+    """PyVale delegates oblique framing to Riley with converted angles."""
     coords = np.array(
         (
             (-2.0, -1.0, -0.2),
@@ -135,18 +141,24 @@ def test_cam_frame_mesh_respects_fill_for_oblique_camera() -> None:
         degrees=True,
     )
 
-    framed = render.cam_frame_mesh(camera, mesh, fill=0.8)
-    pixels = render.cam_project_points(framed, coords)
-    image_center = 0.5 * framed.pixels_num
-    image_half_size = 0.5 * framed.pixels_num
-    occupancy = np.abs(pixels - image_center) / image_half_size
+    fov_scale = render.cam_coverage_to_fov_scale(0.8)
+    framed = render.cam_frame_mesh(camera, mesh, fov_scale=fov_scale)
+    rotation_xyz = camera.rot_world.as_euler("xyz")
+    expected = riley.pos_frame_coords(
+        coords,
+        tuple(camera.pixels_num),
+        tuple(camera.pixels_size),
+        camera.focal_length,
+        tuple(rotation_xyz[::-1]),
+        fov_scale=fov_scale,
+        fit_mode=riley.FrameFitMode.contain,
+    )
 
-    assert np.max(occupancy) <= 0.8 + 1.0e-12
-    assert np.isclose(np.max(occupancy), 0.8)
+    np.testing.assert_allclose(framed.pos_world, expected)
 
 
-def test_cam_frame_mesh_fill_fraction_controls_camera_distance() -> None:
-    """A smaller fill fraction moves the camera away from the target."""
+def test_cam_frame_mesh_fov_scale_controls_camera_distance() -> None:
+    """A larger field-of-view scale moves the camera away from the target."""
     coords = np.array(
         ((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))
     )
@@ -158,10 +170,57 @@ def test_cam_frame_mesh_fill_fraction_controls_camera_distance() -> None:
     )
     camera = _make_test_camera()
 
-    framed_full = render.cam_frame_mesh(camera, mesh, fill=1.0)
-    framed_border = render.cam_frame_mesh(camera, mesh, fill=0.9)
+    framed_full = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
+    framed_border = render.cam_frame_mesh(
+        camera,
+        mesh,
+        fov_scale=render.cam_coverage_to_fov_scale(0.9),
+    )
 
     assert framed_border.pos_world[2] > framed_full.pos_world[2]
+
+
+def test_cam_coverage_and_fov_scale_round_trip() -> None:
+    """Coverage conversion follows Riley's reciprocal convention."""
+    fov_scale = render.cam_coverage_to_fov_scale(0.8)
+
+    assert fov_scale == pytest.approx(1.25)
+    assert render.cam_fov_scale_to_coverage(fov_scale) == pytest.approx(0.8)
+
+
+@pytest.mark.parametrize("fit_mode", tuple(render.EFrameFit))
+def test_cam_pos_frame_points_fit_modes_match_riley(
+    fit_mode: render.EFrameFit,
+) -> None:
+    """Every public fit mode maps directly to Riley's native mode."""
+    coords = np.array(
+        ((-2.0, -1.0, 0.0), (2.0, -1.0, 0.0), (2.0, 1.0, 0.0))
+    )
+    rotation = Rotation.from_euler("xyz", (4.0, 8.0, 12.0), degrees=True)
+    target = np.array((0.0, 0.0, 0.0))
+
+    position = render.cam_pos_frame_points(
+        coords,
+        np.array((640, 480)),
+        np.array((0.02, 0.02)),
+        1.0,
+        rotation,
+        fov_scale=1.1,
+        fit_mode=fit_mode,
+        target=target,
+    )
+    expected = riley.pos_frame_coords(
+        coords,
+        (640, 480),
+        (0.02, 0.02),
+        1.0,
+        tuple(rotation.as_euler("xyz")[::-1]),
+        fov_scale=1.1,
+        fit_mode=riley.FrameFitMode(int(fit_mode)),
+        target=tuple(target),
+    )
+
+    np.testing.assert_allclose(position, expected)
 
 
 def test_stereo_build_symmetric_and_faceon() -> None:
@@ -207,14 +266,14 @@ def test_stereo_geometry_helpers_use_documented_pose_convention() -> None:
     assert np.isclose(angles.convergence_degrees, 0.0)
 
 
-def test_cam_pos_fill_frame() -> None:
-    """Verify cam_pos_fill_frame with tuple, array, and Rotation inputs."""
+def test_cam_pos_frame_points() -> None:
+    """Verify point framing with tuple and Rotation inputs."""
     coords = np.array([[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [0.0, 1.0, 0.0]])
     pixels_num = (512, 512)
     pixels_size = (0.02, 0.02)
     focal_length = 1.0
 
-    pos_tuple = render.cam_pos_fill_frame(
+    pos_tuple = render.cam_pos_frame_points(
         coords,
         pixels_num,
         pixels_size,
@@ -225,7 +284,7 @@ def test_cam_pos_fill_frame() -> None:
     assert pos_tuple.shape == (3,)
     assert pos_tuple[2] > 0.0
 
-    pos_rot = render.cam_pos_fill_frame(
+    pos_rot = render.cam_pos_frame_points(
         coords,
         pixels_num,
         pixels_size,
