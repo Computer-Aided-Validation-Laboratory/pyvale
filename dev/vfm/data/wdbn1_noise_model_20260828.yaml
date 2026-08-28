@@ -1,0 +1,38 @@
+{
+  "schema": "pyvale-wdbn1-noise-v1",
+  "source": "wdbn1/00-wdbn1-assembled-260812-1035/assembled.h5",
+  "static_frames": [0, 11],
+  "grid_spacing_mm": {"x": 0.021247386932373047, "y": 0.021111726760864258},
+  "component_correlation": [
+    [1.0, 0.0005901052998058919, 0.010403585157306737],
+    [0.0005901052998058918, 1.0, 0.01173249958902246],
+    [0.010403585157306737, 0.01173249958902246, 1.0]
+  ],
+  "components": {
+    "exx": {
+      "sigma": 0.00016949805433830303,
+      "sigma_microstrain": 169.49805433830304,
+      "correlation_length_mm": {"x": 0.06374216079711914, "y": 0.19000554084777832},
+      "gaussian_filter_sigma_mm": {"x": 0.03187108039855957, "y": 0.09500277042388916}
+    },
+    "eyy": {
+      "sigma": 0.00015809780252406118,
+      "sigma_microstrain": 158.09780252406117,
+      "correlation_length_mm": {"x": 0.19122648239135742, "y": 0.06333518028259277},
+      "gaussian_filter_sigma_mm": {"x": 0.09561324119567871, "y": 0.03166759014129639}
+    },
+    "exy": {
+      "sigma": 0.00011439807174019565,
+      "sigma_microstrain": 114.39807174019565,
+      "correlation_length_mm": {"x": 0.10623693466186523, "y": 0.10555863380432129},
+      "gaussian_filter_sigma_mm": {"x": 0.05311846733093262, "y": 0.052779316902160645}
+    }
+  },
+  "notes": [
+    "Temporal pointwise noise after removal of each point's static mean.",
+    "Correlation lengths are first positive-lag crossings below exp(-1).",
+    "Gaussian filter sigma is half that correlation length.",
+    "Compact calibration only; contains no experimental field data."
+  ],
+  "force": {"mean_n": -13.069961931323911, "sigma_n": 0.3216528022847312}
+}

@@ -14,9 +14,14 @@ import csv
 from dataclasses import asdict, dataclass
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 from typing import Iterable
 
+os.environ.setdefault("MPLBACKEND", "Agg")
+
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import spearmanr
