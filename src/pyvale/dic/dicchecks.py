@@ -273,6 +273,8 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
     if subset_step > subset_size:
         raise ValueError("subset_step is larger than the subset_size.")
 
+    if subset_step <= 0:
+        raise ValueError("subset_step must be a positive integer.")
 
 
 def check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, int]] | np.ndarray,
