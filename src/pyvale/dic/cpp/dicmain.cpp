@@ -191,9 +191,9 @@ void engine(const py::array_t<bool>& img_roi_arr,
                 results_ref_l = results_def_l;
                 interp_ref_l = make_interp(conf.interp_routine, conf.fullpaths[img_num_ref_l]);
 
-                bool* roi_updated = propagate_roi(img_roi, results_def_l, conf, ss_grid_l);
+                std::unique_ptr<bool[]> roi_updated(propagate_roi(img_roi, results_def_l, conf, ss_grid_l));
                 multiwindow_l.clear();
-                multiwindow_init_partial(multiwindow_l, roi_updated, conf, mwconf, saveconf,
+                multiwindow_init_partial(multiwindow_l, roi_updated.get(), conf, mwconf, saveconf,
                                         mwconf.overlap.size() - 1);
 
                 WindowLevel last_level;
@@ -354,9 +354,9 @@ void engine(const py::array_t<bool>& img_roi_arr,
                     results_ref_r = results_def_r;
 
 
-                bool* roi_updated = propagate_roi(img_roi, results_def_l, conf, ss_grid_l);
+                std::unique_ptr<bool[]> roi_updated(propagate_roi(img_roi, results_def_l, conf, ss_grid_l));
                 multiwindow_l.clear();
-                multiwindow_init_partial(multiwindow_l, roi_updated, conf, mwconf, saveconf,
+                multiwindow_init_partial(multiwindow_l, roi_updated.get(), conf, mwconf, saveconf,
                                         mwconf.overlap.size() - 1);
 
                 WindowLevel last_level;
