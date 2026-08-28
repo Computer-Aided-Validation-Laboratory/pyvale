@@ -11,6 +11,7 @@ Here we render the same plate with a hole in tension from the last example but
 we load the data from an exodus file and generate the uv's using Riley's tools.
 """
 
+import copy
 from dataclasses import replace
 from pathlib import Path
 
@@ -64,33 +65,40 @@ pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
 roi_centre = riley.roi_cent_from_coords(surface_mesh.coords)
 
-
-def make_camera(angle_degrees: float) -> riley.Camera:
-    rot_world = (0.0, np.deg2rad(angle_degrees), 0.0)
-    position = riley.pos_fill_frame_from_rot(
+camera_0 = riley.Camera(
+    pixels_num=pixels_num,
+    pixels_size=pixels_size,
+    pos_world=riley.pos_fill_frame_from_rot(
         surface_mesh.coords,
         pixels_num,
         pixels_size,
         focal_length,
-        rot_world,
+        (0.0, 0.0, 0.0),
         0.65,
-    )
-    return riley.Camera(
-        pixels_num=pixels_num,
-        pixels_size=pixels_size,
-        pos_world=position,
-        rot_world=rot_world,
-        roi_cent_world=roi_centre,
-        focal_length=focal_length,
-        sub_sample=2,
-        distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
-        distortion_k1=-0.2,
-        distortion_k2=0.1,
-        distortion_p1=0.0001,
-        distortion_p2=-0.0001,
-    )
+    ),
+    rot_world=(0.0, 0.0, 0.0),
+    roi_cent_world=roi_centre,
+    focal_length=focal_length,
+    sub_sample=2,
+    distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
+    distortion_k1=-0.2,
+    distortion_k2=0.1,
+    distortion_p1=0.0001,
+    distortion_p2=-0.0001,
+)
 
-cameras = [make_camera(0.0), make_camera(20.0)]
+camera_1 = copy.deepcopy(camera_0)
+camera_1.rot_world = (0.0, float(np.deg2rad(20.0)), 0.0)
+camera_1.pos_world = riley.pos_fill_frame_from_rot(
+    surface_mesh.coords,
+    pixels_num,
+    pixels_size,
+    focal_length,
+    camera_1.rot_world,
+    0.65,
+)
+
+cameras = [camera_0, camera_1]
 
 # %%
 # 3. Configure and build the renderer
@@ -108,7 +116,7 @@ config.save_scaling = riley.ScaleStrategy.none
 
 output_dir = (
     Path.cwd() / "pyvale-output"
-    / "render3d_ex1f_riley_dic_from_exodus"
+    / "render3d_ex1e_riley_dic_from_exodus"
 )
 
 renderer = render.Riley(config, output_dir)
@@ -116,7 +124,9 @@ renderer = render.Riley(config, output_dir)
 # %%
 # 4. Build the scene and render the extracted surface
 # ------------------------------------------------------------
-result = renderer.render(render.Scene3D(meshes=[surface_mesh], cameras=cameras))
+result = renderer.render(
+    render.Scene3D(meshes=[surface_mesh], cameras=cameras)
+)
 
 # %%
 # 5. Save the stereo pair in Riley's exchange format
@@ -141,7 +151,7 @@ print(f"{result.images=}")
 # %%
 # The first frame from both cameras is combined side by side below.
 #
-# .. image:: ../../../../_static/render3d_ex1f_riley_dic_from_exodus.png
+# .. image:: ../../../../_static/render3d_ex1e_riley_dic_from_exodus.png
 #    :alt: Riley stereo DIC render loaded from Exodus data
 #    :width: 900px
 #    :align: center

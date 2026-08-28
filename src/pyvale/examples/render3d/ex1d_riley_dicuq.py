@@ -12,6 +12,7 @@ a plate with a hole loaded in tension. For this case we specifically choose
 parameters representative of typical stereo DIC setups.
 """
 
+import copy
 from dataclasses import replace
 from pathlib import Path
 
@@ -68,36 +69,38 @@ pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
 roi_centre = riley.roi_cent_from_coords(mesh.coords)
 
-def make_camera(angle_degrees: float) -> riley.Camera:
-    """Create one distorted camera aimed at the specimen."""
-    rot_world = (0.0, np.deg2rad(angle_degrees), 0.0)
-    position = riley.pos_fill_frame_from_rot(
+camera_0 = riley.Camera(
+    pixels_num=pixels_num,
+    pixels_size=pixels_size,
+    pos_world=riley.pos_fill_frame_from_rot(
         mesh.coords,
         pixels_num,
         pixels_size,
         focal_length,
-        rot_world,
+        (0.0, 0.0, 0.0),
         0.65,
-    )
+    ),
+    rot_world=(0.0, 0.0, 0.0),
+    roi_cent_world=roi_centre,
+    focal_length=focal_length,
+    sub_sample=2,
+    distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
+    distortion_k1=-0.2,
+    distortion_k2=0.1,
+    distortion_p1=0.0001,
+    distortion_p2=-0.0001,
+)
 
-    return riley.Camera(
-        pixels_num=pixels_num,
-        pixels_size=pixels_size,
-        pos_world=position,
-        rot_world=rot_world,
-        roi_cent_world=roi_centre,
-        focal_length=focal_length,
-        sub_sample=2,
-        distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
-        distortion_k1=-0.2,
-        distortion_k2=0.1,
-        distortion_p1=0.0001,
-        distortion_p2=-0.0001,
-    )
-
-
-camera_0 = make_camera(0.0)
-camera_1 = make_camera(20.0)
+camera_1 = copy.deepcopy(camera_0)
+camera_1.rot_world = (0.0, float(np.deg2rad(20.0)), 0.0)
+camera_1.pos_world = riley.pos_fill_frame_from_rot(
+    mesh.coords,
+    pixels_num,
+    pixels_size,
+    focal_length,
+    camera_1.rot_world,
+    0.65,
+)
 
 # %%
 # 3. Configure and build the renderer
@@ -112,7 +115,7 @@ config.background_value = 128.0
 config.tile_size_max = 128
 config.save_scaling = riley.ScaleStrategy.none
 
-output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1e_riley_dicuq"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1d_riley_dicuq"
 
 renderer = render.Riley(config, output_dir)
 
@@ -125,7 +128,7 @@ result = renderer.render(scene)
 # %%
 # 5. Save the stereo pair in Riley's exchange format
 # ------------------------------------------------------------
-# The calibration example (ex1g) loads its cameras from this file.
+# The calibration example loads its cameras from this file.
 riley.save_stereo_pair(
     str(output_dir),
     "stereo_data_opengl.csv",
@@ -145,7 +148,7 @@ print(f"{result.images=}")
 # %%
 # The first frame from both cameras is combined side by side below.
 #
-# .. image:: ../../../../_static/render3d_ex1e_riley_dicuq.png
+# .. image:: ../../../../_static/render3d_ex1d_riley_dicuq.png
 #    :alt: Riley stereo DIC render from both cameras
 #    :width: 900px
 #    :align: center

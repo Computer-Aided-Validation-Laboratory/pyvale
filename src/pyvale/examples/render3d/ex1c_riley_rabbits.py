@@ -27,7 +27,7 @@ from pyvale import render
 
 def load_rabbit(
     rabbit: str,
-    topology: str,
+    topology: render.EElementType,
 ) -> tuple[io.SimData, np.ndarray]:
     """Load one static rabbit mesh and its UV coordinates."""
     data_dir = dataset.riley_rabbit_case_path(rabbit, topology)
@@ -51,11 +51,11 @@ def load_rabbit(
 # ------------------------------------------------------------
 
 topologies = (
-    (render.EElementType.TRI3, "tri3"),
-    (render.EElementType.TRI6, "tri6"),
-    (render.EElementType.QUAD4, "quad4"),
-    (render.EElementType.QUAD8, "quad8"),
-    (render.EElementType.QUAD9, "quad9"),
+    render.EElementType.TRI3,
+    render.EElementType.TRI6,
+    render.EElementType.QUAD4,
+    render.EElementType.QUAD8,
+    render.EElementType.QUAD9,
 )
 
 texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
@@ -63,10 +63,10 @@ texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
 meshes: list[render.Mesh3D] = []
 mesh_groups: list[sceneops.MeshGroup] = []
 
-for topology_index, (element_type, data_name) in enumerate(topologies):
+for topology_index, element_type in enumerate(topologies):
     pair_start = len(meshes)
     for rabbit_name in ("riley", "feebs"):
-        simulation, uvs = load_rabbit(rabbit_name, data_name)
+        simulation, uvs = load_rabbit(rabbit_name, element_type)
         shader_index = len(meshes) % 3
 
         if shader_index == 0:
@@ -88,7 +88,9 @@ for topology_index, (element_type, data_name) in enumerate(topologies):
         mesh = render.mesh3d_from_simdata(simulation, shader=shader)
 
         if mesh.element_type is not element_type:
-            raise ValueError(f"Unexpected topology loaded from {data_name}.")
+            raise ValueError(
+                f"Unexpected topology loaded for {element_type}."
+            )
 
         meshes.append(mesh)
 
@@ -157,7 +159,7 @@ config.background_value = 127.5
 config.image_save_mode = riley.ImageSaveMode.grey
 config.save_scaling = riley.ScaleStrategy.none
 
-output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1d_riley_rabbits"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1c_riley_rabbits"
 
 renderer = render.Riley(config, output_dir)
 
@@ -173,7 +175,7 @@ print(f"{result.images=}")
 # %%
 # The first rendered frame containing all topology variants is shown below.
 #
-# .. image:: ../../../../_static/render3d_ex1d_riley_rabbits.png
+# .. image:: ../../../../_static/render3d_ex1c_riley_rabbits.png
 #    :alt: Riley rabbit meshes rendered with several element topologies
 #    :width: 700px
 #    :align: center

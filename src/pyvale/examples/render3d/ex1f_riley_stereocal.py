@@ -12,6 +12,7 @@ also show how to save and load camera configurations into Riley using the OpenCV
 or OpenGL coordinate system convention.
 """
 
+import copy
 from pathlib import Path
 
 import numpy as np
@@ -31,44 +32,6 @@ from pyvale import render
 MATCHED_ROI = (0.0125, 0.0175, 0.0005)
 MATCHED_CAM0_POS = (0.0125, 0.0175, 0.160864856482)
 MATCHED_CAM1_POS = (0.067348011198, 0.0175, 0.151193672270)
-
-
-def create_stereo_cameras(
-    roi_pos: tuple[float, float, float],
-) -> tuple[riley.Camera, riley.Camera]:
-    """Create the matched distorted stereo camera pair."""
-    pixels_num = (2464, 2056)
-    pixels_size = (3.45e-6, 3.45e-6)
-    focal_length = 50.0e-3
-    stereo_angle_deg = 20.0
-
-    def make_camera(
-        pos_world: tuple[float, float, float],
-        rot_world: tuple[float, float, float],
-    ) -> riley.Camera:
-        return riley.Camera(
-            pixels_num=pixels_num,
-            pixels_size=pixels_size,
-            pos_world=pos_world,
-            rot_world=rot_world,
-            roi_cent_world=roi_pos,
-            focal_length=focal_length,
-            sub_sample=2,
-            distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
-            distortion_k1=-0.2,
-            distortion_k2=0.1,
-            distortion_k3=0.0,
-            distortion_p1=0.0001,
-            distortion_p2=-0.0001,
-        )
-
-    camera_0 = make_camera(MATCHED_CAM0_POS, (0.0, 0.0, 0.0))
-    camera_1 = make_camera(
-        MATCHED_CAM1_POS,
-        (0.0, np.deg2rad(stereo_angle_deg), 0.0),
-    )
-    return camera_0, camera_1
-
 
 # %%
 # 1. Load the moving calibration target and its texture
@@ -106,22 +69,45 @@ frame_indices = evenly_spaced_frame_indices(
 )
 
 mesh.displacements = mesh.displacements[frame_indices]
-coords = mesh.coords
 
 # %%
 # 2. Shift the target onto the DIC UQ specimen position
 # ------------------------------------------------------------
-roi_pos_orig = riley.roi_cent_from_coords(coords)
-coords = coords + (np.asarray(MATCHED_ROI) - np.asarray(roi_pos_orig))
-mesh.coords = coords
-roi_pos = riley.roi_cent_from_coords(coords)
+roi_pos_orig = riley.roi_cent_from_coords(mesh.coords)
+mesh.coords = (
+    mesh.coords + (np.asarray(MATCHED_ROI) - np.asarray(roi_pos_orig))
+)
+roi_pos = riley.roi_cent_from_coords(mesh.coords)
 
 # %%
 # 3. Create the stereo pair and save it in Riley's exchange format
 # ------------------------------------------------------------
-camera_0, camera_1 = create_stereo_cameras(tuple(roi_pos))
+pixels_num = (2464, 2056)
+pixels_size = (3.45e-6, 3.45e-6)
+focal_length = 50.0e-3
+stereo_angle_deg = 20.0
 
-output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1g_riley_stereocal"
+camera_0 = riley.Camera(
+    pixels_num=pixels_num,
+    pixels_size=pixels_size,
+    pos_world=MATCHED_CAM0_POS,
+    rot_world=(0.0, 0.0, 0.0),
+    roi_cent_world=tuple(roi_pos),
+    focal_length=focal_length,
+    sub_sample=2,
+    distortion_model=int(render.EDistortionModel.BROWN_CONRADY),
+    distortion_k1=-0.2,
+    distortion_k2=0.1,
+    distortion_k3=0.0,
+    distortion_p1=0.0001,
+    distortion_p2=-0.0001,
+)
+
+camera_1 = copy.deepcopy(camera_0)
+camera_1.pos_world = MATCHED_CAM1_POS
+camera_1.rot_world = (0.0, float(np.deg2rad(stereo_angle_deg)), 0.0)
+
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1f_riley_stereocal"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 stereo_file_name = "stereo_data_opengl.csv"
@@ -158,7 +144,7 @@ print(f"{result.images=}")
 # %%
 # The first calibration pose from both cameras is combined side by side below.
 #
-# .. image:: ../../../../_static/render3d_ex1g_riley_stereocal.png
+# .. image:: ../../../../_static/render3d_ex1f_riley_stereocal.png
 #    :alt: Riley stereo calibration target from both cameras
 #    :width: 900px
 #    :align: center
