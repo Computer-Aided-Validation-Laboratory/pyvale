@@ -32,13 +32,14 @@ simulation = io.SimLoaderByField(
     connect_files="connect.csv",
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_all_sim_data()
+
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+
 mesh = render.mesh3d_from_simdata(
     simulation,
     shader=render.RileyTextureShader(uvs=uvs, texture=texture),
 )
-coords = mesh.coords
 
 # %%
 # 2. Create a camera with a Gaussian PSF
@@ -51,7 +52,7 @@ camera = render.Camera(
     pixels_size=pixels_size,
     pos_world=np.asarray(
         riley.pos_fill_frame_from_rot(
-            coords,
+            mesh.coords,
             tuple(pixels_num),
             tuple(pixels_size),
             focal_length,
@@ -60,7 +61,7 @@ camera = render.Camera(
         )
     ),
     rot_world=Rotation.identity(),
-    roi_cent_world=np.asarray(riley.roi_cent_from_coords(coords)),
+    roi_cent_world=np.asarray(riley.roi_cent_from_coords(mesh.coords)),
     focal_length=focal_length,
     subsample=2,
     psf_type=render.EPSFType.GAUSSIAN,
@@ -72,6 +73,7 @@ camera = render.Camera(
 # 3. Configure the two renderer variants
 # ------------------------------------------------------------
 output_root = Path.cwd() / "pyvale-output" / "render3d_ex1c_riley_psf"
+
 buffer_modes = (
     riley.BufferMode.global_subpx_full,
     riley.BufferMode.global_subpx_stripe,
@@ -81,15 +83,19 @@ buffer_modes = (
 # 4. Build and render the same scene with each configuration
 # ------------------------------------------------------------
 scene = render.Scene3D(meshes=[mesh], cameras=[camera])
+
 for buffer_mode in buffer_modes:
     config = riley.create_raster_config(
         num_frames=1,
-        total_threads=8,
+        total_threads=4,
         save_strategy=riley.SaveStrategy.disk,
     )
+    
     config.buffer_mode = buffer_mode
     output_dir = output_root / buffer_mode.name
+
     result = render.Riley(config, output_dir).render(scene)
+
     print(f"Rendered {buffer_mode.name} output to {output_dir}")
     print(f"{result.images=}")
 

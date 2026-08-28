@@ -57,8 +57,8 @@ surface_mesh.displacements = surface_mesh.displacements[[0, -1]]
 # %%
 # 2. Create and position a distorted stereo camera pair
 # ------------------------------------------------------------
-# The cameras are built natively so they can be saved in Riley's exchange
-# format without any conversion of their parameters.
+# The cameras are built natively so they can be saved in Riley's format without 
+# any conversion of their parameters.
 pixels_num = (2464, 2056)
 pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
@@ -90,17 +90,18 @@ def make_camera(angle_degrees: float) -> riley.Camera:
         distortion_p2=-0.0001,
     )
 
-
 cameras = [make_camera(0.0), make_camera(20.0)]
 
 # %%
 # 3. Configure and build the renderer
 # ------------------------------------------------------------
+
 config = riley.create_raster_config(
     num_frames=surface_mesh.displacements.shape[0],
     total_threads=8,
     save_strategy=riley.SaveStrategy.disk,
 )
+
 config.background_value = 128.0
 config.tile_size_max = 128
 config.save_scaling = riley.ScaleStrategy.none

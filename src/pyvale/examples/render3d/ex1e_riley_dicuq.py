@@ -25,7 +25,9 @@ from pyvale import render
 # %%
 # 1. Load the deforming mesh and assign a speckle texture
 # ------------------------------------------------------------
+
 data_dir = dataset.riley_platehole_csv_case_path()
+
 simulation = io.SimLoaderByField(
     load_dir=data_dir,
     coords_file="coords.csv",
@@ -51,25 +53,26 @@ mesh = render.mesh3d_from_simdata(
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )
 
+# We only render the first and last frame to save time. If you want to render 
+# all frames comment this out.
 mesh.displacements = mesh.displacements[[0, -1]]
-coords = mesh.coords
 
 # %%
 # 2. Create and position a distorted stereo camera pair
 # ------------------------------------------------------------
 # The cameras are built natively so they can be saved in Riley's exchange
 # format without any conversion of their parameters.
+
 pixels_num = (2464, 2056)
 pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
-roi_centre = riley.roi_cent_from_coords(coords)
-
+roi_centre = riley.roi_cent_from_coords(mesh.coords)
 
 def make_camera(angle_degrees: float) -> riley.Camera:
     """Create one distorted camera aimed at the specimen."""
     rot_world = (0.0, np.deg2rad(angle_degrees), 0.0)
     position = riley.pos_fill_frame_from_rot(
-        coords,
+        mesh.coords,
         pixels_num,
         pixels_size,
         focal_length,

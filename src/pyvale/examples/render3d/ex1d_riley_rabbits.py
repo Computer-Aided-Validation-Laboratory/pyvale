@@ -31,6 +31,7 @@ def load_rabbit(
 ) -> tuple[io.SimData, np.ndarray]:
     """Load one static rabbit mesh and its UV coordinates."""
     data_dir = dataset.riley_rabbit_case_path(rabbit, topology)
+
     simulation = io.SimLoaderByField(
         load_dir=data_dir,
         coords_file="coords.csv",
@@ -39,13 +40,16 @@ def load_rabbit(
         connect_files="connectivity.csv",
         load_opts=io.SimLoadOpts(coord_header=None),
     ).load_all_sim_data()
+
     uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
+
     return simulation, uvs
 
 
 # %%
 # 1. Load several mesh topologies and assign different shaders
 # ------------------------------------------------------------
+
 topologies = (
     (render.EElementType.TRI3, "tri3"),
     (render.EElementType.TRI6, "tri6"),
@@ -53,7 +57,9 @@ topologies = (
     (render.EElementType.QUAD8, "quad8"),
     (render.EElementType.QUAD9, "quad9"),
 )
+
 texture = riley.load_texture_u8(dataset.riley_speckle_texture_path())
+
 meshes: list[render.Mesh3D] = []
 mesh_groups: list[sceneops.MeshGroup] = []
 
@@ -62,6 +68,7 @@ for topology_index, (element_type, data_name) in enumerate(topologies):
     for rabbit_name in ("riley", "feebs"):
         simulation, uvs = load_rabbit(rabbit_name, data_name)
         shader_index = len(meshes) % 3
+
         if shader_index == 0:
             shader = render.RileyTextureShader(uvs=uvs, texture=texture)
         elif shader_index == 1:
@@ -79,8 +86,10 @@ for topology_index, (element_type, data_name) in enumerate(topologies):
             )
 
         mesh = render.mesh3d_from_simdata(simulation, shader=shader)
+
         if mesh.element_type is not element_type:
             raise ValueError(f"Unexpected topology loaded from {data_name}.")
+
         meshes.append(mesh)
 
     sceneops.overlap_mesh_group_bounds(
@@ -97,6 +106,7 @@ for topology_index, (element_type, data_name) in enumerate(topologies):
             ),
         ),
     )
+
     mesh_groups.append(sceneops.mesh_group_span(pair_start, 2))
 
 sceneops.arrange_mesh_groups_grid(
@@ -109,10 +119,12 @@ sceneops.arrange_mesh_groups_grid(
 # 2. Create and position a camera around every mesh
 # ------------------------------------------------------------
 # Riley's camera helpers require native Riley meshes.
+
 native_meshes = [render.to_native_mesh(mesh) for mesh in meshes]
 pixels_num = np.array((1600, 800))
 pixels_size = np.array((5.3e-6, 5.3e-6))
 focal_length = 50.0e-3
+
 camera = render.Camera(
     pixels_num=pixels_num,
     pixels_size=pixels_size,
@@ -135,6 +147,7 @@ camera = render.Camera(
 # %%
 # 3. Configure and build the renderer
 # ------------------------------------------------------------
+
 config = riley.create_raster_config(
     num_frames=1,
     total_threads=1,
@@ -143,13 +156,17 @@ config = riley.create_raster_config(
 config.background_value = 127.5
 config.image_save_mode = riley.ImageSaveMode.grey
 config.save_scaling = riley.ScaleStrategy.none
+
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1d_riley_rabbits"
+
 renderer = render.Riley(config, output_dir)
 
 # %%
 # 4. Build the multi-mesh scene and render it
 # ------------------------------------------------------------
+
 result = renderer.render(render.Scene3D(meshes=meshes, cameras=[camera]))
+
 print(f"Rendered the rabbit topology comparison to {output_dir}")
 print(f"{result.images=}")
 

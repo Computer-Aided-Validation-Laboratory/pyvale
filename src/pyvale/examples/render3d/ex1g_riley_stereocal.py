@@ -8,7 +8,8 @@
 Riley: Stereo Calibration Target
 ================================================================================
 Here we render a series of images of a stereo calibration target with Riley. We
-also show how to save and load camera configurations into Riley.
+also show how to save and load camera configurations into Riley using the OpenCV
+or OpenGL coordinate system convention.
 """
 
 from pathlib import Path
@@ -22,7 +23,7 @@ import pyvale.dataio as io
 from pyvale import render
 
 # %%
-# Setup
+# Stereo Setup
 # ------------------------------------------------------------
 # Stereo pair matching the DIC UQ specimen position and camera parameters.
 # The camera positions are the calibrated values from Riley's own demo so
@@ -134,20 +135,23 @@ camera_0, camera_1 = riley.load_stereo_pair(str(output_dir), stereo_file_name)
 # %%
 # 5. Configure and build the renderer
 # ------------------------------------------------------------
+
 config = riley.create_raster_config(
     num_frames=mesh.displacements.shape[0],
     total_threads=8,
     save_strategy=riley.SaveStrategy.disk,
 )
 config.background_value = 128.0
+
 renderer = render.Riley(config, output_dir)
 
 # %%
 # 6. Build the scene and render every calibration-target pose
 # ------------------------------------------------------------
-result = renderer.render(
-    render.Scene3D(meshes=[mesh], cameras=[camera_0, camera_1]),
-)
+
+scene = render.Scene3D(meshes=[mesh], cameras=[camera_0, camera_1]) 
+result = renderer.render(scene)
+
 print(f"Rendered stereo-calibration images to {output_dir}")
 print(f"{result.images=}")
 
