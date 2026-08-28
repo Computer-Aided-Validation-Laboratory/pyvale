@@ -44,11 +44,12 @@ cam_base = render.Camera(
 )
 
 stereo_angle = 15.0  # degrees
-stereo = render.faceon_stereo_cameras(cam_base, stereo_angle)
+stereo_cameras = render.stereo_build_faceon(cam_base, stereo_angle)
+cam_0, cam_1 = stereo_cameras
 
-print("Stereo baseline distance (mm):", stereo.stereo_dist)
+print("Stereo baseline distance (mm):", render.stereo_calc_baseline(cam_0, cam_1))
 print("Stereo rotation (Euler xyz deg):")
-print(stereo.stereo_rotation.as_euler("xyz", degrees=True))
+print(render.stereo_calc_angles(cam_0, cam_1).relative_euler_xyz_degrees)
 
 # %%
 # 2. Export calibration in YAML and MatchID formats
@@ -60,25 +61,28 @@ output_dir = (
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # Save standard Pyvale YAML calibration:
-stereo.save_calibration(output_dir)
 yaml_path = output_dir / "calibration" / "calibration.yaml"
+render.stereo_save_calibration_yaml(cam_0, cam_1, yaml_path)
 print(f"Saved Pyvale calibration to: {yaml_path}")
 
 # Save MatchID compatible calibration:
-stereo.save_calibration_mid(output_dir)
 mid_path = output_dir / "calibration" / "calibration.caldat"
+render.stereo_save_calibration_matchid(cam_0, cam_1, mid_path)
 print(f"Saved MatchID calibration to: {mid_path}")
 
 # %%
 # 3. Reload and inspect calibration parameters
 # --------------------------------------------------------------------------
-reloaded = render.CameraStereo.from_calibration(
-    calib_path=yaml_path,
+reloaded_0, reloaded_1 = render.stereo_build_from_calibration(
+    calibration_path=yaml_path,
     pos_world_0=cam_base.pos_world,
     rot_world_0=cam_base.rot_world,
     focal_length=cam_base.focal_length,
 )
-assert np.allclose(reloaded.stereo_dist, stereo.stereo_dist)
+assert np.allclose(
+    render.stereo_calc_extrinsics(reloaded_0, reloaded_1).translation_cam1_in_cam0,
+    render.stereo_calc_extrinsics(cam_0, cam_1).translation_cam1_in_cam0,
+)
 print("Successfully verified round-trip calibration parameters.")
 
 # %%

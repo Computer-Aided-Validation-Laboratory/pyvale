@@ -12,14 +12,12 @@ import warnings
 from pathlib import Path
 import numpy as np
 from scipy.signal import convolve2d
-import copy
 from scipy.spatial.transform import Rotation
 import matplotlib.image as mplim
 from PIL import Image
 from pyvale.render.camera import Camera2D
 from pyvale.sensorsim.sensordata import SensorData
 from pyvale.render.camera import Camera
-from pyvale.sensorsim.camerastereo import CameraStereo
 
 
 class CameraTools:
@@ -407,78 +405,3 @@ class CameraTools:
                             roi_cent_world=(0, 0, 0),
                             focal_length=focal_length)
         return cam_data
-
-    @staticmethod
-    def symmetric_stereo_cameras(cam_data_0: Camera,
-                                stereo_angle:float) -> CameraStereo:
-        """A convenience function to set up a symmetric stereo camera system, given
-        an initial CameraData dataclass and a stereo angle. This assumes the basic
-        camera parameters are the same.
-
-        Parameters
-        ----------
-        cam_data_0 : CameraData
-            A dataclass containing the camera parameters for a single camera, which
-            will be camera 0.
-        stereo_angle : float
-            The stereo angle between the two cameras.
-
-        Returns
-        -------
-        CameraStereo
-            An instance of the CameraStereo class. This class contains
-            information about each of the cameras, as well as the extrinsic
-            parameters between them.
-        """
-        cam_data_1 = copy.deepcopy(cam_data_0)
-        base = 2 * cam_data_0.pos_world[2] * np.tan(np.radians(stereo_angle) / 2)
-
-        cam_data_0.pos_world[0] -= base / 2
-        cam_data_1.pos_world[0] += base / 2
-
-        cam_0_rot = (0, -np.radians(stereo_angle / 2), 0)
-        cam_0_rot = Rotation.from_euler("xyz", cam_0_rot, degrees=False)
-        cam_data_0.rot_world = cam_0_rot
-
-        cam_1_rot = (0, np.radians(stereo_angle / 2), 0)
-        cam_1_rot = Rotation.from_euler("xyz", cam_1_rot, degrees=False)
-        cam_data_1.rot_world = cam_1_rot
-
-        stereo_system = CameraStereo(cam_data_0, cam_data_1)
-
-        return stereo_system
-
-    @staticmethod
-    def faceon_stereo_cameras(cam_data_0: Camera,
-                            stereo_angle: float) -> CameraStereo:
-        # TODO: Correct docstring
-        """A convenience function to set up a face-on stereo camera system, given
-        an initial CameraData dataclass and a stereo angle. This assumes the basic
-        camera parameters are the same.
-
-        Parameters
-        ----------
-        cam_data_0 : CameraData
-            A dataclass containing the camera parameters for a single camera, which
-            will be camera 0.
-        stereo_angle : float
-            The stereo angle between the two cameras.
-
-        Returns
-        -------
-        CameraStereo
-            An instance of the CameraStereo class. This class contains
-            information about each of the cameras, as well as the extrinsic
-            parameters between them.
-        """
-        cam_data_1 = copy.deepcopy(cam_data_0)
-        base = cam_data_0.pos_world[2] * np.tan(np.radians(stereo_angle))
-        cam_data_1.pos_world[0] += base
-
-        rotation_angle = (0, np.radians(stereo_angle), 0)
-        rotation_angle = Rotation.from_euler("xyz", rotation_angle, degrees=False)
-        cam_data_1.rot_world = rotation_angle
-
-        stereo_system = CameraStereo(cam_data_0, cam_data_1)
-
-        return stereo_system

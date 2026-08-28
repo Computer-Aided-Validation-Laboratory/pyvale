@@ -112,26 +112,47 @@ def test_cam_frame_mesh_and_scene() -> None:
     np.testing.assert_allclose(framed_scene.pos_world, framed_mesh.pos_world)
 
 
-def test_cam_stereo_symmetric_and_faceon() -> None:
+def test_stereo_build_symmetric_and_faceon() -> None:
     """Verify stereo baseline and symmetric / face-on angles."""
     cam = _make_test_camera(pos=(0.0, 0.0, 10.0))
     angle = 20.0
 
-    stereo_sym = render.cam_stereo_symmetric(cam, angle)
+    cam_0_sym, cam_1_sym = render.stereo_build_symmetric(cam, angle)
     half_angle_rad = np.radians(angle / 2.0)
     expected_baseline = 2.0 * 10.0 * np.tan(half_angle_rad)
     actual_baseline = (
-        stereo_sym.camera_1.pos_world[0] - stereo_sym.camera_0.pos_world[0]
+        cam_1_sym.pos_world[0] - cam_0_sym.pos_world[0]
     )
     assert np.isclose(actual_baseline, expected_baseline)
 
-    stereo_faceon = render.cam_stereo_faceon(cam, angle)
+    cam_0_faceon, cam_1_faceon = render.stereo_build_faceon(cam, angle)
     expected_faceon_base = 10.0 * np.tan(np.radians(angle))
     actual_faceon_base = (
-        stereo_faceon.camera_1.pos_world[0]
-        - stereo_faceon.camera_0.pos_world[0]
+        cam_1_faceon.pos_world[0] - cam_0_faceon.pos_world[0]
     )
     assert np.isclose(actual_faceon_base, expected_faceon_base)
+
+
+def test_stereo_geometry_helpers_use_documented_pose_convention() -> None:
+    """Stereo geometry is reported from camera zero to camera one."""
+    cam_0 = _make_test_camera(pos=(0.0, 0.0, 10.0))
+    cam_1 = _make_test_camera(pos=(2.0, 0.0, 10.0))
+
+    extrinsics = render.stereo_calc_extrinsics(cam_0, cam_1)
+    angles = render.stereo_calc_angles(cam_0, cam_1)
+
+    np.testing.assert_allclose(
+        extrinsics.translation_cam1_in_cam0,
+        np.array((-2.0, 0.0, 0.0)),
+    )
+    assert extrinsics.rotation_cam1_from_cam0.approx_equal(Rotation.identity())
+    assert np.isclose(render.stereo_calc_baseline(cam_0, cam_1), 2.0)
+    assert np.isclose(
+        render.stereo_calc_stand_off(cam_0, cam_1, (1.0, 0.0, 0.0)),
+        10.0,
+    )
+    np.testing.assert_allclose(angles.relative_euler_xyz_degrees, np.zeros(3))
+    assert np.isclose(angles.convergence_degrees, 0.0)
 
 
 def test_cam_pos_fill_frame() -> None:
@@ -161,4 +182,3 @@ def test_cam_pos_fill_frame() -> None:
         1.0,
     )
     np.testing.assert_allclose(pos_tuple, pos_rot, atol=1.0e-12)
-

@@ -73,7 +73,7 @@ surface_mesh.shader = render.BlenderTextureShader(
 )
 
 stereo_angle = 15.0  # degrees
-stereo = render.faceon_stereo_cameras(cam_base, stereo_angle)
+stereo_cameras = render.stereo_build_faceon(cam_base, stereo_angle)
 
 light = render.Light(
     light_type=render.ELightType.POINT,
@@ -104,7 +104,7 @@ renderer = render.Blender(config)
 # --------------------------------------------------------------------------
 scene = render.Scene3D(
     meshes=[surface_mesh],
-    cameras=[stereo.camera_0, stereo.camera_1],
+    cameras=stereo_cameras,
     lights=[light],
 )
 result = renderer.render(scene)

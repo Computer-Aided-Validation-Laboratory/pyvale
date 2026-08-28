@@ -66,6 +66,7 @@ def image_save(
 
     dtype = np.uint8 if bits <= 8 else np.uint16
     img_arr = np.asarray(image, dtype=dtype)
+
     out_img = Image.fromarray(img_arr[::-1, :])
     out_img.save(out_path)
 
@@ -98,10 +99,12 @@ def image_crop(
         Cropped subarray of shape ``(height, width, ...)``.
     """
     img_h, img_w = image.shape[:2]
+
     if x < 0 or y < 0 or width <= 0 or height <= 0:
         raise ValueError(
             f"Invalid crop dimensions (x={x}, y={y}, w={width}, h={height})."
         )
+        
     if x + width > img_w or y + height > img_h:
         raise ValueError(
             f"Crop bounds (x={x}+{width}, y={y}+{height}) exceed image shape "
@@ -129,6 +132,7 @@ def image_resize(
     numpy.ndarray
         Resized array matching input dtype.
     """
+
     orig_dtype = image.dtype
     with Image.fromarray(image) as pil_img:
         resized = pil_img.resize(size, resample=Image.Resampling.BILINEAR)
@@ -157,6 +161,7 @@ def image_grayscale(image: np.ndarray) -> np.ndarray:
     arr = np.asarray(image, dtype=np.float64)
     if arr.ndim == 2:
         return arr.copy()
+
     if arr.ndim == 3:
         if arr.shape[2] >= 3:
             return (
@@ -164,6 +169,7 @@ def image_grayscale(image: np.ndarray) -> np.ndarray:
                 + 0.587 * arr[:, :, 1]
                 + 0.114 * arr[:, :, 2]
             )
+            
     raise ValueError(
         f"Unsupported image shape for grayscale conversion: {arr.shape}"
     )

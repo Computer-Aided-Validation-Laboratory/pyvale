@@ -62,7 +62,7 @@ def test_render_calibration_images_reports_unavailable(
         lambda: reason,
     )
     camera = make_camera()
-    stereo = render.faceon_stereo_cameras(camera, 15.0)
+    stereo_cameras = render.stereo_build_faceon(camera, 15.0)
     target = render.BlenderCalibrationTarget(
         np.array((10.0, 10.0, 1.0)),
         tmp_path / "dummy.tiff",
@@ -71,7 +71,7 @@ def test_render_calibration_images_reports_unavailable(
     with pytest.raises(render.RenderInputError, match="UNAVAILABLE"):
         render.render_calibration_images(
             target,
-            stereo,
+            stereo_cameras,
             render.BlenderConfig(tmp_path),
         )
 

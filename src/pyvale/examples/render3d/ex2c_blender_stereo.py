@@ -67,10 +67,10 @@ surface_mesh.shader = render.BlenderTextureShader(
 )
 
 # Pyvale provides convenience helpers to build convergent stereo rigs:
-# - symmetric_stereo_cameras: both cameras rotated symmetrically about ROI
-# - faceon_stereo_cameras: cam0 normal to specimen, cam1 angled
+# - stereo_build_symmetric: both cameras rotated symmetrically about ROI
+# - stereo_build_faceon: cam0 normal to specimen, cam1 angled
 stereo_angle = 15.0  # degrees
-stereo = render.symmetric_stereo_cameras(cam_base, stereo_angle)
+stereo_cameras = render.stereo_build_symmetric(cam_base, stereo_angle)
 
 # %%
 # 3. Create lighting
@@ -100,7 +100,7 @@ renderer = render.Blender(config)
 # --------------------------------------------------------------------------
 scene = render.Scene3D(
     meshes=[surface_mesh],
-    cameras=[stereo.camera_0, stereo.camera_1],
+    cameras=stereo_cameras,
     lights=[light],
 )
 result = renderer.render(scene)

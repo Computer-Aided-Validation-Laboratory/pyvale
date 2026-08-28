@@ -8,16 +8,42 @@ helpers.
 """
 
 from collections.abc import Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from pathlib import Path
 
 import numpy as np
 import riley
+import yaml
 from scipy.signal import convolve2d
 from scipy.spatial.transform import Rotation
 
 from .camera import Camera
-from .camerastereo import CameraStereo
 from .mesh import Mesh3D
+
+
+StereoCameras = tuple[Camera, Camera]
+"""The ordered pair of cameras that defines a stereo rig."""
+
+
+@dataclass(frozen=True, slots=True)
+class StereoExtrinsics:
+    """Transform from camera-zero coordinates to camera-one coordinates.
+
+    The relation is ``point_cam1 = rotation_cam1_from_cam0.apply(point_cam0)
+    + translation_cam1_in_cam0``.  The camera rotations stored by
+    :class:`Camera` transform camera coordinates into world coordinates.
+    """
+
+    rotation_cam1_from_cam0: Rotation
+    translation_cam1_in_cam0: np.ndarray
+
+
+@dataclass(frozen=True, slots=True)
+class StereoAngles:
+    """Relative orientation and optical-axis convergence of a stereo pair."""
+
+    relative_euler_xyz_degrees: np.ndarray
+    convergence_degrees: float
 
 
 def cam_look_at(
@@ -159,6 +185,7 @@ def cam_frame_points(
     Camera
         A copy of the camera positioned to frame the points.
     """
+
     pts = np.asarray(points, dtype=np.float64)
     if pts.size == 0:
         raise ValueError("Cannot frame an empty set of points.")
@@ -195,10 +222,13 @@ def cam_frame_scene(
     fill: float = 1.0,
 ) -> Camera:
     """Position a camera along its view direction to frame all meshes."""
+
     valid_coords = [m.coords for m in meshes if len(m.coords) > 0]
     if not valid_coords:
         raise ValueError("Cannot frame a scene with no mesh coordinates.")
+
     all_pts = np.concatenate(valid_coords, axis=0)
+
     return cam_frame_points(camera, all_pts, fill=fill)
 
 
@@ -231,9 +261,8 @@ def cam_project_points(
     cam_pts = rel_pts @ rot_mat
 
     depth = -cam_pts[:, 2]
-    with np.errstate(divide="ignore", invalid="ignore"):
-        proj_x = camera.focal_length * (cam_pts[:, 0] / depth)
-        proj_y = camera.focal_length * (cam_pts[:, 1] / depth)
+    proj_x = camera.focal_length * (cam_pts[:, 0] / depth)
+    proj_y = camera.focal_length * (cam_pts[:, 1] / depth)
 
     cx = 0.5 * camera.pixels_num[0]
     cy = 0.5 * camera.pixels_num[1]
@@ -244,58 +273,293 @@ def cam_project_points(
     return np.column_stack((px_u, px_v))
 
 
-def cam_stereo_faceon(
+def stereo_build_faceon(
     camera: Camera,
-    stereo_angle: float,
-) -> CameraStereo:
-    """Create face-on stereo cameras from one reference view."""
-    baseline = camera.pos_world[2] * np.tan(np.radians(stereo_angle))
-    camera_1 = Camera(
-        pixels_num=camera.pixels_num.copy(),
-        pixels_size=camera.pixels_size.copy(),
-        pos_world=camera.pos_world + np.array((baseline, 0.0, 0.0)),
-        rot_world=Rotation.from_euler(
-            "xyz",
-            (0.0, np.radians(stereo_angle), 0.0),
-        ),
-        roi_cent_world=camera.roi_cent_world.copy(),
-        focal_length=camera.focal_length,
-        subsample=camera.subsample,
+    convergence_degrees: float,
+    roi_pos: Sequence[float] | None = None,
+) -> StereoCameras:
+    """Build a pair with camera zero face-on and camera one converging.
+
+    Camera zero is retained unchanged. Camera one is translated along camera
+    zero's local positive X axis and aimed at ``roi_pos``. When no ROI is
+    supplied, ``camera.roi_cent_world`` is used.
+    """
+
+    target = _stereo_target(camera, roi_pos)
+    stand_off = np.linalg.norm(camera.pos_world - target)
+    baseline = stand_off * np.tan(np.radians(convergence_degrees))
+    baseline_dir = camera.rot_world.apply(np.array((1.0, 0.0, 0.0)))
+
+    camera_1 = replace(
+        camera,
+        pos_world=camera.pos_world + baseline * baseline_dir,
+        roi_cent_world=target,
     )
-    return CameraStereo(camera, camera_1)
+
+    return camera, cam_look_at(camera_1, target)
 
 
-def cam_stereo_symmetric(
+def stereo_build_symmetric(
     camera: Camera,
-    stereo_angle: float,
-) -> CameraStereo:
-    """Create symmetric convergent cameras from one reference view."""
-    half_angle = stereo_angle / 2.0
-    baseline = 2.0 * camera.pos_world[2] * np.tan(np.radians(half_angle))
+    convergence_degrees: float,
+    roi_pos: Sequence[float] | None = None,
+) -> StereoCameras:
+    """Build a symmetric convergent pair centred on a reference camera.
 
-    def make_cam(offset: float, angle: float) -> Camera:
-        return Camera(
-            pixels_num=camera.pixels_num.copy(),
-            pixels_size=camera.pixels_size.copy(),
-            pos_world=camera.pos_world + np.array((offset, 0.0, 0.0)),
-            rot_world=Rotation.from_euler(
-                "xyz",
-                (0.0, np.radians(angle), 0.0),
-            ),
-            roi_cent_world=camera.roi_cent_world.copy(),
-            focal_length=camera.focal_length,
-            subsample=camera.subsample,
+    The reference camera supplies the midpoint pose and intrinsics. Both
+    returned cameras are placed on its local X axis and aimed at ``roi_pos``.
+    """
+
+    target = _stereo_target(camera, roi_pos)
+    stand_off = np.linalg.norm(camera.pos_world - target)
+    half_angle = 0.5 * np.radians(convergence_degrees)
+    baseline = 2.0 * stand_off * np.tan(half_angle)
+    baseline_dir = camera.rot_world.apply(np.array((1.0, 0.0, 0.0)))
+
+    camera_0 = replace(
+        camera,
+        pos_world=camera.pos_world - 0.5 * baseline * baseline_dir,
+        roi_cent_world=target,
+    )
+
+    camera_1 = replace(
+        camera,
+        pos_world=camera.pos_world + 0.5 * baseline * baseline_dir,
+        roi_cent_world=target,
+    )
+
+    return cam_look_at(camera_0, target), cam_look_at(camera_1, target)
+
+
+def stereo_calc_extrinsics(
+    camera_0: Camera,
+    camera_1: Camera,
+) -> StereoExtrinsics:
+    """Calculate the camera-zero to camera-one rigid transformation."""
+
+    rotation = camera_1.rot_world.inv() * camera_0.rot_world
+    translation = camera_1.rot_world.inv().apply(
+        camera_0.pos_world - camera_1.pos_world
+    )
+
+    return StereoExtrinsics(rotation, translation)
+
+
+def stereo_calc_baseline(camera_0: Camera, camera_1: Camera) -> float:
+    """Calculate the Euclidean distance between the camera centres."""
+    return float(np.linalg.norm(camera_1.pos_world - camera_0.pos_world))
+
+
+def stereo_calc_stand_off(
+    camera_0: Camera,
+    camera_1: Camera,
+    roi_pos: Sequence[float],
+) -> float:
+    """Calculate midpoint-to-ROI stand-off distance for a stereo pair."""
+
+    midpoint = 0.5 * (camera_0.pos_world + camera_1.pos_world)
+    roi = np.asarray(roi_pos, dtype=np.float64)
+
+    return float(np.linalg.norm(midpoint - roi))
+
+
+def stereo_calc_angles(camera_0: Camera, camera_1: Camera) -> StereoAngles:
+    """Calculate relative Euler angles and optical-axis convergence."""
+
+    extrinsics = stereo_calc_extrinsics(camera_0, camera_1)
+
+    optical_0 = -camera_0.rot_world.as_matrix()[:, 2]
+    optical_1 = -camera_1.rot_world.as_matrix()[:, 2]
+    cosine = np.clip(np.dot(optical_0, optical_1), -1.0, 1.0)
+
+    return StereoAngles(
+        extrinsics.rotation_cam1_from_cam0.as_euler("xyz", degrees=True),
+        float(np.degrees(np.arccos(cosine))),
+    )
+
+
+def stereo_build_from_calibration(
+    calibration_path: Path,
+    pos_world_0: np.ndarray,
+    rot_world_0: Rotation,
+    focal_length: float,
+) -> StereoCameras:
+    """Build stereo cameras from a legacy PyVale YAML calibration file."""
+
+    parameters = yaml.safe_load(Path(calibration_path).read_text())
+
+    camera_0 = _camera_from_calibration(
+        parameters,
+        0,
+        pos_world_0,
+        rot_world_0,
+        focal_length,
+    )
+
+    rotation = Rotation.from_euler(
+        "xyz",
+        (
+            parameters["Theta [deg]"],
+            parameters["Phi [deg]"],
+            parameters["Psi [deg]"],
+        ),
+        degrees=True,
+    )
+
+    translation = np.array(
+        (
+            parameters["Tx [mm]"],
+            parameters["Ty [mm]"],
+            parameters["Tz [mm]"],
+        ),
+        dtype=np.float64,
+    )
+
+    rot_world_1 = rot_world_0 * rotation.inv()
+    pos_world_1 = np.asarray(pos_world_0, dtype=np.float64) - rot_world_1.apply(
+        translation
+    )
+
+    camera_1 = _camera_from_calibration(
+        parameters,
+        1,
+        pos_world_1,
+        rot_world_1,
+        focal_length,
+    )
+    
+    return camera_0, camera_1
+
+
+def stereo_save_calibration_yaml(
+    camera_0: Camera,
+    camera_1: Camera,
+    calibration_path: Path,
+) -> None:
+    """Save two cameras in PyVale's legacy YAML calibration format."""
+    Path(calibration_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(calibration_path).write_text(
+        yaml.safe_dump(_stereo_calibration_parameters(camera_0, camera_1))
+    )
+
+
+def stereo_save_calibration_matchid(
+    camera_0: Camera,
+    camera_1: Camera,
+    calibration_path: Path,
+) -> None:
+    """Save two cameras in the legacy MatchID ``.caldat`` format."""
+    parameters = _stereo_calibration_parameters(camera_0, camera_1)
+    Path(calibration_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(calibration_path).write_text(
+        "\n".join(f"{key};{value}" for key, value in parameters.items())
+    )
+
+
+def _stereo_target(
+    camera: Camera,
+    roi_pos: Sequence[float] | None,
+) -> np.ndarray:
+    """Return a validated stereo convergence target."""
+
+    target = np.asarray(
+        camera.roi_cent_world if roi_pos is None else roi_pos,
+        dtype=np.float64,
+    )
+
+    if target.shape != (3,):
+        raise ValueError("roi_pos must contain exactly three coordinates.")
+
+    if np.linalg.norm(camera.pos_world - target) < 1.0e-12:
+        raise ValueError("Camera position and stereo ROI are coincident.")
+
+    return target
+
+
+def _camera_from_calibration(
+    parameters: dict[str, float],
+    camera_index: int,
+    pos_world: np.ndarray,
+    rot_world: Rotation,
+    focal_length: float,
+) -> Camera:
+    """Build one render camera from legacy calibration parameters."""
+
+    prefix = f"Cam{camera_index}"
+
+    pixels_num = np.array(
+        (
+            int(2.0 * parameters[f"{prefix}_Cx [pixels]"]),
+            int(2.0 * parameters[f"{prefix}_Cy [pixels]"]),
+        ),
+    )
+
+    pixels_size = np.array(
+        (
+            focal_length / parameters[f"{prefix}_Fx [pixels]"],
+            focal_length / parameters[f"{prefix}_Fy [pixels]"],
+        ),
+    )
+
+    return Camera(
+        pixels_num=pixels_num,
+        pixels_size=pixels_size,
+        pos_world=pos_world,
+        rot_world=rot_world,
+        roi_cent_world=np.zeros(3),
+        focal_length=focal_length,
+        distortion_k1=parameters[f"{prefix}_Kappa 1"],
+        distortion_k2=parameters[f"{prefix}_Kappa 2"],
+        distortion_k3=parameters[f"{prefix}_Kappa 3"],
+        distortion_p1=parameters[f"{prefix}_P1"],
+        distortion_p2=parameters[f"{prefix}_P2"],
+        c0=parameters[f"{prefix}_Cx [pixels]"],
+        c1=parameters[f"{prefix}_Cy [pixels]"],
+    )
+
+
+def _stereo_calibration_parameters(
+    camera_0: Camera,
+    camera_1: Camera,
+) -> dict[str, float]:
+    """Format camera intrinsics and extrinsics for legacy serializers."""
+
+    extrinsics = stereo_calc_extrinsics(camera_0, camera_1)
+    rotation = extrinsics.rotation_cam1_from_cam0.as_euler("xyz", degrees=True)
+    parameters: dict[str, float] = {}
+
+    for camera_index, camera in enumerate((camera_0, camera_1)):
+        prefix = f"Cam{camera_index}"
+        parameters.update(
+            {
+                f"{prefix}_Fx [pixels]": float(
+                    camera.focal_length / camera.pixels_size[0]
+                ),
+                f"{prefix}_Fy [pixels]": float(
+                    camera.focal_length / camera.pixels_size[1]
+                ),
+                f"{prefix}_Fs [pixels]": 0.0,
+                f"{prefix}_Kappa 1": camera.distortion_k1,
+                f"{prefix}_Kappa 2": camera.distortion_k2,
+                f"{prefix}_Kappa 3": camera.distortion_k3,
+                f"{prefix}_P1": camera.distortion_p1,
+                f"{prefix}_P2": camera.distortion_p2,
+                f"{prefix}_Cx [pixels]": float(camera.c0),
+                f"{prefix}_Cy [pixels]": float(camera.c1),
+            }
         )
 
-    return CameraStereo(
-        make_cam(-baseline / 2.0, -half_angle),
-        make_cam(baseline / 2.0, half_angle),
+    parameters.update(
+        {
+            "Tx [mm]": float(extrinsics.translation_cam1_in_cam0[0]),
+            "Ty [mm]": float(extrinsics.translation_cam1_in_cam0[1]),
+            "Tz [mm]": float(extrinsics.translation_cam1_in_cam0[2]),
+            "Theta [deg]": float(rotation[0]),
+            "Phi [deg]": float(rotation[1]),
+            "Psi [deg]": float(rotation[2]),
+        }
     )
-
-
-# Backwards compatibility aliases
-faceon_stereo_cameras = cam_stereo_faceon
-symmetric_stereo_cameras = cam_stereo_symmetric
+    return parameters
 
 
 def pixel_vec_leng(
@@ -357,10 +621,14 @@ def average_subpixel_image(image: np.ndarray, subsample: int) -> np.ndarray:
     kernel = np.ones((subsample, subsample)) / (subsample**2)
     convolved = convolve2d(image, kernel, mode="same")
     start = round(subsample / 2.0) - 1
+
     return convolved[start::subsample, start::subsample]
 
 
 __all__ = [
+    "StereoAngles",
+    "StereoCameras",
+    "StereoExtrinsics",
     "average_subpixel_image",
     "cam_frame_mesh",
     "cam_frame_points",
@@ -368,13 +636,18 @@ __all__ = [
     "cam_look_at",
     "cam_pos_fill_frame",
     "cam_project_points",
-    "cam_stereo_faceon",
-    "cam_stereo_symmetric",
     "crop_image_rectangle",
-    "faceon_stereo_cameras",
     "pixel_grid_leng",
     "pixel_vec_leng",
     "subpixel_grid_leng",
     "subpixel_vec_leng",
-    "symmetric_stereo_cameras",
+    "stereo_build_faceon",
+    "stereo_build_from_calibration",
+    "stereo_build_symmetric",
+    "stereo_calc_angles",
+    "stereo_calc_baseline",
+    "stereo_calc_extrinsics",
+    "stereo_calc_stand_off",
+    "stereo_save_calibration_matchid",
+    "stereo_save_calibration_yaml",
 ]

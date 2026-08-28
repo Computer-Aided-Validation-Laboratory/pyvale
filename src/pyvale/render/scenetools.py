@@ -42,6 +42,7 @@ def scene_bounds(
         return np.zeros(3), np.zeros(3)
 
     lowers, uppers = zip(*(mesh_bounds(m) for m in meshes), strict=True)
+
     return np.min(np.array(lowers), axis=0), np.max(np.array(uppers), axis=0)
 
 
@@ -85,11 +86,13 @@ def scene_arrange_points(
     positions: Sequence[Sequence[float]],
 ) -> list[MeshT]:
     """Move each mesh so its bounding box center lies at the matching target."""
+
     if len(meshes) != len(positions):
         raise ValueError(
             f"Number of meshes ({len(meshes)}) must match number of "
             f"positions ({len(positions)})."
         )
+
     return [
         mesh_center_at(m, pos)
         for m, pos in zip(meshes, positions, strict=True)
@@ -133,8 +136,10 @@ def scene_arrange_grid(
     center: bool = True,
 ) -> list[MeshT]:
     """Arrange meshes in a 2D planar grid with defined gaps between boxes."""
+
     if not meshes:
         return []
+
     if columns <= 0:
         raise ValueError("columns must be a positive integer.")
 

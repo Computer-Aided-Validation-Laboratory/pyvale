@@ -51,7 +51,7 @@ cam_base = render.Camera(
 )
 
 stereo_angle = 15.0  # degrees
-stereo = render.faceon_stereo_cameras(cam_base, stereo_angle)
+stereo_cameras = render.stereo_build_faceon(cam_base, stereo_angle)
 
 light = render.Light(
     light_type=render.ELightType.POINT,
@@ -89,7 +89,7 @@ cal_data = render.BlenderCalibrationData(
 # --------------------------------------------------------------------------
 result = render.render_calibration_images(
     target=target,
-    cameras=stereo,
+    cameras=stereo_cameras,
     config=config,
     data=cal_data,
     lights=[light],

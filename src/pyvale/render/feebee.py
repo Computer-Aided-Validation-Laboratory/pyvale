@@ -5,9 +5,8 @@
 # ============================================================================
 """Feebee ray-tracer scene definitions and renderer scaffold.
 
-Feebee is pyvale's future in-process ray-tracing backend.  The public models
-in this module are derived from the previous ray-tracer implementation and
-form the stable Python boundary for its future compiled backend.
+Feebee is pyvale's future ray-tracing backend - these are stubs/placeholders 
+that will not be implemented until Feebee is merged.  
 """
 
 from dataclasses import dataclass, field

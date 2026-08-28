@@ -30,6 +30,7 @@ We have non-software engineers and scientists working on the project so these gu
 - Avoid using magic numbers in code. If you need to use magic numbers, make them a named module constant with a descriptive name and add a comment when the name is not self-explanatory.
 - Keep comprehensions to one line with one `for` loop and at most one function call. Split comprehensions containing filters, nested loops, nested comprehensions or multiple function calls into explicit statements and loops.
 - Keep `if` conditions to at most two lines and avoid nested function calls in conditions. Calculate complex predicates in clearly named intermediate statements before the `if`.
+- Don't nest `def` statements.
 - Use major function first variable names: e.g. `FieldScalar`, `FieldVector` and `FieldTensor` instead of `ScalarField`, `VectorField` and `TensorField`.
 - Type hint everything: e.g. `def add_ints(a: int, b: int) -> int:`. This makes your code easier to understand and you have the possibility of compiling things if you need.
 - `pylint` is a slow linter but will help you if you have type hinted everything. `Ruff` is another good option, it is faster but doesn't pick up type hints as well.

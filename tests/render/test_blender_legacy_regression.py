@@ -304,14 +304,14 @@ def test_legacy_stereo_gold(
     """Unified stereo helpers render one image for each legacy camera view."""
     camera = _camera()
     if placement == "symmetric":
-        stereo = render.symmetric_stereo_cameras(camera, 15.0)
+        stereo_cameras = render.stereo_build_symmetric(camera, 15.0)
     else:
-        stereo = render.faceon_stereo_cameras(camera, 15.0)
+        stereo_cameras = render.stereo_build_faceon(camera, 15.0)
     renderer = render.Blender(render.BlenderConfig(tmp_path, threads=1))
     result = renderer.render(
         render.Scene3D(
             (_mesh(camera),),
-            (stereo.camera_0, stereo.camera_1),
+            stereo_cameras,
             (
                 render.Light(
                     render.ELightType.POINT,
@@ -365,20 +365,28 @@ def test_legacy_deformation_frames(tmp_path: Path) -> None:
 
 def test_legacy_calibration_round_trip(tmp_path: Path) -> None:
     """Stereo calibration files retain the legacy format and values."""
-    stereo = render.faceon_stereo_cameras(_camera(), 15.0)
-    stereo.save_calibration(tmp_path)
+    camera_0, camera_1 = render.stereo_build_faceon(_camera(), 15.0)
     output = tmp_path / "calibration" / "calibration.yaml"
-    rebuilt = render.CameraStereo.from_calibration(
+    render.stereo_save_calibration_yaml(camera_0, camera_1, output)
+    rebuilt_0, rebuilt_1 = render.stereo_build_from_calibration(
         output,
         np.array((0.0, 0.0, 500.0)),
         Rotation.identity(),
         15.0,
     )
     assert output.read_text()
-    assert np.allclose(rebuilt.stereo_dist, stereo.stereo_dist)
-    assert rebuilt.stereo_rotation.approx_equal(stereo.stereo_rotation)
-    stereo.save_calibration_mid(tmp_path)
-    assert (tmp_path / "calibration" / "calibration.caldat").is_file()
+    original = render.stereo_calc_extrinsics(camera_0, camera_1)
+    rebuilt = render.stereo_calc_extrinsics(rebuilt_0, rebuilt_1)
+    assert np.allclose(
+        rebuilt.translation_cam1_in_cam0,
+        original.translation_cam1_in_cam0,
+    )
+    assert rebuilt.rotation_cam1_from_cam0.approx_equal(
+        original.rotation_cam1_from_cam0
+    )
+    matchid_path = tmp_path / "calibration" / "calibration.caldat"
+    render.stereo_save_calibration_matchid(camera_0, camera_1, matchid_path)
+    assert matchid_path.is_file()
 
 
 def test_legacy_calibration_image_count() -> None:
@@ -390,7 +398,8 @@ def test_legacy_calibration_image_count() -> None:
 def test_unified_stereo_matches_legacy_scene(tmp_path: Path) -> None:
     """The adapter reproduces Blender's tessellated legacy scene path."""
     camera = _camera()
-    stereo = render.faceon_stereo_cameras(camera, 15.0)
+    stereo_cameras = render.stereo_build_faceon(camera, 15.0)
+    camera_0, camera_1 = stereo_cameras
     mesh = _mesh(camera)
     light = render.Light(
         render.ELightType.POINT,
@@ -404,7 +413,7 @@ def test_unified_stereo_matches_legacy_scene(tmp_path: Path) -> None:
     unified_result = unified.render(
         render.Scene3D(
             (mesh,),
-            (stereo.camera_0, stereo.camera_1),
+            stereo_cameras,
             (light,),
         )
     )
@@ -419,8 +428,8 @@ def test_unified_stereo_matches_legacy_scene(tmp_path: Path) -> None:
         legacy_blender.MaterialData(),
         mesh.shader.millimetres_per_pixel,
     )
-    scene.add_camera(stereo.camera_0)
-    scene.add_camera(stereo.camera_1)
+    scene.add_camera(camera_0)
+    scene.add_camera(camera_1)
     scene.add_light(
         legacy_blender.LightData(
             light.pos_world,
@@ -433,7 +442,7 @@ def test_unified_stereo_matches_legacy_scene(tmp_path: Path) -> None:
     legacy_dir.mkdir()
     legacy = scene.render_single_image(
         legacy_blender.RenderData(
-            (stereo.camera_0, stereo.camera_1),
+            stereo_cameras,
             legacy_dir,
             threads=1,
         )
@@ -513,14 +522,14 @@ def test_unified_deformation_matches_legacy_scene(tmp_path: Path) -> None:
 def test_calibration_target_rendering(tmp_path: Path) -> None:
     """The migrated calibration target workflow writes stereo TIFF pairs."""
     camera = _camera()
-    stereo = render.faceon_stereo_cameras(camera, 15.0)
+    stereo_cameras = render.stereo_build_faceon(camera, 15.0)
     result = render.render_calibration_images(
         render.BlenderCalibrationTarget(
             np.array((15.0, 10.0, 1.0)),
             dataset.cal_target(),
             0.1,
         ),
-        stereo,
+        stereo_cameras,
         render.BlenderConfig(tmp_path, threads=1),
         render.BlenderCalibrationData(
             angle_lims=(0.0, 0.0),

@@ -11,7 +11,6 @@ import bpy
 
 # Pyvale
 import pyvale.sensorsim.simtools as simtools
-from pyvale.sensorsim.camerastereo import CameraStereo
 from pyvale.render import Camera, Mesh3D
 
 from pyvale.blender.blenderexceptions import BlenderError
@@ -106,23 +105,24 @@ class Scene():
         bpy.context.scene.camera = camera
         return camera
 
-    def add_stereo_system(self, stereo_system: CameraStereo) -> tuple[bpy.data.objects,
-                                                           bpy.data.objects]:
-        """A method to add a stereo camera system within Blender, given an
-        instance of the CameraStereo class (that describes a stereo system).
+    def add_stereo_system(
+        self,
+        cameras: tuple[Camera, Camera],
+    ) -> tuple[bpy.data.objects, bpy.data.objects]:
+        """Add an ordered pair of stereo cameras to the Blender scene.
 
         Parameters
         ----------
-        stereo_system: CameraStereo
-            An instance of the CameraStereo class, describing a stereo system.
+        cameras : tuple[Camera, Camera]
+            The ordered stereo camera pair.
 
         Returns
         -------
         tuple[bpy.data.objects, bpy.data.objects]
             A tuple of the Blender camera objects: camera 0 and camera 1.
         """
-        cam0 = self.add_camera(stereo_system.cam_data_0)
-        cam1 = self.add_camera(stereo_system.cam_data_1)
+        cam0 = self.add_camera(cameras[0])
+        cam1 = self.add_camera(cameras[1])
         return cam0, cam1
 
     def add_light(self, light_data: LightData) -> bpy.data.objects:
@@ -494,7 +494,6 @@ class Scene():
             # TODO: Potentially change the way images are stacked for stereo systems
             # Change it so it suits Joel's code
             return image_arrays
-
 
 
 

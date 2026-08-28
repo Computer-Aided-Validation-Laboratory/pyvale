@@ -53,7 +53,7 @@ def test_render_utilities_are_available_at_the_render_package_level() -> None:
         render.average_subpixel_image,
         render.blender_camera_from_resolution,
         render.calculate_edge_function,
-        render.faceon_stereo_cameras,
+        render.stereo_build_faceon,
         render.save_image,
     )
 

@@ -42,7 +42,6 @@ from .sensordata import *
 
 from .camera import *
 from .cameratools import *
-from .camerastereo import *
 
 from .errorintegrator import *
 from .errorrand import *

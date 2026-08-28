@@ -84,7 +84,7 @@ def test_workflow_multi_specimen_grid() -> None:
 
 
 def test_workflow_stereo_setup() -> None:
-    """cam_frame_mesh -> cam_stereo_symmetric."""
+    """cam_frame_mesh -> stereo_build_symmetric."""
     sim = _make_quad_simdata()
     mesh = render.mesh3d_from_simdata(sim, shader=None)
 
@@ -97,9 +97,9 @@ def test_workflow_stereo_setup() -> None:
         focal_length=50.0e-3,
     )
     cam = render.cam_frame_mesh(cam, mesh, fill=0.8)
-    stereo = render.cam_stereo_symmetric(cam, stereo_angle=15.0)
+    cam_0, cam_1 = render.stereo_build_symmetric(cam, convergence_degrees=15.0)
 
-    assert stereo.camera_0.pos_world[0] < stereo.camera_1.pos_world[0]
+    assert cam_0.pos_world[0] < cam_1.pos_world[0]
     assert np.isclose(
-        stereo.camera_0.pos_world[2], stereo.camera_1.pos_world[2]
+        cam_0.pos_world[2], cam_1.pos_world[2]
     )

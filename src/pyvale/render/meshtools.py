@@ -37,14 +37,14 @@ def mesh3d_from_simdata(
         Simulation data containing coordinates, connectivity, and optionally
         nodal displacement fields.
     shader : object
-        Backend-owned material or shader definition for the mesh.
+        Backend owned material or shader definition for the mesh.
     displacement_keys : Sequence[str] or None, optional
         Names of the three displacement components. ``None`` omits motion.
 
     Returns
     -------
     Mesh3D
-        Renderer-independent surface mesh data.
+        Renderer independent surface mesh data.
     """
     prepared = enforce_mesh_convention(sim_data)
 
@@ -108,9 +108,11 @@ def mesh_bounds(mesh: Mesh2D | Mesh3D) -> tuple[np.ndarray, np.ndarray]:
         Lower ``(min)`` and upper ``(max)`` spatial extents.
     """
     coords = np.asarray(mesh.coords, dtype=np.float64)
+
     if coords.size == 0:
         dims = 2 if isinstance(mesh, Mesh2D) else 3
         return np.zeros(dims), np.zeros(dims)
+
     return np.min(coords, axis=0), np.max(coords, axis=0)
 
 
@@ -239,12 +241,16 @@ def mesh_transform(
     Order: 1. Scale about pivot, 2. Rotate about pivot, 3. Translate.
     """
     transformed = mesh
+    
     if scale is not None:
         transformed = mesh_scale(transformed, scale, pivot=pivot)
+
     if rotation is not None:
         transformed = mesh_rotate(transformed, rotation, pivot=pivot)
+
     if translation is not None:
         transformed = mesh_translate(transformed, translation)
+
     return transformed
 
 
@@ -253,10 +259,12 @@ def mesh_center_at(
     target: Sequence[float] = (0.0, 0.0, 0.0),
 ) -> MeshT:
     """Translate a mesh so its bounding box center lies at ``target``."""
+
     current_center = mesh_center(mesh)
     dims = current_center.shape[0]
     target_vec = np.asarray(target, dtype=np.float64)[:dims]
     delta = target_vec - current_center
+
     return mesh_translate(mesh, delta)
 
 
@@ -265,11 +273,14 @@ def evenly_spaced_frame_indices(
     num_samples: int,
 ) -> np.ndarray:
     """Return sample indices evenly distributed from 0 to total_frames - 1."""
+
     if total_frames <= 0 or num_samples <= 0:
         return np.empty(0, dtype=np.intp)
+
     selected_num = min(total_frames, num_samples)
     if selected_num == 1:
         return np.array([0], dtype=np.intp)
+
     return np.array(
         [
             frame * (total_frames - 1) // (selected_num - 1)
@@ -281,10 +292,13 @@ def evenly_spaced_frame_indices(
 
 def first_last_frame_indices(total_frames: int) -> np.ndarray:
     """Return indices for the first and last frame."""
+
     if total_frames <= 0:
         return np.empty(0, dtype=np.intp)
+
     if total_frames == 1:
         return np.array([0], dtype=np.intp)
+
     return np.array([0, total_frames - 1], dtype=np.intp)
 
 
@@ -294,6 +308,7 @@ def select_frames(
 ) -> np.ndarray:
     """Index a leading frame dimension with integer indices."""
     idx = np.asarray(indices, dtype=np.intp)
+
     return frames[idx]
 
 
@@ -345,11 +360,13 @@ def _element_type_from_nodes(nodes_per_element: int) -> EElementType:
         8: EElementType.QUAD8,
         9: EElementType.QUAD9,
     }
+
     if nodes_per_element not in mapping:
         raise ValueError(
             f"Unsupported surface connectivity with {nodes_per_element} "
             "nodes per element.",
         )
+
     return mapping[nodes_per_element]
 
 
@@ -358,6 +375,7 @@ def _displacements_from_simdata(
     displacement_keys: Sequence[str] | None,
 ) -> np.ndarray | None:
     """Extract nodal displacement fields into renderer array order."""
+
     if displacement_keys is None:
         return None
 

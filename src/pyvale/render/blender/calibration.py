@@ -14,7 +14,6 @@ from types import SimpleNamespace
 import numpy as np
 
 from ..camera import Camera
-from ..camerastereo import CameraStereo
 from ..light import Light
 from ..result import RenderResult
 from .adapter import _legacy_light, raise_if_blender_unavailable
@@ -101,7 +100,7 @@ def calibration_image_count(data: BlenderCalibrationData) -> int:
 
 def render_calibration_images(
     target: BlenderCalibrationTarget,
-    cameras: CameraStereo | Sequence[Camera],
+    cameras: Sequence[Camera],
     config: BlenderConfig,
     data: BlenderCalibrationData | None = None,
     lights: Sequence[Light] | None = None,
@@ -112,7 +111,7 @@ def render_calibration_images(
     ----------
     target : BlenderCalibrationTarget
         Textured physical calibration target.
-    cameras : CameraStereo or Sequence[Camera]
+    cameras : Sequence[Camera]
         Exactly two perspective cameras defining the calibration rig.
     config : BlenderConfig
         Blender engine, image output, and sampling controls.
@@ -136,19 +135,15 @@ def render_calibration_images(
         raise TypeError("target must be a BlenderCalibrationTarget.")
     if not isinstance(config, BlenderConfig):
         raise TypeError("config must be a BlenderConfig.")
-    if not isinstance(data, BlenderCalibrationData):
+    if data is None:
+        data = BlenderCalibrationData()
+    elif not isinstance(data, BlenderCalibrationData):
         raise TypeError("data must be a BlenderCalibrationData.")
     if data.max_images is not None and data.max_images < 1:
         raise ValueError("data.max_images must be positive when specified.")
     if target.size.shape != (3,) or np.any(target.size <= 0.0):
         raise ValueError("target.size must contain three positive dimensions.")
-    if data is None:
-        data = BlenderCalibrationData()
-
-    if isinstance(cameras, CameraStereo):
-        camera_data = (cameras.camera_0, cameras.camera_1)
-    else:
-        camera_data = tuple(cameras)
+    camera_data = tuple(cameras)
     if len(camera_data) != 2 or not all(
         isinstance(camera, Camera) for camera in camera_data
     ):
