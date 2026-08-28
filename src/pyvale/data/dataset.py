@@ -18,6 +18,8 @@ from pathlib import Path
 import numpy as np
 import riley
 
+from pyvale.render.mesh import EElementType
+
 SIM_CASE_COUNT = 26
 """Constant describing the number of simulation test case input files for moose
 and gmsh that come packaged with pyvale.
@@ -786,24 +788,29 @@ def riley_stereocal_case_path() -> Path:
     return _data_path("render", "riley", "calplate", "tri3_calplate3d")
 
 
-def riley_rabbit_case_path(rabbit_name: str, mesh_name: str) -> Path:
+def riley_rabbit_case_path(
+    rabbit_name: str,
+    topology: EElementType,
+) -> Path:
     """Return one Riley rabbit mesh case packaged with pyvale.
 
     Parameters
     ----------
     rabbit_name : str
         One of ``"riley"`` or ``"feebs"``.
-    mesh_name : str
+    topology : EElementType
         One of the supported Riley surface topologies.
     """
     path = _data_path(
         "render",
         "riley",
         "rabbits",
-        f"{rabbit_name}_{mesh_name}",
+        f"{rabbit_name}_{topology.value}",
     )
     if not path.is_dir():
-        raise DataSetError(f"Unknown Riley rabbit case: {rabbit_name}_{mesh_name}.")
+        raise DataSetError(
+            f"Unknown Riley rabbit case: {rabbit_name}_{topology.value}."
+        )
     return path
 
 
@@ -822,7 +829,7 @@ def riley_rabbit_meshes() -> list[riley.Mesh]:
     texture = riley.load_texture_u8(str(riley_speckle_texture_path()))
     meshes: list[riley.Mesh] = []
     for rabbit_name in ("riley", "feebs"):
-        data_path = riley_rabbit_case_path(rabbit_name, "tri3")
+        data_path = riley_rabbit_case_path(rabbit_name, EElementType.TRI3)
         mesh_data = enforce_mesh_convention(SimData(
             coords=np.loadtxt(data_path / "coords.csv", delimiter=","),
             connect={

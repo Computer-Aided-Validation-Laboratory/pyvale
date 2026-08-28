@@ -28,27 +28,27 @@ _RILEY_EXAMPLES = (
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(
-        "render3d/ex1c_riley_psf.py",
-        "pyvale-output/render3d_ex1c_riley_psf/global_subpx_full/"
+        "render3d/ex1c_riley_rabbits.py",
+        "pyvale-output/render3d_ex1c_riley_rabbits/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(
-        "render3d/ex1d_riley_rabbits.py",
-        "pyvale-output/render3d_ex1d_riley_rabbits/"
+        "render3d/ex1d_riley_dicuq.py",
+        "pyvale-output/render3d_ex1d_riley_dicuq/cam0_frame0_field0.bmp",
+    ),
+    pytest.param(
+        "render3d/ex1e_riley_dic_from_exodus.py",
+        "pyvale-output/render3d_ex1e_riley_dic_from_exodus/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(
-        "render3d/ex1e_riley_dicuq.py",
-        "pyvale-output/render3d_ex1e_riley_dicuq/cam0_frame0_field0.bmp",
-    ),
-    pytest.param(
-        "render3d/ex1f_riley_dic_from_exodus.py",
-        "pyvale-output/render3d_ex1f_riley_dic_from_exodus/"
+        "render3d/ex1f_riley_stereocal.py",
+        "pyvale-output/render3d_ex1f_riley_stereocal/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(
-        "render3d/ex1g_riley_stereocal.py",
-        "pyvale-output/render3d_ex1g_riley_stereocal/"
+        "render3d/ex1g_riley_psf.py",
+        "pyvale-output/render3d_ex1g_riley_psf/global_subpx_full/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(

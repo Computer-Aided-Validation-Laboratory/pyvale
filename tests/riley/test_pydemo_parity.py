@@ -35,39 +35,39 @@ _CASES = (
         id="sphere200",
     ),
     pytest.param(
-        "demo_psf",
-        "ex1c_riley_psf.py",
-        "out-riley-py/demo-psf",
-        "pyvale-output/render3d_ex1c_riley_psf",
-        id="psf",
-    ),
-    pytest.param(
         "demo_rabbits",
-        "ex1d_riley_rabbits.py",
+        "ex1c_riley_rabbits.py",
         "out-riley-py/demo-rabbits",
-        "pyvale-output/render3d_ex1d_riley_rabbits",
+        "pyvale-output/render3d_ex1c_riley_rabbits",
         id="rabbits",
     ),
     pytest.param(
         "demo_dicuq",
-        "ex1e_riley_dicuq.py",
+        "ex1d_riley_dicuq.py",
         "out-riley-py/demo-dicuq",
-        "pyvale-output/render3d_ex1e_riley_dicuq",
+        "pyvale-output/render3d_ex1d_riley_dicuq",
         id="dicuq",
     ),
     pytest.param(
         "demo_dic_from_exodus",
-        "ex1f_riley_dic_from_exodus.py",
+        "ex1e_riley_dic_from_exodus.py",
         "out-riley-py/demo-dicuq-from-exodus",
-        "pyvale-output/render3d_ex1f_riley_dic_from_exodus",
+        "pyvale-output/render3d_ex1e_riley_dic_from_exodus",
         id="dicuq-from-exodus",
     ),
     pytest.param(
         "demo_stereocal",
-        "ex1g_riley_stereocal.py",
+        "ex1f_riley_stereocal.py",
         "out-riley-py/demo-stereocal",
-        "pyvale-output/render3d_ex1g_riley_stereocal",
+        "pyvale-output/render3d_ex1f_riley_stereocal",
         id="stereocal",
+    ),
+    pytest.param(
+        "demo_psf",
+        "ex1g_riley_psf.py",
+        "out-riley-py/demo-psf",
+        "pyvale-output/render3d_ex1g_riley_psf",
+        id="psf",
     ),
 )
 
@@ -85,7 +85,10 @@ def demo_directories(tmp_path: Path) -> Iterator[tuple[Path, Path]]:
 
 
 @pytest.mark.riley
-@pytest.mark.parametrize(("demo", "example", "native_out", "pyvale_out"), _CASES)
+@pytest.mark.parametrize(
+    ("demo", "example", "native_out", "pyvale_out"),
+    _CASES,
+)
 def test_packaged_demo_matches_pyvale_example(
     demo_directories: tuple[Path, Path],
     monkeypatch: pytest.MonkeyPatch,
@@ -114,12 +117,17 @@ def _assert_same_tree(native: Path, pyvale: Path) -> None:
     assert native.is_dir(), f"native render output missing: {native}"
     assert pyvale.is_dir(), f"pyvale render output missing: {pyvale}"
 
-    native_paths = sorted(path.relative_to(native) for path in native.rglob("*"))
-    pyvale_paths = sorted(path.relative_to(pyvale) for path in pyvale.rglob("*"))
+    native_paths = sorted(
+        path.relative_to(native) for path in native.rglob("*")
+    )
+    pyvale_paths = sorted(
+        path.relative_to(pyvale) for path in pyvale.rglob("*")
+    )
     assert native_paths == pyvale_paths
     for relative_path in native_paths:
         native_path = native / relative_path
         if native_path.is_file():
-            assert native_path.read_bytes() == (pyvale / relative_path).read_bytes(), (
-                f"render output differs: {relative_path}"
-            )
+            assert (
+                native_path.read_bytes()
+                == (pyvale / relative_path).read_bytes()
+            ), f"render output differs: {relative_path}"

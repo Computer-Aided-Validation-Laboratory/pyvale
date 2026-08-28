@@ -8,11 +8,11 @@ Render 3D
 
    render3d/ex1a_riley_quickstart
    render3d/ex1b_riley_sphere200
-   render3d/ex1c_riley_psf
-   render3d/ex1d_riley_rabbits
-   render3d/ex1e_riley_dicuq
-   render3d/ex1f_riley_dic_from_exodus
-   render3d/ex1g_riley_stereocal
+   render3d/ex1c_riley_rabbits
+   render3d/ex1d_riley_dicuq
+   render3d/ex1e_riley_dic_from_exodus
+   render3d/ex1f_riley_stereocal
+   render3d/ex1g_riley_psf
    render3d/ex2a_blender_scene
    render3d/ex2b_blender_deformation
    render3d/ex2c_blender_stereo

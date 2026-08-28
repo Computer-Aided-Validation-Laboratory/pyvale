@@ -27,7 +27,10 @@ from pyvale.examples._renderuv_tools import render_uv_variant
 # ------------------------------------------------------------
 # The asymmetric rabbit silhouette makes rotations and translations easier to
 # recognize than they would be on a rectangular grid.
-data_dir = dataset.riley_rabbit_case_path("riley", "quad4")
+data_dir = dataset.riley_rabbit_case_path(
+    "riley",
+    render.EElementType.QUAD4,
+)
 simulation = io.SimLoaderByField(
     load_dir=data_dir,
     coords_file="coords.csv",
