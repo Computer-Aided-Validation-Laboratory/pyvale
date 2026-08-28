@@ -277,3 +277,50 @@ def test_analytic_interp_tensor_nomesh_2d() -> None:
                                rtol=1e-3)
     assert not fails, "\n".join(fails)
 
+
+def test_joggle_meshfree_coords_invariants() -> None:
+    coords = np.array([
+        [0.0, 0.0, 0.0],
+        [10.0, 0.0, 0.0],
+        [0.0, 10.0, 0.0],
+        [10.0, 10.0, 0.0],
+        [5.0, 5.0, 0.0],
+    ])
+    joggled1 = pointsens.joggle_meshfree_coords(coords, seed=123)
+    joggled2 = pointsens.joggle_meshfree_coords(coords, seed=123)
+    np.testing.assert_array_equal(joggled1, joggled2)
+
+    # Verify boundary planes and z=0 are strictly preserved
+    np.testing.assert_allclose(joggled1[:, 2], 0.0)
+    assert np.isclose(joggled1[0, 0], 0.0)
+    assert np.isclose(joggled1[1, 0], 10.0)
+    assert np.isclose(joggled1[0, 1], 0.0)
+    assert np.isclose(joggled1[2, 1], 10.0)
+
+    # Verify interior node was perturbed
+    assert abs(joggled1[4, 0] - 5.0) > 1e-12
+
+
+def test_degenerate_delaunay_invariants() -> None:
+    (sim_data, _) = asd.scalar_linear_2d()
+    sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
+    field_interp = sens.FieldInterpPoints(
+        sim_data=sim_data,
+        comp_keys=("temperature",),
+        spatial_dims=sens.EDim.TWOD,
+    )
+    # Check evaluation on nodes
+    sample_nodes = field_interp.interp_field(sim_data.coords)
+    assert not np.isnan(sample_nodes).any()
+    # Check evaluation on interior points
+    sens_grid = sens.gen_pos_grid_inside(
+        num_sensors=(3, 3, 1),
+        x_lims=(0.0, 10.0),
+        y_lims=(0.0, 7.5),
+        z_lims=(0.0, 0.0),
+    )
+    sample_grid = field_interp.interp_field(sens_grid)
+    assert not np.isnan(sample_grid).any()
+
+
