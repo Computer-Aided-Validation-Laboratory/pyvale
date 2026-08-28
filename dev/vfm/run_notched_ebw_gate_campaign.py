@@ -9,7 +9,7 @@ SPD+EGI control at the provisional one-percent gate.
 from __future__ import annotations
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import asdict, dataclass
 from datetime import datetime
 import json
@@ -63,25 +63,47 @@ def main() -> None:
 
     print(
         f"Running {len(cases)} cases with {args.jobs} concurrent processes "
-        f"and {args.parallel_workers} objective workers per process."
+        f"and {args.parallel_workers} objective workers per process.",
+        flush=True,
     )
     results: list[CaseResult] = []
+    campaign_started = time.monotonic()
+    last_progress = campaign_started
     with ThreadPoolExecutor(max_workers=args.jobs) as executor:
-        futures = {
+        pending = {
             executor.submit(_run_case, case, args, dataset, log_root): case
             for case in cases
         }
-        for future in as_completed(futures):
-            result = future.result()
-            results.append(result)
-            print(
-                f"{result.status:7s} {result.case.name} "
-                f"({result.runtime_seconds / 60.0:.1f} min)"
+        while pending:
+            done, pending = wait(
+                pending,
+                timeout=(
+                    args.progress_interval_seconds
+                    if args.progress_interval_seconds > 0.0
+                    else None
+                ),
+                return_when=FIRST_COMPLETED,
             )
-            _write_manifest(manifest_path, args, dataset, cases, results)
+            for future in done:
+                result = future.result()
+                results.append(result)
+                print(
+                    f"{result.status:7s} {result.case.name} "
+                    f"({result.runtime_seconds / 60.0:.1f} min)",
+                    flush=True,
+                )
+                _write_manifest(manifest_path, args, dataset, cases, results)
+            now = time.monotonic()
+            if (
+                pending
+                and args.progress_interval_seconds > 0.0
+                and now - last_progress >= args.progress_interval_seconds
+            ):
+                _print_progress(campaign_started, results, pending)
+                last_progress = now
 
     failures = [item for item in results if item.return_code != 0]
-    print(f"Manifest: {manifest_path}")
+    print(f"Manifest: {manifest_path}", flush=True)
     if failures:
         print("Failed cases:", file=sys.stderr)
         for item in failures:
@@ -221,6 +243,29 @@ def _write_manifest(
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _print_progress(
+    campaign_started: float,
+    results: list[CaseResult],
+    pending: set[object],
+) -> None:
+    """Emit a lightweight heartbeat while expensive child runs are silent."""
+
+    counts = {
+        status: sum(result.status == status for result in results)
+        for status in ("complete", "failed", "skipped")
+    }
+    active = sum(getattr(future, "running")() for future in pending)
+    queued = len(pending) - active
+    elapsed_minutes = (time.monotonic() - campaign_started) / 60.0
+    print(
+        "progress "
+        f"elapsed={elapsed_minutes:.1f}min "
+        f"complete={counts['complete']} skipped={counts['skipped']} "
+        f"failed={counts['failed']} active={active} queued={queued}",
+        flush=True,
+    )
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
@@ -237,6 +282,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--max-iterations", type=int, default=200)
     parser.add_argument("--max-evaluations", type=int, default=15_500)
     parser.add_argument("--stress-backend", choices=("numpy", "cython"), default="cython")
+    parser.add_argument(
+        "--progress-interval-seconds",
+        type=float,
+        default=60.0,
+        help="Emit one aggregate campaign heartbeat at this interval; use 0 to disable.",
+    )
     args = parser.parse_args()
     if args.jobs < 1 or args.parallel_workers < 1:
         parser.error("--jobs and --parallel-workers must be positive")
@@ -244,6 +295,8 @@ def _parse_args() -> argparse.Namespace:
         parser.error("--gates must contain values in [0, 1)")
     if not 0.0 <= args.control_gate < 1.0:
         parser.error("--control-gate must lie in [0, 1)")
+    if args.progress_interval_seconds < 0.0:
+        parser.error("--progress-interval-seconds must be non-negative")
     args.pyvale_root = args.pyvale_root.expanduser().resolve()
     return args
 
