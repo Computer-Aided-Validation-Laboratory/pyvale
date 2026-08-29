@@ -275,6 +275,17 @@ def run_identification(
                         phase_runtime.spatial_state.collect_degrees_of_freedom()
                     )
 
+                    # Optional objective preparation is performed once for
+                    # each fixed-basis solve. This freezes stage references
+                    # (and, for projection objectives, their sensitivity
+                    # subspace) before the optimiser evaluates candidates.
+                    _prepare_objective_solve(
+                        phase_runtime,
+                        phase_constitutive_law,
+                        parameter_map_size,
+                        experiment_data,
+                    )
+
                     # Emit a progress event to indicate the start of the current solve iteration within the phase.
                     _emit_solve_progress(
                         progress_callback,
@@ -784,13 +795,50 @@ def _record_objective_baseline(
 ) -> None:
     """Add resolved combined-objective baselines to durable solve diagnostics."""
 
-    if isinstance(objective_function, CombinedForceAndEquilibriumGapObjective):
+    baseline_diagnostics = getattr(
+        objective_function, "baseline_diagnostics", None
+    )
+    spatial_diagnostics = getattr(
+        objective_function, "spatial_weighting_diagnostics", None
+    )
+    if baseline_diagnostics is not None:
         solve_result.final_objective["baseline"] = (
-            objective_function.baseline_diagnostics()
+            baseline_diagnostics()
         )
+    if spatial_diagnostics is not None:
         solve_result.final_objective["spatial_weighting"] = (
-            objective_function.spatial_weighting_diagnostics()
+            spatial_diagnostics()
         )
+    objective_diagnostics = getattr(objective_function, "diagnostics", None)
+    if objective_diagnostics is not None:
+        solve_result.final_objective["objective_diagnostics"] = (
+            objective_diagnostics()
+        )
+
+
+def _prepare_objective_solve(
+    phase_runtime,
+    constitutive_law: IConstitutiveLaw,
+    parameter_map_size: np.ndarray,
+    experiment_data: ExperimentData,
+) -> None:
+    prepare_solve = getattr(phase_runtime.objective_function, "prepare_solve", None)
+    if prepare_solve is None:
+        return
+    parameter_maps = phase_runtime.spatial_state.evaluate_parameter_maps(
+        parameter_map_size
+    )
+    stress = constitutive_law.calculate_stress(experiment_data.strain, parameter_maps)
+    metric_results = evaluate_metrics(
+        stress,
+        constitutive_law,
+        parameter_map_size,
+        phase_runtime.spatial_state.spatial_parameterisations,
+        phase_runtime.metrics,
+        experiment_data,
+        include_egi_diagnostics=True,
+    )
+    prepare_solve(metric_results)
 
 
 def _emit_phase_progress(
@@ -1030,12 +1078,9 @@ class PhaseRuntime:
     ) -> None:
         """Resolve optional objective weights from the accepted phase-start maps."""
 
-        if not isinstance(
-            self.objective_function,
-            CombinedForceAndEquilibriumGapObjective,
-        ):
+        if not hasattr(self.objective_function, "resolve_spatial_weights"):
             return
-        if self.objective_function.spatial_weighting is None:
+        if getattr(self.objective_function, "spatial_weighting", None) is None:
             return
 
         active_parameter_names = tuple(
@@ -1175,16 +1220,13 @@ class PhaseRuntime:
         if self.objective_function is None:
             raise RuntimeError("Phase runtime has no objective function.")
 
-        # Metric baselines are currently only required for the combined force-and-equilibrium-gap objective function.
-        if not isinstance(
-            self.objective_function,
-            CombinedForceAndEquilibriumGapObjective,
-        ):
+        if not hasattr(self.objective_function, "resolve_from_prior_phase"):
             return
 
         # If the objective function is not configured to use a prior-phase baseline, no action is needed.
         if (
-            self.objective_function.baseline.mode
+            self.objective_function.baseline is None
+            or self.objective_function.baseline.mode
             is not CombinedObjectiveBaselineMode.PRIOR_PHASE
         ):
             return

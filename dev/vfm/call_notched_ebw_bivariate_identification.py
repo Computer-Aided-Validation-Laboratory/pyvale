@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+from scipy.ndimage import gaussian_filter
 
 from pyvale.vfm import (
     CombinedForceAndEquilibriumGapObjective,
@@ -37,6 +38,12 @@ from pyvale.vfm import (
     SpatialParameterisationKnown,
     VectorFirstResultPassthrough,
     run_identification,
+)
+from pyvale.vfm.objectivefuncmaterialinformation import (
+    MaterialFeatureReduction,
+    MaterialFeatureReference,
+    MaterialFeatureTerm,
+    MaterialInformationObjective,
 )
 
 
@@ -92,6 +99,7 @@ def main() -> None:
         else args.input
     )
     experiment_data = ExperimentData.load_from_file(experiment_data_file)
+    noise_diagnostics = _apply_artificial_noise(experiment_data, args)
     constitutive_law = _create_constitutive_law(
         args.stress_backend,
         minimum_yield_strength=YIELD_BOUNDS_MPA[0],
@@ -128,7 +136,11 @@ def main() -> None:
     y = experiment_data.specimen_geometry.y
     force_metric_phase_1 = SliceWiseForceReconstructionMetric(slice_config=SliceConfig(axis="x", num_slices=args.force_slices))
     equilibrium_gap_metrics_phase_1 = [EquilibriumGapMetric(window_size=window) for window in args.egi_windows]
-    egi_window_weights = [window[0] for window in args.egi_windows]
+    egi_window_weights = (
+        [window[0] for window in args.egi_windows]
+        if args.egi_window_weights is None
+        else args.egi_window_weights
+    )
     yield_strength_basis = SpatialParameterisationBasisFunction(
         x=x,
         y=y,
@@ -150,6 +162,13 @@ def main() -> None:
         "multistart_offset_fraction": args.multistart_offset_fraction,
         "multistart_screening_iterations": args.multistart_screening_iterations,
     }
+    if args.objective_config is not None:
+        # The refinement policy consumes EGI directly, independently of the
+        # hybrid scalar wrapper, so give it the same prior-phase scaling.
+        refinement_options.update({
+            "baseline_phase_index": 0,
+            "egi_window_weights": egi_window_weights,
+        })
     if args.basis_growth_policy == "sensitivity_correction":
         refinement_options.update(
             {
@@ -159,6 +178,23 @@ def main() -> None:
                 "correction_feature_fraction": args.correction_feature_fraction,
             }
         )
+
+    global_objective = CombinedForceAndEquilibriumGapObjective(
+        force_weight=args.force_weight,
+        egi_window_weights=egi_window_weights,
+        baseline=CombinedObjectiveBaseline.prior_phase(0),
+        spatial_weighting=(
+            SensitivitySpatialWeightingConfig(
+                perturbation_factor=args.sensitivity_perturbation_factor,
+                weight_floor=args.sensitivity_weight_floor,
+            )
+            if args.sensitivity_spatial_weighting
+            else None
+        ),
+    )
+    phase_1_objective = _create_phase_1_objective(
+        args.objective_config, global_objective
+    )
 
     phase_1 = IdentificationPhase(
         spatial_parameterisations={
@@ -172,19 +208,7 @@ def main() -> None:
             ],
         },
         metrics=[force_metric_phase_1, *equilibrium_gap_metrics_phase_1],
-        objective_function=CombinedForceAndEquilibriumGapObjective(
-            force_weight=args.force_weight,
-            egi_window_weights=egi_window_weights,
-            baseline=CombinedObjectiveBaseline.prior_phase(0),
-            spatial_weighting=(
-                SensitivitySpatialWeightingConfig(
-                    perturbation_factor=args.sensitivity_perturbation_factor,
-                    weight_floor=args.sensitivity_weight_floor,
-                )
-                if args.sensitivity_spatial_weighting
-                else None
-            ),
-        ),
+        objective_function=phase_1_objective,
         optimiser=OptimiserPatternSearch(
             initial_mesh_size=args.initial_mesh_size,
             minimum_mesh_size=args.minimum_mesh_size,
@@ -233,8 +257,13 @@ def main() -> None:
         "multistart_offset_fraction": args.multistart_offset_fraction,
         "multistart_screening_iterations": args.multistart_screening_iterations,
         "force_weight": args.force_weight,
+        "objective_config": (
+            None if args.objective_config is None else str(args.objective_config)
+        ),
         "force_slices": args.force_slices,
         "egi_windows": args.egi_windows,
+        "egi_window_weights": egi_window_weights,
+        "artificial_noise": noise_diagnostics,
         "stress_backend": args.stress_backend,
         "random_seed": args.random_seed,
         "phases": ["homogeneous", "bivariate_gaussian"],
@@ -254,8 +283,23 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--initial-hardening-modulus", type=float, default=INITIAL_HARDENING_MODULUS_MPA)
     parser.add_argument("--phase-0-max-evaluations", type=int, default=PHASE_0_MAX_EVALUATIONS)
     parser.add_argument("--force-weight", type=float, default=FORCE_WEIGHT)
+    parser.add_argument(
+        "--objective-config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional frozen hybrid-objective JSON from the offline screen. "
+            "Omit it to use the existing combined EGI/FRE objective."
+        ),
+    )
     parser.add_argument("--force-slices", type=int, default=FORCE_SLICES)
     parser.add_argument("--egi-windows", type=_parse_egi_windows, default=EGI_WINDOWS, help="Comma-separated odd square window sizes, e.g. 15,29,41.")
+    parser.add_argument(
+        "--egi-window-weights",
+        type=_parse_float_tuple,
+        default=None,
+        help="Optional comma-separated objective weights matching --egi-windows.",
+    )
     parser.add_argument("--max-basis-functions", type=int, default=MAX_BASIS_FUNCTIONS)
     parser.add_argument(
         "--kernel-type",
@@ -298,6 +342,19 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--parallel-workers", type=int, default=PARALLEL_WORKERS)
     parser.add_argument("--random-seed", type=int, default=RANDOM_SEED, help="Seed for reproducible pattern-search direction bases.")
     parser.add_argument("--stress-backend", choices=("numpy", "cython"), default=STRESS_BACKEND, help="Stress-reconstruction backend; overrides STRESS_BACKEND.")
+    parser.add_argument(
+        "--artificial-noise-model",
+        type=Path,
+        default=None,
+        help="Compact WDBN1 noise-model YAML/JSON applied in memory.",
+    )
+    parser.add_argument(
+        "--artificial-noise-scale",
+        type=float,
+        default=0.0,
+        help="Multiplier for the compact strain/force noise model.",
+    )
+    parser.add_argument("--artificial-noise-seed", type=int, default=20260828)
     parser.add_argument("--no-progress", action="store_false", dest="show_progress", default=SHOW_PROGRESS, help="Disable console progress messages during identification.")
     args = parser.parse_args()
     if not 0.0 < args.initial_mesh_size <= 1.0:
@@ -310,6 +367,11 @@ def _parse_args() -> argparse.Namespace:
         parser.error("--force-weight must lie in [0, 1].")
     if args.force_slices < 2 or args.max_basis_functions < 1:
         parser.error("Force slices must be at least two and max bases must be positive.")
+    if args.egi_window_weights is not None and (
+        len(args.egi_window_weights) != len(args.egi_windows)
+        or any(weight <= 0.0 for weight in args.egi_window_weights)
+    ):
+        parser.error("--egi-window-weights must be positive and match --egi-windows.")
     if args.refinement_smoothing_points < 1 or args.refinement_smoothing_points % 2 == 0:
         parser.error("--refinement-smoothing-points must be a positive odd integer.")
     if not 0.0 < args.multistart_offset_fraction <= 1.0:
@@ -330,7 +392,50 @@ def _parse_args() -> argparse.Namespace:
         )
     if not 0.0 < args.correction_feature_fraction <= 1.0:
         parser.error("--correction-feature-fraction must lie in (0, 1].")
+    if not np.isfinite(args.artificial_noise_scale) or args.artificial_noise_scale < 0.0:
+        parser.error("--artificial-noise-scale must be finite and non-negative.")
+    if args.artificial_noise_scale > 0.0 and args.artificial_noise_model is None:
+        parser.error("A positive artificial-noise scale requires --artificial-noise-model.")
     return args
+
+
+def _create_phase_1_objective(config_path, global_objective):
+    if config_path is None:
+        return global_objective
+    payload = json.loads(config_path.expanduser().resolve().read_text(encoding="utf-8"))
+    terms = []
+    references = {}
+    for item in payload.get("features", []):
+        name = str(item["name"])
+        terms.append(MaterialFeatureTerm(
+            name=name,
+            metric_result_index=int(item["metric_result_index"]),
+            reduction=MaterialFeatureReduction(item["reduction"]),
+            frame_indices=(
+                None if item.get("frame_indices") is None
+                else tuple(int(value) for value in item["frame_indices"])
+            ),
+            weight=float(item.get("weight", 1.0)),
+            quantile=float(item.get("quantile", 0.90)),
+            sigma_pixels=item.get("sigma_pixels", 2.0),
+            spatial_axes=tuple(item.get("spatial_axes", (-2, -1))),
+        ))
+        floor = float(item.get("noise_floor", 0.0))
+        # The stage reference is refreshed immediately before every fixed-BF
+        # solve. This placeholder only carries the frozen propagated floor.
+        references[name] = MaterialFeatureReference(
+            noise_floor=floor,
+            stage_reference=floor + max(1.0, abs(floor)),
+        )
+    return MaterialInformationObjective(
+        global_objective=global_objective,
+        feature_terms=terms,
+        alpha=float(payload.get("alpha", 0.5)),
+        smooth_max_temperature=float(payload.get("smooth_max_temperature", 0.1)),
+        mean_fraction=float(payload.get("mean_fraction", 0.1)),
+        positive_part_temperature=float(payload.get("positive_part_temperature", 1e-3)),
+        references=references,
+    )
 
 
 def _parse_egi_windows(value: str) -> tuple[tuple[int, int], ...]:
@@ -338,6 +443,69 @@ def _parse_egi_windows(value: str) -> tuple[tuple[int, int], ...]:
     if not sizes or any(size < 3 or size % 2 == 0 for size in sizes):
         raise argparse.ArgumentTypeError("EGI windows must be odd integers of at least 3.")
     return tuple((size, size) for size in sizes)
+
+
+def _parse_float_tuple(value: str) -> tuple[float, ...]:
+    values = tuple(float(item.strip()) for item in value.split(",") if item.strip())
+    if not values or any(not np.isfinite(item) for item in values):
+        raise argparse.ArgumentTypeError("Expected comma-separated finite values.")
+    return values
+
+
+def _apply_artificial_noise(experiment_data, args) -> dict[str, object]:
+    """Apply reproducible correlated WDBN1-like noise without saving inputs."""
+    if args.artificial_noise_scale == 0.0:
+        return {"enabled": False, "scale": 0.0, "seed": args.artificial_noise_seed}
+
+    import yaml
+
+    model_path = args.artificial_noise_model.expanduser().resolve()
+    model = yaml.safe_load(model_path.read_text(encoding="utf-8"))
+    component_names = ("exx", "eyy", "exy")
+    rng = np.random.default_rng(args.artificial_noise_seed)
+    strain = np.asarray(experiment_data.strain, dtype=np.float64).copy()
+    specimen_mask = np.all(np.isfinite(strain), axis=(0, 1))
+    spacing = model["grid_spacing_mm"]
+    realised: dict[str, float] = {}
+    for component_index, name in enumerate(component_names):
+        component = model["components"][name]
+        sigma = float(component["sigma"]) * args.artificial_noise_scale
+        smooth = component["gaussian_filter_sigma_mm"]
+        sigma_pixels = (
+            float(smooth["y"]) / float(spacing["y"]),
+            float(smooth["x"]) / float(spacing["x"]),
+        )
+        for timestep in range(strain.shape[0]):
+            sample = gaussian_filter(
+                rng.standard_normal(strain.shape[2:]), sigma=sigma_pixels,
+                mode="reflect",
+            )
+            sample -= float(np.mean(sample[specimen_mask]))
+            sample_std = float(np.std(sample[specimen_mask]))
+            if sample_std <= np.finfo(float).eps:
+                raise RuntimeError("Artificial-noise sample has zero variance.")
+            strain[timestep, component_index, specimen_mask] += (
+                sigma * sample[specimen_mask] / sample_std
+            )
+        realised[name] = sigma
+    experiment_data.strain = strain
+
+    force_sigma = float(model["force"]["sigma_n"]) * args.artificial_noise_scale
+    force = np.asarray(experiment_data.boundary_conditions.force, dtype=np.float64).copy()
+    if force.ndim == 1:
+        force += rng.normal(0.0, force_sigma, size=force.shape)
+    else:
+        force[:, 0] += rng.normal(0.0, force_sigma, size=force.shape[0])
+    experiment_data.boundary_conditions.force = force
+    return {
+        "enabled": True,
+        "model": str(model_path),
+        "scale": args.artificial_noise_scale,
+        "seed": args.artificial_noise_seed,
+        "strain_sigma": realised,
+        "force_sigma_n": force_sigma,
+        "correlated_spatially": True,
+    }
 
 
 def _create_constitutive_law(

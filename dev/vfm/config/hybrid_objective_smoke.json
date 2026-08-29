@@ -1,0 +1,41 @@
+{
+  "purpose": "Software smoke test only; load regimes and weights are not scientifically frozen.",
+  "alpha": 0.5,
+  "smooth_max_temperature": 0.1,
+  "mean_fraction": 0.1,
+  "positive_part_temperature": 0.001,
+  "features": [
+    {
+      "name": "fine_egi_onset_cvar90",
+      "metric_result_index": 1,
+      "reduction": "cvar_abs",
+      "frame_indices": [2, 3, 4],
+      "quantile": 0.9,
+      "noise_floor": 0.0
+    },
+    {
+      "name": "middle_egi_late_rms",
+      "metric_result_index": 2,
+      "reduction": "rms",
+      "frame_indices": [10, 11, 12, 13],
+      "noise_floor": 0.0
+    },
+    {
+      "name": "broad_egi_onset_cvar90",
+      "metric_result_index": 3,
+      "reduction": "cvar_abs",
+      "frame_indices": [2, 3, 4],
+      "quantile": 0.9,
+      "noise_floor": 0.0
+    },
+    {
+      "name": "fre_late_coherent",
+      "metric_result_index": 0,
+      "reduction": "coherent_rms",
+      "frame_indices": [10, 11, 12, 13],
+      "sigma_pixels": 2.0,
+      "spatial_axes": [-1],
+      "noise_floor": 0.0
+    }
+  ]
+}

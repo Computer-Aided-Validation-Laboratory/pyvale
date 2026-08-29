@@ -1,0 +1,21 @@
+{
+  "purpose": "Exercise campaign progress, resume, and hybrid objective plumbing only.",
+  "cases": [
+    {
+      "name": "hybrid_raw_smoke_seed00",
+      "arguments": [
+        "--objective-config", "dev/vfm/config/hybrid_objective_smoke.json",
+        "--egi-windows", "7,29,57",
+        "--kernel-type", "bivariate_spd",
+        "--basis-growth-policy", "sensitivity_correction",
+        "--minimum-objective-improvement", "0",
+        "--max-basis-functions", "1",
+        "--phase-0-max-evaluations", "4",
+        "--max-iterations", "1",
+        "--max-evaluations", "20",
+        "--random-seed", "0",
+        "--stress-backend", "numpy"
+      ]
+    }
+  ]
+}

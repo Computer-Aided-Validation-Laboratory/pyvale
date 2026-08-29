@@ -314,11 +314,9 @@ def _collect_identification_config_errors(
                 f"got {type(phase.objective_function).__name__}"
             )
 
-        if isinstance(
-            phase.objective_function,
-            CombinedForceAndEquilibriumGapObjective,
-        ):
-            if phase.objective_function.spatial_weighting is not None:
+        combined_objective = _find_combined_objective(phase.objective_function)
+        if combined_objective is not None:
+            if combined_objective.spatial_weighting is not None:
                 force_metric_count = sum(
                     isinstance(metric, SliceWiseForceReconstructionMetric)
                     for metric in phase.metrics
@@ -338,7 +336,7 @@ def _collect_identification_config_errors(
                         f"phase {i}: sensitivity spatial weighting requires "
                         "at least one EquilibriumGapMetric"
                     )
-            baseline = phase.objective_function.baseline
+            baseline = combined_objective.baseline
             if baseline.mode is CombinedObjectiveBaselineMode.PRIOR_PHASE:
                 if baseline.phase_index is None or baseline.phase_index < 0:
                     errors.append(
@@ -426,10 +424,7 @@ def _collect_egi_basis_growth_errors(
             f"phase {phase_index}: EGI basis growth requires at least one "
             "EquilibriumGapMetric"
         )
-    if not isinstance(
-        phase.objective_function,
-        CombinedForceAndEquilibriumGapObjective,
-    ):
+    if _find_combined_objective(phase.objective_function) is None:
         if policy.baseline_phase_index is None:
             errors.append(
                 f"phase {phase_index}: EGI basis growth with a non-combined "
@@ -479,6 +474,17 @@ def _collect_egi_basis_growth_errors(
             "SpatialParameterisationBasisFunction"
         )
     return errors
+
+
+def _find_combined_objective(objective) -> CombinedForceAndEquilibriumGapObjective | None:
+    """Find a combined closure objective directly or inside a hybrid wrapper."""
+
+    if isinstance(objective, CombinedForceAndEquilibriumGapObjective):
+        return objective
+    nested = getattr(objective, "global_objective", None)
+    if isinstance(nested, CombinedForceAndEquilibriumGapObjective):
+        return nested
+    return None
 
 
 def _raise_collected_errors(
