@@ -22,7 +22,11 @@ from pyvale.vfm import (
     SliceWiseForceReconstructionMetric, load_identification_result,
 )
 from pyvale.vfm.campaignprogress import ProgressEstimate, atomic_write_json
-from pyvale.vfm.loadregimes import LoadRegimeThresholds, resolve_load_regimes
+from pyvale.vfm.loadregimes import (
+    LoadRegimeThresholds,
+    resolve_load_regimes,
+    resolve_relative_load_regimes,
+)
 from pyvale.vfm.postprocessing import (
     compute_plasticity_diagnostics, evaluate_snapshot_parameter_maps,
     load_constitutive_law_from_result, load_known_parameter_maps,
@@ -74,6 +78,24 @@ def main() -> None:
     phase_zero_maps = _phase_zero_maps(reference, experiment, known)
     regimes = _phase_zero_regimes(experiment, law, phase_zero_maps, args)
 
+    cache_configuration = {
+        "schema": "notched_ebw_hybrid_features_v2",
+        "dataset": str(dataset),
+        "campaign_root": str(campaign),
+        "windows": windows,
+        "force_slices": args.force_slices,
+        "load_regimes": regimes.diagnostics(),
+    }
+    _validate_or_write_cache_configuration(
+        output / "screen_configuration.json",
+        cache_configuration,
+        resume=args.resume,
+        cached_artifacts=(
+            output / "state_feature_rows.csv",
+            output / "noise_floors.json",
+        ),
+    )
+
     states = [
         *_independent_states(experiment, law, known, mask),
         *_optimiser_late_states(campaign, experiment, known),
@@ -123,6 +145,14 @@ def main() -> None:
     (output / "selected_objectives.json").write_text(
         json.dumps(selected["objectives"], indent=2) + "\n", encoding="utf-8"
     )
+    for key, filename in (
+        ("raw_parsimonious", "raw_parsimonious_objective.json"),
+        ("raw_information_rich", "raw_information_rich_objective.json"),
+    ):
+        (output / filename).write_text(
+            json.dumps(selected["objectives"][key], indent=2) + "\n",
+            encoding="utf-8",
+        )
     atomic_write_json(output / "screen_manifest.json", {
         "tool": "screen_notched_ebw_hybrid_objective", "status": "complete",
         "dataset": str(dataset), "campaign_root": str(campaign),
@@ -132,6 +162,33 @@ def main() -> None:
         "states": len(feature_rows), "candidates": len(candidates),
     })
     print(f"screen complete output={output} candidates={len(candidates)}", flush=True)
+
+
+def _validate_or_write_cache_configuration(
+    path: Path,
+    configuration: dict,
+    *,
+    resume: bool,
+    cached_artifacts: tuple[Path, ...],
+) -> None:
+    """Prevent frame-dependent features being reused after regime changes."""
+
+    if resume and any(item.is_file() for item in cached_artifacts):
+        if not path.is_file():
+            raise RuntimeError(
+                "Refusing to resume legacy screen cache without "
+                f"{path.name}; use a new output directory."
+            )
+        previous = json.loads(path.read_text(encoding="utf-8"))
+        # ``atomic_write_json`` adds operational provenance which is not part
+        # of the scientific cache key.
+        previous.pop("updated_at", None)
+        if previous != configuration:
+            raise RuntimeError(
+                "Screen cache configuration differs from this run; use a new "
+                "output directory rather than mixing regime-dependent features."
+            )
+    atomic_write_json(path, configuration)
 
 
 def _resolve_windows(experiment, lengths):
@@ -173,10 +230,18 @@ def _phase_zero_regimes(experiment, law, maps, args):
     finite = np.isfinite(plastic)
     yielded = finite & (plastic > args.plastic_strain_threshold)
     fraction = np.sum(yielded, axis=(1, 2)) / np.maximum(np.sum(finite, axis=(1, 2)), 1)
-    return resolve_load_regimes(
-        fraction,
-        LoadRegimeThresholds(args.onset_fraction, args.developed_fraction, args.late_fraction),
+    thresholds = LoadRegimeThresholds(
+        args.onset_fraction,
+        args.developed_fraction,
+        args.late_fraction,
     )
+    if args.regime_mode == "relative":
+        return resolve_relative_load_regimes(
+            fraction,
+            thresholds,
+            minimum_frames=args.minimum_regime_frames,
+        )
+    return resolve_load_regimes(fraction, thresholds)
 
 
 def _features(law, maps, experiment, metrics, windows, regimes):
@@ -332,12 +397,37 @@ def _select_candidates(candidates, scores, windows, regimes, floors, args):
     ordered = sorted(candidates, key=merit, reverse=True)
     raw = ordered[0]
     objective = _objective_payload(raw, windows, regimes, floors)
+    parsimonious = max(
+        (candidate for candidate in candidates if len(candidate["supports"]) == 2),
+        key=merit,
+    )
+    information_rich = max(
+        (
+            candidate for candidate in candidates
+            if len(candidate["supports"]) == 3
+            and "5.8mm" in candidate["supports"]
+        ),
+        key=merit,
+    )
     projected = copy.deepcopy(objective)
     projected["name"] = raw["name"] + "_projected_candidate"
     projected["projection"] = {"status": "requires online native-DOF preparation", "reduction": "yield_unique_projected_rms", "relative_tolerance": 1e-8}
     return {
         "windows": {"selected_labels": list(raw["supports"]), "all_candidates": windows, "selection_merit": merit(raw)},
-        "objectives": {"raw": objective, "projected": projected, "ranking": [{"name": item["name"], "merit": merit(item)} for item in ordered]},
+        "objectives": {
+            "raw": objective,
+            "raw_parsimonious": _objective_payload(
+                parsimonious, windows, regimes, floors
+            ),
+            "raw_information_rich": _objective_payload(
+                information_rich, windows, regimes, floors
+            ),
+            "projected": projected,
+            "ranking": [
+                {"name": item["name"], "merit": merit(item)}
+                for item in ordered
+            ],
+        },
     }
 
 
@@ -404,9 +494,11 @@ def _parse_args():
     parser.add_argument("--force-slices", type=int, default=63)
     parser.add_argument("--max-states", type=int, default=0, help="Smoke-test limit; zero uses all states.")
     parser.add_argument("--plastic-strain-threshold", type=float, default=1e-8)
-    parser.add_argument("--onset-fraction", type=float, default=0.02)
-    parser.add_argument("--developed-fraction", type=float, default=0.20)
-    parser.add_argument("--late-fraction", type=float, default=0.65)
+    parser.add_argument("--regime-mode", choices=("relative", "absolute"), default="relative")
+    parser.add_argument("--onset-fraction", type=float, default=0.05)
+    parser.add_argument("--developed-fraction", type=float, default=0.50)
+    parser.add_argument("--late-fraction", type=float, default=0.80)
+    parser.add_argument("--minimum-regime-frames", type=int, default=2)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if args.noise_replicates < 0: parser.error("--noise-replicates must be non-negative")

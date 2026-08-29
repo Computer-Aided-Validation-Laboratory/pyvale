@@ -58,10 +58,11 @@ def main() -> None:
         f"parallel_workers={args.parallel_workers}", flush=True
     )
     with ThreadPoolExecutor(max_workers=args.jobs) as executor:
-        pending = {
+        case_by_future = {
             executor.submit(_run_case, case, args, dataset, output_root, logs): case
             for case in cases
         }
+        pending = set(case_by_future)
         last_heartbeat = started
         while pending:
             done, pending = wait(
@@ -86,12 +87,19 @@ def main() -> None:
                 }
                 active = sum(future.running() for future in pending)
                 estimate = ProgressEstimate.from_counts(len(results), len(cases), started)
+                active_names = [
+                    str(case_by_future[future]["name"])
+                    for future in pending if future.running()
+                ]
+                log_health = _active_log_health(active_names, logs)
                 print(
                     estimate.line()
                     + f" active={active} queued={len(pending) - active}"
                     + " ".join(f" {key}={value}" for key, value in status_counts.items()),
                     flush=True,
                 )
+                if log_health:
+                    print(f"active-log-health {log_health}", flush=True)
                 last_heartbeat = now
     failures = [result for result in results if result.status == "failed"]
     print(f"manifest={manifest_path}", flush=True)
@@ -113,7 +121,6 @@ def _run_case(case, args, dataset, output_root, logs) -> CaseResult:
         "--output-root", str(output_root),
         "--run-name", run_name,
         "--parallel-workers", str(args.parallel_workers),
-        "--no-progress",
         *[str(value) for value in case["arguments"]],
     ]
     environment = os.environ.copy()
@@ -134,6 +141,24 @@ def _run_case(case, args, dataset, output_root, logs) -> CaseResult:
     runtime = time.monotonic() - began
     status = "complete" if completed.returncode == 0 and result_file.is_file() else "failed"
     return CaseResult(name, status, completed.returncode, runtime, str(result_file), str(log_file))
+
+
+def _active_log_health(names: list[str], logs: Path) -> str:
+    """Compact proof that active case logs are still receiving output."""
+
+    now = time.time()
+    records = []
+    for name in sorted(names):
+        path = logs / f"{name}.log"
+        if path.is_file():
+            stat = path.stat()
+            records.append(
+                f"{name}:size={stat.st_size / (1024 * 1024):.1f}MiB,"
+                f"age={max(0.0, now - stat.st_mtime):.0f}s"
+            )
+        else:
+            records.append(f"{name}:starting")
+    return " | ".join(records)
 
 
 def _write_manifest(path, args, config, results):
