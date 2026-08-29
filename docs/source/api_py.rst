@@ -15,4 +15,6 @@ Detailed Python API
    pyvale.mooseherder
    pyvale.verif
    pyvale.dataset
+   pyvale.specklegen
+
 

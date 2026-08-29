@@ -418,6 +418,9 @@ END: Cython Metadata */
     enum { __pyx_check_sizeof_voidp = 1 / (int)(SIZEOF_VOID_P == sizeof(void*)) };
   #endif
 #endif
+#ifndef CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME
+  #define CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME 100
+#endif
 #ifndef __has_attribute
   #define __has_attribute(x) 0
 #endif
@@ -1298,6 +1301,7 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   typedef sdigit  __Pyx_compact_pylong;
   typedef digit  __Pyx_compact_upylong;
   #endif
+  static CYTHON_INLINE int __Pyx_PyLong_CompactAsLong(PyObject *x, long *return_value);
   #if PY_VERSION_HEX >= 0x030C00A5
   #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
   #else
@@ -32076,6 +32080,17 @@ static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
 static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
     return PyLong_FromSize_t(ival);
 }
+#if CYTHON_USE_PYLONG_INTERNALS
+static CYTHON_INLINE int __Pyx_PyLong_CompactAsLong(PyObject *x, long *return_value) {
+    if (unlikely(!__Pyx_PyLong_IsCompact(x)))
+        return 0;
+    Py_ssize_t value = __Pyx_PyLong_CompactValue(x);
+    if ((sizeof(long) < sizeof(Py_ssize_t)) && unlikely(value != (long) value))
+        return 0;
+    *return_value = (long) value;
+    return 1;
+}
+#endif
 
 
   /* MultiPhaseInitModuleState */

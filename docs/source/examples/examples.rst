@@ -37,3 +37,10 @@ Mooseherder
    :maxdepth: 2
 
    examples_mooseherder
+
+Specklegen
+-------------------------------------
+.. toctree::
+   :maxdepth: 2
+
+   examples_specklegen

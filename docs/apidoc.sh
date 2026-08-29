@@ -21,7 +21,7 @@ rm -f source/modules.rst || error_exit "Failed to remove modules.rst"
 echo "Updating generated RST files..."
 
 # Modules to process
-modules=("dic" "blender" "mooseherder" "sensorsim" "verif" "dataset" "strain")
+modules=("dic" "blender" "mooseherder" "sensorsim" "verif" "dataset" "strain" "specklegen")
 
 for mod in "${modules[@]}"; do
     rst="source/pyvale.${mod}.rst"
