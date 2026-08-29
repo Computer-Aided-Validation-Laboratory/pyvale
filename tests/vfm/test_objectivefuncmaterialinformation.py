@@ -9,6 +9,10 @@ from pyvale.vfm.objectivefuncmaterialinformation import (
     MaterialFeatureTerm,
     MaterialInformationObjective,
 )
+from pyvale.vfm.objectivefunccombinedfreegi import (
+    CombinedForceAndEquilibriumGapObjective,
+)
+from pyvale.vfm.refinement import _global_combined_objective
 
 
 class ConstantObjective(IScalarObjectiveFunction):
@@ -78,3 +82,13 @@ def test_capture_stage_references_uses_configured_noise_floor():
     )
     assert captured["tail"].noise_floor == 0.5
     assert captured["tail"].stage_reference == pytest.approx(6.0)
+
+
+def test_hybrid_exposes_global_closure_to_sensitivity_basis_growth():
+    closure = CombinedForceAndEquilibriumGapObjective(
+        egi_window_weights=(1.0, 1.0)
+    )
+    hybrid = MaterialInformationObjective(
+        global_objective=closure, feature_terms=[], alpha=0.0
+    )
+    assert _global_combined_objective(hybrid) is closure

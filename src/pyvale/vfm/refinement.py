@@ -426,13 +426,11 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
     ) -> EquilibriumGapAggregationResult:
         """Combine EGI maps using objective-coupled or policy settings."""
 
-        if isinstance(
-            objective_function,
-            CombinedForceAndEquilibriumGapObjective,
-        ):
-            baselines = objective_function.egi_baselines_for(len(egi_results))
-            window_weights = objective_function.egi_window_weights
-            spatial_weights = objective_function.egi_spatial_weights_for(
+        combined_objective = _global_combined_objective(objective_function)
+        if combined_objective is not None:
+            baselines = combined_objective.egi_baselines_for(len(egi_results))
+            window_weights = combined_objective.egi_window_weights
+            spatial_weights = combined_objective.egi_spatial_weights_for(
                 len(egi_results)
             )
         else:
@@ -462,10 +460,7 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
             context.objective_function,
         )
         self.last_combined_egi = egi_aggregation.combined_egi_spatial_rms
-        if isinstance(
-            context.objective_function,
-            CombinedForceAndEquilibriumGapObjective,
-        ):
+        if _global_combined_objective(context.objective_function) is not None:
             if context.objective_value is None or not np.isfinite(context.objective_value):
                 raise ValueError("EGI basis growth requires a finite objective value.")
             cost = float(context.objective_value)
@@ -632,11 +627,12 @@ class SensitivityCorrectionBasisGrowthRefinement(
         _ = egi_results
         if len(basis.kernels) >= self.max_basis_functions:
             return None
-        objective = context.objective_function
-        if not isinstance(objective, CombinedForceAndEquilibriumGapObjective):
+        objective = _global_combined_objective(context.objective_function)
+        if objective is None:
             raise TypeError(
                 "Sensitivity-correction growth requires "
-                "CombinedForceAndEquilibriumGapObjective."
+                "CombinedForceAndEquilibriumGapObjective, or an objective "
+                "which wraps one as global_objective."
             )
 
         egi_metrics: list[EquilibriumGapMetric] = []
@@ -706,6 +702,10 @@ class SensitivityCorrectionBasisGrowthRefinement(
         if proposal is None:
             return None
         kernel, height, diagnostics = proposal
+        if context.objective_function is not objective:
+            diagnostics["correction_cotangent_source"] = (
+                "wrapped_global_mechanical_closure"
+            )
         parameter_direction = (
             height.value * basis._evaluate_kernel_response(kernel)
         )
@@ -760,6 +760,25 @@ class RestoreBasisModelAction(IRefinementAction):
         runtime.adopt_spatial_parameterisations(
             copy.deepcopy(self.spatial_parameterisations)
         )
+
+
+def _global_combined_objective(
+    objective_function: object | None,
+) -> CombinedForceAndEquilibriumGapObjective | None:
+    """Return the closure objective used by EGI-based refinement.
+
+    A material-information objective is deliberately differentiated through
+    its frozen global mechanical-closure component for basis placement.  Its
+    tail/coherence reductions do not yet expose stress adjoints, so pretending
+    otherwise would make the sensitivity-correction direction inconsistent.
+    """
+
+    if isinstance(objective_function, CombinedForceAndEquilibriumGapObjective):
+        return objective_function
+    wrapped = getattr(objective_function, "global_objective", None)
+    if isinstance(wrapped, CombinedForceAndEquilibriumGapObjective):
+        return wrapped
+    return None
 
 
 def _resolve_basis_parameterisation(
