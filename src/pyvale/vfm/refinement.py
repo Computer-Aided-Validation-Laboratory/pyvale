@@ -378,6 +378,7 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
     multistart_enabled: bool = False
     multistart_offset_fraction: float = 0.10
     multistart_screening_iterations: int = 10
+    fixed_basis_trajectory: bool = False
     _accepted_cost: float | None = field(default=None, init=False, repr=False)
     _resolved_egi_baseline_values: npt.NDArray[np.float64] | None = field(
         default=None, init=False, repr=False,
@@ -470,7 +471,7 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
                 raise ValueError("EGI basis growth requires a finite combined EGI value.")
         if self._accepted_cost is None:
             self._accept(runtime, cost)
-        else:
+        elif not self.fixed_basis_trajectory:
             improvement = (
                 (self._accepted_cost - cost)
                 / max(abs(self._accepted_cost), 1.0e-12)
@@ -480,6 +481,11 @@ class EquilibriumGapBasisGrowthRefinement(IRefinementPolicy):
                 return RestoreBasisModelAction(
                     self._accepted_spatial_parameterisations,
                 )
+            self._accept(runtime, cost)
+        else:
+            # Stage-normalised objectives may refresh references after every
+            # BF addition. Their scalar values are intentionally not compared
+            # across stages during a fixed-cap exploration trajectory.
             self._accept(runtime, cost)
 
         parameter_name, basis = _resolve_basis_parameterisation(runtime, self.target)

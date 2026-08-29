@@ -20,12 +20,7 @@ def main() -> None:
         if not path.is_file():
             raise FileNotFoundError(path)
     cases = []
-    for objective in (
-        "current_29_57",
-        "multiscale_equal_7_29_57",
-        "raw_parsimonious",
-        "raw_information_rich",
-    ):
+    for objective in args.objectives:
         for seed in args.seeds:
             for noise_scale in (0.0, 1.0):
                 condition = "clean" if noise_scale == 0.0 else "noise1x"
@@ -33,6 +28,7 @@ def main() -> None:
                     "--kernel-type", "bivariate_spd",
                     "--basis-growth-policy", "sensitivity_correction",
                     "--minimum-objective-improvement", "0",
+                    "--fixed-basis-trajectory",
                     "--max-basis-functions", str(args.max_basis_functions),
                     "--max-iterations", str(args.max_iterations),
                     "--max-evaluations", str(args.max_evaluations),
@@ -84,7 +80,22 @@ def _parse_args():
     parser.add_argument("--max-evaluations", type=int, default=15500)
     parser.add_argument("--stress-backend", choices=("numpy", "cython"), default="cython")
     parser.add_argument("--noise-seed-base", type=int, default=20260829)
-    return parser.parse_args()
+    parser.add_argument(
+        "--objectives",
+        type=lambda value: tuple(item.strip() for item in value.split(",") if item.strip()),
+        default=(
+            "current_29_57", "multiscale_equal_7_29_57",
+            "raw_parsimonious", "raw_information_rich",
+        ),
+    )
+    args = parser.parse_args()
+    allowed = {
+        "current_29_57", "multiscale_equal_7_29_57",
+        "raw_parsimonious", "raw_information_rich",
+    }
+    if not args.objectives or any(item not in allowed for item in args.objectives):
+        parser.error(f"--objectives must be a comma-separated subset of {sorted(allowed)}")
+    return args
 
 
 if __name__ == "__main__":

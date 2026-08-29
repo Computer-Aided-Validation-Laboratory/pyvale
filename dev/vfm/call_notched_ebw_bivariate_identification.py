@@ -161,6 +161,7 @@ def main() -> None:
         "multistart_enabled": args.multistart_basis_placement,
         "multistart_offset_fraction": args.multistart_offset_fraction,
         "multistart_screening_iterations": args.multistart_screening_iterations,
+        "fixed_basis_trajectory": args.fixed_basis_trajectory,
     }
     if args.objective_config is not None:
         # The refinement policy consumes EGI directly, independently of the
@@ -241,6 +242,7 @@ def main() -> None:
         "phase_0_max_evaluations": args.phase_0_max_evaluations,
         "maximum_basis_functions": args.max_basis_functions,
         "minimum_objective_improvement": args.minimum_objective_improvement,
+        "fixed_basis_trajectory": args.fixed_basis_trajectory,
         "initial_mesh_size": args.initial_mesh_size,
         "centre_bounds_span_factor": args.centre_bounds_span_factor,
         "kernel_type": args.kernel_type,
@@ -326,6 +328,15 @@ def _parse_args() -> argparse.Namespace:
         help="Fraction of the dominant signed correction retained for fitting.",
     )
     parser.add_argument("--minimum-objective-improvement", type=float, default=MINIMUM_OBJECTIVE_IMPROVEMENT)
+    parser.add_argument(
+        "--fixed-basis-trajectory",
+        action="store_true",
+        help=(
+            "Accept every solved BF stage through --max-basis-functions. "
+            "Use for fixed-cap objective investigations whose stage "
+            "normalisation changes after refinement."
+        ),
+    )
     parser.add_argument("--refinement-smoothing-points", type=int, default=3, help="Odd uniform-filter width used when selecting the next EGI basis centre.")
     parser.add_argument("--multistart-basis-placement", action="store_true", help="Screen the EGI peak and four 10%%-offset centre seeds before each full basis solve.")
     parser.add_argument("--multistart-offset-fraction", type=float, default=MULTISTART_OFFSET_FRACTION, help="Centre-span fraction used for the four multi-start offsets.")

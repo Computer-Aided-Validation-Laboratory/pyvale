@@ -204,12 +204,14 @@ class MaterialInformationObjective(IScalarObjectiveFunction):
             for term in self.feature_terms:
                 raw = self._evaluate_term(term, metric_results)
                 reference = self.references[term.name]
-                numerator = smooth_positive_part(
-                    raw.value - reference.noise_floor,
-                    temperature=self.positive_part_temperature,
-                )
                 denominator = reference.stage_reference - reference.noise_floor
-                normalised = float(numerator / denominator)
+                scaled_excess = (
+                    raw.value - reference.noise_floor
+                ) / denominator
+                normalised = float(smooth_positive_part(
+                    scaled_excess,
+                    temperature=self.positive_part_temperature,
+                ))
                 weighted = float(term.weight * normalised)
                 weighted_values.append(weighted)
                 diagnostics.append(

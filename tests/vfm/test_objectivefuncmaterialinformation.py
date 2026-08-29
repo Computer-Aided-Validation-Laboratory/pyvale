@@ -92,3 +92,29 @@ def test_hybrid_exposes_global_closure_to_sensitivity_basis_growth():
         global_objective=closure, feature_terms=[], alpha=0.0
     )
     assert _global_combined_objective(hybrid) is closure
+
+
+def test_dimensionless_positive_part_is_scale_invariant_for_egi_features():
+    def scaled_objective(scale):
+        return MaterialInformationObjective(
+            global_objective=None,
+            feature_terms=[
+                MaterialFeatureTerm("egi", 0, MaterialFeatureReduction.RMS)
+            ],
+            alpha=1.0,
+            mean_fraction=0.0,
+            positive_part_temperature=1.0e-3,
+            references={
+                "egi": MaterialFeatureReference(
+                    noise_floor=2.0e-5 * scale,
+                    stage_reference=1.2e-4 * scale,
+                )
+            },
+        )
+
+    unscaled = scaled_objective(1.0)
+    scaled = scaled_objective(1.0e4)
+    first = unscaled.evaluate([_metric([1.2e-4, 1.2e-4])])
+    second = scaled.evaluate([_metric([1.2, 1.2])])
+    assert first == pytest.approx(1.0)
+    assert second == pytest.approx(first)
