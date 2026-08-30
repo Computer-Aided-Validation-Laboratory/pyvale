@@ -487,7 +487,12 @@ def _plot_gate_summary(output: Path, states: list[StateMetrics]) -> None:
         row for row in states
         if row.is_final_accepted and row.policy == "sensitivity_correction"
     ]
-    gates = sorted({row.gate for row in rows if row.gate is not None})
+    # Objective-comparison campaigns may use the same result format without a
+    # numeric gate.  ``nan`` does not compare equal to itself, so treating it
+    # as a gate produces empty boxplot groups and a Matplotlib label mismatch.
+    gates = sorted({row.gate for row in rows if row.gate is not None and math.isfinite(row.gate)})
+    if not gates:
+        return
     figure, axes = plt.subplots(1, 2, figsize=(9, 4), layout="constrained")
     axes[0].boxplot(
         [[row.yielded_rmse_mpa for row in rows if row.gate == gate] for gate in gates],
@@ -505,10 +510,13 @@ def _plot_gate_summary(output: Path, states: list[StateMetrics]) -> None:
 
 def _write_report(path, manifest, states, gate_rows, ranks) -> None:
     final_rows = [row for row in states if row.is_final_accepted]
+    sensitivity_gate_rows = [
+        row for row in gate_rows if row["policy"] == "sensitivity_correction"
+    ]
     best_gate = min(
-        (row for row in gate_rows if row["policy"] == "sensitivity_correction"),
+        sensitivity_gate_rows,
         key=lambda row: (row["median_yielded_rmse_mpa"], row["iqr_yielded_rmse_mpa"]),
-    )
+    ) if sensitivity_gate_rows else None
     current_rank = ranks["campaign_all_solves"]["objective"]["yielded_rmse_mpa"]["spearman_r"]
     active_rank = ranks["campaign_all_solves"]["active_objective"]["yielded_rmse_mpa"]["spearman_r"]
     lines = [
@@ -530,6 +538,8 @@ def _write_report(path, manifest, states, gate_rows, ranks) -> None:
             f"{row['iqr_yielded_rmse_mpa']:.2f} MPa | "
             f"{100 * row['median_yielded_above_10pct']:.1f}% | {row['median_basis_count']:.1f} |"
         )
+    if not gate_rows:
+        lines.append("No numeric acceptance-gate comparison applies to this campaign.")
     lines.extend([
         "",
         "## Objective discrimination",
@@ -541,9 +551,14 @@ def _write_report(path, manifest, states, gate_rows, ranks) -> None:
         "",
         "## Automated screening result",
         "",
-        f"The lowest median yielded RMSE (IQR tie-break) occurred at the "
-        f"{100 * best_gate['gate']:.1f}% sensitivity-growth gate. This is a "
-        "synthetic screening result, not by itself a production acceptance rule.",
+        (
+            f"The lowest median yielded RMSE (IQR tie-break) occurred at the "
+            f"{100 * best_gate['gate']:.1f}% sensitivity-growth gate. This is a "
+            "synthetic screening result, not by itself a production acceptance rule."
+            if best_gate is not None
+            else "This campaign compares objective variants rather than numeric "
+            "acceptance gates; see the dedicated objective-noise report for its comparison."
+        ),
         "",
         "See `state_metrics.csv`, `gate_summary.csv`, `rank_summary.json`, and the PNG figures for the full evidence.",
     ])

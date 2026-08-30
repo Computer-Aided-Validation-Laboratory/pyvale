@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from pyvale.vfm.materialprojection import (
+    bound_aware_sensitivity,
     build_material_projection_bases,
     central_difference_sensitivity,
 )
@@ -51,6 +52,59 @@ def test_central_difference_restores_reference_and_reports_progress():
     np.testing.assert_allclose(derivative, [[2.0, 1.0], [1.0, -3.0]])
     np.testing.assert_allclose(calls[-1], [0.2, -0.1])
     assert progress == [(1, 2), (2, 2)]
+
+
+def test_bound_aware_sensitivity_uses_one_sided_steps_at_bounds():
+    reference = np.array([0.0, 0.5, 1.0])
+    calls = []
+
+    def residual(dofs):
+        calls.append(np.asarray(dofs).copy())
+        return np.array([
+            dofs[0] + 2.0 * dofs[1],
+            dofs[1] ** 2 + 3.0 * dofs[2],
+        ])
+
+    result = bound_aware_sensitivity(reference, residual, step=1.0e-4)
+
+    assert result.schemes == ("forward", "central", "backward")
+    np.testing.assert_allclose(
+        result.matrix,
+        [[1.0, 2.0, 0.0], [0.0, 1.0, 3.0]],
+        atol=2.0e-4,
+    )
+    np.testing.assert_allclose(calls[-1], reference)
+
+
+def test_bound_aware_sensitivity_restores_reference_after_failure():
+    reference = np.array([0.5])
+    calls = []
+
+    def residual(dofs):
+        values = np.asarray(dofs)
+        calls.append(values.copy())
+        if values[0] > reference[0]:
+            return np.array([np.nan])
+        return values.copy()
+
+    with pytest.raises(ValueError, match="finite"):
+        bound_aware_sensitivity(reference, residual)
+
+    np.testing.assert_allclose(calls[-1], reference)
+
+
+def test_bound_aware_sensitivity_uses_the_roomier_side_near_a_bound():
+    reference = np.array([1.0 - 1.0e-8])
+
+    result = bound_aware_sensitivity(
+        reference,
+        lambda dofs: np.asarray(dofs) ** 2,
+        step=1.0e-3,
+    )
+
+    assert result.schemes == ("backward",)
+    assert result.step_sizes == pytest.approx((1.0e-3,))
+    assert result.matrix[0, 0] == pytest.approx(2.0, abs=1.1e-3)
 
 
 def test_inactive_hardening_has_no_hardening_or_unique_penalty_failure():

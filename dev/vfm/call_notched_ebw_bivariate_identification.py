@@ -21,6 +21,10 @@ from pyvale.vfm import (
     ConstitutiveParameter,
     EquilibriumGapBasisGrowthRefinement,
     EquilibriumGapMetric,
+    AutomaticEgiSupportPreparation,
+    EgiSupportBankConfig,
+    EgiSupportInformationSelectionConfig,
+    EgiSignalSelectionConfig,
     ExperimentData,
     HardeningLinear,
     IdentificationConfig,
@@ -31,14 +35,22 @@ from pyvale.vfm import (
     OptimiserPatternSearch,
     SliceConfig,
     SliceWiseForceReconstructionMetric,
+    SensitivityInformationObjective,
+    SensitivityInformationObjectiveConfig,
+    SensitivityGatedEgiObjective,
+    SensitivityGatedObjectiveConfig,
     SensitivitySpatialWeightingConfig,
     SensitivityCorrectionBasisGrowthRefinement,
+    SimpleEgiSupportPreparation,
     SpatialParameterisationBasisFunction,
     SpatialParameterisationHomogeneous,
     SpatialParameterisationKnown,
     VectorFirstResultPassthrough,
     run_identification,
 )
+from pyvale.vfm.loadregimes import resolve_load_regimes
+from pyvale.vfm.residualblocks import ResidualBlockSpec
+from diagnostic_artifacts import DiagnosticArtifactWriter
 from pyvale.vfm.objectivefuncmaterialinformation import (
     MaterialFeatureReduction,
     MaterialFeatureReference,
@@ -92,6 +104,7 @@ MULTISTART_SCREENING_ITERATIONS = 10
 
 def main() -> None:
     args = _parse_args()
+    output_dir = args.output_root / args.run_name
 
     experiment_data_file = (
         args.input / "experiment_data.yaml"
@@ -180,6 +193,15 @@ def main() -> None:
             }
         )
 
+    if (
+        args.data_driven_objective_config is not None
+        or args.simple_data_driven_objective_config is not None
+    ):
+        # Automatic preparation installs exactly fine/middle/broad metrics.
+        egi_window_weights = [1.0, 1.0, 1.0]
+        refinement_options["egi_window_weights"] = egi_window_weights
+        refinement_options["baseline_phase_index"] = 0
+
     global_objective = CombinedForceAndEquilibriumGapObjective(
         force_weight=args.force_weight,
         egi_window_weights=egi_window_weights,
@@ -193,9 +215,45 @@ def main() -> None:
             else None
         ),
     )
-    phase_1_objective = _create_phase_1_objective(
-        args.objective_config, global_objective
-    )
+    phase_preparation = None
+    if (
+        args.data_driven_objective_config is None
+        and args.simple_data_driven_objective_config is None
+    ):
+        phase_1_objective = _create_phase_1_objective(
+            args.objective_config, global_objective
+        )
+    elif args.data_driven_objective_config is not None:
+        payload = json.loads(
+            args.data_driven_objective_config.expanduser().resolve().read_text(
+                encoding="utf-8"
+            )
+        )
+        phase_1_objective, phase_preparation = (
+            _create_data_driven_phase_1_objective(
+                payload,
+                timestep_count=experiment_data.strain.shape[0],
+                basis_growth_objective=global_objective,
+                diagnostic_callback=DiagnosticArtifactWriter(
+                    output_dir / "diagnostic_artifacts"
+                ),
+            )
+        )
+    else:
+        payload = json.loads(
+            args.simple_data_driven_objective_config.expanduser().resolve().read_text(
+                encoding="utf-8"
+            )
+        )
+        phase_1_objective, phase_preparation = (
+            _create_simple_data_driven_phase_1_objective(
+                payload,
+                basis_growth_objective=global_objective,
+                diagnostic_callback=DiagnosticArtifactWriter(
+                    output_dir / "diagnostic_artifacts"
+                ),
+            )
+        )
 
     phase_1 = IdentificationPhase(
         spatial_parameterisations={
@@ -219,6 +277,7 @@ def main() -> None:
             random_seed=args.random_seed,
         ),
         refinement_policy=refinement_policy_type(**refinement_options),
+        phase_preparation=phase_preparation,
     )
 
     identification_config = IdentificationConfig(constitutive_law=constitutive_law, parameters=parameters, phases=[phase_0, phase_1])
@@ -229,7 +288,6 @@ def main() -> None:
         progress_callback=ConsoleProgressReporter().report if args.show_progress else None,
     )
 
-    output_dir = args.output_root / args.run_name
     result_file = result.save_to_yaml(output_dir)
     summary = {
         "input": str(experiment_data_file),
@@ -262,6 +320,16 @@ def main() -> None:
         "objective_config": (
             None if args.objective_config is None else str(args.objective_config)
         ),
+        "data_driven_objective_config": (
+            None
+            if args.data_driven_objective_config is None
+            else str(args.data_driven_objective_config)
+        ),
+        "simple_data_driven_objective_config": (
+            None
+            if args.simple_data_driven_objective_config is None
+            else str(args.simple_data_driven_objective_config)
+        ),
         "force_slices": args.force_slices,
         "egi_windows": args.egi_windows,
         "egi_window_weights": egi_window_weights,
@@ -292,6 +360,24 @@ def _parse_args() -> argparse.Namespace:
         help=(
             "Optional frozen hybrid-objective JSON from the offline screen. "
             "Omit it to use the existing combined EGI/FRE objective."
+        ),
+    )
+    parser.add_argument(
+        "--data-driven-objective-config",
+        type=Path,
+        default=None,
+        help=(
+            "JSON configuration for automatic EGI support selection and the "
+            "frozen sensitivity-information phase-1 objective."
+        ),
+    )
+    parser.add_argument(
+        "--simple-data-driven-objective-config",
+        type=Path,
+        default=None,
+        help=(
+            "JSON configuration for the direct-SNR EGI selector and frozen "
+            "two-perturbation sensitivity-gated objective."
         ),
     )
     parser.add_argument("--force-slices", type=int, default=FORCE_SLICES)
@@ -368,6 +454,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--artificial-noise-seed", type=int, default=20260828)
     parser.add_argument("--no-progress", action="store_false", dest="show_progress", default=SHOW_PROGRESS, help="Disable console progress messages during identification.")
     args = parser.parse_args()
+    objective_configs = (
+        args.objective_config,
+        args.data_driven_objective_config,
+        args.simple_data_driven_objective_config,
+    )
+    if sum(value is not None for value in objective_configs) > 1:
+        parser.error("Objective configuration options are mutually exclusive.")
     if not 0.0 < args.initial_mesh_size <= 1.0:
         parser.error("--initial-mesh-size must lie in (0, 1].")
     if not 0.0 < args.minimum_mesh_size <= args.initial_mesh_size:
@@ -447,6 +540,155 @@ def _create_phase_1_objective(config_path, global_objective):
         positive_part_temperature=float(payload.get("positive_part_temperature", 1e-3)),
         references=references,
     )
+
+
+def _create_data_driven_phase_1_objective(
+    payload: dict[str, object],
+    *,
+    timestep_count: int,
+    basis_growth_objective,
+    diagnostic_callback,
+) -> tuple[SensitivityInformationObjective, AutomaticEgiSupportPreparation]:
+    """Create the narrow v1 data-driven objective from a durable JSON file.
+
+    All observations are retained in v1 (``load_regime='all'``); the frozen
+    native-DOF sensitivity determines which spatial/temporal combinations are
+    informative.  Noise scales are explicitly scalar diagonal approximations
+    until a campaign provides propagated residual arrays.
+    """
+
+    force_noise = float(payload.get("force_noise_scale", 1.0))
+    egi_noise = float(payload.get("egi_noise_scale", 1.0))
+    blocks = (
+        ResidualBlockSpec(
+            "fre", 0, "all", "fre", role="fre_guard", noise_scale=force_noise,
+        ),
+        ResidualBlockSpec(
+            "egi_fine", 1, "all", "egi", role="training", noise_scale=egi_noise,
+        ),
+        ResidualBlockSpec(
+            "egi_middle", 2, "all", "egi", role="training", noise_scale=egi_noise,
+        ),
+        ResidualBlockSpec(
+            "egi_broad", 3, "all", "egi", role="broad_egi_guard", noise_scale=egi_noise,
+        ),
+    )
+    objective = SensitivityInformationObjective(
+        SensitivityInformationObjectiveConfig(
+            # Regimes are present for the canonical residual contract. Every
+            # v1 block is 'all', so this neutral placeholder is never used to
+            # discard a frame.
+            load_regimes=resolve_load_regimes(np.zeros(timestep_count)),
+            residual_blocks=blocks,
+            finite_difference_step=float(payload.get("finite_difference_step", 1.0e-3)),
+            meaningful_dof_movement=float(payload.get("meaningful_dof_movement", 1.0e-2)),
+            minimum_noise_response=float(payload.get("minimum_noise_response", 1.0)),
+            projection_covariance_floor=float(payload.get("projection_covariance_floor", 1.0e-12)),
+            robust_transition=float(payload.get("robust_transition", 1.5)),
+        ),
+        diagnostic_callback=diagnostic_callback,
+        basis_growth_objective=basis_growth_objective,
+    )
+    preparation = AutomaticEgiSupportPreparation(
+        yield_parameter_name=str(payload.get("yield_parameter_name", "yield_strength")),
+        yield_parameter_range=float(payload.get("yield_parameter_range", YIELD_BOUNDS_MPA[1] - YIELD_BOUNDS_MPA[0])),
+        perturbation_fraction=float(payload.get("probe_perturbation_fraction", 0.01)),
+        local_probe_count=int(payload.get("local_probe_count", 9)),
+        local_probe_width=(
+            None
+            if payload.get("local_probe_width") is None
+            else float(payload["local_probe_width"])
+        ),
+        residual_noise_scale=egi_noise,
+        bank_config=EgiSupportBankConfig(
+            candidate_count=int(payload.get("candidate_count", 10)),
+            minimum_pixels=int(payload.get("minimum_pixels", 3)),
+            maximum_bbox_fraction=float(payload.get("maximum_bbox_fraction", 0.5)),
+        ),
+        selection_config=EgiSupportInformationSelectionConfig(
+            minimum_coverage_fraction=float(payload.get("minimum_coverage_fraction", 0.5)),
+            minimum_response_to_noise=float(payload.get("minimum_response_to_noise", 1.0)),
+            minimum_local_probe_fraction=float(payload.get("minimum_local_probe_fraction", 0.5)),
+            fisher_regularisation=float(payload.get("fisher_regularisation", 1.0e-12)),
+            minimum_middle_information_gain=float(payload.get("minimum_middle_information_gain", 0.0)),
+        ),
+        diagnostic_callback=diagnostic_callback,
+    )
+    return objective, preparation
+
+
+def _create_simple_data_driven_phase_1_objective(
+    payload: dict[str, object],
+    *,
+    basis_growth_objective,
+    diagnostic_callback,
+) -> tuple[SensitivityGatedEgiObjective, SimpleEgiSupportPreparation]:
+    """Create the deliberately minimalist direct-SNR/two-perturbation path."""
+
+    egi_noise_value = payload.get("egi_noise_scales", payload.get("egi_noise_scale", 1.0))
+    if isinstance(egi_noise_value, (int, float)):
+        egi_noise_scales = (float(egi_noise_value),) * 3
+    else:
+        egi_noise_scales = tuple(float(value) for value in egi_noise_value)
+    force_weight = float(payload.get("force_weight", 0.15))
+    broad_guard_weight = float(payload.get("broad_guard_weight", 0.10))
+    implied_informative_weight = 1.0 - force_weight - broad_guard_weight
+    declared_informative_weight = payload.get("informative_egi_weight")
+    if declared_informative_weight is not None and not np.isclose(
+        float(declared_informative_weight), implied_informative_weight,
+        rtol=0.0, atol=1.0e-12,
+    ):
+        raise ValueError(
+            "informative_egi_weight must equal 1 - force_weight - "
+            "broad_guard_weight."
+        )
+    objective = SensitivityGatedEgiObjective(
+        SensitivityGatedObjectiveConfig(
+            parameter_names=tuple(payload.get(
+                "sensitivity_parameter_names",
+                ("yield_strength", "hardening_modulus"),
+            )),
+            perturbation_factor=float(payload.get("perturbation_factor", 0.01)),
+            sensitivity_scaling_percentile=float(payload.get("sensitivity_scaling_percentile", 95.0)),
+            gate_start=float(payload.get("gate_start", 0.05)),
+            gate_full=float(payload.get("gate_full", 0.30)),
+            gate_start_quantile=(
+                None if payload.get("gate_start_quantile") is None
+                else float(payload["gate_start_quantile"])
+            ),
+            gate_full_quantile=(
+                None if payload.get("gate_full_quantile") is None
+                else float(payload["gate_full_quantile"])
+            ),
+            positive_activity_floor=float(payload.get("positive_activity_floor", 1.0e-6)),
+            egi_noise_scales=egi_noise_scales,
+            force_noise_scale=float(payload.get("force_noise_scale", 1.0)),
+            force_weight=force_weight,
+            broad_guard_weight=broad_guard_weight,
+            refresh_every_solves=(
+                None
+                if payload.get("refresh_every_solves") is None
+                else int(payload["refresh_every_solves"])
+            ),
+        ),
+        diagnostic_callback=diagnostic_callback,
+        basis_growth_objective=basis_growth_objective,
+    )
+    preparation = SimpleEgiSupportPreparation(
+        residual_noise_scale=float(egi_noise_scales[0]),
+        bank_config=EgiSupportBankConfig(
+            candidate_count=int(payload.get("candidate_count", 10)),
+            minimum_pixels=int(payload.get("minimum_pixels", 3)),
+            maximum_bbox_fraction=float(payload.get("maximum_bbox_fraction", 0.5)),
+        ),
+        selection_config=EgiSignalSelectionConfig(
+            minimum_coverage_fraction=float(payload.get("minimum_coverage_fraction", 0.5)),
+            minimum_signal_to_noise=float(payload.get("minimum_signal_to_noise", 1.0)),
+            active_fraction=float(payload.get("active_fraction", 0.2)),
+        ),
+        diagnostic_callback=diagnostic_callback,
+    )
+    return objective, preparation
 
 
 def _parse_egi_windows(value: str) -> tuple[tuple[int, int], ...]:

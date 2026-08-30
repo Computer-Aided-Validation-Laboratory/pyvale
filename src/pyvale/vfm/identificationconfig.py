@@ -6,6 +6,7 @@ from pyvale.vfm.metric import IMetric
 from pyvale.vfm.objectivefunc import IObjectiveFunction
 from pyvale.vfm.optimiser import IOptimiser
 from pyvale.vfm.refinement import IRefinementPolicy
+from pyvale.vfm.phasepreparation import IPhasePreparation
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 
@@ -50,6 +51,9 @@ class IdentificationPhase:
     Set to ``False`` to use the ordinary uncached constitutive evaluation for
     every optimisation candidate, including independent slice-wise solves.
     """
+
+    phase_preparation: IPhasePreparation | None = None
+    """Optional one-shot metric preparation from the accepted predecessor state."""
 
 
 @dataclass(slots=True)

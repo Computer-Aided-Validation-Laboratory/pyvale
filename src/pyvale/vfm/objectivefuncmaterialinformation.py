@@ -9,6 +9,10 @@ from typing import Sequence
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.vfm.materialprojection import (
+    NativeDofSensitivityAudit,
+    NativeDofSensitivityAuditConfig,
+)
 from pyvale.vfm.metric import MetricResult
 from pyvale.vfm.objectivefunc import IScalarObjectiveFunction
 from pyvale.vfm.objectivefunccombinedfreegi import (
@@ -22,6 +26,7 @@ from pyvale.vfm.residualfeatures import (
     weighted_cvar_abs,
     weighted_rms,
 )
+from pyvale.vfm.solvepreparation import SolvePreparationContext
 
 
 class MaterialFeatureReduction(enum.StrEnum):
@@ -106,6 +111,7 @@ class MaterialInformationObjective(IScalarObjectiveFunction):
         mean_fraction: float = 0.10,
         positive_part_temperature: float = 1.0e-3,
         references: dict[str, MaterialFeatureReference] | None = None,
+        sensitivity_audit: NativeDofSensitivityAuditConfig | None = None,
     ) -> None:
         if not 0.0 <= alpha <= 1.0:
             raise ValueError("alpha must be within [0, 1].")
@@ -127,6 +133,8 @@ class MaterialInformationObjective(IScalarObjectiveFunction):
         self.mean_fraction = float(mean_fraction)
         self.positive_part_temperature = float(positive_part_temperature)
         self.references = dict(references or {})
+        self.sensitivity_audit = sensitivity_audit
+        self.last_sensitivity_audit: NativeDofSensitivityAudit | None = None
         self.last_result: MaterialInformationObjectiveResult | None = None
         self._validate_references(require_all=False)
 
@@ -160,10 +168,15 @@ class MaterialInformationObjective(IScalarObjectiveFunction):
         )
         return {} if diagnostics is None else diagnostics()
 
-    def prepare_solve(self, metric_results: list[MetricResult]) -> None:
+    def prepare_solve(self, context: SolvePreparationContext) -> None:
         """Freeze material references at the start of a fixed-basis solve."""
 
-        self.capture_stage_references(metric_results)
+        self.capture_stage_references(list(context.metric_results))
+        self.last_sensitivity_audit = (
+            None
+            if self.sensitivity_audit is None
+            else self.sensitivity_audit.prepare(context)
+        )
 
     def set_references(
         self, references: dict[str, MaterialFeatureReference]
@@ -258,6 +271,10 @@ class MaterialInformationObjective(IScalarObjectiveFunction):
         }
         if self.last_result is not None:
             result["last_result"] = asdict(self.last_result)
+        if self.last_sensitivity_audit is not None:
+            result["sensitivity_audit"] = (
+                self.last_sensitivity_audit.diagnostics()
+            )
         return result
 
     def _evaluate_term(

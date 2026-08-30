@@ -6,8 +6,13 @@ import argparse
 import csv
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 
+os.environ.setdefault("MPLBACKEND", "Agg")
+
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np

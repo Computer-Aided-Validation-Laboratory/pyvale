@@ -708,6 +708,19 @@ class SensitivityCorrectionBasisGrowthRefinement(
         if proposal is None:
             return None
         kernel, height, diagnostics = proposal
+        artifact_arrays = diagnostics.pop("_artifact_arrays", None)
+        diagnostic_callback = getattr(
+            context.objective_function, "diagnostic_callback", None
+        )
+        if diagnostic_callback is not None and artifact_arrays is not None:
+            diagnostic_callback(
+                "basis_correction",
+                {
+                    "parameter_name": parameter_name,
+                    **diagnostics,
+                    **artifact_arrays,
+                },
+            )
         if context.objective_function is not objective:
             diagnostics["correction_cotangent_source"] = (
                 "wrapped_global_mechanical_closure"
@@ -971,6 +984,15 @@ def _basis_from_correction_map(
         "covariance": covariance.tolist(),
         "feature_point_count": int(np.sum(feature_mask)),
         "correction_l2": float(np.sqrt(np.sum(correction[finite] ** 2))),
+        "_artifact_arrays": {
+            "correction_map": correction.copy(),
+            "smoothed_correction_map": smoothed.copy(),
+            "feature_mask": feature_mask.copy(),
+            "fit_weights": weights.copy(),
+            "fitted_basis_response": (
+                height.value * basis._evaluate_kernel_response(kernel)
+            ),
+        },
     }
     return kernel, height, diagnostics
 

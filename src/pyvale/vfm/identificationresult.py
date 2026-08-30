@@ -132,6 +132,7 @@ class PhaseConfigSnapshot:
     objective_function: ObjectSnapshot | None = None
     optimiser: ObjectSnapshot | None = None
     refinement_policy: ObjectSnapshot | None = None
+    phase_preparation: ObjectSnapshot | None = None
     optimisation_newton_tolerance: float = 1.0e-6
     cache_radial_return: bool = True
 
@@ -388,6 +389,7 @@ class PhaseResult:
     solve_results: list[SolveResult] = field(default_factory=list)
     refinement_events: list[RefinementEvent] = field(default_factory=list)
     final_snapshot: PhaseSnapshot | None = None
+    preparation: Summary = field(default_factory=dict)
 
     @property
     def spatial_parameterisations(
@@ -616,6 +618,7 @@ def snapshot_phase_config(
     """Create a saved summary of one configured identification phase."""
 
     refinement_policy = getattr(phase, "refinement_policy")
+    phase_preparation = getattr(phase, "phase_preparation", None)
     return PhaseConfigSnapshot(
         phase_index=phase_index,
         spatial_parameterisations={
@@ -636,6 +639,11 @@ def snapshot_phase_config(
             None
             if refinement_policy is None
             else snapshot_object(refinement_policy)
+        ),
+        phase_preparation=(
+            None
+            if phase_preparation is None
+            else snapshot_object(phase_preparation)
         ),
         optimisation_newton_tolerance=float(
             getattr(phase, "optimisation_newton_tolerance", 1.0e-6)

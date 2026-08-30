@@ -59,6 +59,8 @@ from pyvale.vfm.spatialparam import (
     evaluate_parameterisations_to_map,
 )
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
+from pyvale.vfm.solvepreparation import build_solve_preparation_context
+from pyvale.vfm.phasepreparation import build_phase_preparation_context
 
 
 def run_identification(
@@ -161,6 +163,12 @@ def run_identification(
                 phase_runtime = prepare_phase_runtime(
                     phase,
                     experiment_data,
+                    phase_index=phase_index,
+                    constitutive_law=identification_config.constitutive_law,
+                    parameter_map_size=parameter_map_size,
+                    accepted_parameter_maps=completed_phase_maps.get(
+                        phase_index - 1
+                    ),
                 )
                 # Ensure that phase runtime has objective function and optimiser set
                 assert phase_runtime.objective_function is not None
@@ -171,6 +179,7 @@ def run_identification(
                 phase_result = PhaseResult(
                     phase_index=phase_index,
                     config=snapshot_phase_config(phase_index, phase),
+                    preparation=phase_runtime.phase_preparation_diagnostics,
                 )
 
                 # Resolve optional phase-start sensitivity weights before
@@ -279,11 +288,13 @@ def run_identification(
                     # each fixed-basis solve. This freezes stage references
                     # (and, for projection objectives, their sensitivity
                     # subspace) before the optimiser evaluates candidates.
-                    _prepare_objective_solve(
+                    solve_preparation = _prepare_objective_solve(
                         phase_runtime,
                         phase_constitutive_law,
                         parameter_map_size,
                         experiment_data,
+                        phase_index=phase_index,
+                        solve_iteration=solve_iteration,
                     )
 
                     # Emit a progress event to indicate the start of the current solve iteration within the phase.
@@ -335,6 +346,8 @@ def run_identification(
                     solve_result.final_snapshot = snapshot_phase(
                         phase_runtime.spatial_parameterisations
                     )
+                    if solve_preparation:
+                        solve_result.details["solve_preparation"] = solve_preparation
 
                     # Store the resolved objective baseline in the solve result for logging
                     _record_objective_baseline(
@@ -821,24 +834,28 @@ def _prepare_objective_solve(
     constitutive_law: IConstitutiveLaw,
     parameter_map_size: np.ndarray,
     experiment_data: ExperimentData,
-) -> None:
+    *,
+    phase_index: int,
+    solve_iteration: int,
+) -> dict[str, object]:
     prepare_solve = getattr(phase_runtime.objective_function, "prepare_solve", None)
     if prepare_solve is None:
-        return
-    parameter_maps = phase_runtime.spatial_state.evaluate_parameter_maps(
-        parameter_map_size
+        return {}
+    context = build_solve_preparation_context(
+        phase_index=phase_index,
+        solve_iteration=solve_iteration,
+        constitutive_law=constitutive_law,
+        parameter_map_size=parameter_map_size,
+        spatial_state=phase_runtime.spatial_state,
+        metrics=phase_runtime.metrics,
+        experiment_data=experiment_data,
     )
-    stress = constitutive_law.calculate_stress(experiment_data.strain, parameter_maps)
-    metric_results = evaluate_metrics(
-        stress,
-        constitutive_law,
-        parameter_map_size,
-        phase_runtime.spatial_state.spatial_parameterisations,
-        phase_runtime.metrics,
-        experiment_data,
-        include_egi_diagnostics=True,
-    )
-    prepare_solve(metric_results)
+    diagnostics = prepare_solve(context)
+    if diagnostics is None:
+        return {}
+    if not isinstance(diagnostics, dict):
+        raise TypeError("Objective prepare_solve must return a diagnostics dictionary or None.")
+    return diagnostics
 
 
 def _emit_phase_progress(
@@ -1031,6 +1048,7 @@ class PhaseRuntime:
     objective_function: IObjectiveFunction | None = None
     optimiser: IOptimiser | None = None
     refinement_policy: IRefinementPolicy | None = None
+    phase_preparation_diagnostics: dict[str, object] = field(default_factory=dict)
     spatial_state: PhaseSpatialState = field(init=False)
 
     def __post_init__(self) -> None:
@@ -1461,6 +1479,11 @@ def _map_updated_supports(
 def prepare_phase_runtime(
     phase: IdentificationPhase,
     experiment_data: ExperimentData,
+    *,
+    phase_index: int | None = None,
+    constitutive_law: IConstitutiveLaw | None = None,
+    parameter_map_size: np.ndarray | None = None,
+    accepted_parameter_maps: dict[str, np.ndarray] | None = None,
 ) -> PhaseRuntime:
     """Prepare phase runtime once experiment data are available.
 
@@ -1478,6 +1501,7 @@ def prepare_phase_runtime(
         runtime_objective_function,
         runtime_optimiser,
         runtime_refinement_policy,
+        runtime_phase_preparation,
     ) = copy.deepcopy(
         (
             phase.spatial_parameterisations,
@@ -1485,6 +1509,7 @@ def prepare_phase_runtime(
             phase.objective_function,
             phase.optimiser,
             phase.refinement_policy,
+            phase.phase_preparation,
         )
     )
     phase_runtime = PhaseRuntime(
@@ -1494,6 +1519,29 @@ def prepare_phase_runtime(
         optimiser=runtime_optimiser,
         refinement_policy=runtime_refinement_policy,
     )
+
+    if runtime_phase_preparation is not None:
+        if (
+            phase_index is None
+            or constitutive_law is None
+            or parameter_map_size is None
+            or accepted_parameter_maps is None
+        ):
+            raise ValueError(
+                "Phase preparation requires phase index, predecessor maps, "
+                "constitutive law, and parameter-map size."
+            )
+        context = build_phase_preparation_context(
+            phase_index=phase_index,
+            experiment_data=experiment_data,
+            constitutive_law=constitutive_law,
+            parameter_map_size=parameter_map_size,
+            accepted_parameter_maps=accepted_parameter_maps,
+            configured_metrics=phase_runtime.metrics,
+        )
+        prepared = runtime_phase_preparation.prepare(context)
+        phase_runtime.metrics = list(prepared.metrics)
+        phase_runtime.phase_preparation_diagnostics = dict(prepared.diagnostics)
 
     # Prepare the phase runtime with experiment data, which may involve preparing shared supports and metrics.
     phase_runtime.prepare(experiment_data)
