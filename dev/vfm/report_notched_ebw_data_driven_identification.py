@@ -331,28 +331,65 @@ def _extent(experiment):
 
 
 def _yield_map_page(pdf, states, truth, mask, experiment):
-    columns = len(states) + 1
-    fig, axes = plt.subplots(2, columns, figsize=(11.69, 8.27), constrained_layout=True, squeeze=False)
     extent = _extent(experiment)
     maps = [truth] + [state["maps"]["yield_strength"] for state in states]
     labels = ["Known truth"] + [state["label"] for state in states]
     vmin = float(np.nanpercentile(np.concatenate([item[mask] for item in maps]), 1))
     vmax = float(np.nanpercentile(np.concatenate([item[mask] for item in maps]), 99))
-    errors = [100.0 * (item - truth) / truth for item in maps]
-    error_limit = max(1.0, float(np.nanpercentile(np.abs(np.concatenate([item[mask] for item in errors[1:]])), 99)))
-    for column, (label, values, error) in enumerate(zip(labels, maps, errors, strict=True)):
-        image = axes[0, column].imshow(np.where(mask, values, np.nan), origin="lower", extent=extent, aspect="auto", cmap="viridis", vmin=vmin, vmax=vmax)
-        axes[0, column].set_title(label, fontsize=10)
-        error_image = axes[1, column].imshow(np.where(mask, error, np.nan), origin="lower", extent=extent, aspect="auto", cmap="RdBu_r", vmin=-error_limit, vmax=error_limit)
-        axes[1, column].set_title("Signed error [%]", fontsize=9)
-        for axis in axes[:, column]:
-            axis.set_xlabel("x [mm]")
-            axis.set_ylabel("y [mm]")
-    fig.colorbar(image, ax=axes[0, :], label="Yield strength [MPa]", shrink=0.75)
-    fig.colorbar(error_image, ax=axes[1, :], label="Error [%]", shrink=0.75)
-    fig.suptitle("Yield-strength map and percentage error by identification state", fontsize=16)
-    pdf.savefig(fig)
-    plt.close(fig)
+    _map_pages(
+        pdf,
+        maps,
+        labels,
+        mask,
+        extent,
+        title="Yield-strength map by identification state",
+        colorbar_label="Yield strength [MPa]",
+        cmap="viridis",
+        vmin=vmin,
+        vmax=vmax,
+    )
+
+    # Truth is the reference, so error pages begin with the homogeneous state.
+    errors = [100.0 * (item - truth) / truth for item in maps[1:]]
+    error_limit = max(1.0, float(np.nanpercentile(np.abs(np.concatenate([item[mask] for item in errors])), 99)))
+    _map_pages(
+        pdf,
+        errors,
+        labels[1:],
+        mask,
+        extent,
+        title="Signed yield-strength error by identification state",
+        colorbar_label="Error [%]",
+        cmap="RdBu_r",
+        vmin=-error_limit,
+        vmax=error_limit,
+    )
+
+
+def _map_pages(pdf, maps, labels, mask, extent, *, title, colorbar_label, cmap, vmin, vmax):
+    """Render specimen maps two per page without changing their physical aspect.
+
+    Matplotlib's ``aspect='equal'`` is the equivalent of MATLAB's ``axis image``:
+    an x millimetre occupies the same printed length as a y millimetre.
+    """
+    for start in range(0, len(maps), 2):
+        page_maps = maps[start:start + 2]
+        page_labels = labels[start:start + 2]
+        fig, axes = plt.subplots(1, 2, figsize=(11.69, 5.3), constrained_layout=True, squeeze=False)
+        for axis, values, label in zip(axes[0], page_maps, page_labels, strict=False):
+            image = axis.imshow(
+                np.where(mask, values, np.nan), origin="lower", extent=extent,
+                aspect="equal", cmap=cmap, vmin=vmin, vmax=vmax,
+            )
+            axis.set_title(label, fontsize=12)
+            axis.set(xlabel="x [mm]", ylabel="y [mm]")
+        # Keep a stable two-column layout even on an odd final page.
+        for axis in axes[0, len(page_maps):]:
+            axis.set_visible(False)
+        fig.colorbar(image, ax=axes[0, :len(page_maps)], label=colorbar_label, shrink=0.88)
+        fig.suptitle(title, fontsize=16)
+        pdf.savefig(fig)
+        plt.close(fig)
 
 
 def _egi_page(pdf, states, supports, egi_maps, mask, experiment):
@@ -363,7 +400,7 @@ def _egi_page(pdf, states, supports, egi_maps, mask, experiment):
         finite = np.concatenate([item[np.isfinite(item)] for item in values])
         vmax = float(np.percentile(finite, 99)) if finite.size else 1.0
         for row, state in enumerate(states):
-            image = axes[row, column].imshow(np.where(mask, values[row], np.nan), origin="lower", extent=extent, aspect="auto", cmap="magma", vmin=0.0, vmax=max(vmax, np.finfo(float).eps))
+            image = axes[row, column].imshow(np.where(mask, values[row], np.nan), origin="lower", extent=extent, aspect="equal", cmap="magma", vmin=0.0, vmax=max(vmax, np.finfo(float).eps))
             axes[row, column].set_title(f"{state['label']}\n{role} EGI {window[0]}×{window[1]}", fontsize=9)
             axes[row, column].set_xlabel("x [mm]")
             axes[row, column].set_ylabel("y [mm]")
@@ -385,8 +422,8 @@ def _sensitivity_pages(pdf, records, experiment):
         egi = [(name, item) for name, item in maps if item[0].ndim == 2]
         fig, axes = plt.subplots(max(1, len(egi)), 2, figsize=(11.69, 8.27), constrained_layout=True, squeeze=False)
         for row, (name, (response_map, leverage_map)) in enumerate(egi):
-            first = axes[row, 0].imshow(response_map, origin="lower", extent=extent, aspect="auto", cmap="viridis")
-            second = axes[row, 1].imshow(leverage_map, origin="lower", extent=extent, aspect="auto", cmap="plasma")
+            first = axes[row, 0].imshow(response_map, origin="lower", extent=extent, aspect="equal", cmap="viridis")
+            second = axes[row, 1].imshow(leverage_map, origin="lower", extent=extent, aspect="equal", cmap="plasma")
             axes[row, 0].set_title(f"{name}: native-DOF response magnitude")
             axes[row, 1].set_title(f"{name}: retained-subspace leverage")
             fig.colorbar(first, ax=axes[row, 0], shrink=0.72)
@@ -439,25 +476,103 @@ def _block_maps(blocks, response, leverage):
 
 def _basis_page(pdf, states, egi_maps, supports, mask, experiment):
     extent = _extent(experiment)
-    fig, axes = plt.subplots(2, len(states), figsize=(11.69, 8.27), constrained_layout=True, squeeze=False)
     broad = "broad"
-    for column, state in enumerate(states):
-        values = state["maps"]["yield_strength"]
-        image = axes[0, column].imshow(np.where(mask, values, np.nan), origin="lower", extent=extent, aspect="auto", cmap="viridis")
-        _draw_bases(axes[0, column], state["snapshot"])
-        axes[0, column].set_title(f"{state['label']} yield map + BFs")
-        target = egi_maps[state["label"]][broad]
-        target_image = axes[1, column].imshow(np.where(mask, target, np.nan), origin="lower", extent=extent, aspect="auto", cmap="magma")
-        _draw_bases(axes[1, column], state["snapshot"])
-        axes[1, column].set_title(f"{state['label']} broad-EGI target + BFs")
-        for axis in axes[:, column]:
-            axis.set_xlabel("x [mm]")
-            axis.set_ylabel("y [mm]")
-    fig.colorbar(image, ax=axes[0, :], label="Yield strength [MPa]", shrink=0.7)
-    fig.colorbar(target_image, ax=axes[1, :], label="Weighted temporal RMS", shrink=0.7)
-    fig.suptitle("Basis geometry before/after the first spatial solve\nThe BF1 smoke uses the initial EGI seed; correction-map fitting begins on subsequent refinements", fontsize=14)
-    pdf.savefig(fig)
-    plt.close(fig)
+    # Two states per page keeps both the specimen field and the physical BF
+    # geometry readable.  The kernel artists may deliberately enlarge an axis
+    # when a fitted BF is larger than the specimen; equal aspect makes that
+    # visible without changing its shape.
+    for start in range(0, len(states), 2):
+        page_states = states[start:start + 2]
+        fig, axes = plt.subplots(2, 2, figsize=(11.69, 8.27), constrained_layout=True, squeeze=False)
+        for column, state in enumerate(page_states):
+            display_limits = _basis_display_limits(state["snapshot"], extent)
+            values = state["maps"]["yield_strength"]
+            image = axes[0, column].imshow(
+                np.where(mask, values, np.nan), origin="lower", extent=extent,
+                aspect="equal", cmap="viridis",
+            )
+            _draw_bases(axes[0, column], state["snapshot"])
+            _apply_display_limits(axes[0, column], display_limits)
+            axes[0, column].set_title(f"{state['label']} yield map + BFs", fontsize=11)
+
+            target = egi_maps[state["label"]][broad]
+            target_image = axes[1, column].imshow(
+                np.where(mask, target, np.nan), origin="lower", extent=extent,
+                aspect="equal", cmap="magma",
+            )
+            _draw_bases(axes[1, column], state["snapshot"])
+            _apply_display_limits(axes[1, column], display_limits)
+            axes[1, column].set_title(f"{state['label']} broad-EGI target + BFs", fontsize=11)
+            for axis in axes[:, column]:
+                axis.set(xlabel="x [mm]", ylabel="y [mm]")
+                axis.set_aspect("equal", adjustable="box")
+
+        for column in range(len(page_states), 2):
+            axes[0, column].set_visible(False)
+            axes[1, column].set_visible(False)
+        fig.colorbar(image, ax=axes[0, :len(page_states)], label="Yield strength [MPa]", shrink=0.78)
+        fig.colorbar(target_image, ax=axes[1, :len(page_states)], label="Weighted temporal RMS", shrink=0.78)
+        fig.suptitle(
+            "Basis geometry by identification state\n"
+            "The BF1 solve uses the initial EGI seed; correction-map fitting begins on subsequent refinements",
+            fontsize=14,
+        )
+        pdf.savefig(fig)
+        plt.close(fig)
+
+
+def _basis_display_limits(snapshot, specimen_extent):
+    """Return a specimen-focused view, enlarged 20% only on exceeded axes."""
+    xmin, xmax, ymin, ymax = specimen_extent
+    bf_bounds = [np.inf, -np.inf, np.inf, -np.inf]
+    found_basis = False
+    for item in snapshot.spatial_parameterisations.get("yield_strength", []):
+        if item.summary.get("kind") != "basis_functions":
+            continue
+        for kernel in item.summary.get("kernels", []):
+            found_basis = True
+            centre = np.asarray(kernel["centre"], dtype=float)
+            radius_x, radius_y = _kernel_axis_radii(kernel)
+            bf_bounds[0] = min(bf_bounds[0], centre[0] - radius_x)
+            bf_bounds[1] = max(bf_bounds[1], centre[0] + radius_x)
+            bf_bounds[2] = min(bf_bounds[2], centre[1] - radius_y)
+            bf_bounds[3] = max(bf_bounds[3], centre[1] + radius_y)
+
+    def limit(low, high, basis_low, basis_high):
+        if not found_basis or (basis_low >= low and basis_high <= high):
+            return low, high
+        centre = 0.5 * (low + high)
+        half_width = 0.6 * (high - low)  # 120% of specimen bounding-box span.
+        return centre - half_width, centre + half_width
+
+    return (
+        limit(xmin, xmax, bf_bounds[0], bf_bounds[1]),
+        limit(ymin, ymax, bf_bounds[2], bf_bounds[3]),
+    )
+
+
+def _kernel_axis_radii(kernel):
+    """Axis-aligned radii of the one-standard-deviation ellipse plotted below."""
+    if "covariance" in kernel:
+        covariance = np.asarray(kernel["covariance"], dtype=float)
+    else:
+        variances = np.atleast_1d(np.asarray(kernel["variance"], dtype=float))
+        if variances.size == 1:
+            variances = np.repeat(variances, 2)
+        angle = float(kernel.get("angle", 0.0))
+        rotation = np.array([
+            [np.cos(angle), -np.sin(angle)],
+            [np.sin(angle), np.cos(angle)],
+        ])
+        covariance = rotation @ np.diag(variances[:2]) @ rotation.T
+    return float(np.sqrt(max(covariance[0, 0], 0.0))), float(np.sqrt(max(covariance[1, 1], 0.0)))
+
+
+def _apply_display_limits(axis, limits):
+    """Clip overlays to the selected specimen-focused field of view."""
+    (xmin, xmax), (ymin, ymax) = limits
+    axis.set_xlim(xmin, xmax)
+    axis.set_ylim(ymin, ymax)
 
 
 def _draw_bases(axis, snapshot):

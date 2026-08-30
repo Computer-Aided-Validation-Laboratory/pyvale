@@ -159,7 +159,7 @@ def _gate_page(pdf, gate, experiment):
     fig, axes = plt.subplots(2, 2, figsize=(11.69, 8.27), constrained_layout=True)
     extent = common._extent(experiment)
     for axis, (title, values) in zip(axes.ravel(), panels, strict=False):
-        image=axis.imshow(values, origin="lower", extent=extent, aspect="auto", cmap="magma")
+        image=axis.imshow(values, origin="lower", extent=extent, aspect="equal", cmap="magma")
         axis.set_title(title); axis.set(xlabel="x [mm]", ylabel="y [mm]"); fig.colorbar(image, ax=axis, shrink=.75)
     axes[1,1].plot(np.sqrt(np.nanmean(y*y,axis=(1,2))), marker="o", label="yield")
     axes[1,1].plot(np.sqrt(np.nanmean(h*h,axis=(1,2))), marker="o", label="hardening")

@@ -216,11 +216,25 @@ def _temporal_page(pdf, y_activity, h_activity, weights):
 
 
 def _history_page(pdf, root):
-    weighting = json.loads((root / "SPATIAL_WEIGHTING_COMPARISON_20260827.json").read_text())
-    windows = json.loads((root / "egi_window_selection_20260827/summary.json").read_text())
-    change = weighting["weighted_relative_change_percent"]
+    weighting_path = root / "SPATIAL_WEIGHTING_COMPARISON_20260827.json"
+    windows_path = root / "egi_window_selection_20260827/summary.json"
     fig = plt.figure(figsize=(11.69, 8.27))
     fig.text(.06, .92, "How previous investigations constrain—but do not fit—the method", fontsize=19, weight="bold")
+    if not (weighting_path.is_file() and windows_path.is_file()):
+        lines = [
+            "Historical comparison unavailable in this checkout.",
+            "",
+            "The gate and weight calibration above is complete: it uses only the current run's frozen sensitivity artefact and does not require known-map truth.",
+            "",
+            "Optional historical artefacts can be supplied later to add cross-investigation context. Their absence must not prevent a completed identification from producing its calibration report.",
+        ]
+        fig.text(.075, .83, "\n".join(lines), va="top", fontsize=11.5, linespacing=1.48, wrap=True)
+        pdf.savefig(fig); plt.close(fig)
+        return
+
+    weighting = json.loads(weighting_path.read_text())
+    windows = json.loads(windows_path.read_text())
+    change = weighting["weighted_relative_change_percent"]
     lines = [
         "Reusable evidence",
         f"  • Earlier sensitivity weighting changed yielded RMSE by {change['yielded_rmse_mpa']:+.1f}% and high-plastic RMSE by {change['high_plastic_rmse_mpa']:+.1f}%, but increased runtime by {change['total_runtime_seconds']:+.1f}%.",
