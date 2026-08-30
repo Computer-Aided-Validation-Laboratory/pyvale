@@ -48,7 +48,7 @@ surface_mesh = render.mesh3d_from_simdata(
 # %%
 # 2. Select deformation timesteps
 # --------------------------------------------------------------------------
-# Slicing a 3-frame subset ([undeformed, mid-load, peak-load]) for fast
+# Slicing a 3 frame subset ([undeformed, mid load, peak load]) for fast
 # tutorial execution. To render all simulation frames, omit this slice:
 # surface_mesh.displacements = surface_mesh.displacements
 if surface_mesh.displacements is not None:

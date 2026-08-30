@@ -20,14 +20,15 @@ a texture onto it. We generally know the feature size or pitch in the input
 texture and either its required physical length or its desired size in the
 final camera image.
 
-For off-axis and stereo cameras the image scale is not constant over the field
-of view. Here we use Riley's average scale on the camera-normal plane through
-the region-of-interest centre.
+For off axis and stereo cameras the image scale is not constant over the field
+of view. Here we use Riley's average scale on the camera normal plane through
+the region of interest centre.
 
 The way to achieve this mapping and scaling is through specifying UVs which are
 nodal attributes of the input mesh to be rendered.
 
-There are more advanced tools for mapping UVs to complex surfaces.
+There are more advanced tools for mapping UVs to complex surfaces in Blender if
+you need them.
 """
 
 from pathlib import Path
@@ -41,7 +42,7 @@ from pyvale import render
 from pyvale.examples.renderuvs.tools import render_uv_example
 
 # %%
-# 1. Load the packaged three-dimensional calibration plate
+# 1. Load the packaged three dimensional calibration plate
 # ------------------------------------------------------------
 # The calibration plate is a TRI3 surface mesh with front, back, and side
 # faces.
@@ -62,10 +63,10 @@ cal_texture = render.image_load(dataset.riley_cal_target_texture_path())
 mesh_center = render.mesh_center(base_mesh)
 
 # %%
-# 2. Orient the plate in each axis-aligned projection plane
+# 2. Orient the plate in each axis aligned projection plane
 # ------------------------------------------------------------
 # Each rotation moves the plate face into the requested world plane. UVs are
-# then generated from the same plane, while an off-axis camera reveals
+# then generated from the same plane, while an off axis camera reveals
 # the plate thickness and its physical orientation.
 
 yz_mesh_rotation = Rotation.from_euler(
@@ -225,7 +226,7 @@ print(
     f"target={desired_image_px_per_feature_size:.1f} px/feature"
 )
 
-print(f"Rendered axis-aligned UV projections to {output_dir}")
+print(f"Rendered axis aligned UV projections to {output_dir}")
 
 # %%
 # The XY, YZ, and XZ projection cases are shown from left to right. Their
@@ -233,16 +234,16 @@ print(f"Rendered axis-aligned UV projections to {output_dir}")
 # easy to compare.
 #
 # .. image:: ../../_static/renderuvs_ex1a_uv_planar_axes_axes.png
-#    :alt: Three-dimensional calibration plate with XY, YZ, and XZ UV maps
+#    :alt: Three dimensional calibration plate with XY, YZ, and XZ UV maps
 #    :width: 900px
 #    :align: center
 
 # %%
 # The speckle render is a separate experimental workflow: its scale comes from
-# the requested five image pixels per feature rather than calibration-dot
-# pitch, so it is shown separately from the projection-plane comparison.
+# the requested five image pixels per feature rather than calibration dot
+# pitch, so it is shown separately from the projection plane comparison.
 #
 # .. image:: ../../_static/renderuvs_ex1a_uv_planar_axes_speckle.png
-#    :alt: Camera-scaled speckle texture on a calibration plate
+#    :alt: Camera scaled speckle texture on a calibration plate
 #    :width: 500px
 #    :align: center

@@ -9,7 +9,7 @@
 
 This example demonstrates how to set up and render a single camera 2D DIC
 scene with Blender using the unified pyvale render API. The test case for this 
-exmaple is a solid mechanics finite element model of a plate with a hole loaded 
+example is a solid mechanics finite element model of a plate with a hole loaded 
 in tension.
 
 Workflow:
@@ -33,7 +33,7 @@ from pyvale.sensorsim import scale_length_units
 # %%
 # 1. Load simulation data and build a textured surface mesh
 # --------------------------------------------------------------------------
-# Load the mechanical plate-with-a-hole simulation in Exodus format (``*.e``).
+# Load the mechanical plate with a hole simulation in Exodus format (``*.e``).
 # All geometry and displacements are scaled to millimetres for Blender.
 # Then convert the volumetric SimData into a surface Mesh3D. Volumetric meshes
 # are skinned and conventions are enforced automatically.

@@ -9,7 +9,7 @@
 
 Here we retain the asymmetric Riley rabbit mesh, generate a centred mapping,
 and apply a combined UV transformation. The physical rabbit is rendered from
-an oblique view so its three-dimensional form remains visible.
+an oblique view so its three dimensional form remains visible.
 """
 
 from pathlib import Path
@@ -115,6 +115,6 @@ print(
 # on the right.
 #
 # .. image:: ../../_static/renderuvs_ex1e_uv_transform.png
-#    :alt: Original and transformed UV mappings on a three-dimensional rabbit
+#    :alt: Original and transformed UV mappings on a three dimensional rabbit
 #    :width: 900px
 #    :align: center

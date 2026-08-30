@@ -5,11 +5,11 @@
 # ==============================================================================
 
 
-"""Riley: Multi-Shader, Multi-Element Rabbits
+"""Riley: Multi Shader, Multi Element Rabbits
 ================================================================================
 
 Here we render a series of rabbit meshes of all different element types cycling
-through all support shaders for Riley to show how to build a scene with mixed
+through all supported shaders for Riley to show how to build a scene with mixed
 element and shader types.
 """
 
@@ -153,7 +153,7 @@ output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1c_riley_rabbits"
 renderer = render.Riley(config, output_dir)
 
 # %%
-# 4. Build the multi-mesh scene and render it
+# 4. Build the multi mesh scene and render it
 # ------------------------------------------------------------
 scene = render.Scene3D(meshes=meshes, cameras=[camera])
 result = renderer.render(scene)

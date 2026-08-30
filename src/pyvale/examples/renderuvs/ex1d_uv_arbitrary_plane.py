@@ -7,7 +7,7 @@
 """Render UVs: Projection onto an arbitrary plane
 ================================================================================
 
-This example rotates the packaged three-dimensional calibration plate and
+This example rotates the packaged three dimensional calibration plate and
 generates UVs from its rotated local surface plane. The plate thickness and an
 oblique camera view make the arbitrary physical orientation clear.
 """
@@ -23,7 +23,7 @@ from pyvale import render
 from pyvale.examples.renderuvs.tools import render_uv_example
 
 # %%
-# 1. Load and tilt the three-dimensional calibration plate
+# 1. Load and tilt the three dimensional calibration plate
 # ------------------------------------------------------------
 data_dir = dataset.riley_stereocal_case_path()
 simulation = io.SimLoaderByField(
@@ -48,7 +48,7 @@ oriented_mesh = render.mesh_rotate(
 # 2. Define the rotated surface plane and generate UV coordinates
 # ----------------------------------------------------------------------
 # The original plate face lies in XY. Rotating its normal and local V axis
-# provides the arbitrary-plane definition without manually deriving a basis.
+# provides the arbitrary plane definition without manually deriving a basis.
 plane = render.UVPlane(
     normal=plate_rotation.apply(np.array((0.0, 0.0, 1.0))),
     origin=render.mesh_center(oriented_mesh),
@@ -80,7 +80,7 @@ textured_mesh = render.Mesh3D(
 )
 
 # %%
-# 3. Render the arbitrary-plane mapping
+# 3. Render the arbitrary plane mapping
 # ----------------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1d_uv_arbitrary_plane"
 camera = render.Camera(
@@ -105,7 +105,7 @@ image_px_per_feature_pitch = render.uv_calc_image_px_per_feature(
     image_leng_per_px,
 )
 
-print(f"Rendered the arbitrary-plane UV mapping to {output_dir}")
+print(f"Rendered the arbitrary plane UV mapping to {output_dir}")
 print(
     f"The 1.25 mm feature pitch is approximately "
     f"{image_px_per_feature_pitch:.2f} px at the ROI"
@@ -115,6 +115,6 @@ print(
 # The tilted calibration plate is mapped using its rotated local surface plane.
 #
 # .. image:: ../../_static/renderuvs_ex1d_uv_arbitrary_plane.png
-#    :alt: Oblique three-dimensional calibration plate with arbitrary-plane UVs
+#    :alt: Oblique three dimensional calibration plate with arbitrary plane UVs
 #    :width: 500px
 #    :align: center

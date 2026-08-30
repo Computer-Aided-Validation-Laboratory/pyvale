@@ -163,7 +163,7 @@ sphinx_gallery_conf = {
     'filename_pattern': safe_example_pattern,
     # Private helper modules support examples but are not gallery tutorials.
     'ignore_pattern': (
-        r'(?:^|/)(?:_blender_example_tools|_riley_demo_tools)\.py$'
+        r'(?:^|/)(?:_blender_example_tools|_riley_demo_tools|tools)\.py$'
     ),
     # Specify that examples should be ordered according to filename
     'within_subsection_order': FileNameSortKey,

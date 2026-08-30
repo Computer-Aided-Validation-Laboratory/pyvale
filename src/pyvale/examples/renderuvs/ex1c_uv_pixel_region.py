@@ -7,8 +7,8 @@
 """Render UVs: Compare texture boundary modes
 ================================================================================
 
-Here we map a three-dimensional plate-with-hole mesh beyond a source texture's
-pixel bounds. We compare a seamless periodic texture, a non-periodic texture
+Here we map a three dimensional plate with hole mesh beyond a source texture's
+pixel bounds. We compare a seamless periodic texture, a non periodic texture
 whose repeated edges form a seam, and the default saturated boundary mode.
 """
 
@@ -23,9 +23,9 @@ from pyvale import render
 from pyvale.examples.renderuvs.tools import render_uv_example
 
 # %%
-# 1. Load and orient the packaged plate-with-hole mesh
+# 1. Load and orient the packaged plate with hole mesh
 # ------------------------------------------------------------
-# The native PyVale CSV loader provides the three-dimensional surface mesh.
+# The native PyVale CSV loader provides the three dimensional surface mesh.
 # Rotating about its centre makes the hole and exposed side edges legible.
 data_dir = dataset.riley_platehole_csv_case_path()
 simulation = io.SimLoaderByField(
@@ -67,10 +67,10 @@ camera = render.cam_frame_mesh(
 image_leng_per_px = render.cam_calc_leng_per_px(camera)
 
 # %%
-# 3. Build periodic and non-periodic source textures
+# 3. Build periodic and non periodic source textures
 # ----------------------------------------------------------------------
 # A periodic checker repeats without a seam. A horizontal ramp is deliberately
-# non-periodic: its bright right edge meets its dark left edge when tiled, so
+# non periodic: its bright right edge meets its dark left edge when tiled, so
 # the boundary is unmistakable in the rendered result.
 tile_size = 128
 tile_columns, tile_rows = np.meshgrid(
@@ -127,7 +127,7 @@ saturated_mapping = render.uv_map_planar_scaled(
 )
 
 # %%
-# 5. Render the three texture-boundary cases
+# 5. Render the three texture boundary cases
 # ----------------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1c_uv_pixel_region"
 
@@ -147,15 +147,15 @@ for variant_name, mapping in (
     )
     render_uv_example(textured_mesh, camera, output_dir / variant_name)
 
-print(f"Rendered the texture-boundary comparisons to {output_dir}")
+print(f"Rendered the texture boundary comparisons to {output_dir}")
 print(
     f"Image scale={image_leng_per_px:.6g} length/px, "
     f"seamless tiles={seamless_mapping.tile_counts}, "
-    f"non-periodic tiles={seamed_mapping.tile_counts}"
+    f"non periodic tiles={seamed_mapping.tile_counts}"
 )
 
 # %%
-# From left to right: a periodic texture tiles seamlessly, a non-periodic source
+# From left to right: a periodic texture tiles seamlessly, a non periodic source
 # exposes its repeated edge, and saturation stretches the edge pixels wherever
 # the requested mapping lies beyond the source image.
 #

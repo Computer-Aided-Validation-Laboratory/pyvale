@@ -7,20 +7,20 @@
 """
 Riley: Speckle sphere
 ================================================================================
-Here we render a sphere mesh of tri6 element with a speckle pattern texture 
+Here we render a sphere mesh of TRI6 elements with a speckle pattern texture 
 shader. 
 
 Texture shaders use a 2D image and wrap this around a 3D object using normalised
-coordinates called uv's in computer graphics. The texture shader itself then 
-uses these uv coordinates to map into and interpolate the colour for a pixel.
+coordinates called UVs in computer graphics. The texture shader itself then 
+uses these UV coordinates to map into and interpolate the colour for a pixel.
 
 The quality of the reconstruction is dependent on the resolution of the texture
 relative to the final camera image size, the texture sampling function and the
-pixel integration parameters (i.e pixel sub-sampling).  
+pixel integration parameters (i.e. pixel subsampling).  
 
-It is common to want to map a speckle pattern onto a 3D surface using uv
+It is common to want to map a speckle pattern onto a 3D surface using UV
 coordinates for digital image correlation simulation. We provide a set of 
-examples on uv mapping for common cases in the "Render UVs" example gallery.
+examples on UV mapping for common cases in the "Render UVs" example gallery.
 """
 
 from pathlib import Path

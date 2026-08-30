@@ -133,13 +133,13 @@ config.background_value = 128.0
 renderer = render.Riley(config, output_dir)
 
 # %%
-# 6. Build the scene and render every calibration-target pose
+# 6. Build the scene and render every calibration target pose
 # ------------------------------------------------------------
 
 scene = render.Scene3D(meshes=[mesh], cameras=[camera_0, camera_1]) 
 result = renderer.render(scene)
 
-print(f"Rendered stereo-calibration images to {output_dir}")
+print(f"Rendered stereo calibration images to {output_dir}")
 print(f"{result.images=}")
 
 # %%

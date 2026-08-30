@@ -10,7 +10,7 @@
 Here we render a single triangle with Riley through the unified pyvale render
 module.
 
-The common workflow for a rendering simulation is pyvale is:
+The common workflow for a rendering simulation in pyvale is:
 1. Load and/or create meshes assigning shaders and displacement fields
 2. Create cameras and position them in the scene
 3. Set render configuration and use this to build the render backend

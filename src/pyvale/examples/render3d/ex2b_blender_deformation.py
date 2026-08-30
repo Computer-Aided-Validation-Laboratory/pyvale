@@ -35,7 +35,7 @@ from pyvale.sensorsim import scale_length_units
 # %%
 # 1. Load simulation data and build a textured surface mesh
 # --------------------------------------------------------------------------
-# Load the mechanical plate-with-a-hole simulation in Exodus format (``*.e``).
+# Load the mechanical plate with a hole simulation in Exodus format (``*.e``).
 data_path = dataset.render_mechanical_3d_path()
 sim_data = ExodusLoader(data_path).load_all_sim_data()
 
@@ -52,7 +52,7 @@ surface_mesh = render.mesh3d_from_simdata(
 # 2. Select deformation timesteps
 # --------------------------------------------------------------------------
 # The simulation contains 11 displacement timesteps. Here we select a
-# 3-frame subset ([undeformed, mid-load, peak-load]) for fast tutorial
+# 3 frame subset ([undeformed, mid load, peak load]) for fast tutorial
 # execution. To render all simulation frames, omit this slice:
 # surface_mesh.displacements = surface_mesh.displacements
 if surface_mesh.displacements is not None:

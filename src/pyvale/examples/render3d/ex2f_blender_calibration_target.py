@@ -4,7 +4,7 @@
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
 """
-Blender: Calibration Target Rdner
+Blender: Calibration Target Render
 ================================================================================
 
 This example demonstrates how to render a physical calibration target swept

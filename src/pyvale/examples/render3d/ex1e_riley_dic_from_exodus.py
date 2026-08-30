@@ -8,7 +8,7 @@
 Riley: DIC UQ from Exodus
 ================================================================================
 Here we render the same plate with a hole in tension from the last example but 
-we load the data from an exodus file and generate the uv's using Riley's tools.
+we load the data from an exodus file and generate the UVs using Riley's tools.
 """
 
 import copy
@@ -159,7 +159,7 @@ riley.save_stereo_pair(
     replace(cameras[1], coord_sys=riley.CameraCoordSys.opencv),
 )
 
-print(f"Rendered Exodus-driven DIC images to {output_dir}")
+print(f"Rendered Exodus driven DIC images to {output_dir}")
 print(f"{result.images=}")
 
 # %%

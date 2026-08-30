@@ -9,7 +9,7 @@
 
 This example compares planar texture fitting when the mesh and UV axes are
 aligned, then repeats the comparison after rotating the mesh while leaving the
-UV axes fixed in the camera frame. This separates texture-aspect effects from
+UV axes fixed in the camera frame. This separates texture aspect effects from
 the effect of projecting an oblique target onto fixed UV axes.
 """
 
@@ -24,7 +24,7 @@ from pyvale import render
 from pyvale.examples.renderuvs.tools import render_uv_example
 
 # %%
-# 1. Load the packaged three-dimensional calibration plate
+# 1. Load the packaged three dimensional calibration plate
 # ------------------------------------------------------------
 
 data_dir = dataset.riley_stereocal_case_path()
@@ -42,7 +42,7 @@ base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
 texture = render.image_load(dataset.riley_cal_target_texture_path())
 
 # %%
-# 2. Define the three aspect-preserving fit modes
+# 2. Define the three aspect preserving fit modes
 # ------------------------------------------------------------
 # ``CONTAIN`` preserves the complete projected target while respecting the
 # texture aspect ratio. ``FIT_U`` spans the texture width and derives V from
@@ -71,7 +71,7 @@ rotated_mesh = render.mesh_rotate(
 )
 
 # %%
-# 4. Render both three-mode comparisons
+# 4. Render both three mode comparisons
 # ------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1b_uv_texture_aspect"
 
@@ -115,7 +115,7 @@ for orientation_name, mesh in (
         )
 
 # %%
-# 5. Compare with a physically specified calibration-dot pitch
+# 5. Compare with a physically specified calibration dot pitch
 # ------------------------------------------------------------
 # Unlike the automatic fit modes, this mapping fixes the experimental scale at
 # 1.25 mm per dot pitch using the measured 177.1 texture pixels per pitch. Its
@@ -172,22 +172,22 @@ print(
 print(f"Rendered UV fit variants to {output_dir}")
 
 # %%
-# For the aligned target, contain, fit-U, and fit-V are shown from left to
+# For the aligned target, contain, fit U, and fit V are shown from left to
 # right. The target and UV axes coincide, so this row isolates the behaviour of
-# the three aspect-preserving fit policies.
+# the three aspect preserving fit policies.
 #
 # .. image:: ../../_static/renderuvs_ex1b_uv_texture_aspect_aligned.png
-#    :alt: Contain, fit-U, and fit-V mappings on an axis-aligned plate
+#    :alt: Contain, fit U, and fit V mappings on an axis aligned plate
 #    :width: 1000px
 #    :align: center
 
 # %%
-# The same contain, fit-U, and fit-V order is repeated after rotating the
+# The same contain, fit U, and fit V order is repeated after rotating the
 # physical target. The UV projection axes remain fixed in the camera frame, so
 # the grid now exposes the mismatch between target and UV axes.
 #
 # .. image:: ../../_static/renderuvs_ex1b_uv_texture_aspect_rotated.png
-#    :alt: Contain, fit-U, and fit-V mappings on an oblique plate
+#    :alt: Contain, fit U, and fit V mappings on an oblique plate
 #    :width: 1000px
 #    :align: center
 

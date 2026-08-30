@@ -7,7 +7,7 @@
 """
 Riley: Digital Image Correlation UQ
 ================================================================================
-In this example we render stereo camera images of a speckle pattern applued to
+In this example we render stereo camera images of a speckle pattern applied to
 a plate with a hole loaded in tension. For this case we specifically choose 
 parameters representative of typical stereo DIC setups.
 """

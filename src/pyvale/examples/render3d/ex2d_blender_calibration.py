@@ -18,7 +18,7 @@ Stereo calibration defines:
 
 Workflow:
 1. Define a base perspective camera and construct a convergent stereo system.
-2. Export the ground-truth stereo calibration to YAML and MatchID formats.
+2. Export the ground truth stereo calibration to YAML and MatchID formats.
 3. Reload calibration data to verify parameter fidelity.
 4. Calculate calibration image counts for physical target pose sweeps.
 """
@@ -47,7 +47,10 @@ stereo_angle = 15.0  # degrees
 stereo_cameras = render.stereo_build_faceon(cam_base, stereo_angle)
 cam_0, cam_1 = stereo_cameras
 
-print("Stereo baseline distance (mm):", render.stereo_calc_baseline(cam_0, cam_1))
+print(
+    "Stereo baseline distance (mm):",
+    render.stereo_calc_baseline(cam_0, cam_1),
+)
 print("Stereo rotation (Euler xyz deg):")
 print(render.stereo_calc_angles(cam_0, cam_1).relative_euler_xyz_degrees)
 
@@ -79,9 +82,11 @@ reloaded_0, reloaded_1 = render.stereo_build_from_calibration(
     rot_world_0=cam_base.rot_world,
     focal_length=cam_base.focal_length,
 )
+ext_reloaded = render.stereo_calc_extrinsics(reloaded_0, reloaded_1)
+ext_original = render.stereo_calc_extrinsics(cam_0, cam_1)
 assert np.allclose(
-    render.stereo_calc_extrinsics(reloaded_0, reloaded_1).translation_cam1_in_cam0,
-    render.stereo_calc_extrinsics(cam_0, cam_1).translation_cam1_in_cam0,
+    ext_reloaded.translation_cam1_in_cam0,
+    ext_original.translation_cam1_in_cam0,
 )
 print("Successfully verified round-trip calibration parameters.")
 
