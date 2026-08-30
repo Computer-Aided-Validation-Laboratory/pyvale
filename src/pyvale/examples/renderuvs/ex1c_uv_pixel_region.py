@@ -36,7 +36,9 @@ simulation = io.SimLoaderByField(
     connect_files="connect.csv",
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_all_sim_data()
+
 base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
+
 oriented_mesh = render.mesh_rotate(
     base_mesh,
     Rotation.from_euler("xyz", (0.0, 22.0, 8.0), degrees=True),
@@ -45,7 +47,7 @@ oriented_mesh = render.mesh_rotate(
 
 # %%
 # 2. Build the experimental camera and calculate its image scale
-# ------------------------------------------------------------
+# ----------------------------------------------------------------------
 camera = render.Camera(
     pixels_num=np.array((1792, 1120)),
     pixels_size=np.array((5.5e-6, 5.5e-6)),
@@ -55,16 +57,18 @@ camera = render.Camera(
     focal_length=35.0e-3,
     subsample=4,
 )
+
 camera = render.cam_frame_mesh(
     camera,
     oriented_mesh,
     fov_scale=render.cam_coverage_to_fov_scale(0.90),
 )
+
 image_leng_per_px = render.cam_calc_leng_per_px(camera)
 
 # %%
 # 3. Build periodic and non-periodic source textures
-# ------------------------------------------------------------
+# ----------------------------------------------------------------------
 # A periodic checker repeats without a seam. A horizontal ramp is deliberately
 # non-periodic: its bright right edge meets its dark left edge when tiled, so
 # the boundary is unmistakable in the rendered result.
@@ -80,7 +84,7 @@ nonperiodic_texture = np.tile(ramp, (tile_size, 1))
 
 # %%
 # 4. Define a physical feature size and cross the texture boundary
-# ------------------------------------------------------------
+# ----------------------------------------------------------------------
 # The checker has 16 texture pixels per square. Requesting 16 image pixels per
 # square and using the camera scale defines its physical size. Moving the
 # mapping centre close to the right edge guarantees that the plate crosses a
@@ -100,6 +104,7 @@ seamless_mapping = render.uv_map_planar_scaled(
     texture_center_px=np.array((0.90 * tile_size, 0.50 * tile_size)),
     bounds=render.EUVBounds.TILED,
 )
+
 seamed_mapping = render.uv_map_planar_scaled(
     oriented_mesh.coords,
     nonperiodic_texture,
@@ -110,6 +115,7 @@ seamed_mapping = render.uv_map_planar_scaled(
     ),
     bounds=render.EUVBounds.TILED,
 )
+
 saturated_mapping = render.uv_map_planar_scaled(
     oriented_mesh.coords,
     nonperiodic_texture,
@@ -122,7 +128,7 @@ saturated_mapping = render.uv_map_planar_scaled(
 
 # %%
 # 5. Render the three texture-boundary cases
-# ------------------------------------------------------------
+# ----------------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1c_uv_pixel_region"
 
 for variant_name, mapping in (

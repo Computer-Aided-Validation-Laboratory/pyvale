@@ -8,10 +8,11 @@
 #================================================================================
 """
 Stereo DIC and strain calculation of a plate with a hole
----------------------
+--------------------------------------------------------
 
 This example demonstrates how to perform stereo DIC using pyvale. The example
-uses synthetic images generated using `Riley <https://github.com/Computer-Aided-Validation-Laboratory/riley-raster>`_
+uses synthetic images generated using
+`Riley <https://github.com/Computer-Aided-Validation-Laboratory/riley-raster>`_
 from a known calibration and deformation field.
 The calibration parameters are loaded from a text file, and the DIC calculation
 is performed on the reference and deformed images.

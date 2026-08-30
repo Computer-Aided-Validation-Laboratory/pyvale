@@ -12,7 +12,7 @@ from pyvale.mooseherder.availability import BackendAvailability, moose_availabil
 
 
 class MooseRunner(SimRunner):
-    """Used to run MOOSE models (*.i) from python."""
+    """Used to run MOOSE models (``*.i``) from python."""
 
     __slots__ = ("_config","_n_threads","_n_tasks","_redirect_stdout",
                  "_arg_list","_input_path")
@@ -166,7 +166,7 @@ class MooseRunner(SimRunner):
         Parameters
         ----------
         input_file : Path
-            full path and name of *.i MOOSE input script.
+            full path and name of ``*.i`` MOOSE input script.
 
         Returns
         -------

@@ -34,8 +34,10 @@ simulation = io.SimLoaderByField(
     connect_files="connect.csv",
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_all_sim_data()
+
 base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
 plate_rotation = Rotation.from_euler("xyz", (28.0, -34.0, 12.0), degrees=True)
+
 oriented_mesh = render.mesh_rotate(
     base_mesh,
     plate_rotation,
@@ -44,7 +46,7 @@ oriented_mesh = render.mesh_rotate(
 
 # %%
 # 2. Define the rotated surface plane and generate UV coordinates
-# ------------------------------------------------------------
+# ----------------------------------------------------------------------
 # The original plate face lies in XY. Rotating its normal and local V axis
 # provides the arbitrary-plane definition without manually deriving a basis.
 plane = render.UVPlane(
@@ -52,17 +54,21 @@ plane = render.UVPlane(
     origin=render.mesh_center(oriented_mesh),
     up=plate_rotation.apply(np.array((0.0, 1.0, 0.0))),
 )
+
 texture = render.image_load(dataset.riley_cal_target_texture_path())
+
 texture_px_per_leng = render.uv_calc_texture_px_per_leng(
     texture_px_per_feature=177.1,
     feature_leng=1.25e-3,
 )
+
 mapping = render.uv_map_planar_scaled(
     oriented_mesh.coords,
     texture,
     texture_px_per_leng,
     plane=plane,
 )
+
 textured_mesh = render.Mesh3D(
     element_type=oriented_mesh.element_type,
     coords=oriented_mesh.coords,
@@ -75,7 +81,7 @@ textured_mesh = render.Mesh3D(
 
 # %%
 # 3. Render the arbitrary-plane mapping
-# ------------------------------------------------------------
+# ----------------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1d_uv_arbitrary_plane"
 camera = render.Camera(
     pixels_num=np.array((1792, 1120)),

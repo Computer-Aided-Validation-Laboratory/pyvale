@@ -1,10 +1,8 @@
-'''
-================================================================================
-pyvale: the python validation engine
-License: MIT
-Copyright (C) 2024 The Computer Aided Validation Team
-================================================================================
-'''
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2024 The Computer Aided Validation Team
+# ==============================================================================
 from typing import Any
 from dataclasses import dataclass
 from pathlib import Path

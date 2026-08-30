@@ -70,7 +70,7 @@ def _data_path(*parts: str) -> Path:
 
 
 def sim_case_input_file_path(case_num: int) -> Path:
-    """Gets the path to MOOSE input file (*.i) for a particular simulation
+    """Gets the path to MOOSE input file (``*.i``) for a particular simulation
     case.
 
     Parameters
@@ -82,7 +82,7 @@ def sim_case_input_file_path(case_num: int) -> Path:
     Returns
     -------
     Path
-        Path object to the MOOSE *.i file for the selected simulation case.
+        Path object to the MOOSE ``*.i`` file for the selected simulation case.
 
     Raises
     ------
@@ -101,10 +101,10 @@ def sim_case_input_file_path(case_num: int) -> Path:
 
 
 def sim_case_gmsh_file_path(case_num: int) -> Path | None:
-    """Gets the path to Gmsh input file (\*.geo) for a particular simulation
+    """Gets the path to Gmsh input file (``*.geo``) for a particular simulation
     case. Note that not all simulation cases use Gmsh for geometry and mesh
     generation. If the specified simulation case does not have an associated
-    Gmsh \*.geo file. In this case 'None' is returned
+    Gmsh ``*.geo`` file, 'None' is returned.
 
     Parameters
     ----------
@@ -115,8 +115,8 @@ def sim_case_gmsh_file_path(case_num: int) -> Path | None:
     Returns
     -------
     Path | None
-        Path object to the Gmsh *.geo file for the selected simulation case.
-        Returns None if there is no *.geo for this simulation case.
+        Path object to the Gmsh ``*.geo`` file for the selected simulation case.
+        Returns None if there is no ``*.geo`` for this simulation case.
 
     Raises
     ------
@@ -141,12 +141,12 @@ def sim_case_gmsh_file_path(case_num: int) -> Path | None:
 
 def dic_pattern_5mpx_path() -> Path:
     """Path to a 5 mega-pixel speckle pattern image (2464 x 2056 pixels)
-    with 8 bit resolution stored as a *.tiff. Speckles are sampled by
+    with 8 bit resolution stored as a ``*.tiff``. Speckles are sampled by
     5 pixels. A gaussian blur has been applied to the image to remove sharp
     transitions from black to white.
 
     Path
-        Path to the *.tiff file containing the speckle pattern.
+        Path to the ``*.tiff`` file containing the speckle pattern.
     """
     return _data_path(
         "render", "patterns", "optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff",
@@ -184,7 +184,7 @@ def thermal_3d_path() -> Path:
 
     The simulation parameters can be found in the corresponding MOOSE input
     file: case16.i which can be retrieved using `sim_case_input_file_path`
-    in this class. Note that this case uses a Gmsh *.geo file for geometry
+    in this class. Note that this case uses a Gmsh ``*.geo`` file for geometry
     and mesh creation.
 
     Returns
@@ -203,7 +203,7 @@ def mechanical_2d_path() -> Path:
 
     The simulation parameters can be found in the corresponding MOOSE input
     file: case17.i which can be retrieved using `sim_case_input_file_path`
-    in this class. Note that this case uses a Gmsh *.geo file for geometry
+    in this class. Note that this case uses a Gmsh ``*.geo`` file for geometry
     and mesh creation.
 
     Returns

@@ -73,7 +73,7 @@ class GmshRunner(SimRunner):
         Returns
         -------
         Path | None
-            path to the gmsh *.geo file.
+            path to the gmsh ``*.geo`` file.
 
         """
         return self._input_path
@@ -85,7 +85,7 @@ class GmshRunner(SimRunner):
         Parameters
         ----------
         input_file : Path
-            Full path to the gmsh *.geo input file.
+            Full path to the gmsh ``*.geo`` input file.
 
         Returns
         -------

@@ -7,22 +7,21 @@
 #================================================================================
 """
 Stereo Calibration + DIC
----------------------
+------------------------
 
 This example detects a calibration-dot target in synchronised stereo images
 and uses the detected correspondences to calibrate the two cameras.
 
-**The required calibration images are not distributed with the package to keep things lightweight. 
-** 
-`here <https://github.com/Computer-Aided-Validation-Laboratory/calibration-example-data>`_.
+The required calibration images are not distributed with the package to keep
+things lightweight. You can download them `here <https://github.com/Computer-Aided-Validation-Laboratory/calibration-example-data>`_.
 
 **Make sure to download/clone the repository and unzip the calibration images.
 For this example we'll assume you've cloned the images to your current working
 directory.**
 
-Currently, the DIC module in pyvale only supports the below type of calibration targets (If there's
-a specific type of calibration target you would like adding then please get in touch 
-and we'll see what we can do).
+Currently, the DIC module in pyvale only supports the below type of calibration
+targets (If there's a specific type of calibration target you would like adding
+then please get in touch and we'll see what we can do).
 """
 
 # %%

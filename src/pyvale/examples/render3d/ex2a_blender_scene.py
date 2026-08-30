@@ -33,7 +33,7 @@ from pyvale.sensorsim import scale_length_units
 # %%
 # 1. Load simulation data and build a textured surface mesh
 # --------------------------------------------------------------------------
-# Load the mechanical plate-with-a-hole simulation in Exodus format (*.e).
+# Load the mechanical plate-with-a-hole simulation in Exodus format (``*.e``).
 # All geometry and displacements are scaled to millimetres for Blender.
 # Then convert the volumetric SimData into a surface Mesh3D. Volumetric meshes
 # are skinned and conventions are enforced automatically.

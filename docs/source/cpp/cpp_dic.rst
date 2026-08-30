@@ -6,7 +6,6 @@ dic
    :maxdepth: 1
 
    dic/diccoarsefine.rst
-   dic/diccoursefine.rst
    dic/dicfourier.rst
    dic/dicinterpBspline.rst
    dic/dicinterpfactory.rst

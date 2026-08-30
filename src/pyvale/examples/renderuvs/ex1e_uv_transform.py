@@ -60,22 +60,16 @@ camera = render.cam_frame_mesh(
 )
 
 # %%
-# 2. Generate a physically pitched calibration-target mapping
+# 2. Fit one calibration target over the rabbit
 # ------------------------------------------------------------
-image_leng_per_px = render.cam_calc_leng_per_px(camera)
-feature_pitch = 1.25e-3
-texture_px_per_feature_pitch = 177.1
-texture_px_per_leng = render.uv_calc_texture_px_per_leng(
-    texture_px_per_feature_pitch,
-    feature_pitch,
-)
-original_mapping = render.uv_map_planar_scaled(
+# ``CONTAIN`` preserves the calibration texture's aspect ratio and fits one
+# complete target inside the rabbit's planar XY extent. This keeps the grid
+# legible and avoids repeating the calibration image across the mesh.
+original_uvs = render.uv_project_planar(
     oriented_mesh.coords,
-    texture,
-    texture_px_per_leng,
-    bounds=render.EUVBounds.TILED,
+    texture_shape=texture.shape[:2],
+    fit=render.EUVFit.CONTAIN,
 )
-original_uvs = original_mapping.uvs
 
 # %%
 # 3. Apply a combined transformation
@@ -105,17 +99,15 @@ for variant_name, uvs in (
         connectivity=oriented_mesh.connectivity,
         shader=render.RileyTextureShader(
             uvs=uvs,
-            texture=original_mapping.texture,
+            texture=texture,
         ),
     )
     render_uv_example(textured_mesh, camera, output_dir / variant_name)
 
 print(f"Rendered the original and combined UV transform to {output_dir}")
 print(
-    f"Original feature pitch={feature_pitch:.6g} length and "
-    f"{render.uv_calc_image_px_per_feature(feature_pitch, image_leng_per_px):.2f} "
-    "image px; the transformed calibration grid makes the rotation, "
-    "translation, and scale visually explicit"
+    "One complete calibration target is fitted to the rabbit; the transformed "
+    "grid makes the rotation, translation, and scale visually explicit"
 )
 
 # %%

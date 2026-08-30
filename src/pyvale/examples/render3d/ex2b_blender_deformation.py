@@ -35,7 +35,7 @@ from pyvale.sensorsim import scale_length_units
 # %%
 # 1. Load simulation data and build a textured surface mesh
 # --------------------------------------------------------------------------
-# Load the mechanical plate-with-a-hole simulation in Exodus format (*.e).
+# Load the mechanical plate-with-a-hole simulation in Exodus format (``*.e``).
 data_path = dataset.render_mechanical_3d_path()
 sim_data = ExodusLoader(data_path).load_all_sim_data()
 

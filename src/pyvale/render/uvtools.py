@@ -3,7 +3,7 @@
 # License: MIT
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ============================================================================
-"""Renderer-independent tools for generating and transforming nodal UVs.
+"""Renderer independent tools for generating and transforming nodal UVs.
 
 Texture shapes follow NumPy convention, ``(height, width)``. Pixel coordinates
 refer to pixel centres, so the final pixel centres are at ``width - 1`` and
@@ -20,7 +20,7 @@ import numpy as np
 
 
 class EUVPlane(Enum):
-    """Axis-aligned plane used for planar UV projection."""
+    """Axis aligned plane used for planar UV projection."""
 
     XY = "xy"
     YZ = "yz"
@@ -223,6 +223,42 @@ def _bounds(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return lower, upper, extent
 
 
+
+def _fit_projected(
+    projected: np.ndarray,
+    pixel_bounds: tuple[float, float, float, float],
+    fit: EUVFit,
+) -> np.ndarray:
+    """Fit projected coordinates into pixel bounds."""
+
+    lower, upper, extent = _bounds(projected)
+    bounds = _finite_array(pixel_bounds, "pixel_bounds", (4,))
+    target_lower = bounds[:2]
+    target_upper = bounds[2:]
+    target_extent = target_upper - target_lower
+
+    if np.any(target_extent <= 0.0):
+        raise ValueError("pixel_bounds upper bounds must exceed lower bounds.")
+
+    scale_axes = target_extent / extent
+
+    if fit is EUVFit.CONTAIN:
+        scale = np.repeat(np.min(scale_axes), 2)
+    elif fit is EUVFit.FIT_U:
+        scale = np.repeat(scale_axes[0], 2)
+    elif fit is EUVFit.FIT_V:
+        scale = np.repeat(scale_axes[1], 2)
+    elif fit is EUVFit.STRETCH:
+        scale = scale_axes
+    else:
+        raise ValueError(f"Unsupported UV fit mode: {fit!r}.")
+
+    source_center = 0.5 * (lower + upper)
+    target_center = 0.5 * (target_lower + target_upper)
+
+    return target_center + (projected - source_center) * scale
+
+
 def uv_from_pixels(
     pixel_coords: np.ndarray,
     texture_shape: tuple[int, int],
@@ -265,41 +301,6 @@ def uv_to_pixels(
         raise ValueError(f"Unsupported UV origin: {origin!r}.")
 
     return np.ascontiguousarray(pixels)
-
-
-def _fit_projected(
-    projected: np.ndarray,
-    pixel_bounds: tuple[float, float, float, float],
-    fit: EUVFit,
-) -> np.ndarray:
-    """Fit projected coordinates into pixel bounds."""
-
-    lower, upper, extent = _bounds(projected)
-    bounds = _finite_array(pixel_bounds, "pixel_bounds", (4,))
-    target_lower = bounds[:2]
-    target_upper = bounds[2:]
-    target_extent = target_upper - target_lower
-
-    if np.any(target_extent <= 0.0):
-        raise ValueError("pixel_bounds upper bounds must exceed lower bounds.")
-
-    scale_axes = target_extent / extent
-
-    if fit is EUVFit.CONTAIN:
-        scale = np.repeat(np.min(scale_axes), 2)
-    elif fit is EUVFit.FIT_U:
-        scale = np.repeat(scale_axes[0], 2)
-    elif fit is EUVFit.FIT_V:
-        scale = np.repeat(scale_axes[1], 2)
-    elif fit is EUVFit.STRETCH:
-        scale = scale_axes
-    else:
-        raise ValueError(f"Unsupported UV fit mode: {fit!r}.")
-
-    source_center = 0.5 * (lower + upper)
-    target_center = 0.5 * (target_lower + target_upper)
-
-    return target_center + (projected - source_center) * scale
 
 
 def uv_project_planar_pixels(
@@ -467,18 +468,22 @@ def uv_map_planar_scaled(
     """
     coords_in = _coords_array(coords)
     texture_in = np.asarray(texture)
+
     if texture_in.ndim not in (2, 3):
         raise ValueError("texture must have shape (height, width[, channels]).")
 
     texture_shape = (int(texture_in.shape[0]), int(texture_in.shape[1]))
     width, height = _texture_size(texture_shape)
     scale = np.asarray(texture_px_per_leng, dtype=np.float64)
+
     if scale.ndim == 0:
         scale = np.repeat(scale, 2)
+
     if scale.shape != (2,) or not np.isfinite(scale).all():
         raise ValueError(
             "texture_px_per_leng must be finite and scalar or shape (2,)."
         )
+
     if np.any(scale <= 0.0):
         raise ValueError("texture_px_per_leng must be positive.")
 
@@ -486,6 +491,7 @@ def uv_map_planar_scaled(
     projected_center = 0.5 * (
         np.min(projected, axis=0) + np.max(projected, axis=0)
     )
+
     if texture_center_px is None:
         texture_center = np.array((0.5 * (width - 1.0), 0.5 * (height - 1.0)))
     else:
@@ -521,10 +527,13 @@ def uv_map_planar_scaled(
     tile_lower = np.floor(np.min(pixels, axis=0) / source_size).astype(np.int64)
     tile_upper = np.floor(np.max(pixels, axis=0) / source_size).astype(np.int64)
     tile_counts_array = tile_upper - tile_lower + 1
+
     tile_u, tile_v = (int(value) for value in tile_counts_array)
     repetitions = (tile_v, tile_u) + (1,) * (texture_in.ndim - 2)
+
     tiled_texture = np.tile(texture_in, repetitions)
     tiled_pixels = pixels - tile_lower * source_size
+
     tiled_uvs = uv_from_pixels(
         tiled_pixels,
         (int(tiled_texture.shape[0]), int(tiled_texture.shape[1])),

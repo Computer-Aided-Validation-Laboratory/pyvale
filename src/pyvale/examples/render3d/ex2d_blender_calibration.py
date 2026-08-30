@@ -102,6 +102,6 @@ print(f"Standard calibration sweep image count: {total_images}")
 # %%
 # The generated Pyvale calibration file is embedded below.
 #
-# .. literalinclude:: ../../../../_static/render3d_ex2d_blender_calibration.yaml
+# .. literalinclude:: ../../_static/render3d_ex2d_blender_calibration.yaml
 #    :language: yaml
 #    :caption: Generated stereo camera calibration

@@ -50,7 +50,7 @@ import pyvale.data as dataset
 # 1. Load physics simulation data
 # -------------------------------
 # Here we load a MOOSE finite element simulation dataset that comes packaged
-# with `pyvale` in exodus (*.e) format. `pyvale` loads simulations into a
+# with `pyvale` in exodus (``*.e``) format. `pyvale` loads simulations into a
 # `SimData` object  which contains the nodal coordinates, simulation time steps,
 # the nodal physics variables and optionally the element connectivity tables.
 #
@@ -66,7 +66,7 @@ sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
                                                
 #%%
 # .. note::
-#   You can load your own exodus (*.e) file here by changing the path or you can
+#   You can load your own exodus (``*.e``) file here by changing the path or you can
 #   load your own simulation data from delimited plain text files or numpy npy
 #   files. See the advanced example 'Bring your own simulation data'.
 
@@ -136,7 +136,7 @@ sens_array.set_error_chain(err_chain)
 # are resampled. However, if we call `.get_measurements()` then we are returned
 # the previously simulated values. Throughout `pyvale` methods prefixed with
 # `get` can be expected to return previous values if they exist whereas `sim`
-# or `calc `methods will actually perform a simulation or calculation.
+# or `calc` methods will actually perform a simulation or calculation.
 measurements: np.ndarray = sens_array.sim_measurements()
 
 truth: np.ndarray = sens_array.get_truth()

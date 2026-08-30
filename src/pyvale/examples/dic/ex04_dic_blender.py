@@ -1,4 +1,5 @@
-"""Blender-rendered DIC
+"""
+Blender-rendered DIC
 ====================
 
 Render a deforming finite-element surface with ``render.Blender`` and correlate

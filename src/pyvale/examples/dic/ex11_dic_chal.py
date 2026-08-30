@@ -8,7 +8,7 @@
 #================================================================================
 """
 Stereo Reconstruction from the DIC Challenge 1.0
----------------------
+------------------------------------------------
 
 For this exampe we'll reconstruct the bespoke sample used in the first iteration
 of the `Stereo DIC challenge <https://link.springer.com/article/10.1007/s11340-024-01077-7>`_. 

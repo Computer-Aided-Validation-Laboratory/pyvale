@@ -77,7 +77,7 @@ roi_pos = render.mesh_center(mesh)
 
 # %%
 # 3. Create the stereo pair and save it in Riley's exchange format
-# ------------------------------------------------------------
+# ----------------------------------------------------------------------
 pixels_num = (2464, 2056)
 pixels_size = (3.45e-6, 3.45e-6)
 focal_length = 50.0e-3
