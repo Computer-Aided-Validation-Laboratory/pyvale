@@ -32,6 +32,7 @@ from .meshconv import (MeshCheckCode,
                         extract_surf_between)
 from .simloaderbytime import SimLoaderByTime
 from .simloaderbyfield import SimLoaderByField
+from .meshloader import MeshLoader
 from .simsaver import (ESaveArray, 
                        save_array, 
                        ESaveFieldOpt,

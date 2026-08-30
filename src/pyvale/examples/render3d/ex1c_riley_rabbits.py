@@ -32,14 +32,12 @@ def load_rabbit(
     """Load one static rabbit mesh and its UV coordinates."""
     data_dir = dataset.riley_rabbit_case_path(rabbit, topology)
 
-    simulation = io.SimLoaderByField(
+    simulation = io.MeshLoader(
         load_dir=data_dir,
         coords_file="coords.csv",
-        time_step_file=None,
-        node_field_files=None,
         connect_files="connectivity.csv",
         load_opts=io.SimLoadOpts(coord_header=None),
-    ).load_all_sim_data()
+    ).load_mesh()
 
     uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 

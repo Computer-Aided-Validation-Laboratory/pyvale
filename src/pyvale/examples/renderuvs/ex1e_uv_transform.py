@@ -28,14 +28,12 @@ from pyvale.examples.renderuvs.tools import render_uv_example
 # The asymmetric rabbit makes UV rotations and translations easier to recognise
 # than a rectangular plate, so it remains the best mesh for this comparison.
 data_dir = dataset.riley_rabbit_case_path("riley", render.EElementType.QUAD4)
-simulation = io.SimLoaderByField(
+simulation = io.MeshLoader(
     load_dir=data_dir,
     coords_file="coords.csv",
-    time_step_file=None,
-    node_field_files=None,
     connect_files="connectivity.csv",
     load_opts=io.SimLoadOpts(coord_header=None),
-).load_all_sim_data()
+).load_mesh()
 base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
 oriented_mesh = render.mesh_rotate(
     base_mesh,

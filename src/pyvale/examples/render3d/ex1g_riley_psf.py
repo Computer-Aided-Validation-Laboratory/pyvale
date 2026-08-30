@@ -24,14 +24,12 @@ from pyvale import render
 # 1. Load the mesh and assign a texture shader
 # ------------------------------------------------------------
 data_dir = dataset.riley_sphere200_case_path()
-simulation = io.SimLoaderByField(
+simulation = io.MeshLoader(
     load_dir=data_dir,
     coords_file="coords.csv",
-    time_step_file=None,
-    node_field_files=None,
     connect_files="connect.csv",
     load_opts=io.SimLoadOpts(coord_header=None),
-).load_all_sim_data()
+).load_mesh()
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 texture = render.image_load(dataset.riley_speckle_texture_path())
