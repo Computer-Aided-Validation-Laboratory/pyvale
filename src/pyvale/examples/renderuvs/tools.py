@@ -7,36 +7,17 @@
 
 from pathlib import Path
 
-import numpy as np
 import riley
-from scipy.spatial.transform import Rotation
 
 from pyvale import render
 
 
 def render_uv_example(
     mesh: render.Mesh3D,
+    camera: render.Camera,
     output_dir: Path,
-    camera_rotation: Rotation,
 ) -> render.RenderResult:
-    """Render one textured UV example with a camera framed around its mesh.
-
-    The camera follows the supplied view rotation, looks at the mesh centre,
-    and is positioned with :func:`render.cam_frame_mesh` to fill 90 percent
-    of the frame.
-    """
-    camera = render.Camera(
-        pixels_num=np.array((480, 320)),
-        pixels_size=np.array((8.0e-6, 8.0e-6)),
-        pos_world=np.zeros(3),
-        rot_world=camera_rotation,
-        roi_cent_world=render.mesh_center(mesh),
-        focal_length=35.0e-3,
-        subsample=4,
-    )
-
-    fov_scale = render.cam_coverage_to_fov_scale(0.90)
-    camera = render.cam_frame_mesh(camera, mesh, fov_scale=fov_scale)
+    """Render one prepared textured mesh and camera for the UV examples."""
 
     config = riley.create_raster_config(
         num_frames=1,

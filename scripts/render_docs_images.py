@@ -36,11 +36,12 @@ class ImageArtifact:
 
     example: str
     sources: tuple[str, ...]
+    output_stem: str | None = None
 
     @property
     def filename(self) -> str:
         """Return the canonical documentation image filename."""
-        return f"{self.example}.png"
+        return f"{self.output_stem or self.example}.png"
 
 
 # Sources are explicit by design: this records the representative variant,
@@ -110,19 +111,43 @@ IMAGE_ARTIFACTS = (
             "yz/cam0_frame0_field0.bmp",
             "xz/cam0_frame0_field0.bmp",
         ),
+        "renderuvs_ex1a_uv_planar_axes_axes",
+    ),
+    ImageArtifact(
+        "renderuvs_ex1a_uv_planar_axes",
+        ("speckle/cam0_frame0_field0.bmp",),
+        "renderuvs_ex1a_uv_planar_axes_speckle",
     ),
     ImageArtifact(
         "renderuvs_ex1b_uv_texture_aspect",
         (
-            "contain/cam0_frame0_field0.bmp",
-            "fit_u/cam0_frame0_field0.bmp",
-            "fit_v/cam0_frame0_field0.bmp",
-            "stretch/cam0_frame0_field0.bmp",
+            "aligned/contain/cam0_frame0_field0.bmp",
+            "aligned/fit_u/cam0_frame0_field0.bmp",
+            "aligned/fit_v/cam0_frame0_field0.bmp",
         ),
+        "renderuvs_ex1b_uv_texture_aspect_aligned",
+    ),
+    ImageArtifact(
+        "renderuvs_ex1b_uv_texture_aspect",
+        (
+            "rotated/contain/cam0_frame0_field0.bmp",
+            "rotated/fit_u/cam0_frame0_field0.bmp",
+            "rotated/fit_v/cam0_frame0_field0.bmp",
+        ),
+        "renderuvs_ex1b_uv_texture_aspect_rotated",
+    ),
+    ImageArtifact(
+        "renderuvs_ex1b_uv_texture_aspect",
+        ("physical_pitch/cam0_frame0_field0.bmp",),
+        "renderuvs_ex1b_uv_texture_aspect_physical_pitch",
     ),
     ImageArtifact(
         "renderuvs_ex1c_uv_pixel_region",
-        ("region/cam0_frame0_field0.bmp",),
+        (
+            "seamless/cam0_frame0_field0.bmp",
+            "tiled_seam/cam0_frame0_field0.bmp",
+            "saturated/cam0_frame0_field0.bmp",
+        ),
     ),
     ImageArtifact(
         "renderuvs_ex1d_uv_arbitrary_plane",

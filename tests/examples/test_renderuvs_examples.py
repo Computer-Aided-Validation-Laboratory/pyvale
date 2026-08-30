@@ -24,12 +24,12 @@ _RENDER_UV_EXAMPLES = (
     ),
     pytest.param(
         "renderuvs/ex1b_uv_texture_aspect.py",
-        "pyvale-output/renderuvs_ex1b_uv_texture_aspect/contain/"
+        "pyvale-output/renderuvs_ex1b_uv_texture_aspect/aligned/contain/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(
         "renderuvs/ex1c_uv_pixel_region.py",
-        "pyvale-output/renderuvs_ex1c_uv_pixel_region/region/"
+        "pyvale-output/renderuvs_ex1c_uv_pixel_region/tiled_seam/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(

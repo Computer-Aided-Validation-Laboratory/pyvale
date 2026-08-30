@@ -53,26 +53,57 @@ plane = render.UVPlane(
     up=plate_rotation.apply(np.array((0.0, 1.0, 0.0))),
 )
 texture = render.image_load(dataset.riley_cal_target_texture_path())
-uvs = render.uv_project_planar_centered(
+texture_px_per_leng = render.uv_calc_texture_px_per_leng(
+    texture_px_per_feature=177.1,
+    feature_leng=1.25e-3,
+)
+mapping = render.uv_map_planar_scaled(
     oriented_mesh.coords,
-    texture.shape[:2],
-    span=0.9,
+    texture,
+    texture_px_per_leng,
     plane=plane,
 )
 textured_mesh = render.Mesh3D(
     element_type=oriented_mesh.element_type,
     coords=oriented_mesh.coords,
     connectivity=oriented_mesh.connectivity,
-    shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+    shader=render.RileyTextureShader(
+        uvs=mapping.uvs,
+        texture=mapping.texture,
+    ),
 )
 
 # %%
 # 3. Render the arbitrary-plane mapping
 # ------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1d_uv_arbitrary_plane"
-render_uv_example(textured_mesh, output_dir / "tilted", Rotation.identity())
+camera = render.Camera(
+    pixels_num=np.array((1792, 1120)),
+    pixels_size=np.array((5.5e-6, 5.5e-6)),
+    pos_world=np.zeros(3),
+    rot_world=Rotation.identity(),
+    roi_cent_world=render.mesh_center(oriented_mesh),
+    focal_length=35.0e-3,
+    subsample=4,
+)
+camera = render.cam_frame_mesh(
+    camera,
+    oriented_mesh,
+    fov_scale=render.cam_coverage_to_fov_scale(0.90),
+)
+render_uv_example(textured_mesh, camera, output_dir / "tilted")
+
+image_leng_per_px = render.cam_calc_leng_per_px(camera)
+image_px_per_feature_pitch = render.uv_calc_image_px_per_feature(
+    1.25e-3,
+    image_leng_per_px,
+)
 
 print(f"Rendered the arbitrary-plane UV mapping to {output_dir}")
+print(
+    f"The 1.25 mm feature pitch is approximately "
+    f"{image_px_per_feature_pitch:.2f} px at the ROI"
+)
 
 # %%
 # The tilted calibration plate is mapped using its rotated local surface plane.

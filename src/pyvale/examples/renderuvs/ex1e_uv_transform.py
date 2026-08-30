@@ -44,14 +44,38 @@ oriented_mesh = render.mesh_rotate(
 )
 texture = render.image_load(dataset.riley_cal_target_texture_path())
 
-# %%
-# 2. Generate the original UV coordinates
-# ------------------------------------------------------------
-original_uvs = render.uv_project_planar_centered(
-    oriented_mesh.coords,
-    texture.shape[:2],
-    span=0.75,
+camera = render.Camera(
+    pixels_num=np.array((1792, 1120)),
+    pixels_size=np.array((5.5e-6, 5.5e-6)),
+    pos_world=np.zeros(3),
+    rot_world=Rotation.identity(),
+    roi_cent_world=render.mesh_center(oriented_mesh),
+    focal_length=35.0e-3,
+    subsample=4,
 )
+camera = render.cam_frame_mesh(
+    camera,
+    oriented_mesh,
+    fov_scale=render.cam_coverage_to_fov_scale(0.90),
+)
+
+# %%
+# 2. Generate a physically pitched calibration-target mapping
+# ------------------------------------------------------------
+image_leng_per_px = render.cam_calc_leng_per_px(camera)
+feature_pitch = 1.25e-3
+texture_px_per_feature_pitch = 177.1
+texture_px_per_leng = render.uv_calc_texture_px_per_leng(
+    texture_px_per_feature_pitch,
+    feature_pitch,
+)
+original_mapping = render.uv_map_planar_scaled(
+    oriented_mesh.coords,
+    texture,
+    texture_px_per_leng,
+    bounds=render.EUVBounds.TILED,
+)
+original_uvs = original_mapping.uvs
 
 # %%
 # 3. Apply a combined transformation
@@ -70,7 +94,6 @@ transformed_uvs = render.uv_transform(original_uvs, transform)
 # 4. Render the original and transformed mappings
 # ------------------------------------------------------------
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1e_uv_transform"
-camera_rotation = Rotation.identity()
 
 for variant_name, uvs in (
     ("original", original_uvs),
@@ -80,11 +103,20 @@ for variant_name, uvs in (
         element_type=oriented_mesh.element_type,
         coords=oriented_mesh.coords,
         connectivity=oriented_mesh.connectivity,
-        shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+        shader=render.RileyTextureShader(
+            uvs=uvs,
+            texture=original_mapping.texture,
+        ),
     )
-    render_uv_example(textured_mesh, output_dir / variant_name, camera_rotation)
+    render_uv_example(textured_mesh, camera, output_dir / variant_name)
 
 print(f"Rendered the original and combined UV transform to {output_dir}")
+print(
+    f"Original feature pitch={feature_pitch:.6g} length and "
+    f"{render.uv_calc_image_px_per_feature(feature_pitch, image_leng_per_px):.2f} "
+    "image px; the transformed calibration grid makes the rotation, "
+    "translation, and scale visually explicit"
+)
 
 # %%
 # The original mapping is on the left and the combined transformed variant is

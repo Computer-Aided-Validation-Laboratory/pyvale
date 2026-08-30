@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import warnings
 
 import numpy as np
 
@@ -40,6 +41,13 @@ class EUVOrigin(Enum):
 
     UPPER_LEFT = "upper_left"
     LOWER_LEFT = "lower_left"
+
+
+class EUVBounds(Enum):
+    """Handling for physically scaled UVs outside the source texture."""
+
+    SATURATE = "saturate"
+    TILED = "tiled"
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +78,19 @@ class UVTransform:
     rotation_degrees: float = 0.0
     scale: tuple[float, float] = (1.0, 1.0)
     pivot: tuple[float, float] = (0.5, 0.5)
+
+
+@dataclass(frozen=True, slots=True)
+class UVMapping:
+    """UV coordinates and the texture image they address.
+
+    ``TILED`` mappings may contain an expanded texture assembled from the
+    supplied source image. ``tile_counts`` is in ``(U, V)`` order.
+    """
+
+    uvs: np.ndarray
+    texture: np.ndarray
+    tile_counts: tuple[int, int] = (1, 1)
 
 
 def _finite_array(
@@ -367,6 +388,156 @@ def uv_project_planar_centered(
     )
 
 
+def uv_calc_feature_leng(
+    image_px_per_feature: float,
+    image_leng_per_px: float,
+) -> float:
+    """Calculate physical feature size or pitch from its rendered size."""
+    values = _finite_array(
+        (image_px_per_feature, image_leng_per_px),
+        "feature scale inputs",
+        (2,),
+    )
+    if np.any(values <= 0.0):
+        raise ValueError("Feature scale inputs must be positive.")
+    return float(values[0] * values[1])
+
+
+def uv_calc_image_px_per_feature(
+    feature_leng: float,
+    image_leng_per_px: float,
+) -> float:
+    """Calculate rendered pixels per feature size or pitch."""
+    values = _finite_array(
+        (feature_leng, image_leng_per_px),
+        "feature scale inputs",
+        (2,),
+    )
+    if np.any(values <= 0.0):
+        raise ValueError("Feature scale inputs must be positive.")
+    return float(values[0] / values[1])
+
+
+def uv_calc_texture_px_per_leng(
+    texture_px_per_feature: float,
+    feature_leng: float,
+) -> float:
+    """Calculate texture pixels per simulation length unit."""
+    values = _finite_array(
+        (texture_px_per_feature, feature_leng),
+        "feature scale inputs",
+        (2,),
+    )
+    if np.any(values <= 0.0):
+        raise ValueError("Feature scale inputs must be positive.")
+    return float(values[0] / values[1])
+
+
+def uv_calc_texture_px_per_leng_from_image(
+    texture_px_per_feature: float,
+    image_px_per_feature: float,
+    image_leng_per_px: float,
+) -> float:
+    """Calculate texture scale for a desired rendered feature size."""
+    feature_leng = uv_calc_feature_leng(
+        image_px_per_feature,
+        image_leng_per_px,
+    )
+    return uv_calc_texture_px_per_leng(
+        texture_px_per_feature,
+        feature_leng,
+    )
+
+
+def uv_map_planar_scaled(
+    coords: np.ndarray,
+    texture: np.ndarray,
+    texture_px_per_leng: float | np.ndarray,
+    *,
+    plane: EUVPlane | UVPlane = EUVPlane.XY,
+    texture_center_px: np.ndarray | None = None,
+    origin: EUVOrigin = EUVOrigin.UPPER_LEFT,
+    bounds: EUVBounds = EUVBounds.SATURATE,
+) -> UVMapping:
+    """Map a planar surface using a fixed physical texture scale.
+
+    The projected specimen centre is placed at ``texture_center_px``. When no
+    centre is supplied, the centre of the source texture is used. Texture
+    scale may be one isotropic value or independent ``(U, V)`` values.
+    """
+    coords_in = _coords_array(coords)
+    texture_in = np.asarray(texture)
+    if texture_in.ndim not in (2, 3):
+        raise ValueError("texture must have shape (height, width[, channels]).")
+
+    texture_shape = (int(texture_in.shape[0]), int(texture_in.shape[1]))
+    width, height = _texture_size(texture_shape)
+    scale = np.asarray(texture_px_per_leng, dtype=np.float64)
+    if scale.ndim == 0:
+        scale = np.repeat(scale, 2)
+    if scale.shape != (2,) or not np.isfinite(scale).all():
+        raise ValueError(
+            "texture_px_per_leng must be finite and scalar or shape (2,)."
+        )
+    if np.any(scale <= 0.0):
+        raise ValueError("texture_px_per_leng must be positive.")
+
+    projected = _project(coords_in, plane)
+    projected_center = 0.5 * (
+        np.min(projected, axis=0) + np.max(projected, axis=0)
+    )
+    if texture_center_px is None:
+        texture_center = np.array((0.5 * (width - 1.0), 0.5 * (height - 1.0)))
+    else:
+        texture_center = _finite_array(
+            texture_center_px,
+            "texture_center_px",
+            (2,),
+        )
+
+    pixels = texture_center + (projected - projected_center) * scale
+    raw_uvs = uv_from_pixels(pixels, texture_shape, origin)
+    outside = np.any((raw_uvs < 0.0) | (raw_uvs > 1.0))
+
+    if bounds is EUVBounds.SATURATE:
+        if outside:
+            warnings.warn(
+                "Physically scaled UVs exceed the texture bounds and were "
+                "saturated to [0, 1]. Use EUVBounds.TILED to preserve scale.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return UVMapping(
+            np.ascontiguousarray(np.clip(raw_uvs, 0.0, 1.0)),
+            texture_in,
+        )
+
+    if bounds is not EUVBounds.TILED:
+        raise ValueError(f"Unsupported UV bounds mode: {bounds!r}.")
+    if not outside:
+        return UVMapping(np.ascontiguousarray(raw_uvs), texture_in)
+
+    source_size = np.array((texture_in.shape[1], texture_in.shape[0]))
+    tile_lower = np.floor(np.min(pixels, axis=0) / source_size).astype(np.int64)
+    tile_upper = np.floor(np.max(pixels, axis=0) / source_size).astype(np.int64)
+    tile_counts_array = tile_upper - tile_lower + 1
+    tile_u, tile_v = (int(value) for value in tile_counts_array)
+    repetitions = (tile_v, tile_u) + (1,) * (texture_in.ndim - 2)
+    tiled_texture = np.tile(texture_in, repetitions)
+    tiled_pixels = pixels - tile_lower * source_size
+    tiled_uvs = uv_from_pixels(
+        tiled_pixels,
+        (int(tiled_texture.shape[0]), int(tiled_texture.shape[1])),
+        origin,
+    )
+
+    return UVMapping(
+        np.ascontiguousarray(np.clip(tiled_uvs, 0.0, 1.0)),
+        np.ascontiguousarray(tiled_texture),
+        (tile_u, tile_v),
+    )
+
+
 def uv_transform(
     uvs: np.ndarray,
     transform: UVTransform,
@@ -399,12 +570,19 @@ def uv_transform(
 
 
 __all__ = [
+    "EUVBounds",
     "EUVFit",
     "EUVOrigin",
     "EUVPlane",
     "UVPlane",
+    "UVMapping",
     "UVTransform",
+    "uv_calc_feature_leng",
+    "uv_calc_image_px_per_feature",
+    "uv_calc_texture_px_per_leng",
+    "uv_calc_texture_px_per_leng_from_image",
     "uv_from_pixels",
+    "uv_map_planar_scaled",
     "uv_project_planar",
     "uv_project_planar_centered",
     "uv_project_planar_pixels",

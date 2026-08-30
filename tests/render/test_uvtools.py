@@ -88,6 +88,78 @@ def test_uv_transform_uses_scale_rotate_translate_order() -> None:
     assert np.allclose(transformed, ((1.1, 0.3), (0.6, 1.3)))
 
 
+def test_feature_scale_conversions_match_analytic_reference() -> None:
+    """Texture, physical, and image feature scales remain consistent."""
+    image_leng_per_px = 0.2
+    image_px_per_feature = 5.0
+    texture_px_per_feature = 10.0
+
+    feature_leng = render.uv_calc_feature_leng(
+        image_px_per_feature,
+        image_leng_per_px,
+    )
+    texture_px_per_leng = render.uv_calc_texture_px_per_leng_from_image(
+        texture_px_per_feature,
+        image_px_per_feature,
+        image_leng_per_px,
+    )
+
+    assert feature_leng == pytest.approx(1.0)
+    assert texture_px_per_leng == pytest.approx(10.0)
+    assert render.uv_calc_image_px_per_feature(
+        feature_leng,
+        image_leng_per_px,
+    ) == pytest.approx(image_px_per_feature)
+
+
+def test_scaled_planar_mapping_has_requested_texture_scale() -> None:
+    """A unit world displacement maps to the requested texture pixels."""
+    texture = np.zeros((101, 201), dtype=np.uint8)
+    mapping = render.uv_map_planar_scaled(
+        RECTANGLE,
+        texture,
+        texture_px_per_leng=20.0,
+    )
+    pixels = render.uv_to_pixels(mapping.uvs, texture.shape)
+
+    assert np.ptp(pixels[:, 0]) == pytest.approx(40.0)
+    assert np.ptp(pixels[:, 1]) == pytest.approx(20.0)
+    assert mapping.texture is texture
+    assert mapping.tile_counts == (1, 1)
+
+
+def test_scaled_planar_mapping_saturates_with_warning() -> None:
+    """The default bounds policy clips a mapping that exceeds its texture."""
+    texture = np.zeros((11, 11), dtype=np.uint8)
+    with pytest.warns(UserWarning, match="saturated"):
+        mapping = render.uv_map_planar_scaled(
+            RECTANGLE,
+            texture,
+            texture_px_per_leng=20.0,
+        )
+
+    assert np.all((mapping.uvs >= 0.0) & (mapping.uvs <= 1.0))
+    assert np.any((mapping.uvs == 0.0) | (mapping.uvs == 1.0))
+
+
+def test_scaled_planar_mapping_tiles_without_changing_scale() -> None:
+    """Tiling expands the texture and retains texture pixels per length."""
+    texture = np.arange(121, dtype=np.uint8).reshape(11, 11)
+    mapping = render.uv_map_planar_scaled(
+        RECTANGLE,
+        texture,
+        texture_px_per_leng=20.0,
+        bounds=render.EUVBounds.TILED,
+    )
+    pixels = render.uv_to_pixels(mapping.uvs, mapping.texture.shape[:2])
+
+    assert mapping.tile_counts == (5, 3)
+    assert mapping.texture.shape == (33, 55)
+    assert np.ptp(pixels[:, 0]) == pytest.approx(40.0)
+    assert np.ptp(pixels[:, 1]) == pytest.approx(20.0)
+    assert np.array_equal(mapping.texture[:11, :11], texture)
+
+
 def test_riley_centered_projection_parity() -> None:
     expected = riley.project_uvs_planar_centered(
         RECTANGLE,

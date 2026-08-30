@@ -40,9 +40,13 @@ def test_render_utilities_are_available_at_the_render_package_level() -> None:
         render.average_subpixel_image,
         render.blender_camera_from_resolution,
         render.calculate_edge_function,
+        render.cam_calc_leng_per_px,
+        render.cam_calc_px_per_leng,
         render.cam_coverage_to_fov_scale,
         render.cam_fov_scale_to_coverage,
         render.cam_pos_frame_points,
+        render.uv_calc_texture_px_per_leng,
+        render.uv_map_planar_scaled,
         render.stereo_build_faceon,
         render.image_save,
     )

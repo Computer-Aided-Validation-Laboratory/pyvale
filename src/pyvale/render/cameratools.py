@@ -132,6 +132,37 @@ def cam_fov_scale_to_coverage(fov_scale: float) -> float:
     return riley.fov_scale_to_coverage(float(fov_scale))
 
 
+def cam_calc_leng_per_px(
+    camera: Camera,
+    target: np.ndarray | None = None,
+) -> float:
+    """Calculate average simulation length per image pixel at a target.
+
+    Riley evaluates the camera-normal plane through the target and averages
+    its horizontal and vertical scaling. The camera ROI centre is used when
+    ``target`` is omitted.
+    """
+    from .riley import to_riley_camera
+
+    target_array = camera.roi_cent_world if target is None else target
+    target_array = np.asarray(target_array, dtype=np.float64)
+    if target_array.shape != (3,) or not np.isfinite(target_array).all():
+        raise ValueError("target must be finite and have shape (3,).")
+
+    return riley.calc_pixel_resolution(
+        to_riley_camera(camera),
+        tuple(float(value) for value in target_array),
+    )
+
+
+def cam_calc_px_per_leng(
+    camera: Camera,
+    target: np.ndarray | None = None,
+) -> float:
+    """Calculate average image pixels per simulation length at a target."""
+    return 1.0 / cam_calc_leng_per_px(camera, target)
+
+
 def cam_pos_frame_points(
     points: np.ndarray,
     pixels_num: tuple[int, int] | np.ndarray,
@@ -716,6 +747,8 @@ __all__ = [
     "StereoCameras",
     "StereoExtrinsics",
     "average_subpixel_image",
+    "cam_calc_leng_per_px",
+    "cam_calc_px_per_leng",
     "cam_coverage_to_fov_scale",
     "cam_fov_scale_to_coverage",
     "cam_frame_mesh",

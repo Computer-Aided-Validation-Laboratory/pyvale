@@ -188,6 +188,20 @@ def test_cam_coverage_and_fov_scale_round_trip() -> None:
     assert render.cam_fov_scale_to_coverage(fov_scale) == pytest.approx(0.8)
 
 
+def test_cam_image_scale_matches_analytic_pinhole_reference() -> None:
+    """ROI image scale equals distance times pixel pitch over focal length."""
+    camera = _make_test_camera(
+        pos=(0.0, 0.0, 20.0),
+        pixels_size=(0.1, 0.1),
+        focal_length=10.0,
+    )
+
+    leng_per_px = render.cam_calc_leng_per_px(camera)
+
+    assert leng_per_px == pytest.approx(0.2)
+    assert render.cam_calc_px_per_leng(camera) == pytest.approx(5.0)
+
+
 @pytest.mark.parametrize("fit_mode", tuple(render.EFrameFit))
 def test_cam_pos_frame_points_fit_modes_match_riley(
     fit_mode: render.EFrameFit,
