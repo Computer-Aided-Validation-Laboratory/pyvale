@@ -99,7 +99,27 @@ def _states(result, experiment, known):
                 maps[name] = np.where(mask, values, maps[name])
             else:
                 maps[name] = values
-        states.append({"label": label, "snapshot": snapshot, "solve": solve, "maps": maps})
+        # A serialized spatial snapshot can retain zero-valued pixels outside
+        # its active reconstruction domain.  They are not identified material
+        # values, but Cython validates the entire rectangular array before it
+        # evaluates the diagnostic EGI maps.  Use the known positive exterior
+        # only for that diagnostic reconstruction; keep ``maps`` unchanged for
+        # the yield/error figures and their specimen-masked statistics.
+        stress_maps = {name: value.copy() for name, value in maps.items()}
+        for name, reference in known.items():
+            values = stress_maps.get(name)
+            if values is None or values.shape != reference.shape:
+                continue
+            invalid = ~np.isfinite(values) | (values <= 0.0)
+            if np.any(invalid):
+                values[invalid] = np.asarray(reference, dtype=np.float64)[invalid]
+        states.append({
+            "label": label,
+            "snapshot": snapshot,
+            "solve": solve,
+            "maps": maps,
+            "stress_maps": stress_maps,
+        })
     return states
 
 
@@ -142,7 +162,7 @@ def _egi_maps(states, supports, experiment, law):
         metric.initialise(experiment)
     result = {}
     for state in states:
-        stress = law.calculate_stress(experiment.strain, state["maps"])
+        stress = law.calculate_stress(experiment.strain, state["stress_maps"])
         maps = {}
         for (role, window), metric in zip(supports, metrics, strict=True):
             fields = metric.evaluate_equilibrium_gap(stress).metric_result.additional_fields or {}
