@@ -72,7 +72,10 @@ def _summary(result, states, truth, mask, supports, gate):
     solve = result.history.phases[1].solve_results[-1]
     diagnostics = solve.final_objective.get("objective_diagnostics", {})
     costs = solve.final_objective.get("components", {})
-    training_weight, force_weight, broad_weight = .75, .15, .10
+    weights = diagnostics.get("objective_weights", {})
+    training_weight = float(weights.get("informative_egi", .75))
+    force_weight = float(weights.get("fre_guard", .15))
+    broad_weight = float(weights.get("broad_egi_guard", .10))
     return {
         "interpretation": "engineering diagnostic; known truth used only for report evaluation",
         "selected_supports": {role: list(window) for role, window in supports},
@@ -89,6 +92,11 @@ def _summary(result, states, truth, mask, supports, gate):
             "full_quantile": diagnostics.get("gate_full_quantile"),
         },
         "objective_components": costs,
+        "objective_weights": {
+            "informative_egi": training_weight,
+            "fre_guard": force_weight,
+            "broad_egi_guard": broad_weight,
+        },
         "effective_contributions": {
             "informative_egi": training_weight * costs.get("informative_egi_cost", np.nan),
             "fre_guard": force_weight * costs.get("force_guard_cost", np.nan),
@@ -183,12 +191,19 @@ def _components_page(pdf, result):
     solve=result.history.phases[1].solve_results[-1]
     history=solve.final_objective.get("history", [])
     components=solve.final_objective.get("components", {})
+    diagnostics=solve.final_objective.get("objective_diagnostics", {})
+    weights=diagnostics.get("objective_weights", {})
     fig,axes=plt.subplots(1,2,figsize=(11.69,8.27),constrained_layout=True)
     if history:
         axes[0].plot([row["iteration"] for row in history],[row["cost"] for row in history],marker="o")
     axes[0].set(title="Optimiser trajectory",xlabel="Iteration",ylabel="Total cost"); axes[0].grid(alpha=.3)
     names=["informative_egi_cost","force_guard_cost","broad_guard_cost"]
-    raw=np.array([components.get(name,np.nan) for name in names]); coeff=np.array([.75,.15,.10])
+    raw=np.array([components.get(name,np.nan) for name in names])
+    coeff=np.array([
+        weights.get("informative_egi", .75),
+        weights.get("fre_guard", .15),
+        weights.get("broad_egi_guard", .10),
+    ], dtype=float)
     x=np.arange(3); axes[1].bar(x-.18,raw,.36,label="raw"); axes[1].bar(x+.18,raw*coeff,.36,label="effective")
     axes[1].set_xticks(x,["informative EGI","FRE guard","broad guard"]); axes[1].set(title="Terminal component balance",ylabel="Cost contribution"); axes[1].legend(); axes[1].grid(axis="y",alpha=.3)
     pdf.savefig(fig); plt.close(fig)

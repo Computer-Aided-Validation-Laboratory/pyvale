@@ -13,6 +13,9 @@ MAX_EVALUATIONS="${MAX_EVALUATIONS:-5000}"
 PARALLEL_WORKERS="${PARALLEL_WORKERS:-8}"
 MAX_BASIS_FUNCTIONS="${MAX_BASIS_FUNCTIONS:-1}"
 RANDOM_SEED="${RANDOM_SEED:-0}"
+ARTIFICIAL_NOISE_MODEL="${ARTIFICIAL_NOISE_MODEL:-}"
+ARTIFICIAL_NOISE_SCALE="${ARTIFICIAL_NOISE_SCALE:-0}"
+ARTIFICIAL_NOISE_SEED="${ARTIFICIAL_NOISE_SEED:-20260828}"
 
 if [[ -e "${RUN_DIR}" || -e "${REPORT_DIR}" ]]; then
     echo "Refusing to overwrite an existing run/report: ${RUN_TAG}" >&2
@@ -21,6 +24,19 @@ fi
 
 mkdir -p "${REPORT_DIR}"
 cd "${REPO_ROOT}"
+
+NOISE_ARGS=()
+if [[ "${ARTIFICIAL_NOISE_SCALE}" != "0" ]]; then
+    [[ -n "${ARTIFICIAL_NOISE_MODEL}" && -f "${ARTIFICIAL_NOISE_MODEL}" ]] || {
+        echo "A valid ARTIFICIAL_NOISE_MODEL is required for non-zero noise" >&2
+        exit 2
+    }
+    NOISE_ARGS+=(
+        --artificial-noise-model "${ARTIFICIAL_NOISE_MODEL}"
+        --artificial-noise-scale "${ARTIFICIAL_NOISE_SCALE}"
+        --artificial-noise-seed "${ARTIFICIAL_NOISE_SEED}"
+    )
+fi
 
 uv run --no-sync python dev/vfm/call_notched_ebw_bivariate_identification.py \
     --input "${DATASET}/prepared" \
@@ -38,6 +54,7 @@ uv run --no-sync python dev/vfm/call_notched_ebw_bivariate_identification.py \
     --parallel-workers "${PARALLEL_WORKERS}" \
     --random-seed "${RANDOM_SEED}" \
     --stress-backend cython \
+    "${NOISE_ARGS[@]}" \
     2>&1 | tee "${REPORT_DIR}/identification.log"
 
 uv run --no-sync python dev/vfm/report_notched_ebw_simple_identification.py \
