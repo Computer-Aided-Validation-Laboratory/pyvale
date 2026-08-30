@@ -81,10 +81,24 @@ def _states(result, experiment, known):
             continue
         count = _basis_count(solve.final_snapshot)
         entries.append((f"BF{count} solve", solve.final_snapshot, solve))
+    mask = experiment.specimen_geometry.region_of_interest.sample_specimen_mask(
+        experiment.specimen_geometry.x, experiment.specimen_geometry.y
+    )
     states = []
     for label, snapshot, solve in entries:
         maps = {name: np.asarray(value, dtype=np.float64).copy() for name, value in known.items()}
-        maps.update(evaluate_snapshot_parameter_maps(snapshot, experiment))
+        identified = evaluate_snapshot_parameter_maps(snapshot, experiment)
+        # Spatial parameterisations may intentionally return zero outside the
+        # ROI.  That is appropriate for plotting, but the compiled stress
+        # reconstruction validates every grid value as strictly positive.
+        # Preserve the known finite exterior solely for diagnostic evaluation;
+        # all identification metrics and report errors remain specimen-masked.
+        for name, values in identified.items():
+            values = np.asarray(values, dtype=np.float64)
+            if name in maps and values.shape == maps[name].shape:
+                maps[name] = np.where(mask, values, maps[name])
+            else:
+                maps[name] = values
         states.append({"label": label, "snapshot": snapshot, "solve": solve, "maps": maps})
     return states
 
