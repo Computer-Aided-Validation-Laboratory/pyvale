@@ -26,6 +26,7 @@ from pyvale.vfm import (
     EgiSupportInformationSelectionConfig,
     EgiSignalSelectionConfig,
     ExperimentData,
+    FixedEgiSupportPreparation,
     HardeningLinear,
     IdentificationConfig,
     IdentificationPhase,
@@ -48,6 +49,7 @@ from pyvale.vfm import (
     VectorFirstResultPassthrough,
     run_identification,
 )
+from pyvale.vfm.egisupports import resolve_physical_egi_supports
 from pyvale.vfm.loadregimes import resolve_load_regimes
 from pyvale.vfm.residualblocks import ResidualBlockSpec
 from diagnostic_artifacts import DiagnosticArtifactWriter
@@ -147,7 +149,9 @@ def main() -> None:
 
     x = experiment_data.specimen_geometry.x
     y = experiment_data.specimen_geometry.y
-    force_metric_phase_1 = SliceWiseForceReconstructionMetric(slice_config=SliceConfig(axis="x", num_slices=args.force_slices))
+    force_metric_phase_1 = SliceWiseForceReconstructionMetric(
+        slice_config=SliceConfig(axis=args.force_axis, num_slices=args.force_slices)
+    )
     equilibrium_gap_metrics_phase_1 = [EquilibriumGapMetric(window_size=window) for window in args.egi_windows]
     egi_window_weights = (
         [window[0] for window in args.egi_windows]
@@ -248,6 +252,8 @@ def main() -> None:
         phase_1_objective, phase_preparation = (
             _create_simple_data_driven_phase_1_objective(
                 payload,
+                x=x,
+                y=y,
                 basis_growth_objective=global_objective,
                 diagnostic_callback=DiagnosticArtifactWriter(
                     output_dir / "diagnostic_artifacts"
@@ -331,6 +337,7 @@ def main() -> None:
             else str(args.simple_data_driven_objective_config)
         ),
         "force_slices": args.force_slices,
+        "force_axis": args.force_axis,
         "egi_windows": args.egi_windows,
         "egi_window_weights": egi_window_weights,
         "artificial_noise": noise_diagnostics,
@@ -381,6 +388,12 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--force-slices", type=int, default=FORCE_SLICES)
+    parser.add_argument(
+        "--force-axis",
+        choices=("x", "y"),
+        default="x",
+        help="Longitudinal/loading axis for the slice-wise force-reconstruction metric.",
+    )
     parser.add_argument("--egi-windows", type=_parse_egi_windows, default=EGI_WINDOWS, help="Comma-separated odd square window sizes, e.g. 15,29,41.")
     parser.add_argument(
         "--egi-window-weights",
@@ -620,9 +633,14 @@ def _create_data_driven_phase_1_objective(
 def _create_simple_data_driven_phase_1_objective(
     payload: dict[str, object],
     *,
+    x: np.ndarray,
+    y: np.ndarray,
     basis_growth_objective,
     diagnostic_callback,
-) -> tuple[SensitivityGatedEgiObjective, SimpleEgiSupportPreparation]:
+) -> tuple[
+    SensitivityGatedEgiObjective,
+    SimpleEgiSupportPreparation | FixedEgiSupportPreparation,
+]:
     """Create the deliberately minimalist direct-SNR/two-perturbation path."""
 
     egi_noise_value = payload.get("egi_noise_scales", payload.get("egi_noise_scale", 1.0))
@@ -665,6 +683,18 @@ def _create_simple_data_driven_phase_1_objective(
             force_noise_scale=float(payload.get("force_noise_scale", 1.0)),
             force_weight=force_weight,
             broad_guard_weight=broad_guard_weight,
+            aggregation=str(payload.get("aggregation", "weighted_sum")),
+            force_guard_limit=(
+                None if payload.get("force_guard_limit") is None
+                else float(payload["force_guard_limit"])
+            ),
+            broad_guard_limit=(
+                None if payload.get("broad_guard_limit") is None
+                else float(payload["broad_guard_limit"])
+            ),
+            lexicographic_tie_breaker=float(
+                payload.get("lexicographic_tie_breaker", 1.0e-6)
+            ),
             refresh_every_solves=(
                 None
                 if payload.get("refresh_every_solves") is None
@@ -674,20 +704,41 @@ def _create_simple_data_driven_phase_1_objective(
         diagnostic_callback=diagnostic_callback,
         basis_growth_objective=basis_growth_objective,
     )
-    preparation = SimpleEgiSupportPreparation(
-        residual_noise_scale=float(egi_noise_scales[0]),
-        bank_config=EgiSupportBankConfig(
-            candidate_count=int(payload.get("candidate_count", 10)),
+    fixed_lengths = payload.get("fixed_egi_side_lengths_mm")
+    if fixed_lengths is None:
+        preparation = SimpleEgiSupportPreparation(
+            residual_noise_scale=float(egi_noise_scales[0]),
+            bank_config=EgiSupportBankConfig(
+                candidate_count=int(payload.get("candidate_count", 10)),
+                minimum_pixels=int(payload.get("minimum_pixels", 3)),
+                maximum_bbox_fraction=float(payload.get("maximum_bbox_fraction", 0.5)),
+            ),
+            selection_config=EgiSignalSelectionConfig(
+                minimum_coverage_fraction=float(payload.get("minimum_coverage_fraction", 0.5)),
+                minimum_signal_to_noise=float(payload.get("minimum_signal_to_noise", 1.0)),
+                active_fraction=float(payload.get("active_fraction", 0.2)),
+            ),
+            diagnostic_callback=diagnostic_callback,
+        )
+    else:
+        lengths = tuple(float(value) for value in fixed_lengths)
+        if len(lengths) != 3 or any(not np.isfinite(value) or value <= 0.0 for value in lengths):
+            raise ValueError(
+                "fixed_egi_side_lengths_mm must contain exactly three positive finite lengths."
+            )
+        supports = resolve_physical_egi_supports(
+            lengths,
+            x,
+            y,
             minimum_pixels=int(payload.get("minimum_pixels", 3)),
-            maximum_bbox_fraction=float(payload.get("maximum_bbox_fraction", 0.5)),
-        ),
-        selection_config=EgiSignalSelectionConfig(
-            minimum_coverage_fraction=float(payload.get("minimum_coverage_fraction", 0.5)),
-            minimum_signal_to_noise=float(payload.get("minimum_signal_to_noise", 1.0)),
-            active_fraction=float(payload.get("active_fraction", 0.2)),
-        ),
-        diagnostic_callback=diagnostic_callback,
-    )
+        )
+        if len(supports) != 3:
+            raise ValueError(
+                "fixed_egi_side_lengths_mm resolves to duplicate pixel supports on this grid."
+            )
+        preparation = FixedEgiSupportPreparation(
+            tuple(zip(("fine", "middle", "broad"), supports, strict=True))
+        )
     return objective, preparation
 
 

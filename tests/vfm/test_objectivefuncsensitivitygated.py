@@ -115,6 +115,35 @@ def test_simple_objective_freezes_gate_between_solves(monkeypatch) -> None:
     assert diagnostics["refreshed"] is False
 
 
+def test_lexicographic_constraints_prioritise_guard_feasibility(monkeypatch) -> None:
+    def fake_sensitivities(strain, stress, law, maps, names, perturbation_factor):
+        values = np.ones_like(stress)
+        return {name: SimpleNamespace(total=values) for name in names}
+
+    monkeypatch.setattr(
+        "pyvale.vfm.objectivefuncsensitivitygated.calculate_parameter_stress_sensitivities",
+        fake_sensitivities,
+    )
+    objective = SensitivityGatedEgiObjective(
+        SensitivityGatedObjectiveConfig(
+            aggregation="lexicographic_constraints",
+            force_guard_limit=0.2,
+            broad_guard_limit=0.6,
+            egi_noise_scales=(2.0, 2.0, 2.0),
+            force_noise_scale=4.0,
+        )
+    )
+    objective.prepare_solve(_Context())
+    cost = objective.evaluate(_metric_results(1.0))
+
+    # The force guard is 0.25: 25% above its limit.  The informative term only
+    # breaks ties, so it cannot compensate for a guard violation.
+    assert cost == pytest.approx(0.25 + 0.5e-6)
+    diagnostics = objective.diagnostics()
+    assert diagnostics["aggregation"] == "lexicographic_constraints"
+    assert diagnostics["last_costs"]["weighted_contributions"]["force_excess"] == pytest.approx(0.25)
+
+
 def test_quantile_gate_resolves_from_positive_activity(monkeypatch) -> None:
     def fake_sensitivities(strain, stress, law, maps, names, perturbation_factor):
         values = np.zeros_like(stress)

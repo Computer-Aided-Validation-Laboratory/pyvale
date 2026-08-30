@@ -1,0 +1,29 @@
+{
+  "schema": "pyvale-simple-sensitivity-gated-egi-v1",
+  "notes": [
+    "Baseline transfer of the best clean simple sensitivity-gated objective.",
+    "EGI supports are intentionally frozen in physical millimetres for the WDBN1-representative grid.",
+    "The scalar EGI and FRE noise normalisers are retained unchanged for controlled baseline comparison; they remain provisional."
+  ],
+  "fixed_egi_side_lengths_mm": [0.6, 1.8, 6.2],
+  "minimum_pixels": 3,
+  "minimum_coverage_fraction": 0.5,
+  "minimum_signal_to_noise": 1.0,
+  "active_fraction": 0.2,
+  "egi_noise_scales": [0.0001, 0.0001, 0.0001],
+  "force_noise_scale": 0.01926541145132045,
+  "sensitivity_parameter_names": [
+    "yield_strength",
+    "hardening_modulus"
+  ],
+  "perturbation_factor": 0.01,
+  "sensitivity_scaling_percentile": 95.0,
+  "gate_start": 0.05,
+  "gate_full": 0.30,
+  "gate_start_quantile": 0.0,
+  "gate_full_quantile": 0.90,
+  "positive_activity_floor": 0.000001,
+  "force_weight": 0.15,
+  "broad_guard_weight": 0.10,
+  "refresh_every_solves": null
+}

@@ -34,6 +34,10 @@ class SensitivityGatedObjectiveConfig:
     force_noise_scale: float = 1.0
     force_weight: float = 0.15
     broad_guard_weight: float = 0.10
+    aggregation: str = "weighted_sum"
+    force_guard_limit: float | None = None
+    broad_guard_limit: float | None = None
+    lexicographic_tie_breaker: float = 1.0e-6
     refresh_every_solves: int | None = None
 
     def __post_init__(self) -> None:
@@ -59,10 +63,29 @@ class SensitivityGatedObjectiveConfig:
             raise ValueError("egi_noise_scales must contain three positive values.")
         if not np.isfinite(self.force_noise_scale) or self.force_noise_scale <= 0.0:
             raise ValueError("force_noise_scale must be positive.")
-        if self.force_weight < 0.0 or self.broad_guard_weight < 0.0 or (
+        if self.force_weight < 0.0 or self.broad_guard_weight < 0.0:
+            raise ValueError("Guard weights must be non-negative.")
+        if self.aggregation not in {"weighted_sum", "lexicographic_constraints"}:
+            raise ValueError(
+                "aggregation must be 'weighted_sum' or 'lexicographic_constraints'."
+            )
+        if self.aggregation == "weighted_sum" and (
             self.force_weight + self.broad_guard_weight >= 1.0
         ):
-            raise ValueError("Guard weights must be non-negative and sum to less than one.")
+            raise ValueError("Weighted-sum guard weights must sum to less than one.")
+        limits = (self.force_guard_limit, self.broad_guard_limit)
+        if self.aggregation == "lexicographic_constraints" and any(
+            value is None or not np.isfinite(value) or value <= 0.0
+            for value in limits
+        ):
+            raise ValueError(
+                "Lexicographic constraints require positive force_guard_limit and "
+                "broad_guard_limit."
+            )
+        if not np.isfinite(self.lexicographic_tie_breaker) or not (
+            0.0 < self.lexicographic_tie_breaker < 1.0e-3
+        ):
+            raise ValueError("lexicographic_tie_breaker must lie in (0, 1e-3).")
         if self.refresh_every_solves is not None and self.refresh_every_solves < 1:
             raise ValueError("refresh_every_solves must be positive when supplied.")
 
@@ -224,11 +247,8 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
             "parameter_activity_capture": {
                 name: captured_fraction(values) for name, values in scaled.items()
             },
-            "objective_weights": {
-                "informative_egi": 1.0 - self.config.force_weight - self.config.broad_guard_weight,
-                "fre_guard": self.config.force_weight,
-                "broad_egi_guard": self.config.broad_guard_weight,
-            },
+            "aggregation": self.config.aggregation,
+            "objective_weights": self._aggregation_diagnostics(),
             "residual_layout": self._layout.diagnostics(),
         }
         if self.diagnostic_callback is not None:
@@ -266,22 +286,73 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
         informative = float(np.mean(list(costs.values())))
         force = float(np.linalg.norm(vector.weighted[slices["fre_guard"]]))
         broad_guard = float(np.linalg.norm(vector.weighted[slices["egi_broad_guard"]]))
-        training_weight = 1.0 - self.config.force_weight - self.config.broad_guard_weight
-        total = (
-            training_weight * informative
-            + self.config.force_weight * force
-            + self.config.broad_guard_weight * broad_guard
-        )
+        total = self._aggregate(informative, force, broad_guard)
         self.last_result = SensitivityGatedObjectiveResult(
             total, informative, costs["fine"], costs["middle"], costs["broad"],
             force, broad_guard,
         )
         return float(total)
 
+    def _aggregate(self, informative: float, force: float, broad_guard: float) -> float:
+        if self.config.aggregation == "weighted_sum":
+            training_weight = 1.0 - self.config.force_weight - self.config.broad_guard_weight
+            return (
+                training_weight * informative
+                + self.config.force_weight * force
+                + self.config.broad_guard_weight * broad_guard
+            )
+        force_excess = force / float(self.config.force_guard_limit) - 1.0
+        broad_excess = broad_guard / float(self.config.broad_guard_limit) - 1.0
+        # Feasibility takes precedence.  The tiny, dimensionless tie-breaker
+        # only orders equally feasible candidates by informative EGI; it is not
+        # a physical weighting between residual types.
+        violation = max(0.0, force_excess, broad_excess)
+        return violation + self.config.lexicographic_tie_breaker * informative
+
+    def _aggregation_diagnostics(self) -> dict[str, object]:
+        if self.config.aggregation == "weighted_sum":
+            return {
+                "informative_egi": 1.0 - self.config.force_weight - self.config.broad_guard_weight,
+                "fre_guard": self.config.force_weight,
+                "broad_egi_guard": self.config.broad_guard_weight,
+            }
+        return {
+            "mode": "lexicographic_constraints",
+            "force_guard_limit": self.config.force_guard_limit,
+            "broad_egi_guard_limit": self.config.broad_guard_limit,
+            "tie_breaker": self.config.lexicographic_tie_breaker,
+            "interpretation": (
+                "minimise maximum normalised guard violation; among feasible "
+                "candidates minimise informative EGI"
+            ),
+        }
+
     def diagnostics(self) -> dict[str, object]:
         result = dict(self._diagnostics)
         if self.last_result is not None:
-            training_weight = 1.0 - self.config.force_weight - self.config.broad_guard_weight
+            if self.config.aggregation == "weighted_sum":
+                contributions: dict[str, object] = {
+                    "informative_egi": (
+                        (1.0 - self.config.force_weight - self.config.broad_guard_weight)
+                        * self.last_result.informative_egi_cost
+                    ),
+                    "fre_guard": self.config.force_weight * self.last_result.force_guard_cost,
+                    "broad_egi_guard": (
+                        self.config.broad_guard_weight * self.last_result.broad_guard_cost
+                    ),
+                }
+            else:
+                force_excess = self.last_result.force_guard_cost / float(self.config.force_guard_limit) - 1.0
+                broad_excess = self.last_result.broad_guard_cost / float(self.config.broad_guard_limit) - 1.0
+                contributions = {
+                    "maximum_guard_violation": max(0.0, force_excess, broad_excess),
+                    "informative_tie_break": (
+                        self.config.lexicographic_tie_breaker
+                        * self.last_result.informative_egi_cost
+                    ),
+                    "force_excess": force_excess,
+                    "broad_egi_excess": broad_excess,
+                }
             result["last_costs"] = {
                 "total": self.last_result.total_cost,
                 "informative_egi": self.last_result.informative_egi_cost,
@@ -290,11 +361,7 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
                 "egi_broad": self.last_result.broad_cost,
                 "fre_guard": self.last_result.force_guard_cost,
                 "broad_egi_guard": self.last_result.broad_guard_cost,
-                "weighted_contributions": {
-                    "informative_egi": training_weight * self.last_result.informative_egi_cost,
-                    "fre_guard": self.config.force_weight * self.last_result.force_guard_cost,
-                    "broad_egi_guard": self.config.broad_guard_weight * self.last_result.broad_guard_cost,
-                },
+                "weighted_contributions": contributions,
             }
         return result
 
