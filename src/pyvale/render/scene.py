@@ -3,20 +3,20 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Concrete scene input for three-dimensional and planar renderers."""
+"""Concrete scene input for three dimensional and planar renderers."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-import numpy as np
 import riley
 
 from .camera import Camera
 from .light import Light
+from .mesh import Mesh3D
 
 
 @dataclass(slots=True)
 class Scene3D:
-    """A complete three-dimensional rendering request.
+    """A complete three dimensional rendering request.
 
     Parameters
     ----------

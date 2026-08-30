@@ -23,7 +23,7 @@ class RenderCapabilities:
     supports_camera_distortion : bool
         Whether camera distortion parameters are supported.
     supports_psf : bool
-        Whether point-spread-function parameters are supported.
+        Whether point spread function parameters are supported.
     """
 
     element_types: frozenset[EElementType]

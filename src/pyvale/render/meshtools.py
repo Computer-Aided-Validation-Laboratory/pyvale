@@ -62,7 +62,7 @@ def mesh3d_from_simdata(
 
 
 def mesh_bounds(mesh: Mesh3D) -> tuple[np.ndarray, np.ndarray]:
-    """Calculate the axis-aligned bounding box of a mesh.
+    """Calculate the axis aligned bounding box of a mesh.
 
     Parameters
     ----------
@@ -71,8 +71,10 @@ def mesh_bounds(mesh: Mesh3D) -> tuple[np.ndarray, np.ndarray]:
 
     Returns
     -------
-    tuple[numpy.ndarray, numpy.ndarray]
-        Lower ``(min)`` and upper ``(max)`` spatial extents.
+    tuple[np.ndarray, np.ndarray]
+        Tuple of ``(coord_min, coord_max)`` arrays, each with shape ``(3,)``
+        and dtype ``float64`` representing (X, Y, Z) minimum and maximum
+        extents.
     """
     coords = np.asarray(mesh.coords, dtype=np.float64)
 
@@ -83,7 +85,7 @@ def mesh_bounds(mesh: Mesh3D) -> tuple[np.ndarray, np.ndarray]:
 
 
 def mesh_center(mesh: Mesh3D) -> np.ndarray:
-    """Calculate the center of the axis-aligned bounding box of a mesh.
+    """Calculate the center of the axis aligned bounding box of a mesh.
 
     Parameters
     ----------
@@ -92,8 +94,9 @@ def mesh_center(mesh: Mesh3D) -> np.ndarray:
 
     Returns
     -------
-    numpy.ndarray
-        Midpoint of the bounding box.
+    np.ndarray
+        Midpoint of the bounding box with shape ``(3,)`` and dtype
+        ``float64`` representing (X, Y, Z) center coordinates.
     """
     lower, upper = mesh_bounds(mesh)
     return 0.5 * (lower + upper)
@@ -104,6 +107,19 @@ def mesh_translate(mesh: Mesh3D, translation: np.ndarray) -> Mesh3D:
 
     Note that translation shifts nodal coordinates but preserves nodal
     displacement vectors unchanged.
+
+    Parameters
+    ----------
+    mesh : Mesh3D
+        Source surface mesh to translate.
+    translation : np.ndarray
+        Translation vector array with shape ``(3,)`` or ``(2,)`` and dtype
+        ``float64`` representing (dX, dY, dZ) offsets.
+
+    Returns
+    -------
+    Mesh3D
+        New translated mesh instance.
     """
     trans = np.asarray(translation, dtype=np.float64)
     new_coords = np.asarray(mesh.coords, dtype=np.float64) + trans
@@ -119,6 +135,21 @@ def mesh_rotate(
 
     Displacement vectors are rotated as vector fields to match coordinate
     reorientation.
+
+    Parameters
+    ----------
+    mesh : Mesh3D
+        Source surface mesh to rotate.
+    rotation : scipy.spatial.transform.Rotation
+        Spatial rotation to apply.
+    pivot : np.ndarray or None, optional
+        Pivot center point array with shape ``(3,)`` and dtype ``float64``.
+        If ``None``, defaults to the origin ``(0, 0, 0)``.
+
+    Returns
+    -------
+    Mesh3D
+        New rotated mesh instance.
     """
     coords = np.asarray(mesh.coords, dtype=np.float64)
     p_vec = (
@@ -146,7 +177,24 @@ def mesh_scale(
     scale: float | np.ndarray,
     pivot: np.ndarray | None = None,
 ) -> Mesh3D:
-    """Scale a mesh relative to a pivot point."""
+    """Scale a mesh relative to a pivot point.
+
+    Parameters
+    ----------
+    mesh : Mesh3D
+        Source surface mesh to scale.
+    scale : float or np.ndarray
+        Uniform scale factor as a float or per axis scale array with shape
+        ``(3,)`` and dtype ``float64`` for (sX, sY, sZ) scaling.
+    pivot : np.ndarray or None, optional
+        Pivot center point array with shape ``(3,)`` and dtype ``float64``.
+        If ``None``, defaults to the origin ``(0, 0, 0)``.
+
+    Returns
+    -------
+    Mesh3D
+        New scaled mesh instance.
+    """
     coords = np.asarray(mesh.coords, dtype=np.float64)
     p_vec = (
         np.zeros(3, dtype=np.float64)
@@ -178,6 +226,24 @@ def mesh_transform(
     """Apply affine scaling, rotation, and translation in canonical order.
 
     Order: 1. Scale about pivot, 2. Rotate about pivot, 3. Translate.
+
+    Parameters
+    ----------
+    mesh : Mesh3D
+        Source surface mesh to transform.
+    translation : np.ndarray or None, optional
+        Translation vector with shape ``(3,)`` and dtype ``float64``.
+    rotation : scipy.spatial.transform.Rotation or None, optional
+        Rotation to apply.
+    scale : float or np.ndarray or None, optional
+        Scaling factor or per axis scale array with shape ``(3,)``.
+    pivot : np.ndarray or None, optional
+        Pivot point array with shape ``(3,)`` and dtype ``float64``.
+
+    Returns
+    -------
+    Mesh3D
+        New transformed mesh instance.
     """
     transformed = mesh
 
@@ -197,7 +263,21 @@ def mesh_center_at(
     mesh: Mesh3D,
     target: np.ndarray = np.array((0.0, 0.0, 0.0)),
 ) -> Mesh3D:
-    """Translate a mesh so its bounding box center lies at ``target``."""
+    """Translate a mesh so its bounding box center lies at ``target``.
+
+    Parameters
+    ----------
+    mesh : Mesh3D
+        Source surface mesh to re centre.
+    target : np.ndarray, optional
+        Target center point array with shape ``(3,)`` and dtype ``float64``
+        representing (X, Y, Z) coordinates. Defaults to ``(0, 0, 0)``.
+
+    Returns
+    -------
+    Mesh3D
+        New translated mesh instance.
+    """
     current_center = mesh_center(mesh)
     target_vec = np.asarray(target, dtype=np.float64)[:3]
     delta = target_vec - current_center
@@ -209,7 +289,21 @@ def evenly_spaced_frame_indices(
     total_frames: int,
     num_samples: int,
 ) -> np.ndarray:
-    """Return sample indices evenly distributed from 0 to total_frames - 1."""
+    """Return sample indices evenly distributed from 0 to total_frames - 1.
+
+    Parameters
+    ----------
+    total_frames : int
+        Total number of frames available.
+    num_samples : int
+        Desired number of evenly distributed frame samples.
+
+    Returns
+    -------
+    np.ndarray
+        Array of integer frame indices with shape ``(N,)`` and dtype ``intp``,
+        where ``N <= num_samples``.
+    """
     if total_frames <= 0 or num_samples <= 0:
         return np.empty(0, dtype=np.intp)
 
@@ -227,7 +321,19 @@ def evenly_spaced_frame_indices(
 
 
 def first_last_frame_indices(total_frames: int) -> np.ndarray:
-    """Return indices for the first and last frame."""
+    """Return indices for the first and last frame.
+
+    Parameters
+    ----------
+    total_frames : int
+        Total number of available frames.
+
+    Returns
+    -------
+    np.ndarray
+        Array of frame indices with shape ``(2,)`` (or ``(1,)``/``(0,)``) and
+        dtype ``intp``.
+    """
     if total_frames <= 0:
         return np.empty(0, dtype=np.intp)
 
@@ -241,7 +347,21 @@ def select_frames(
     frames: np.ndarray,
     indices: Sequence[int] | np.ndarray,
 ) -> np.ndarray:
-    """Index a leading frame dimension with integer indices."""
+    """Index a leading frame dimension with integer indices.
+
+    Parameters
+    ----------
+    frames : np.ndarray
+        Array whose leading dimension is frames, e.g. shape
+        ``(num_frames, ...)``.
+    indices : Sequence[int] or np.ndarray
+        Indices to slice along the leading dimension.
+
+    Returns
+    -------
+    np.ndarray
+        Sliced array containing only the selected frames.
+    """
     idx = np.asarray(indices, dtype=np.intp)
 
     return frames[idx]

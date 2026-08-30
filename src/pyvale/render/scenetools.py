@@ -3,7 +3,7 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
-"""Spatial layout and multi-object arrangement helpers for render scenes."""
+"""Spatial layout and multi object arrangement helpers for render scenes."""
 
 from collections.abc import Sequence
 
@@ -32,8 +32,10 @@ def scene_bounds(
 
     Returns
     -------
-    tuple[numpy.ndarray, numpy.ndarray]
-        Lower ``(min)`` and upper ``(max)`` spatial extents.
+    tuple[np.ndarray, np.ndarray]
+        Tuple of ``(coord_min, coord_max)`` arrays, each with shape ``(3,)``
+        and dtype ``float64`` representing (X, Y, Z) minimum and maximum
+        extents of the enclosing bounding box.
     """
     if not meshes:
         return np.zeros(3), np.zeros(3)
@@ -56,8 +58,9 @@ def scene_center(meshes: Sequence[Mesh3D]) -> np.ndarray:
 
     Returns
     -------
-    numpy.ndarray
-        Center coordinates of the enclosing bounding box.
+    np.ndarray
+        Midpoint coordinates array with shape ``(3,)`` and dtype
+        ``float64`` representing (X, Y, Z) center of the scene.
     """
     lower, upper = scene_bounds(meshes)
     return 0.5 * (lower + upper)
@@ -67,7 +70,21 @@ def scene_translate(
     meshes: Sequence[Mesh3D],
     translation: np.ndarray,
 ) -> list[Mesh3D]:
-    """Translate every mesh in a sequence by the same offset vector."""
+    """Translate every mesh in a sequence by the same offset vector.
+
+    Parameters
+    ----------
+    meshes : Sequence[Mesh3D]
+        Collection of meshes to translate.
+    translation : np.ndarray
+        Translation offset array with shape ``(3,)`` or ``(2,)`` and dtype
+        ``float64`` representing (dX, dY, dZ) offsets.
+
+    Returns
+    -------
+    list[Mesh3D]
+        New list of translated meshes.
+    """
     return [mesh_translate(mesh, translation) for mesh in meshes]
 
 
@@ -76,7 +93,23 @@ def scene_rotate(
     rotation: Rotation,
     pivot: np.ndarray | None = None,
 ) -> list[Mesh3D]:
-    """Rotate all meshes around a shared pivot (default: scene center)."""
+    """Rotate all meshes around a shared pivot (default: scene center).
+
+    Parameters
+    ----------
+    meshes : Sequence[Mesh3D]
+        Collection of meshes to rotate.
+    rotation : scipy.spatial.transform.Rotation
+        Spatial rotation to apply to all meshes.
+    pivot : np.ndarray or None, optional
+        Pivot center point array with shape ``(3,)`` and dtype ``float64``.
+        If ``None``, defaults to the scene center.
+
+    Returns
+    -------
+    list[Mesh3D]
+        New list of rotated meshes.
+    """
     p_vec = scene_center(meshes) if pivot is None else pivot
     return [mesh_rotate(mesh, rotation, pivot=p_vec) for mesh in meshes]
 
@@ -85,7 +118,26 @@ def scene_arrange_points(
     meshes: Sequence[Mesh3D],
     positions: np.ndarray,
 ) -> list[Mesh3D]:
-    """Move each mesh so its bounding box center lies at the matching target."""
+    """Move each mesh so its bounding box center lies at the matching target.
+
+    Parameters
+    ----------
+    meshes : Sequence[Mesh3D]
+        Collection of meshes to arrange.
+    positions : np.ndarray
+        Array of target center positions with shape ``(num_meshes, 3)`` and
+        dtype ``float64`` representing (X, Y, Z) coordinates for each mesh.
+
+    Returns
+    -------
+    list[Mesh3D]
+        New list of repositioned meshes.
+
+    Raises
+    ------
+    ValueError
+        If the number of meshes does not match the number of positions.
+    """
     if len(meshes) != len(positions):
         raise ValueError(
             f"Number of meshes ({len(meshes)}) must match number of "
@@ -103,7 +155,23 @@ def scene_arrange_line(
     axis: int = 0,
     spacing: float = 0.0,
 ) -> list[Mesh3D]:
-    """Arrange meshes in a line with a constant gap between bounding boxes."""
+    """Arrange meshes in a line with a constant gap between bounding boxes.
+
+    Parameters
+    ----------
+    meshes : Sequence[Mesh3D]
+        Collection of meshes to arrange.
+    axis : int, optional
+        Spatial axis index along which to align meshes (0 for X, 1 for Y,
+        2 for Z). Defaults to 0.
+    spacing : float, optional
+        Clearance distance between successive bounding boxes. Defaults to 0.0.
+
+    Returns
+    -------
+    list[Mesh3D]
+        New list of arranged meshes.
+    """
     if not meshes:
         return []
 
@@ -134,7 +202,33 @@ def scene_arrange_grid(
     plane: str = "xy",
     center: bool = True,
 ) -> list[Mesh3D]:
-    """Arrange meshes in a 2D planar grid with defined gaps between boxes."""
+    """Arrange meshes in a 2D planar grid with defined gaps between boxes.
+
+    Parameters
+    ----------
+    meshes : Sequence[Mesh3D]
+        Collection of meshes to arrange in a grid.
+    columns : int, optional
+        Number of grid columns. Defaults to 3.
+    spacing : np.ndarray, optional
+        Gaps between bounding boxes with shape ``(2,)`` and dtype ``float64``
+        representing ``(gap_u, gap_v)``. Defaults to ``(0.0, 0.0)``.
+    plane : str, optional
+        Grid arrangement plane (``"xy"``, ``"xz"``, or ``"yz"``). Defaults
+        to ``"xy"``.
+    center : bool, optional
+        Whether to center the entire grid at the origin. Defaults to ``True``.
+
+    Returns
+    -------
+    list[Mesh3D]
+        New list of grid arranged meshes.
+
+    Raises
+    ------
+    ValueError
+        If columns is not positive or plane is unsupported.
+    """
     if not meshes:
         return []
 
@@ -204,7 +298,30 @@ def scene_arrange_circle(
     plane: str = "xy",
     center: np.ndarray = np.array((0.0, 0.0, 0.0)),
 ) -> list[Mesh3D]:
-    """Place mesh centers evenly spaced around a circle."""
+    """Place mesh centers evenly spaced around a circle.
+
+    Parameters
+    ----------
+    meshes : Sequence[Mesh3D]
+        Collection of meshes to arrange in a circle.
+    radius : float, optional
+        Radius of the circle. Defaults to 100.0.
+    plane : str, optional
+        Circle plane (``"xy"``, ``"xz"``, or ``"yz"``). Defaults to ``"xy"``.
+    center : np.ndarray, optional
+        Center coordinates of the circle with shape ``(3,)`` and dtype
+        ``float64``. Defaults to ``(0.0, 0.0, 0.0)``.
+
+    Returns
+    -------
+    list[Mesh3D]
+        New list of circularly arranged meshes.
+
+    Raises
+    ------
+    ValueError
+        If plane is unsupported.
+    """
     if not meshes:
         return []
 

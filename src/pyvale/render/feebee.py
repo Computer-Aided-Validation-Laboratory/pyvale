@@ -3,9 +3,9 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Feebee ray-tracer scene definitions and renderer scaffold.
+"""Feebee ray tracer scene definitions and renderer scaffold.
 
-Feebee is pyvale's future ray-tracing backend - these are stubs/placeholders 
+Feebee is pyvale's future ray tracing backend - these are stubs/placeholders 
 that will not be implemented until Feebee is merged.  
 """
 
@@ -25,10 +25,10 @@ from .verifyinput import raise_if_issues, verify_scene_3d
 
 
 class EFeebeeMaterialType(Enum):
-    """Light-transport models supplied by Feebee.
+    """Light transport models supplied by Feebee.
 
     ``UNLIT`` returns the shader colour without lighting. ``DIFFUSE``,
-    ``SPECULAR``, and ``REFRACTIVE`` use Feebee's ray-tracing material paths.
+    ``SPECULAR``, and ``REFRACTIVE`` use Feebee's ray tracing material paths.
     """
 
     DIFFUSE = "diffuse"
@@ -40,9 +40,9 @@ class EFeebeeMaterialType(Enum):
 class EFeebeeShading(Enum):
     """Normal interpolation methods supported by Feebee.
 
-    ``FLAT`` uses geometric normals. ``BLENDED`` uses the element-specific
+    ``FLAT`` uses geometric normals. ``BLENDED`` uses the element specific
     normal interpolation used by the original ray tracer. ``ANGLE_AVERAGED``
-    uses angle-averaged node normals for every supported surface topology.
+    uses angle averaged node normals for every supported surface topology.
     """
 
     FLAT = "flat"
@@ -69,18 +69,23 @@ class FeebeeMaterial:
     Parameters
     ----------
     material_type : EFeebeeMaterialType, optional
-        Ray-transport model for the mesh.
-    colour : numpy.ndarray, optional
-        RGB multiplier or refractive tint with shape ``(3,)``. Values are
-        linear and non-negative; values exceeding one are permitted.
-    refractive_index : float, optional
-        Material refractive index. It is required for refractive materials.
+        Ray transport model for the mesh. Defaults to
+        ``EFeebeeMaterialType.DIFFUSE``.
+    colour : np.ndarray, optional
+        RGB multiplier or refractive tint array with shape ``(3,)`` and dtype
+        ``float64``. Values are linear and non negative; values exceeding 1.0
+        are permitted. Defaults to ``np.ones(3)``.
+    refractive_index : float or None, optional
+        Material refractive index. Required for refractive materials.
     priority : int, optional
         Nesting priority used to resolve overlapping refractive volumes.
+        Defaults to 0.
     is_shell : bool, optional
         Whether the mesh represents a shell rather than a closed solid.
+        Defaults to ``False``.
     thickness : float, optional
-        Physical shell thickness. It is used only when ``is_shell`` is true.
+        Physical shell thickness. Used only when ``is_shell`` is true.
+        Defaults to 1.0.
     """
 
     material_type: EFeebeeMaterialType = EFeebeeMaterialType.DIFFUSE
@@ -99,22 +104,23 @@ class FeebeeMaterial:
 
 @dataclass(slots=True)
 class FeebeeColourShader:
-    """Face-colour shader with a Feebee material.
+    """Face colour shader with a Feebee material.
 
     Parameters
     ----------
-    colours : numpy.ndarray
-        RGB face colours with shape ``(frames, elements, 3)``. A single frame
-        can be used for a static mesh.
+    colours : np.ndarray
+        RGB face colours array with shape
+        ``(num_frames, num_elements, 3)`` and dtype ``float64``. A single
+        frame can be used for a static mesh.
     material : FeebeeMaterial, optional
-        Light-transport properties applied to the face colours.
+        Light transport properties applied to the face colours.
     """
 
     colours: np.ndarray
     material: FeebeeMaterial = field(default_factory=FeebeeMaterial)
 
     def __post_init__(self) -> None:
-        """Store contiguous double-precision face-colour data."""
+        """Store contiguous double precision face colour data."""
         self.colours = np.ascontiguousarray(self.colours, dtype=np.float64)
 
 
@@ -124,12 +130,14 @@ class FeebeeTextureShader:
 
     Parameters
     ----------
-    uvs : numpy.ndarray
-        Texture coordinates with shape ``(node_count, 2)``.
-    texture : numpy.ndarray
-        Greyscale or RGB texture image with rank two or three.
+    uvs : np.ndarray
+        Nodal UV coordinate array with shape ``(num_nodes, 2)`` and dtype
+        ``float64`` in the normalized range ``[0.0, 1.0]``.
+    texture : np.ndarray
+        Greyscale or RGB texture image array with shape ``(height, width)``
+        or ``(height, width, num_channels)``.
     material : FeebeeMaterial, optional
-        Light-transport properties applied to sampled texture values.
+        Light transport properties applied to sampled texture values.
     """
 
     uvs: np.ndarray
@@ -137,7 +145,7 @@ class FeebeeTextureShader:
     material: FeebeeMaterial = field(default_factory=FeebeeMaterial)
 
     def __post_init__(self) -> None:
-        """Store contiguous texture-coordinate and image arrays."""
+        """Store contiguous texture coordinate and image arrays."""
         self.uvs = np.ascontiguousarray(self.uvs)
         self.texture = np.ascontiguousarray(self.texture)
 
@@ -148,18 +156,22 @@ class FeebeeConfig:
 
     Parameters
     ----------
-    background_colour : numpy.ndarray, optional
-        Linear RGB scene background with shape ``(3,)``.
+    background_colour : np.ndarray, optional
+        Linear RGB scene background array with shape ``(3,)`` and dtype
+        ``float64``. Defaults to ``(0.7, 0.7, 0.7)``.
     scene_refractive_index : float, optional
-        Refractive index of the medium that fills the scene.
+        Refractive index of the medium that fills the scene. Defaults to
+        1.0003.
     antialiasing_samples : int, optional
-        Number of samples evaluated for every pixel.
+        Number of samples evaluated for every pixel. Defaults to 1.
     shading : EFeebeeShading, optional
-        Surface-normal interpolation method.
+        Surface normal interpolation method. Defaults to
+        ``EFeebeeShading.FLAT``.
     texture_sampler : EFeebeeTextureSampler, optional
-        Filter used by texture shaders.
+        Filter used by texture shaders. Defaults to
+        ``EFeebeeTextureSampler.NEAREST_NEIGHBOUR``.
     max_depth : int or None, optional
-        Maximum secondary-ray depth. ``None`` requests Feebee's automatic
+        Maximum secondary ray depth. ``None`` requests Feebee's automatic
         depth selection.
     min_refractive_depth : int or None, optional
         Minimum deterministic depth before refractive paths may terminate.
@@ -193,7 +205,7 @@ class FeebeeConfig:
 class Feebee(IRenderer3D):
     """Prepare pyvale scenes for the forthcoming Feebee ray tracer.
 
-    The class already validates Feebee-specific shader, material, and scene
+    The class already validates Feebee specific shader, material, and scene
     options before any costly scene expansion occurs. The compiled rendering
     backend has not yet been migrated, so :meth:`render` currently raises
     :class:`NotImplementedError` only after successful validation.
@@ -283,7 +295,8 @@ class Feebee(IRenderer3D):
                     ValidationIssue(
                         path,
                         "FRAME_COUNT",
-                        "All animated mesh data must have the same frame count.",
+                        "All animated mesh data must have the same frame "
+                        "count.",
                     ),
                 )
 
@@ -365,7 +378,7 @@ def _verify_depths(
     max_depth: int | None,
     min_refractive_depth: int | None,
 ) -> tuple[ValidationIssue, ...]:
-    """Validate ray-depth options used by the original ray tracer."""
+    """Validate ray depth options used by the original ray tracer."""
     issues: list[ValidationIssue] = []
     for path, value, minimum in (
         ("config.max_depth", max_depth, 1),
@@ -395,7 +408,7 @@ def _verify_depths(
 
 
 def _verify_mesh(mesh: Mesh3D, path: str) -> tuple[ValidationIssue, ...]:
-    """Return Feebee-specific validation issues for one mesh."""
+    """Return Feebee specific validation issues for one mesh."""
     issues: list[ValidationIssue] = []
     nodes_per_element = {
         EElementType.TRI3: 3,
@@ -421,8 +434,8 @@ def _verify_mesh(mesh: Mesh3D, path: str) -> tuple[ValidationIssue, ...]:
             ValidationIssue(
                 path + ".connectivity",
                 "SHAPE",
-                "Expected "
-                f"{expected_nodes} nodes per {mesh.element_type.value} element.",
+                f"Expected {expected_nodes} nodes per "
+                f"{mesh.element_type.value} element.",
             ),
         )
 

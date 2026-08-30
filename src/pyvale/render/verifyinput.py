@@ -3,7 +3,7 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Cheap, non-rendering validation helpers."""
+"""Cheap, non rendering validation helpers."""
 
 from collections.abc import Sequence
 
@@ -30,11 +30,27 @@ def mesh_convention_issues(
     connectivity: np.ndarray,
     path: str,
 ) -> tuple[ValidationIssue, ...]:
-    """Return shared-convention issues for a render surface mesh.
+    """Return shared convention issues for a render surface mesh.
 
-    Two-dimensional coordinates are padded onto the XY plane before invoking
+    Two dimensional coordinates are padded onto the XY plane before invoking
     the common DataIO checker. This keeps planar renderers aligned with the
-    same counter-clockwise, right-handed convention as 3D renderers.
+    same counter clockwise, right handed convention as 3D renderers.
+
+    Parameters
+    ----------
+    coords : np.ndarray
+        Nodal coordinates array with shape ``(num_nodes, 2)`` or
+        ``(num_nodes, 3)`` and dtype ``float64``.
+    connectivity : np.ndarray
+        Element connectivity table with shape
+        ``(num_elements, nodes_per_element)`` and integer dtype.
+    path : str
+        Dotted path identifier for error reporting.
+
+    Returns
+    -------
+    tuple[ValidationIssue, ...]
+        Tuple of validation issues detected, or an empty tuple if valid.
     """
     coords_array = np.asarray(coords)
     connectivity_array = np.asarray(connectivity)
@@ -83,7 +99,7 @@ def verify_scene_3d(
     cameras: Sequence[Camera],
     lights: Sequence[Light] | None,
 ) -> tuple[ValidationIssue, ...]:
-    """Check common three-dimensional scene constraints cheaply.
+    """Check common three dimensional scene constraints cheaply.
 
     Parameters
     ----------

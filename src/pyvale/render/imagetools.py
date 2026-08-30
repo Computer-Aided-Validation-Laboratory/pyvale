@@ -3,7 +3,7 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
-"""User-facing image and texture loading, saving, and preparation helpers."""
+"""User facing image and texture loading, saving, and preparation helpers."""
 
 from enum import Enum
 from pathlib import Path
@@ -25,13 +25,14 @@ def image_load(path: Path | str) -> np.ndarray:
 
     Parameters
     ----------
-    path : Path or str
+    path : pathlib.Path or str
         Filesystem path to the image.
 
     Returns
     -------
-    numpy.ndarray
-        Array of shape ``(H, W)`` for greyscale or ``(H, W, C)`` for colour.
+    np.ndarray
+        Image array with shape ``(height, width)`` for greyscale or
+        ``(height, width, num_channels)`` for colour images.
     """
     img_path = Path(path)
     if not img_path.is_file():
@@ -47,18 +48,19 @@ def image_save(
     image_type: EImageType = EImageType.TIFF,
     bits: int = 8,
 ) -> None:
-    """Save an image in conventional top-to-bottom row orientation.
+    """Save an image in conventional top to bottom row orientation.
 
     Parameters
     ----------
-    path : Path or str
-        Destination path.
-    image : numpy.ndarray
-        Image data array.
+    path : pathlib.Path or str
+        Destination filesystem path.
+    image : np.ndarray
+        Image array with shape ``(height, width)`` or
+        ``(height, width, num_channels)``.
     image_type : EImageType, optional
-        Format extension (default is TIFF).
+        Format extension (default is ``EImageType.TIFF``).
     bits : int, optional
-        Bit depth (8 or 16).
+        Bit depth (8 or 16). Defaults to 8.
     """
     out_path = Path(path)
     if out_path.suffix != image_type.value:
@@ -78,21 +80,28 @@ def image_crop(
     width: int,
     height: int,
 ) -> np.ndarray:
-    """Crop a rectangular region from an image (top-left origin).
+    """Crop a rectangular region from an image (top left origin).
 
     Parameters
     ----------
-    image : numpy.ndarray
-        Input image array.
+    image : np.ndarray
+        Input image array with shape ``(height, width)`` or
+        ``(height, width, num_channels)``.
     x, y : int
-        Top-left pixel coordinates of the crop rectangle.
+        Top left pixel coordinates of the crop rectangle.
     width, height : int
         Width and height of the crop region in pixels.
 
     Returns
     -------
-    numpy.ndarray
-        Cropped subarray of shape ``(height, width, ...)``.
+    np.ndarray
+        Cropped subarray with shape ``(height, width, ...)`` and matching
+        dtype.
+
+    Raises
+    ------
+    ValueError
+        If crop bounds are invalid or exceed image dimensions.
     """
     img_h, img_w = image.shape[:2]
 
@@ -118,17 +127,18 @@ def image_resize(
 
     Parameters
     ----------
-    image : numpy.ndarray
-        Input image array.
+    image : np.ndarray
+        Input image array with shape ``(height, width)`` or
+        ``(height, width, num_channels)``.
     size : tuple[int, int]
-        Target ``(width, height)`` dimensions.
+        Target ``(width, height)`` dimensions in pixels.
 
     Returns
     -------
-    numpy.ndarray
-        Resized array matching input dtype.
+    np.ndarray
+        Resized array with shape ``(size[1], size[0], ...)`` matching input
+        dtype.
     """
-
     orig_dtype = image.dtype
     with Image.fromarray(image) as pil_img:
         resized = pil_img.resize(size, resample=Image.Resampling.BILINEAR)
@@ -140,7 +150,24 @@ def image_normalise(
     lower: float = 0.0,
     upper: float = 1.0,
 ) -> np.ndarray:
-    """Normalise finite pixel intensities onto the range ``[lower, upper]``."""
+    """Normalise finite pixel intensities onto the range ``[lower, upper]``.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image array with shape ``(height, width)`` or
+        ``(height, width, num_channels)``.
+    lower : float, optional
+        Target lower intensity value. Defaults to 0.0.
+    upper : float, optional
+        Target upper intensity value. Defaults to 1.0.
+
+    Returns
+    -------
+    np.ndarray
+        Normalised image array with shape identical to input and dtype
+        ``float64``.
+    """
     arr = np.asarray(image, dtype=np.float64)
     min_val = np.nanmin(arr)
     max_val = np.nanmax(arr)
@@ -153,7 +180,25 @@ def image_normalise(
 
 
 def image_grayscale(image: np.ndarray) -> np.ndarray:
-    """Convert an RGB or RGBA image to greyscale using standard luminance."""
+    """Convert an RGB or RGBA image to greyscale using standard luminance.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image array with shape ``(height, width)`` or
+        ``(height, width, num_channels)``.
+
+    Returns
+    -------
+    np.ndarray
+        Greyscale image array with shape ``(height, width)`` and dtype
+        ``float64``.
+
+    Raises
+    ------
+    ValueError
+        If the input image array shape is unsupported.
+    """
     arr = np.asarray(image, dtype=np.float64)
     if arr.ndim == 2:
         return arr.copy()

@@ -17,9 +17,9 @@ class ValidationIssue:
     path : str
         Dotted path to the invalid input.
     code : str
-        Stable, machine-readable issue category.
+        Stable, machine readable issue category.
     message : str
-        Human-readable explanation of the problem.
+        Human readable explanation of the problem.
     """
 
     path: str

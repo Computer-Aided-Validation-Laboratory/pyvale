@@ -3,7 +3,7 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Camera data for three-dimensional and planar rendering."""
+"""Camera data for three dimensional and planar rendering."""
 
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -27,7 +27,7 @@ class EDistortionModel(IntEnum):
 
 
 class EPSFType(IntEnum):
-    """Point-spread function types matching Riley's PsfType enum.
+    """Point spread function types matching Riley's PsfType enum.
 
     Values correspond to Riley's PsfType enum.
     """
@@ -43,22 +43,26 @@ class Camera:
 
     Parameters
     ----------
-    pixels_num : numpy.ndarray
-        Image pixel counts in ``(width, height)`` order.
-    pixels_size : numpy.ndarray
-        Physical pixel dimensions in ``(width, height)`` order.
-    pos_world : numpy.ndarray
-        Camera position in world coordinates, with shape ``(3,)``.
+    pixels_num : np.ndarray
+        Image pixel counts with shape ``(2,)`` and dtype ``int32`` in
+        ``(width, height)`` order.
+    pixels_size : np.ndarray
+        Physical pixel dimensions with shape ``(2,)`` and dtype ``float64``
+        in ``(width, height)`` order, in world length units.
+    pos_world : np.ndarray
+        Camera position in world coordinates with shape ``(3,)`` and dtype
+        ``float64`` representing (X, Y, Z) coordinates.
     rot_world : scipy.spatial.transform.Rotation
         Camera orientation in world coordinates.
-    roi_cent_world : numpy.ndarray
-        Region-of-interest centre in world coordinates, with shape ``(3,)``.
+    roi_cent_world : np.ndarray
+        Region of interest centre in world coordinates with shape ``(3,)``
+        and dtype ``float64`` representing (X, Y, Z) coordinates.
     focal_length : float
         Camera focal length in the same units as world coordinates.
     subsample : int, optional
-        Number of sub-pixel samples per pixel direction.
+        Number of sub pixel samples per pixel direction.
     distortion_model : EDistortionModel, optional
-        Lens-distortion model identifier.
+        Lens distortion model identifier.
     distortion_k1, distortion_k2, distortion_k3, distortion_k4 : float, optional
         Radial distortion coefficients.
     distortion_k5, distortion_k6 : float, optional
@@ -66,18 +70,18 @@ class Camera:
     distortion_p1, distortion_p2 : float, optional
         Tangential distortion coefficients.
     c0, c1 : float or None, optional
-        Optical-centre coordinates in pixels. ``None`` centres the coordinate
+        Optical centre coordinates in pixels. ``None`` centres the coordinate
         in the image.
     fstop : float or None, optional
-        Lens f-number. ``None`` leaves depth-of-field disabled.
+        Lens f number. ``None`` leaves depth of field disabled.
     psf_type : EPSFType, optional
-        Point-spread-function model identifier.
+        Point spread function model identifier.
     psf_sigma_x, psf_sigma_y : float, optional
-        Point-spread-function standard deviations in pixel coordinates.
+        Point spread function standard deviations in pixel coordinates.
     psf_theta : float, optional
-        Point-spread-function rotation in radians.
+        Point spread function rotation in radians.
     psf_support_rad : float, optional
-        Point-spread-function support radius in pixels.
+        Point spread function support radius in pixels.
     """
 
     pixels_num: np.ndarray

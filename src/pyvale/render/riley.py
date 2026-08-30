@@ -23,7 +23,26 @@ from .verifyinput import mesh_convention_issues, raise_if_issues
 
 @dataclass(slots=True, kw_only=True)
 class RileyFunctionShader:
-    """An analytic Riley shader evaluated from mesh coordinates."""
+    """An analytic Riley shader evaluated from mesh coordinates.
+
+    Parameters
+    ----------
+    builtin : riley.FuncShaderBuiltin, optional
+        Built in function pattern identifier. Defaults to
+        ``riley.FuncShaderBuiltin.checker``.
+    coord_mode : riley.FuncCoordMode, optional
+        Coordinate space for function evaluation. Defaults to
+        ``riley.FuncCoordMode.world_reference``.
+    parameters : riley.FuncShaderParams, optional
+        Function evaluation parameters.
+    uvs : np.ndarray or None, optional
+        Nodal UV coordinate array with shape ``(num_nodes, 2)`` and dtype
+        ``float64``.
+    bits : int, optional
+        Output bit depth (8 or 16). Defaults to 8.
+    scaling : riley.ScaleStrategy, optional
+        Intensity scaling strategy. Defaults to ``riley.ScaleStrategy.none``.
+    """
 
     builtin: riley.FuncShaderBuiltin = riley.FuncShaderBuiltin.checker
     coord_mode: riley.FuncCoordMode = riley.FuncCoordMode.world_reference
@@ -37,7 +56,27 @@ class RileyFunctionShader:
 
 @dataclass(slots=True, kw_only=True)
 class RileyTextureShader:
-    """A Riley image texture and its nodal UV coordinates."""
+    """A Riley image texture and its nodal UV coordinates.
+
+    Parameters
+    ----------
+    uvs : np.ndarray
+        Nodal UV coordinate array with shape ``(num_nodes, 2)`` and dtype
+        ``float64`` in the normalized range ``[0.0, 1.0]``.
+    texture : np.ndarray
+        Texture image array with shape ``(height, width)`` or
+        ``(height, width, num_channels)``.
+    sample : riley.TextureSample, optional
+        Texture filter/interpolation mode. Defaults to
+        ``riley.TextureSample.cubic_catmull_rom``.
+    sample_mode : riley.TextureSampleMode, optional
+        Texture sampling execution mode. Defaults to
+        ``riley.TextureSampleMode.lut_lerp``.
+    bits : int, optional
+        Output bit depth (8 or 16). Defaults to 8.
+    scaling : riley.ScaleStrategy, optional
+        Intensity scaling strategy. Defaults to ``riley.ScaleStrategy.none``.
+    """
 
     uvs: np.ndarray
     texture: np.ndarray
@@ -49,7 +88,21 @@ class RileyTextureShader:
 
 @dataclass(slots=True, kw_only=True)
 class RileyNodalShader:
-    """A scalar or colour field defined at mesh nodes."""
+    """A scalar or colour field defined at mesh nodes.
+
+    Parameters
+    ----------
+    field : np.ndarray
+        Nodal field array with shape ``(num_nodes, num_frames)`` or
+        ``(num_nodes, num_frames, num_channels)`` and dtype ``float64``.
+    bits : int, optional
+        Output bit depth (8 or 16). Defaults to 8.
+    scaling : riley.ScaleStrategy, optional
+        Intensity scaling strategy. Defaults to ``riley.ScaleStrategy.auto``.
+    scale_over : riley.ScaleOver, optional
+        Normalization domain (per frame or over all frames). Defaults to
+        ``riley.ScaleOver.over_frames``.
+    """
 
     field: np.ndarray
     bits: int = 8
@@ -61,13 +114,14 @@ class Riley(IRenderer3D):
     """Render native Riley meshes through pyvale's common scene container.
 
     Riley owns its complete mesh and shader representation. Construct meshes
-    with :class:`riley.Mesh`, including its texture, nodal-field, or analytic
+    with :class:`riley.Mesh`, including its texture, nodal field, or analytic
     function shader settings, then place them in :class:`Scene3D`.
 
     Parameters
     ----------
     config : riley.RasterConfig
-        Actual Riley raster configuration passed directly to :func:`riley.raster`.
+        Actual Riley raster configuration passed directly to
+        :func:`riley.raster`.
     output_dir : pathlib.Path or None, optional
         Directory to which Riley writes requested output. ``None`` preserves
         Riley's default output behaviour.
@@ -225,7 +279,9 @@ class Riley(IRenderer3D):
 def _verify_cameras(
     cameras: tuple[Camera | riley.Camera, ...],
 ) -> tuple[ValidationIssue, ...]:
-    """Perform the common cheap camera checks without requiring common meshes."""
+    """Perform the common cheap camera checks without requiring common
+    meshes.
+    """
 
     issues: list[ValidationIssue] = []
     for index, camera in enumerate(cameras):
@@ -280,9 +336,19 @@ def to_riley_camera(camera: Camera | riley.Camera) -> riley.Camera:
 
     Native :class:`riley.Camera` instances are returned unchanged so scenes
     may mix cameras built through the render API with cameras loaded
-    directly from Riley. SciPy reports Euler angles in X-Y-Z order, whereas
-    Riley stores its camera angles in Z-Y-X order, so this adapter reverses
+    directly from Riley. SciPy reports Euler angles in X, Y, Z order, whereas
+    Riley stores its camera angles in Z, Y, X order, so this adapter reverses
     their storage order at the API boundary.
+
+    Parameters
+    ----------
+    camera : Camera or riley.Camera
+        Input camera to convert.
+
+    Returns
+    -------
+    riley.Camera
+        Native Riley camera instance.
     """
     if isinstance(camera, riley.Camera):
         return camera
@@ -327,6 +393,21 @@ def to_riley_mesh(mesh: Mesh3D | riley.Mesh) -> riley.Mesh:
     Native :class:`riley.Mesh` instances are returned unchanged so scenes
     may mix meshes built through the render API with meshes built directly
     through Riley.
+
+    Parameters
+    ----------
+    mesh : Mesh3D or riley.Mesh
+        Input mesh to convert.
+
+    Returns
+    -------
+    riley.Mesh
+        Native Riley mesh instance.
+
+    Raises
+    ------
+    TypeError
+        If mesh shader is unsupported.
     """
     if isinstance(mesh, riley.Mesh):
         return mesh

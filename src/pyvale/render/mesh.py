@@ -3,7 +3,7 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Renderer-independent surface mesh data."""
+"""Renderer independent surface mesh data."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -32,21 +32,24 @@ _NODES_PER_ELEMENT = {
 
 @dataclass(slots=True)
 class Mesh3D:
-    """A deformable surface mesh prepared for a three-dimensional renderer.
+    """A deformable surface mesh prepared for a three dimensional renderer.
 
     Parameters
     ----------
     element_type : EElementType
         Topology of every element in ``connectivity``.
-    coords : numpy.ndarray
-        World coordinates with shape ``(node_count, 3)``.
-    connectivity : numpy.ndarray
-        Zero-based node indices with shape
-        ``(element_count, nodes_per_element)``.
+    coords : np.ndarray
+        World coordinates array with shape ``(num_nodes, 3)`` and dtype
+        ``float64`` representing (X, Y, Z) coordinates of each node.
+    connectivity : np.ndarray
+        Zero based element connectivity table with shape
+        ``(num_elements, nodes_per_element)`` and dtype ``uintp`` or ``int_``.
     shader : object
-        Backend-owned material or shader definition.
-    displacements : numpy.ndarray or None, optional
-        Nodal displacements with shape ``(frame_count, node_count, 3)``.
+        Backend owned material or shader definition.
+    displacements : np.ndarray or None, optional
+        Nodal displacements array with shape
+        ``(num_frames, num_nodes, 3)`` and dtype ``float64`` representing
+        (dX, dY, dZ) displacements for each frame.
     """
 
     element_type: EElementType

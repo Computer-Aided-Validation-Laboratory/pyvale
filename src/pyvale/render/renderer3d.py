@@ -22,7 +22,7 @@ class IRenderer3D(ABC):
         self,
         scene: Scene3D,
     ) -> RenderResult:
-        """Validate and render a three-dimensional scene.
+        """Validate and render a three dimensional scene.
 
         Parameters
         ----------

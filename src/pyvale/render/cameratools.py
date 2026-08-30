@@ -37,11 +37,19 @@ class EFrameFit(IntEnum):
 
 @dataclass(frozen=True, slots=True)
 class StereoExtrinsics:
-    """Transform from camera-zero coordinates to camera-one coordinates.
+    """Transform from camera zero coordinates to camera one coordinates.
 
     The relation is ``point_cam1 = rotation_cam1_from_cam0.apply(point_cam0)
-    + translation_cam1_in_cam0``.  The camera rotations stored by
+    + translation_cam1_in_cam0``. The camera rotations stored by
     :class:`Camera` transform camera coordinates into world coordinates.
+
+    Parameters
+    ----------
+    rotation_cam1_from_cam0 : scipy.spatial.transform.Rotation
+        Relative rotation from camera zero frame to camera one frame.
+    translation_cam1_in_cam0 : np.ndarray
+        Translation vector array with shape ``(3,)`` and dtype ``float64``
+        representing the position of camera zero in camera one frame.
     """
 
     rotation_cam1_from_cam0: Rotation
@@ -50,7 +58,16 @@ class StereoExtrinsics:
 
 @dataclass(frozen=True, slots=True)
 class StereoAngles:
-    """Relative orientation and optical-axis convergence of a stereo pair."""
+    """Relative orientation and optical axis convergence of a stereo pair.
+
+    Parameters
+    ----------
+    relative_euler_xyz_degrees : np.ndarray
+        Relative Euler angles (XYZ) in degrees with shape ``(3,)`` and dtype
+        ``float64``.
+    convergence_degrees : float
+        Optical axis convergence angle in degrees.
+    """
 
     relative_euler_xyz_degrees: np.ndarray
     convergence_degrees: float
@@ -67,15 +84,22 @@ def cam_look_at(
     ----------
     camera : Camera
         Camera to reorient.
-    target : numpy.ndarray
-        3D world coordinates the camera should aim at.
-    up : numpy.ndarray, optional
-        Preferred upward world direction (default is +Y).
+    target : np.ndarray
+        Target position array with shape ``(3,)`` and dtype ``float64``
+        representing (X, Y, Z) world coordinates the camera should aim at.
+    up : np.ndarray, optional
+        Preferred upward world direction array with shape ``(3,)`` and dtype
+        ``float64`` (default is +Y: ``(0, 1, 0)``).
 
     Returns
     -------
     Camera
         A copy of the camera with updated rotation and ROI center.
+
+    Raises
+    ------
+    ValueError
+        If camera position and target are coincident.
     """
     target_vec = np.asarray(target, dtype=np.float64)
     pos_vec = np.asarray(camera.pos_world, dtype=np.float64)
@@ -119,14 +143,46 @@ def cam_look_at(
 
 
 def cam_coverage_to_fov_scale(coverage: float) -> float:
-    """Convert target image coverage to Riley's field-of-view scale."""
+    """Convert target image coverage to Riley's field of view scale.
+
+    Parameters
+    ----------
+    coverage : float
+        Target image coverage fraction (e.g. 0.9 for 90% sensor coverage).
+
+    Returns
+    -------
+    float
+        Riley field of view scale parameter.
+
+    Raises
+    ------
+    ValueError
+        If coverage is not positive.
+    """
     if coverage <= 0.0:
         raise ValueError("coverage must be positive.")
     return riley.coverage_to_fov_scale(float(coverage))
 
 
 def cam_fov_scale_to_coverage(fov_scale: float) -> float:
-    """Convert Riley's field-of-view scale to target image coverage."""
+    """Convert Riley's field of view scale to target image coverage.
+
+    Parameters
+    ----------
+    fov_scale : float
+        Riley field of view scale parameter.
+
+    Returns
+    -------
+    float
+        Target image coverage fraction.
+
+    Raises
+    ------
+    ValueError
+        If fov_scale is not positive.
+    """
     if fov_scale <= 0.0:
         raise ValueError("fov_scale must be positive.")
     return riley.fov_scale_to_coverage(float(fov_scale))
@@ -138,9 +194,28 @@ def cam_calc_leng_per_px(
 ) -> float:
     """Calculate average simulation length per image pixel at a target.
 
-    Riley evaluates the camera-normal plane through the target and averages
+    Riley evaluates the camera normal plane through the target and averages
     its horizontal and vertical scaling. The camera ROI centre is used when
     ``target`` is omitted.
+
+    Parameters
+    ----------
+    camera : Camera
+        Camera model.
+    target : np.ndarray or None, optional
+        Target position array with shape ``(3,)`` and dtype ``float64``
+        representing (X, Y, Z) coordinates. If ``None``, uses
+        ``camera.roi_cent_world``.
+
+    Returns
+    -------
+    float
+        Average world length per pixel in simulation length units.
+
+    Raises
+    ------
+    ValueError
+        If target is not finite or has invalid shape.
     """
     from .riley import to_riley_camera
 
@@ -159,7 +234,22 @@ def cam_calc_px_per_leng(
     camera: Camera,
     target: np.ndarray | None = None,
 ) -> float:
-    """Calculate average image pixels per simulation length at a target."""
+    """Calculate average image pixels per simulation length at a target.
+
+    Parameters
+    ----------
+    camera : Camera
+        Camera model.
+    target : np.ndarray or None, optional
+        Target position array with shape ``(3,)`` and dtype ``float64``
+        representing (X, Y, Z) coordinates. If ``None``, uses
+        ``camera.roi_cent_world``.
+
+    Returns
+    -------
+    float
+        Average image pixels per world length unit.
+    """
     return 1.0 / cam_calc_leng_per_px(camera, target)
 
 
@@ -314,7 +404,28 @@ def cam_frame_mesh(
     fit_mode: EFrameFit = EFrameFit.CONTAIN,
     target: np.ndarray | None = None,
 ) -> Camera:
-    """Position a camera along its view direction to frame a mesh."""
+    """Position a camera along its view direction to frame a mesh.
+
+    Parameters
+    ----------
+    camera : Camera
+        Camera to position.
+    mesh : Mesh3D
+        Surface mesh whose coordinates to fit inside the sensor.
+    fov_scale : float, optional
+        Scale applied to the fitted field of view (default is 1.0).
+    fit_mode : EFrameFit, optional
+        Rule used to select the fitted sensor dimension. Defaults to
+        ``EFrameFit.CONTAIN``.
+    target : np.ndarray or None, optional
+        Point array with shape ``(3,)`` placed at the image centre. The bounds
+        centre is used when omitted.
+
+    Returns
+    -------
+    Camera
+        A copy of the camera positioned to frame the mesh.
+    """
     return cam_frame_points(
         camera,
         mesh.coords,
@@ -331,8 +442,33 @@ def cam_frame_scene(
     fit_mode: EFrameFit = EFrameFit.CONTAIN,
     target: np.ndarray | None = None,
 ) -> Camera:
-    """Position a camera along its view direction to frame all meshes."""
+    """Position a camera along its view direction to frame all meshes.
 
+    Parameters
+    ----------
+    camera : Camera
+        Camera to position.
+    meshes : Sequence[Mesh3D]
+        Collection of surface meshes to frame.
+    fov_scale : float, optional
+        Scale applied to the fitted field of view (default is 1.0).
+    fit_mode : EFrameFit, optional
+        Rule used to select the fitted sensor dimension. Defaults to
+        ``EFrameFit.CONTAIN``.
+    target : np.ndarray or None, optional
+        Point array with shape ``(3,)`` placed at the image centre. The bounds
+        centre is used when omitted.
+
+    Returns
+    -------
+    Camera
+        A copy of the camera positioned to frame all meshes in the scene.
+
+    Raises
+    ------
+    ValueError
+        If no meshes provide valid coordinates.
+    """
     valid_coords = [mesh.coords for mesh in meshes if len(mesh.coords) > 0]
     if not valid_coords:
         raise ValueError("Cannot frame a scene with no mesh coordinates.")
@@ -358,13 +494,15 @@ def cam_project_points(
     ----------
     camera : Camera
         Perspective camera model.
-    points : numpy.ndarray
-        Array of shape ``(N, 3)`` in world coordinates.
+    points : np.ndarray
+        Array of world coordinates with shape ``(N, 3)`` and dtype ``float64``
+        representing (X, Y, Z) points.
 
     Returns
     -------
-    numpy.ndarray
-        Projected image coordinates of shape ``(N, 2)`` in pixel units.
+    np.ndarray
+        Projected image coordinates array with shape ``(N, 2)`` and dtype
+        ``float64`` in pixel units ``(u, v)``.
     """
     pts = np.asarray(points, dtype=np.float64)
     if pts.ndim == 1:
@@ -394,13 +532,27 @@ def stereo_build_faceon(
     convergence_degrees: float,
     roi_pos: np.ndarray | None = None,
 ) -> StereoCameras:
-    """Build a pair with camera zero face-on and camera one converging.
+    """Build a pair with camera zero face on and camera one converging.
 
     Camera zero is retained unchanged. Camera one is translated along camera
     zero's local positive X axis and aimed at ``roi_pos``. When no ROI is
     supplied, ``camera.roi_cent_world`` is used.
-    """
 
+    Parameters
+    ----------
+    camera : Camera
+        Base camera for camera zero intrinsics and pose.
+    convergence_degrees : float
+        Convergence angle in degrees.
+    roi_pos : np.ndarray or None, optional
+        Region of interest target point array with shape ``(3,)`` and dtype
+        ``float64``. If ``None``, uses ``camera.roi_cent_world``.
+
+    Returns
+    -------
+    StereoCameras
+        Tuple of ``(camera_0, camera_1)`` representing the stereo rig.
+    """
     target = _stereo_target(camera, roi_pos)
     stand_off = np.linalg.norm(camera.pos_world - target)
     baseline = stand_off * np.tan(np.radians(convergence_degrees))
@@ -424,8 +576,22 @@ def stereo_build_symmetric(
 
     The reference camera supplies the midpoint pose and intrinsics. Both
     returned cameras are placed on its local X axis and aimed at ``roi_pos``.
-    """
 
+    Parameters
+    ----------
+    camera : Camera
+        Reference central camera defining midpoint pose and intrinsics.
+    convergence_degrees : float
+        Total convergence angle between the two cameras in degrees.
+    roi_pos : np.ndarray or None, optional
+        Region of interest target point array with shape ``(3,)`` and dtype
+        ``float64``. If ``None``, uses ``camera.roi_cent_world``.
+
+    Returns
+    -------
+    StereoCameras
+        Tuple of ``(camera_0, camera_1)`` representing the symmetric stereo rig.
+    """
     target = _stereo_target(camera, roi_pos)
     stand_off = np.linalg.norm(camera.pos_world - target)
     half_angle = 0.5 * np.radians(convergence_degrees)
@@ -451,8 +617,20 @@ def stereo_calc_extrinsics(
     camera_0: Camera,
     camera_1: Camera,
 ) -> StereoExtrinsics:
-    """Calculate the camera-zero to camera-one rigid transformation."""
+    """Calculate the camera zero to camera one rigid transformation.
 
+    Parameters
+    ----------
+    camera_0 : Camera
+        First camera (reference frame 0).
+    camera_1 : Camera
+        Second camera (target frame 1).
+
+    Returns
+    -------
+    StereoExtrinsics
+        Rigid transformation containing rotation and translation.
+    """
     rotation = camera_1.rot_world.inv() * camera_0.rot_world
     translation = camera_1.rot_world.inv().apply(
         camera_0.pos_world - camera_1.pos_world
@@ -462,7 +640,20 @@ def stereo_calc_extrinsics(
 
 
 def stereo_calc_baseline(camera_0: Camera, camera_1: Camera) -> float:
-    """Calculate the Euclidean distance between the camera centres."""
+    """Calculate the Euclidean distance between the camera centres.
+
+    Parameters
+    ----------
+    camera_0 : Camera
+        First camera.
+    camera_1 : Camera
+        Second camera.
+
+    Returns
+    -------
+    float
+        Distance between camera positions in world length units.
+    """
     return float(np.linalg.norm(camera_1.pos_world - camera_0.pos_world))
 
 
@@ -471,8 +662,23 @@ def stereo_calc_stand_off(
     camera_1: Camera,
     roi_pos: np.ndarray,
 ) -> float:
-    """Calculate midpoint-to-ROI stand-off distance for a stereo pair."""
+    """Calculate midpoint to ROI standoff distance for a stereo pair.
 
+    Parameters
+    ----------
+    camera_0 : Camera
+        First camera.
+    camera_1 : Camera
+        Second camera.
+    roi_pos : np.ndarray
+        Region of interest target coordinate array with shape ``(3,)`` and
+        dtype ``float64``.
+
+    Returns
+    -------
+    float
+        Euclidean distance from stereo midpoint to ROI in world units.
+    """
     midpoint = 0.5 * (camera_0.pos_world + camera_1.pos_world)
     roi = np.asarray(roi_pos, dtype=np.float64)
 
@@ -480,8 +686,20 @@ def stereo_calc_stand_off(
 
 
 def stereo_calc_angles(camera_0: Camera, camera_1: Camera) -> StereoAngles:
-    """Calculate relative Euler angles and optical-axis convergence."""
+    """Calculate relative Euler angles and optical axis convergence.
 
+    Parameters
+    ----------
+    camera_0 : Camera
+        First camera.
+    camera_1 : Camera
+        Second camera.
+
+    Returns
+    -------
+    StereoAngles
+        Relative Euler angles (degrees) and convergence angle (degrees).
+    """
     extrinsics = stereo_calc_extrinsics(camera_0, camera_1)
 
     optical_0 = -camera_0.rot_world.as_matrix()[:, 2]
@@ -500,8 +718,25 @@ def stereo_build_from_calibration(
     rot_world_0: Rotation,
     focal_length: float,
 ) -> StereoCameras:
-    """Build stereo cameras from a legacy PyVale YAML calibration file."""
+    """Build stereo cameras from a legacy PyVale YAML calibration file.
 
+    Parameters
+    ----------
+    calibration_path : pathlib.Path
+        Path to the calibration YAML file.
+    pos_world_0 : np.ndarray
+        World position array for camera 0 with shape ``(3,)`` and dtype
+        ``float64``.
+    rot_world_0 : scipy.spatial.transform.Rotation
+        World orientation for camera 0.
+    focal_length : float
+        Focal length in world length units.
+
+    Returns
+    -------
+    StereoCameras
+        Tuple of ``(camera_0, camera_1)`` configured according to calibration.
+    """
     parameters = yaml.safe_load(Path(calibration_path).read_text())
 
     camera_0 = _camera_from_calibration(
@@ -552,7 +787,17 @@ def stereo_save_calibration_yaml(
     camera_1: Camera,
     calibration_path: Path,
 ) -> None:
-    """Save two cameras in PyVale's legacy YAML calibration format."""
+    """Save two cameras in PyVale's legacy YAML calibration format.
+
+    Parameters
+    ----------
+    camera_0 : Camera
+        Camera 0.
+    camera_1 : Camera
+        Camera 1.
+    calibration_path : pathlib.Path
+        Output path to save the YAML file.
+    """
     Path(calibration_path).parent.mkdir(parents=True, exist_ok=True)
     Path(calibration_path).write_text(
         yaml.safe_dump(_stereo_calibration_parameters(camera_0, camera_1))
@@ -564,7 +809,17 @@ def stereo_save_calibration_matchid(
     camera_1: Camera,
     calibration_path: Path,
 ) -> None:
-    """Save two cameras in the legacy MatchID ``.caldat`` format."""
+    """Save two cameras in the legacy MatchID ``.caldat`` format.
+
+    Parameters
+    ----------
+    camera_0 : Camera
+        Camera 0.
+    camera_1 : Camera
+        Camera 1.
+    calibration_path : pathlib.Path
+        Output path to save the MatchID calibration file.
+    """
     parameters = _stereo_calibration_parameters(camera_0, camera_1)
     Path(calibration_path).parent.mkdir(parents=True, exist_ok=True)
     Path(calibration_path).write_text(
@@ -682,7 +937,22 @@ def pixel_vec_leng(
     field_of_view: np.ndarray,
     pixels_size: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Build pixel-centre coordinate vectors for an orthographic camera."""
+    """Build pixel centre coordinate vectors for an orthographic camera.
+
+    Parameters
+    ----------
+    field_of_view : np.ndarray
+        Field of view dimensions with shape ``(2,)`` and dtype ``float64``
+        representing ``(fov_x, fov_y)``.
+    pixels_size : float
+        Physical pixel size in length units.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Tuple of ``(px_vec_x, px_vec_y)`` coordinate vectors, each with 1D
+        shape and dtype ``float64``.
+    """
     return (
         np.arange(pixels_size / 2.0, field_of_view[0], pixels_size),
         np.arange(pixels_size / 2.0, field_of_view[1], pixels_size),
@@ -693,7 +963,21 @@ def pixel_grid_leng(
     field_of_view: np.ndarray,
     pixels_size: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Build pixel-centre coordinate grids for an orthographic camera."""
+    """Build pixel centre coordinate grids for an orthographic camera.
+
+    Parameters
+    ----------
+    field_of_view : np.ndarray
+        Field of view dimensions with shape ``(2,)`` and dtype ``float64``
+        representing ``(fov_x, fov_y)``.
+    pixels_size : float
+        Physical pixel size in length units.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Tuple of 2D grid arrays ``(grid_x, grid_y)`` with dtype ``float64``.
+    """
     return np.meshgrid(*pixel_vec_leng(field_of_view, pixels_size))
 
 
@@ -702,7 +986,24 @@ def subpixel_vec_leng(
     pixels_size: float,
     subsample: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Build sub-pixel-centre coordinate vectors."""
+    """Build sub pixel centre coordinate vectors.
+
+    Parameters
+    ----------
+    field_of_view : np.ndarray
+        Field of view dimensions with shape ``(2,)`` and dtype ``float64``
+        representing ``(fov_x, fov_y)``.
+    pixels_size : float
+        Physical pixel size in length units.
+    subsample : int
+        Number of sub pixel samples per pixel dimension.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Tuple of ``(subpx_vec_x, subpx_vec_y)`` coordinate vectors with dtype
+        ``float64``.
+    """
     spacing = pixels_size / subsample
     return (
         np.arange(spacing / 2.0, field_of_view[0], spacing),
@@ -715,7 +1016,24 @@ def subpixel_grid_leng(
     pixels_size: float,
     subsample: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Build sub-pixel-centre coordinate grids."""
+    """Build sub pixel centre coordinate grids.
+
+    Parameters
+    ----------
+    field_of_view : np.ndarray
+        Field of view dimensions with shape ``(2,)`` and dtype ``float64``
+        representing ``(fov_x, fov_y)``.
+    pixels_size : float
+        Physical pixel size in length units.
+    subsample : int
+        Number of sub pixel samples per pixel dimension.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Tuple of 2D sub pixel grid arrays ``(subgrid_x, subgrid_y)`` with
+        dtype ``float64``.
+    """
     return np.meshgrid(
         *subpixel_vec_leng(field_of_view, pixels_size, subsample),
     )
@@ -725,12 +1043,42 @@ def crop_image_rectangle(
     image: np.ndarray,
     pixels_num: np.ndarray,
 ) -> np.ndarray:
-    """Crop an image to its camera extent from the upper-left corner."""
+    """Crop an image to its camera extent from the upper left corner.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image array with shape ``(height, width)`` or
+        ``(height, width, channels)``.
+    pixels_num : np.ndarray
+        Target pixel resolution array with shape ``(2,)`` and dtype ``int32``
+        representing ``(width, height)``.
+
+    Returns
+    -------
+    np.ndarray
+        Cropped image array with shape ``(pixels_num[1], pixels_num[0], ...)``.
+    """
     return image[: pixels_num[1], : pixels_num[0]]
 
 
 def average_subpixel_image(image: np.ndarray, subsample: int) -> np.ndarray:
-    """Average square sub-pixel blocks into output pixels."""
+    """Average square sub pixel blocks into output pixels.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Sub sampled image array with shape
+        ``(subsample * height, subsample * width)`` and float or int dtype.
+    subsample : int
+        Sub pixel factor per dimension.
+
+    Returns
+    -------
+    np.ndarray
+        Averaged image array with shape ``(height, width)`` and dtype
+        ``float64``.
+    """
     if subsample <= 1:
         return image
 
