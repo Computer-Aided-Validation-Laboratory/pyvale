@@ -97,6 +97,36 @@ def test_simple_objective_uses_two_perturbations_and_explicit_guards(monkeypatch
     assert cost == pytest.approx(0.7 * 0.5 + 0.2 * 0.25 + 0.1 * 0.5)
 
 
+def test_simple_objective_supports_controlled_fine_broad_ablation(monkeypatch) -> None:
+    def fake_sensitivities(strain, stress, law, maps, names, perturbation_factor):
+        values = np.ones_like(stress)
+        return {name: SimpleNamespace(total=values) for name in names}
+
+    monkeypatch.setattr(
+        "pyvale.vfm.objectivefuncsensitivitygated.calculate_parameter_stress_sensitivities",
+        fake_sensitivities,
+    )
+    objective = SensitivityGatedEgiObjective(
+        SensitivityGatedObjectiveConfig(
+            egi_roles=("fine", "broad"),
+            egi_noise_scales=(2.0, 2.0),
+            force_noise_scale=4.0,
+            force_weight=0.2,
+            broad_guard_weight=0.1,
+        )
+    )
+    context = _Context()
+    context.metric_results = tuple(_metric_results(1.0)[:3])
+
+    diagnostics = objective.prepare_solve(context)
+    cost = objective.evaluate(context.metric_results)
+
+    assert diagnostics["egi_roles"] == ["fine", "broad"]
+    assert objective.last_result is not None
+    assert objective.last_result.middle_cost is None
+    assert cost == pytest.approx(0.7 * 0.5 + 0.2 * 0.25 + 0.1 * 0.5)
+
+
 def test_simple_objective_freezes_gate_between_solves(monkeypatch) -> None:
     call_count = 0
 

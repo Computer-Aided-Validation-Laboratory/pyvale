@@ -10,6 +10,11 @@ Automatic fine-support selection is not qualified. The supported workflow is:
    the nearest valid odd support to the logarithmic midpoint.
 6. Fine, middle and broad metrics are installed once after Phase 0 and remain
    frozen for the BF trajectory.
+7. FRE defaults to a separate Phase-0 noise-propagation sweep. It selects and
+   freezes the finest longitudinal slicing that retains at least two rows per
+   slice, valid cross-section coverage, correlation P10 >= 0.95 and median
+   NRMSE <= 0.25. Use `--force-slices N` only to reproduce a fixed historical
+   control; the default is `--force-slices auto`.
 
 Example:
 

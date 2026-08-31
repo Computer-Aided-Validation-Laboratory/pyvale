@@ -8,6 +8,7 @@ from typing import Callable, Protocol
 
 import numpy as np
 import numpy.typing as npt
+from scipy.ndimage import gaussian_filter
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
@@ -26,6 +27,8 @@ from pyvale.vfm.egisupports import (
     select_information_egi_supports,
 )
 from pyvale.vfm.metricequilibriumgap import evaluate_equilibrium_gap_batch
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.slicewise_utils import SliceConfig
 
 
 Summary = dict[str, object]
@@ -60,8 +63,275 @@ class IPhasePreparation(Protocol):
 
 
 @dataclass(slots=True, frozen=True)
+class CombinedPhasePreparation:
+    """Apply multiple one-shot preparations to the same accepted Phase-0 state."""
+
+    preparations: tuple[tuple[str, IPhasePreparation], ...]
+
+    def prepare(self, context: PhasePreparationContext) -> PhasePreparationResult:
+        metrics = list(context.configured_metrics)
+        diagnostics: dict[str, object] = {"mode": "combined"}
+        for name, preparation in self.preparations:
+            stage_context = PhasePreparationContext(
+                phase_index=context.phase_index,
+                experiment_data=context.experiment_data,
+                constitutive_law=context.constitutive_law,
+                parameter_map_size=context.parameter_map_size,
+                accepted_parameter_maps=context.accepted_parameter_maps,
+                accepted_stress=context.accepted_stress,
+                configured_metrics=tuple(metrics),
+            )
+            prepared = preparation.prepare(stage_context)
+            metrics = list(prepared.metrics)
+            diagnostics[name] = prepared.diagnostics
+        diagnostics["metric_order"] = [type(metric).__name__ for metric in metrics]
+        return PhasePreparationResult(metrics, diagnostics)
+
+
+@dataclass(slots=True, frozen=True)
+class FreResolutionSelectionConfig:
+    """Truth-free Monte-Carlo qualification for longitudinal FRE resolution."""
+
+    candidate_start: int = 9
+    candidate_step: int = 4
+    minimum_rows_per_slice: float = 2.0
+    minimum_points_per_slice: int = 1
+    minimum_correlation_p10: float = 0.95
+    maximum_nrmse_p50: float = 0.25
+    replicates: int = 16
+    random_seed: int = 20260901
+    strain_noise_sigmas: tuple[float, float, float] = (
+        172.51419993963228e-6,
+        174.86979476446461e-6,
+        123.49056061371802e-6,
+    )
+    strain_filter_sigmas_mm: tuple[tuple[float, float], ...] = (
+        (0.09500277042388916, 0.03187108039855957),
+        (0.03166759014129639, 0.09561324119567871),
+        (0.052779316902160645, 0.05311846733093262),
+    )
+    force_noise_sigma: float = 0.3216528022847312
+
+    def __post_init__(self) -> None:
+        if self.candidate_start < 1 or self.candidate_start % 2 == 0:
+            raise ValueError("candidate_start must be a positive odd integer.")
+        if self.candidate_step < 1 or self.candidate_step % 2 != 0:
+            raise ValueError("candidate_step must be a positive even integer.")
+        if self.minimum_rows_per_slice < 1.0:
+            raise ValueError("minimum_rows_per_slice must be at least one.")
+        if self.minimum_points_per_slice < 1 or self.replicates < 2:
+            raise ValueError("FRE selection requires positive coverage and at least two replicates.")
+        if not -1.0 <= self.minimum_correlation_p10 <= 1.0:
+            raise ValueError("minimum_correlation_p10 must lie in [-1, 1].")
+        if self.maximum_nrmse_p50 < 0.0:
+            raise ValueError("maximum_nrmse_p50 must be non-negative.")
+        if len(self.strain_noise_sigmas) != 3 or len(self.strain_filter_sigmas_mm) != 3:
+            raise ValueError("FRE strain-noise configuration requires three components.")
+        if any(not np.isfinite(value) or value < 0.0 for value in self.strain_noise_sigmas):
+            raise ValueError("strain_noise_sigmas must be finite and non-negative.")
+        if any(
+            len(pair) != 2 or any(not np.isfinite(value) or value < 0.0 for value in pair)
+            for pair in self.strain_filter_sigmas_mm
+        ):
+            raise ValueError("strain_filter_sigmas_mm must contain finite non-negative y/x pairs.")
+        if not np.isfinite(self.force_noise_sigma) or self.force_noise_sigma < 0.0:
+            raise ValueError("force_noise_sigma must be finite and non-negative.")
+
+
+@dataclass(slots=True, frozen=True)
+class FinestStableFrePreparation:
+    """Install the finest noise-stable, adequately sampled FRE slicing.
+
+    Independent measurement-noise realisations are added to the observed
+    dataset at the accepted homogeneous material state. Candidate profiles
+    are compared with the unperturbed observed profile; synthetic material
+    truth is never consulted. The finest candidate passing sampling,
+    coverage, repeatability and NRMSE limits is frozen before BF1.
+    """
+
+    config: FreResolutionSelectionConfig = FreResolutionSelectionConfig()
+    diagnostic_callback: Callable[[str, dict[str, object]], None] | None = None
+
+    def prepare(self, context: PhasePreparationContext) -> PhasePreparationResult:
+        force_indices = [
+            index for index, metric in enumerate(context.configured_metrics)
+            if isinstance(metric, SliceWiseForceReconstructionMetric)
+        ]
+        if len(force_indices) != 1:
+            raise ValueError("FRE resolution preparation requires exactly one slice-force metric.")
+        template = context.configured_metrics[force_indices[0]]
+        if template.slice_config is None:
+            raise ValueError("FRE resolution preparation requires a declarative SliceConfig.")
+        axis = template.slice_config.axis
+        experiment = context.experiment_data
+        axis_points = experiment.strain.shape[2 if axis == "y" else 3]
+        maximum = int(np.floor(axis_points / self.config.minimum_rows_per_slice))
+        if maximum % 2 == 0:
+            maximum -= 1
+        candidates = list(range(self.config.candidate_start, maximum + 1, self.config.candidate_step))
+        for value in (33, 63, 105, maximum):
+            if self.config.candidate_start <= value <= maximum and value % 2 == 1:
+                candidates.append(value)
+        candidates = sorted(set(candidates))
+        if not candidates:
+            raise RuntimeError("No FRE slice candidate satisfies the sampling limit.")
+
+        replicate_experiments, replicate_stresses = self._replicates(context, axis)
+        rows: list[dict[str, object]] = []
+        for count in candidates:
+            metric = SliceWiseForceReconstructionMetric(
+                slice_config=SliceConfig(axis=axis, num_slices=count)
+            )
+            metric.initialise(experiment)
+            reference = metric.evaluate_force_recon_error(context.accepted_stress, experiment)
+            reference_residual = np.asarray(
+                reference.metric_result.additional_fields["normalised_residual"],
+                dtype=np.float64,
+            )
+            temporal_weights = np.asarray(
+                reference.metric_result.additional_fields["temporal_weights"],
+                dtype=np.float64,
+            )
+            reference_profile = np.sqrt(
+                np.nansum(temporal_weights[:, None] * reference_residual**2, axis=0)
+            )
+            correlations: list[float] = []
+            nrmses: list[float] = []
+            for replicate_experiment, replicate_stress in zip(
+                replicate_experiments, replicate_stresses, strict=True,
+            ):
+                replicate = metric.evaluate_force_recon_error(
+                    replicate_stress, replicate_experiment
+                )
+                residual = np.asarray(
+                    replicate.metric_result.additional_fields["normalised_residual"],
+                    dtype=np.float64,
+                )
+                profile = np.sqrt(
+                    np.nansum(temporal_weights[:, None] * residual**2, axis=0)
+                )
+                valid = np.isfinite(reference_profile) & np.isfinite(profile)
+                if np.count_nonzero(valid) < 3:
+                    correlations.append(float("nan"))
+                elif np.std(reference_profile[valid]) <= np.finfo(float).eps:
+                    correlations.append(float("nan"))
+                else:
+                    correlations.append(float(np.corrcoef(
+                        profile[valid], reference_profile[valid]
+                    )[0, 1]))
+                scale = max(
+                    float(np.linalg.norm(reference_profile[valid])),
+                    np.finfo(float).eps,
+                )
+                nrmses.append(float(np.linalg.norm(
+                    profile[valid] - reference_profile[valid]
+                ) / scale))
+            partition = metric.slice_partition
+            assert partition is not None
+            correlation_p10 = float(np.nanquantile(correlations, 0.10))
+            nrmse_p50 = float(np.nanmedian(nrmses))
+            row = {
+                "num_slices": count,
+                "approx_rows_per_slice": float(axis_points / count),
+                "mean_span_mm": float(np.mean(partition.spans)),
+                "minimum_points": int(np.min(partition.point_counts)),
+                "correlation_p10": correlation_p10,
+                "nrmse_p50": nrmse_p50,
+            }
+            row["passes"] = bool(
+                row["approx_rows_per_slice"] >= self.config.minimum_rows_per_slice
+                and row["minimum_points"] >= self.config.minimum_points_per_slice
+                and np.isfinite(correlation_p10)
+                and correlation_p10 >= self.config.minimum_correlation_p10
+                and np.isfinite(nrmse_p50)
+                and nrmse_p50 <= self.config.maximum_nrmse_p50
+            )
+            rows.append(row)
+        passing = [row for row in rows if row["passes"]]
+        if not passing:
+            raise RuntimeError("FRE resolution selector found no stable adequately sampled candidate.")
+        selected = passing[-1]
+        selected_count = int(selected["num_slices"])
+        metrics = [copy.deepcopy(metric) for metric in context.configured_metrics]
+        metrics[force_indices[0]] = SliceWiseForceReconstructionMetric(
+            slice_config=SliceConfig(axis=axis, num_slices=selected_count)
+        )
+        diagnostics = {
+            "mode": "finest_stable_noise_propagation",
+            "truth_used_for_selection": False,
+            "axis": axis,
+            "selected_num_slices": selected_count,
+            "selection_rule": "finest candidate passing sampling, coverage, correlation-p10 and NRMSE-p50 criteria",
+            "thresholds": {
+                "minimum_rows_per_slice": self.config.minimum_rows_per_slice,
+                "minimum_points_per_slice": self.config.minimum_points_per_slice,
+                "minimum_correlation_p10": self.config.minimum_correlation_p10,
+                "maximum_nrmse_p50": self.config.maximum_nrmse_p50,
+            },
+            "noise": {
+                "replicates": self.config.replicates,
+                "random_seed": self.config.random_seed,
+                "strain_noise_sigmas": list(self.config.strain_noise_sigmas),
+                "strain_filter_sigmas_mm_yx": [list(value) for value in self.config.strain_filter_sigmas_mm],
+                "force_noise_sigma": self.config.force_noise_sigma,
+            },
+            "candidates": rows,
+        }
+        if self.diagnostic_callback is not None:
+            self.diagnostic_callback("fre_resolution_sweep", diagnostics)
+        return PhasePreparationResult(metrics, diagnostics)
+
+    def _replicates(
+        self, context: PhasePreparationContext, axis: str,
+    ) -> tuple[list[ExperimentData], list[npt.NDArray[np.float64]]]:
+        experiment = context.experiment_data
+        x = np.asarray(experiment.specimen_geometry.x, dtype=np.float64)
+        y = np.asarray(experiment.specimen_geometry.y, dtype=np.float64)
+        dx = float(np.nanmedian(np.abs(np.diff(x, axis=1))))
+        dy = float(np.nanmedian(np.abs(np.diff(y, axis=0))))
+        mask = experiment.specimen_geometry.region_of_interest.sample_specimen_mask(x, y)
+        output_experiments: list[ExperimentData] = []
+        output_stresses: list[npt.NDArray[np.float64]] = []
+        component_index = 0 if axis == "x" else 1
+        for replicate_index in range(self.config.replicates):
+            rng = np.random.default_rng(self.config.random_seed + replicate_index)
+            replicate = copy.deepcopy(experiment)
+            strain = np.asarray(experiment.strain, dtype=np.float64).copy()
+            for component, (target_sigma, sigma_mm) in enumerate(zip(
+                self.config.strain_noise_sigmas,
+                self.config.strain_filter_sigmas_mm,
+                strict=True,
+            )):
+                filter_sigma = (sigma_mm[0] / dy, sigma_mm[1] / dx)
+                for state in range(strain.shape[0]):
+                    sample = gaussian_filter(
+                        rng.standard_normal(mask.shape), sigma=filter_sigma,
+                        mode="reflect",
+                    )
+                    sample -= float(np.mean(sample[mask]))
+                    scale = float(np.std(sample[mask]))
+                    if scale <= np.finfo(np.float64).eps:
+                        raise RuntimeError("Generated zero-variance FRE noise field.")
+                    strain[state, component, mask] += target_sigma * sample[mask] / scale
+            replicate.strain = strain
+            force = np.asarray(experiment.boundary_conditions.force, dtype=np.float64).copy()
+            force[:, component_index] += rng.normal(
+                0.0, self.config.force_noise_sigma, force.shape[0]
+            )
+            replicate.boundary_conditions.force = force
+            output_experiments.append(replicate)
+            output_stresses.append(np.asarray(
+                context.constitutive_law.calculate_stress(
+                    replicate.strain, context.accepted_parameter_maps
+                ),
+                dtype=np.float64,
+            ))
+        return output_experiments, output_stresses
+
+
+@dataclass(slots=True, frozen=True)
 class FixedEgiSupportPreparation:
-    """Install a previously selected fine/middle/broad EGI metric bank.
+    """Install a previously selected fine/(middle)/broad EGI metric bank.
 
     This is the reproducibility path for a support decision made by the
     automatic probe sweep.  It deliberately validates role completeness and
@@ -72,9 +342,9 @@ class FixedEgiSupportPreparation:
 
     def __post_init__(self) -> None:
         roles = tuple(role for role, _ in self.supports)
-        if roles != ("fine", "middle", "broad"):
+        if roles not in (("fine", "middle", "broad"), ("fine", "broad")):
             raise ValueError(
-                "Fixed EGI supports must be ordered fine, middle, broad."
+                "Fixed EGI supports must be ordered fine, middle, broad or fine, broad."
             )
 
     def prepare(self, context: PhasePreparationContext) -> PhasePreparationResult:
@@ -124,6 +394,7 @@ class UserFineEgiSupportPreparation:
 
     fine_window: int
     bank_config: EgiSupportBankConfig = EgiSupportBankConfig()
+    include_middle: bool = True
 
     def __post_init__(self) -> None:
         if self.fine_window < 3 or self.fine_window % 2 == 0:
@@ -159,9 +430,10 @@ class UserFineEgiSupportPreparation:
             eligible,
             key=lambda support: abs(np.log(support.nominal_side_length) - target),
         )
-        installed = FixedEgiSupportPreparation((
-            ("fine", fine), ("middle", middle), ("broad", broad),
-        )).prepare(context)
+        selected = (("fine", fine), ("middle", middle), ("broad", broad))
+        if not self.include_middle:
+            selected = (("fine", fine), ("broad", broad))
+        installed = FixedEgiSupportPreparation(selected).prepare(context)
         return PhasePreparationResult(
             installed.metrics,
             {
@@ -169,6 +441,7 @@ class UserFineEgiSupportPreparation:
                 "fine_source": "explicit_user_input",
                 "middle_rule": "nearest_valid_logarithmic_midpoint",
                 "broad_rule": "geometry_bank_maximum",
+                "include_middle": self.include_middle,
                 "roles": installed.diagnostics["roles"],
                 "metric_order": installed.diagnostics["metric_order"],
             },

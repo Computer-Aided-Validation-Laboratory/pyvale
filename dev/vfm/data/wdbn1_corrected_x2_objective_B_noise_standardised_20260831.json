@@ -1,0 +1,24 @@
+{
+  "schema": "pyvale-simple-sensitivity-gated-egi-v1",
+  "notes": [
+    "Cycle-3 candidate B: equal mean of three noise-whitened block RMS values.",
+    "Block RMS normalisation prevents residual-vector length from setting influence.",
+    "No manual cross-component weights are used."
+  ],
+  "fixed_egi_side_lengths_mm": [0.63359532864251, 1.647347854470526, 4.43516730049757],
+  "minimum_pixels": 3,
+  "egi_noise_scales": [1.7749920645783005e-6, 6.644387286629749e-7, 1.974782950165619e-7],
+  "force_noise_scale": 0.007082086062715969,
+  "sensitivity_parameter_names": ["yield_strength", "hardening_modulus"],
+  "perturbation_factor": 0.01,
+  "sensitivity_scaling_percentile": 95.0,
+  "gate_start": 0.05,
+  "gate_full": 0.30,
+  "gate_start_quantile": 0.0,
+  "gate_full_quantile": 0.90,
+  "positive_activity_floor": 1.0e-6,
+  "aggregation": "noise_standardised_mean",
+  "force_weight": 0.0,
+  "broad_guard_weight": 0.0,
+  "refresh_every_solves": null
+}

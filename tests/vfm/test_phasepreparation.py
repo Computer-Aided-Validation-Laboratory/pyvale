@@ -14,13 +14,17 @@ from pyvale.vfm.identificationconfig import IdentificationPhase
 from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.phasepreparation import (
     AutomaticEgiSupportPreparation,
+    FinestStableFrePreparation,
     FixedEgiSupportPreparation,
+    FreResolutionSelectionConfig,
     UserFineEgiSupportPreparation,
     PhasePreparationContext,
     PhasePreparationResult,
 )
 from pyvale.vfm.egisupports import PhysicalEgiSupport
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.slicewise_utils import SliceConfig
 from pyvale.vfm.roi import RoiDefinition, RoiShape, VfmRegionOfInterest
 from pyvale.vfm.spatialparamhomogeneous import SpatialParameterisationHomogeneous
 
@@ -144,6 +148,90 @@ def test_user_fine_egi_preparation_derives_and_freezes_middle_broad() -> None:
     assert result.diagnostics["fine_source"] == "explicit_user_input"
     # Runtime metrics are copies; the configured template remains unchanged.
     assert tuple(context.configured_metrics[1].window_size) == (9, 9)
+
+
+def test_user_fine_egi_preparation_can_install_fine_broad_ablation() -> None:
+    grid = np.linspace(0.0, 10.0, 101)
+    x, y = np.meshgrid(grid, grid)
+    experiment = _experiment()
+    experiment.specimen_geometry.x = x
+    experiment.specimen_geometry.y = y
+    context = type("Context", (), {
+        "experiment_data": experiment,
+        "configured_metrics": (_Metric("force"), EquilibriumGapMetric(window_size=(9, 9))),
+    })()
+
+    result = UserFineEgiSupportPreparation(
+        fine_window=9, include_middle=False,
+    ).prepare(context)
+
+    assert [tuple(metric.window_size) for metric in result.metrics[1:]] == [
+        (9, 9), (49, 49),
+    ]
+    assert result.diagnostics["include_middle"] is False
+
+
+def test_finest_stable_fre_preparation_installs_finest_sampled_candidate() -> None:
+    rows, columns = 15, 9
+    x, y = np.meshgrid(np.linspace(-1.0, 1.0, columns), np.linspace(0.0, 3.0, rows))
+    roi = VfmRegionOfInterest.from_definition(RoiDefinition(shapes=(
+        RoiShape("rectangle", 0, False, rectangle=(-1.0, 0.0, 2.0, 3.0)),
+    )))
+    free = Edge(EEdgeCondition.Free, EEdgeCondition.Free)
+    strain = np.zeros((4, 3, rows, columns), dtype=float)
+    for state, scale in enumerate((0.5, 1.0, 1.5, 2.0)):
+        strain[state, 1] = scale * 1.0e-3 * (1.0 + 0.2 * y)
+    experiment = ExperimentData(
+        strain,
+        SpecimenGeometry(x, y, np.ones_like(x), 1.0, roi),
+        BoundaryConditions(
+            EdgeConditions(free, free, free, free),
+            np.column_stack((np.zeros(4), np.asarray((1.0, 2.0, 3.0, 4.0)))),
+        ),
+        np.arange(4, dtype=float),
+    )
+
+    class _StrainLaw(_Law):
+        def calculate_stress(self, strain, parameter_maps):
+            stress = np.zeros_like(strain)
+            stress[:, 1] = 1.0e3 * strain[:, 1]
+            return stress
+
+    law = _StrainLaw()
+    maps = {"yield_strength": np.full((rows, columns), 400.0)}
+    context = PhasePreparationContext(
+        phase_index=1,
+        experiment_data=experiment,
+        constitutive_law=law,
+        parameter_map_size=np.asarray((rows, columns), dtype=np.uint32),
+        accepted_parameter_maps=maps,
+        accepted_stress=law.calculate_stress(strain, maps),
+        configured_metrics=(
+            SliceWiseForceReconstructionMetric(
+                slice_config=SliceConfig(axis="y", num_slices=3)
+            ),
+            EquilibriumGapMetric(window_size=(3, 3)),
+        ),
+    )
+    preparation = FinestStableFrePreparation(FreResolutionSelectionConfig(
+        candidate_start=3,
+        candidate_step=2,
+        minimum_rows_per_slice=2.0,
+        minimum_points_per_slice=1,
+        minimum_correlation_p10=-1.0,
+        maximum_nrmse_p50=1.0e6,
+        replicates=3,
+        strain_noise_sigmas=(1.0e-8, 1.0e-8, 1.0e-8),
+        strain_filter_sigmas_mm=((0.0, 0.0),) * 3,
+        force_noise_sigma=1.0e-8,
+    ))
+
+    result = preparation.prepare(context)
+
+    assert result.diagnostics["selected_num_slices"] == 7
+    assert result.diagnostics["truth_used_for_selection"] is False
+    assert result.metrics[0].slice_config.num_slices == 7
+    assert isinstance(result.metrics[1], EquilibriumGapMetric)
 
 
 def test_automatic_egi_preparation_selects_and_installs_three_metrics() -> None:

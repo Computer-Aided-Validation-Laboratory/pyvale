@@ -32,7 +32,7 @@ def main() -> None:
     supports = common._selected_supports(result)
     egi_maps = common._egi_maps(states, supports, experiment, law)
     gate = _load_gate(args.run / "diagnostic_artifacts")
-    summary = _summary(result, states, truth, mask, supports, gate)
+    summary = _summary(result, states, truth, mask, supports, gate, experiment)
     with PdfPages(args.output, metadata={"Title": "Simple sensitivity-gated identification"}) as pdf:
         _summary_page(pdf, summary)
         _algorithm_page(pdf, summary)
@@ -57,10 +57,21 @@ def _load_gate(root):
     paths = sorted(root.glob("simple_sensitivity_gate_*.npz"))
     if not paths: raise FileNotFoundError(f"No simple sensitivity gate in {root}")
     with np.load(paths[0]) as loaded:
-        return {name: np.asarray(loaded[name]) for name in loaded.files}
+            return {name: np.asarray(loaded[name]) for name in loaded.files}
 
 
-def _summary(result, states, truth, mask, supports, gate):
+def _objective_coefficients(diagnostics):
+    weights = diagnostics.get("objective_weights", {})
+    if weights.get("mode") == "noise_standardised_mean":
+        return 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0
+    return (
+        float(weights.get("informative_egi", .75)),
+        float(weights.get("fre_guard", .15)),
+        float(weights.get("broad_egi_guard", .10)),
+    )
+
+
+def _summary(result, states, truth, mask, supports, gate, experiment):
     rows = []
     for state in states:
         values = np.asarray(state["maps"]["yield_strength"])
@@ -72,13 +83,32 @@ def _summary(result, states, truth, mask, supports, gate):
     solve = result.history.phases[1].solve_results[-1]
     diagnostics = solve.final_objective.get("objective_diagnostics", {})
     costs = solve.final_objective.get("components", {})
-    weights = diagnostics.get("objective_weights", {})
-    training_weight = float(weights.get("informative_egi", .75))
-    force_weight = float(weights.get("fre_guard", .15))
-    broad_weight = float(weights.get("broad_egi_guard", .10))
+    training_weight, force_weight, broad_weight = _objective_coefficients(diagnostics)
+    x = np.asarray(experiment.specimen_geometry.x, dtype=float)
+    y = np.asarray(experiment.specimen_geometry.y, dtype=float)
+    dx = float(np.nanmedian(np.abs(np.diff(x, axis=1))))
+    dy = float(np.nanmedian(np.abs(np.diff(y, axis=0))))
+    support_dimensions = {
+        role: [window[1] * dx, window[0] * dy]
+        for role, window in supports
+    }
+    force_options = result.metadata.config.phases[1].metrics[0].options
+    slice_config = force_options["support"]["slice_config"]
+    force_axis = str(slice_config["axis"])
+    num_slices = int(slice_config["num_slices"])
+    coordinate = x if force_axis == "x" else y
+    spacing = dx if force_axis == "x" else dy
+    slice_width_mm = float(np.nanmax(coordinate) - np.nanmin(coordinate)) / num_slices
     return {
         "interpretation": "engineering diagnostic; known truth used only for report evaluation",
         "selected_supports": {role: list(window) for role, window in supports},
+        "support_dimensions_mm": support_dimensions,
+        "fre_slicing": {
+            "axis": force_axis,
+            "num_slices": num_slices,
+            "grid_point_spacings_per_slice": slice_width_mm / spacing,
+            "slice_width_mm": slice_width_mm,
+        },
         "states": rows,
         "gate": {
             "positive_fraction": diagnostics.get("gate_positive_fraction"),
@@ -92,6 +122,9 @@ def _summary(result, states, truth, mask, supports, gate):
             "full_quantile": diagnostics.get("gate_full_quantile"),
         },
         "objective_components": costs,
+        "objective_aggregation": diagnostics.get("objective_weights", {}).get(
+            "mode", "weighted_sum"
+        ),
         "objective_weights": {
             "informative_egi": training_weight,
             "fre_guard": force_weight,
@@ -109,6 +142,8 @@ def _summary_page(pdf, summary):
     fig = plt.figure(figsize=(11.69, 8.27))
     fig.text(.06, .92, "Minimal sensitivity-gated EGI identification", fontsize=21, weight="bold")
     supports = summary["selected_supports"]; gate = summary["gate"]
+    dimensions = summary["support_dimensions_mm"]
+    fre = summary["fre_slicing"]
     gate_label = (
         f"positive-activity q{100*gate['start_quantile']:.0f}→q{100*gate['full_quantile']:.0f}"
         if gate["start_quantile"] is not None
@@ -116,7 +151,14 @@ def _summary_page(pdf, summary):
     )
     lines = [
         "Status: engineering diagnostic. The known synthetic map appears only in evaluation pages, never in support/gate/objective tuning.", "",
-        "Selected EGI supports: " + ", ".join(f"{role} {v[0]}×{v[1]}" for role, v in supports.items()),
+        "Frozen EGI supports: " + ", ".join(
+            f"{role} {v[0]}×{v[1]} "
+            f"({dimensions[role][0]:.3f} × {dimensions[role][1]:.3f} mm)"
+            for role, v in supports.items()
+        ),
+        f"FRE slicing: {fre['num_slices']} slices along the {fre['axis']}-axis; "
+        f"{fre['grid_point_spacings_per_slice']:.2f} grid-point spacings per slice width "
+        f"({fre['slice_width_mm']:.3f} mm per slice width).",
         f"Frozen gate: {gate_label}; resolved {gate['resolved_start']:.3f}→{gate['resolved_full']:.3f}; retains {100*gate['positive_fraction']:.1f}% of valid observations, with {100*(gate['transition_fraction'] or 0):.1f}% in transition.", "",
         "Yield-map evaluation", *[
             f"  {row['state']}: RMSE {row['rmse_mpa']:.2f} MPa; range {row['range_mpa'][0]:.1f}–{row['range_mpa'][1]:.1f} MPa"
@@ -137,17 +179,34 @@ def _summary_page(pdf, summary):
 def _algorithm_page(pdf, summary):
     fig = plt.figure(figsize=(11.69, 8.27))
     fig.text(.06, .92, "Algorithm used", fontsize=21, weight="bold")
+    support_roles = tuple(summary["selected_supports"])
+    support_label = ", ".join(support_roles)
+    middle_text = (
+        "derive middle as the nearest valid logarithmic midpoint and broad from the geometry cap"
+        if "middle" in support_roles
+        else "derive broad from the geometry cap and deliberately omit the middle support"
+    )
+    aggregation = summary.get("objective_aggregation", "weighted_sum")
+    if aggregation == "noise_standardised_mean":
+        objective_lines = [
+            "6. Separately whiten informative EGI, FRE and broad EGI by their propagated-noise scales and reduce each block by RMS.",
+            "7. Optimise the equal mean of those three observation-count-normalised block RMS values; no manual cross-component weights are used.",
+        ]
+    else:
+        objective_lines = [
+            "6. Optimise BF parameters with ordinary noise-normalised RMS terms:",
+            f"       0.75 × mean({support_label} informative EGI)",
+            "     + 0.15 × unmasked FRE guard",
+            "     + 0.10 × unmasked full broad-EGI guard.",
+        ]
     lines = [
         "1. Homogeneous phase: identify global yield strength and hardening with SBVF + least squares.",
-        "2. Evaluate every odd EGI window from 3 points to the half-bounding-box limit on the accepted homogeneous stress.",
-        "3. Divide each normalised EGI field by its support-specific noise; select smallest resolved, logarithmic middle and largest covered support.",
+        f"2. Use the declared 21×21 fine EGI support; {middle_text}.",
+        f"3. Install and freeze the {support_label} EGI metrics before BF1; no automatic EGI support selector is used.",
         "4. Reconstruct stress twice: one global yield perturbation and one global hardening perturbation.",
         "5. Robustly scale their pointwise space-time magnitudes, combine by maximum, and freeze a smooth positive-activity quantile gate.",
-        "6. Optimise BF parameters with ordinary noise-normalised RMS terms:",
-        "       0.75 × mean(fine, middle, broad informative EGI)",
-        "     + 0.15 × unmasked FRE guard",
-        "     + 0.10 × unmasked full broad-EGI guard.",
-        "7. No local probes, optimiser-coordinate sensitivity matrix, SVD, Fisher matrix or projected residual.",
+        *objective_lines,
+        "8. No local probes, optimiser-coordinate sensitivity matrix, SVD, Fisher matrix or projected residual.",
     ]
     y=.82
     for line in lines:
@@ -192,18 +251,14 @@ def _components_page(pdf, result):
     history=solve.final_objective.get("history", [])
     components=solve.final_objective.get("components", {})
     diagnostics=solve.final_objective.get("objective_diagnostics", {})
-    weights=diagnostics.get("objective_weights", {})
+    training_weight, force_weight, broad_weight = _objective_coefficients(diagnostics)
     fig,axes=plt.subplots(1,2,figsize=(11.69,8.27),constrained_layout=True)
     if history:
         axes[0].plot([row["iteration"] for row in history],[row["cost"] for row in history],marker="o")
     axes[0].set(title="Optimiser trajectory",xlabel="Iteration",ylabel="Total cost"); axes[0].grid(alpha=.3)
     names=["informative_egi_cost","force_guard_cost","broad_guard_cost"]
     raw=np.array([components.get(name,np.nan) for name in names])
-    coeff=np.array([
-        weights.get("informative_egi", .75),
-        weights.get("fre_guard", .15),
-        weights.get("broad_egi_guard", .10),
-    ], dtype=float)
+    coeff=np.array([training_weight, force_weight, broad_weight], dtype=float)
     x=np.arange(3); axes[1].bar(x-.18,raw,.36,label="raw"); axes[1].bar(x+.18,raw*coeff,.36,label="effective")
     axes[1].set_xticks(x,["informative EGI","FRE guard","broad guard"]); axes[1].set(title="Terminal component balance",ylabel="Cost contribution"); axes[1].legend(); axes[1].grid(axis="y",alpha=.3)
     pdf.savefig(fig); plt.close(fig)

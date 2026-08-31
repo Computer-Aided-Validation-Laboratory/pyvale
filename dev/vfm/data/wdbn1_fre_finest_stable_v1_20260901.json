@@ -1,0 +1,28 @@
+{
+  "schema": "pyvale-fre-finest-stable-v1",
+  "notes": [
+    "Truth-free Phase-0 FRE resolution preparation for WDBN1-like measurements.",
+    "Select the finest longitudinal slicing passing sampling, coverage, replicate correlation and NRMSE criteria.",
+    "The strain standard deviations are the measured corrected spatial-x2 values; filter scales and force noise come from the frozen WDBN1 noise calibration.",
+    "Recalibrate this file for datasets with a different measurement system or preprocessing chain. Do not transfer the selected pixel count."
+  ],
+  "candidate_start": 9,
+  "candidate_step": 4,
+  "minimum_rows_per_slice": 2.0,
+  "minimum_points_per_slice": 1,
+  "minimum_correlation_p10": 0.95,
+  "maximum_nrmse_p50": 0.25,
+  "replicates": 16,
+  "random_seed": 20260901,
+  "strain_noise_sigmas": [
+    0.00017251419993963228,
+    0.00017486979476446462,
+    0.00012349056061371802
+  ],
+  "strain_filter_sigmas_mm_yx": [
+    [0.09500277042388916, 0.03187108039855957],
+    [0.03166759014129639, 0.09561324119567871],
+    [0.052779316902160645, 0.05311846733093262]
+  ],
+  "force_noise_sigma": 0.3216528022847312
+}

@@ -30,7 +30,8 @@ class SensitivityGatedObjectiveConfig:
     gate_start_quantile: float | None = None
     gate_full_quantile: float | None = None
     positive_activity_floor: float = 1.0e-6
-    egi_noise_scales: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    egi_roles: tuple[str, ...] = ("fine", "middle", "broad")
+    egi_noise_scales: tuple[float, ...] = (1.0, 1.0, 1.0)
     force_noise_scale: float = 1.0
     force_weight: float = 0.15
     broad_guard_weight: float = 0.10
@@ -57,10 +58,12 @@ class SensitivityGatedObjectiveConfig:
             raise ValueError("Require 0 <= gate_start_quantile < gate_full_quantile <= 1.")
         if not np.isfinite(self.positive_activity_floor) or not 0.0 <= self.positive_activity_floor < 1.0:
             raise ValueError("positive_activity_floor must lie in [0, 1).")
-        if len(self.egi_noise_scales) != 3 or any(
+        if self.egi_roles not in (("fine", "middle", "broad"), ("fine", "broad")):
+            raise ValueError("egi_roles must be fine/middle/broad or fine/broad.")
+        if len(self.egi_noise_scales) != len(self.egi_roles) or any(
             not np.isfinite(value) or value <= 0.0 for value in self.egi_noise_scales
         ):
-            raise ValueError("egi_noise_scales must contain three positive values.")
+            raise ValueError("egi_noise_scales must match egi_roles with positive values.")
         if not np.isfinite(self.force_noise_scale) or self.force_noise_scale <= 0.0:
             raise ValueError("force_noise_scale must be positive.")
         if self.force_weight < 0.0 or self.broad_guard_weight < 0.0:
@@ -100,7 +103,7 @@ class SensitivityGatedObjectiveResult:
     total_cost: float
     informative_egi_cost: float
     fine_cost: float
-    middle_cost: float
+    middle_cost: float | None
     broad_cost: float
     force_guard_cost: float
     broad_guard_cost: float
@@ -200,7 +203,7 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
                 observation_weights=force_temporal_weights[:, np.newaxis],
             )
         ]
-        for index, role in enumerate(("fine", "middle", "broad"), start=1):
+        for index, role in enumerate(self.config.egi_roles, start=1):
             egi_temporal_weights = _metric_temporal_weights(
                 context.metric_results[index],
                 context.experiment_data.strain.shape[0],
@@ -213,14 +216,15 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
                     weights * egi_temporal_weights[:, np.newaxis, np.newaxis]
                 ),
             ))
+        broad_index = 1 + self.config.egi_roles.index("broad")
         broad_temporal_weights = _metric_temporal_weights(
-            context.metric_results[3],
+            context.metric_results[broad_index],
             context.experiment_data.strain.shape[0],
         )
         specs.append(ResidualBlockSpec(
-            "egi_broad_guard", 3, "all", "egi", role="broad_egi_guard",
+            "egi_broad_guard", broad_index, "all", "egi", role="broad_egi_guard",
             residual_field="normalised_gap",
-            noise_scale=self.config.egi_noise_scales[2],
+            noise_scale=self.config.egi_noise_scales[self.config.egi_roles.index("broad")],
             observation_weights=broad_temporal_weights[:, np.newaxis, np.newaxis],
         ))
         self._layout = context.prepare_residual_layout(
@@ -269,6 +273,7 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
                 name: captured_fraction(values) for name, values in scaled.items()
             },
             "aggregation": self.config.aggregation,
+            "egi_roles": list(self.config.egi_roles),
             "objective_weights": self._aggregation_diagnostics(),
             "residual_layout": self._layout.diagnostics(),
         }
@@ -302,14 +307,14 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
         slices = {name: slice(start, stop) for name, start, stop in vector.block_slices}
         costs = {
             role: float(np.linalg.norm(vector.weighted[slices[f"egi_{role}_informative"]]))
-            for role in ("fine", "middle", "broad")
+            for role in self.config.egi_roles
         }
         informative = float(np.mean(list(costs.values())))
         force = float(np.linalg.norm(vector.weighted[slices["fre_guard"]]))
         broad_guard = float(np.linalg.norm(vector.weighted[slices["egi_broad_guard"]]))
         total = self._aggregate(informative, force, broad_guard)
         self.last_result = SensitivityGatedObjectiveResult(
-            total, informative, costs["fine"], costs["middle"], costs["broad"],
+            total, informative, costs["fine"], costs.get("middle"), costs["broad"],
             force, broad_guard,
         )
         return float(total)

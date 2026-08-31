@@ -137,7 +137,10 @@ from .egisupports import (
 )
 from .phasepreparation import (
     AutomaticEgiSupportPreparation,
+    CombinedPhasePreparation,
+    FinestStableFrePreparation,
     FixedEgiSupportPreparation,
+    FreResolutionSelectionConfig,
     SimpleEgiSupportPreparation,
     UserFineEgiSupportPreparation,
     IPhasePreparation,
@@ -291,7 +294,10 @@ __all__ = [
     "select_information_egi_supports",
     "IPhasePreparation",
     "AutomaticEgiSupportPreparation",
+    "CombinedPhasePreparation",
+    "FinestStableFrePreparation",
     "FixedEgiSupportPreparation",
+    "FreResolutionSelectionConfig",
     "SimpleEgiSupportPreparation",
     "UserFineEgiSupportPreparation",
     "PhasePreparationContext",

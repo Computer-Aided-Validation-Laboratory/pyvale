@@ -85,6 +85,7 @@ def _states(result, experiment, known):
         experiment.specimen_geometry.x, experiment.specimen_geometry.y
     )
     states = []
+    parameter_bounds = result.metadata.config.parameters
     for label, snapshot, solve in entries:
         maps = {name: np.asarray(value, dtype=np.float64).copy() for name, value in known.items()}
         identified = evaluate_snapshot_parameter_maps(snapshot, experiment)
@@ -95,6 +96,12 @@ def _states(result, experiment, known):
         # all identification metrics and report errors remain specimen-masked.
         for name, values in identified.items():
             values = np.asarray(values, dtype=np.float64)
+            bounds = parameter_bounds.get(name)
+            if bounds is not None:
+                # Match the accepted identification state: additive spatial
+                # parameterisations are clipped after assembly to the
+                # constitutive parameter's physical bounds.
+                values = np.clip(values, bounds.lower_bound, bounds.upper_bound)
             if name in maps and values.shape == maps[name].shape:
                 maps[name] = np.where(mask, values, maps[name])
             else:
@@ -112,7 +119,18 @@ def _states(result, experiment, known):
                 continue
             invalid = ~np.isfinite(values) | (values <= 0.0)
             if np.any(invalid):
-                values[invalid] = np.asarray(reference, dtype=np.float64)[invalid]
+                reference_values = np.asarray(reference, dtype=np.float64)
+                replacement = reference_values[invalid]
+                finite_positive = reference_values[
+                    np.isfinite(reference_values) & (reference_values > 0.0)
+                ]
+                fallback = float(np.median(finite_positive))
+                replacement = np.where(
+                    np.isfinite(replacement) & (replacement > 0.0),
+                    replacement,
+                    fallback,
+                )
+                values[invalid] = replacement
         states.append({
             "label": label,
             "snapshot": snapshot,
@@ -132,16 +150,22 @@ def _basis_count(snapshot) -> int:
 
 def _selected_supports(result):
     preparation = result.history.phases[1].preparation
+    if preparation.get("mode") == "combined":
+        preparation = _as_mapping(preparation.get("egi_resolution", {}))
     selection = _as_mapping(preparation.get("selection", {}))
     installed = _as_mapping(preparation.get("installed", {}))
     selected = selection.get("selected_supports", {})
     if not selected:
         selected = installed.get("roles", {})
+    if not selected:
+        selected = _as_mapping(preparation.get("roles", {}))
     roles = []
+    if "fine" not in selected or "broad" not in selected:
+        raise RuntimeError("Run has no complete fine/broad EGI support diagnostics.")
     for role in ("fine", "middle", "broad"):
         support = selected.get(role)
         if support is None:
-            raise RuntimeError(f"Run has no selected {role} EGI support diagnostic.")
+            continue
         roles.append((role, tuple(int(value) for value in support["window_size"])))
     return roles
 
@@ -399,6 +423,42 @@ def _yield_map_page(pdf, states, truth, mask, experiment):
         vmax=error_limit,
     )
 
+    # Repeat the final identified field at full-page scale immediately before
+    # its corresponding percentage-error page. Its colour range is derived
+    # only from the final identified result.
+    final_yield = maps[-1]
+    final_yield_min = float(np.nanmin(final_yield[mask]))
+    final_yield_max = float(np.nanmax(final_yield[mask]))
+    fig, axis = plt.subplots(figsize=(11.69, 8.27), constrained_layout=True)
+    image = axis.imshow(
+        np.where(mask, final_yield, np.nan), origin="lower", extent=extent,
+        aspect="equal", cmap="viridis", vmin=final_yield_min,
+        vmax=final_yield_max,
+    )
+    axis.set(title=labels[-1], xlabel="x [mm]", ylabel="y [mm]")
+    fig.colorbar(image, ax=axis, label="Yield strength [MPa]", shrink=0.88)
+    fig.suptitle("Final identified yield-strength field", fontsize=18)
+    pdf.savefig(fig)
+    plt.close(fig)
+
+    # Repeat the final tiled error at full-page scale immediately before the
+    # EGI section, using a colour range derived only from that final state.
+    final_error = errors[-1]
+    final_limit = max(1.0, float(np.nanmax(np.abs(final_error[mask]))))
+    fig, axis = plt.subplots(figsize=(11.69, 8.27), constrained_layout=True)
+    image = axis.imshow(
+        np.where(mask, final_error, np.nan), origin="lower", extent=extent,
+        aspect="equal", cmap="RdBu_r", vmin=-final_limit, vmax=final_limit,
+    )
+    axis.set(
+        title=f"{labels[-1]} — signed error relative to known yield strength",
+        xlabel="x [mm]", ylabel="y [mm]",
+    )
+    fig.colorbar(image, ax=axis, label="Error [%]", shrink=0.88)
+    fig.suptitle("Final identified yield-strength percentage error", fontsize=18)
+    pdf.savefig(fig)
+    plt.close(fig)
+
 
 def _map_pages(pdf, maps, labels, mask, extent, *, title, colorbar_label, cmap, vmin, vmax):
     """Render specimen maps two per page without changing their physical aspect.
@@ -427,21 +487,39 @@ def _map_pages(pdf, maps, labels, mask, extent, *, title, colorbar_label, cmap, 
 
 
 def _egi_page(pdf, states, supports, egi_maps, mask, experiment):
-    fig, axes = plt.subplots(len(states), 3, figsize=(11.69, 8.27), constrained_layout=True, squeeze=False)
     extent = _extent(experiment)
-    for column, (role, window) in enumerate(supports):
+    for role, window in supports:
         values = [egi_maps[state["label"]][role] for state in states]
         finite = np.concatenate([item[np.isfinite(item)] for item in values])
         vmax = float(np.percentile(finite, 99)) if finite.size else 1.0
-        for row, state in enumerate(states):
-            image = axes[row, column].imshow(np.where(mask, values[row], np.nan), origin="lower", extent=extent, aspect="equal", cmap="magma", vmin=0.0, vmax=max(vmax, np.finfo(float).eps))
-            axes[row, column].set_title(f"{state['label']}\n{role} EGI {window[0]}×{window[1]}", fontsize=9)
-            axes[row, column].set_xlabel("x [mm]")
-            axes[row, column].set_ylabel("y [mm]")
-        fig.colorbar(image, ax=axes[:, column], shrink=0.7, label="Weighted temporal RMS")
-    fig.suptitle("Temporal RMS of the automatically selected EGI maps", fontsize=16)
-    pdf.savefig(fig)
-    plt.close(fig)
+        rows = int(np.ceil(len(states) / 2))
+        fig, axes = plt.subplots(
+            rows, 2, figsize=(11.69, 8.27), constrained_layout=True,
+            squeeze=False,
+        )
+        flat_axes = axes.ravel()
+        for axis, state, values_for_state in zip(
+            flat_axes, states, values, strict=False,
+        ):
+            image = axis.imshow(
+                np.where(mask, values_for_state, np.nan), origin="lower",
+                extent=extent, aspect="equal", cmap="magma", vmin=0.0,
+                vmax=max(vmax, np.finfo(float).eps),
+            )
+            axis.set_title(state["label"], fontsize=10)
+            axis.set(xlabel="x [mm]", ylabel="y [mm]")
+        for axis in flat_axes[len(states):]:
+            axis.set_visible(False)
+        fig.colorbar(
+            image, ax=flat_axes[:len(states)], shrink=0.82,
+            label="Weighted temporal RMS",
+        )
+        fig.suptitle(
+            f"Temporal RMS of frozen {role} EGI support ({window[0]}×{window[1]})",
+            fontsize=16,
+        )
+        pdf.savefig(fig)
+        plt.close(fig)
 
 
 def _sensitivity_pages(pdf, records, experiment):

@@ -17,6 +17,7 @@ from scipy.ndimage import gaussian_filter
 from pyvale.vfm import (
     CombinedForceAndEquilibriumGapObjective,
     CombinedObjectiveBaseline,
+    CombinedPhasePreparation,
     ConsoleProgressReporter,
     ConstitutiveParameter,
     EquilibriumGapBasisGrowthRefinement,
@@ -27,6 +28,8 @@ from pyvale.vfm import (
     EgiSignalSelectionConfig,
     ExperimentData,
     FixedEgiSupportPreparation,
+    FinestStableFrePreparation,
+    FreResolutionSelectionConfig,
     HardeningLinear,
     IdentificationConfig,
     IdentificationPhase,
@@ -80,7 +83,13 @@ HARDENING_BOUNDS_MPA = (500.0, 10_000.0)
 
 FORCE_WEIGHT = 0.1
 EGI_WINDOWS = ((29, 29), (57, 57))
-FORCE_SLICES = 63
+# Placeholder used only to construct the declarative metric before automatic
+# Phase-0 preparation replaces it. It is not the production FRE resolution.
+FRE_TEMPLATE_SLICES = 63
+FRE_RESOLUTION_CONFIG = (
+    Path(__file__).resolve().parent
+    / "data/wdbn1_fre_finest_stable_v1_20260901.json"
+)
 SBVF_MESH_SIZE = np.asarray((15, 15), dtype=np.uint32)
 SBVF_SCALING_FRACTION = 0.3
 
@@ -155,7 +164,10 @@ def main() -> None:
     x = experiment_data.specimen_geometry.x
     y = experiment_data.specimen_geometry.y
     force_metric_phase_1 = SliceWiseForceReconstructionMetric(
-        slice_config=SliceConfig(axis=args.force_axis, num_slices=args.force_slices)
+        slice_config=SliceConfig(
+            axis=args.force_axis,
+            num_slices=(FRE_TEMPLATE_SLICES if args.force_slices == "auto" else args.force_slices),
+        )
     )
     fft_groups = [None] * len(args.egi_windows)
     if args.egi_fft_groups == "split-broad" and len(fft_groups) > 1:
@@ -224,8 +236,8 @@ def main() -> None:
         args.data_driven_objective_config is not None
         or args.simple_data_driven_objective_config is not None
     ):
-        # Automatic preparation installs exactly fine/middle/broad metrics.
-        egi_window_weights = [1.0, 1.0, 1.0]
+        egi_role_count = 2 if args.egi_support_set == "fine-broad" else 3
+        egi_window_weights = [1.0] * egi_role_count
         refinement_options["egi_window_weights"] = egi_window_weights
         refinement_options["baseline_phase_index"] = 0
 
@@ -279,11 +291,30 @@ def main() -> None:
                 x=x,
                 y=y,
                 fine_egi_window=args.fine_egi_window,
+                egi_roles=(
+                    ("fine", "broad")
+                    if args.egi_support_set == "fine-broad"
+                    else ("fine", "middle", "broad")
+                ),
                 basis_growth_objective=global_objective,
                 diagnostic_callback=DiagnosticArtifactWriter(
                     output_dir / "diagnostic_artifacts"
                 ),
             )
+        )
+
+    if args.force_slices == "auto":
+        fre_preparation = _create_fre_resolution_preparation(
+            args.fre_resolution_config,
+            DiagnosticArtifactWriter(output_dir / "diagnostic_artifacts"),
+        )
+        phase_preparation = (
+            fre_preparation
+            if phase_preparation is None
+            else CombinedPhasePreparation((
+                ("egi_resolution", phase_preparation),
+                ("fre_resolution", fre_preparation),
+            ))
         )
 
     phase_1 = IdentificationPhase(
@@ -368,6 +399,7 @@ def main() -> None:
         "force_axis": args.force_axis,
         "egi_windows": args.egi_windows,
         "fine_egi_window": args.fine_egi_window,
+        "egi_support_set": args.egi_support_set,
         "egi_window_weights": egi_window_weights,
         "egi_fft_dtype": args.egi_fft_dtype,
         "egi_fft_groups": args.egi_fft_groups,
@@ -379,6 +411,46 @@ def main() -> None:
     }
     print(json.dumps(summary, indent=2))
     print(f"Saved identification result bundle to {output_dir}")
+
+
+def _parse_force_slices(value: str) -> str | int:
+    if value.strip().lower() == "auto":
+        return "auto"
+    try:
+        resolved = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "force slices must be 'auto' or a positive integer"
+        ) from exc
+    if resolved < 1:
+        raise argparse.ArgumentTypeError("force slices must be positive")
+    return resolved
+
+
+def _create_fre_resolution_preparation(
+    config_path: Path,
+    diagnostic_callback,
+) -> FinestStableFrePreparation:
+    payload = json.loads(config_path.expanduser().resolve().read_text(encoding="utf-8"))
+    return FinestStableFrePreparation(
+        config=FreResolutionSelectionConfig(
+            candidate_start=int(payload.get("candidate_start", 9)),
+            candidate_step=int(payload.get("candidate_step", 4)),
+            minimum_rows_per_slice=float(payload.get("minimum_rows_per_slice", 2.0)),
+            minimum_points_per_slice=int(payload.get("minimum_points_per_slice", 1)),
+            minimum_correlation_p10=float(payload.get("minimum_correlation_p10", 0.95)),
+            maximum_nrmse_p50=float(payload.get("maximum_nrmse_p50", 0.25)),
+            replicates=int(payload.get("replicates", 16)),
+            random_seed=int(payload.get("random_seed", 20260901)),
+            strain_noise_sigmas=tuple(float(value) for value in payload["strain_noise_sigmas"]),
+            strain_filter_sigmas_mm=tuple(
+                tuple(float(value) for value in pair)
+                for pair in payload["strain_filter_sigmas_mm_yx"]
+            ),
+            force_noise_sigma=float(payload["force_noise_sigma"]),
+        ),
+        diagnostic_callback=diagnostic_callback,
+    )
 
 
 def _parse_args() -> argparse.Namespace:
@@ -419,7 +491,22 @@ def _parse_args() -> argparse.Namespace:
             "two-perturbation sensitivity-gated objective."
         ),
     )
-    parser.add_argument("--force-slices", type=int, default=FORCE_SLICES)
+    parser.add_argument(
+        "--force-slices",
+        type=_parse_force_slices,
+        default="auto",
+        help=(
+            "FRE longitudinal resolution. Default 'auto' runs the qualified "
+            "finest-stable noise-propagation selector after Phase 0. Supply a "
+            "positive integer to reproduce a fixed historical slicing."
+        ),
+    )
+    parser.add_argument(
+        "--fre-resolution-config",
+        type=Path,
+        default=FRE_RESOLUTION_CONFIG,
+        help="Noise model and thresholds for automatic finest-stable FRE selection.",
+    )
     parser.add_argument(
         "--force-axis",
         choices=("x", "y"),
@@ -436,6 +523,15 @@ def _parse_args() -> argparse.Namespace:
             "window in grid points. Middle and broad are derived from geometry "
             "and frozen before BF1. Run the standalone EGI resolution diagnostic "
             "before choosing this value."
+        ),
+    )
+    parser.add_argument(
+        "--egi-support-set",
+        choices=("fine-middle-broad", "fine-broad"),
+        default="fine-middle-broad",
+        help=(
+            "Frozen EGI role set. The fine-broad option is a controlled "
+            "ablation that removes only the middle informative EGI term."
         ),
     )
     parser.add_argument(
@@ -557,8 +653,10 @@ def _parse_args() -> argparse.Namespace:
         parser.error("Iteration, evaluation, and worker counts must be positive.")
     if not 0.0 <= args.force_weight <= 1.0:
         parser.error("--force-weight must lie in [0, 1].")
-    if args.force_slices < 2 or args.max_basis_functions < 1:
+    if (args.force_slices != "auto" and args.force_slices < 2) or args.max_basis_functions < 1:
         parser.error("Force slices must be at least two and max bases must be positive.")
+    if args.force_slices == "auto" and not args.fre_resolution_config.is_file():
+        parser.error(f"FRE resolution configuration not found: {args.fre_resolution_config}")
     if args.fine_egi_window is not None and (
         args.fine_egi_window < 3 or args.fine_egi_window % 2 == 0
     ):
@@ -571,6 +669,8 @@ def _parse_args() -> argparse.Namespace:
             "--fine-egi-window is required with data-driven EGI objectives; "
             "automatic fine-support selection is not qualified."
         )
+    if args.egi_support_set == "fine-broad" and args.simple_data_driven_objective_config is None:
+        parser.error("--egi-support-set fine-broad requires --simple-data-driven-objective-config.")
     if args.egi_window_weights is not None and (
         len(args.egi_window_weights) != len(args.egi_windows)
         or any(weight <= 0.0 for weight in args.egi_window_weights)
@@ -707,6 +807,7 @@ def _create_simple_data_driven_phase_1_objective(
     x: np.ndarray,
     y: np.ndarray,
     fine_egi_window: int,
+    egi_roles: tuple[str, ...],
     basis_growth_objective,
     diagnostic_callback,
 ) -> tuple[
@@ -717,9 +818,13 @@ def _create_simple_data_driven_phase_1_objective(
 
     egi_noise_value = payload.get("egi_noise_scales", payload.get("egi_noise_scale", 1.0))
     if isinstance(egi_noise_value, (int, float)):
-        egi_noise_scales = (float(egi_noise_value),) * 3
+        egi_noise_scales = (float(egi_noise_value),) * len(egi_roles)
     else:
-        egi_noise_scales = tuple(float(value) for value in egi_noise_value)
+        configured_scales = tuple(float(value) for value in egi_noise_value)
+        if egi_roles == ("fine", "broad") and len(configured_scales) == 3:
+            egi_noise_scales = (configured_scales[0], configured_scales[2])
+        else:
+            egi_noise_scales = configured_scales
     force_weight = float(payload.get("force_weight", 0.15))
     broad_guard_weight = float(payload.get("broad_guard_weight", 0.10))
     implied_informative_weight = 1.0 - force_weight - broad_guard_weight
@@ -751,6 +856,7 @@ def _create_simple_data_driven_phase_1_objective(
                 else float(payload["gate_full_quantile"])
             ),
             positive_activity_floor=float(payload.get("positive_activity_floor", 1.0e-6)),
+            egi_roles=egi_roles,
             egi_noise_scales=egi_noise_scales,
             force_noise_scale=float(payload.get("force_noise_scale", 1.0)),
             force_weight=force_weight,
@@ -778,6 +884,7 @@ def _create_simple_data_driven_phase_1_objective(
     )
     preparation = UserFineEgiSupportPreparation(
         fine_window=fine_egi_window,
+        include_middle="middle" in egi_roles,
         bank_config=EgiSupportBankConfig(
             candidate_count=int(payload.get("candidate_count", 10)),
             minimum_pixels=int(payload.get("minimum_pixels", 3)),
