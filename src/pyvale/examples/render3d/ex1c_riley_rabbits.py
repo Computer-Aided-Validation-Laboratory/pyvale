@@ -131,6 +131,7 @@ camera = render.Camera(
     focal_length=focal_length,
     subsample=2,
 )
+
 camera = render.cam_frame_scene(camera, meshes, fov_scale=1.01)
 
 # %%
@@ -139,7 +140,7 @@ camera = render.cam_frame_scene(camera, meshes, fov_scale=1.01)
 
 config = riley.create_raster_config(
     num_frames=1,
-    total_threads=1,
+    total_threads=4,
     save_strategy=riley.SaveStrategy.disk,
 )
 config.background_value = 127.5

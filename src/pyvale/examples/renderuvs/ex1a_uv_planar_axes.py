@@ -165,6 +165,16 @@ for variant_name, projection_plane, mesh_rotation, camera_rotation in variants:
     render_uv_example(textured_mesh, camera, output_dir / variant_name)
 
 # %%
+# The XY, YZ, and XZ projection cases are shown from left to right. Their
+# matching physical dot pitch makes differences caused by the projection plane
+# easy to compare.
+#
+# .. image:: ../../_static/renderuvs_ex1a_uv_planar_axes_axes.png
+#    :alt: Three dimensional calibration plate with XY, YZ, and XZ UV maps
+#    :width: 900px
+#    :align: center
+
+# %%
 # 4. Map a speckle texture to a desired final feature size
 # ------------------------------------------------------------
 # The packaged speckle pattern has a nominal feature size of five texture
@@ -172,7 +182,9 @@ for variant_name, projection_plane, mesh_rotation, camera_rotation in variants:
 # The camera scale at the ROI connects these two pixel spaces through physical
 # simulation length.
 speckle_texture = render.image_load(dataset.riley_speckle_texture_path())
+
 speckle_mesh = base_mesh
+
 speckle_camera = render.Camera(
     pixels_num=np.array((1792, 1120)),
     pixels_size=np.array((5.5e-6, 5.5e-6)),
@@ -182,27 +194,30 @@ speckle_camera = render.Camera(
     focal_length=35.0e-3,
     subsample=4,
 )
+
 speckle_camera = render.cam_frame_mesh(
     speckle_camera,
     speckle_mesh,
     fov_scale=render.cam_coverage_to_fov_scale(0.90),
 )
+
 image_leng_per_px = render.cam_calc_leng_per_px(speckle_camera)
 texture_px_per_feature_size = 5.0
 desired_image_px_per_feature_size = 5.0
-speckle_texture_px_per_leng = (
-    render.uv_calc_texture_px_per_leng_from_image(
-        texture_px_per_feature_size,
-        desired_image_px_per_feature_size,
-        image_leng_per_px,
-    )
+
+speckle_texture_px_per_leng =  render.uv_calc_texture_px_per_leng_from_image(
+    texture_px_per_feature_size,
+    desired_image_px_per_feature_size,
+    image_leng_per_px,
 )
+
 speckle_mapping = render.uv_map_planar_scaled(
     speckle_mesh.coords,
     speckle_texture,
     speckle_texture_px_per_leng,
     bounds=render.EUVBounds.TILED,
 )
+
 speckled_mesh = render.Mesh3D(
     element_type=speckle_mesh.element_type,
     coords=speckle_mesh.coords,
@@ -212,12 +227,14 @@ speckled_mesh = render.Mesh3D(
         texture=speckle_mapping.texture,
     ),
 )
+
 render_uv_example(speckled_mesh, speckle_camera, output_dir / "speckle")
 
 feature_size = render.uv_calc_feature_leng(
     desired_image_px_per_feature_size,
     image_leng_per_px,
 )
+
 print(
     f"Speckle feature size={feature_size:.6g}, "
     f"image scale={image_leng_per_px:.6g} length/px, "
@@ -225,16 +242,6 @@ print(
 )
 
 print(f"Rendered axis aligned UV projections to {output_dir}")
-
-# %%
-# The XY, YZ, and XZ projection cases are shown from left to right. Their
-# matching physical dot pitch makes differences caused by the projection plane
-# easy to compare.
-#
-# .. image:: ../../_static/renderuvs_ex1a_uv_planar_axes_axes.png
-#    :alt: Three dimensional calibration plate with XY, YZ, and XZ UV maps
-#    :width: 900px
-#    :align: center
 
 # %%
 # The speckle render is a separate experimental workflow: its scale comes from

@@ -119,15 +119,18 @@ for orientation_name, mesh in (
 # 1.25 mm per dot pitch using the measured 177.1 texture pixels per pitch. Its
 # oblique XY projection slightly exceeds the source texture, so the default
 # ``SATURATE`` policy clips those UVs and emits an explicit warning.
+
 texture_px_per_leng = render.uv_calc_texture_px_per_leng(
     texture_px_per_feature=177.1,
     feature_leng=1.25e-3,
 )
+
 physical_mapping = render.uv_map_planar_scaled(
     rotated_mesh.coords,
     texture,
     texture_px_per_leng,
 )
+
 physical_mesh = render.Mesh3D(
     element_type=rotated_mesh.element_type,
     coords=rotated_mesh.coords,
@@ -137,6 +140,7 @@ physical_mesh = render.Mesh3D(
         texture=physical_mapping.texture,
     ),
 )
+
 physical_camera = render.Camera(
     pixels_num=np.array((1792, 1120)),
     pixels_size=np.array((5.5e-6, 5.5e-6)),
@@ -146,11 +150,13 @@ physical_camera = render.Camera(
     focal_length=35.0e-3,
     subsample=4,
 )
+
 physical_camera = render.cam_frame_mesh(
     physical_camera,
     rotated_mesh,
     fov_scale=render.cam_coverage_to_fov_scale(0.90),
 )
+
 render_uv_example(
     physical_mesh,
     physical_camera,
@@ -158,10 +164,12 @@ render_uv_example(
 )
 
 image_leng_per_px = render.cam_calc_leng_per_px(physical_camera)
+
 image_px_per_feature_pitch = render.uv_calc_image_px_per_feature(
     1.25e-3,
     image_leng_per_px,
 )
+
 print(
     "Physical pitch mapping predicts "
     f"{image_px_per_feature_pitch:.2f} image px/dot pitch at the ROI"

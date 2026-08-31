@@ -72,6 +72,7 @@ camera = render.Camera(
     focal_length=focal_length,
     subsample=2,
 )
+
 camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
 
 # %%

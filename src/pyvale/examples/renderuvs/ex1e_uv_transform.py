@@ -27,19 +27,24 @@ from pyvale.examples.renderuvs.tools import render_uv_example
 # ------------------------------------------------------------
 # The asymmetric rabbit makes UV rotations and translations easier to recognise
 # than a rectangular plate, so it remains the best mesh for this comparison.
+
 data_dir = dataset.riley_rabbit_case_path("riley", render.EElementType.QUAD4)
+
 simulation = io.MeshLoader(
     load_dir=data_dir,
     coords_file="coords.csv",
     connect_files="connectivity.csv",
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_mesh()
+
 base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
+
 oriented_mesh = render.mesh_rotate(
     base_mesh,
     Rotation.from_euler("xyz", (8.0, -24.0, 0.0), degrees=True),
     pivot=render.mesh_center(base_mesh),
 )
+
 texture = render.image_load(dataset.riley_cal_target_texture_path())
 
 camera = render.Camera(
@@ -51,6 +56,7 @@ camera = render.Camera(
     focal_length=35.0e-3,
     subsample=4,
 )
+
 camera = render.cam_frame_mesh(
     camera,
     oriented_mesh,
@@ -63,6 +69,7 @@ camera = render.cam_frame_mesh(
 # ``CONTAIN`` preserves the calibration texture's aspect ratio and fits one
 # complete target inside the rabbit's planar XY extent. This keeps the grid
 # legible and avoids repeating the calibration image across the mesh.
+
 original_uvs = render.uv_project_planar(
     oriented_mesh.coords,
     texture_shape=texture.shape[:2],
@@ -74,12 +81,14 @@ original_uvs = render.uv_project_planar(
 # ------------------------------------------------------------
 # Scaling and rotation happen about the selected pivot. Translation is applied
 # last, and transformed UVs are allowed to extend outside the texture bounds.
+
 transform = render.UVTransform(
     translation=(0.08, -0.04),
     rotation_degrees=18.0,
     scale=(0.85, 0.85),
     pivot=(0.5, 0.5),
 )
+
 transformed_uvs = render.uv_transform(original_uvs, transform)
 
 # %%

@@ -119,7 +119,7 @@ camera_1.pos_world = pos_world_1
 
 config = riley.create_raster_config(
     num_frames=mesh.displacements.shape[0],
-    total_threads=8,
+    total_threads=4,
     save_strategy=riley.SaveStrategy.disk,
 )
 config.background_value = 128.0

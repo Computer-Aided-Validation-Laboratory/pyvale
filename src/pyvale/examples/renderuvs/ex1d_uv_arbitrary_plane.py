@@ -80,7 +80,9 @@ textured_mesh = render.Mesh3D(
 # %%
 # 3. Render the arbitrary plane mapping
 # ----------------------------------------------------------------------
+
 output_dir = Path.cwd() / "pyvale-output" / "renderuvs_ex1d_uv_arbitrary_plane"
+
 camera = render.Camera(
     pixels_num=np.array((1792, 1120)),
     pixels_size=np.array((5.5e-6, 5.5e-6)),
@@ -90,11 +92,13 @@ camera = render.Camera(
     focal_length=35.0e-3,
     subsample=4,
 )
+
 camera = render.cam_frame_mesh(
     camera,
     oriented_mesh,
     fov_scale=render.cam_coverage_to_fov_scale(0.90),
 )
+
 render_uv_example(textured_mesh, camera, output_dir / "tilted")
 
 image_leng_per_px = render.cam_calc_leng_per_px(camera)

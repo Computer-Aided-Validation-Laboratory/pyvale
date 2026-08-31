@@ -36,7 +36,7 @@ EXAMPLE_DIRS = [
 #   "extsensorsim",
 #    "dic",
 #    "mooseherder",
-#    "render3d",
+    "render3d",
     "renderuvs",
 ]
 

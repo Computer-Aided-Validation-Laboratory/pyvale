@@ -125,7 +125,7 @@ camera_0, camera_1 = riley.load_stereo_pair(str(output_dir), stereo_file_name)
 
 config = riley.create_raster_config(
     num_frames=mesh.displacements.shape[0],
-    total_threads=8,
+    total_threads=4,
     save_strategy=riley.SaveStrategy.disk,
 )
 config.background_value = 128.0

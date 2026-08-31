@@ -669,7 +669,6 @@ def uv_map_planar_scaled(
     coords: np.ndarray,
     texture: np.ndarray,
     texture_px_per_leng: float | np.ndarray,
-    *,
     plane: EUVPlane | UVPlane = EUVPlane.XY,
     texture_center_px: np.ndarray | None = None,
     origin: EUVOrigin = EUVOrigin.UPPER_LEFT,
@@ -768,6 +767,7 @@ def uv_map_planar_scaled(
 
     if bounds is not EUVBounds.TILED:
         raise ValueError(f"Unsupported UV bounds mode: {bounds!r}.")
+
     if not outside:
         return UVMapping(np.ascontiguousarray(raw_uvs), texture_in)
 
