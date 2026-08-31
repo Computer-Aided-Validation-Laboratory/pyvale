@@ -16,7 +16,7 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 import pyvale.dic as dic
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.calib as calib
 
 

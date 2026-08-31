@@ -3,18 +3,13 @@
 import numpy as np
 import pytest
 import scipy.linalg
-import os
-import glob
 from pathlib import Path
 
 #pyvale stuff
 import pyvale.dic as dic
 import pyvale.calib as calib
 import pyvale.strain as strain
-import pyvale.dataset as dataset
-
-
-TEST_DATA_DIR = Path(__file__).parent / "test"
+import pyvale.data as dataset
 
 
 def generate_affine_displacement_grid(F, nx=100, ny=100):
@@ -78,13 +73,14 @@ def reference_strain(F, formulation):
                            [np.sin(np.pi/12),  np.cos(np.pi/12)]])),
 ])
 
-def test_strain_deformations(strain_formulation, deformation_type, F):
+def test_strain_deformations(
+    strain_formulation,
+    deformation_type,
+    F,
+    tmp_path: Path,
+):
     # Generate displacement field
     X, Y, Ux, Uy = generate_affine_displacement_grid(F)
-
-    TEST_DATA_DIR.mkdir(exist_ok=True)
-    np.savetxt(TEST_DATA_DIR / f"u_{strain_formulation}_{deformation_type}.txt", Ux[0])
-    np.savetxt(TEST_DATA_DIR / f"v_{strain_formulation}_{deformation_type}.txt", Uy[0])
 
     input_data = dic.Results(ss_x=X, ss_y=Y, u_px=Ux, v_px=Uy)
 
@@ -95,6 +91,7 @@ def test_strain_deformations(strain_formulation, deformation_type, F):
         window_element=9,
         strain_formulation=strain_formulation,
         output_prefix=f"strain_{strain_formulation}_{deformation_type}_",
+        output_basepath=tmp_path,
         debug_level=2
     )
 
@@ -104,7 +101,9 @@ def test_strain_deformations(strain_formulation, deformation_type, F):
     print(F.shape)
     print(expected.shape)
 
-    strainresults = strain.import_2d(f"./strain_{strain_formulation}_{deformation_type}_*.csv")
+    strainresults = strain.import_2d(
+        tmp_path / f"strain_{strain_formulation}_{deformation_type}_*.csv",
+    )
 
     # Map of deformation gradient and strain components
     checks = {
@@ -128,12 +127,7 @@ def test_strain_deformations(strain_formulation, deformation_type, F):
             err_msg=f"{attr} incorrect for {strain_formulation} / {deformation_type}"
         )
 
-    for file_path in glob.glob(f"./strain_{strain_formulation}_{deformation_type}_*.csv"):
-        os.remove(file_path)
-
-
-
-def run_strain_test(window_element):
+def run_strain_test(window_element: int, output_path: Path):
     ref0 = dataset.dic_plate_with_hole_cam0_ref()
     ref1 = dataset.dic_plate_with_hole_cam1_ref()
     def0 = dataset.dic_plate_with_hole_cam0_def()
@@ -150,7 +144,7 @@ def run_strain_test(window_element):
         subset_size=21,
         subset_step=10,
         max_displacement=10,
-        output_basepath="./",
+        output_basepath=output_path,
         output_delimiter=",",
     )
 
@@ -162,10 +156,10 @@ def run_strain_test(window_element):
     )
 
     strain.calculate_2d(
-        data="dic_2d_*csv",
+        data=output_path / "dic_2d_*csv",
         window_size=5,
         window_element=window_element,
-        output_basepath="./",
+        output_basepath=output_path,
         output_prefix="strain_2d_",
         strain_formulation="ALMANSI",
     )
@@ -179,23 +173,23 @@ def run_strain_test(window_element):
     )
 
     strain.calculate_3d(
-        data="dic_3d_*csv",
+        data=output_path / "dic_3d_*csv",
         window_size=5,
         window_element=window_element,
-        output_basepath="./",
+        output_basepath=output_path,
         output_prefix="strain_3d_",
         strain_formulation="ALMANSI",
     )
 
     return (
-        strain.import_2d("strain_2d_*"),
-        strain.import_3d("strain_3d_*"),
+        strain.import_2d(output_path / "strain_2d_*"),
+        strain.import_3d(output_path / "strain_3d_*"),
     )
 
 
 @pytest.mark.parametrize("window_element", [4, 9])
-def test_strain_3d(window_element):
-    strain_2d, strain_3d = run_strain_test(window_element)
+def test_strain_3d(window_element: int, tmp_path: Path):
+    strain_2d, strain_3d = run_strain_test(window_element, tmp_path)
 
     for field, atol in [
         ("eps_xx", 4e-5),
@@ -209,8 +203,3 @@ def test_strain_3d(window_element):
             atol=atol,
             err_msg=f"mismatch for {field}",
         )
-
-        
-        output_files = sorted(glob.glob("*dic*.csv"))
-        for files in output_files:
-            os.remove(files)

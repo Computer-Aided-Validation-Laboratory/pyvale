@@ -13,8 +13,8 @@ import numpy as np
 import pyvista as pv
 from pyvista import CellType
 from pyvale.dataio.simdata import SimData
-from pyvale.dataio.meshtools import enforce_mesh_convention
-from pyvale.dataio.meshtools import extract_surf_mesh as _extract_surf_mesh
+from pyvale.dataio.meshconv import enforce_mesh_convention
+from pyvale.dataio.meshconv import extract_surf_mesh as _extract_surf_mesh
 from pyvale.sensorsim.enums import EDim
 
 

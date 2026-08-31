@@ -613,19 +613,17 @@ with high resolution images (100s MBs.). To get around this we'd recommend
 **placing the DIC engine call in a loop over the images**. An example of which can be found
 below:
 
-.. code-block:: Python
+.. code-block:: python
 
     ref_img = "ref_00.tiff"
-    def_imgs = ["def_00.tiff", "def_01.tiff", "def_02.tiff", ...]
+    def_imgs = ["def_00.tiff", "def_01.tiff", "def_02.tiff"]
 
     for def_img in def_imgs:
-    
         dic.calculate_2d(
-            ...,
+            roi,
             reference=ref_img,
             deformed=def_img,
-            ...,
-         )
+        )
 
 There are plans to change this in later pyvale versions so that images
 are read sequentially and thus avoiding the need for any loops. Please keep an
@@ -640,14 +638,15 @@ Users can select the number of threads used in the DIC calculation with the
 :code:`num_threads` argument in :code:`dic.calculate_2d`:
 
 
-.. code-block:: Python
+.. code-block:: python
    :emphasize-lines: 3
 
    dic.calculate_2d(
-       ...,
-       num_threads=<int>,
-       ...,
-    )
+       roi,
+       reference="ref.tiff",
+       deformed="def.tiff",
+       num_threads=4,
+   )
 
 Alternatively, those on UNIX operating systems (MacoS, Linux) can set the number
 of threads using the :code:`OMP_NUM_THREADS` environment variable.

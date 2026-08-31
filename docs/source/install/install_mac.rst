@@ -3,10 +3,11 @@
 MacOS
 ######
 
-Configuring Python 3.13
-***********************
+Configuring Python
+******************
 
-To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` requires python 3.13. 
+``pyvale`` supports Python 3.11 and newer. The optional Blender backend
+requires Python 3.13 and ``pip install "pyvale[blender]"``.
 Homebrew is a free and open-source commonly used package manager for macOS that often simplifies the process of installing, updating, and managing software. 
 
 Install via Homebrew
@@ -41,11 +42,12 @@ Virtual Environment
 ********************
 
 We recommend installing ``pyvale`` in a virtual environment using ``venv`` or ``pyvale`` can be installed into an existing environment of your choice. 
-To create a specific virtual environment for ``pyvale`` first open a terminal Then navigate to the folder you want to install the environment in (using ``cd``) and use:
+To create a virtual environment for ``pyvale`` first open a terminal, navigate
+to the folder in which to install it (using ``cd``), and use:
 
 .. code-block:: batch
 
-   python3.13 -m venv pyvale-env
+   python -m venv pyvale-env
 
 This will create a virtual environment called 'pyvale-env' in a folder of the same name. To activate the virtual environment from your current location type this into your terminal:
 
@@ -72,7 +74,8 @@ Installation from PyPI
 
    pip install pyvale
 
-You should now be able to start a python 3.13 interpreter in your terminal using (again make sure your pyvale-env is active):
+You should now be able to start a Python interpreter in your terminal using
+(again make sure your pyvale-env is active):
 
 .. code-block:: bash
 
@@ -154,6 +157,4 @@ Now check that you can import pyvale in the interpreter:
    import pyvale
 
 If there are no errors then everything has worked and you can now move on to looking at some of our examples to get you started in the basics section.
-
-
 

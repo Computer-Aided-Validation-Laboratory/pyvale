@@ -4,7 +4,7 @@ import pyvale.sensorsim as sens
 import matplotlib.pyplot as plt
 
 import pyvale.mooseherder as mh
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 from pyvale.sensorsim.visualopts import TraceOptsSensor
 
 

@@ -37,12 +37,12 @@ from pathlib import Path
 import numpy as np
 
 # pyvale modules
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.dic as dic
 
 subset_size = 31
-ref_img = dataset.dic_plate_rigid_ref()
-def_img = dataset.dic_plate_rigid_def()
+ref_img = dataset.dic_plate_rigid_cam0_ref()
+def_img = dataset.dic_plate_rigid_cam0_def()
 
 # create a directory for the the different outputs
 output_path = Path.cwd() / "pyvale-output" / "incremental"
@@ -87,5 +87,4 @@ dic.calculate_2d(reference=ref_img,
                  output_basepath=output_path,
                  output_delimiter=",",
                  output_prefix="results_inc_")
-
 
