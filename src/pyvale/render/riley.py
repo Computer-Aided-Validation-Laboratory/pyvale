@@ -81,7 +81,7 @@ class RileyTextureShader:
     uvs: np.ndarray
     texture: np.ndarray
     sample: riley.TextureSample = riley.TextureSample.cubic_catmull_rom
-    sample_mode: riley.TextureSampleMode = riley.TextureSampleMode.lut_lerp
+    sample_mode: riley.TextureSampleMode = riley.TextureSampleMode.direct
     bits: int = 8
     scaling: riley.ScaleStrategy = riley.ScaleStrategy.none
 
@@ -352,7 +352,9 @@ def to_riley_camera(camera: Camera | riley.Camera) -> riley.Camera:
     """
     if isinstance(camera, riley.Camera):
         return camera
+
     rotation_xyz = camera.rot_world.as_euler("xyz")
+
     return riley.Camera(
         pixels_num=tuple(int(value) for value in camera.pixels_num),
         pixels_size=tuple(float(value) for value in camera.pixels_size),

@@ -28,7 +28,7 @@ from pyvale import render
 
 SUBSET_SIZE = 21
 SPECKLE_SIZE_PX = 5.0
-TARGET_DISPLACEMENT_PX = 0.5
+TARGET_DISPLACEMENT_PX = 1.0
 ROI_SAFETY_PX = 10
 
 # %%
@@ -59,7 +59,7 @@ camera = render.Camera(
     pos_world=np.zeros(3),
     rot_world=Rotation.identity(),
     roi_cent_world=render.mesh_center(mesh),
-    focal_length=35.0e-3,
+    focal_length=50.0e-3,
     subsample=4,
 )
 
@@ -193,13 +193,14 @@ assert not np.any(roi.mask[:, roi_right:])
 # ------------------------------------------------------------
 dic_dir = output_dir / "dic"
 dic_dir.mkdir(parents=True, exist_ok=True)
+
 dic.calculate_2d(
     reference=reference,
     deformed=deformed,
     roi_mask=roi.mask,
     seed=roi.seed,
     subset_size=SUBSET_SIZE,
-    subset_step=20,
+    subset_step=1,
     shape_function="AFFINE",
     correlation_criteria="ZNSSD",
     max_displacement=4,
@@ -208,6 +209,7 @@ dic.calculate_2d(
     output_prefix="render_to_dic_",
     debug_level=0,
 )
+
 dic_results = dic.import_2d(
     data=dic_dir / "render_to_dic_*.csv",
     delimiter=",",
