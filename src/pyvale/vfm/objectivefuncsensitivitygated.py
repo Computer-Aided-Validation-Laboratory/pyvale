@@ -65,9 +65,14 @@ class SensitivityGatedObjectiveConfig:
             raise ValueError("force_noise_scale must be positive.")
         if self.force_weight < 0.0 or self.broad_guard_weight < 0.0:
             raise ValueError("Guard weights must be non-negative.")
-        if self.aggregation not in {"weighted_sum", "lexicographic_constraints"}:
+        if self.aggregation not in {
+            "weighted_sum",
+            "noise_standardised_mean",
+            "lexicographic_constraints",
+        }:
             raise ValueError(
-                "aggregation must be 'weighted_sum' or 'lexicographic_constraints'."
+                "aggregation must be 'weighted_sum', 'noise_standardised_mean', "
+                "or 'lexicographic_constraints'."
             )
         if self.aggregation == "weighted_sum" and (
             self.force_weight + self.broad_guard_weight >= 1.0
@@ -183,24 +188,40 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
         if not np.any(np.isfinite(weights) & (weights > 0.0)):
             raise ValueError("Sensitivity gate retained no informative observations.")
 
+        force_temporal_weights = _metric_temporal_weights(
+            context.metric_results[0],
+            context.experiment_data.strain.shape[0],
+        )
         specs = [
             ResidualBlockSpec(
                 "fre_guard", 0, "all", "fre", role="fre_guard",
                 residual_field="normalised_residual",
                 noise_scale=self.config.force_noise_scale,
+                observation_weights=force_temporal_weights[:, np.newaxis],
             )
         ]
         for index, role in enumerate(("fine", "middle", "broad"), start=1):
+            egi_temporal_weights = _metric_temporal_weights(
+                context.metric_results[index],
+                context.experiment_data.strain.shape[0],
+            )
             specs.append(ResidualBlockSpec(
                 f"egi_{role}_informative", index, "all", "egi",
                 role="training", residual_field="normalised_gap",
                 noise_scale=self.config.egi_noise_scales[index - 1],
-                observation_weights=weights,
+                observation_weights=(
+                    weights * egi_temporal_weights[:, np.newaxis, np.newaxis]
+                ),
             ))
+        broad_temporal_weights = _metric_temporal_weights(
+            context.metric_results[3],
+            context.experiment_data.strain.shape[0],
+        )
         specs.append(ResidualBlockSpec(
             "egi_broad_guard", 3, "all", "egi", role="broad_egi_guard",
             residual_field="normalised_gap",
             noise_scale=self.config.egi_noise_scales[2],
+            observation_weights=broad_temporal_weights[:, np.newaxis, np.newaxis],
         ))
         self._layout = context.prepare_residual_layout(
             resolve_load_regimes(np.zeros(context.experiment_data.strain.shape[0])),
@@ -301,6 +322,11 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
                 + self.config.force_weight * force
                 + self.config.broad_guard_weight * broad_guard
             )
+        if self.config.aggregation == "noise_standardised_mean":
+            # Each input is already a noise-whitened, observation-count-
+            # normalised RMS. Equal treatment therefore introduces no manual
+            # magnitude or vector-length compensation.
+            return float(np.mean((informative, force, broad_guard)))
         force_excess = force / float(self.config.force_guard_limit) - 1.0
         broad_excess = broad_guard / float(self.config.broad_guard_limit) - 1.0
         # Feasibility takes precedence.  The tiny, dimensionless tie-breaker
@@ -315,6 +341,13 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
                 "informative_egi": 1.0 - self.config.force_weight - self.config.broad_guard_weight,
                 "fre_guard": self.config.force_weight,
                 "broad_egi_guard": self.config.broad_guard_weight,
+            }
+        if self.config.aggregation == "noise_standardised_mean":
+            return {
+                "mode": "noise_standardised_mean",
+                "informative_egi": "one third after noise whitening and block RMS",
+                "fre_guard": "one third after noise whitening and block RMS",
+                "broad_egi_guard": "one third after noise whitening and block RMS",
             }
         return {
             "mode": "lexicographic_constraints",
@@ -340,6 +373,12 @@ class SensitivityGatedEgiObjective(IScalarObjectiveFunction):
                     "broad_egi_guard": (
                         self.config.broad_guard_weight * self.last_result.broad_guard_cost
                     ),
+                }
+            elif self.config.aggregation == "noise_standardised_mean":
+                contributions = {
+                    "informative_egi": self.last_result.informative_egi_cost / 3.0,
+                    "fre_guard": self.last_result.force_guard_cost / 3.0,
+                    "broad_egi_guard": self.last_result.broad_guard_cost / 3.0,
                 }
             else:
                 force_excess = self.last_result.force_guard_cost / float(self.config.force_guard_limit) - 1.0
@@ -382,3 +421,18 @@ def _normalise_activity(values: npt.ArrayLike, percentile: float) -> FloatArray:
 def _smooth_gate(activity: FloatArray, start: float, full: float) -> FloatArray:
     position = np.clip((activity - start) / (full - start), 0.0, 1.0)
     return position * position * (3.0 - 2.0 * position)
+
+
+def _metric_temporal_weights(metric_result, timestep_count: int) -> FloatArray:
+    """Return a finite non-negative temporal vector carried by a metric."""
+
+    raw = metric_result.additional_fields.get("temporal_weights")
+    if raw is None:
+        return np.ones(timestep_count, dtype=np.float64)
+    weights = np.asarray(raw, dtype=np.float64)
+    if weights.shape != (timestep_count,):
+        raise ValueError(
+            "Metric temporal weights must match the experiment time axis: "
+            f"{weights.shape} vs {(timestep_count,)}."
+        )
+    return np.where(np.isfinite(weights) & (weights > 0.0), weights, 0.0)

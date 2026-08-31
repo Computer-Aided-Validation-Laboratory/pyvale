@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from scipy.signal import correlate2d
 
 from pyvale.vfm.experimentdata import (
     BoundaryConditions,
@@ -18,6 +19,7 @@ from pyvale.vfm.metricequilibriumgap import (
     EquilibriumGapVirtualFieldType,
     evaluate_equilibrium_gap_batch,
     evaluate_batched_equilibrium_gap_metrics,
+    _box_sum_same,
 )
 from pyvale.vfm.roi import RoiDefinition, RoiShape, VfmRegionOfInterest
 
@@ -292,6 +294,57 @@ def test_batched_windows_match_independent_fft_correlations() -> None:
             rel=2.0e-12,
             abs=2.0e-12,
         )
+
+
+def test_float32_fft_backend_stays_close_to_float64() -> None:
+    experiment_data = _rectangle_experiment_data(rows=31, cols=35)
+    rng = np.random.default_rng(20260831)
+    stress = rng.normal(size=(3, 3, 31, 35))
+    metrics64 = [EquilibriumGapMetric(window_size=(9, 9), fft_dtype="float64")]
+    metrics32 = [EquilibriumGapMetric(window_size=(9, 9), fft_dtype="float32")]
+    for metric in (*metrics64, *metrics32):
+        metric.initialise(experiment_data)
+
+    reference = evaluate_equilibrium_gap_batch(
+        stress, metrics64, include_diagnostics=True,
+    )[0].residual
+    candidate = evaluate_equilibrium_gap_batch(
+        stress, metrics32, include_diagnostics=True,
+    )[0].residual
+    assert reference is not None and candidate is not None
+    valid = np.isfinite(reference) & np.isfinite(candidate)
+    relative_rms = np.sqrt(np.mean((candidate[valid] - reference[valid]) ** 2)) / np.sqrt(
+        np.mean(reference[valid] ** 2)
+    )
+    assert relative_rms < 2.0e-6
+
+
+def test_box_sum_same_matches_direct_window_counts() -> None:
+    rng = np.random.default_rng(17)
+    mask = rng.random((19, 23)) > 0.3
+    for window in ((3, 3), (9, 5), (25, 27)):
+        expected = correlate2d(
+            mask.astype(np.float64), np.ones(window), mode="same",
+        )
+        np.testing.assert_array_equal(
+            _box_sum_same(mask, np.asarray(window, dtype=np.uint32)), expected,
+        )
+
+
+def test_fft_batch_groups_split_compatible_metrics() -> None:
+    experiment_data = _rectangle_experiment_data(rows=23, cols=27)
+    metrics = [
+        EquilibriumGapMetric(window_size=(5, 5), fft_batch_group="local"),
+        EquilibriumGapMetric(window_size=(9, 9), fft_batch_group="broad"),
+    ]
+    for metric in metrics:
+        metric.initialise(experiment_data)
+
+    results = evaluate_batched_equilibrium_gap_metrics(
+        _stress_with_central_inclusion(experiment_data), metrics,
+    )
+
+    assert set(results) == {0, 1}
 
 
 def test_optimiser_batch_helper_returns_results_by_metric_index() -> None:

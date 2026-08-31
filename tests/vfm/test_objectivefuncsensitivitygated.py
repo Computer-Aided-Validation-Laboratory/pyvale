@@ -36,12 +36,18 @@ def _metric_results(scale: float):
     return [
         MetricResult(
             residual=force,
-            additional_fields={"normalised_residual": force},
+            additional_fields={
+                "normalised_residual": force,
+                "temporal_weights": np.ones(2),
+            },
         ),
         *[
             MetricResult(
                 residual=gap,
-                additional_fields={"normalised_gap": gap},
+                additional_fields={
+                    "normalised_gap": gap,
+                    "temporal_weights": np.ones(2),
+                },
             )
             for _ in range(3)
         ],
@@ -142,6 +148,54 @@ def test_lexicographic_constraints_prioritise_guard_feasibility(monkeypatch) -> 
     diagnostics = objective.diagnostics()
     assert diagnostics["aggregation"] == "lexicographic_constraints"
     assert diagnostics["last_costs"]["weighted_contributions"]["force_excess"] == pytest.approx(0.25)
+
+
+def test_noise_standardised_mean_treats_block_rms_equally(monkeypatch) -> None:
+    def fake_sensitivities(strain, stress, law, maps, names, perturbation_factor):
+        values = np.ones_like(stress)
+        return {name: SimpleNamespace(total=values) for name in names}
+
+    monkeypatch.setattr(
+        "pyvale.vfm.objectivefuncsensitivitygated.calculate_parameter_stress_sensitivities",
+        fake_sensitivities,
+    )
+    objective = SensitivityGatedEgiObjective(
+        SensitivityGatedObjectiveConfig(
+            aggregation="noise_standardised_mean",
+            egi_noise_scales=(2.0, 2.0, 2.0),
+            force_noise_scale=4.0,
+        )
+    )
+    objective.prepare_solve(_Context())
+    cost = objective.evaluate(_metric_results(1.0))
+
+    assert cost == pytest.approx((0.5 + 0.25 + 0.5) / 3.0)
+
+
+def test_metric_temporal_weights_exclude_zero_weight_frame(monkeypatch) -> None:
+    def fake_sensitivities(strain, stress, law, maps, names, perturbation_factor):
+        values = np.ones_like(stress)
+        return {name: SimpleNamespace(total=values) for name in names}
+
+    monkeypatch.setattr(
+        "pyvale.vfm.objectivefuncsensitivitygated.calculate_parameter_stress_sensitivities",
+        fake_sensitivities,
+    )
+    metric_results = _metric_results(1.0)
+    for result in metric_results:
+        result.additional_fields["temporal_weights"] = np.asarray((0.0, 1.0))
+    objective = SensitivityGatedEgiObjective(
+        SensitivityGatedObjectiveConfig(
+            egi_noise_scales=(1.0, 1.0, 1.0),
+            force_noise_scale=1.0,
+        )
+    )
+    context = _Context()
+    context.metric_results = tuple(metric_results)
+    diagnostics = objective.prepare_solve(context)
+
+    blocks = diagnostics["residual_layout"]["blocks"]
+    assert all(block["observation_count"] < block["total_observation_count"] for block in blocks)
 
 
 def test_quantile_gate_resolves_from_positive_activity(monkeypatch) -> None:

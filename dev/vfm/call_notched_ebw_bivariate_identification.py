@@ -84,7 +84,11 @@ SBVF_MESH_SIZE = np.asarray((15, 15), dtype=np.uint32)
 SBVF_SCALING_FRACTION = 0.3
 
 INITIAL_MESH_SIZE = 0.1
-MINIMUM_MESH_SIZE = 5.0e-4
+# Stop once complete polls cannot improve the solution at roughly 0.1% of
+# each DOF's configured normalisation span. This criterion is independent of
+# objective scaling; callers can still tighten it with --minimum-mesh-size.
+MINIMUM_MESH_SIZE = 1.0e-3
+OBJECTIVE_RELATIVE_TOLERANCE = 1.0e-4
 MAX_ITERATIONS = 200
 PHASE_0_MAX_EVALUATIONS = 12
 # Six bivariate Gaussian bases give 38 phase-1 DOFs.  200 complete pattern
@@ -152,7 +156,25 @@ def main() -> None:
     force_metric_phase_1 = SliceWiseForceReconstructionMetric(
         slice_config=SliceConfig(axis=args.force_axis, num_slices=args.force_slices)
     )
-    equilibrium_gap_metrics_phase_1 = [EquilibriumGapMetric(window_size=window) for window in args.egi_windows]
+    fft_groups = [None] * len(args.egi_windows)
+    if args.egi_fft_groups == "split-broad" and len(fft_groups) > 1:
+        fft_groups = ["local"] * (len(fft_groups) - 1) + ["broad"]
+    elif args.egi_fft_groups == "separate":
+        fft_groups = [f"support-{index}" for index in range(len(fft_groups))]
+    equilibrium_gap_metrics_phase_1 = [
+        EquilibriumGapMetric(
+            window_size=window,
+            fft_dtype=args.egi_fft_dtype,
+            fft_batch_group=group,
+            # The gated objective consumes residual maps directly. Avoid
+            # the temporal RMS map during candidates; accepted/reference
+            # paths can reconstruct it from the residual. The global RMS
+            # scalar remains required to resolve the prior-phase baseline.
+            compute_temporal_rms=not args.egi_skip_derived_diagnostics,
+            compute_spatiotemporal_rms=True,
+        )
+        for window, group in zip(args.egi_windows, fft_groups, strict=True)
+    ]
     egi_window_weights = (
         [window[0] for window in args.egi_windows]
         if args.egi_window_weights is None
@@ -279,6 +301,7 @@ def main() -> None:
             minimum_mesh_size=args.minimum_mesh_size,
             max_iterations=args.max_iterations,
             max_evaluations=args.max_evaluations,
+            objective_relative_tolerance=args.objective_relative_tolerance,
             parallel_workers=args.parallel_workers,
             random_seed=args.random_seed,
         ),
@@ -308,6 +331,8 @@ def main() -> None:
         "minimum_objective_improvement": args.minimum_objective_improvement,
         "fixed_basis_trajectory": args.fixed_basis_trajectory,
         "initial_mesh_size": args.initial_mesh_size,
+        "minimum_mesh_size": args.minimum_mesh_size,
+        "objective_relative_tolerance": args.objective_relative_tolerance,
         "centre_bounds_span_factor": args.centre_bounds_span_factor,
         "kernel_type": args.kernel_type,
         "basis_growth_policy": args.basis_growth_policy,
@@ -340,6 +365,9 @@ def main() -> None:
         "force_axis": args.force_axis,
         "egi_windows": args.egi_windows,
         "egi_window_weights": egi_window_weights,
+        "egi_fft_dtype": args.egi_fft_dtype,
+        "egi_fft_groups": args.egi_fft_groups,
+        "egi_skip_derived_diagnostics": args.egi_skip_derived_diagnostics,
         "artificial_noise": noise_diagnostics,
         "stress_backend": args.stress_backend,
         "random_seed": args.random_seed,
@@ -396,6 +424,24 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--egi-windows", type=_parse_egi_windows, default=EGI_WINDOWS, help="Comma-separated odd square window sizes, e.g. 15,29,41.")
     parser.add_argument(
+        "--egi-fft-dtype",
+        choices=("float64", "float32"),
+        default="float32",
+        help="FFT arithmetic used by EGI convolution; use float64 to restore the historical path.",
+    )
+    parser.add_argument(
+        "--egi-fft-groups",
+        choices=("all", "split-broad", "separate"),
+        default="split-broad",
+        help="Share stress FFTs across all supports, split the largest support, or evaluate each separately.",
+    )
+    parser.add_argument(
+        "--egi-skip-derived-diagnostics",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Skip the derived temporal EGI RMS map while retaining objective residual maps and the required global RMS scalar.",
+    )
+    parser.add_argument(
         "--egi-window-weights",
         type=_parse_float_tuple,
         default=None,
@@ -447,6 +493,15 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--sensitivity-perturbation-factor", type=float, default=SENSITIVITY_PERTURBATION_FACTOR, help="Relative constitutive-parameter perturbation used to calculate spatial weights.")
     parser.add_argument("--sensitivity-weight-floor", type=float, default=SENSITIVITY_WEIGHT_FLOOR, help="Nonzero activity-weight floor before normalisation.")
     parser.add_argument("--minimum-mesh-size", type=float, default=MINIMUM_MESH_SIZE)
+    parser.add_argument(
+        "--objective-relative-tolerance",
+        type=float,
+        default=OBJECTIVE_RELATIVE_TOLERANCE,
+        help=(
+            "Minimum scale-relative objective reduction required to accept a "
+            "pattern-search candidate."
+        ),
+    )
     parser.add_argument("--max-iterations", type=int, default=MAX_ITERATIONS)
     parser.add_argument("--max-evaluations", type=int, default=PHASE_1_MAX_EVALUATIONS, help="Maximum pattern-search evaluations in phase 1.")
     parser.add_argument("--parallel-workers", type=int, default=PARALLEL_WORKERS)
@@ -478,6 +533,11 @@ def _parse_args() -> argparse.Namespace:
         parser.error("--initial-mesh-size must lie in (0, 1].")
     if not 0.0 < args.minimum_mesh_size <= args.initial_mesh_size:
         parser.error("--minimum-mesh-size must lie in (0, initial mesh size].")
+    if (
+        not np.isfinite(args.objective_relative_tolerance)
+        or not 0.0 <= args.objective_relative_tolerance < 1.0
+    ):
+        parser.error("--objective-relative-tolerance must lie in [0, 1).")
     if args.max_iterations < 1 or args.max_evaluations < 1 or args.parallel_workers < 1 or args.phase_0_max_evaluations < 1:
         parser.error("Iteration, evaluation, and worker counts must be positive.")
     if not 0.0 <= args.force_weight <= 1.0:

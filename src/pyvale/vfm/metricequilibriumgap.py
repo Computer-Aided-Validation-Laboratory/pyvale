@@ -97,6 +97,13 @@ class EquilibriumGapMetric(IMetric):
         diagnostic fields. Default is True. Set to False for scalar objectives
         that require only ``weighted_spatiotemporal_rms`` and ``window_size``.
         Normal calls to ``evaluate`` always retain full diagnostics.
+    fft_dtype : {"float64", "float32"}, optional
+        Floating-point precision used only by the FFT convolution. Stress
+        reconstruction and downstream normalisation retain their native
+        precision. Default is ``"float64"``.
+    fft_batch_group : str or None, optional
+        Metrics with different group labels use separate stress FFT shapes.
+        This can avoid padding small supports to the largest support.
     pixel_area_scale : float, optional
         Scale factor for the pixel area when computing the volume. Default is 1.0.
         This is only required if mismatch in units between the pixel area and the stress field, 
@@ -124,13 +131,13 @@ class EquilibriumGapMetric(IMetric):
     compute_temporal_rms: bool
     compute_spatiotemporal_rms: bool
     include_optimisation_diagnostics: bool
+    fft_dtype: np.dtype
+    fft_batch_group: str | None
     pixel_area_scale: float
     _operator: _EquilibriumGapOperator | None
     plot_virtual_field_schematic: bool
     plot_virtual_window_raster: bool
-    _kernel_fft_cache: dict[
-        tuple[int, int], npt.NDArray[np.complex128]
-    ]
+    _kernel_fft_cache: dict[tuple[tuple[int, int], str], np.ndarray]
 
     def __init__(
         self,
@@ -144,6 +151,8 @@ class EquilibriumGapMetric(IMetric):
         compute_temporal_rms: bool = True,
         compute_spatiotemporal_rms: bool = True,
         include_optimisation_diagnostics: bool = True,
+        fft_dtype: str | np.dtype = "float64",
+        fft_batch_group: str | None = None,
         pixel_area_scale: float = 1.0,
         plot_virtual_field_schematic: bool = False,
         plot_virtual_window_raster: bool = False,
@@ -159,6 +168,10 @@ class EquilibriumGapMetric(IMetric):
         self.include_optimisation_diagnostics = bool(
             include_optimisation_diagnostics
         )
+        self.fft_dtype = np.dtype(fft_dtype)
+        if self.fft_dtype not in (np.dtype("float32"), np.dtype("float64")):
+            raise ValueError("fft_dtype must be float32 or float64.")
+        self.fft_batch_group = fft_batch_group
         self.pixel_area_scale = pixel_area_scale
         self.plot_virtual_field_schematic = plot_virtual_field_schematic
         self.plot_virtual_window_raster = plot_virtual_window_raster
@@ -427,8 +440,12 @@ def evaluate_equilibrium_gap_batch(
     )
     # Compute the stress-volume fields by multiplying the stress components by the reference volume.
     # Shape: (timesteps, 3, y, x)
+    fft_dtype = metrics[0].fft_dtype
+    if any(metric.fft_dtype != fft_dtype for metric in metrics[1:]):
+        raise ValueError("Batched EGI metrics must use the same FFT dtype.")
     stress_volume = np.nan_to_num(
-        stress * reference_volume[np.newaxis, np.newaxis],
+        stress.astype(fft_dtype, copy=False)
+        * reference_volume.astype(fft_dtype, copy=False)[np.newaxis, np.newaxis],
         nan=0.0,
     )
     # Compute the FFT of the stress-volume fields along the last two axes (spatial dimensions).
@@ -440,10 +457,11 @@ def evaluate_equilibrium_gap_batch(
 
     results: list[MetricResult] = []
     for metric, operator in zip(metrics, operators, strict=True):
-        kernel_fft = metric._kernel_fft_cache.get(fft_shape)
+        cache_key = (fft_shape, fft_dtype.str)
+        kernel_fft = metric._kernel_fft_cache.get(cache_key)
         if kernel_fft is None:
             flipped_kernels = np.flip(
-                operator.virtual_strain_fields,
+                operator.virtual_strain_fields.astype(fft_dtype, copy=False),
                 axis=(-2, -1),
             )
             kernel_fft = rfftn(
@@ -451,7 +469,7 @@ def evaluate_equilibrium_gap_batch(
                 s=fft_shape,
                 axes=(-2, -1),
             )
-            metric._kernel_fft_cache[fft_shape] = kernel_fft
+            metric._kernel_fft_cache[cache_key] = kernel_fft
 
         gaps: list[npt.NDArray[np.float64]] = []
         window_rows = int(metric.window_size[0])
@@ -509,6 +527,27 @@ def _validate_window_definition(
         raise ValueError("valid_window_fill_fraction must be between 0.0 and 1.0.")
 
 
+def _box_sum_same(
+    mask: npt.NDArray[np.bool_],
+    window_size: npt.NDArray[np.uint32],
+) -> npt.NDArray[np.float64]:
+    """Return exact centred rectangular-window counts in linear time."""
+    rows, cols = map(int, window_size)
+    row_half, col_half = rows // 2, cols // 2
+    padded = np.pad(
+        mask.astype(np.int64, copy=False),
+        ((row_half, row_half), (col_half, col_half)),
+    )
+    integral = np.pad(padded, ((1, 0), (1, 0))).cumsum(0).cumsum(1)
+    counts = (
+        integral[rows:, cols:]
+        - integral[:-rows, cols:]
+        - integral[rows:, :-cols]
+        + integral[:-rows, :-cols]
+    )
+    return counts.astype(np.float64)
+
+
 def _build_equilibrium_gap_operator(
     experiment_data: ExperimentData,
     *,
@@ -539,10 +578,7 @@ def _build_equilibrium_gap_operator(
     # the count of valid points in the window centred on that element. So windows in specimen centre will have counts 
     # equal to the window size, windows outside specimen will be zero, while windows at the edge of the specimen will
     # have counts less than the window size but greater than zero.
-    window_point_counts = _correlate_same(
-        valid_point_mask.astype(np.float64),
-        np.ones(tuple(window_size), dtype=np.float64),
-    )
+    window_point_counts = _box_sum_same(valid_point_mask, window_size)
     nominal_window_point_count = float(np.prod(window_size))
 
     # Debug: plot map of window counts
@@ -1622,6 +1658,8 @@ def evaluate_batched_equilibrium_gap_metrics(
                 first_operator is not None
                 and operator is not None
                 and np.array_equal(first_operator.volume, operator.volume)
+                and metric.fft_dtype == first_metric.fft_dtype
+                and metric.fft_batch_group == first_metric.fft_batch_group
                 and (
                     include_egi_diagnostics is not None
                     or metric.include_optimisation_diagnostics
@@ -1632,8 +1670,6 @@ def evaluate_batched_equilibrium_gap_metrics(
             else:
                 incompatible_indices.append(index)
         remaining_egi_indices = incompatible_indices
-        if len(compatible_indices) < 2:
-            continue
         egi_metrics = [
             cast(EquilibriumGapMetric, metrics[index])
             for index in compatible_indices
