@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # pyvale imports
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.dic as dic
 
 
@@ -96,7 +96,7 @@ plt.xlabel("subset x location [px]")
 plt.ylabel("Displacement [px]")
 plt.grid(True)
 plt.axhline(y=0.5, color='red', linestyle='--', linewidth=4)
-plt.plot(dicdata.ss_x, dicdata.v[0,:])
+plt.plot(dicdata.ss_x[0], dicdata.v_px[0, 0])
 plt.tight_layout()
 plt.show()
 

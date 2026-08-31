@@ -13,7 +13,7 @@ import dataclasses
 import numpy as np
 
 from pyvale.dataio.simdata import SimData
-from pyvale.sensorsim.rendermesh import RenderMesh
+from pyvale.render.mesh import Mesh3D
 from pyvale.sensorsim.exceptions import Collapse2Dto3DError
 
 
@@ -147,8 +147,10 @@ def centre_mesh_nodes(nodes: np.ndarray, spat_dim: int) -> np.ndarray:
     return centred
 
 
-def get_deformed_nodes(timestep: int,
-                        render_mesh: RenderMesh) -> np.ndarray | None:
+def get_deformed_nodes(
+    timestep: int,
+    render_mesh: Mesh3D,
+) -> np.ndarray | None:
     """A method to obtain the deformed locations of all the nodes at a given
         timestep.
 
@@ -156,8 +158,8 @@ def get_deformed_nodes(timestep: int,
     ----------
     timestep : int
         The timestep at which to find the deformed nodes.
-    render_mesh: RenderMeshData
-        A dataclass containing the skinned mesh and simulation results.
+    render_mesh: render.Mesh3D
+        A common render mesh with optional frame-major displacements.
 
     Returns
     -------
@@ -165,15 +167,10 @@ def get_deformed_nodes(timestep: int,
         An array containing the deformed values of all the components at
         each node location. Returns None if there are no deformation values.
     """
-    if render_mesh.fields_disp is None:
+    if render_mesh.displacements is None:
         return None
 
-    added_disp = render_mesh.fields_disp[:, timestep]
-    if added_disp.shape[1] == 2:
-        added_disp = np.hstack((added_disp,np.zeros([added_disp.shape[0],1])))
-    coords = np.delete(render_mesh.coords, 3, axis=1)
-    deformed_nodes = coords + added_disp
-    return deformed_nodes
+    return render_mesh.coords + render_mesh.displacements[timestep]
 
 
 def scale_length_units(scale: float,
@@ -296,6 +293,3 @@ def is_sim_2D(coords_3d: np.ndarray) -> bool:
         return True
 
     return False
-
-
-
