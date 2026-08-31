@@ -4,7 +4,7 @@
 # License: MIT
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ============================================================================
-"""Build documentation artifacts from Render2D, Render3D, and Render UVs.
+"""Build documentation artifacts from rendered examples.
 
 Run the render examples first so their standard directories exist below
 ``pyvale-output``. This script selects the documented first-frame outputs,
@@ -160,6 +160,10 @@ IMAGE_ARTIFACTS = (
             "transformed/cam0_frame0_field0.bmp",
         ),
     ),
+    ImageArtifact(
+        "dic_ex04_render_to_dic",
+        ("dic_ex04_render_to_dic.png",),
+    ),
 )
 
 CALIBRATION_EXAMPLE = "render3d_ex2d_blender_calibration"
@@ -262,7 +266,7 @@ def validate_sources() -> None:
     if missing:
         paths = "\n".join(f"  - {path}" for path in missing)
         raise FileNotFoundError(
-            "Run all Render2D, Render3D, and Render UV examples before "
+            "Run the documented render and DIC examples before "
             "generating "
             f"documentation artifacts. Missing:\n{paths}"
         )

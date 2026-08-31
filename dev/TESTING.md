@@ -99,8 +99,8 @@ currently provided, so update it only from an independently reviewed run.
 
 Blender rendering integration tests and legacy Blender regression tests skip
 unless Blender is available. Availability requires Python 3.13 and the optional
-`pyvale[blender]` dependency. Blender-backed render and DIC examples use the
-same condition. The availability-boundary tests still run without Blender and
+`pyvale[blender]` dependency. Blender rendering examples use the same
+condition. The availability boundary tests still run without Blender and
 verify the diagnostic behaviour.
 
 The Blender adapter is verified for Tri3 input. It warns when given another

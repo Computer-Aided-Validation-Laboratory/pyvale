@@ -9,7 +9,7 @@ DIC
    dic/ex01_region_of_interest
    dic/ex02_plate_with_hole
    dic/ex03_plate_with_hole_strain
-   dic/ex04_dic_blender
+   dic/ex04_render_to_dic
    dic/ex05_dic_challenge
    dic/ex06_hrdic
    dic/ex07_incremental

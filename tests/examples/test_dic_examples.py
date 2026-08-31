@@ -4,17 +4,15 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Smoke tests for non-interactive documented DIC examples."""
+"""Smoke tests for automated documented DIC examples."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
 import pytest
-
-import pyvale.render as render
-
 
 _DIC_EXAMPLES = (
     pytest.param("dic/ex05_dic_challenge.py", "pyvale-output"),
@@ -58,12 +56,28 @@ def test_dic_example(
 
 
 @pytest.mark.example
-@pytest.mark.blender
 @pytest.mark.example_module("dic")
-@pytest.mark.skipif(
-    not render.blender_available(),
-    reason="The optional Blender renderer backend is unavailable.",
-)
-def test_blender_dic_example(run_example: Callable[..., Path]) -> None:
-    """The Blender-to-DIC example runs when Blender is available."""
-    run_example("dic/ex04_dic_blender.py", ("pyvale-output",), timeout=300.0)
+def test_render_to_dic_example(run_example: Callable[..., Path]) -> None:
+    """The Riley render produces an accurate analytic DIC displacement."""
+    work_dir = run_example(
+        "dic/ex04_render_to_dic.py",
+        (
+            "pyvale-output/dic_ex04_render_to_dic/"
+            "dic_ex04_render_to_dic.png",
+        ),
+        timeout=300.0,
+    )
+
+    dic_dir = (
+        work_dir
+        / "pyvale-output"
+        / "dic_ex04_render_to_dic"
+        / "dic"
+    )
+    result_files = sorted(dic_dir.glob("render_to_dic_*.csv"))
+    assert len(result_files) == 1
+
+    result = np.loadtxt(result_files[0], delimiter=",", skiprows=1)
+    assert np.all(result[:, 5].astype(bool))
+    np.testing.assert_allclose(result[:, 2], 0.5, atol=0.05)
+    np.testing.assert_allclose(result[:, 3], 0.5, atol=0.05)

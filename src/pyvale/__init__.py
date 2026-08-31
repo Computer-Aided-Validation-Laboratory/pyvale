@@ -14,9 +14,12 @@ sensor placement optimisation, testing simulation validation metrics and
 virtually testing digital shadows/twins.
 """
 
+__version__ = "2026.9.0"
+
 from . import data, dataio, dic, mooseherder, render, sensorsim, strain
 
 __all__ = [
+    "__version__",
     "data",
     "dataio",
     "dic",

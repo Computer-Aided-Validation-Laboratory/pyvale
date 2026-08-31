@@ -12,8 +12,8 @@ from sphinx_gallery.sorting import FileNameSortKey
 project = 'Pyvale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
-release = '2026.6.0'
-version = '2026.6.0'
+release = '2026.9.0'
+version = '2026.9.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
