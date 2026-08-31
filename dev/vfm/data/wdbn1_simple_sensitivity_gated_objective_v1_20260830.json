@@ -2,10 +2,10 @@
   "schema": "pyvale-simple-sensitivity-gated-egi-v1",
   "notes": [
     "Minimal alternative to the native-DOF SVD/Fisher information objective.",
-    "Window selection uses only homogeneous-state normalised EGI signal-to-noise and coverage.",
-    "The middle support is closest to the logarithmic midpoint of the resolved fine/broad lengths.",
+    "Fine EGI support is required separately as --fine-egi-window; automatic fine selection is not qualified.",
+    "Broad support is the geometry-bank maximum and middle is its nearest valid logarithmic midpoint with the user fine support.",
     "A single global yield perturbation and a single global hardening perturbation create a frozen common space-time observation gate.",
-    "The scalar noise entries are placeholders. Do not run a scientific/workstation campaign until propagated per-support normalised-EGI noise is installed."
+    "The scalar noise entries are objective scaling placeholders, not an automatic support selector."
   ],
   "minimum_pixels": 3,
   "maximum_bbox_fraction": 0.5,

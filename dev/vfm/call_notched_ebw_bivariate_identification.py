@@ -43,6 +43,7 @@ from pyvale.vfm import (
     SensitivitySpatialWeightingConfig,
     SensitivityCorrectionBasisGrowthRefinement,
     SimpleEgiSupportPreparation,
+    UserFineEgiSupportPreparation,
     SpatialParameterisationBasisFunction,
     SpatialParameterisationHomogeneous,
     SpatialParameterisationKnown,
@@ -259,6 +260,7 @@ def main() -> None:
             _create_data_driven_phase_1_objective(
                 payload,
                 timestep_count=experiment_data.strain.shape[0],
+                fine_egi_window=args.fine_egi_window,
                 basis_growth_objective=global_objective,
                 diagnostic_callback=DiagnosticArtifactWriter(
                     output_dir / "diagnostic_artifacts"
@@ -276,6 +278,7 @@ def main() -> None:
                 payload,
                 x=x,
                 y=y,
+                fine_egi_window=args.fine_egi_window,
                 basis_growth_objective=global_objective,
                 diagnostic_callback=DiagnosticArtifactWriter(
                     output_dir / "diagnostic_artifacts"
@@ -364,6 +367,7 @@ def main() -> None:
         "force_slices": args.force_slices,
         "force_axis": args.force_axis,
         "egi_windows": args.egi_windows,
+        "fine_egi_window": args.fine_egi_window,
         "egi_window_weights": egi_window_weights,
         "egi_fft_dtype": args.egi_fft_dtype,
         "egi_fft_groups": args.egi_fft_groups,
@@ -423,6 +427,17 @@ def _parse_args() -> argparse.Namespace:
         help="Longitudinal/loading axis for the slice-wise force-reconstruction metric.",
     )
     parser.add_argument("--egi-windows", type=_parse_egi_windows, default=EGI_WINDOWS, help="Comma-separated odd square window sizes, e.g. 15,29,41.")
+    parser.add_argument(
+        "--fine-egi-window",
+        type=int,
+        default=None,
+        help=(
+            "Required with a data-driven EGI objective: explicit odd fine EGI "
+            "window in grid points. Middle and broad are derived from geometry "
+            "and frozen before BF1. Run the standalone EGI resolution diagnostic "
+            "before choosing this value."
+        ),
+    )
     parser.add_argument(
         "--egi-fft-dtype",
         choices=("float64", "float32"),
@@ -544,6 +559,18 @@ def _parse_args() -> argparse.Namespace:
         parser.error("--force-weight must lie in [0, 1].")
     if args.force_slices < 2 or args.max_basis_functions < 1:
         parser.error("Force slices must be at least two and max bases must be positive.")
+    if args.fine_egi_window is not None and (
+        args.fine_egi_window < 3 or args.fine_egi_window % 2 == 0
+    ):
+        parser.error("--fine-egi-window must be an odd integer of at least 3.")
+    if (
+        args.data_driven_objective_config is not None
+        or args.simple_data_driven_objective_config is not None
+    ) and args.fine_egi_window is None:
+        parser.error(
+            "--fine-egi-window is required with data-driven EGI objectives; "
+            "automatic fine-support selection is not qualified."
+        )
     if args.egi_window_weights is not None and (
         len(args.egi_window_weights) != len(args.egi_windows)
         or any(weight <= 0.0 for weight in args.egi_window_weights)
@@ -619,9 +646,10 @@ def _create_data_driven_phase_1_objective(
     payload: dict[str, object],
     *,
     timestep_count: int,
+    fine_egi_window: int,
     basis_growth_objective,
     diagnostic_callback,
-) -> tuple[SensitivityInformationObjective, AutomaticEgiSupportPreparation]:
+) -> tuple[SensitivityInformationObjective, UserFineEgiSupportPreparation]:
     """Create the narrow v1 data-driven objective from a durable JSON file.
 
     All observations are retained in v1 (``load_regime='all'``); the frozen
@@ -662,30 +690,13 @@ def _create_data_driven_phase_1_objective(
         diagnostic_callback=diagnostic_callback,
         basis_growth_objective=basis_growth_objective,
     )
-    preparation = AutomaticEgiSupportPreparation(
-        yield_parameter_name=str(payload.get("yield_parameter_name", "yield_strength")),
-        yield_parameter_range=float(payload.get("yield_parameter_range", YIELD_BOUNDS_MPA[1] - YIELD_BOUNDS_MPA[0])),
-        perturbation_fraction=float(payload.get("probe_perturbation_fraction", 0.01)),
-        local_probe_count=int(payload.get("local_probe_count", 9)),
-        local_probe_width=(
-            None
-            if payload.get("local_probe_width") is None
-            else float(payload["local_probe_width"])
-        ),
-        residual_noise_scale=egi_noise,
+    preparation = UserFineEgiSupportPreparation(
+        fine_window=fine_egi_window,
         bank_config=EgiSupportBankConfig(
             candidate_count=int(payload.get("candidate_count", 10)),
             minimum_pixels=int(payload.get("minimum_pixels", 3)),
             maximum_bbox_fraction=float(payload.get("maximum_bbox_fraction", 0.5)),
         ),
-        selection_config=EgiSupportInformationSelectionConfig(
-            minimum_coverage_fraction=float(payload.get("minimum_coverage_fraction", 0.5)),
-            minimum_response_to_noise=float(payload.get("minimum_response_to_noise", 1.0)),
-            minimum_local_probe_fraction=float(payload.get("minimum_local_probe_fraction", 0.5)),
-            fisher_regularisation=float(payload.get("fisher_regularisation", 1.0e-12)),
-            minimum_middle_information_gain=float(payload.get("minimum_middle_information_gain", 0.0)),
-        ),
-        diagnostic_callback=diagnostic_callback,
     )
     return objective, preparation
 
@@ -695,11 +706,12 @@ def _create_simple_data_driven_phase_1_objective(
     *,
     x: np.ndarray,
     y: np.ndarray,
+    fine_egi_window: int,
     basis_growth_objective,
     diagnostic_callback,
 ) -> tuple[
     SensitivityGatedEgiObjective,
-    SimpleEgiSupportPreparation | FixedEgiSupportPreparation,
+    UserFineEgiSupportPreparation,
 ]:
     """Create the deliberately minimalist direct-SNR/two-perturbation path."""
 
@@ -764,41 +776,14 @@ def _create_simple_data_driven_phase_1_objective(
         diagnostic_callback=diagnostic_callback,
         basis_growth_objective=basis_growth_objective,
     )
-    fixed_lengths = payload.get("fixed_egi_side_lengths_mm")
-    if fixed_lengths is None:
-        preparation = SimpleEgiSupportPreparation(
-            residual_noise_scale=float(egi_noise_scales[0]),
-            bank_config=EgiSupportBankConfig(
-                candidate_count=int(payload.get("candidate_count", 10)),
-                minimum_pixels=int(payload.get("minimum_pixels", 3)),
-                maximum_bbox_fraction=float(payload.get("maximum_bbox_fraction", 0.5)),
-            ),
-            selection_config=EgiSignalSelectionConfig(
-                minimum_coverage_fraction=float(payload.get("minimum_coverage_fraction", 0.5)),
-                minimum_signal_to_noise=float(payload.get("minimum_signal_to_noise", 1.0)),
-                active_fraction=float(payload.get("active_fraction", 0.2)),
-            ),
-            diagnostic_callback=diagnostic_callback,
-        )
-    else:
-        lengths = tuple(float(value) for value in fixed_lengths)
-        if len(lengths) != 3 or any(not np.isfinite(value) or value <= 0.0 for value in lengths):
-            raise ValueError(
-                "fixed_egi_side_lengths_mm must contain exactly three positive finite lengths."
-            )
-        supports = resolve_physical_egi_supports(
-            lengths,
-            x,
-            y,
+    preparation = UserFineEgiSupportPreparation(
+        fine_window=fine_egi_window,
+        bank_config=EgiSupportBankConfig(
+            candidate_count=int(payload.get("candidate_count", 10)),
             minimum_pixels=int(payload.get("minimum_pixels", 3)),
-        )
-        if len(supports) != 3:
-            raise ValueError(
-                "fixed_egi_side_lengths_mm resolves to duplicate pixel supports on this grid."
-            )
-        preparation = FixedEgiSupportPreparation(
-            tuple(zip(("fine", "middle", "broad"), supports, strict=True))
-        )
+            maximum_bbox_fraction=float(payload.get("maximum_bbox_fraction", 0.5)),
+        ),
+    )
     return objective, preparation
 
 

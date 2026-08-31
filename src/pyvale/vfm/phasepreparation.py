@@ -112,6 +112,70 @@ class FixedEgiSupportPreparation:
 
 
 @dataclass(slots=True, frozen=True)
+class UserFineEgiSupportPreparation:
+    """Install user-declared fine plus geometry-derived middle/broad supports.
+
+    The fine window is intentionally not inferred from residuals.  The broad
+    support is the unchanged upper member of the odd-pixel geometry bank and
+    the middle support is the valid odd bank member nearest the logarithmic
+    midpoint.  All three metrics are installed once during phase preparation
+    and therefore remain frozen for the complete BF trajectory.
+    """
+
+    fine_window: int
+    bank_config: EgiSupportBankConfig = EgiSupportBankConfig()
+
+    def __post_init__(self) -> None:
+        if self.fine_window < 3 or self.fine_window % 2 == 0:
+            raise ValueError("fine_window must be an odd integer of at least 3.")
+
+    def prepare(self, context: PhasePreparationContext) -> PhasePreparationResult:
+        bank = generate_odd_pixel_egi_support_bank(
+            context.experiment_data.specimen_geometry.x,
+            context.experiment_data.specimen_geometry.y,
+            self.bank_config,
+        )
+        by_pixels = {support.window_size[0]: support for support in bank}
+        if self.fine_window not in by_pixels:
+            raise ValueError(
+                f"User fine EGI window {self.fine_window} is outside the "
+                f"geometry bank [{bank[0].window_size[0]}, {bank[-1].window_size[0]}]."
+            )
+        fine = by_pixels[self.fine_window]
+        broad = bank[-1]
+        if fine.window_size == broad.window_size:
+            raise ValueError("Fine EGI window must be smaller than the broad geometry cap.")
+        eligible = [
+            support for support in bank
+            if fine.nominal_side_length < support.nominal_side_length
+            < broad.nominal_side_length
+        ]
+        if not eligible:
+            raise ValueError("No distinct middle EGI support exists between fine and broad.")
+        target = 0.5 * (
+            np.log(fine.nominal_side_length) + np.log(broad.nominal_side_length)
+        )
+        middle = min(
+            eligible,
+            key=lambda support: abs(np.log(support.nominal_side_length) - target),
+        )
+        installed = FixedEgiSupportPreparation((
+            ("fine", fine), ("middle", middle), ("broad", broad),
+        )).prepare(context)
+        return PhasePreparationResult(
+            installed.metrics,
+            {
+                "mode": "user_fine_geometry_middle_broad",
+                "fine_source": "explicit_user_input",
+                "middle_rule": "nearest_valid_logarithmic_midpoint",
+                "broad_rule": "geometry_bank_maximum",
+                "roles": installed.diagnostics["roles"],
+                "metric_order": installed.diagnostics["metric_order"],
+            },
+        )
+
+
+@dataclass(slots=True, frozen=True)
 class SimpleEgiSupportPreparation:
     """Select three scales from direct homogeneous EGI signal and coverage."""
 

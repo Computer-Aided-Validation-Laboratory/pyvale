@@ -15,6 +15,7 @@ from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.phasepreparation import (
     AutomaticEgiSupportPreparation,
     FixedEgiSupportPreparation,
+    UserFineEgiSupportPreparation,
     PhasePreparationContext,
     PhasePreparationResult,
 )
@@ -121,6 +122,28 @@ def test_fixed_egi_preparation_replaces_templates_in_role_order() -> None:
         (3, 3), (5, 5), (7, 7)
     ]
     assert result.diagnostics["mode"] == "fixed"
+
+
+def test_user_fine_egi_preparation_derives_and_freezes_middle_broad() -> None:
+    grid = np.linspace(0.0, 10.0, 101)
+    x, y = np.meshgrid(grid, grid)
+    experiment = _experiment()
+    experiment.specimen_geometry.x = x
+    experiment.specimen_geometry.y = y
+    context = type("Context", (), {
+        "experiment_data": experiment,
+        "configured_metrics": (_Metric("force"), EquilibriumGapMetric(window_size=(9, 9))),
+    })()
+
+    result = UserFineEgiSupportPreparation(fine_window=9).prepare(context)
+
+    windows = [tuple(metric.window_size) for metric in result.metrics[1:]]
+    assert windows[0] == (9, 9)
+    assert windows[-1] == (49, 49)  # Existing 50%-bounding-box geometry cap.
+    assert windows[1] == (21, 21)  # Nearest odd support to sqrt(9 * 49).
+    assert result.diagnostics["fine_source"] == "explicit_user_input"
+    # Runtime metrics are copies; the configured template remains unchanged.
+    assert tuple(context.configured_metrics[1].window_size) == (9, 9)
 
 
 def test_automatic_egi_preparation_selects_and_installs_three_metrics() -> None:
