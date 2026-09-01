@@ -15,9 +15,13 @@ artifact saved when available.
 
 import copy
 import enum
+import json
+import os
 import platform
+import shutil
 import socket
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, field, fields, is_dataclass
 from datetime import datetime
@@ -514,6 +518,74 @@ class IdentificationResult:
         return result_file
 
     save_run_bundle = save_to_yaml
+
+
+@dataclass(slots=True, frozen=True)
+class SolveCheckpoint:
+    """Recoverable identification state captured after one completed solve."""
+
+    result: IdentificationResult
+    phase_index: int
+    solve_iteration: int
+    accepted: bool
+
+
+class SolveCheckpointWriter:
+    """Atomically persist immutable completed-solve result bundles.
+
+    Each checkpoint is a normal :class:`IdentificationResult` bundle with no
+    derived final-stress array.  Consequently existing result loading and
+    postprocessing code can inspect it without checkpoint-specific logic.
+    """
+
+    def __init__(self, root: str | Path) -> None:
+        self.root = Path(root)
+
+    def __call__(self, checkpoint: SolveCheckpoint) -> Path:
+        self.root.mkdir(parents=True, exist_ok=True)
+        name = (
+            f"phase_{checkpoint.phase_index:03d}_"
+            f"solve_{checkpoint.solve_iteration:03d}"
+        )
+        target = self.root / name
+        if target.exists():
+            raise FileExistsError(f"Solve checkpoint already exists: {target}")
+
+        staging = Path(tempfile.mkdtemp(prefix=f".{name}.tmp-", dir=self.root))
+        try:
+            checkpoint.result.save_to_yaml(staging)
+            metadata = {
+                "checkpoint_type": "pyvale.vfm.SolveCheckpoint",
+                "phase_index": checkpoint.phase_index,
+                "solve_iteration": checkpoint.solve_iteration,
+                "accepted": checkpoint.accepted,
+                "saved_at": _timestamp_now(),
+                "result": RESULT_FILE_NAME,
+            }
+            (staging / "solve_checkpoint.json").write_text(
+                json.dumps(metadata, indent=2), encoding="utf-8"
+            )
+            os.replace(staging, target)
+        except BaseException:
+            shutil.rmtree(staging, ignore_errors=True)
+            raise
+
+        pointer = {
+            "checkpoint": name,
+            "phase_index": checkpoint.phase_index,
+            "solve_iteration": checkpoint.solve_iteration,
+            "accepted": checkpoint.accepted,
+        }
+        _atomic_write_text(
+            self.root / "latest_checkpoint.json",
+            json.dumps(pointer, indent=2),
+        )
+        if checkpoint.accepted:
+            _atomic_write_text(
+                self.root / "latest_accepted_checkpoint.json",
+                json.dumps(pointer, indent=2),
+            )
+        return target / RESULT_FILE_NAME
 
 # ==================================================================================
 # Public load / save entry points
@@ -1372,6 +1444,26 @@ def _ensure_summary(
 
 def _timestamp_now() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    """Write a small pointer file durably without exposing partial content."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.tmp-", dir=path.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(content)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def _package_version(

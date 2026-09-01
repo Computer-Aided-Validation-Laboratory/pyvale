@@ -13,6 +13,8 @@ from .identificationresult import (
     PhaseResult,
     PhaseSnapshot,
     RefinementEvent,
+    SolveCheckpoint,
+    SolveCheckpointWriter,
     SolveResult,
     load_identification_result,
 )
@@ -210,6 +212,8 @@ __all__ = [
     "PhaseResult",
     "PhaseSnapshot",
     "ParameterisationSnapshot",
+    "SolveCheckpoint",
+    "SolveCheckpointWriter",
     "SolveResult",
     "RefinementEvent",
     "process_input_data",

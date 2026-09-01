@@ -45,6 +45,7 @@ class GuardReference:
     """Frozen parent/noise reference for one hard guard."""
 
     parent: float
+    best_accepted: float
     noise_floor: float
     reference: float
     limit: float
@@ -196,6 +197,8 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
         self._broad_guard_layout: CanonicalResidualLayout | None = None
         self._fre_reference: GuardReference | None = None
         self._broad_reference: GuardReference | None = None
+        self._best_accepted_fre: float | None = None
+        self._best_accepted_broad: float | None = None
         self._prepared_solve: int | None = None
         self._diagnostics: dict[str, object] = {}
         self._last_fre_diagnostics: dict[str, object] | None = None
@@ -227,6 +230,11 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
         clone = copy.deepcopy(self)
         clone._recorder = self._recorder
         return clone
+
+    def activate_production_runtime(self) -> None:
+        """Restore the configured audit sink after the phase working-copy step."""
+
+        self._recorder = CandidateAuditRecorder(self.config.candidate_log_path)
 
     def prepare_solve(self, context: SolvePreparationContext) -> dict[str, object]:
         self._validate_metrics(context.metrics)
@@ -261,15 +269,31 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
 
         fre_parent = _layout_rms(self._fre_layout, parent_results[0])
         broad_parent = _layout_rms(self._broad_guard_layout, parent_results[2])
+        self._best_accepted_fre = (
+            fre_parent
+            if self._best_accepted_fre is None
+            else min(self._best_accepted_fre, fre_parent)
+        )
+        self._best_accepted_broad = (
+            broad_parent
+            if self._best_accepted_broad is None
+            else min(self._best_accepted_broad, broad_parent)
+        )
         fre_floor, broad_floor, floor_diagnostics = self._measurement_noise_floors(
             context,
             parent_results,
         )
         self._fre_reference = _guard_reference(
-            fre_parent, fre_floor, self.config.guard_relaxation
+            fre_parent,
+            fre_floor,
+            self.config.guard_relaxation,
+            best_accepted=self._best_accepted_fre,
         )
         self._broad_reference = _guard_reference(
-            broad_parent, broad_floor, self.config.guard_relaxation
+            broad_parent,
+            broad_floor,
+            self.config.guard_relaxation,
+            best_accepted=self._best_accepted_broad,
         )
         self._prepared_solve = context.solve_iteration
         self._last_fre_diagnostics = None
@@ -487,6 +511,7 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
             "fre_evaluation_time_seconds": 0.0,
             "fre_value": None,
             "fre_parent": fre.parent,
+            "fre_best_accepted": fre.best_accepted,
             "fre_noise_floor": fre.noise_floor,
             "fre_reference": fre.reference,
             "fre_limit": fre.limit,
@@ -494,6 +519,7 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
             "broad_egi_evaluation_time_seconds": None,
             "broad_unmasked_value": None,
             "broad_parent": broad.parent,
+            "broad_best_accepted": broad.best_accepted,
             "broad_noise_floor": broad.noise_floor,
             "broad_reference": broad.reference,
             "broad_limit": broad.limit,
@@ -608,11 +634,30 @@ def _temporal_weights(result: MetricResult, count: int) -> FloatArray:
     return np.where(np.isfinite(values) & (values > 0.0), values, 0.0)
 
 
-def _guard_reference(parent: float, noise_floor: float, relaxation: float) -> GuardReference:
-    if any(not np.isfinite(value) or value < 0.0 for value in (parent, noise_floor)):
-        raise ValueError("Guard parent and noise floor must be finite and non-negative.")
-    reference = max(float(parent), float(noise_floor))
-    return GuardReference(float(parent), float(noise_floor), reference, (1.0 + relaxation) * reference)
+def _guard_reference(
+    parent: float,
+    noise_floor: float,
+    relaxation: float,
+    *,
+    best_accepted: float | None = None,
+) -> GuardReference:
+    best = float(parent) if best_accepted is None else float(best_accepted)
+    if any(
+        not np.isfinite(value) or value < 0.0
+        for value in (parent, best, noise_floor)
+    ):
+        raise ValueError(
+            "Guard parent, best accepted value and noise floor must be finite "
+            "and non-negative."
+        )
+    reference = max(best, float(noise_floor))
+    return GuardReference(
+        float(parent),
+        best,
+        float(noise_floor),
+        reference,
+        (1.0 + relaxation) * reference,
+    )
 
 
 def _passes_limit(value: float, limit: float) -> bool:

@@ -50,6 +50,7 @@ from pyvale.vfm import (
     SensitivitySpatialWeightingConfig,
     SensitivityCorrectionBasisGrowthRefinement,
     SimpleEgiSupportPreparation,
+    SolveCheckpointWriter,
     UserFineEgiSupportPreparation,
     SpatialParameterisationBasisFunction,
     SpatialParameterisationHomogeneous,
@@ -379,6 +380,9 @@ def main() -> None:
         identification_config,
         input_source=experiment_data_file,
         progress_callback=ConsoleProgressReporter().report if args.show_progress else None,
+        solve_checkpoint_callback=SolveCheckpointWriter(
+            output_dir / "solve_checkpoints"
+        ),
     )
 
     result_file = result.save_to_yaml(output_dir)

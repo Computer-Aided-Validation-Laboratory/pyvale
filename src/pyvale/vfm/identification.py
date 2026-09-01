@@ -1,4 +1,5 @@
 import copy
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 import time
@@ -26,6 +27,7 @@ from pyvale.vfm.identificationresult import (
     OptimisationOutcome,
     PhaseResult,
     RefinementEvent,
+    SolveCheckpoint,
     SolveResult,
     generic_completed_solve_result,
     input_metadata_from_experiment_data,
@@ -69,6 +71,7 @@ def run_identification(
     *,
     input_source: str | Path | None = None,
     progress_callback=None,
+    solve_checkpoint_callback: Callable[[SolveCheckpoint], object] | None = None,
 ) -> IdentificationResult:
     """
     Run a VFM identification and return the result.
@@ -91,6 +94,10 @@ def run_identification(
         Optional callable receiving lightweight progress events.
         If None, no progress events are emitted. If provided, the callable should
         accept a ProgressEvent as an argument and can be used to report progress to the user.
+    solve_checkpoint_callback
+        Optional callable invoked after every completed optimiser solve, once
+        its acceptance status is known. It receives a recoverable
+        :class:`SolveCheckpoint`. Callback failures propagate and stop the run.
 
     Returns
     -------
@@ -395,6 +402,18 @@ def run_identification(
                     # If no refinement defined for current phase, proceed to next phase
                     if phase_runtime.refinement_policy is None:
                         solve_result.accepted = True
+                        _emit_solve_checkpoint(
+                            solve_checkpoint_callback,
+                            identification_config,
+                            history,
+                            phase_result,
+                            solve_result,
+                            run_metadata,
+                            input_metadata,
+                            config_snapshot,
+                            phase_index=phase_index,
+                            solve_iteration=solve_iteration,
+                        )
                         break
 
                     # Emit progress event to indicate start of refinement
@@ -443,6 +462,18 @@ def run_identification(
                             solve_iteration=solve_iteration,
                             message="no refinement proposed",
                         )
+                        _emit_solve_checkpoint(
+                            solve_checkpoint_callback,
+                            identification_config,
+                            history,
+                            phase_result,
+                            solve_result,
+                            run_metadata,
+                            input_metadata,
+                            config_snapshot,
+                            phase_index=phase_index,
+                            solve_iteration=solve_iteration,
+                        )
                         break
 
                     solve_result.accepted = action.accepts_current_solve
@@ -451,6 +482,19 @@ def run_identification(
                             name: np.asarray(parameter.map, dtype=np.float64).copy()
                             for name, parameter in identification_config.parameters.items()
                         }
+
+                    _emit_solve_checkpoint(
+                        solve_checkpoint_callback,
+                        identification_config,
+                        history,
+                        phase_result,
+                        solve_result,
+                        run_metadata,
+                        input_metadata,
+                        config_snapshot,
+                        phase_index=phase_index,
+                        solve_iteration=solve_iteration,
+                    )
 
                     # Apply the proposed refinement action to the phase runtime and record it in the phase result
                     _apply_refinement_action(
@@ -553,6 +597,53 @@ def run_identification(
             config=config_snapshot,
         ),
     )
+
+
+def _emit_solve_checkpoint(
+    callback: Callable[[SolveCheckpoint], object] | None,
+    identification_config: IdentificationConfig,
+    completed_history: IdentificationHistory,
+    current_phase: PhaseResult,
+    solve_result: SolveResult,
+    run_metadata,
+    input_metadata,
+    config_snapshot,
+    *,
+    phase_index: int,
+    solve_iteration: int,
+) -> None:
+    """Build a self-contained result bundle for one completed solve."""
+
+    if callback is None:
+        return
+    phase_snapshot = copy.deepcopy(current_phase)
+    phase_snapshot.final_snapshot = copy.deepcopy(solve_result.final_snapshot)
+    checkpoint_history = copy.deepcopy(completed_history)
+    checkpoint_history.phases.append(phase_snapshot)
+    checkpoint_run = copy.deepcopy(run_metadata)
+    if checkpoint_run.perf_counter_started_at is not None:
+        checkpoint_run.runtime_seconds = (
+            time.perf_counter() - checkpoint_run.perf_counter_started_at
+        )
+    checkpoint_result = IdentificationResult(
+        parameter_maps={
+            name: np.asarray(parameter.map, dtype=np.float64).copy()
+            for name, parameter in identification_config.parameters.items()
+        },
+        history=checkpoint_history,
+        final_stress=None,
+        metadata=IdentificationMetadata(
+            run=checkpoint_run,
+            input=copy.deepcopy(input_metadata),
+            config=copy.deepcopy(config_snapshot),
+        ),
+    )
+    callback(SolveCheckpoint(
+        result=checkpoint_result,
+        phase_index=phase_index,
+        solve_iteration=solve_iteration,
+        accepted=bool(solve_result.accepted),
+    ))
 
 
 def _prepare_phase_constitutive_law(
@@ -1564,6 +1655,13 @@ def prepare_phase_runtime(
         optimiser=runtime_optimiser,
         refinement_policy=runtime_refinement_policy,
     )
+    activate_production_runtime = getattr(
+        phase_runtime.objective_function,
+        "activate_production_runtime",
+        None,
+    )
+    if activate_production_runtime is not None:
+        activate_production_runtime()
 
     if runtime_phase_preparation is not None:
         if (

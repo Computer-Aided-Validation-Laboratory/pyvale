@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from types import SimpleNamespace
 
 import numpy as np
@@ -103,6 +104,16 @@ def test_reference_is_maximum_of_parent_and_noise_floor(parent, floor, expected)
     assert reference.limit == pytest.approx(1.10 * expected)
 
 
+def test_reference_uses_best_accepted_value_instead_of_latest_parent() -> None:
+    reference = _guard_reference(
+        2.0, 0.25, 0.10, best_accepted=1.0
+    )
+    assert reference.parent == pytest.approx(2.0)
+    assert reference.best_accepted == pytest.approx(1.0)
+    assert reference.reference == pytest.approx(1.0)
+    assert reference.limit == pytest.approx(1.1)
+
+
 def test_ten_percent_boundary_passes_exactly_and_fails_above() -> None:
     assert _passes_limit(1.10, 1.10)
     assert not _passes_limit(1.10 + 1.0e-9, 1.10)
@@ -182,7 +193,7 @@ class _PreparationContext:
         )
 
 
-def test_prepare_solve_refreshes_parent_guards_but_freezes_gate(monkeypatch) -> None:
+def test_prepare_solve_keeps_best_accepted_guards_and_freezes_gate(monkeypatch) -> None:
     sensitivity_calls = 0
 
     def sensitivities(strain, stress, law, maps, names, perturbation_factor):
@@ -206,12 +217,22 @@ def test_prepare_solve_refreshes_parent_guards_but_freezes_gate(monkeypatch) -> 
     second_context.solve_iteration = 1
     second = objective.prepare_solve(second_context)
 
+    third_context = _PreparationContext(parent_scale=0.5)
+    third_context.solve_iteration = 2
+    third = objective.prepare_solve(third_context)
+
     assert first["fre_guard"]["parent"] == pytest.approx(1.0)
     assert second["fre_guard"]["parent"] == pytest.approx(2.0)
+    assert second["fre_guard"]["best_accepted"] == pytest.approx(1.0)
+    assert second["fre_guard"]["reference"] == pytest.approx(1.0)
+    assert third["fre_guard"]["parent"] == pytest.approx(0.5)
+    assert third["fre_guard"]["best_accepted"] == pytest.approx(0.5)
     assert first_reference.parent == pytest.approx(1.0)
-    assert objective._fre_reference.parent == pytest.approx(2.0)
+    assert objective._fre_reference.parent == pytest.approx(0.5)
+    assert objective._fre_reference.best_accepted == pytest.approx(0.5)
     assert sensitivity_calls == 1
     assert second["sensitivity_gate"]["refreshed"] is False
+    assert third["sensitivity_gate"]["refreshed"] is False
 
 
 def test_only_parallel_candidate_clones_share_active_audit_recorder() -> None:
@@ -222,6 +243,27 @@ def test_only_parallel_candidate_clones_share_active_audit_recorder() -> None:
     assert generic_clone._recorder is not objective._recorder
     assert generic_clone._recorder.path is None
     assert candidate_clone._recorder is objective._recorder
+
+
+def test_production_runtime_reactivates_configured_candidate_audit(tmp_path) -> None:
+    path = tmp_path / "guarded_egi_candidates.jsonl"
+    configured = GuardedEgiPrimaryObjective(GuardedEgiPrimaryConfig(
+        1.0, 1.0, candidate_log_path=str(path)
+    ))
+    runtime = copy.deepcopy(configured)
+    screening = copy.deepcopy(runtime)
+
+    assert runtime._recorder.path is None
+    assert screening._recorder.path is None
+    runtime.activate_production_runtime()
+    assert runtime._recorder.path == path
+    assert copy.deepcopy(runtime)._recorder.path is None
+    assert runtime.clone_for_candidate_evaluation()._recorder is runtime._recorder
+    runtime._recorder.start_solve(2)
+    runtime._recorder.append({"rejection_reason": "NONE"})
+    record = json.loads(path.read_text().strip())
+    assert record["bf_stage"] == 2
+    assert record["evaluation_index"] == 0
 
 
 def _install_metric_mocks(monkeypatch, *, fre: float, broad: tuple[float, float], fine: tuple[float, float], calls: list[str]):

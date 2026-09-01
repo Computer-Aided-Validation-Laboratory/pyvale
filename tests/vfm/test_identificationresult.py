@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +21,8 @@ from pyvale.vfm.identificationresult import (
     ParameterisationSnapshot,
     PhaseResult,
     SolveResult,
+    SolveCheckpoint,
+    SolveCheckpointWriter,
     load_identification_result,
     snapshot_phase,
     snapshot_refinement_action,
@@ -109,6 +112,60 @@ def test_identification_result_bundle_round_trips_maps_stress_and_history(
         .summary["kind"]
         == "slice_wise"
     )
+
+
+def test_solve_checkpoint_writer_creates_loadable_atomic_bundle(
+    tmp_path: Path,
+) -> None:
+    result = IdentificationResult(
+        parameter_maps={"yield_strength": np.full((2, 2), 321.0)},
+        history=IdentificationHistory(phases=[PhaseResult(
+            phase_index=1,
+            solve_results=[SolveResult(solve_iteration=3, accepted=True)],
+        )]),
+    )
+    root = tmp_path / "solve_checkpoints"
+    result_file = SolveCheckpointWriter(root)(SolveCheckpoint(
+        result=result,
+        phase_index=1,
+        solve_iteration=3,
+        accepted=True,
+    ))
+
+    loaded = load_identification_result(result_file)
+    npt.assert_allclose(
+        loaded.parameter_maps["yield_strength"],
+        result.parameter_maps["yield_strength"],
+    )
+    assert loaded.final_stress is None
+    assert loaded.history.phases[0].solve_results[0].accepted is True
+    checkpoint = json.loads(
+        (result_file.parent / "solve_checkpoint.json").read_text()
+    )
+    assert checkpoint["phase_index"] == 1
+    assert checkpoint["solve_iteration"] == 3
+    assert checkpoint["accepted"] is True
+    latest = json.loads((root / "latest_checkpoint.json").read_text())
+    latest_accepted = json.loads(
+        (root / "latest_accepted_checkpoint.json").read_text()
+    )
+    assert latest == latest_accepted
+    assert latest["checkpoint"] == "phase_001_solve_003"
+
+    SolveCheckpointWriter(root)(SolveCheckpoint(
+        result=result,
+        phase_index=1,
+        solve_iteration=4,
+        accepted=False,
+    ))
+    latest = json.loads((root / "latest_checkpoint.json").read_text())
+    latest_accepted = json.loads(
+        (root / "latest_accepted_checkpoint.json").read_text()
+    )
+    assert latest["checkpoint"] == "phase_001_solve_004"
+    assert latest["accepted"] is False
+    assert latest_accepted["checkpoint"] == "phase_001_solve_003"
+    assert not list(root.glob(".*.tmp-*"))
 
 
 def test_basis_parameterisation_summary_stores_literal_kernel_geometry() -> None:
