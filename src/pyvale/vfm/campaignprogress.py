@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 import time
 
+import numpy as np
+
 
 @dataclass(slots=True)
 class ProgressEstimate:
@@ -37,10 +39,20 @@ def atomic_write_json(path: Path, payload: dict) -> None:
     enriched = {"updated_at": datetime.now().astimezone().isoformat(), **payload}
     temporary = path.with_suffix(path.suffix + ".tmp")
     with temporary.open("w", encoding="utf-8") as stream:
-        json.dump(enriched, stream, indent=2)
+        json.dump(enriched, stream, indent=2, default=_json_default)
         stream.write("\n")
         stream.flush()
     temporary.replace(path)
+
+
+def _json_default(value):
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.generic):
+        return value.item()
+    raise TypeError(
+        f"Object of type {value.__class__.__name__} is not JSON serializable"
+    )
 
 
 def _duration(seconds: float) -> str:

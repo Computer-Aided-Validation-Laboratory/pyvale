@@ -173,205 +173,10 @@ def main() -> None:
         optimiser=OptimiserLeastSquares(max_evaluations=args.phase_0_max_evaluations),
     )
 
-    x = experiment_data.specimen_geometry.x
-    y = experiment_data.specimen_geometry.y
-    force_metric_phase_1 = SliceWiseForceReconstructionMetric(
-        slice_config=SliceConfig(
-            axis=args.force_axis,
-            num_slices=(FRE_TEMPLATE_SLICES if args.force_slices == "auto" else args.force_slices),
-        )
-    )
-    fft_groups = [None] * len(args.egi_windows)
-    if args.egi_fft_groups == "split-broad" and len(fft_groups) > 1:
-        fft_groups = ["local"] * (len(fft_groups) - 1) + ["broad"]
-    elif args.egi_fft_groups == "separate":
-        fft_groups = [f"support-{index}" for index in range(len(fft_groups))]
-    equilibrium_gap_metrics_phase_1 = [
-        EquilibriumGapMetric(
-            window_size=window,
-            fft_dtype=args.egi_fft_dtype,
-            fft_batch_group=group,
-            # The gated objective consumes residual maps directly. Avoid
-            # the temporal RMS map during candidates; accepted/reference
-            # paths can reconstruct it from the residual. The global RMS
-            # scalar remains required to resolve the prior-phase baseline.
-            compute_temporal_rms=not args.egi_skip_derived_diagnostics,
-            compute_spatiotemporal_rms=True,
-        )
-        for window, group in zip(args.egi_windows, fft_groups, strict=True)
-    ]
-    egi_window_weights = (
-        [window[0] for window in args.egi_windows]
-        if args.egi_window_weights is None
-        else args.egi_window_weights
-    )
-    yield_strength_basis = SpatialParameterisationBasisFunction(
-        x=x,
-        y=y,
-        kernel_type=args.kernel_type,
-        centre_bounds_span_factor=args.centre_bounds_span_factor,
-    )
-
-    refinement_policy_type = (
-        EquilibriumGapBasisGrowthRefinement
-        if args.basis_growth_policy == "egi_peak"
-        else SensitivityCorrectionBasisGrowthRefinement
-    )
-    refinement_options = {
-        "target": yield_strength_basis,
-        "max_basis_functions": args.max_basis_functions,
-        "relative_improvement_threshold": args.minimum_objective_improvement,
-        "smoothing_points": args.refinement_smoothing_points,
-        "multistart_enabled": args.multistart_basis_placement,
-        "multistart_offset_fraction": args.multistart_offset_fraction,
-        "multistart_screening_iterations": args.multistart_screening_iterations,
-        "fixed_basis_trajectory": args.fixed_basis_trajectory,
-    }
-    if args.objective_config is not None:
-        # The refinement policy consumes EGI directly, independently of the
-        # hybrid scalar wrapper, so give it the same prior-phase scaling.
-        refinement_options.update({
-            "baseline_phase_index": 0,
-            "egi_window_weights": egi_window_weights,
-        })
-    if args.basis_growth_policy == "sensitivity_correction":
-        refinement_options.update(
-            {
-                "sensitivity_perturbation_factor": (
-                    args.correction_sensitivity_perturbation_factor
-                ),
-                "correction_feature_fraction": args.correction_feature_fraction,
-            }
-        )
-
-    if (
-        args.data_driven_objective_config is not None
-        or args.simple_data_driven_objective_config is not None
-        or args.guarded_egi_objective_config is not None
-    ):
-        egi_role_count = 2 if args.egi_support_set == "fine-broad" else 3
-        egi_window_weights = [1.0] * egi_role_count
-        refinement_options["egi_window_weights"] = egi_window_weights
-        refinement_options["baseline_phase_index"] = 0
-
-    global_objective = CombinedForceAndEquilibriumGapObjective(
-        force_weight=args.force_weight,
-        egi_window_weights=egi_window_weights,
-        baseline=CombinedObjectiveBaseline.prior_phase(0),
-        spatial_weighting=(
-            SensitivitySpatialWeightingConfig(
-                perturbation_factor=args.sensitivity_perturbation_factor,
-                weight_floor=args.sensitivity_weight_floor,
-            )
-            if args.sensitivity_spatial_weighting
-            else None
-        ),
-    )
-    phase_preparation = None
-    if (
-        args.data_driven_objective_config is None
-        and args.simple_data_driven_objective_config is None
-        and args.guarded_egi_objective_config is None
-    ):
-        phase_1_objective = _create_phase_1_objective(
-            args.objective_config, global_objective
-        )
-    elif args.data_driven_objective_config is not None:
-        payload = json.loads(
-            args.data_driven_objective_config.expanduser().resolve().read_text(
-                encoding="utf-8"
-            )
-        )
-        phase_1_objective, phase_preparation = (
-            _create_data_driven_phase_1_objective(
-                payload,
-                timestep_count=experiment_data.strain.shape[0],
-                fine_egi_window=args.fine_egi_window,
-                basis_growth_objective=global_objective,
-                diagnostic_callback=DiagnosticArtifactWriter(
-                    output_dir / "diagnostic_artifacts"
-                ),
-            )
-        )
-    elif args.simple_data_driven_objective_config is not None:
-        payload = json.loads(
-            args.simple_data_driven_objective_config.expanduser().resolve().read_text(
-                encoding="utf-8"
-            )
-        )
-        phase_1_objective, phase_preparation = (
-            _create_simple_data_driven_phase_1_objective(
-                payload,
-                x=x,
-                y=y,
-                fine_egi_window=args.fine_egi_window,
-                egi_roles=(
-                    ("fine", "broad")
-                    if args.egi_support_set == "fine-broad"
-                    else ("fine", "middle", "broad")
-                ),
-                basis_growth_objective=global_objective,
-                diagnostic_callback=DiagnosticArtifactWriter(
-                    output_dir / "diagnostic_artifacts"
-                ),
-            )
-        )
-    else:
-        assert args.guarded_egi_objective_config is not None
-        config_path = args.guarded_egi_objective_config.expanduser().resolve()
-        payload = json.loads(config_path.read_text(encoding="utf-8"))
-        phase_1_objective, phase_preparation = (
-            _create_guarded_egi_primary_phase_1_objective(
-                payload,
-                config_directory=config_path.parent,
-                fine_egi_window=args.fine_egi_window,
-                basis_growth_objective=global_objective,
-                diagnostic_callback=DiagnosticArtifactWriter(
-                    output_dir / "diagnostic_artifacts"
-                ),
-                run_identifier=args.run_name,
-                candidate_log_path=output_dir / "guarded_egi_candidates.jsonl",
-            )
-        )
-
-    if args.force_slices == "auto":
-        fre_preparation = _create_fre_resolution_preparation(
-            args.fre_resolution_config,
-            DiagnosticArtifactWriter(output_dir / "diagnostic_artifacts"),
-        )
-        phase_preparation = (
-            fre_preparation
-            if phase_preparation is None
-            else CombinedPhasePreparation((
-                ("egi_resolution", phase_preparation),
-                ("fre_resolution", fre_preparation),
-            ))
-        )
-
-    phase_1 = IdentificationPhase(
-        spatial_parameterisations={
-            "elastic_modulus": [SpatialParameterisationKnown()],
-            "poissons_ratio": [SpatialParameterisationKnown()],
-            "yield_strength": [SpatialParameterisationHomogeneous(), yield_strength_basis],
-            "hardening_modulus": [
-                SpatialParameterisationKnown()
-                if args.fix_hardening
-                else SpatialParameterisationHomogeneous()
-            ],
-        },
-        metrics=[force_metric_phase_1, *equilibrium_gap_metrics_phase_1],
-        objective_function=phase_1_objective,
-        optimiser=OptimiserPatternSearch(
-            initial_mesh_size=args.initial_mesh_size,
-            minimum_mesh_size=args.minimum_mesh_size,
-            max_iterations=args.max_iterations,
-            max_evaluations=args.max_evaluations,
-            objective_relative_tolerance=args.objective_relative_tolerance,
-            parallel_workers=args.parallel_workers,
-            random_seed=args.random_seed,
-        ),
-        refinement_policy=refinement_policy_type(**refinement_options),
-        phase_preparation=phase_preparation,
+    phase_1, egi_window_weights = _create_spatial_yield_phase(
+        args,
+        experiment_data,
+        output_dir,
     )
 
     identification_config = IdentificationConfig(constitutive_law=constitutive_law, parameters=parameters, phases=[phase_0, phase_1])
@@ -497,8 +302,227 @@ def _create_fre_resolution_preparation(
     )
 
 
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+def _create_spatial_yield_phase(
+    args: argparse.Namespace,
+    experiment_data: ExperimentData,
+    output_dir: Path,
+    *,
+    hardening_fixed: bool | None = None,
+) -> tuple[IdentificationPhase, list[float]]:
+    """Build the existing spatial-yield phase without changing its algorithm."""
+
+    if hardening_fixed is None:
+        hardening_fixed = args.fix_hardening
+    x = experiment_data.specimen_geometry.x
+    y = experiment_data.specimen_geometry.y
+    force_metric_phase_1 = SliceWiseForceReconstructionMetric(
+        slice_config=SliceConfig(
+            axis=args.force_axis,
+            num_slices=(
+                FRE_TEMPLATE_SLICES
+                if args.force_slices == "auto"
+                else args.force_slices
+            ),
+        )
+    )
+    fft_groups = [None] * len(args.egi_windows)
+    if args.egi_fft_groups == "split-broad" and len(fft_groups) > 1:
+        fft_groups = ["local"] * (len(fft_groups) - 1) + ["broad"]
+    elif args.egi_fft_groups == "separate":
+        fft_groups = [f"support-{index}" for index in range(len(fft_groups))]
+    equilibrium_gap_metrics_phase_1 = [
+        EquilibriumGapMetric(
+            window_size=window,
+            fft_dtype=args.egi_fft_dtype,
+            fft_batch_group=group,
+            compute_temporal_rms=not args.egi_skip_derived_diagnostics,
+            compute_spatiotemporal_rms=True,
+        )
+        for window, group in zip(args.egi_windows, fft_groups, strict=True)
+    ]
+    egi_window_weights = (
+        [window[0] for window in args.egi_windows]
+        if args.egi_window_weights is None
+        else args.egi_window_weights
+    )
+    yield_strength_basis = SpatialParameterisationBasisFunction(
+        x=x,
+        y=y,
+        kernel_type=args.kernel_type,
+        centre_bounds_span_factor=args.centre_bounds_span_factor,
+    )
+
+    refinement_policy_type = (
+        EquilibriumGapBasisGrowthRefinement
+        if args.basis_growth_policy == "egi_peak"
+        else SensitivityCorrectionBasisGrowthRefinement
+    )
+    refinement_options = {
+        "target": yield_strength_basis,
+        "max_basis_functions": args.max_basis_functions,
+        "relative_improvement_threshold": args.minimum_objective_improvement,
+        "smoothing_points": args.refinement_smoothing_points,
+        "multistart_enabled": args.multistart_basis_placement,
+        "multistart_offset_fraction": args.multistart_offset_fraction,
+        "multistart_screening_iterations": args.multistart_screening_iterations,
+        "fixed_basis_trajectory": args.fixed_basis_trajectory,
+    }
+    if args.objective_config is not None:
+        refinement_options.update({
+            "baseline_phase_index": 0,
+            "egi_window_weights": egi_window_weights,
+        })
+    if args.basis_growth_policy == "sensitivity_correction":
+        refinement_options.update({
+            "sensitivity_perturbation_factor": (
+                args.correction_sensitivity_perturbation_factor
+            ),
+            "correction_feature_fraction": args.correction_feature_fraction,
+        })
+
+    if (
+        args.data_driven_objective_config is not None
+        or args.simple_data_driven_objective_config is not None
+        or args.guarded_egi_objective_config is not None
+    ):
+        egi_role_count = 2 if args.egi_support_set == "fine-broad" else 3
+        egi_window_weights = [1.0] * egi_role_count
+        refinement_options["egi_window_weights"] = egi_window_weights
+        refinement_options["baseline_phase_index"] = 0
+
+    global_objective = CombinedForceAndEquilibriumGapObjective(
+        force_weight=args.force_weight,
+        egi_window_weights=egi_window_weights,
+        baseline=CombinedObjectiveBaseline.prior_phase(0),
+        spatial_weighting=(
+            SensitivitySpatialWeightingConfig(
+                perturbation_factor=args.sensitivity_perturbation_factor,
+                weight_floor=args.sensitivity_weight_floor,
+            )
+            if args.sensitivity_spatial_weighting
+            else None
+        ),
+    )
+    phase_preparation = None
+    if (
+        args.data_driven_objective_config is None
+        and args.simple_data_driven_objective_config is None
+        and args.guarded_egi_objective_config is None
+    ):
+        phase_1_objective = _create_phase_1_objective(
+            args.objective_config, global_objective
+        )
+    elif args.data_driven_objective_config is not None:
+        payload = json.loads(
+            args.data_driven_objective_config.expanduser().resolve().read_text(
+                encoding="utf-8"
+            )
+        )
+        phase_1_objective, phase_preparation = (
+            _create_data_driven_phase_1_objective(
+                payload,
+                timestep_count=experiment_data.strain.shape[0],
+                fine_egi_window=args.fine_egi_window,
+                basis_growth_objective=global_objective,
+                diagnostic_callback=DiagnosticArtifactWriter(
+                    output_dir / "diagnostic_artifacts"
+                ),
+            )
+        )
+    elif args.simple_data_driven_objective_config is not None:
+        payload = json.loads(
+            args.simple_data_driven_objective_config.expanduser().resolve().read_text(
+                encoding="utf-8"
+            )
+        )
+        phase_1_objective, phase_preparation = (
+            _create_simple_data_driven_phase_1_objective(
+                payload,
+                x=x,
+                y=y,
+                fine_egi_window=args.fine_egi_window,
+                egi_roles=(
+                    ("fine", "broad")
+                    if args.egi_support_set == "fine-broad"
+                    else ("fine", "middle", "broad")
+                ),
+                basis_growth_objective=global_objective,
+                diagnostic_callback=DiagnosticArtifactWriter(
+                    output_dir / "diagnostic_artifacts"
+                ),
+            )
+        )
+    else:
+        assert args.guarded_egi_objective_config is not None
+        config_path = args.guarded_egi_objective_config.expanduser().resolve()
+        payload = json.loads(config_path.read_text(encoding="utf-8"))
+        phase_1_objective, phase_preparation = (
+            _create_guarded_egi_primary_phase_1_objective(
+                payload,
+                config_directory=config_path.parent,
+                fine_egi_window=args.fine_egi_window,
+                basis_growth_objective=global_objective,
+                diagnostic_callback=DiagnosticArtifactWriter(
+                    output_dir / "diagnostic_artifacts"
+                ),
+                run_identifier=args.run_name,
+                candidate_log_path=output_dir / "guarded_egi_candidates.jsonl",
+            )
+        )
+
+    if args.force_slices == "auto":
+        fre_preparation = _create_fre_resolution_preparation(
+            args.fre_resolution_config,
+            DiagnosticArtifactWriter(output_dir / "diagnostic_artifacts"),
+        )
+        phase_preparation = (
+            fre_preparation
+            if phase_preparation is None
+            else CombinedPhasePreparation((
+                ("egi_resolution", phase_preparation),
+                ("fre_resolution", fre_preparation),
+            ))
+        )
+
+    phase = IdentificationPhase(
+        spatial_parameterisations={
+            "elastic_modulus": [SpatialParameterisationKnown()],
+            "poissons_ratio": [SpatialParameterisationKnown()],
+            "yield_strength": [
+                SpatialParameterisationHomogeneous(),
+                yield_strength_basis,
+            ],
+            "hardening_modulus": [
+                SpatialParameterisationKnown()
+                if hardening_fixed
+                else SpatialParameterisationHomogeneous()
+            ],
+        },
+        metrics=[force_metric_phase_1, *equilibrium_gap_metrics_phase_1],
+        objective_function=phase_1_objective,
+        optimiser=OptimiserPatternSearch(
+            initial_mesh_size=args.initial_mesh_size,
+            minimum_mesh_size=args.minimum_mesh_size,
+            max_iterations=args.max_iterations,
+            max_evaluations=args.max_evaluations,
+            objective_relative_tolerance=args.objective_relative_tolerance,
+            parallel_workers=args.parallel_workers,
+            random_seed=args.random_seed,
+        ),
+        refinement_policy=refinement_policy_type(**refinement_options),
+        phase_preparation=phase_preparation,
+    )
+    return phase, egi_window_weights
+
+
+def _parse_args(
+    parser: argparse.ArgumentParser | None = None,
+    *,
+    default_max_basis_functions: int = MAX_BASIS_FUNCTIONS,
+    default_fixed_basis_trajectory: bool = False,
+) -> argparse.Namespace:
+    if parser is None:
+        parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=INPUT_PATH)
     parser.add_argument("--output-root", type=Path, default=OUTPUT_ROOT)
     parser.add_argument("--run-name", default="prepared/bivariate_gaussian")
@@ -622,7 +646,11 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Optional comma-separated objective weights matching --egi-windows.",
     )
-    parser.add_argument("--max-basis-functions", type=int, default=MAX_BASIS_FUNCTIONS)
+    parser.add_argument(
+        "--max-basis-functions",
+        type=int,
+        default=default_max_basis_functions,
+    )
     parser.add_argument(
         "--kernel-type",
         choices=("bivariate", "bivariate_spd"),
@@ -651,6 +679,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--fixed-basis-trajectory",
         action="store_true",
+        default=default_fixed_basis_trajectory,
         help=(
             "Accept every solved BF stage through --max-basis-functions. "
             "Use for fixed-cap objective investigations whose stage "
