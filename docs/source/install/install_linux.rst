@@ -3,28 +3,31 @@
 Ubuntu Linux
 ############
 
-Configuring Python3.11
-------------------------
+Configuring Python
+------------------
 
-To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.11. To install python 3.11 without corrupting your operating systems python installation first add the deadsnakes repository to apt:
+``pyvale`` supports Python 3.11 and newer. The optional Blender backend
+requires Python 3.13; install it with ``pip install "pyvale[blender]"``.
+To install a specific Python version without changing your operating system
+Python, first add the deadsnakes repository to apt:
 
 .. code-block:: bash
 
    sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt update
 
-Install python 3.11:
+For example, install Python 3.13 for Blender:
 
 .. code-block:: bash
 
-   sudo apt install python3.11 python3.11-dev python3.11-venv
+   sudo apt install python3.13 python3.13-dev python3.13-venv
 
-Check your python 3.11 install is working using the following command which should open an interactive python interpreter:
+Check the selected Python installation using the following command:
 
 .. code-block:: bash
 
-   python3.11
+   python3.13
 
-If everything has worked you should see an interactive python console with Python 3.11.xx in the header. You can now exit the interpreter using ``quit()``.
+If everything has worked you should see an interactive Python console. You can now exit it using ``quit()``.
 
 Interactive ROI Dependencies
 ----------------------------
@@ -43,7 +46,7 @@ We recommend installing ``pyvale`` in a virtual environment using ``venv`` or ``
 
 .. code-block:: bash
 
-   python3.11 -m venv pyvale-env
+   python -m venv pyvale-env
 
 Now activate the virtual environment:
 
@@ -61,7 +64,8 @@ Installation from PyPI
 
    pip install pyvale
 
-You should now be able to start a python 3.11 interpreter in your terminal using (again make sure your pyvale-env is active):
+You should now be able to start a Python interpreter in your terminal using
+(again make sure your pyvale-env is active):
 
 .. code-block:: bash
 
@@ -109,6 +113,4 @@ This will create an editable/developer installation of ``pyvale``. Now check tha
    import pyvale
 
 If there are no errors then everything has worked and you can now move on to looking at some of our examples to get you started in the basics section.
-
-
 

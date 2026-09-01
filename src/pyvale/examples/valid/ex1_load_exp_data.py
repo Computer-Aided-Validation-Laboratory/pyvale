@@ -14,7 +14,7 @@ and structuring them into ExpData and PointValData containers.
 from pathlib import Path
 import numpy as np
 
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.dataio as io
 import pyvale.valid as val
 

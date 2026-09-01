@@ -68,7 +68,7 @@ Use the following command in the pyvale directory to install pyvale for developm
 pip install pyvale -e .
 ```
 
-We recommend installing Pyvale into a virtual environment of your choice as pyvale requires python 3.11.  If you need help setting up your virtual environment and installing pyvale head over to our [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html).
+We recommend installing Pyvale into a virtual environment of your choice as pyvale requires python 3.13.  If you need help setting up your virtual environment and installing pyvale head over to our [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html).
 
 ### Make a Branch
 
@@ -80,7 +80,7 @@ git switch -c branchname
 
 ### Developer Guidance
 
-Much of Pyvale is written in Python. See our [Pyvale Developer Guide](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/designspec/README.md) for guidance on how to write Python code that best aligns with Pyvale's code values.
+Much of Pyvale is written in Python. See our [Pyvale Developer Guide](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/dev/README.md) for guidance on how to write Python code that best aligns with Pyvale's code values.
 
 ### Docstrings
 

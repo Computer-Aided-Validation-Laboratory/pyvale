@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.dataio as io
 import pyvale.valid as val
 

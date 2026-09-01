@@ -6,20 +6,26 @@ Windows 11
 Installing python
 -----------------
 
-To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` uses python 3.11. To install python 3.11 for windows grab the correct installer for your system (most likely windows 64 bit) from the python website here: https://www.python.org/downloads/release/python-3119/.
+``pyvale`` supports Python 3.11 and newer. The optional Blender backend
+requires Python 3.13 and ``pip install "pyvale[blender]"``. Install a supported
+Python release for your system from https://www.python.org/downloads/.
 
 Launch the installer, select 'custom installation' and make sure the 'py launcher' option is checked. Then click next and finish the installation. If you are prompted to disable the maximum path length then click this to confirm you want to disable the path length.
 
 Starting Python with the py Launcher
 -------------------------------------
 
-To confirm your installation has worked you should open a windows command line using 'windows-key+r' and then type 'cmd'. From here enter the following to start an interactive python 3.11 interpreter:
+To confirm your installation has worked, open a Windows command line using
+'windows-key+r' and then type 'cmd'. From here enter the following to start an
+interactive Python interpreter:
 
 .. code-block:: batch
 
    py -3.11
 
-If you see prompt with Python 3.11.9 in the header and the starting cursor has '>>>' then everything has worked. If you install other python versions on windows you can start them using the py launcher using this syntax ``py -#.#``. Where the '\#' is the version you want to start. For pyvale we will stick with python 3.11.
+If you see a Python prompt with ``>>>`` then everything has worked. If you
+install other Python versions on Windows, start them with ``py -#.#``. Use
+Python 3.13 when you need the optional Blender backend.
 
 Troubleshooting the py launcher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -60,7 +66,8 @@ Installation from PyPI
 
    pip install pyvale
 
-You should now be able to start a python 3.11 interpreter in your terminal using (again make sure your pyvale-env is active):
+You should now be able to start a Python interpreter in your terminal using
+(again make sure your pyvale-env is active):
 
 .. code-block:: bash
 

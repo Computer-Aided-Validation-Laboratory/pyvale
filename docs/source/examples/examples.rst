@@ -1,38 +1,51 @@
 .. _examples_all:
 
 Examples
-================
+========
 
-Sensor Simulation Basics
-------------------------
+Basic Sensor Simulation
+-----------------------
+
 .. toctree::
    :maxdepth: 2
 
    examples_basics_sensorsim
 
-DIC & Strain Calculations
--------------------------
+DIC
+---
+
 .. toctree::
    :maxdepth: 2
 
    examples_dic
 
-Blender Image Deformation
--------------------------
+Render 3D
+---------
+
 .. toctree::
    :maxdepth: 2
 
-   examples_blender
+   examples_render3d
 
-Sensor Simulation Extended
+Render UVs
+----------
+
+.. toctree::
+   :maxdepth: 2
+
+   examples_renderuvs
+
+Extended Sensor Simulation
 --------------------------
+
 .. toctree::
    :maxdepth: 2
 
    examples_ext_sensorsim
 
 Mooseherder
--------------------------------------
+-----------
+
 .. toctree::
    :maxdepth: 2
 

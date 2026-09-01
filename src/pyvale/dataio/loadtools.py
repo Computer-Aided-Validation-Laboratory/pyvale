@@ -310,15 +310,20 @@ def load_connectivity(connect_dir: Path,
     """
     connect = {}
 
-    connect_files= []
+    connect_files = []
     if isinstance(connect_pattern,str):
-        connect_files = list(connect_dir.glob(connect_pattern))
+        connect_files = sorted(connect_dir.glob(connect_pattern))
     elif isinstance(connect_pattern,list):
         for ff in connect_pattern:
             connect_files.append(connect_dir / ff)
     else:
         raise SimLoadErr("Connectivity file pattern must be a string" +
                             " or a  list.")
+
+    if not connect_files:
+        raise FileNotFoundError(
+            "No connectivity files matched the supplied pattern or list."
+        )
 
     for ff in connect_files:
         file_key = ff.stem
@@ -461,5 +466,4 @@ def inv_group_dict(dict_com: dict[str,str]) -> dict[str, str]:
         dict_com_inv[vv_new].append(kk_new)
 
     return dict_com_inv
-
 

@@ -25,7 +25,7 @@ from pathlib import Path
 import netCDF4 as nc
 import numpy as np
 from pyvale.dataio.simdata import SimData, SimLoadConfig
-from pyvale.dataio.meshtools import enforce_mesh_convention
+from pyvale.dataio.meshconv import enforce_mesh_convention
 from pyvale.mooseherder.outputloader import IOutputLoader
 
 
@@ -85,7 +85,12 @@ class ExodusLoader(IOutputLoader):
         if key not in self._data.variables or key is None:
             return None
 
-        return nc.chartostring(np.array(self._data.variables[key][:]))
+        # netCDF4's chartostring triggers NumPy's deprecated in-place shape
+        # setting, so the character-to-string conversion is done here with a
+        # view and decode instead.
+        raw = np.array(self._data.variables[key][:])
+        chars = raw.view(f"S{raw.shape[-1]}").reshape(raw.shape[:-1])
+        return np.char.decode(chars, "utf-8")
 
 
     def get_var(self, key: str, time_inds: np.ndarray | None = None
@@ -726,7 +731,16 @@ class ExodusLoader(IOutputLoader):
         if read_config.time:
             data.time = self.get_time(read_config.time_inds)
         if read_config.coords:
-            (data.coords,data.num_spat_dims) = self.get_coords()
+            coords, _ = self.get_coords()
+            data.coords = coords
+            num_spat_dims = 0
+            if self.get_var('coordx').shape[0] > 0:
+                num_spat_dims += 1
+            if self.get_var('coordy').shape[0] > 0:
+                num_spat_dims += 1
+            if self.get_var('coordz').shape[0] > 0:
+                num_spat_dims += 1
+            data.num_spat_dims = num_spat_dims
         if read_config.connect:
             data.connect = self.get_connectivity()
 
@@ -743,6 +757,8 @@ class ExodusLoader(IOutputLoader):
             and data.connect is not None
             and data.coords is not None):
             data = enforce_mesh_convention(data)
+
+        data.refresh_mesh_type()
 
         return data
 

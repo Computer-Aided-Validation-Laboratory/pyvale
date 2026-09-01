@@ -1,11 +1,5 @@
 import os
-import sys
-import inspect
 from sphinx_gallery.sorting import FileNameSortKey
-
-# Add source paths
-sys.path.insert(0, os.path.abspath('../../src/pyvale/'))
-sys.path.insert(0, os.path.abspath('../../src/pyvale/dic/'))
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -18,8 +12,8 @@ sys.path.insert(0, os.path.abspath('../../src/pyvale/dic/'))
 project = 'Pyvale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
-release = '2026.6.0'
-version = '2026.6.0'
+release = '2026.9.0'
+version = '2026.9.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -53,7 +47,16 @@ master_doc = 'index'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = [
+    '_build',
+    'Thumbs.db',
+    '.DS_Store',
+    'sg_execution_times.rst',
+    # Sphinx-gallery generates untitled index and execution-time pages that
+    # are only meant to be linked from the hand-written gallery root page.
+    'examples/*/index.rst',
+    'examples/*/sg_execution_times.rst',
+]
 
 # -- Napoleon configuration (NumPy style docstrings) ------------------------
 
@@ -112,25 +115,56 @@ codeautolink_concat_default = True
 
 
 # -- Sphinx Gallery configuration -------------------------------------------
+
+# Executing the gallery examples requires every optional renderer and external
+# simulator to be installed and can take a long time. Execution is therefore
+# opt-in: set PYVALE_DOCS_RUN_EXAMPLES=1 to build galleries with captured
+# output. By default gallery pages show code and narrative only.
+run_examples = os.environ.get("PYVALE_DOCS_RUN_EXAMPLES", "").lower() in (
+    "1", "true", "yes",
+)
+
+# These examples should be documented but must not execute during gallery
+# builds because they require interactive input or unbundled local data. The
+# negative lookahead belongs in filename_pattern rather than ignore_pattern:
+# Sphinx-Gallery still generates their pages while excluding their execution.
+unsafe_example_names = (
+    "ex01_region_of_interest",
+    "ex05_dic_challenge",
+    "ex06_hrdic",
+    "ex08_calibration",
+    "ex09_stereo",
+    "ex10_stereo_platehole",
+    "ex11_dic_chal",
+)
+unsafe_example_pattern = "|".join(unsafe_example_names)
+safe_example_pattern = rf"/(?!({unsafe_example_pattern})\.py$)ex"
+
 sphinx_gallery_conf = {
     # Path to your example scripts
     'examples_dirs': [
         '../../src/pyvale/examples/basicsensorsim',
-        '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/dic',
-        '../../src/pyvale/examples/blenderimagedef',
+        '../../src/pyvale/examples/render3d',
+        '../../src/pyvale/examples/renderuvs',
+        '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/mooseherder',
     ],
-    # Path to where to save gallery generated output
+    # Path to where to save gallery generated output.
     'gallery_dirs': [
         'examples/basicsensorsim',
-        'examples/extsensorsim',
         'examples/dic',
-        'examples/blenderimagedef',
+        'examples/render3d',
+        'examples/renderuvs',
+        'examples/extsensorsim',
         'examples/mooseherder',
     ],
-    # Pattern to identify example files
-    'filename_pattern': '/plot_',
+    # Generate every example page, but only execute unattended examples.
+    'filename_pattern': safe_example_pattern,
+    # Private helper modules support examples but are not gallery tutorials.
+    'ignore_pattern': (
+        r'(?:^|/)(?:_blender_example_tools|_riley_demo_tools|tools)\.py$'
+    ),
     # Specify that examples should be ordered according to filename
     'within_subsection_order': FileNameSortKey,
     # Directory where function granular galleries are stored
@@ -139,7 +173,7 @@ sphinx_gallery_conf = {
     'doc_module': ('pyvale',),
     # Additional options
     'download_all_examples': False,
-    'plot_gallery': 'True',
+    'plot_gallery': 'True' if run_examples else 'False',
     'remove_config_comments': True,
     'expected_failing_examples': [],
     'show_memory': False,
