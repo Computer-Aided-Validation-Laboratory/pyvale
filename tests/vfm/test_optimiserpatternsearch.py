@@ -190,6 +190,52 @@ def test_pattern_candidate_continues_successful_displacement(
     assert final[0] > 0.4
 
 
+def test_positive_infinity_is_a_safe_hard_feasibility_barrier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outcome, final = _run_search(
+        monkeypatch,
+        lambda candidate: (
+            np.inf
+            if candidate[0] > 0.55
+            else float((candidate[0] - 0.4) ** 2)
+        ),
+        np.asarray((0.5,)),
+        initial_mesh_size=0.2,
+        minimum_mesh_size=0.025,
+        max_iterations=20,
+        max_evaluations=40,
+    )
+
+    assert outcome.solve_result is not None
+    assert np.isfinite(outcome.solve_result.final_objective["cost"])
+    assert final[0] <= 0.55
+    assert any(not entry["improved"] for entry in outcome.solve_result.final_objective["history"])
+
+
+def test_all_infeasible_poll_contracts_mesh_normally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outcome, final = _run_search(
+        monkeypatch,
+        lambda candidate: 0.0 if candidate[0] == pytest.approx(0.5) else np.inf,
+        np.asarray((0.5,)),
+        initial_mesh_size=0.2,
+        minimum_mesh_size=0.025,
+        max_iterations=20,
+        max_evaluations=40,
+    )
+
+    assert outcome.solve_result is not None
+    assert outcome.solve_result.status == "minimum_mesh_size"
+    assert outcome.solve_result.final_objective["cost"] == pytest.approx(0.0)
+    assert final[0] == pytest.approx(0.5)
+    assert all(
+        not entry["improved"]
+        for entry in outcome.solve_result.final_objective["history"]
+    )
+
+
 @pytest.mark.parametrize(
     ("mesh_expansion_factor", "expected_mesh_size"),
     [(1.0, 0.1), (2.0, 0.2)],

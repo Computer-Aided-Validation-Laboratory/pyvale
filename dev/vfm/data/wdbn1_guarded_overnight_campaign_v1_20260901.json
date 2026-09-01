@@ -1,0 +1,86 @@
+{
+  "schema": "pyvale-guarded-overnight-campaign-v1",
+  "campaign_date": "2026-09-01",
+  "branch": "vfm-bf-verif",
+  "common": {
+    "objective_config": "dev/vfm/data/wdbn1_guarded_egi_primary_v1_20260901.json",
+    "fre_resolution_config": "dev/vfm/data/wdbn1_fre_finest_stable_v1_20260901.json",
+    "egi_support_set": "fine-broad",
+    "guard_relaxation": 0.1,
+    "maximum_basis_functions": 7,
+    "fixed_basis_trajectory": true,
+    "kernel_type": "bivariate_spd",
+    "basis_growth_policy": "sensitivity_correction",
+    "parallel_workers": 8,
+    "stress_backend": "cython",
+    "artificial_noise": "disabled; observations are used exactly as stored"
+  },
+  "physical_support_reference_mm": {
+    "fine": 0.887033,
+    "broad": 4.435167,
+    "note": "Derived from corrected x2 supports 21x21 and 105x105. Full/native pixel supports are the nearest odd square windows; no truth was used."
+  },
+  "runs": [
+    {
+      "priority": 1,
+      "name": "guarded_wdbn1_exp",
+      "dataset_kind": "experimental",
+      "input": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/experimental/wdbn1/vfm-input-data_2026-08-17_04-10",
+      "output_root": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/experimental/wdbn1/identification",
+      "fine_egi_window": 43,
+      "expected_broad_egi_window": 199,
+      "fre_domain_correction": "enabled",
+      "fre_region_of_interest": "dev/vfm/data/wdbn1_nominal_fre_roi_v1_20260901.yaml",
+      "truth_reporting": false,
+      "report_label": "Preliminary WDBN1 experimental identification using the current guarded EGI-primary candidate algorithm."
+    },
+    {
+      "priority": 2,
+      "name": "guarded_x2_clean",
+      "dataset_kind": "synthetic_clean",
+      "input": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/synthetic-fe/wdbn1-representative-fe-v1-clean-fe-roi-spatial-x2/pyvale-vfm/prepared",
+      "output_root": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/synthetic-fe/wdbn1-representative-fe-v1-clean-fe-roi-spatial-x2/pyvale-vfm/identification",
+      "fine_egi_window": 21,
+      "expected_broad_egi_window": 105,
+      "fre_domain_correction": "disabled",
+      "fre_region_of_interest": null,
+      "truth_reporting": true
+    },
+    {
+      "priority": 3,
+      "name": "guarded_x2_noisy1x",
+      "dataset_kind": "synthetic_noisy_1x",
+      "input": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/synthetic-fe/wdbn1-representative-fe-v1-noisy-1x-seed20260830-fe-roi-spatial-x2/pyvale-vfm/prepared",
+      "output_root": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/synthetic-fe/wdbn1-representative-fe-v1-noisy-1x-seed20260830-fe-roi-spatial-x2/pyvale-vfm/identification",
+      "fine_egi_window": 21,
+      "expected_broad_egi_window": 105,
+      "fre_domain_correction": "disabled",
+      "fre_region_of_interest": null,
+      "truth_reporting": true
+    },
+    {
+      "priority": 4,
+      "name": "guarded_full_clean",
+      "dataset_kind": "synthetic_clean",
+      "input": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/synthetic-fe/wdbn1-representative-fe-v1-final-h0125-r4-fe-roi/pyvale-vfm/prepared",
+      "output_root": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/synthetic-fe/wdbn1-representative-fe-v1-final-h0125-r4-fe-roi/pyvale-vfm/identification",
+      "fine_egi_window": 43,
+      "expected_broad_egi_window": 211,
+      "fre_domain_correction": "disabled",
+      "fre_region_of_interest": null,
+      "truth_reporting": true
+    },
+    {
+      "priority": 5,
+      "name": "guarded_full_noisy1x",
+      "dataset_kind": "synthetic_noisy_1x",
+      "input": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/synthetic-fe/wdbn1-representative-fe-v1-noisy-1x-seed20260830-r2-fe-roi/pyvale-vfm/prepared",
+      "output_root": "/home/bx0923/projects/pyvale-vfm-test-data/notched-ebw/synthetic-fe/wdbn1-representative-fe-v1-noisy-1x-seed20260830-r2-fe-roi/pyvale-vfm/identification",
+      "fine_egi_window": 43,
+      "expected_broad_egi_window": 211,
+      "fre_domain_correction": "disabled",
+      "fre_region_of_interest": null,
+      "truth_reporting": true
+    }
+  ]
+}

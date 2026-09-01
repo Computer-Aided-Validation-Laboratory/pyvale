@@ -1,0 +1,49 @@
+{
+  "schema": "pyvale-guarded-egi-primary-v1",
+  "mode": "guarded_egi_primary",
+  "notes": [
+    "Equal mean of separately noise-normalised sensitivity-gated fine and broad EGI RMS.",
+    "FRE and unmasked broad EGI are frozen parent/noise-floor hard guards only.",
+    "No middle EGI, FRE scalar contribution, broad-unmasked scalar contribution, or penalty coefficient."
+  ],
+  "egi_noise_scales": [
+    1.7749920645783005e-6,
+    1.974782950165619e-7
+  ],
+  "egi_noise_scale_roles": ["fine", "broad"],
+  "guard_relaxation": 0.10,
+  "sensitivity_parameter_names": ["yield_strength", "hardening_modulus"],
+  "perturbation_factor": 0.01,
+  "sensitivity_scaling_percentile": 95.0,
+  "gate_start": 0.05,
+  "gate_full": 0.30,
+  "gate_start_quantile": 0.0,
+  "gate_full_quantile": 0.90,
+  "positive_activity_floor": 1.0e-6,
+  "candidate_count": 10,
+  "minimum_pixels": 3,
+  "maximum_bbox_fraction": 0.5,
+  "measurement_noise": {
+    "mode": "calibrated",
+    "correlation_model": "wdbn1_noise_model_20260828.yaml",
+    "seeds": [
+      20260901,
+      20260902,
+      20260903,
+      20260904,
+      20260905,
+      20260906,
+      20260907,
+      20260908,
+      20260909,
+      20260910,
+      20260911,
+      20260912,
+      20260913,
+      20260914,
+      20260915,
+      20260916
+    ],
+    "quantile": 0.95
+  }
+}

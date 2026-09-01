@@ -31,10 +31,14 @@ from pyvale.vfm import (
     FinestStableFrePreparation,
     FreResolutionSelectionConfig,
     HardeningLinear,
+    GuardedEgiPrimaryConfig,
+    GuardedEgiPrimaryObjective,
     IdentificationConfig,
     IdentificationPhase,
     IsotropicVonMisesElastoplasticity,
     MetricSBVF,
+    MeasurementNoiseFloorConfig,
+    MeasurementNoiseMode,
     OptimiserLeastSquares,
     OptimiserPatternSearch,
     SliceConfig,
@@ -51,6 +55,7 @@ from pyvale.vfm import (
     SpatialParameterisationHomogeneous,
     SpatialParameterisationKnown,
     VectorFirstResultPassthrough,
+    VfmRegionOfInterest,
     run_identification,
 )
 from pyvale.vfm.egisupports import resolve_physical_egi_supports
@@ -128,6 +133,12 @@ def main() -> None:
         else args.input
     )
     experiment_data = ExperimentData.load_from_file(experiment_data_file)
+    if args.fre_region_of_interest is not None:
+        experiment_data.specimen_geometry.force_reconstruction_region_of_interest = (
+            VfmRegionOfInterest.from_yaml(
+                args.fre_region_of_interest.expanduser().resolve()
+            )
+        )
     noise_diagnostics = _apply_artificial_noise(experiment_data, args)
     constitutive_law = _create_constitutive_law(
         args.stress_backend,
@@ -235,6 +246,7 @@ def main() -> None:
     if (
         args.data_driven_objective_config is not None
         or args.simple_data_driven_objective_config is not None
+        or args.guarded_egi_objective_config is not None
     ):
         egi_role_count = 2 if args.egi_support_set == "fine-broad" else 3
         egi_window_weights = [1.0] * egi_role_count
@@ -258,6 +270,7 @@ def main() -> None:
     if (
         args.data_driven_objective_config is None
         and args.simple_data_driven_objective_config is None
+        and args.guarded_egi_objective_config is None
     ):
         phase_1_objective = _create_phase_1_objective(
             args.objective_config, global_objective
@@ -279,7 +292,7 @@ def main() -> None:
                 ),
             )
         )
-    else:
+    elif args.simple_data_driven_objective_config is not None:
         payload = json.loads(
             args.simple_data_driven_objective_config.expanduser().resolve().read_text(
                 encoding="utf-8"
@@ -300,6 +313,23 @@ def main() -> None:
                 diagnostic_callback=DiagnosticArtifactWriter(
                     output_dir / "diagnostic_artifacts"
                 ),
+            )
+        )
+    else:
+        assert args.guarded_egi_objective_config is not None
+        config_path = args.guarded_egi_objective_config.expanduser().resolve()
+        payload = json.loads(config_path.read_text(encoding="utf-8"))
+        phase_1_objective, phase_preparation = (
+            _create_guarded_egi_primary_phase_1_objective(
+                payload,
+                config_directory=config_path.parent,
+                fine_egi_window=args.fine_egi_window,
+                basis_growth_objective=global_objective,
+                diagnostic_callback=DiagnosticArtifactWriter(
+                    output_dir / "diagnostic_artifacts"
+                ),
+                run_identifier=args.run_name,
+                candidate_log_path=output_dir / "guarded_egi_candidates.jsonl",
             )
         )
 
@@ -395,7 +425,17 @@ def main() -> None:
             if args.simple_data_driven_objective_config is None
             else str(args.simple_data_driven_objective_config)
         ),
+        "guarded_egi_objective_config": (
+            None
+            if args.guarded_egi_objective_config is None
+            else str(args.guarded_egi_objective_config)
+        ),
         "force_slices": args.force_slices,
+        "fre_region_of_interest": (
+            None
+            if args.fre_region_of_interest is None
+            else str(args.fre_region_of_interest.expanduser().resolve())
+        ),
         "force_axis": args.force_axis,
         "egi_windows": args.egi_windows,
         "fine_egi_window": args.fine_egi_window,
@@ -492,6 +532,15 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--guarded-egi-objective-config",
+        type=Path,
+        default=None,
+        help=(
+            "JSON configuration for the fine+broad sensitivity-gated EGI "
+            "primary with frozen parent/noise-floor FRE and broad hard guards."
+        ),
+    )
+    parser.add_argument(
         "--force-slices",
         type=_parse_force_slices,
         default="auto",
@@ -506,6 +555,17 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=FRE_RESOLUTION_CONFIG,
         help="Noise model and thresholds for automatic finest-stable FRE selection.",
+    )
+    parser.add_argument(
+        "--fre-region-of-interest",
+        type=Path,
+        default=None,
+        help=(
+            "Optional physical specimen ROI YAML used only to correct the FRE "
+            "integration domain. Measured stress is integrated on the existing "
+            "DIC ROI and each slice is scaled by physical/measured area; EGI and "
+            "all strain/stress masks remain unchanged."
+        ),
     )
     parser.add_argument(
         "--force-axis",
@@ -637,6 +697,7 @@ def _parse_args() -> argparse.Namespace:
         args.objective_config,
         args.data_driven_objective_config,
         args.simple_data_driven_objective_config,
+        args.guarded_egi_objective_config,
     )
     if sum(value is not None for value in objective_configs) > 1:
         parser.error("Objective configuration options are mutually exclusive.")
@@ -657,6 +718,14 @@ def _parse_args() -> argparse.Namespace:
         parser.error("Force slices must be at least two and max bases must be positive.")
     if args.force_slices == "auto" and not args.fre_resolution_config.is_file():
         parser.error(f"FRE resolution configuration not found: {args.fre_resolution_config}")
+    if (
+        args.fre_region_of_interest is not None
+        and not args.fre_region_of_interest.expanduser().is_file()
+    ):
+        parser.error(
+            "FRE physical region of interest not found: "
+            f"{args.fre_region_of_interest}"
+        )
     if args.fine_egi_window is not None and (
         args.fine_egi_window < 3 or args.fine_egi_window % 2 == 0
     ):
@@ -664,13 +733,21 @@ def _parse_args() -> argparse.Namespace:
     if (
         args.data_driven_objective_config is not None
         or args.simple_data_driven_objective_config is not None
+        or args.guarded_egi_objective_config is not None
     ) and args.fine_egi_window is None:
         parser.error(
             "--fine-egi-window is required with data-driven EGI objectives; "
             "automatic fine-support selection is not qualified."
         )
-    if args.egi_support_set == "fine-broad" and args.simple_data_driven_objective_config is None:
-        parser.error("--egi-support-set fine-broad requires --simple-data-driven-objective-config.")
+    if args.egi_support_set == "fine-broad" and (
+        args.simple_data_driven_objective_config is None
+        and args.guarded_egi_objective_config is None
+    ):
+        parser.error(
+            "--egi-support-set fine-broad requires a simple or guarded EGI objective configuration."
+        )
+    if args.guarded_egi_objective_config is not None and args.egi_support_set != "fine-broad":
+        parser.error("--guarded-egi-objective-config requires --egi-support-set fine-broad.")
     if args.egi_window_weights is not None and (
         len(args.egi_window_weights) != len(args.egi_windows)
         or any(weight <= 0.0 for weight in args.egi_window_weights)
@@ -892,6 +969,147 @@ def _create_simple_data_driven_phase_1_objective(
         ),
     )
     return objective, preparation
+
+
+def _create_guarded_egi_primary_phase_1_objective(
+    payload: dict[str, object],
+    *,
+    config_directory: Path,
+    fine_egi_window: int,
+    basis_growth_objective,
+    diagnostic_callback,
+    run_identifier: str,
+    candidate_log_path: Path,
+) -> tuple[GuardedEgiPrimaryObjective, UserFineEgiSupportPreparation]:
+    """Create the additive hard-guarded fine+broad EGI objective mode."""
+
+    if payload.get("mode", "guarded_egi_primary") != "guarded_egi_primary":
+        raise ValueError("Guarded EGI configuration mode must be 'guarded_egi_primary'.")
+    if "fre_guard_relaxation" in payload or "broad_guard_relaxation" in payload:
+        raise ValueError("Use the one common guard_relaxation; separate guard relaxations are forbidden.")
+    scales = tuple(float(value) for value in payload["egi_noise_scales"])
+    if len(scales) == 3:
+        fine_scale, broad_scale = scales[0], scales[2]
+    elif len(scales) == 2:
+        fine_scale, broad_scale = scales
+    else:
+        raise ValueError("egi_noise_scales must contain fine/broad or fine/middle/broad values.")
+    noise = _measurement_noise_floor_config(
+        payload.get("measurement_noise", {"mode": "parent-only"}),
+        config_directory=config_directory,
+    )
+    objective = GuardedEgiPrimaryObjective(
+        GuardedEgiPrimaryConfig(
+            fine_noise_scale=fine_scale,
+            broad_noise_scale=broad_scale,
+            measurement_noise=noise,
+            guard_relaxation=float(payload.get("guard_relaxation", 0.10)),
+            parameter_names=tuple(payload.get(
+                "sensitivity_parameter_names",
+                ("yield_strength", "hardening_modulus"),
+            )),
+            perturbation_factor=float(payload.get("perturbation_factor", 0.01)),
+            sensitivity_scaling_percentile=float(payload.get("sensitivity_scaling_percentile", 95.0)),
+            gate_start=float(payload.get("gate_start", 0.05)),
+            gate_full=float(payload.get("gate_full", 0.30)),
+            gate_start_quantile=(
+                None if payload.get("gate_start_quantile") is None
+                else float(payload["gate_start_quantile"])
+            ),
+            gate_full_quantile=(
+                None if payload.get("gate_full_quantile") is None
+                else float(payload["gate_full_quantile"])
+            ),
+            positive_activity_floor=float(payload.get("positive_activity_floor", 1.0e-6)),
+            run_identifier=run_identifier,
+            candidate_log_path=str(candidate_log_path),
+        ),
+        diagnostic_callback=diagnostic_callback,
+        basis_growth_objective=basis_growth_objective,
+    )
+    preparation = UserFineEgiSupportPreparation(
+        fine_window=fine_egi_window,
+        include_middle=False,
+        bank_config=EgiSupportBankConfig(
+            candidate_count=int(payload.get("candidate_count", 10)),
+            minimum_pixels=int(payload.get("minimum_pixels", 3)),
+            maximum_bbox_fraction=float(payload.get("maximum_bbox_fraction", 0.5)),
+        ),
+    )
+    return objective, preparation
+
+
+def _measurement_noise_floor_config(
+    payload: object,
+    *,
+    config_directory: Path,
+) -> MeasurementNoiseFloorConfig:
+    if not isinstance(payload, dict):
+        raise TypeError("measurement_noise must be a JSON object.")
+    mode = MeasurementNoiseMode(str(payload.get("mode", "parent-only")))
+    if mode is MeasurementNoiseMode.PARENT_ONLY:
+        return MeasurementNoiseFloorConfig(mode=mode)
+
+    seeds = tuple(int(value) for value in payload.get("seeds", ()))
+    model_value = payload.get("correlation_model", payload.get("calibrated_model"))
+    if model_value is None:
+        raise ValueError(
+            f"{mode.value} measurement-noise mode requires a calibrated correlation_model; IID fallback is forbidden."
+        )
+    model_path = Path(str(model_value)).expanduser()
+    if not model_path.is_absolute():
+        model_path = (config_directory / model_path).resolve()
+    import yaml
+
+    model = yaml.safe_load(model_path.read_text(encoding="utf-8"))
+    if not isinstance(model, dict):
+        raise TypeError("measurement-noise correlation_model must contain a mapping.")
+    component_names = ("exx", "eyy", "exy")
+    filter_sigmas = tuple(
+        (
+            float(model["components"][name]["gaussian_filter_sigma_mm"]["y"]),
+            float(model["components"][name]["gaussian_filter_sigma_mm"]["x"]),
+        )
+        for name in component_names
+    )
+    correlation = tuple(
+        tuple(float(value) for value in row)
+        for row in model.get("component_correlation", np.eye(3).tolist())
+    )
+    if mode is MeasurementNoiseMode.CALIBRATED:
+        strain_std = tuple(
+            float(model["components"][name].get(
+                "sigma_microstrain",
+                1.0e6 * float(model["components"][name]["sigma"]),
+            ))
+            for name in component_names
+        )
+        force_std = float(model["force"]["sigma_n"])
+    else:
+        raw_strain = payload.get("strain_std_microstrain")
+        if isinstance(raw_strain, (int, float)):
+            strain_std = (float(raw_strain),) * 3
+        elif isinstance(raw_strain, dict):
+            strain_std = tuple(float(raw_strain[name]) for name in component_names)
+        elif isinstance(raw_strain, list) and len(raw_strain) == 3:
+            strain_std = tuple(float(value) for value in raw_strain)
+        else:
+            raise ValueError(
+                "user noise mode requires strain_std_microstrain as one value, a three-value list, or exx/eyy/exy mapping."
+            )
+        if "force_std_n" not in payload:
+            raise ValueError("user noise mode requires force_std_n.")
+        force_std = float(payload["force_std_n"])
+    return MeasurementNoiseFloorConfig(
+        mode=mode,
+        seeds=seeds,
+        strain_std_microstrain=strain_std,
+        force_std_n=force_std,
+        strain_filter_sigmas_mm_yx=filter_sigmas,
+        component_correlation=correlation,
+        quantile=float(payload.get("quantile", 0.95)),
+        model_source=str(model_path),
+    )
 
 
 def _parse_egi_windows(value: str) -> tuple[tuple[int, int], ...]:

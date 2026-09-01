@@ -214,6 +214,15 @@ def run_identification(
                     previous_phases_metrics,
                 )
 
+                # Preserve the fully accepted material state before this
+                # phase introduces/refines any basis structure. Guarded
+                # objectives use this explicit parent rather than inferring a
+                # parent from the current optimiser candidate.
+                accepted_parent_maps = {
+                    name: np.asarray(parameter.map, dtype=np.float64).copy()
+                    for name, parameter in identification_config.parameters.items()
+                }
+
                 # Initialise phase structure from parameter-map residuals.
                 # This initialises the spatial parameterisations and their DOFs based on
                 # the current parameter maps and any previous phase metrics.
@@ -295,6 +304,7 @@ def run_identification(
                         experiment_data,
                         phase_index=phase_index,
                         solve_iteration=solve_iteration,
+                        parent_parameter_maps=accepted_parent_maps,
                     )
 
                     # Emit a progress event to indicate the start of the current solve iteration within the phase.
@@ -348,6 +358,12 @@ def run_identification(
                     )
                     if solve_preparation:
                         solve_result.details["solve_preparation"] = solve_preparation
+
+                    solve_summary = _finalize_objective_solve(
+                        phase_runtime.objective_function
+                    )
+                    if solve_summary:
+                        solve_result.details["objective_solve_summary"] = solve_summary
 
                     # Store the resolved objective baseline in the solve result for logging
                     _record_objective_baseline(
@@ -430,6 +446,11 @@ def run_identification(
                         break
 
                     solve_result.accepted = action.accepts_current_solve
+                    if solve_result.accepted:
+                        accepted_parent_maps = {
+                            name: np.asarray(parameter.map, dtype=np.float64).copy()
+                            for name, parameter in identification_config.parameters.items()
+                        }
 
                     # Apply the proposed refinement action to the phase runtime and record it in the phase result
                     _apply_refinement_action(
@@ -837,6 +858,7 @@ def _prepare_objective_solve(
     *,
     phase_index: int,
     solve_iteration: int,
+    parent_parameter_maps: dict[str, np.ndarray] | None = None,
 ) -> dict[str, object]:
     prepare_solve = getattr(phase_runtime.objective_function, "prepare_solve", None)
     if prepare_solve is None:
@@ -849,12 +871,35 @@ def _prepare_objective_solve(
         spatial_state=phase_runtime.spatial_state,
         metrics=phase_runtime.metrics,
         experiment_data=experiment_data,
+        parent_parameter_maps=(
+            parent_parameter_maps
+            if getattr(
+                phase_runtime.objective_function,
+                "requires_explicit_parent_state",
+                False,
+            )
+            else None
+        ),
     )
     diagnostics = prepare_solve(context)
     if diagnostics is None:
         return {}
     if not isinstance(diagnostics, dict):
         raise TypeError("Objective prepare_solve must return a diagnostics dictionary or None.")
+    return diagnostics
+
+
+def _finalize_objective_solve(objective_function: object) -> dict[str, object]:
+    """Collect optional measured per-solve objective diagnostics."""
+
+    finalize = getattr(objective_function, "finalize_solve", None)
+    if finalize is None:
+        return {}
+    diagnostics = finalize()
+    if diagnostics is None:
+        return {}
+    if not isinstance(diagnostics, dict):
+        raise TypeError("Objective finalize_solve must return a diagnostics dictionary or None.")
     return diagnostics
 
 

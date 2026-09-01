@@ -1,0 +1,20 @@
+# FRE-only nominal physical outline. This is deliberately separate from the
+# measured DIC ROI and must not be used to fabricate EGI/strain observations.
+- type: PolyLineROI
+  add: true
+  points:
+  - [-4.5, -16.0]
+  - [4.5, -16.0]
+  - [4.5, -4.88]
+  - [1.4, -0.38]
+  - [1.4, 0.62]
+  - [4.5, 5.12]
+  - [4.5, 16.0]
+  - [-4.5, 16.0]
+  - [-4.5, 5.12]
+  - [-1.4, 0.62]
+  - [-1.4, -0.38]
+  - [-4.5, -4.88]
+# WDBN1 9 mm gauge with opposing 3.1 mm deep V notches, 10 mm longitudinal
+# notch-mouth span, and 1 mm tip spacing. Registered in the existing DIC
+# coordinates with x centre 0.0 mm and notch centre y 0.12 mm.

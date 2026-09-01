@@ -135,9 +135,9 @@ class OptimiserPatternSearch(IOptimiser):
 
         def checked_cost(value: float) -> float:
             cost = float(value)
-            if not np.isfinite(cost):
+            if np.isnan(cost) or np.isneginf(cost):
                 raise ValueError(
-                    "Pattern-search objective returned a non-finite value."
+                    "Pattern-search objective returned NaN or negative infinity."
                 )
             return cost
 
@@ -169,9 +169,18 @@ class OptimiserPatternSearch(IOptimiser):
                             local_metric._kernel_fft_cache
                         )
                     local_metrics.append(local_metric)
+                clone_objective = getattr(
+                    objective_function,
+                    "clone_for_candidate_evaluation",
+                    None,
+                )
                 context = (
                     local_metrics,
-                    copy.deepcopy(objective_function),
+                    (
+                        clone_objective()
+                        if clone_objective is not None
+                        else copy.deepcopy(objective_function)
+                    ),
                 )
                 worker_local.context = context
             local_metrics, local_objective = context
@@ -222,6 +231,10 @@ class OptimiserPatternSearch(IOptimiser):
             return [float(cost) for cost in costs if cost is not None]
 
         def improves(candidate_cost: float, reference_cost: float) -> bool:
+            if np.isposinf(candidate_cost):
+                return False
+            if np.isposinf(reference_cost):
+                return np.isfinite(candidate_cost)
             # Combine absolute and scale-relative tolerances so improvement
             # tests remain useful for both small and large objectives.
             tolerance = (

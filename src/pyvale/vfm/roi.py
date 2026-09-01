@@ -717,7 +717,7 @@ def _parse_roi_yaml(path: Path) -> RoiDefinition:
         if entry.get("type") == "SeedROI":
             continue
         shapes.append(_yaml_entry_to_shape(entry, index=len(shapes)))
-    return RoiDefinition(shapes=tuple(shapes))
+    return RoiDefinition(shapes=tuple(shapes), source_path=str(path.resolve()))
 
 
 def _yaml_entry_to_shape(entry: dict[str, object], *, index: int) -> RoiShape:

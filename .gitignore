@@ -19,6 +19,8 @@ pyvale-env/
 *.blend
 *.csv
 *.json
+!dev/vfm/data/wdbn1_guarded_egi_primary_v1_20260901.json
+!dev/vfm/data/wdbn1_guarded_overnight_campaign_v1_20260901.json
 pyvale-output/
 pyvale-input/
 test-output/

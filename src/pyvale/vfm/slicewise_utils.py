@@ -9,7 +9,7 @@ from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
 from pyvale.vfm.experimentdata import SpecimenGeometry
-from pyvale.vfm.roi import build_roi_geometry
+from pyvale.vfm.roi import VfmRegionOfInterest, build_roi_geometry
 from pyvale.vfm.vfmesh import _generate_data_mesh_nodal_coord
 
 
@@ -481,6 +481,28 @@ def _build_slice_geometries(
         geometric_areas[slice_index] = float(geometry.area)
 
     return tuple(slice_geometries), geometric_areas
+
+
+def calculate_roi_slice_areas(
+    region_of_interest: VfmRegionOfInterest,
+    *,
+    axis: SliceAxis,
+    boundaries: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Return exact ROI area intersecting each longitudinal slice.
+
+    This public helper is used by the optional FRE-only physical-domain
+    correction.  Slice boundaries still come from the measured DIC support;
+    only the cross-sectional area comes from the supplied physical outline.
+    """
+
+    roi_geometry = build_roi_geometry(region_of_interest.roi_definition)
+    _, areas = _build_slice_geometries(
+        roi_geometry=roi_geometry,
+        axis=axis,
+        boundaries=np.asarray(boundaries, dtype=np.float64),
+    )
+    return areas
 
 
 def _build_support_node_grids(

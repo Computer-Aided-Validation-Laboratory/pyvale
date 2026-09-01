@@ -215,6 +215,8 @@ class InputMetadata:
     timestep_count: int | None = None
     thickness: float | None = None
     roi_type: str | None = None
+    force_reconstruction_domain_correction: bool = False
+    force_reconstruction_roi_source_path: str | None = None
 
     def to_dict(self) -> Summary:
         return _dataclass_to_dict(self)
@@ -706,6 +708,16 @@ def input_metadata_from_experiment_data(
     specimen_geometry = getattr(experiment_data, "specimen_geometry")
     boundary_conditions = getattr(experiment_data, "boundary_conditions")
     timesteps = np.asarray(getattr(experiment_data, "timesteps"))
+    force_reconstruction_roi = getattr(
+        specimen_geometry,
+        "force_reconstruction_region_of_interest",
+        None,
+    )
+    force_reconstruction_roi_definition = (
+        None
+        if force_reconstruction_roi is None
+        else getattr(force_reconstruction_roi, "roi_definition", None)
+    )
     return InputMetadata(
         source_path=None if source_path is None else str(source_path),
         strain_shape=tuple(
@@ -723,6 +735,14 @@ def input_metadata_from_experiment_data(
         timestep_count=int(timesteps.size),
         thickness=float(getattr(specimen_geometry, "thickness")),
         roi_type=type(getattr(specimen_geometry, "region_of_interest")).__name__,
+        force_reconstruction_domain_correction=(
+            force_reconstruction_roi is not None
+        ),
+        force_reconstruction_roi_source_path=(
+            None
+            if force_reconstruction_roi_definition is None
+            else getattr(force_reconstruction_roi_definition, "source_path", None)
+        ),
     )
 
 

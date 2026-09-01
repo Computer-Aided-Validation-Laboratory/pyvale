@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import time
 
 import numpy as np
 import numpy.typing as npt
@@ -130,9 +131,27 @@ def evaluate_candidate(
         updated_phase_spatial_state.evaluate_parameter_maps(parameter_map_size)
     )
 
+    stress_started = time.perf_counter()
     updated_stress = constitutive_law.calculate_stress(
         experiment_data.strain, updated_constitutive_parameter_maps,
     )
+    stress_seconds = time.perf_counter() - stress_started
+
+    stress_evaluator = getattr(
+        objective_function,
+        "evaluate_candidate_stress",
+        None,
+    )
+    if stress_evaluator is not None:
+        return stress_evaluator(
+            updated_stress,
+            constitutive_law,
+            parameter_map_size,
+            updated_spatial_parameterisations,
+            metrics,
+            experiment_data,
+            stress_reconstruction_time_seconds=stress_seconds,
+        )
 
     metric_results = evaluate_metrics(
         updated_stress,

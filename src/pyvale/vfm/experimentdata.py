@@ -46,6 +46,16 @@ class SpecimenGeometry:
     ``region_of_interest.sample_specimen_mask(x, y)``
     """
 
+    force_reconstruction_region_of_interest: VfmRegionOfInterest | None = None
+    """Optional physical specimen outline used only by force reconstruction.
+
+    The measured ``region_of_interest`` remains authoritative for strain,
+    stress, and equilibrium-gap calculations.  When this separate outline is
+    supplied, the slice-wise force metric extrapolates the mean stress in each
+    measured slice across the corresponding physical cross-sectional area.
+    No strain values are created outside the measured domain.
+    """
+
 
 class EEdgeCondition(enum.Enum):
     """Mechanical condition applied to an edge of the specimen"""
@@ -205,6 +215,14 @@ class ExperimentData:
         roi_path = (
             base_dir / experiment_data_file_content["region_of_interest"]
         )
+        force_reconstruction_roi_value = experiment_data_file_content.get(
+            "force_reconstruction_region_of_interest"
+        )
+        force_reconstruction_roi_path = (
+            None
+            if force_reconstruction_roi_value is None
+            else base_dir / force_reconstruction_roi_value
+        )
 
         thickness = experiment_data_file_content["thickness"]
 
@@ -234,6 +252,17 @@ class ExperimentData:
                 )
             )
 
+        force_reconstruction_roi = None
+        if force_reconstruction_roi_path is not None:
+            if not force_reconstruction_roi_path.is_file():
+                raise FileNotFoundError(
+                    "Force-reconstruction ROI was configured but not found: "
+                    f"{force_reconstruction_roi_path}"
+                )
+            force_reconstruction_roi = VfmRegionOfInterest.from_yaml(
+                force_reconstruction_roi_path
+            )
+
         edge_conditions = _unpack_edge_conditions(edge_conditions)
 
         pixel_area = np.abs(np.gradient(x, axis=1) * np.gradient(y, axis=0))
@@ -243,7 +272,8 @@ class ExperimentData:
             y,
             pixel_area,
             thickness,
-            roi
+            roi,
+            force_reconstruction_roi,
         )
 
         boundary_conditions = BoundaryConditions(

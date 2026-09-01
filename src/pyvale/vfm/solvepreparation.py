@@ -58,6 +58,9 @@ class SolvePreparationContext:
     metric_results: tuple[MetricResult, ...]
     parameter_maps: dict[str, npt.NDArray[np.float64]]
     stress: npt.NDArray[np.float64]
+    parent_metric_results: tuple[MetricResult, ...]
+    parent_parameter_maps: dict[str, npt.NDArray[np.float64]]
+    parent_stress: npt.NDArray[np.float64]
     normalised_degrees_of_freedom: npt.NDArray[np.float64]
     degrees_of_freedom: tuple[SolveDegreeOfFreedom, ...]
 
@@ -126,6 +129,7 @@ def build_solve_preparation_context(
     spatial_state: PhaseSpatialState,
     metrics: list[IMetric],
     experiment_data: ExperimentData,
+    parent_parameter_maps: dict[str, npt.NDArray[np.float64]] | None = None,
 ) -> SolvePreparationContext:
     """Snapshot and evaluate the current state for a preparation hook."""
 
@@ -155,6 +159,31 @@ def build_solve_preparation_context(
         experiment_data,
         include_egi_diagnostics=True,
     )
+    if parent_parameter_maps is None:
+        resolved_parent_maps = parameter_maps
+        parent_stress = stress
+        parent_metric_results = metric_results
+    else:
+        resolved_parent_maps = {
+            name: np.asarray(values, dtype=np.float64).copy()
+            for name, values in parent_parameter_maps.items()
+        }
+        parent_stress = np.asarray(
+            constitutive_law.calculate_stress(
+                experiment_data.strain,
+                resolved_parent_maps,
+            ),
+            dtype=np.float64,
+        )
+        parent_metric_results = evaluate_metrics(
+            parent_stress,
+            constitutive_law,
+            parameter_map_size,
+            prepared_state.spatial_parameterisations,
+            metrics,
+            experiment_data,
+            include_egi_diagnostics=True,
+        )
     return SolvePreparationContext(
         phase_index=phase_index,
         solve_iteration=solve_iteration,
@@ -166,6 +195,11 @@ def build_solve_preparation_context(
         metric_results=tuple(metric_results),
         parameter_maps=parameter_maps,
         stress=stress.copy(),
+        parent_metric_results=tuple(parent_metric_results),
+        parent_parameter_maps={
+            name: values.copy() for name, values in resolved_parent_maps.items()
+        },
+        parent_stress=parent_stress.copy(),
         normalised_degrees_of_freedom=normalised.copy(),
         degrees_of_freedom=_snapshot_degrees_of_freedom(
             prepared_state,

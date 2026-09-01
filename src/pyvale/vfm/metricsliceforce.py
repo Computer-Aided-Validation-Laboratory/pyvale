@@ -8,7 +8,12 @@ import numpy.typing as npt
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData, SpecimenGeometry
 from pyvale.vfm.metric import IMetric, MetricResult
-from pyvale.vfm.slicewise_utils import SliceAreaPartition, SliceConfig, resolve_slice_partition
+from pyvale.vfm.slicewise_utils import (
+    SliceAreaPartition,
+    SliceConfig,
+    calculate_roi_slice_areas,
+    resolve_slice_partition,
+)
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.spatialparamslicewise import SupportSlice
 
@@ -32,6 +37,7 @@ class LocalSliceData:
     global_point_indices: npt.NDArray[np.int64]
     local_point_indices: npt.NDArray[np.int64]
     point_area_integral_weights: npt.NDArray[np.float64]
+    force_integration_scale: float
     applied_longitudinal_force: npt.NDArray[np.float64]
     temporal_weights: npt.NDArray[np.float64]
     spatial_weights: float
@@ -235,6 +241,98 @@ def _filter_operator_points(
     )
 
 
+@dataclass(slots=True, frozen=True)
+class ForceIntegrationDomainCorrection:
+    """Per-slice FRE area correction and its diagnostic provenance."""
+
+    scale_factors: npt.NDArray[np.float64]
+    measured_areas: npt.NDArray[np.float64]
+    target_areas: npt.NDArray[np.float64]
+    target_widths: npt.NDArray[np.float64]
+    enabled: bool
+
+
+def resolve_force_integration_domain_correction(
+    *,
+    slice_partition: SliceAreaPartition,
+    specimen_geometry: SpecimenGeometry,
+    valid_global_points: npt.NDArray[np.bool_],
+) -> ForceIntegrationDomainCorrection:
+    """Resolve optional physical-domain scaling for each FRE slice.
+
+    The measured stress integral is multiplied by ``target area / measured
+    area``.  This assumes the measured slice-average stress represents the
+    omitted edge strip; it never creates strain or stress samples outside the
+    measured ROI.
+    """
+
+    target_roi = specimen_geometry.force_reconstruction_region_of_interest
+    if target_roi is None:
+        # Keep the disabled path both numerically and computationally
+        # equivalent to the historical force operator.
+        return ForceIntegrationDomainCorrection(
+            np.ones(slice_partition.num_slices, dtype=np.float64),
+            slice_partition.areas.copy(),
+            slice_partition.areas.copy(),
+            slice_partition.widths.copy(),
+            False,
+        )
+
+    measured_areas = np.zeros(slice_partition.num_slices, dtype=np.float64)
+    for slice_index, (point_indices, area_integral_weights) in enumerate(
+        zip(
+            slice_partition.slice_force_point_indices,
+            slice_partition.slice_force_point_area_integral_weights,
+            strict=True,
+        )
+    ):
+        _, filtered_weights = _filter_operator_points(
+            point_indices,
+            area_integral_weights,
+            valid_global_points,
+        )
+        measured_areas[slice_index] = (
+            float(np.sum(filtered_weights)) * slice_partition.spans[slice_index]
+        )
+
+    target_areas = calculate_roi_slice_areas(
+        target_roi,
+        axis=slice_partition.axis,
+        boundaries=slice_partition.boundaries,
+    )
+    missing_measured_support = (
+        (target_areas > np.finfo(np.float64).eps)
+        & (measured_areas <= np.finfo(np.float64).eps)
+    )
+    if np.any(missing_measured_support):
+        indices = np.flatnonzero(missing_measured_support).tolist()
+        raise ValueError(
+            "The physical FRE ROI contains slices with no measured stress "
+            f"support: {indices}. The correction cannot extrapolate an empty slice."
+        )
+    scale_factors = np.divide(
+        target_areas,
+        measured_areas,
+        out=np.ones_like(target_areas),
+        where=measured_areas > np.finfo(np.float64).eps,
+    )
+    if not np.all(np.isfinite(scale_factors)) or np.any(scale_factors <= 0.0):
+        raise ValueError("Physical FRE ROI produced non-positive or non-finite area scaling.")
+    target_widths = np.divide(
+        target_areas,
+        slice_partition.spans,
+        out=np.zeros_like(target_areas),
+        where=slice_partition.spans > 0.0,
+    )
+    return ForceIntegrationDomainCorrection(
+        scale_factors,
+        measured_areas,
+        target_areas,
+        target_widths,
+        True,
+    )
+
+
 @dataclass(slots=True, init=False)
 class SliceWiseForceReconstructionMetric(IMetric):
     """Area-based slice force reconstruction metric.
@@ -325,6 +423,7 @@ class SliceWiseForceReconstructionMetric(IMetric):
         if local_slice_data.local_point_indices.size > 0 and local_slice_data.point_area_integral_weights.size > 0:
             reconstructed_force = (
                 float(experiment_data.specimen_geometry.thickness)
+                * local_slice_data.force_integration_scale
                 * np.sum(
                     stress_component[:, local_slice_data.local_point_indices]
                     * local_slice_data.point_area_integral_weights[np.newaxis, :],
@@ -363,6 +462,11 @@ class SliceWiseForceReconstructionMetric(IMetric):
         finite_strain_points = np.all(np.isfinite(experiment_data.strain), axis=(0, 1)).ravel()
         finite_stress_points = np.all(np.isfinite(stress_component), axis=0)
         valid_global_points = finite_strain_points & finite_stress_points
+        domain_correction = resolve_force_integration_domain_correction(
+            slice_partition=self.slice_partition,
+            specimen_geometry=experiment_data.specimen_geometry,
+            valid_global_points=valid_global_points,
+        )
 
         for slice_index, (point_indices, point_area_integral_weights) in enumerate(
             zip(
@@ -379,20 +483,43 @@ class SliceWiseForceReconstructionMetric(IMetric):
             if point_indices.size == 0 or point_area_integral_weights.size == 0:
                 continue
             reconstructed_force[:, slice_index] = (
-                thickness * np.sum(stress_component[:, point_indices] * point_area_integral_weights[np.newaxis, :], axis=1)
+                thickness
+                * domain_correction.scale_factors[slice_index]
+                * np.sum(stress_component[:, point_indices] * point_area_integral_weights[np.newaxis, :], axis=1)
             )
 
         # Weight temporal FRE contributions by applied-force
         # squared, reducing sensitivity to low-load frames.
         temporal_weights = compute_force_temporal_weights(applied_longitudinal_force)
-        spatial_weights = _normalise_weights(self.slice_partition.widths)
+        spatial_weights = _normalise_weights(domain_correction.target_widths)
 
-        return build_force_reconstruction_error_result(
+        result = build_force_reconstruction_error_result(
             reconstructed_force=reconstructed_force,
             applied_longitudinal_force=applied_longitudinal_force,
             temporal_weights=temporal_weights,
             spatial_weights=spatial_weights,
         )
+        assert result.metric_result.additional_fields is not None
+        result.metric_result.additional_fields.update({
+            "force_integration_domain_correction_enabled": domain_correction.enabled,
+            "force_integration_scale_factors": domain_correction.scale_factors,
+            "force_integration_measured_areas": domain_correction.measured_areas,
+            "force_integration_target_areas": domain_correction.target_areas,
+            "force_integration_measured_widths": np.divide(
+                domain_correction.measured_areas,
+                self.slice_partition.spans,
+                out=np.zeros_like(domain_correction.measured_areas),
+                where=self.slice_partition.spans > 0.0,
+            ),
+            "force_integration_target_widths": domain_correction.target_widths,
+            "force_integration_represented_fractions": np.divide(
+                domain_correction.measured_areas,
+                domain_correction.target_areas,
+                out=np.ones_like(domain_correction.measured_areas),
+                where=domain_correction.target_areas > np.finfo(np.float64).eps,
+            ),
+        })
+        return result
 
     def normalised_residual_stress_adjoint(
         self,
@@ -422,6 +549,11 @@ class SliceWiseForceReconstructionMetric(IMetric):
         result = np.zeros((timesteps, 3, rows, columns), dtype=np.float64)
         result_flat = result[:, component].reshape(timesteps, -1)
         finite_points = np.all(np.isfinite(experiment_data.strain), axis=(0, 1)).ravel()
+        domain_correction = resolve_force_integration_domain_correction(
+            slice_partition=self.slice_partition,
+            specimen_geometry=experiment_data.specimen_geometry,
+            valid_global_points=finite_points,
+        )
         thickness = float(experiment_data.specimen_geometry.thickness)
         for slice_index, (point_indices, area_weights) in enumerate(
             zip(
@@ -437,6 +569,7 @@ class SliceWiseForceReconstructionMetric(IMetric):
             )
             result_flat[:, point_indices] += (
                 thickness
+                * domain_correction.scale_factors[slice_index]
                 * force_cotangent[:, slice_index, np.newaxis]
                 * area_weights[np.newaxis]
             )

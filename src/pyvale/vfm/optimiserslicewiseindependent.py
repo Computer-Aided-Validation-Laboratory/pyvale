@@ -23,6 +23,7 @@ from pyvale.vfm.metricsliceforce import (
     _filter_operator_points,
     _normalise_weights,
     compute_force_temporal_weights,
+    resolve_force_integration_domain_correction,
 )
 from pyvale.vfm.normalisation import (
     denormalise_degrees_of_freedom,
@@ -372,7 +373,13 @@ def _build_slice_solve_data(
         applied_longitudinal_force
     )
     # spatial weights are normalised slice widths
-    spatial_weights = _normalise_weights(slice_metric.slice_partition.widths)
+    finite_strain_points = np.all(np.isfinite(experiment_data.strain), axis=(0, 1)).ravel()
+    domain_correction = resolve_force_integration_domain_correction(
+        slice_partition=slice_metric.slice_partition,
+        specimen_geometry=experiment_data.specimen_geometry,
+        valid_global_points=finite_strain_points,
+    )
+    spatial_weights = _normalise_weights(domain_correction.target_widths)
 
     point_indices = slice_metric.slice_partition.slice_force_point_indices[slice_index]
     # Get the area integral weights for the points in this slice, which are used to weight the residuals in the objective function
@@ -382,7 +389,6 @@ def _build_slice_solve_data(
     )
 
     # Filter out any points that have non-finite strain histories, as these cannot be used in the optimisation
-    finite_strain_points = np.all(np.isfinite(experiment_data.strain), axis=(0, 1)).ravel()
     point_indices, point_area_integral_weights = _filter_operator_points(
         point_indices,
         point_area_integral_weights,
@@ -459,6 +465,7 @@ def _build_slice_solve_data(
         global_point_indices=global_point_indices,
         local_point_indices=local_point_indices,
         point_area_integral_weights=point_area_integral_weights,
+        force_integration_scale=float(domain_correction.scale_factors[slice_index]),
         applied_longitudinal_force=applied_longitudinal_force,
         temporal_weights=temporal_weights,
         spatial_weights=float(spatial_weights[slice_index]),

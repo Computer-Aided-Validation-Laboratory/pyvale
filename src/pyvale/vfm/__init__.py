@@ -56,6 +56,7 @@ from .spatialparamslicewise import (
 from .slicewise_utils import (
     SliceAreaPartition,
     SliceConfig,
+    calculate_roi_slice_areas,
     resolve_cell_aligned_slice_boundaries,
 )
 
@@ -157,6 +158,18 @@ from .objectivefuncsensitivitygated import (
     SensitivityGatedObjectiveConfig,
     SensitivityGatedObjectiveResult,
 )
+from .objectivefuncguardedegiprimary import (
+    GuardReference,
+    GuardedEgiPrimaryConfig,
+    GuardedEgiPrimaryObjective,
+    GuardedEgiPrimaryResult,
+    equal_mean_gated_egi_primary,
+)
+from .measurementnoise import (
+    MeasurementNoiseFloorConfig,
+    MeasurementNoiseMode,
+    measurement_noise_realisation,
+)
 from .solvepreparation import (
     SolveDegreeOfFreedom,
     SolvePreparationContext,
@@ -230,6 +243,7 @@ __all__ = [
     "SupportSlice",
     "SliceConfig",
     "SliceAreaPartition",
+    "calculate_roi_slice_areas",
     "resolve_cell_aligned_slice_boundaries",
     "IOptimiser",
     "OptimiserLeastSquares",
@@ -308,6 +322,14 @@ __all__ = [
     "SensitivityGatedEgiObjective",
     "SensitivityGatedObjectiveConfig",
     "SensitivityGatedObjectiveResult",
+    "GuardReference",
+    "GuardedEgiPrimaryConfig",
+    "GuardedEgiPrimaryObjective",
+    "GuardedEgiPrimaryResult",
+    "equal_mean_gated_egi_primary",
+    "MeasurementNoiseFloorConfig",
+    "MeasurementNoiseMode",
+    "measurement_noise_realisation",
     "SolveDegreeOfFreedom",
     "SolvePreparationContext",
     "ResidualBlockSpec",
