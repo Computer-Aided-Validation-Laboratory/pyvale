@@ -57,7 +57,7 @@ def sens_array_3d_noerrs(sim_data: io.SimData,
     descriptor = sens.DescriptorFactory.strain()
     field_name = "strain"
     norm_comps = ("strain_xx","strain_yy","strain_zz")
-    dev_comps = ("strain_xy","strain_yz","strain_xz")
+    dev_comps = ("strain_xy", "strain_xz", "strain_yz")
     field = sens.FieldTensor(sim_data,
                             norm_comp_keys=norm_comps,
                             dev_comp_keys=dev_comps,

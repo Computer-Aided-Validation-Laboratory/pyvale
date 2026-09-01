@@ -36,7 +36,7 @@ sim_keys: set[str] = {"sim_nominal","sim_perturbed"}
 
 disp_keys = ("disp_x","disp_y","disp_z")
 strain_norm_keys = ("strain_xx","strain_yy","strain_zz")
-strain_dev_keys = ("strain_xy","strain_yz","strain_xz")
+strain_dev_keys = ("strain_xy", "strain_xz", "strain_yz")
 
 sim_data_dict: dict[str,io.SimData] = {}
 for ss,kk in zip(sim_paths,sim_keys):
