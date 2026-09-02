@@ -25,6 +25,7 @@ from pyvale.vfm.spatialparam import (
 from pyvale.vfm.spatialparamhomogeneous import (
     SpatialParameterisationHomogeneous,
 )
+from pyvale.vfm.dof import DegreeOfFreedom
 
 EXPERIMENT_DATA_FILE = (
     Path(__file__).parent
@@ -46,6 +47,45 @@ KNOWN_STRESS_FILE = (
 )
 
 PLOT_METRIC_IDENTIFIED_DIFF = False
+
+
+def test_dof_sensitivity_projects_additive_parameter_map_to_bounds() -> None:
+    captured = []
+
+    class RecordingLaw:
+        def calculate_stress(self, strain, parameter_maps):
+            captured.append(np.asarray(parameter_maps["hardening_modulus"]))
+            return np.zeros_like(strain)
+
+    metric = MetricSBVF(
+        perturbation_type="dof",
+        perturbation_factor=0.05,
+        parameter_map_bounds={"hardening_modulus": (500.0, 10_000.0)},
+    )
+    strain = np.zeros((2, 3, 2, 2))
+    parameterisations = {
+        "hardening_modulus": [
+            SpatialParameterisationHomogeneous(600.0),
+            SpatialParameterisationHomogeneous(
+                DegreeOfFreedom(0.0, -2000.0, 2000.0)
+            ),
+        ]
+    }
+
+    sensitivities = metric.calculate_stress_sensitivities(
+        strain,
+        np.zeros_like(strain),
+        RecordingLaw(),
+        np.asarray((2, 2), dtype=np.uint32),
+        parameterisations,
+        np.ones(2),
+        perturbation_type="dof",
+        perturbation_factor_dof=0.05,
+        parameter_map_bounds=metric.parameter_map_bounds,
+    )
+
+    assert len(sensitivities) == 1
+    np.testing.assert_allclose(captured[0], 500.0)
 
 
 # Compute virtual fields using fe model stress and known parameter

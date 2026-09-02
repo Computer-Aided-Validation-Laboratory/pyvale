@@ -83,6 +83,15 @@ class MetricSBVF(IMetric):
     parameter map. DOF perturbations are additive in normalised DOF space.
     """
 
+    parameter_map_bounds: dict[str, tuple[float, float]] | None = None
+    """Optional physical bounds applied to perturbed additive maps.
+
+    Individual DOFs can remain within their bounds while multiple additive
+    parameterisations sum outside the constitutive parameter's admissible
+    range.  Supplying these bounds keeps SBVF sensitivity perturbations on the
+    same projected map used for candidate stress evaluation.
+    """
+
     _virtual_fields_mesh: VirtualFieldsMesh | None = field(
         default=None,
         init=False
@@ -122,6 +131,9 @@ class MetricSBVF(IMetric):
             )
         if not 0.0 < self.perturbation_factor < 1.0:
             raise ValueError("perturbation_factor must lie in (0, 1).")
+        self.parameter_map_bounds = _validated_parameter_map_bounds(
+            self.parameter_map_bounds
+        )
 
 
     def initialise(
@@ -175,6 +187,7 @@ class MetricSBVF(IMetric):
                 perturbation_type=self.perturbation_type,
                 perturbation_factor_param=self.perturbation_factor,
                 perturbation_factor_dof=self.perturbation_factor,
+                parameter_map_bounds=self.parameter_map_bounds,
             )
 
             # Generate sensitivity-based virtual fields (SBVF) from
@@ -314,6 +327,7 @@ class MetricSBVF(IMetric):
         perturbation_type: str = "constitutive_parameter",   #TODO better as enum? 
         perturbation_factor_param: float = 0.15,   #TODO: single perturbation factor or separate for param and dof? 
         perturbation_factor_dof: float = 0.05,
+        parameter_map_bounds: dict[str, tuple[float, float]] | None = None,
     ) -> list[StressSensitivity]:
         """
         Calculate stress sensitivity objects for the provided spatial
@@ -351,7 +365,8 @@ class MetricSBVF(IMetric):
                 parameter_map_size,
                 spatial_parameterisations,
                 delta_timesteps,
-                perturbation_factor_param
+                perturbation_factor_param,
+                parameter_map_bounds,
             )
         elif perturbation_type == "dof":
             stress_sensitivities = _calculate_stress_sensitivities_dof(
@@ -361,7 +376,8 @@ class MetricSBVF(IMetric):
                 parameter_map_size,
                 spatial_parameterisations,
                 delta_timesteps,
-                perturbation_factor_dof
+                perturbation_factor_dof,
+                parameter_map_bounds,
             )
         else:
             raise ValueError(
@@ -380,6 +396,7 @@ def _calculate_stress_sensitivities_dof(
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         delta_timesteps: npt.NDArray[np.float64],
         perturbation_factor: float,
+        parameter_map_bounds: dict[str, tuple[float, float]] | None = None,
     ) -> list[StressSensitivity]:
     """Calculate stress sensitivity maps for the provided spatial parameterisations by perturbing each DOF.
 
@@ -431,6 +448,10 @@ def _calculate_stress_sensitivities_dof(
             perturbed_phase_spatial_state.evaluate_parameter_maps(
                 parameter_map_size
             )
+        )
+        perturbed_spatial_parameter_maps = _project_parameter_maps(
+            perturbed_spatial_parameter_maps,
+            parameter_map_bounds,
         )
 
         perturbed_stress = constitutive_law.calculate_stress(
@@ -514,6 +535,7 @@ def _calculate_stress_sensitivities_parameter(
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         delta_timesteps: npt.NDArray[np.float64],
         perturbation_factor: float,
+        parameter_map_bounds: dict[str, tuple[float, float]] | None = None,
 ) -> list[StressSensitivity]:
     """Calculate stress sensitivity maps for the provided spatial parameterisations by perturbing each parameter map datapoint.
 
@@ -527,6 +549,7 @@ def _calculate_stress_sensitivities_parameter(
         parameter_name: evaluate_parameterisations_to_map(sps, parameter_map_size)
         for parameter_name, sps in spatial_parameterisations.items()
     }
+    parameter_maps = _project_parameter_maps(parameter_maps, parameter_map_bounds)
     active_parameter_names = tuple(
         parameter_name
         for parameter_name, sps in spatial_parameterisations.items()
@@ -541,6 +564,41 @@ def _calculate_stress_sensitivities_parameter(
         perturbation_factor,
     )
     return list(sensitivities.values())
+
+
+def _validated_parameter_map_bounds(
+    parameter_map_bounds: dict[str, tuple[float, float]] | None,
+) -> dict[str, tuple[float, float]] | None:
+    if parameter_map_bounds is None:
+        return None
+    validated = {
+        name: (float(bounds[0]), float(bounds[1]))
+        for name, bounds in parameter_map_bounds.items()
+    }
+    for name, (lower_bound, upper_bound) in validated.items():
+        if not np.isfinite(lower_bound) or not np.isfinite(upper_bound):
+            raise ValueError(f"Parameter-map bounds for {name!r} must be finite.")
+        if lower_bound >= upper_bound:
+            raise ValueError(
+                f"Parameter-map lower bound for {name!r} must be less than "
+                "its upper bound."
+            )
+    return validated
+
+
+def _project_parameter_maps(
+    parameter_maps: dict[str, npt.NDArray[np.float64]],
+    parameter_map_bounds: dict[str, tuple[float, float]] | None,
+) -> dict[str, npt.NDArray[np.float64]]:
+    if parameter_map_bounds is None:
+        return parameter_maps
+    projected = dict(parameter_maps)
+    for name, (lower_bound, upper_bound) in parameter_map_bounds.items():
+        if name in projected:
+            projected[name] = np.clip(
+                projected[name], lower_bound, upper_bound
+            )
+    return projected
 
 
 def calculate_parameter_stress_sensitivities(

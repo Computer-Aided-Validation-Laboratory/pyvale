@@ -356,12 +356,17 @@ def _homogeneous_phase(args):
 
 
 def _sbvf_phase(parameterisations, max_evaluations):
+    parameter_map_bounds = {
+        "yield_strength": phase_2_runner.YIELD_BOUNDS_MPA,
+        "hardening_modulus": phase_2_runner.HARDENING_BOUNDS_MPA,
+    }
     return IdentificationPhase(
         spatial_parameterisations=parameterisations,
         metrics=[MetricSBVF(
             mesh_size=phase_2_runner.SBVF_MESH_SIZE,
             vf_scaling_fraction=phase_2_runner.SBVF_SCALING_FRACTION,
             perturbation_type="dof",
+            parameter_map_bounds=parameter_map_bounds,
         )],
         objective_function=VectorFirstResultPassthrough(),
         optimiser=OptimiserLeastSquares(
@@ -372,10 +377,7 @@ def _sbvf_phase(parameterisations, max_evaluations):
             # the same projection to SBVF trial maps keeps the objective and
             # accepted state consistent.  Phase 2 uses its unchanged pattern
             # search path and is deliberately unaffected.
-            parameter_map_bounds={
-                "yield_strength": phase_2_runner.YIELD_BOUNDS_MPA,
-                "hardening_modulus": phase_2_runner.HARDENING_BOUNDS_MPA,
-            },
+            parameter_map_bounds=parameter_map_bounds,
         ),
     )
 
