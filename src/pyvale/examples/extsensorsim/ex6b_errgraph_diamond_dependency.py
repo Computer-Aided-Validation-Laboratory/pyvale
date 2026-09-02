@@ -149,7 +149,7 @@ measurements = sens_array.sim_measurements()
 print(80 * "=")
 print("Diamond Error Graph Execution Analysis:")
 print(80 * "=")
-print(f"Topological Execution Order: {graph.execution_order}")
+print(f"Topological Execution Order: {graph.get_execution_order()}")
 
 # Retrieve intermediate signal states from the DAG
 node_outputs = graph.get_node_outputs()

@@ -11,7 +11,7 @@ from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldscalar import FieldScalar
 from pyvale.sensorsim.fieldvector import FieldVector
 from pyvale.sensorsim.fieldtensor import FieldTensor
-from pyvale.sensorsim.fieldtransforms import (
+from pyvale.sensorsim.fieldreductions import (
     FieldTransformed,
     FieldTransformDirectional,
     FieldTransformFlux,

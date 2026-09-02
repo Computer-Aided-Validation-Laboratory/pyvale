@@ -68,9 +68,15 @@ def plot_field_image(image: np.ndarray,
         fig.colorbar(cset)
         if title_str is not None:
             ax.set_title(title_str,fontsize=plot_opts.font_head_size)
-        ax.set_xlabel(r"x ($px$)",
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
-        ax.set_ylabel(r"y ($px$)",
-                    fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)
+        ax.set_xlabel(
+            r"x ($px$)",
+            fontsize=plot_opts.font_ax_size,
+            fontname=plot_opts.font_name,
+        )
+        ax.set_ylabel(
+            r"y ($px$)",
+            fontsize=plot_opts.font_ax_size,
+            fontname=plot_opts.font_name,
+        )
 
         return (fig,ax)

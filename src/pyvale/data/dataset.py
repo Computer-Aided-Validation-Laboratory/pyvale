@@ -99,7 +99,7 @@ def sim_case_input_file_path(case_num: int) -> Path:
 
 
 def sim_case_gmsh_file_path(case_num: int) -> Path | None:
-    """Gets the path to Gmsh input file (\*.geo) for a particular simulation
+    r"""Gets the path to Gmsh input file (\*.geo) for a particular simulation
     case. Note that not all simulation cases use Gmsh for geometry and mesh
     generation. If the specified simulation case does not have an associated
     Gmsh \*.geo file. In this case 'None' is returned

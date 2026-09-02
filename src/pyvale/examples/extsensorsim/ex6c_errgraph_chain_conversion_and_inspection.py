@@ -100,11 +100,11 @@ graph = sens.err_chain_to_graph(
 
 print(80 * "=")
 print("Auto-Converted Error Graph Introspection:")
-print(f"  Total nodes:          {len(graph.nodes)}")
-print(f"  Execution order:      {graph.execution_order}")
+print(f"  Total nodes:          {len(graph.get_nodes())}")
+print(f"  Execution order:      {graph.get_execution_order()}")
 print(80 * "=")
 
-for node_name, node in graph.nodes.items():
+for node_name, node in graph.get_nodes().items():
     sim_name = type(node.simulator).__name__ if node.simulator else "None"
     print(f"Node '{node_name}': inputs={node.inputs}, sim={sim_name}")
 print(80 * "=")

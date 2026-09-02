@@ -313,9 +313,29 @@ class SensorsRay(ISensorArray):
 
     def set_error_chain(
         self,
-        err_chain: tuple[IErrSimulator, ...],
+        err_chain: (
+            IErrSimulator
+            | list[IErrSimulator]
+            | tuple[IErrSimulator, ...]
+            | ErrGraph
+            | None
+        ),
         err_opts: ErrIntOpts | None = None,
     ) -> None:
+        """Sets the error chain or graph for the ray sensor array."""
+        if err_chain is None:
+            self._error_integrator = None
+            return None
+
+        if isinstance(err_chain, ErrGraph):
+            self._error_integrator = err_chain
+            return None
+
+        if not isinstance(err_chain, (list, tuple)):
+            err_chain = (err_chain,)
+        else:
+            err_chain = tuple(err_chain)
+
         self._error_integrator = ErrIntegrator(
             err_chain=err_chain,
             sensor_data_initial=self.get_sensor_data(),
@@ -323,7 +343,21 @@ class SensorsRay(ISensorArray):
             err_int_opts=err_opts,
         )
 
-    def set_error_graph(self, err_graph: ErrGraph) -> None:
+    def set_error_model(
+        self,
+        err_model: (
+            IErrSimulator
+            | list[IErrSimulator]
+            | tuple[IErrSimulator, ...]
+            | ErrGraph
+            | None
+        ),
+        err_opts: ErrIntOpts | None = None,
+    ) -> None:
+        """Convenience method to set an error model, chain, or graph."""
+        self.set_error_chain(err_model, err_opts=err_opts)
+
+    def set_error_graph(self, err_graph: ErrGraph | None) -> None:
         self._error_integrator = err_graph
 
     def get_errors_systematic(self) -> np.ndarray | None:

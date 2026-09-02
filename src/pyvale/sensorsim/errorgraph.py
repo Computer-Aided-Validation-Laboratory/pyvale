@@ -339,15 +339,9 @@ class ErrGraph:
 
         raise ValueError(f"Unsupported EErrOp: {node.op}")
 
-    @property
-    def nodes(self) -> dict[str, ErrNode]:
+    def get_nodes(self) -> dict[str, ErrNode]:
         """Dictionary of node identifiers to ErrNode instances."""
         return self._nodes
-
-    @property
-    def execution_order(self) -> tuple[str, ...]:
-        """Topological execution order of node names."""
-        return self._execution_order
 
     def get_execution_order(self) -> tuple[str, ...]:
         """Topological execution order of node names."""

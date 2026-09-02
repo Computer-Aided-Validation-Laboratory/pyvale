@@ -7,7 +7,7 @@
 import pytest
 import numpy as np
 from scipy.spatial.transform import Rotation
-from pyvale.sensorsim.fieldtransforms import (
+from pyvale.sensorsim.fieldreductions import (
     FieldTransformCustom,
     FieldTransformVonMises,
     FieldTransformPrincipal,

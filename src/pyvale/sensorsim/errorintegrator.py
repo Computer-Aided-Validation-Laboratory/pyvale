@@ -205,13 +205,17 @@ class ErrIntegrator:
         for ii,ee in enumerate(self._err_chain):
 
             if ee.get_error_dep() == EErrDep.DEPENDENT:
-                (error_array,sens_data) = ee.sim_errs(truth+self._errs_total,
-                                                       self._sens_data_accumulated)
+                (error_array, sens_data) = ee.sim_errs(
+                    truth + self._errs_total,
+                    self._sens_data_accumulated,
+                )
                 # Only accumulate sensor data perturbations for dependent errs
                 self._sens_data_accumulated = copy.deepcopy(sens_data)
             else:
-                (error_array,sens_data) = ee.sim_errs(truth,
-                                                       self._sens_data_initial)
+                (error_array, sens_data) = ee.sim_errs(
+                    truth,
+                    self._sens_data_initial,
+                )
 
             self._sens_data_by_chain.append(sens_data)
 

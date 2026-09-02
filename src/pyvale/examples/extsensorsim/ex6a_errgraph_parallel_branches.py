@@ -141,8 +141,8 @@ measurements = sens_array.sim_measurements()
 print(80 * "=")
 print("Parallel Error Graph Simulation Completed:")
 print(f"  Measurement array shape: {measurements.shape}")
-print(f"  Graph node count: {len(graph.nodes)}")
-print(f"  Execution order: {graph.execution_order}")
+print(f"  Graph node count: {len(graph.get_nodes())}")
+print(f"  Execution order: {graph.get_execution_order()}")
 print(80 * "=")
 
 # Print diagnostic breakdown for sensor 0

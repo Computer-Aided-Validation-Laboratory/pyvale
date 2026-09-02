@@ -37,8 +37,8 @@ class SensorDescriptor:
     """
 
     symbol: str = r"m"
-    """Symbol for describing the field the sensor measures. For example 'T' for
-    temperature of r'\epsilon' for strain. Latex symbols can be used with a raw
+    r"""Symbol for describing the field the sensor measures. For example 'T' for
+    temperature or r'\epsilon' for strain. Latex symbols can be used with a raw
     string.
     """
 

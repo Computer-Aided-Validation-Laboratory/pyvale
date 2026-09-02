@@ -172,7 +172,10 @@ def transform_tensor_2d(trans_mat: np.ndarray, tensor: np.ndarray
 
     tensor_trans[xy, :] = (
         trans_mat[0, 0] * trans_mat[1, 0] * tensor[xx, :]
-        + (trans_mat[0, 0] * trans_mat[1, 1] + trans_mat[0, 1] * trans_mat[1, 0])
+        + (
+            trans_mat[0, 0] * trans_mat[1, 1]
+            + trans_mat[0, 1] * trans_mat[1, 0]
+        )
         * tensor[xy, :]
         + trans_mat[0, 1] * trans_mat[1, 1] * tensor[yy, :]
     )
@@ -267,7 +270,10 @@ def transform_tensor_2d_batch(trans_mat: np.ndarray, tensor: np.ndarray
 
     tensor_trans[:, xy, :] = (
         trans_mat[0, 0] * trans_mat[1, 0] * tensor[:, xx, :]
-        + (trans_mat[0, 0] * trans_mat[1, 1] + trans_mat[0, 1] * trans_mat[1, 0])
+        + (
+            trans_mat[0, 0] * trans_mat[1, 1]
+            + trans_mat[0, 1] * trans_mat[1, 0]
+        )
         * tensor[:, xy, :]
         + trans_mat[0, 1] * trans_mat[1, 1] * tensor[:, yy, :]
     )

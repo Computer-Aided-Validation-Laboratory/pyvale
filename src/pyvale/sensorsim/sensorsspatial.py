@@ -202,9 +202,26 @@ class SensorsSpatial(ISensorArray):
 
     def set_error_chain(
         self,
-        err_chain: list[IErrSimulator] | ErrGraph | None,
+        err_chain: (
+            IErrSimulator
+            | list[IErrSimulator]
+            | tuple[IErrSimulator, ...]
+            | ErrGraph
+            | None
+        ),
         err_int_opts: ErrIntOpts | None = None,
     ) -> None:
+        """Sets the error chain or graph that will be used to calculate sensor
+        measurement errors when `sim_measurements()` is called.
+
+        Parameters
+        ----------
+        err_chain : IErrSimulator | list | tuple | ErrGraph | None
+            Single error model, chain of user defined error models, or ErrGraph.
+            Set to None to remove error calculation.
+        err_int_opts : ErrIntOpts | None, optional
+            Options for virtual sensor error integration, by default None.
+        """
         if err_chain is None:
             self._error_integrator = None
             return None
@@ -212,6 +229,9 @@ class SensorsSpatial(ISensorArray):
         if isinstance(err_chain, ErrGraph):
             self._error_integrator = err_chain
             return None
+
+        if not isinstance(err_chain, (list, tuple)):
+            err_chain = [err_chain]
 
         if err_int_opts is None:
             err_int_opts = ErrIntOpts()
@@ -222,6 +242,20 @@ class SensorsSpatial(ISensorArray):
             self.get_measurement_shape(),
             err_int_opts,
         )
+
+    def set_error_model(
+        self,
+        err_model: (
+            IErrSimulator
+            | list[IErrSimulator]
+            | tuple[IErrSimulator, ...]
+            | ErrGraph
+            | None
+        ),
+        err_int_opts: ErrIntOpts | None = None,
+    ) -> None:
+        """Convenience method to set an error model, chain, or graph."""
+        self.set_error_chain(err_model, err_int_opts=err_int_opts)
 
     def get_errors_systematic(self) -> np.ndarray | None:
         if self._error_integrator is None:

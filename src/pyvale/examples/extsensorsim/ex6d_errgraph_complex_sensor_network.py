@@ -200,8 +200,8 @@ measurements = sens_array.sim_measurements()
 
 print(80 * "=")
 print("Complex Environmental Transducer Network Simulation:")
-print(f"  Total graph nodes: {len(graph.nodes)}")
-print(f"  Execution order:   {graph.execution_order}")
+print(f"  Total graph nodes: {len(graph.get_nodes())}")
+print(f"  Execution order:   {graph.get_execution_order()}")
 print(80 * "=")
 
 sens.print_measurements(

@@ -33,7 +33,7 @@ from .spatialkernels import *
 from .temporalwindows import *
 from .spatialwindows import *
 from .sensorsspatial import *
-from .fieldtransforms import *
+from .fieldreductions import *
 from .sensorsdifferential import *
 from .sensorsray import *
 from .sensorlibrary import *

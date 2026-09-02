@@ -46,10 +46,12 @@ def subplot_calc(total_sensors: range | None,
 
     return coord
 
-def make_labels(legend_loc_trace_opts,
-                axs,
-                leg_font_size_plot_opts,
-                linestemp):
+def make_labels(
+    legend_loc_trace_opts: str | None,
+    axs: Any,
+    leg_font_size_plot_opts: float | None,
+    linestemp: list | None,
+) -> None:
 
     """
     Make a legend for a filled subplot
