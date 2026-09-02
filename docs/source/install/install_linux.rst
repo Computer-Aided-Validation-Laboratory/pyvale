@@ -80,21 +80,21 @@ Installation from Source
 ------------------------
 
 
-When installing from source you'll need a C/C++ compiler. It's likely that
+When installing from source you'll need a C/C++ compiler and `libtiff <https://libtiff.gitlab.io/libtiff/>`_. It's likely that
 you'll already have one. If not, you can install it using the ``apt`` package
 manager with:
 
 .. code-block:: bash
 
    sudo apt update
-   sudo apt install gcc
+   sudo apt install gcc g++ libtiff-dev
 
 For the ROI tool, you'll need the `Interactive ROI dependencies`_.
 Once done, you can clone ``pyvale`` to your local system using:
 
 .. code-block:: bash
 
-   git clone git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
+   git clone https://github.com/Computer-Aided-Validation-Laboratory/pyvale.git
 
 ``cd`` to the root directory of ``pyvale``. Ensure you virtual environment is activated and run the following commmand from the ``pyvale`` directory:
 
