@@ -45,3 +45,12 @@ def test_phase_2_uses_configured_hardening_status(
         "output_dir": tmp_path,
         "hardening_fixed": hardening_fixed,
     }
+
+
+def test_sbvf_reconciliation_projects_additive_maps_to_physical_bounds() -> None:
+    phase = five_phase_runner._sbvf_phase({}, max_evaluations=10)
+
+    assert phase.optimiser.parameter_map_bounds == {
+        "yield_strength": five_phase_runner.phase_2_runner.YIELD_BOUNDS_MPA,
+        "hardening_modulus": five_phase_runner.phase_2_runner.HARDENING_BOUNDS_MPA,
+    }

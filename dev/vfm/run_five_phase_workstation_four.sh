@@ -9,6 +9,11 @@ FRE_CONFIG=${REPO}/dev/vfm/data/wdbn1_fre_finest_stable_v1_20260901.json
 FRE_ROI=${REPO}/dev/vfm/data/wdbn1_nominal_fre_roi_v1_20260901.yaml
 PS50_INPUT=${TEST_DATA}/experimental/wdbn1-ps50/prepared
 SESSION_FILE=${REPO}/dev/vfm/output/workstation_five_phase/latest_session.txt
+CLEAN_INPUT=${TEST_DATA}/synthetic-fe/wdbn1-representative-fe-v1-clean-fe-roi-spatial-x2/pyvale-vfm/prepared
+CLEAN_OUTPUT=${TEST_DATA}/synthetic-fe/wdbn1-representative-fe-v1-clean-fe-roi-spatial-x2/pyvale-vfm/identification
+NOISY_INPUT=${TEST_DATA}/synthetic-fe/wdbn1-representative-fe-v1-noisy-1x-seed20260830-fe-roi-spatial-x2/pyvale-vfm/prepared
+NOISY_OUTPUT=${TEST_DATA}/synthetic-fe/wdbn1-representative-fe-v1-noisy-1x-seed20260830-fe-roi-spatial-x2/pyvale-vfm/identification
+PS50_OUTPUT=${TEST_DATA}/experimental/wdbn1-ps50/identification
 
 common_args=(
   --guarded-egi-objective-config "${OBJECTIVE_CONFIG}"
@@ -84,6 +89,29 @@ launch_window() {
     "bash -lc $(printf '%q' "${body}")"
 }
 
+launch_named_window() {
+  local session=$1 tag=$2 log_dir=$3 window=$4
+  case ${window} in
+    clean_hfixed)
+      launch_window "${session}" "${tag}" "${log_dir}" "${window}" \
+        "${CLEAN_INPUT}" "${CLEAN_OUTPUT}" 21 fixed no
+      ;;
+    noisy_hfixed)
+      launch_window "${session}" "${tag}" "${log_dir}" "${window}" \
+        "${NOISY_INPUT}" "${NOISY_OUTPUT}" 21 fixed no
+      ;;
+    ps50_hfixed)
+      launch_window "${session}" "${tag}" "${log_dir}" "${window}" \
+        "${PS50_INPUT}" "${PS50_OUTPUT}" 43 fixed yes
+      ;;
+    ps50_hfree)
+      launch_window "${session}" "${tag}" "${log_dir}" "${window}" \
+        "${PS50_INPUT}" "${PS50_OUTPUT}" 43 free yes
+      ;;
+    *) echo "STOP: unknown run ${window}" >&2; return 2 ;;
+  esac
+}
+
 launch() {
   preflight
   local tag session log_dir
@@ -92,23 +120,35 @@ launch() {
   log_dir="${REPO}/dev/vfm/output/workstation_five_phase/${tag}"
   mkdir -p "${log_dir}" "$(dirname "${SESSION_FILE}")"
   tmux new-session -d -s "${session}" -n control "bash"
-  launch_window "${session}" "${tag}" "${log_dir}" clean_hfixed \
-    "${TEST_DATA}/synthetic-fe/wdbn1-representative-fe-v1-clean-fe-roi-spatial-x2/pyvale-vfm/prepared" \
-    "${TEST_DATA}/synthetic-fe/wdbn1-representative-fe-v1-clean-fe-roi-spatial-x2/pyvale-vfm/identification" \
-    21 fixed no
-  launch_window "${session}" "${tag}" "${log_dir}" noisy_hfixed \
-    "${TEST_DATA}/synthetic-fe/wdbn1-representative-fe-v1-noisy-1x-seed20260830-fe-roi-spatial-x2/pyvale-vfm/prepared" \
-    "${TEST_DATA}/synthetic-fe/wdbn1-representative-fe-v1-noisy-1x-seed20260830-fe-roi-spatial-x2/pyvale-vfm/identification" \
-    21 fixed no
-  launch_window "${session}" "${tag}" "${log_dir}" ps50_hfixed \
-    "${PS50_INPUT}" "${TEST_DATA}/experimental/wdbn1-ps50/identification" \
-    43 fixed yes
-  launch_window "${session}" "${tag}" "${log_dir}" ps50_hfree \
-    "${PS50_INPUT}" "${TEST_DATA}/experimental/wdbn1-ps50/identification" \
-    43 free yes
+  for window in clean_hfixed noisy_hfixed ps50_hfixed ps50_hfree; do
+    launch_named_window "${session}" "${tag}" "${log_dir}" "${window}"
+  done
   printf '%s\n' "${session}" > "${SESSION_FILE}"
   tmux select-window -t "${session}:clean_hfixed"
   echo "Started ${session}"
+  echo "Logs: ${log_dir}"
+  echo "Attach: bash $0 attach"
+}
+
+resume() {
+  preflight
+  local tag=${1:?"Usage: $0 resume RUN_TAG [RUN ...]"}
+  shift
+  if (( $# == 0 )); then
+    set -- clean_hfixed noisy_hfixed ps50_hfixed ps50_hfree
+  fi
+  local resume_tag session log_dir window
+  resume_tag=$(date +%Y%m%d_%H%M%S)
+  session="fivephase4_resume_${resume_tag}"
+  log_dir="${REPO}/dev/vfm/output/workstation_five_phase/${tag}/resume_${resume_tag}"
+  mkdir -p "${log_dir}" "$(dirname "${SESSION_FILE}")"
+  tmux new-session -d -s "${session}" -n control "bash"
+  for window in "$@"; do
+    launch_named_window "${session}" "${tag}" "${log_dir}" "${window}"
+  done
+  printf '%s\n' "${session}" > "${SESSION_FILE}"
+  tmux select-window -t "${session}:$1"
+  echo "Resuming $* from ${tag} in ${session}"
   echo "Logs: ${log_dir}"
   echo "Attach: bash $0 attach"
 }
@@ -119,13 +159,14 @@ latest_session() {
 }
 
 status() {
-  local session window
-  session=$(latest_session)
+  local session=${1:-} window
+  [[ -n ${session} ]] || session=$(latest_session)
   date -Is
   uptime
   free -h | sed -n '1,2p'
   tmux list-windows -t "${session}" -F '#{window_name}: dead=#{pane_dead} pid=#{pane_pid}'
   for window in clean_hfixed noisy_hfixed ps50_hfixed ps50_hfree; do
+    tmux list-windows -t "${session}" -F '#{window_name}' | grep -qx "${window}" || continue
     echo
     echo "===== ${window} ====="
     tmux capture-pane -p -t "${session}:${window}" -S -6 | tail -6
@@ -135,7 +176,8 @@ status() {
 case ${1:-help} in
   preflight) preflight ;;
   launch) launch ;;
-  status) status ;;
-  attach) tmux attach -t "$(latest_session)" ;;
-  *) echo "Usage: $0 {preflight|launch|status|attach}" >&2; exit 2 ;;
+  resume) resume "${@:2}" ;;
+  status) status "${2:-}" ;;
+  attach) tmux attach -t "${2:-$(latest_session)}" ;;
+  *) echo "Usage: $0 {preflight|launch|resume RUN_TAG [RUN ...]|status|attach}" >&2; exit 2 ;;
 esac

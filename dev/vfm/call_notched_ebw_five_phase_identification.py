@@ -364,7 +364,19 @@ def _sbvf_phase(parameterisations, max_evaluations):
             perturbation_type="dof",
         )],
         objective_function=VectorFirstResultPassthrough(),
-        optimiser=OptimiserLeastSquares(max_evaluations=max_evaluations),
+        optimiser=OptimiserLeastSquares(
+            max_evaluations=max_evaluations,
+            # Additive homogeneous+basis components are independently bounded
+            # but can sum outside the physical map bounds during a trial.  The
+            # accepted-state handoff already applies this projection; applying
+            # the same projection to SBVF trial maps keeps the objective and
+            # accepted state consistent.  Phase 2 uses its unchanged pattern
+            # search path and is deliberately unaffected.
+            parameter_map_bounds={
+                "yield_strength": phase_2_runner.YIELD_BOUNDS_MPA,
+                "hardening_modulus": phase_2_runner.HARDENING_BOUNDS_MPA,
+            },
+        ),
     )
 
 

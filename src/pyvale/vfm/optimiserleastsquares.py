@@ -35,10 +35,34 @@ class OptimiserLeastSquares(IOptimiser):
     every degree of freedom within its configured physical bounds.
     """
 
-    def __init__(self, *, max_evaluations: int | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        max_evaluations: int | None = None,
+        parameter_map_bounds: dict[str, tuple[float, float]] | None = None,
+    ) -> None:
         if max_evaluations is not None and max_evaluations < 1:
             raise ValueError("max_evaluations must be positive or None.")
         self.max_evaluations = max_evaluations
+        self.parameter_map_bounds = (
+            None
+            if parameter_map_bounds is None
+            else {
+                name: (float(bounds[0]), float(bounds[1]))
+                for name, bounds in parameter_map_bounds.items()
+            }
+        )
+        if self.parameter_map_bounds is not None:
+            for name, (lower_bound, upper_bound) in self.parameter_map_bounds.items():
+                if not np.isfinite(lower_bound) or not np.isfinite(upper_bound):
+                    raise ValueError(
+                        f"Parameter-map bounds for {name!r} must be finite."
+                    )
+                if lower_bound >= upper_bound:
+                    raise ValueError(
+                        f"Parameter-map lower bound for {name!r} must be less "
+                        "than its upper bound."
+                    )
 
     def get_required_objective_function_type(self) -> type:
         return IVectorObjectiveFunction
@@ -70,6 +94,7 @@ class OptimiserLeastSquares(IOptimiser):
                         options={
                             "method": "trf",
                             "max_evaluations": self.max_evaluations,
+                            "parameter_map_bounds": self.parameter_map_bounds,
                         },
                     ),
                     runtime_seconds=0.0,
@@ -96,6 +121,7 @@ class OptimiserLeastSquares(IOptimiser):
                 metrics,
                 objective_function,
                 experiment_data,
+                self.parameter_map_bounds,
             )
         )
         runtime_seconds = time.perf_counter() - started_at
@@ -114,6 +140,7 @@ class OptimiserLeastSquares(IOptimiser):
                     options={
                         "method": "trf",
                         "max_evaluations": self.max_evaluations,
+                        "parameter_map_bounds": self.parameter_map_bounds,
                     },
                 ),
                 runtime_seconds=runtime_seconds,

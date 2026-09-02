@@ -89,6 +89,7 @@ def evaluate_candidate(
     metrics: list[IMetric],
     objective_function: IObjectiveFunction,
     experiment_data: ExperimentData,
+    parameter_map_bounds: dict[str, tuple[float, float]] | None = None,
 ) -> float | npt.NDArray[np.float64]:
     """
     Evaluate one candidate point in the design space.
@@ -130,6 +131,16 @@ def evaluate_candidate(
     updated_constitutive_parameter_maps = (
         updated_phase_spatial_state.evaluate_parameter_maps(parameter_map_size)
     )
+    if parameter_map_bounds is not None:
+        for parameter_name, (lower_bound, upper_bound) in (
+            parameter_map_bounds.items()
+        ):
+            if parameter_name in updated_constitutive_parameter_maps:
+                updated_constitutive_parameter_maps[parameter_name] = np.clip(
+                    updated_constitutive_parameter_maps[parameter_name],
+                    lower_bound,
+                    upper_bound,
+                )
 
     stress_started = time.perf_counter()
     updated_stress = constitutive_law.calculate_stress(
