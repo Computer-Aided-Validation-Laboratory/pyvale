@@ -45,7 +45,7 @@ class IncrementalMethod(str, Enum):
     ITER = "ITER"
 
 
-def multiwindow_init(subset_size: int, 
+def _multiwindow_init(subset_size: int, 
                      subset_step: int,
                      image_width: int,
                      image_height: int,
@@ -127,7 +127,7 @@ def multiwindow_init(subset_size: int,
 
 
 
-def check_correlation_criteria(correlation_criteria: str) -> None:
+def _check_correlation_criteria(correlation_criteria: str) -> None:
     """
     Validate that the correlation criteria is one of the allowed values.
 
@@ -155,7 +155,7 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
 
 
 
-def check_shape_function(shape: Shape) -> int:
+def _check_shape_function(shape: Shape) -> int:
     """
     Returns the number of parameters associated with that shape function.
 
@@ -184,7 +184,7 @@ def check_shape_function(shape: Shape) -> int:
 
 
 
-def check_interpolation(interpolation_routine: str) -> None:
+def _check_interpolation(interpolation_routine: str) -> None:
     """
     Validate that the interpolation routine is one of the allowed methods.
 
@@ -213,7 +213,7 @@ def check_interpolation(interpolation_routine: str) -> None:
 
 
 
-def check_method(method: str) -> None:
+def _check_method(method: str) -> None:
     """
     Validate that the scan type  one of the allowed methods.
 
@@ -237,7 +237,7 @@ def check_method(method: str) -> None:
 
 
 
-def check_thresholds(threshold: float, 
+def _check_thresholds(threshold: float, 
                      precision: float) -> None:
     """
     Ensures that ``threshold``, and ``precision``
@@ -264,7 +264,7 @@ def check_thresholds(threshold: float,
         raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
 
-def check_subsets(subset_size: int, subset_step: int) -> None:
+def _check_subsets(subset_size: int, subset_step: int) -> None:
     """
 
     Parameters
@@ -293,7 +293,7 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
         raise ValueError("subset_step must be a positive integer.")
 
 
-def check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, int]] | np.ndarray,
+def _check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, int]] | np.ndarray,
                              roi_mask: np.ndarray,
                              method: str,
                              px_hori: int,
@@ -399,12 +399,12 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, 
         corner_x = x - subset_size//2
         corner_y = y - subset_size//2
 
-        def round_to_step(value: int, step: int) -> int:
+        def _round_to_step(value: int, step: int) -> int:
             return round(value / step) * step
 
         # snap to grid
-        new_x = round_to_step(corner_x, subset_step)
-        new_y = round_to_step(corner_y, subset_step)
+        new_x = _round_to_step(corner_x, subset_step)
+        new_y = _round_to_step(corner_y, subset_step)
 
         # check if all pixel values within the seed location are within the ROI
         # seed coordinates are the central pixel to the subset
@@ -433,7 +433,7 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, 
 
     return updated_seeds
 
-def check_images(reference: np.ndarray | str | Path,
+def _check_images(reference: np.ndarray | str | Path,
                  deformed: np.ndarray | str | Path | list[Path],
                  roi: np.ndarray, debug_level: int) -> tuple[list[str], list[str], int, int, Path | None]:
     """
@@ -618,7 +618,7 @@ def check_images(reference: np.ndarray | str | Path,
 
 
 
-def print_config_summary(image_width: int,
+def _print_config_summary(image_width: int,
                          image_height: int,
                          num_def_img: int,
                          max_iterations: int,

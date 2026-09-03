@@ -200,8 +200,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     roi_c = np.ascontiguousarray(roi_mask)
 
     # do checks on vars in python land
-    basenames0, fullpaths0, w0, h0, temp_dir = dicchecks.check_images(reference[0],deformed[0],roi_mask,debug_level)
-    basenames1, fullpaths1, w1, h1, temp_dir = dicchecks.check_images(reference[1],deformed[1],roi_mask,debug_level)
+    basenames0, fullpaths0, w0, h0, temp_dir = dicchecks._check_images(reference[0],deformed[0],roi_mask,debug_level)
+    basenames1, fullpaths1, w1, h1, temp_dir = dicchecks._check_images(reference[1],deformed[1],roi_mask,debug_level)
 
     assert(w0 == w1)
     assert(h0 == h1)
@@ -219,7 +219,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     incremental_update_condition_enum = dicchecks.IncrementalMethod(incremental_update_condition)
 
     # checks on the config
-    mw_overlap, mw_subset_size, mw_search_area  = dicchecks.multiwindow_init(subset_size,
+    mw_overlap, mw_subset_size, mw_search_area  = dicchecks._multiwindow_init(subset_size,
                                                                  subset_step,
                                                                  w0, h1,
                                                                  max_displacement, 
@@ -230,11 +230,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
 
     # checks on the config
-    dicchecks.check_thresholds(threshold, precision)
+    dicchecks._check_thresholds(threshold, precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
-    dicchecks.check_subsets(subset_size, subset_step)
-    updated_seeds = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, w0, h0, subset_size, subset_step)
-    num_params = dicchecks.check_shape_function(shape_function_enum)
+    dicchecks._check_subsets(subset_size, subset_step)
+    updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method, w0, h0, subset_size, subset_step)
+    num_params = dicchecks._check_shape_function(shape_function_enum)
 
     # Assign values to config struct for c++ land
     config = diccpp.Config()
@@ -322,7 +322,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     if num_threads is not None:
         common_cpp.set_num_threads(num_threads)
 
-    dicchecks.print_config_summary(
+    dicchecks._print_config_summary(
         w0, h0, config.num_def_img, max_iterations, correlation_criteria,
         shape_function, interpolation_routine, fft_filter,
         fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method,
