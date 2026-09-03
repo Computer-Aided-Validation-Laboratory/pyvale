@@ -52,7 +52,7 @@ roi.rect_boundary(left=50,right=50,top=250-subset_radius,bottom=250-subset_radiu
 roi.show_image()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "ex05"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex05"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 

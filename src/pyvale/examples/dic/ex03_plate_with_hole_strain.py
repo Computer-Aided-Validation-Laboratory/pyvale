@@ -26,12 +26,12 @@ import pyvale.strain as strain
 # We'll start by importing the DIC data from the previous example.
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "ex03"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex03"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 # specify where our input data is
-input_data = Path.cwd() / "pyvale-output" / "ex02" / "dic_results_*.csv"
+input_data = Path.cwd() / "pyvale-output" / "dic_ex02" / "dic_results_*.csv"
 
 # %%
 # You can calculate strain directly from the DIC results.

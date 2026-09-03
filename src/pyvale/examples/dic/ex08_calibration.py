@@ -42,7 +42,11 @@ import pyvale.calib as calib
 # %%
 # Calibration has two stages: the dot detection, then a bundle adjustment 
 # to find the camera parameters that minimise
-# the reprojection error across every image pair.
+# the reprojection error across every image pair. you might need to ammend the
+# below path depending on where you have saved the calibration images. The below
+# path assumes you have saved the calibration images in a folder called
+# "calibration-data" in your current working directory.
+
 cam0 = "./calibration-data/cam0_*.bmp"
 cam1 = "./calibration-data/cam1_*.bmp"
 
@@ -73,7 +77,7 @@ dots0, dots1, grid, filenames0, filenames1 = calib.detect_dots(
 # to reperform a stereo calibration.
 
 # make the output directory
-output_dir = Path.cwd() / "pyvale-output" / "ex08"
+output_dir = Path.cwd() / "pyvale-output" / "dic_ex08"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # save the detected points to plain text files

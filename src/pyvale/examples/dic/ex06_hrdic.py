@@ -38,7 +38,7 @@ roi = dic.RegionOfInterest(ref_image="ref.tiff")
 roi.rect_boundary(left=0,right=0,top=0,bottom=0)
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "ex06"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex06"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 

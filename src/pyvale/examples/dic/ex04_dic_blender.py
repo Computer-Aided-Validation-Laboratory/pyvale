@@ -46,7 +46,7 @@ roi = dic.RegionOfInterest(ref_img)
 roi.interactive_selection()
 
 #output_path
-output_path = Path.cwd() / "pyvale-output" / "ex04"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex04"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 

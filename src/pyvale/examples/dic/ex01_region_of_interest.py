@@ -29,7 +29,7 @@ roi = dic.RegionOfInterest(ref_image=ref_img)
 roi.interactive_selection()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "ex01"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex01"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
