@@ -54,12 +54,11 @@ roi.rect_boundary(left=50,right=50,top=50,bottom=50)
 
 
 # %%
-# We can now proceed with the incremental DIC calculation. There are three key
+# We can now proceed with the incremental DIC calculation. There are two key
 # arguments to be aware of when enabling incremental DIC:
 #
-# - ``incremental`` (bool): Enables incremental DIC when set to True. Default is False.
-# - ``incremental_update_condition`` (``str``): Specifies the condition under which the reference 
-#     image is updated. Valid options are:
+# - ``incremental_update`` (``str``): Specifies the condition under which the reference 
+#     image is updated. Use ``"OFF"`` to disable incremental DIC. Valid update options are:
 #
 #     - ``"IMAGE"``: Update the reference image every N images, where N is given by
 #         ``incremental_update_value``.
@@ -68,7 +67,7 @@ roi.rect_boundary(left=50,right=50,top=50,bottom=50)
 #     - ``"ITER"``: Update the reference image when the mean number of iterations exceeds
 #         the value specified by ``incremental_update_value``.
 # - ``incremental_update_value`` (``int`` or ``float``): The threshold or interval used alongside 
-#   ``incremental_update_condition``.
+#   ``incremental_update``.
 #
 # In this example we will proceed with the simple case of updating the reference
 # image after every image correlation procedure. Note: While the displacements
@@ -81,8 +80,7 @@ dic.calculate_2d(reference=ref_img,
                  seed=[500,500],
                  subset_size=subset_size,
                  subset_step=10,
-                 incremental=True,
-                 incremental_update_condition="IMAGE", # can also be "COST" or "ITER"
+                 incremental_update="IMAGE", # use "OFF" to disable; can also be "COST" or "ITER"
                  incremental_update_value=1, # update the reference every 1 image(s)
                  output_basepath=output_path,
                  output_delimiter=",",

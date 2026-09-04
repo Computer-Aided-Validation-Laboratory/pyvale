@@ -16,6 +16,7 @@ import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic._dicchecks as dicchecks
 import pyvale.common_py.util as common_py_util
 from pyvale.calib.calibdataclass import Calib
+from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod
 import pyvale.common_cpp.common_cpp as common_cpp
 
 def calculate_2d(reference: np.ndarray | str | Path,
@@ -24,17 +25,16 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  seed: list[int] | list[np.int32] | list[tuple[int, int]] | np.ndarray,
                  subset_size: int = 21,
                  subset_step: int = 10,
-                 correlation_criteria: Literal["ZNSSD","NSSD","SSD"]="ZNSSD",
-                 shape_function: Literal["AFFINE","QUAD","RIGID"]="AFFINE",
-                 interpolation_routine: Literal["BSPLINE","HERMITE"]="BSPLINE",
+                 correlation_criteria: Literal["ZNSSD", "NSSD", "SSD"] | ECorrCrit = ECorrCrit.ZNSSD,
+                 shape_function: Literal["AFFINE", "QUAD", "RIGID"] | EShape = EShape.AFFINE,
+                 interpolation_routine: Literal["BSPLINE", "HERMITE"] | EInterp = EInterp.BSPLINE,
                  max_iterations: int=40,
                  precision: float=0.001,
                  threshold: float=0.9,
                  num_threads: int | None = None,
                  max_displacement: int=64,
-                 method: Literal["MULTIWINDOW_RG","SINGLEWINDOW_RG","MULTIWINDOW","RASTER"] = "MULTIWINDOW_RG",
-                 incremental: bool=False,
-                 incremental_update_condition: Literal["IMAGE","COST","ITER"]="IMAGE",
+                 method: Literal["MULTIWINDOW_RG", "SINGLEWINDOW_RG", "MULTIWINDOW", "RASTER"] | EScanMethod = EScanMethod.MULTIWINDOW_RG,
+                 incremental_update: Literal["OFF", "IMAGE", "COST", "ITER"] | EIncrementalMethod = EIncrementalMethod.OFF,
                  incremental_update_value: float=1,
                  multiwindow_overlap: float=0.0,
                  multiwindow_subset_sizes: list[int] = [],
@@ -117,21 +117,14 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
         * ``"RASTER"``: No FFT initialization. Performs a raster scan of the image.
 
-    incremental : bool, optional
-        If True, then references images will be updated depending on the
-        condition set by argument ``incremental_update_condition``. This is useful
-        for large deformations where the original reference may no longer be
-        valid for tracking. If False, the original reference image(s) will be
-        used for tracking all deformed images. Displacements will still be given relative to the 
-        first reference image. Note, cost values will be reported for relative to the deformed and 
-        updated reference image. (default: False).
-    incremental_update_condition : str, optional
-        Condition for updating reference images when ``incremental`` is True. Options include:
+    incremental_update : str or EIncrementalMethod, optional
+        Condition for updating reference images. Use ``"OFF"`` to disable
+        incremental reference updates. Options include:
         ``"IMAGE"`` to update every ``N`` images, ``"COST"`` to update when the average ZNCC cost
         value falls below a threshold, ``"ITER"`` to update when the average number
-        of subset optimizer iterations exceeds a threshold. (default: ``"PER_IMAGE"``).
+        of subset optimizer iterations exceeds a threshold. (default: ``"OFF"``).
     incremental_update_value : float, optional
-        Value corresponding to the ``incremental_update_condition``. For example,
+        Value corresponding to ``incremental_update``. For example,
         if the condition is ``"IMAGE"``, this would be the number of images after
         which to update the reference. If the condition is ``"COST"``, this would be
         the cost threshold for updating. If the condition is ``"ITER"``, this would
@@ -203,11 +196,11 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
 
     # string to enum
-    method_enum = dicchecks.ScanMethod(method)
-    shape_function_enum = dicchecks.Shape(shape_function)
-    correlation_criteria_enum = dicchecks.CorrCrit(correlation_criteria)
-    interpolation_routine_enum = dicchecks.Interp(interpolation_routine)
-    incremental_update_condition_enum = dicchecks.IncrementalMethod(incremental_update_condition)
+    method_enum = EScanMethod(method)
+    shape_function_enum = EShape(shape_function)
+    correlation_criteria_enum = ECorrCrit(correlation_criteria)
+    interpolation_routine_enum = EInterp(interpolation_routine)
+    incremental_update_enum = EIncrementalMethod(incremental_update)
 
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks._multiwindow_init(subset_size,
@@ -221,7 +214,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     dicchecks._check_thresholds(threshold, precision)
     common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
     dicchecks._check_subsets(subset_size, subset_step)
-    updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method, w, h, subset_size, subset_step)
+    updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method_enum.value, w, h, subset_size, subset_step)
     num_params = dicchecks._check_shape_function(shape_function_enum)
 
 
@@ -238,8 +231,12 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.interp_routine = getattr(diccpp.InterpRoutine, interpolation_routine_enum.name)
     config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
     config.scan_method = getattr(diccpp.ScanMethod, method_enum.name)
-    config.incremental = incremental
-    config.incremental_update_cond = getattr(diccpp.IncrementalCond, incremental_update_condition_enum.name)
+    config.incremental = incremental_update_enum != EIncrementalMethod.OFF
+    config.incremental_update_cond = (
+        getattr(diccpp.IncrementalCond, incremental_update_enum.name)
+        if config.incremental
+        else diccpp.IncrementalCond.IMAGE
+    )
     config.incremental_update_val = incremental_update_value
 
     config.num_params = num_params
@@ -318,7 +315,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     dicchecks._print_config_summary(
         w, h, config.num_def_img, max_iterations, correlation_criteria,
         shape_function, interpolation_routine, fft_filter,
-        fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method,
+        fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method_enum.value,
         precision, threshold, max_displacement, subset_size, subset_step,
         num_threads, debug_level, updated_seeds, None
     )

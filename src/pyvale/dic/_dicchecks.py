@@ -10,40 +10,13 @@ import os
 import sys
 from PIL import Image
 from pathlib import Path
-from enum import Enum
-
 import pyvale.common_py.util as common_py_util
+from pyvale.dic.dicenum import EShape
 
 """
 This module contains functions for checking arguments passed to the 2D DIC
 Engine.
 """
-
-class ScanMethod(str, Enum):
-    MULTIWINDOW_RG = "MULTIWINDOW_RG"
-    SINGLEWINDOW_RG = "SINGLEWINDOW_RG"
-    MULTIWINDOW = "MULTIWINDOW"
-    RASTER = "RASTER"
-
-class Shape(str, Enum):
-    RIGID = "RIGID"
-    AFFINE = "AFFINE"
-    QUAD = "QUAD"
-
-class CorrCrit(str, Enum):
-    SSD = "SSD"
-    NSSD = "NSSD"
-    ZNSSD = "ZNSSD"
-
-class Interp(str, Enum):
-    BSPLINE = "BSPLINE"
-    HERMITE = "HERMITE"
-
-class IncrementalMethod(str, Enum):
-    IMAGE = "IMAGE"
-    COST = "COST"
-    ITER = "ITER"
-
 
 def _multiwindow_init(subset_size: int, 
                      subset_step: int,
@@ -155,7 +128,7 @@ def _check_correlation_criteria(correlation_criteria: str) -> None:
 
 
 
-def _check_shape_function(shape: Shape) -> int:
+def _check_shape_function(shape: EShape) -> int:
     """
     Returns the number of parameters associated with that shape function.
 
@@ -173,11 +146,11 @@ def _check_shape_function(shape: Shape) -> int:
         - 12 for ``QUAD``
     """
 
-    if (shape==Shape.RIGID):
+    if (shape==EShape.RIGID):
         num_params = 2
-    elif (shape==Shape.AFFINE): 
+    elif (shape==EShape.AFFINE): 
         num_params = 6
-    elif (shape==Shape.QUAD): 
+    elif (shape==EShape.QUAD): 
         num_params = 12
     
     return num_params
