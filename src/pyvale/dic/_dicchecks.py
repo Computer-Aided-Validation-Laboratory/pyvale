@@ -408,7 +408,7 @@ def _check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int,
 
 def _check_images(reference: np.ndarray | str | Path,
                  deformed: np.ndarray | str | Path | list[Path],
-                 roi: np.ndarray, debug_level: int) -> tuple[list[str], list[str], int, int, Path | None]:
+                 roi: np.ndarray, print_level: int) -> tuple[list[str], list[str], int, int, Path | None]:
     """
     Validate reference and deformed images, checks consistency in shape/format.
 
@@ -433,7 +433,7 @@ def _check_images(reference: np.ndarray | str | Path,
     roi : np.ndarray
         A 2D NumPy array defining the region of interest. Must match the reference image shape
         if ``reference`` is an array.
-    debug_level: int
+    print_level: int
         Determines how much information to provide in console output.
 
     Returns
@@ -490,12 +490,12 @@ def _check_images(reference: np.ndarray | str | Path,
         if not reference.is_file():
             raise ValueError(f"Reference image does not exist: {reference}")
 
-        if debug_level > 0:
+        if print_level > 0:
             common_py_util.info("Ref img: " + str(reference))
 
         ref_img = Image.open(reference)
 
-        if debug_level > 0:
+        if print_level > 0:
             common_py_util.info(f"Ref img shape: {ref_img.size}")
 
         basename.append(os.path.basename(reference))
@@ -509,7 +509,7 @@ def _check_images(reference: np.ndarray | str | Path,
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
-        if debug_level > 1:
+        if print_level > 1:
             common_py_util.info(f"Found {len(files)} deformation images in dir: {os.path.dirname(files[0])}")
 
         basename.extend(os.path.basename(f) for f in files)
@@ -545,7 +545,7 @@ def _check_images(reference: np.ndarray | str | Path,
 
         # Drop channel dim if multi-channel
         if ref_arr.ndim == 3:
-            if debug_level > 0:
+            if print_level > 0:
                 print(f"Reference array has {ref_arr.shape[2]} channels. Using channel 0.")
             ref_arr = ref_arr[:, :, 0]
 
@@ -553,7 +553,7 @@ def _check_images(reference: np.ndarray | str | Path,
         temp_dir = Path.cwd() / "tmp_dic"
         temp_dir.mkdir(parents=True, exist_ok=True)
 
-        if debug_level > 0:
+        if print_level > 0:
             print(f"Saving array images to temporary directory: {temp_dir}\n")
 
         # Save reference image
@@ -567,7 +567,7 @@ def _check_images(reference: np.ndarray | str | Path,
         for i in range(def_arr.shape[0]):
             frame = def_arr[i]
             if frame.ndim == 3:
-                if debug_level > 0:
+                if print_level > 0:
                     print(f"Deformed array [{i}] has {frame.shape[2]} channels. Using channel 0.")
                 frame = frame[:, :, 0]
 
@@ -577,7 +577,7 @@ def _check_images(reference: np.ndarray | str | Path,
             basename.append(def_filename)
             fullpath.append(str(def_path))
 
-        if debug_level > 1:
+        if print_level > 1:
             print(f"Saved {def_arr.shape[0]} deformed images to {temp_dir}")
             for name in basename[1:]:
                 print(f"  - {name}")
@@ -609,10 +609,10 @@ def _print_config_summary(image_width: int,
                          subset_size: int,
                          subset_step: int,
                          num_threads: int | None,
-                         debug_level: int,
+                         print_level: int,
                          updated_seeds: list[int] | None = None,
                          epi_distance: int | None = None) -> None:
-    if debug_level <= 0:
+    if print_level <= 0:
         return
 
     common_py_util.print_title("Config")
@@ -639,7 +639,7 @@ def _print_config_summary(image_width: int,
         import pyvale.common_cpp.common_cpp as common_cpp
         num_threads = common_cpp.get_num_threads()
     common_py_util.info_out("Number of OMP threads:", num_threads)
-    common_py_util.info_out("Debug level: ", debug_level)
+    common_py_util.info_out("Print level: ", print_level)
     if updated_seeds is not None and "RG" in method:
         for i in range(0, len(updated_seeds), 2):
             x, y = updated_seeds[i], updated_seeds[i + 1]

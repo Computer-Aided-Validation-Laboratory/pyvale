@@ -26,7 +26,7 @@ def import_2d(data: str | Path | list[Path],
               delimiter: str,
               binary: bool = False,
               layout: Literal["column", "matrix"] = "matrix",
-              debug_level: int=1) -> Results:
+              print_level: int=1) -> Results:
 
     """
     Import DIC result data from human readable text or binary files.
@@ -66,7 +66,7 @@ def import_2d(data: str | Path | list[Path],
         If no matching data files are found.
     """
 
-    if (debug_level>0):
+    if (print_level>0):
         common_py_util.print_title("Importing DIC Results")
 
     # convert to str 
@@ -80,7 +80,7 @@ def import_2d(data: str | Path | list[Path],
         if not files:
             raise FileNotFoundError(f"No results found in: {data}")
     
-    if debug_level>0:
+    if print_level>0:
         common_py_util.info_out(f"Found {len(files)} files containing DIC results:", "")
         for file in files:
             common_py_util.info_out(f"{file}", "")
@@ -88,7 +88,7 @@ def import_2d(data: str | Path | list[Path],
 
     # Read first file to define reference coordinates
     read_data = read_binary if binary else read_text
-    ss_x_ref, ss_y_ref, *fields = read_data(files[0], delimiter=delimiter, debug_level=debug_level)
+    ss_x_ref, ss_y_ref, *fields = read_data(files[0], delimiter=delimiter, print_level=print_level)
     frames = [list(fields)]
 
     for file in files[1:]:
@@ -100,7 +100,7 @@ def import_2d(data: str | Path | list[Path],
     # Stack results (except ss_x and ss_y) into arrays
     arrays = [np.stack([frame[i] for frame in frames]) for i in range(len(fields))]
 
-    if debug_level>0:
+    if print_level>0:
         common_py_util.info_out(f"Imported {len(files)} frames of DIC data.", "")
 
     if layout == "matrix":
@@ -141,7 +141,7 @@ def import_2d(data: str | Path | list[Path],
                        filenames=files)
 
 
-def read_binary(file: str, delimiter: str, debug_level: int=1):
+def read_binary(file: str, delimiter: str, print_level: int=1):
     """
     Read a binary 2D DIC result file and extract DIC fields.
 
@@ -152,7 +152,7 @@ def read_binary(file: str, delimiter: str, debug_level: int=1):
 
     del delimiter
 
-    if debug_level>0:
+    if print_level>0:
         common_py_util.info(f"Reading binary DIC result file: {file}")
 
     with open(file, "rb") as f:
@@ -191,7 +191,7 @@ def read_binary(file: str, delimiter: str, debug_level: int=1):
 
 
 
-def read_text(file: str, delimiter: str, debug_level: int=1):
+def read_text(file: str, delimiter: str, print_level: int=1):
     """
     Read a human-readable text DIC result file and extract DIC fields.
 
@@ -218,7 +218,7 @@ def read_text(file: str, delimiter: str, debug_level: int=1):
     ValueError
         If the text file has fewer than 9 columns.
     """
-    if debug_level>0:
+    if print_level>0:
         common_py_util.info(f"Reading text DIC result file: {file}")
 
     check_delimiter(file, delimiter)

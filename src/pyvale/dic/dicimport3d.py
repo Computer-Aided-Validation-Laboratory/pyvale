@@ -19,7 +19,7 @@ def import_3d(data: str | Path | list[Path],
               delimiter: str,
               binary: bool = False,
               layout: Literal["column", "matrix"] = "matrix",
-              debug_level: int=1) -> Results:
+              print_level: int=1) -> Results:
     """
     Import stereo DIC result data from human readable text or binary files.
 
@@ -45,7 +45,7 @@ def import_3d(data: str | Path | list[Path],
     """
 
 
-    if debug_level > 0:
+    if print_level > 0:
         common_py_util.print_title("Importing Stereo DIC Results")
 
     # convert to str
@@ -59,7 +59,7 @@ def import_3d(data: str | Path | list[Path],
         if not files:
             raise FileNotFoundError(f"No results found in: {data}")
 
-    if debug_level>0:
+    if print_level>0:
         common_py_util.info_out(f"Found {len(files)} files containing DIC results:", "")
         for file in files:
             common_py_util.info_out(f"{file}", "")
@@ -69,7 +69,7 @@ def import_3d(data: str | Path | list[Path],
     ss_x_ref, ss_y_ref, *fields = read_data(
         files[0],
         delimiter=delimiter,
-        debug_level=debug_level
+        print_level=print_level
     )
 
     frames = [list(fields)]
@@ -79,7 +79,7 @@ def import_3d(data: str | Path | list[Path],
         ss_x, ss_y, *f = read_data(
             file,
             delimiter=delimiter,
-            debug_level=debug_level
+            print_level=print_level
         )
 
         if not (
@@ -97,13 +97,13 @@ def import_3d(data: str | Path | list[Path],
         for i in range(len(fields))
     ]
 
-    if debug_level>0:
+    if print_level>0:
         common_py_util.info_out(f"Imported {len(files)} frames of stereo DIC data.", "")
 
     if layout == "matrix":
 
 
-        if debug_level>0:
+        if print_level>0:
             common_py_util.info_out(f"converting DIC data to matrix layout...", "")
 
 
@@ -136,7 +136,7 @@ def import_3d(data: str | Path | list[Path],
         ss_x_out = X
         ss_y_out = Y
 
-        if debug_level>0:
+        if print_level>0:
             common_py_util.info_out(f"Layout conversion finished.", "")
 
     else:
@@ -185,7 +185,7 @@ def import_3d(data: str | Path | list[Path],
 def read_text_3d(
     file: str,
     delimiter: str,
-    debug_level: int = 1
+    print_level: int = 1
 ):
     """
     Read a human-readable stereo DIC result file.
@@ -218,7 +218,7 @@ def read_text_3d(
     stereo_num_iter
     """
 
-    if debug_level>0:
+    if print_level>0:
         common_py_util.info(f"Reading text DIC result file: {file}")
 
     check_delimiter(file, delimiter)
@@ -266,14 +266,14 @@ def read_text_3d(
         data[:, 23].astype(np.int32),  # stereo_num_iter
     )
 
-def read_binary_3d(file: str, delimiter: str, debug_level: int = 1):
+def read_binary_3d(file: str, delimiter: str, print_level: int = 1):
     """
     Read a binary stereo DIC result file and extract all fields.
 
     Must match ResultArrays::write_to_disk_stereo exactly.
     """
 
-    if debug_level > 0:
+    if print_level > 0:
         common_py_util.info(f"Reading binary DIC result file: {file}")
 
     with open(file, "rb") as f:

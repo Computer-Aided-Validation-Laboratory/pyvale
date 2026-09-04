@@ -35,7 +35,7 @@ void multiwindow_init(std::vector<WindowLevel> &level,
                       const MultiwindowConfig &mwconf,
                       const common_util::SaveConfig &saveconf) {
 
-    common_util::Timer timer("to init multiwindow levels:", 2);
+    common_util::Timer timer("to init multiwindow levels:", 3);
 
     for (size_t lvl = 0; lvl < mwconf.overlap.size(); lvl++) {
 
@@ -263,7 +263,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                 u[ss] = prev_u+p[0];
                 v[ss] = prev_v+p[1];
 
-                if (g_debug_level>1){
+                if (g_debug_level>=2){
                     int progress = current_progress.fetch_add(1);
                     if (omp_get_thread_num()==0) pbar.update(progress+1);
                 }
@@ -284,6 +284,8 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                 run_fft_loop(fft);
             }
         }
+
+        raise_on_interrupt();
 
         // remove outliers in fft
         if (fft_filter && (window_level != num_levels-1)){
@@ -330,7 +332,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
             fout.close();
         }
 
-        if (g_debug_level>1){
+        if (g_debug_level>=2){
             pbar.finish();
         }
     }

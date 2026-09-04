@@ -51,7 +51,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  output_delimiter: str=",",
                  output_below_threshold: bool=False,
                  output_shape_params: bool=False,
-                 debug_level: int=1) -> None:
+                 print_level: int=2) -> None:
 
     """
     Perform 2D Digital Image Correlation (DIC) between a reference image and one or more deformed images.
@@ -170,7 +170,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
         will still be present in output (default: ``False``).
     output_shape_params : bool, optional
         If True, all shape parameters will be saved in the output files (default: ``False``).
-    debug_level:
+    print_level:
 
     Returns
     -------
@@ -185,14 +185,14 @@ def calculate_2d(reference: np.ndarray | str | Path,
         If provided file paths do not exist.
     """
 
-    if (debug_level>0):
+    if (print_level>0):
         common_py_util.print_pyvale_banner()
         common_py_util.print_title("Initial Checks")
 
     # make sure ROI is in the correct format
     roi_c = np.ascontiguousarray(roi_mask)
 
-    basenames, fullpaths, w, h, temp_dir = dicchecks._check_images(reference,deformed,roi_mask, debug_level)
+    basenames, fullpaths, w, h, temp_dir = dicchecks._check_images(reference,deformed,roi_mask, print_level)
 
 
     # string to enum
@@ -212,7 +212,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                                                                  multiwindow_search_areas)
 
     dicchecks._check_thresholds(threshold, precision)
-    common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
+    common_py_util.check_output_directory(str(output_basepath), output_prefix, print_level)
     dicchecks._check_subsets(subset_size, subset_step)
     updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method_enum.value, w, h, subset_size, subset_step)
     num_params = dicchecks._check_shape_function(shape_function_enum)
@@ -252,7 +252,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.fft_filter_radius = fft_filter_radius
     config.fft_filter_corr_power = fft_filter_corr_power
     config.fft_save = fft_save
-    config.debug_level = debug_level
+    config.debug_level = print_level
     config.epi_distance = 0
 
     # sort precision to use for FFT windowing
@@ -317,7 +317,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
         shape_function, interpolation_routine, fft_filter,
         fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method_enum.value,
         precision, threshold, max_displacement, subset_size, subset_step,
-        num_threads, debug_level, updated_seeds, None
+        num_threads, print_level, updated_seeds, None
     )
 
     # calling the c++ dic engine

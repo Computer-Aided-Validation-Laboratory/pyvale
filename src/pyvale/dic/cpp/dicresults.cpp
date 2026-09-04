@@ -23,7 +23,7 @@ ResultArrays::ResultArrays(int num_ss,
                            int num_params,
                            bool stereo){
 
-    common_util::Timer timer("to resize result arrays:", 2);
+    common_util::Timer timer("to resize result arrays:", 3);
 
     this->num_ss = num_ss;
     this->num_params = num_params;
@@ -173,7 +173,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
                                     const std::string &filename){
 
 
-    common_util::Timer timer("to write DIC results to disk:", 2);
+    common_util::Timer timer("to write DIC results to disk:", 3);
 
     const std::string delimiter = saveconf.delimiter;
 

@@ -28,7 +28,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
               output_delimiter: str=",",
               num_threads: int | None = None,
               strain_formulation: Literal["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"] = "HENCKY",
-              debug_level: int=1):
+              print_level: int=1):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
@@ -92,7 +92,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
 
         # Load data if a file path is given
         dicresults = import_3d(layout="matrix", data=data, 
-                            binary=input_binary, delimiter=input_delimiter, debug_level=debug_level)
+                            binary=input_binary, delimiter=input_delimiter, print_level=print_level)
 
     elif isinstance(data, dicResults):
         dicresults = data
@@ -139,7 +139,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
         num_threads = common_cpp.get_num_threads()
 
     # print the config
-    if debug_level>0:
+    if print_level>0:
         common_py_util.print_title("Starting Strain Calculation")
         common_py_util.info_out("Number of images: ", nimg)
         common_py_util.info_out("Number of spatial points in x: ", nss_x)
@@ -158,7 +158,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
                                  window_size, window_element, 
                                  strain_formulation, filenames,
                                  strain_save_conf,
-                                 debug_level)
+                                 print_level)
 
 
 
