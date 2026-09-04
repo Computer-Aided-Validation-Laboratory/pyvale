@@ -17,5 +17,5 @@ GPU compute programming must be AMD compatible due to the clusters we are target
 - [VulkanCompute](https://vkguide.dev/docs/gpudriven/compute_shaders/)
 
 ## Style Guides
-This project follows the Computer Aided Validation Lab style guides which can be found [here](https://github.com/Computer-Aided-Validation-Laboratory/styleguides):
+This project follows the Computer Aided Validation Lab style guides which can be found [here](https://github.com/Computer-Aided-Validation-Laboratory/styleguides).
 
