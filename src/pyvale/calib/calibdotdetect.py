@@ -22,7 +22,7 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
                 cam1: Path | list[Path] | np.ndarray | str,
                 grid_height: int, grid_width: int,
                 grid_spacing: float,
-                missing_dots: list[tuple[int, int]],
+                hollow_dots: list[tuple[int, int]],
                 min_dot_fraction: float=0.5,
                 visualisationCV2: bool=False,
                 visualisationPLT: bool=False) -> tuple[list, list, list]:
@@ -45,7 +45,7 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
     grid_spacing : float
         Physical spacing between neighbouring dots in the target coordinate
         system.
-    missing_dots : list[tuple[int, int]]
+    hollow_dots : list[tuple[int, int]]
         The three missing-dot locations, expressed as ``(x, y)`` grid indices.
         These define the orientation marker used for matching.
     min_dot_fraction : float, optional
@@ -71,7 +71,7 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
         If the input type is unsupported.
     ValueError
         If camera inputs are incompatible, image lists have different lengths,
-        or ``missing_dots`` is not three non-negative ``(x, y)`` tuples.
+        or ``hollow_dots`` is not three non-negative ``(x, y)`` tuples.
     FileNotFoundError
         If a path or glob pattern does not resolve to any images.
     """
@@ -93,13 +93,13 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
             )
 
 
-    if (len(missing_dots) != 3
+    if (len(hollow_dots) != 3
             or not all(isinstance(dot, tuple)
                        and len(dot) == 2
                        and all(isinstance(v, int) and v >= 0 for v in dot)
-                       for dot in missing_dots)):
+                       for dot in hollow_dots)):
         raise ValueError(
-            "missing_dots must contain exactly three (x, y) tuples of non-negative integers."
+            "hollow_dots must contain exactly three (x, y) tuples of non-negative integers."
         )
 
     # handle strings. convert to path for import
@@ -132,7 +132,7 @@ def detect_dots(cam0: Path | list[Path] | np.ndarray | str,
 
 
     # order by their internal triangle angles
-    missing_idx = order_triangle_points_by_angle(np.asarray(missing_dots))
+    missing_idx = order_triangle_points_by_angle(np.asarray(hollow_dots))
     missing_idx = missing_idx.astype(np.intp)
 
     missing_grid = (missing_idx * grid_spacing - 2*grid_spacing)
