@@ -13,7 +13,7 @@ from typing import Literal
 # pyvale
 import pyvale.dic.diccpp as diccpp
 import pyvale.calib.calibcpp as calibcpp
-import pyvale.dic.dicchecks as dicchecks
+import pyvale.dic._dicchecks as dicchecks
 import pyvale.common_py.util as common_py_util
 from pyvale.calib.calibdataclass import Calib
 import pyvale.common_cpp.common_cpp as common_cpp
