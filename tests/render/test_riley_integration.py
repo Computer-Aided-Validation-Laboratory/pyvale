@@ -8,12 +8,11 @@
 from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
-import pyvale.verif.renderverif as renderverif
-import riley
-
+from pyvale import render
+from pyvale.verif import renderverif
 from pyvale.verif.renderverif import assert_render_allclose
 
 
@@ -46,9 +45,11 @@ def test_riley_returns_canonical_image_layout() -> None:
         riley.MeshType.tri3,
         np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))),
         np.array(((0, 1, 2),)),
-        shader_type=riley.ShaderType.func,
-        func_shader_builtin=riley.FuncShaderBuiltin.constant,
-        func_shader_coord_mode=riley.FuncCoordMode.world_reference,
+        None,
+        riley.FunctionShader(
+            riley.FuncShaderBuiltin.constant,
+            coord_mode=riley.FuncCoordMode.world_reference,
+        ),
     )
     camera = render.Camera(
         pixels_num=np.array((32, 32)),
@@ -74,15 +75,17 @@ def test_common_mesh_matches_native_riley_mesh() -> None:
         riley.MeshType.tri3,
         coords,
         connectivity,
-        shader_type=riley.ShaderType.func,
-        func_shader_builtin=riley.FuncShaderBuiltin.checker,
-        func_shader_coord_mode=riley.FuncCoordMode.world_reference,
+        None,
+        riley.FunctionShader(
+            riley.FuncShaderBuiltin.checker,
+            coord_mode=riley.FuncCoordMode.world_reference,
+        ),
     )
     common_mesh = render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=coords,
         connectivity=connectivity,
-        shader=render.RileyFunctionShader(
+        shader=riley.FunctionShader(
             builtin=riley.FuncShaderBuiltin.checker,
             coord_mode=riley.FuncCoordMode.world_reference,
         ),

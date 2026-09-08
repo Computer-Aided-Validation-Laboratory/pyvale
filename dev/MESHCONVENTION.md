@@ -1,8 +1,21 @@
 # Mesh Convention
 
-Pyvale uses one finite-element mesh convention across DataIO, SensorSim, and
-the render APIs. The common implementation is in
-`pyvale.dataio.meshconv`.
+Pyvale's existing DataIO, SensorSim, and Mooseherder-facing convention remains
+implemented in `pyvale.dataio.meshconv`. This interface is intentionally
+unchanged while the render API migrates independently to Riley's explicit
+mesh conversion types.
+
+Render callers must provide one `riley.ConnectConvention` per connectivity
+block to `pyvale.render.meshes3d_from_simdata`. The function returns one
+prepared `Mesh3D` per block, keyed by the original block name. Riley owns
+connectivity-axis conversion, index-base conversion, node-order conversion,
+volume-surface extraction, element-order reduction, triangulation, and source
+node remapping. Pyvale only adapts the unchanged `SimData` storage layout and
+its displacement fields.
+
+There is deliberately no implicit convention inference or single-mesh merge at
+the render boundary. Configuration mappings must exactly match the `SimData`
+connectivity keys.
 
 ## Required representation
 

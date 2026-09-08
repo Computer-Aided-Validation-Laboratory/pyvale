@@ -7,9 +7,16 @@
 
 import numpy as np
 import pytest
+import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
+from pyvale import render
+
+
+def _convention(elem_type: riley.EElemType) -> dict[str, riley.ConnectConvention]:
+    return {"connect1": riley.ConnectConvention(
+        elem_type, riley.EConnectAxis.ROW, 0, riley.ENodeOrder.RILEY
+    )}
 
 
 def make_camera() -> render.Camera:
@@ -27,9 +34,9 @@ def make_camera() -> render.Camera:
 def make_mesh(shader: object) -> render.Mesh3D:
     """Create a valid front-facing triangle mesh."""
     return render.Mesh3D(
-        render.EElementType.TRI3,
+        render.EElemType.TRI3,
         np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))),
-        np.array(((0, 1, 2))),
+        np.array((0, 1, 2)),
         shader,
     )
 
@@ -111,6 +118,8 @@ def test_riley_rejects_meshes_outside_the_shared_convention() -> None:
         riley.MeshType.tri3,
         np.array(((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))),
         np.array(((0, 2, 1),)),
+        None,
+        riley.FunctionShader(riley.FuncShaderBuiltin.constant),
     )
 
     with pytest.raises(render.RenderInputError, match="CONVENTION"):
@@ -119,7 +128,7 @@ def test_riley_rejects_meshes_outside_the_shared_convention() -> None:
         )
 
 
-def test_mesh3d_from_simdata_normalises_displacement_layout() -> None:
+def test_meshes3d_from_simdata_normalises_displacement_layout() -> None:
     """SimData displacement fields become frame-major renderer displacements."""
     from pyvale.dataio import SimData
 
@@ -132,17 +141,18 @@ def test_mesh3d_from_simdata_normalises_displacement_layout() -> None:
             "z": np.zeros((3, 2)),
         },
     )
-    mesh = render.mesh3d_from_simdata(
+    mesh = render.meshes3d_from_simdata(
         sim_data,
-        object(),
+        _convention(riley.EElemType.TRI3),
+        shaders={"connect1": object()},
         displacement_keys=("x", "y", "z"),
-    )
+    )["connect1"]
     assert mesh.displacements is not None
     assert mesh.displacements.shape == (2, 3, 3)
     assert mesh.displacements[1, 0, 0] == 1.0
 
 
-def test_mesh3d_from_simdata_extracts_a_volume_surface() -> None:
+def test_meshes3d_from_simdata_extracts_a_volume_surface() -> None:
     """A render Mesh3D is always a surface, even from volume SimData."""
     from pyvale.dataio import SimData
 
@@ -158,8 +168,60 @@ def test_mesh3d_from_simdata_extracts_a_volume_surface() -> None:
         connect={"connect1": np.array(((0, 1, 2, 3),))},
     )
 
-    mesh = render.mesh3d_from_simdata(sim_data, object())
+    mesh = render.meshes3d_from_simdata(
+        sim_data,
+        _convention(riley.EElemType.TET4),
+        shaders={"connect1": object()},
+    )["connect1"]
 
-    assert mesh.element_type is render.EElementType.TRI3
+    assert mesh.element_type is render.EElemType.TRI3
     assert mesh.coords.shape == (4, 3)
     assert mesh.connectivity.shape == (4, 3)
+
+
+def test_meshes3d_from_simdata_returns_one_mesh_per_block() -> None:
+    """Every connectivity block is converted independently and keeps its key."""
+    from pyvale.dataio import SimData
+
+    sim_data = SimData(
+        coords=np.array(
+            (
+                (0.0, 0.0, 0.0),
+                (1.0, 0.0, 0.0),
+                (0.0, 1.0, 0.0),
+                (1.0, 1.0, 0.0),
+            )
+        ),
+        connect={
+            "left": np.array(((0, 1, 2),)),
+            "right": np.array(((1, 3, 2),)),
+        },
+    )
+    convention = riley.ConnectConvention(
+        riley.EElemType.TRI3,
+        riley.EConnectAxis.ROW,
+        0,
+        riley.ENodeOrder.RILEY,
+    )
+
+    meshes = render.meshes3d_from_simdata(
+        sim_data,
+        {"left": convention, "right": convention},
+    )
+
+    assert tuple(meshes) == ("left", "right")
+    np.testing.assert_array_equal(meshes["left"].connectivity, ((0, 1, 2),))
+    np.testing.assert_array_equal(meshes["right"].connectivity, ((1, 3, 2),))
+
+
+def test_meshes3d_from_simdata_requires_exact_block_configuration() -> None:
+    """Explicit per-block configuration cannot silently omit a mesh block."""
+    from pyvale.dataio import SimData
+
+    sim_data = SimData(
+        coords=np.zeros((3, 3)),
+        connect={"surface": np.array(((0, 1, 2),))},
+    )
+
+    with pytest.raises(ValueError, match="Convention keys"):
+        render.meshes3d_from_simdata(sim_data, {})

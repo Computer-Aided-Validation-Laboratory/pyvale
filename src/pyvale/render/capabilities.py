@@ -7,7 +7,7 @@
 
 from dataclasses import dataclass
 
-from .mesh import EElementType
+from .mesh import EElemType
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,7 +16,7 @@ class RenderCapabilities:
 
     Parameters
     ----------
-    element_types : frozenset[EElementType]
+    element_types : frozenset[EElemType]
         Surface element topologies accepted by the renderer.
     supports_lights : bool
         Whether explicit :class:`~pyvale.render.Light` objects are supported.
@@ -26,7 +26,7 @@ class RenderCapabilities:
         Whether point spread function parameters are supported.
     """
 
-    element_types: frozenset[EElementType]
+    element_types: frozenset[EElemType]
     supports_lights: bool
     supports_camera_distortion: bool
     supports_psf: bool

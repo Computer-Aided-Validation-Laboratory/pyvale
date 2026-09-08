@@ -5,7 +5,6 @@
 # ============================================================================
 """Riley renderer adapter using Riley's native public mesh and shader API."""
 
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -14,100 +13,11 @@ import riley
 from .camera import Camera
 from .capabilities import RenderCapabilities
 from .errors import ValidationIssue
-from .mesh import EElementType, Mesh3D
+from .mesh import EElemType, Mesh3D
 from .renderer3d import IRenderer3D
 from .result import RenderResult
 from .scene import Scene3D
 from .verifyinput import mesh_convention_issues, raise_if_issues
-
-
-@dataclass(slots=True, kw_only=True)
-class RileyFunctionShader:
-    """An analytic Riley shader evaluated from mesh coordinates.
-
-    Parameters
-    ----------
-    builtin : riley.FuncShaderBuiltin, optional
-        Built in function pattern identifier. Defaults to
-        ``riley.FuncShaderBuiltin.checker``.
-    coord_mode : riley.FuncCoordMode, optional
-        Coordinate space for function evaluation. Defaults to
-        ``riley.FuncCoordMode.world_reference``.
-    parameters : riley.FuncShaderParams, optional
-        Function evaluation parameters.
-    uvs : np.ndarray or None, optional
-        Nodal UV coordinate array with shape ``(num_nodes, 2)`` and dtype
-        ``float64``.
-    bits : int, optional
-        Output bit depth (8 or 16). Defaults to 8.
-    scaling : riley.ScaleStrategy, optional
-        Intensity scaling strategy. Defaults to ``riley.ScaleStrategy.none``.
-    """
-
-    builtin: riley.FuncShaderBuiltin = riley.FuncShaderBuiltin.checker
-    coord_mode: riley.FuncCoordMode = riley.FuncCoordMode.world_reference
-    parameters: riley.FuncShaderParams = field(
-        default_factory=riley.FuncShaderParams,
-    )
-    uvs: np.ndarray | None = None
-    bits: int = 8
-    scaling: riley.ScaleStrategy = riley.ScaleStrategy.none
-
-
-@dataclass(slots=True, kw_only=True)
-class RileyTextureShader:
-    """A Riley image texture and its nodal UV coordinates.
-
-    Parameters
-    ----------
-    uvs : np.ndarray
-        Nodal UV coordinate array with shape ``(num_nodes, 2)`` and dtype
-        ``float64`` in the normalized range ``[0.0, 1.0]``.
-    texture : np.ndarray
-        Texture image array with shape ``(height, width)`` or
-        ``(height, width, num_channels)``.
-    sample : riley.TextureSample, optional
-        Texture filter/interpolation mode. Defaults to
-        ``riley.TextureSample.cubic_catmull_rom``.
-    sample_mode : riley.TextureSampleMode, optional
-        Texture sampling execution mode. Defaults to
-        ``riley.TextureSampleMode.lut_lerp``.
-    bits : int, optional
-        Output bit depth (8 or 16). Defaults to 8.
-    scaling : riley.ScaleStrategy, optional
-        Intensity scaling strategy. Defaults to ``riley.ScaleStrategy.none``.
-    """
-
-    uvs: np.ndarray
-    texture: np.ndarray
-    sample: riley.TextureSample = riley.TextureSample.cubic_catmull_rom
-    sample_mode: riley.TextureSampleMode = riley.TextureSampleMode.direct
-    bits: int = 8
-    scaling: riley.ScaleStrategy = riley.ScaleStrategy.none
-
-
-@dataclass(slots=True, kw_only=True)
-class RileyNodalShader:
-    """A scalar or colour field defined at mesh nodes.
-
-    Parameters
-    ----------
-    field : np.ndarray
-        Nodal field array with shape ``(num_nodes, num_frames)`` or
-        ``(num_nodes, num_frames, num_channels)`` and dtype ``float64``.
-    bits : int, optional
-        Output bit depth (8 or 16). Defaults to 8.
-    scaling : riley.ScaleStrategy, optional
-        Intensity scaling strategy. Defaults to ``riley.ScaleStrategy.auto``.
-    scale_over : riley.ScaleOver, optional
-        Normalization domain (per frame or over all frames). Defaults to
-        ``riley.ScaleOver.over_frames``.
-    """
-
-    field: np.ndarray
-    bits: int = 8
-    scaling: riley.ScaleStrategy = riley.ScaleStrategy.auto
-    scale_over: riley.ScaleOver = riley.ScaleOver.over_frames
 
 
 class Riley(IRenderer3D):
@@ -128,7 +38,7 @@ class Riley(IRenderer3D):
     """
 
     capabilities = RenderCapabilities(
-        element_types=frozenset(EElementType),
+        element_types=frozenset(EElemType),
         supports_lights=False,
         supports_camera_distortion=True,
         supports_psf=True,
@@ -217,8 +127,7 @@ class Riley(IRenderer3D):
                 continue
 
             if isinstance(mesh, Mesh3D) and not isinstance(
-                mesh.shader,
-                (RileyFunctionShader, RileyNodalShader, RileyTextureShader),
+                mesh.shader, riley.RileyShader
             ):
                 issues.append(
                     ValidationIssue(
@@ -381,11 +290,11 @@ def to_riley_camera(camera: Camera | riley.Camera) -> riley.Camera:
 
 
 _RILEY_MESH_TYPES = {
-    EElementType.TRI3: riley.MeshType.tri3,
-    EElementType.TRI6: riley.MeshType.tri6,
-    EElementType.QUAD4: riley.MeshType.quad4newton,
-    EElementType.QUAD8: riley.MeshType.quad8,
-    EElementType.QUAD9: riley.MeshType.quad9,
+    EElemType.TRI3: riley.MeshType.tri3,
+    EElemType.TRI6: riley.MeshType.tri6,
+    EElemType.QUAD4: riley.MeshType.quad4newton,
+    EElemType.QUAD8: riley.MeshType.quad8,
+    EElemType.QUAD9: riley.MeshType.quad9,
 }
 
 
@@ -414,59 +323,25 @@ def to_riley_mesh(mesh: Mesh3D | riley.Mesh) -> riley.Mesh:
     if isinstance(mesh, riley.Mesh):
         return mesh
 
-    common = {
-        "mesh_type": _RILEY_MESH_TYPES[mesh.element_type],
-        "coords": mesh.coords,
-        "connect": mesh.connectivity,
-        "disp": mesh.displacements,
-    }
-    shader = mesh.shader
-
-    if isinstance(shader, RileyTextureShader):
-        return riley.Mesh(
-            shader_type=riley.ShaderType.tex,
-            uvs=shader.uvs,
-            texture=shader.texture,
-            sample=shader.sample,
-            sample_mode=shader.sample_mode,
-            bits=shader.bits,
-            scaling_type=shader.scaling,
-            **common,
-        )
-
-    if isinstance(shader, RileyNodalShader):
-        return riley.Mesh(
-            shader_type=riley.ShaderType.nodal,
-            nodal_field=shader.field,
-            bits=shader.bits,
-            scaling_type=shader.scaling,
-            scale_over=shader.scale_over,
-            **common,
-        )
-
-    if isinstance(shader, RileyFunctionShader):
-        return riley.Mesh(
-            shader_type=riley.ShaderType.func,
-            uvs=shader.uvs,
-            func_shader_builtin=shader.builtin,
-            func_shader_coord_mode=shader.coord_mode,
-            func_shader_params=shader.parameters,
-            bits=shader.bits,
-            scaling_type=shader.scaling,
-            **common,
-        )
-
-    raise TypeError(
-        "Riley Mesh3D.shader must be RileyFunctionShader, "
-        "RileyTextureShader, or RileyNodalShader."
+    if not isinstance(mesh.shader, riley.RileyShader):
+        raise TypeError("Mesh3D.shader must be a Riley shader object.")
+    nodes_num = mesh.coords.shape[0]
+    conversion = riley.MeshConversion(
+        mesh_type=_RILEY_MESH_TYPES[mesh.element_type],
+        geometry=riley.MeshGeometry(
+            mesh.element_type, mesh.coords, mesh.connectivity
+        ),
+        source_node_indices=np.arange(nodes_num, dtype=np.uintp),
+        source_node_count=nodes_num,
     )
+    disp = None
+    if mesh.displacements is not None:
+        disp = tuple(mesh.displacements[:, :, ii].T for ii in range(3))
+    return riley.create_mesh_from_prepared(conversion, mesh.shader, disp)
 
 
 __all__ = [
     "Riley",
-    "RileyFunctionShader",
-    "RileyNodalShader",
-    "RileyTextureShader",
     "to_riley_camera",
     "to_riley_mesh",
 ]

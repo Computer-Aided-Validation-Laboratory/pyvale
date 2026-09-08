@@ -22,13 +22,13 @@ Workflow:
 from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
-import pyvale.render as render
+from pyvale import render
 from pyvale.mooseherder import ExodusLoader
 from pyvale.sensorsim import scale_length_units
-
 
 # %%
 # 1. Load simulation data and build a textured surface mesh
@@ -44,11 +44,14 @@ sim_data = ExodusLoader(data_path).load_all_sim_data()
 disp_keys = ("disp_x", "disp_y", "disp_z")
 sim_data = scale_length_units(1000.0, sim_data, disp_keys)
 
-surface_mesh = render.mesh3d_from_simdata(
+surface_mesh = render.meshes3d_from_simdata(
     sim_data,
-    shader=None,
+    {"connect1": riley.ConnectConvention(
+        riley.EElemType.TET4, riley.EConnectAxis.ROW, 0,
+        riley.ENodeOrder.RILEY,
+    )},
     displacement_keys=disp_keys,
-)
+)["connect1"]
 
 # %%
 # 2. Create and position camera and lights

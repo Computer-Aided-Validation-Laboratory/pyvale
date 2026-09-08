@@ -15,6 +15,7 @@ an oblique view so its three dimensional form remains visible.
 from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
@@ -28,7 +29,7 @@ from pyvale.examples.renderuvs.tools import render_uv_example
 # The asymmetric rabbit makes UV rotations and translations easier to recognise
 # than a rectangular plate, so it remains the best mesh for this comparison.
 
-data_dir = dataset.riley_rabbit_case_path("riley", render.EElementType.QUAD4)
+data_dir = dataset.riley_rabbit_case_path("riley", render.EElemType.QUAD4)
 
 simulation = io.MeshLoader(
     load_dir=data_dir,
@@ -37,7 +38,13 @@ simulation = io.MeshLoader(
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_mesh()
 
-base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
+base_mesh = render.meshes3d_from_simdata(
+    simulation,
+    {"connectivity": riley.ConnectConvention(
+        riley.EElemType.QUAD4, riley.EConnectAxis.ROW, 0,
+        riley.ENodeOrder.RILEY,
+    )},
+)["connectivity"]
 
 oriented_mesh = render.mesh_rotate(
     base_mesh,
@@ -45,7 +52,7 @@ oriented_mesh = render.mesh_rotate(
     pivot=render.mesh_center(base_mesh),
 )
 
-texture = render.image_load(dataset.riley_cal_target_texture_path())
+texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
 
 camera = render.Camera(
     pixels_num=np.array((1792, 1120)),
@@ -72,7 +79,7 @@ camera = render.cam_frame_mesh(
 
 original_uvs = render.uv_project_planar(
     oriented_mesh.coords,
-    texture_shape=texture.shape[:2],
+    texture_shape=texture.shape[-2:],
     fit=render.EUVFit.CONTAIN,
 )
 
@@ -104,7 +111,7 @@ for variant_name, uvs in (
         element_type=oriented_mesh.element_type,
         coords=oriented_mesh.coords,
         connectivity=oriented_mesh.connectivity,
-        shader=render.RileyTextureShader(
+        shader=riley.TextureShader(
             uvs=uvs,
             texture=texture,
         ),

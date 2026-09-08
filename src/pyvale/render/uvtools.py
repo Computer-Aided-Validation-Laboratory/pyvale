@@ -12,9 +12,9 @@ refer to pixel centres, so the final pixel centres are at ``width - 1`` and
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from enum import Enum
-import warnings
 
 import numpy as np
 
@@ -850,8 +850,8 @@ __all__ = [
     "EUVFit",
     "EUVOrigin",
     "EUVPlane",
-    "UVPlane",
     "UVMapping",
+    "UVPlane",
     "UVTransform",
     "uv_calc_feature_leng",
     "uv_calc_image_px_per_feature",

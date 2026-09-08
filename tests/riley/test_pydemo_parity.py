@@ -22,52 +22,65 @@ from pathlib import Path
 
 import pytest
 
-
 _ROOT = Path(__file__).resolve().parents[2]
 _EXAMPLES = _ROOT / "src" / "pyvale" / "examples" / "render3d"
 
 _CASES = (
     pytest.param(
-        "demo_sphere200",
+        "demo0_quickstart",
+        "ex1a_riley_quickstart.py",
+        "out_riley_py/demo0_quickstart",
+        "pyvale-output/render3d_ex1a_riley_quickstart",
+        id="quickstart",
+    ),
+    pytest.param(
+        "demo1_sphere200",
         "ex1b_riley_sphere200.py",
-        "out-riley-py/demo-sphere200",
+        "out_riley_py/demo1_sphere200",
         "pyvale-output/render3d_ex1b_riley_sphere200",
         id="sphere200",
     ),
     pytest.param(
-        "demo_rabbits",
+        "demo3_rabbits",
         "ex1c_riley_rabbits.py",
-        "out-riley-py/demo-rabbits",
+        "out_riley_py/demo3_rabbits",
         "pyvale-output/render3d_ex1c_riley_rabbits",
         id="rabbits",
     ),
     pytest.param(
-        "demo_dicuq",
+        "demo6_dicuq",
         "ex1d_riley_dicuq.py",
-        "out-riley-py/demo-dicuq",
+        "out_riley_py/demo6_dicuq",
         "pyvale-output/render3d_ex1d_riley_dicuq",
         id="dicuq",
     ),
     pytest.param(
-        "demo_dic_from_exodus",
+        "demo7_dic_from_exodus",
         "ex1e_riley_dic_from_exodus.py",
-        "out-riley-py/demo-dicuq-from-exodus",
+        "out_riley_py/demo7_dic_from_exodus",
         "pyvale-output/render3d_ex1e_riley_dic_from_exodus",
         id="dicuq-from-exodus",
     ),
     pytest.param(
-        "demo_stereocal",
+        "demo8_stereocal",
         "ex1f_riley_stereocal.py",
-        "out-riley-py/demo-stereocal",
+        "out_riley_py/demo8_stereocal",
         "pyvale-output/render3d_ex1f_riley_stereocal",
         id="stereocal",
     ),
     pytest.param(
-        "demo_psf",
+        "demo2_psf",
         "ex1g_riley_psf.py",
-        "out-riley-py/demo-psf",
+        "out_riley_py/demo2_psf",
         "pyvale-output/render3d_ex1g_riley_psf",
         id="psf",
+    ),
+    pytest.param(
+        "demo9_feature_zoo",
+        "ex1h_riley_feature_zoo.py",
+        "out_riley_py/demo9_feature_zoo",
+        "pyvale-output/render3d_ex1h_riley_feature_zoo",
+        id="feature-zoo",
     ),
 )
 

@@ -10,7 +10,7 @@ import pytest
 import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
+from pyvale import render
 
 
 def _make_test_camera(
@@ -99,7 +99,7 @@ def test_cam_frame_mesh_and_scene() -> None:
     """Framing a mesh and framing a scene produce valid camera positions."""
     coords = np.array([[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [0.0, 1.0, 0.0]])
     mesh = render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=coords,
         connectivity=np.array([[0, 1, 2]], dtype=np.uintp),
         shader=None,
@@ -129,7 +129,7 @@ def test_cam_frame_mesh_matches_riley_for_oblique_camera() -> None:
         )
     )
     mesh = render.Mesh3D(
-        element_type=render.EElementType.QUAD4,
+        element_type=render.EElemType.QUAD4,
         coords=coords,
         connectivity=np.array(((0, 1, 2, 3),), dtype=np.uintp),
         shader=None,
@@ -163,7 +163,7 @@ def test_cam_frame_mesh_fov_scale_controls_camera_distance() -> None:
         ((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))
     )
     mesh = render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=coords,
         connectivity=np.array(((0, 1, 2),), dtype=np.uintp),
         shader=None,

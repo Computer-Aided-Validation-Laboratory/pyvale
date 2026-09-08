@@ -4,11 +4,11 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""PyVale ``SimData`` adapter for Riley's mesh-convention tools.
+"""Preserved mesh-convention tools for the existing ``SimData`` API.
 
-Riley's public interface is :mod:`riley.python.meshconv`. Element metadata
-is re-exported from Riley's implementation module, and the orientation
-symmetries are derived from the public element-type API.
+Rendering uses Riley's public conversion types directly. This module keeps the
+DataIO, SensorSim, and Mooseherder-facing contract independent until ``SimData``
+is migrated in a separate change.
 """
 
 from __future__ import annotations
@@ -17,12 +17,10 @@ from types import MappingProxyType
 
 import numpy as np
 
-from riley.python import meshconv as _core
-from riley.python import _meshconv as _impl
-
+from pyvale.dataio import _simdata_meshconv_api as _core
+from pyvale.dataio import _simdata_meshconv_impl as _impl
 from pyvale.dataio.simdata import EMeshType as PyValeMeshType
 from pyvale.dataio.simdata import SimData
-
 
 MeshCheckCode = _core.MeshCheckCode
 MeshConvCheck = _core.MeshConvCheck
@@ -55,7 +53,7 @@ PYVALE_EXODUS_MESH_CONVENTION = MeshConvention({
 def check_mesh_convention(
     mesh_in: SimData,
     source_convention: MeshConvention | None = None,
-) -> MeshConventionCheck:
+) -> MeshConvCheck:
     return _core.check_mesh_convention(
         _to_riley_mesh(mesh_in),
         _resolve_source_convention(mesh_in, source_convention),
@@ -247,8 +245,8 @@ __all__ = [
     "MeshConvCheck",
     "check_mesh_convention",
     "enforce_mesh_convention",
+    "extract_surf_between",
+    "extract_surf_mesh",
     "is_mesh_2d",
     "is_volume_mesh",
-    "extract_surf_mesh",
-    "extract_surf_between",
 ]

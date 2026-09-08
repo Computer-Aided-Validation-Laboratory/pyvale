@@ -15,6 +15,7 @@ whose repeated edges form a seam, and the default saturated boundary mode.
 from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
@@ -35,7 +36,13 @@ simulation = io.MeshLoader(
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_mesh()
 
-base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
+base_mesh = render.meshes3d_from_simdata(
+    simulation,
+    {"connect": riley.ConnectConvention(
+        riley.EElemType.QUAD8, riley.EConnectAxis.ROW, 0,
+        riley.ENodeOrder.RILEY,
+    )},
+)["connect"]
 
 oriented_mesh = render.mesh_rotate(
     base_mesh,
@@ -138,9 +145,9 @@ for variant_name, mapping in (
         element_type=oriented_mesh.element_type,
         coords=oriented_mesh.coords,
         connectivity=oriented_mesh.connectivity,
-        shader=render.RileyTextureShader(
+        shader=riley.TextureShader(
             uvs=mapping.uvs,
-            texture=mapping.texture,
+            texture=mapping.texture[None, :, :],
         ),
     )
     render_uv_example(textured_mesh, camera, output_dir / variant_name)

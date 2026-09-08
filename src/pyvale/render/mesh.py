@@ -6,28 +6,14 @@
 """Renderer independent surface mesh data."""
 
 from dataclasses import dataclass
-from enum import Enum
 
 import numpy as np
+from riley import EElemType
 
-
-class EElementType(Enum):
-    """Surface element topologies supported by the 3D render API."""
-
-    TRI3 = "tri3"
-    TRI6 = "tri6"
-    QUAD4 = "quad4"
-    QUAD8 = "quad8"
-    QUAD9 = "quad9"
-
-
-_NODES_PER_ELEMENT = {
-    EElementType.TRI3: 3,
-    EElementType.TRI6: 6,
-    EElementType.QUAD4: 4,
-    EElementType.QUAD8: 8,
-    EElementType.QUAD9: 9,
-}
+_SURFACE_TYPES = frozenset(
+    (EElemType.TRI3, EElemType.TRI6, EElemType.QUAD4,
+     EElemType.QUAD8, EElemType.QUAD9)
+)
 
 
 @dataclass(slots=True)
@@ -36,7 +22,7 @@ class Mesh3D:
 
     Parameters
     ----------
-    element_type : EElementType
+    element_type : riley.EElemType
         Topology of every element in ``connectivity``.
     coords : np.ndarray
         World coordinates array with shape ``(num_nodes, 3)`` and dtype
@@ -52,7 +38,7 @@ class Mesh3D:
         (dX, dY, dZ) displacements for each frame.
     """
 
-    element_type: EElementType
+    element_type: EElemType
     coords: np.ndarray
     connectivity: np.ndarray
     shader: object
@@ -60,6 +46,8 @@ class Mesh3D:
 
     def __post_init__(self) -> None:
         """Convert array data to contiguous arrays with renderer dtypes."""
+        if self.element_type not in _SURFACE_TYPES:
+            raise ValueError("Mesh3D requires a Riley surface element type.")
         self.coords = np.ascontiguousarray(self.coords, dtype=np.float64)
         self.connectivity = np.ascontiguousarray(
             self.connectivity,
@@ -72,4 +60,4 @@ class Mesh3D:
             )
 
 
-__all__ = ["EElementType", "Mesh3D"]
+__all__ = ["EElemType", "Mesh3D"]

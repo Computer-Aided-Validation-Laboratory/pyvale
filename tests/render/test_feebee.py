@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
+from pyvale import render
 
 
 def make_camera() -> render.Camera:
@@ -27,7 +27,7 @@ def make_camera() -> render.Camera:
 def make_mesh(shader: object) -> render.Mesh3D:
     """Create a valid front-facing triangular render mesh."""
     return render.Mesh3D(
-        render.EElementType.TRI3,
+        render.EElemType.TRI3,
         np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))),
         np.array(((0, 1, 2),)),
         shader,
@@ -77,7 +77,7 @@ def test_feebee_aggregates_unsupported_scene_features() -> None:
 def test_feebee_checks_higher_order_connectivity() -> None:
     """Feebee detects topology data that disagrees with its element type."""
     mesh = make_mesh(render.FeebeeColourShader(np.ones((1, 1, 3))))
-    mesh.element_type = render.EElementType.QUAD9
+    mesh.element_type = render.EElemType.QUAD9
 
     with pytest.raises(render.RenderInputError, match="9 nodes"):
         render.Feebee().verify_input(render.Scene3D([mesh], [make_camera()]))

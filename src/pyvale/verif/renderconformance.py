@@ -9,11 +9,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
-import riley
-
+from pyvale import render
 
 IMAGE_SIZE = 32
 CASE_NAMES = ("tri3_deforming", "tri3_shared_edge", "tri3_clipping")
@@ -146,7 +145,7 @@ def _camera_3d() -> render.Camera:
 
 def _common_mesh(case: RenderConformanceCase, shader: object) -> render.Mesh3D:
     return render.Mesh3D(
-        render.EElementType.TRI3,
+        render.EElemType.TRI3,
         np.pad(case.coords, ((0, 0), (0, 1))),
         case.connectivity,
         shader,
@@ -210,17 +209,18 @@ def _render_riley(
         linear_coeffs=(0.55, 0.12, -0.08),
     )
     mesh = render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=np.pad(case.coords, ((0, 0), (0, 1))),
         connectivity=case.connectivity,
         displacements=np.pad(
             case.displacements,
             ((0, 0), (0, 0), (0, 1)),
         ),
-        shader=render.RileyFunctionShader(
+        shader=riley.FunctionShader(
             builtin=riley.FuncShaderBuiltin.linear,
             coord_mode=riley.FuncCoordMode.world_reference,
-            parameters=params,
+            params=params,
+            scaling_type=riley.ScaleStrategy.none,
         ),
     )
     config = riley.create_raster_config(

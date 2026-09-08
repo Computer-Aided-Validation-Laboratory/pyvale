@@ -30,13 +30,16 @@ simulation = ExodusLoader(
     enforce_convention=True,
 ).load_all_sim_data()
 
-texture = render.image_load(dataset.riley_speckle_texture_path())
+texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
 
-surface_mesh = render.mesh3d_from_simdata(
+surface_mesh = render.meshes3d_from_simdata(
     simulation,
-    shader=None,
+    {"connect1": riley.ConnectConvention(
+        riley.EElemType.HEX20, riley.EConnectAxis.ROW, 0,
+        riley.ENodeOrder.RILEY,
+    )},
     displacement_keys=("disp_x", "disp_y", "disp_z"),
-)
+)["connect1"]
 
 uv_plane = render.UVPlane(
     normal=np.array((0.0, 0.0, -1.0), dtype=np.float64),
@@ -48,7 +51,7 @@ uvs = render.uv_project_planar_centered(
     span=0.8,
     plane=uv_plane,
 )
-surface_mesh.shader = render.RileyTextureShader(uvs=uvs, texture=texture)
+surface_mesh.shader = riley.TextureShader(uvs=uvs, texture=texture)
 
 # To save time we only render the first and last frame. If you want to render
 # all frames comment this out.

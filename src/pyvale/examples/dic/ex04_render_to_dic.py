@@ -22,13 +22,11 @@ from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
 import pyvale.dataio as io
-import pyvale.dic as dic
-from pyvale import render
-
+from pyvale import dic, render
 
 SUBSET_SIZE = 21
 SPECKLE_SIZE_PX = 5.0
-TARGET_DISPLACEMENT_PX = 1.0
+TARGET_DISPLACEMENT_PX = 0.5
 ROI_SAFETY_PX = 10
 
 # %%
@@ -45,7 +43,15 @@ simulation = io.MeshLoader(
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_mesh()
 
-mesh = render.mesh3d_from_simdata(simulation, shader=None)
+mesh = render.meshes3d_from_simdata(
+    simulation,
+    {"connect": riley.ConnectConvention(
+        riley.EElemType.TRI3,
+        riley.EConnectAxis.ROW,
+        0,
+        riley.ENodeOrder.RILEY,
+    )},
+)["connect"]
 
 # %%
 # 2. Create and position the face on camera
@@ -92,9 +98,9 @@ mapping = render.uv_map_planar_scaled(
     plane=render.EUVPlane.XY,
 )
 
-mesh.shader = render.RileyTextureShader(
+mesh.shader = riley.TextureShader(
     uvs=mapping.uvs,
-    texture=mapping.texture,
+    texture=mapping.texture[None, :, :],
 )
 
 # %%

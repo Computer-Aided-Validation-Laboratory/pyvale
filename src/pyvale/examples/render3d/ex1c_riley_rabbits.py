@@ -27,7 +27,7 @@ from pyvale import render
 
 def load_rabbit(
     rabbit: str,
-    topology: render.EElementType,
+    topology: render.EElemType,
 ) -> tuple[io.SimData, np.ndarray]:
     """Load one static rabbit mesh and its UV coordinates."""
     data_dir = dataset.riley_rabbit_case_path(rabbit, topology)
@@ -49,17 +49,17 @@ def load_rabbit(
 # ------------------------------------------------------------
 
 topologies = (
-    render.EElementType.TRI3,
-    render.EElementType.TRI6,
-    render.EElementType.QUAD4,
-    render.EElementType.QUAD8,
-    render.EElementType.QUAD9,
+    render.EElemType.TRI3,
+    render.EElemType.TRI6,
+    render.EElemType.QUAD4,
+    render.EElemType.QUAD8,
+    render.EElemType.QUAD9,
 )
 
-texture = render.image_load(dataset.riley_speckle_texture_path())
+texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
 
 meshes: list[render.Mesh3D] = []
-mesh_groups: list[sceneops.MeshGroup] = []
+mesh_groups: list[sceneops.SceneMeshGroup] = []
 
 for topology_index, element_type in enumerate(topologies):
     pair_start = len(meshes)
@@ -68,22 +68,30 @@ for topology_index, element_type in enumerate(topologies):
         shader_index = len(meshes) % 3
 
         if shader_index == 0:
-            shader = render.RileyTextureShader(uvs=uvs, texture=texture)
+            shader = riley.TextureShader(uvs=uvs, texture=texture)
         elif shader_index == 1:
             nodal_field = 0.5 * (uvs[:, 0] + uvs[:, 1])
-            shader = render.RileyNodalShader(
-                field=nodal_field.reshape((1, -1, 1)),
+            shader = riley.NodalShader(
+                field=nodal_field[:, None],
+                scaling_type=riley.ScaleStrategy.auto,
             )
         else:
-            shader = render.RileyFunctionShader(
+            shader = riley.FunctionShader(
                 builtin=riley.FuncShaderBuiltin.checker,
                 coord_mode=riley.FuncCoordMode.uv,
-                parameters=riley.FuncShaderParams(coord_scale=(36.0, 36.0)),
+                params=riley.FuncShaderParams(coord_scale=(36.0, 36.0)),
                 uvs=uvs,
-                scaling=riley.ScaleStrategy.auto,
+                scaling_type=riley.ScaleStrategy.auto,
             )
 
-        mesh = render.mesh3d_from_simdata(simulation, shader=shader)
+        mesh = render.meshes3d_from_simdata(
+            simulation,
+            {"connectivity": riley.ConnectConvention(
+                element_type, riley.EConnectAxis.ROW, 0,
+                riley.ENodeOrder.RILEY,
+            )},
+            shaders={"connectivity": shader},
+        )["connectivity"]
 
         if mesh.element_type is not element_type:
             raise ValueError(
@@ -92,27 +100,28 @@ for topology_index, element_type in enumerate(topologies):
 
         meshes.append(mesh)
 
-    sceneops.overlap_mesh_group_bounds(
-        meshes,
-        sceneops.mesh_group_single(pair_start),
-        sceneops.mesh_group_single(pair_start + 1),
-        sceneops.BoundsOverlapSpec(
+    mesh_coords = [mesh.coords for mesh in meshes]
+    sceneops.scene_overlap_mesh_group_bounds(
+        mesh_coords,
+        sceneops.scene_create_mesh_group_single(pair_start),
+        sceneops.scene_create_mesh_group_single(pair_start + 1),
+        sceneops.SceneBoundsOverlapSpec(
             overlap_frac=(0.85, 0.8, 0.0),
             enabled_axes=(True, True, False),
             direct=(
-                sceneops.EOverlapDirect.POSITIVE,
-                sceneops.EOverlapDirect.NEGATIVE,
-                sceneops.EOverlapDirect.CURRENT,
+                sceneops.ESceneOverlapDirect.POSITIVE,
+                sceneops.ESceneOverlapDirect.NEGATIVE,
+                sceneops.ESceneOverlapDirect.CURRENT,
             ),
         ),
     )
 
-    mesh_groups.append(sceneops.mesh_group_span(pair_start, 2))
+    mesh_groups.append(sceneops.scene_create_mesh_group_span(pair_start, 2))
 
-sceneops.arrange_mesh_groups_grid(
-    meshes,
+sceneops.scene_arrange_mesh_groups_grid(
+    [mesh.coords for mesh in meshes],
     mesh_groups,
-    sceneops.GridSpec(gap=(0.18, 0.28, 0.0), max_divs=(3, 2, 1)),
+    sceneops.SceneGridSpec(gap=(0.18, 0.28, 0.0), max_divs=(3, 2, 1)),
 )
 
 # %%

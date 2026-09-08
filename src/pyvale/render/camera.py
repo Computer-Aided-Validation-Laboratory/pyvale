@@ -5,7 +5,7 @@
 # ============================================================================
 """Camera data for three dimensional and planar rendering."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
 
 import numpy as np

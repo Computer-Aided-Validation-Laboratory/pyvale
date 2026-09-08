@@ -7,11 +7,10 @@
 import numpy as np
 import pytest
 
-import pyvale.dataio as io
-import pyvale.dataio.meshconv as meshconv
-import pyvale.mooseherder as mh
 import pyvale.data as dataset
-
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
+from pyvale.dataio import meshconv
 
 _SUPPORTED_CUBE_ELEMENTS = (
     dataset.EElemTest.TET4,
@@ -100,16 +99,10 @@ def _assert_higher_order_surface_edge_order(surf: io.SimData) -> None:
     for connect in surf.connect.values():
         nodes_per_face = connect.shape[1]
 
-        if nodes_per_face == 6:
+        if nodes_per_face == 6 or nodes_per_face == 7:
             edge_corner_pairs = ((0, 1), (1, 2), (2, 0))
             mid_inds = (3, 4, 5)
-        elif nodes_per_face == 7:
-            edge_corner_pairs = ((0, 1), (1, 2), (2, 0))
-            mid_inds = (3, 4, 5)
-        elif nodes_per_face == 8:
-            edge_corner_pairs = ((0, 1), (1, 2), (2, 3), (3, 0))
-            mid_inds = (4, 5, 6, 7)
-        elif nodes_per_face == 9:
+        elif nodes_per_face == 8 or nodes_per_face == 9:
             edge_corner_pairs = ((0, 1), (1, 2), (2, 3), (3, 0))
             mid_inds = (4, 5, 6, 7)
         else:

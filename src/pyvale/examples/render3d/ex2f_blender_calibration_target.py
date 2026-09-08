@@ -24,8 +24,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
-import pyvale.render as render
-
+from pyvale import render
 
 # %%
 # 1. Define calibration target geometry and texture

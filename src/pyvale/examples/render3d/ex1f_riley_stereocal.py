@@ -54,14 +54,18 @@ simulation = io.SimLoaderByField(
 ).load_all_sim_data()
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
-texture = render.image_load(dataset.riley_cal_target_texture_path())
+texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
 
-shader = render.RileyTextureShader(uvs=uvs, texture=texture)
-mesh = render.mesh3d_from_simdata(
+shader = riley.TextureShader(uvs=uvs, texture=texture)
+mesh = render.meshes3d_from_simdata(
     simulation,
-    shader=shader,
+    {"connect": riley.ConnectConvention(
+        riley.EElemType.TRI3, riley.EConnectAxis.ROW, 0,
+        riley.ENodeOrder.RILEY,
+    )},
+    shaders={"connect": shader},
     displacement_keys=("disp_x", "disp_y", "disp_z"),
-)
+)["connect"]
 
 frame_indices = render.evenly_spaced_frame_indices(
     mesh.displacements.shape[0],

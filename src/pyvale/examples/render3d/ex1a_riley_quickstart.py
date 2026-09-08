@@ -37,12 +37,14 @@ from pyvale import render
 coords = np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0)))
 connect = np.array(((0, 1, 2),))
 
-shader = render.RileyFunctionShader(
+shader = riley.FunctionShader(
     builtin=riley.FuncShaderBuiltin.checker,
     coord_mode=riley.FuncCoordMode.world_reference,
+    params=riley.FuncShaderParams(coord_scale=(4.0, 4.0)),
+    scaling_type=riley.ScaleStrategy.auto,
 )
 mesh = render.Mesh3D(
-    element_type=render.EElementType.TRI3,
+    element_type=render.EElemType.TRI3,
     coords=coords,
     connectivity=connect,
     shader=shader,
@@ -69,7 +71,8 @@ camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
 
 config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.both)
 config.report = 1
-config.background_value = 0.5
+config.image_save_mode = riley.ImageSaveMode.grey
+config.save_scaling = riley.ScaleStrategy.none
 
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1a_riley_quickstart"
 

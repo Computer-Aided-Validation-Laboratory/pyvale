@@ -6,10 +6,9 @@
 """Analytic tests for multi-object scene placement and spatial layout."""
 
 import numpy as np
-import pytest
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
+from pyvale import render
 
 
 def _make_unit_box(center: tuple[float, float, float]) -> render.Mesh3D:
@@ -20,7 +19,7 @@ def _make_unit_box(center: tuple[float, float, float]) -> render.Mesh3D:
         [cx + 0.5, cy + 0.5, cz + 0.5],
     ])
     return render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=coords,
         connectivity=np.array([[0, 1, 2]], dtype=np.uintp),
         shader=None,

@@ -13,8 +13,7 @@ from pathlib import Path
 
 import pytest
 
-import pyvale.render as render
-
+from pyvale import render
 
 _RILEY_EXAMPLES = (
     pytest.param(
@@ -49,6 +48,11 @@ _RILEY_EXAMPLES = (
     pytest.param(
         "render3d/ex1g_riley_psf.py",
         "pyvale-output/render3d_ex1g_riley_psf/global_subpx_full/"
+        "cam0_frame0_field0.bmp",
+    ),
+    pytest.param(
+        "render3d/ex1h_riley_feature_zoo.py",
+        "pyvale-output/render3d_ex1h_riley_feature_zoo/mono-u8/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(

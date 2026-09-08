@@ -21,7 +21,6 @@ from scipy.spatial.transform import Rotation
 from .camera import Camera
 from .mesh import Mesh3D
 
-
 StereoCameras = tuple[Camera, Camera]
 """The ordered pair of cameras that defines a stereo rig."""
 
@@ -1108,8 +1107,6 @@ __all__ = [
     "crop_image_rectangle",
     "pixel_grid_leng",
     "pixel_vec_leng",
-    "subpixel_grid_leng",
-    "subpixel_vec_leng",
     "stereo_build_faceon",
     "stereo_build_from_calibration",
     "stereo_build_symmetric",
@@ -1119,4 +1116,6 @@ __all__ = [
     "stereo_calc_stand_off",
     "stereo_save_calibration_matchid",
     "stereo_save_calibration_yaml",
+    "subpixel_grid_leng",
+    "subpixel_vec_leng",
 ]

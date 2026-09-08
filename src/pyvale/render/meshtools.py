@@ -5,60 +5,91 @@
 # ==============================================================================
 """Conversion and geometric transformations for render surface meshes."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
-from pyvale.dataio.meshconv import (
-    enforce_mesh_convention,
-    extract_surf_mesh,
-    is_mesh_2d,
-)
 from pyvale.dataio.simdata import SimData
 
-from .mesh import EElementType, Mesh3D
+from .mesh import Mesh3D
 
 
-def mesh3d_from_simdata(
+def meshes3d_from_simdata(
     sim_data: SimData,
-    shader: object,
+    conventions: Mapping[str, riley.ConnectConvention],
+    *,
+    mesh_types: Mapping[str, riley.MeshType] | None = None,
+    shaders: Mapping[str, object | None] | None = None,
     displacement_keys: Sequence[str] | None = None,
-) -> Mesh3D:
-    """Build one surface :class:`Mesh3D` from simulation data.
+) -> dict[str, Mesh3D]:
+    """Build one prepared surface mesh for each simulation mesh block.
 
     Parameters
     ----------
     sim_data : pyvale.dataio.SimData
         Simulation data containing coordinates, connectivity, and optionally
         nodal displacement fields.
-    shader : object
-        Backend owned material or shader definition for the mesh.
+    conventions : mapping of str to riley.ConnectConvention
+        Explicit source connectivity convention for every block.
+    mesh_types : mapping of str to riley.MeshType or None, optional
+        Target Riley topology/implementation for each block. Natural surface
+        types are used when omitted.
+    shaders : mapping of str to object or None, optional
+        Backend-owned shader for each block.
     displacement_keys : Sequence[str] or None, optional
         Names of the three displacement components. ``None`` omits motion.
 
     Returns
     -------
-    Mesh3D
-        Renderer independent surface mesh data.
+    dict of str to Mesh3D
+        Prepared meshes keyed by input connectivity block.
     """
-    prepared = enforce_mesh_convention(sim_data)
+    if sim_data.coords is None or sim_data.connect is None:
+        raise ValueError("SimData must provide coordinates and connectivity.")
+    block_keys = set(sim_data.connect)
+    if set(conventions) != block_keys:
+        raise ValueError("Convention keys must match connectivity block keys.")
+    if mesh_types is not None and set(mesh_types) != block_keys:
+        raise ValueError("Mesh type keys must match connectivity block keys.")
+    if shaders is not None and set(shaders) != block_keys:
+        raise ValueError("Shader keys must match connectivity block keys.")
 
-    if not is_mesh_2d(prepared):
-        prepared = extract_surf_mesh(prepared)
-
-    coords, connectivity = _single_surface_table(prepared)
-    element_type = _element_type_from_nodes(connectivity.shape[1])
-    displacements = _displacements_from_simdata(prepared, displacement_keys)
-
-    return Mesh3D(
-        element_type=element_type,
-        coords=_coords3d(coords),
-        connectivity=np.ascontiguousarray(connectivity, dtype=np.uintp),
-        shader=shader,
-        displacements=displacements,
+    coords = _coords3d(sim_data.coords)
+    disp = _displacement_components_from_simdata(
+        sim_data, displacement_keys, coords.shape[0]
     )
+    meshes = {}
+    for block_key, connectivity in sim_data.connect.items():
+        convention = conventions[block_key]
+        mesh_type = (
+            _natural_mesh_type(convention.elem_type)
+            if mesh_types is None
+            else mesh_types[block_key]
+        )
+        conversion = riley.convert_mesh_for_render(
+            convention, mesh_type, coords, connectivity
+        )
+        displacements = None
+        if disp is not None:
+            remapped = tuple(
+                riley.remap_nodal_data(conversion, component)
+                for component in disp
+            )
+            displacements = np.ascontiguousarray(
+                np.stack(remapped, axis=2).transpose(1, 0, 2)
+            )
+        geometry = conversion.geometry
+        meshes[block_key] = Mesh3D(
+            element_type=geometry.elem_type,
+            coords=geometry.coords,
+            connectivity=geometry.connect,
+            shader=None if shaders is None else shaders[block_key],
+            displacements=displacements,
+        )
+    return meshes
 
 
 def mesh_bounds(mesh: Mesh3D) -> tuple[np.ndarray, np.ndarray]:
@@ -367,17 +398,6 @@ def select_frames(
     return frames[idx]
 
 
-def _single_surface_table(sim_data: SimData) -> tuple[np.ndarray, np.ndarray]:
-    """Return the one required surface connectivity table and coordinates."""
-    if sim_data.coords is None or sim_data.connect is None:
-        raise ValueError("SimData must provide coordinates and connectivity.")
-
-    if len(sim_data.connect) != 1:
-        raise ValueError("SimData must have exactly one connectivity table.")
-
-    return sim_data.coords, next(iter(sim_data.connect.values()))
-
-
 def _coords3d(coords: np.ndarray) -> np.ndarray:
     """Return finite render coordinates padded to three dimensions."""
     coords_out = np.ascontiguousarray(coords, dtype=np.float64)
@@ -390,30 +410,30 @@ def _coords3d(coords: np.ndarray) -> np.ndarray:
     return coords_out
 
 
-def _element_type_from_nodes(nodes_per_element: int) -> EElementType:
-    """Map a connectivity width to the corresponding render topology."""
+def _natural_mesh_type(elem_type: riley.EElemType) -> riley.MeshType:
+    """Return the natural Riley renderer type for source geometry."""
     mapping = {
-        3: EElementType.TRI3,
-        6: EElementType.TRI6,
-        4: EElementType.QUAD4,
-        8: EElementType.QUAD8,
-        9: EElementType.QUAD9,
+        riley.EElemType.TRI3: riley.MeshType.tri3,
+        riley.EElemType.TRI6: riley.MeshType.tri6,
+        riley.EElemType.TRI7: riley.MeshType.tri6,
+        riley.EElemType.QUAD4: riley.MeshType.quad4newton,
+        riley.EElemType.QUAD8: riley.MeshType.quad8,
+        riley.EElemType.QUAD9: riley.MeshType.quad9,
+        riley.EElemType.TET4: riley.MeshType.tri3,
+        riley.EElemType.TET10: riley.MeshType.tri6,
+        riley.EElemType.HEX8: riley.MeshType.quad4newton,
+        riley.EElemType.HEX20: riley.MeshType.quad8,
+        riley.EElemType.HEX27: riley.MeshType.quad9,
     }
-
-    if nodes_per_element not in mapping:
-        raise ValueError(
-            f"Unsupported surface connectivity with {nodes_per_element} "
-            "nodes per element.",
-        )
-
-    return mapping[nodes_per_element]
+    return mapping[elem_type]
 
 
-def _displacements_from_simdata(
+def _displacement_components_from_simdata(
     sim_data: SimData,
     displacement_keys: Sequence[str] | None,
-) -> np.ndarray | None:
-    """Extract nodal displacement fields into renderer array order."""
+    nodes_num: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """Extract three source-indexed displacement components."""
     if displacement_keys is None:
         return None
 
@@ -435,18 +455,16 @@ def _displacements_from_simdata(
             "Displacement fields must have shape (nodes, frames)."
         )
 
-    displacements = np.stack(fields, axis=2).transpose(1, 0, 2)
-
-    if displacements.shape[2] == 2:
-        displacements = np.pad(displacements, ((0, 0), (0, 0), (0, 1)))
-
-    return np.ascontiguousarray(displacements)
+    if any(field.shape[0] != nodes_num for field in fields):
+        raise ValueError("Displacement node count must match coordinates.")
+    if len(fields) == 2:
+        fields.append(np.zeros_like(fields[0]))
+    return tuple(np.ascontiguousarray(field) for field in fields)
 
 
 __all__ = [
     "evenly_spaced_frame_indices",
     "first_last_frame_indices",
-    "mesh3d_from_simdata",
     "mesh_bounds",
     "mesh_center",
     "mesh_center_at",
@@ -454,5 +472,6 @@ __all__ = [
     "mesh_scale",
     "mesh_transform",
     "mesh_translate",
+    "meshes3d_from_simdata",
     "select_frames",
 ]

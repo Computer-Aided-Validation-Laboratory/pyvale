@@ -18,7 +18,6 @@ from pathlib import Path
 
 import numpy as np
 import riley
-from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -47,13 +46,17 @@ simulation = io.SimLoaderByField(
 ).load_all_sim_data()
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
-texture = render.image_load(dataset.riley_speckle_texture_path())
+texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
 
-mesh = render.mesh3d_from_simdata(
+mesh = render.meshes3d_from_simdata(
     simulation,
-    shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+    {"connect": riley.ConnectConvention(
+        riley.EElemType.QUAD8, riley.EConnectAxis.ROW, 0,
+        riley.ENodeOrder.RILEY,
+    )},
+    shaders={"connect": riley.TextureShader(uvs=uvs, texture=texture)},
     displacement_keys=("disp_x", "disp_y", "disp_z"),
-)
+)["connect"]
 
 # We only render the first and last frame to save time. If you want to render 
 # all frames comment this out.

@@ -5,7 +5,7 @@
 # ============================================================================
 """Common three dimensional light data."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np

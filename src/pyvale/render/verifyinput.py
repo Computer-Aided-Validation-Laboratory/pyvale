@@ -14,14 +14,14 @@ from pyvale.dataio import SimData, check_mesh_convention
 from .camera import Camera
 from .errors import RenderInputError, ValidationIssue
 from .light import Light
-from .mesh import EElementType, Mesh3D
+from .mesh import EElemType, Mesh3D
 
 _NODES_PER_ELEMENT = {
-    EElementType.TRI3: 3,
-    EElementType.TRI6: 6,
-    EElementType.QUAD4: 4,
-    EElementType.QUAD8: 8,
-    EElementType.QUAD9: 9,
+    EElemType.TRI3: 3,
+    EElemType.TRI6: 6,
+    EElemType.QUAD4: 4,
+    EElemType.QUAD8: 8,
+    EElemType.QUAD9: 9,
 }
 
 

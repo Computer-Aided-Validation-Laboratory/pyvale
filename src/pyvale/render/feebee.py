@@ -17,7 +17,7 @@ import numpy as np
 
 from .capabilities import RenderCapabilities
 from .errors import ValidationIssue
-from .mesh import EElementType, Mesh3D
+from .mesh import EElemType, Mesh3D
 from .renderer3d import IRenderer3D
 from .result import RenderResult
 from .scene import Scene3D
@@ -217,7 +217,7 @@ class Feebee(IRenderer3D):
     """
 
     capabilities = RenderCapabilities(
-        element_types=frozenset(EElementType),
+        element_types=frozenset(EElemType),
         supports_lights=False,
         supports_camera_distortion=False,
         supports_psf=False,
@@ -411,11 +411,11 @@ def _verify_mesh(mesh: Mesh3D, path: str) -> tuple[ValidationIssue, ...]:
     """Return Feebee specific validation issues for one mesh."""
     issues: list[ValidationIssue] = []
     nodes_per_element = {
-        EElementType.TRI3: 3,
-        EElementType.TRI6: 6,
-        EElementType.QUAD4: 4,
-        EElementType.QUAD8: 8,
-        EElementType.QUAD9: 9,
+        EElemType.TRI3: 3,
+        EElemType.TRI6: 6,
+        EElemType.QUAD4: 4,
+        EElemType.QUAD8: 8,
+        EElemType.QUAD9: 9,
     }
     expected_nodes = nodes_per_element.get(mesh.element_type)
     if expected_nodes is None:

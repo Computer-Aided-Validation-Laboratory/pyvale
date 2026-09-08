@@ -15,18 +15,16 @@ case loaders shared between the gold generation scripts and the render tests,
 and image-regression assertions.
 """
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
 import pyvale.dataio as io
-import pyvale.mooseherder as mooseherder
-import pyvale.render as render
-import pyvale.sensorsim as sensorsim
-import riley
+from pyvale import mooseherder, render, sensorsim
 
 
 def assert_render_allclose(
@@ -139,7 +137,7 @@ def _save_tiff(path: Path, image: np.ndarray, lower: float, upper: float) -> Non
 def render_triangle(output_dir: Path) -> np.ndarray:
     """Render the deterministic common-API Blender triangle scene."""
     mesh = render.Mesh3D(
-        render.EElementType.TRI3,
+        render.EElemType.TRI3,
         np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0),
                   (0.0, 1.0, 0.0))),
         np.array(((0, 1, 2),)), object(),

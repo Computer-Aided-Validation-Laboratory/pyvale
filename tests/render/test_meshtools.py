@@ -6,10 +6,9 @@
 """Analytic tests for mesh transformation and frame helpers."""
 
 import numpy as np
-import pytest
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
+from pyvale import render
 
 
 def _make_sample_mesh3d() -> render.Mesh3D:
@@ -20,7 +19,7 @@ def _make_sample_mesh3d() -> render.Mesh3D:
     ])
     connect = np.array([[0, 1, 2]], dtype=np.uintp)
     return render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=coords,
         connectivity=connect,
         shader=None,
@@ -57,7 +56,7 @@ def test_mesh_rotate_z_axis_90_degrees() -> None:
     """Rotate (1, 0, 0) by 90 deg about Z -> (0, 1, 0)."""
     coords = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
     mesh = render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=coords,
         connectivity=np.array([[0, 1, 0]], dtype=np.uintp),
         shader=None,
@@ -73,7 +72,7 @@ def test_mesh_rotate_with_pivot() -> None:
     """Rotate (2, 0, 0) around pivot (1, 0, 0) by 180 deg -> (0, 0, 0)."""
     coords = np.array([[2.0, 0.0, 0.0]])
     mesh = render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=coords,
         connectivity=np.array([[0, 0, 0]], dtype=np.uintp),
         shader=None,
@@ -88,7 +87,7 @@ def test_mesh_rotate_with_pivot() -> None:
 def test_mesh_rotate_rotates_displacement_vectors() -> None:
     """Displacement vector (1, 0, 0) rotated by 90 deg about Z -> (0, 1, 0)."""
     mesh = render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=np.array([[0.0, 0.0, 0.0]]),
         connectivity=np.array([[0, 0, 0]], dtype=np.uintp),
         shader=None,
@@ -107,7 +106,7 @@ def test_mesh_scale_uniform_and_axes() -> None:
     """Scale coordinates uniformly and along axes."""
     coords = np.array([[1.0, 2.0, 3.0]])
     mesh = render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=coords,
         connectivity=np.array([[0, 0, 0]], dtype=np.uintp),
         shader=None,
@@ -140,7 +139,7 @@ def test_mesh_transform_composite() -> None:
     """Scale, rotate, and translate in canonical order."""
     coords = np.array([[1.0, 0.0, 0.0]])
     mesh = render.Mesh3D(
-        element_type=render.EElementType.TRI3,
+        element_type=render.EElemType.TRI3,
         coords=coords,
         connectivity=np.array([[0, 0, 0]], dtype=np.uintp),
         shader=None,

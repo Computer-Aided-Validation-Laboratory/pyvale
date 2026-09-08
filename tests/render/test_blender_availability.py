@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
 import pyvale.render.blender.adapter as blender_adapter
+from pyvale import render
 
 
 def make_camera() -> render.Camera:
@@ -28,7 +28,7 @@ def make_camera() -> render.Camera:
 def make_mesh() -> render.Mesh3D:
     """Create a small valid triangle mesh."""
     return render.Mesh3D(
-        render.EElementType.TRI3,
+        render.EElemType.TRI3,
         np.array(((-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (0.0, 1.0, 0.0))),
         np.array(((0, 1, 2),)),
         object(),
@@ -108,7 +108,7 @@ def test_blender_warns_for_non_tri3_meshes(monkeypatch, tmp_path) -> None:
         lambda: None,
     )
     mesh = render.Mesh3D(
-        render.EElementType.QUAD4,
+        render.EElemType.QUAD4,
         np.array(
             (
                 (-1.0, -1.0, 0.0),

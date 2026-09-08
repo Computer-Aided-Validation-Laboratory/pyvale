@@ -15,6 +15,7 @@ oblique camera view make the arbitrary physical orientation clear.
 from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
@@ -33,7 +34,13 @@ simulation = io.MeshLoader(
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_mesh()
 
-base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
+base_mesh = render.meshes3d_from_simdata(
+    simulation,
+    {"connect": riley.ConnectConvention(
+        riley.EElemType.TRI3, riley.EConnectAxis.ROW, 0,
+        riley.ENodeOrder.RILEY,
+    )},
+)["connect"]
 plate_rotation = Rotation.from_euler("xyz", (28.0, -34.0, 12.0), degrees=True)
 
 oriented_mesh = render.mesh_rotate(
@@ -53,7 +60,7 @@ plane = render.UVPlane(
     up=plate_rotation.apply(np.array((0.0, 1.0, 0.0))),
 )
 
-texture = render.image_load(dataset.riley_cal_target_texture_path())
+texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
 
 texture_px_per_leng = render.uv_calc_texture_px_per_leng(
     texture_px_per_feature=177.1,
@@ -62,7 +69,7 @@ texture_px_per_leng = render.uv_calc_texture_px_per_leng(
 
 mapping = render.uv_map_planar_scaled(
     oriented_mesh.coords,
-    texture,
+    texture[0],
     texture_px_per_leng,
     plane=plane,
 )
@@ -71,9 +78,9 @@ textured_mesh = render.Mesh3D(
     element_type=oriented_mesh.element_type,
     coords=oriented_mesh.coords,
     connectivity=oriented_mesh.connectivity,
-    shader=render.RileyTextureShader(
+    shader=riley.TextureShader(
         uvs=mapping.uvs,
-        texture=mapping.texture,
+        texture=mapping.texture[None, :, :],
     ),
 )
 

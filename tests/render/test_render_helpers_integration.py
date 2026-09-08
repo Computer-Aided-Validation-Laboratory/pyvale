@@ -6,11 +6,18 @@
 """Integration tests for consolidated render setup helper workflows."""
 
 import numpy as np
-
+import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
+from pyvale import render
 from pyvale.dataio.simdata import SimData
+
+_CONVENTIONS = {"surf": riley.ConnectConvention(
+    riley.EElemType.QUAD4,
+    riley.EConnectAxis.ROW,
+    0,
+    riley.ENodeOrder.RILEY,
+)}
 
 
 def _make_quad_simdata() -> SimData:
@@ -27,7 +34,7 @@ def _make_quad_simdata() -> SimData:
 def test_workflow_single_planar_specimen() -> None:
     """SimData -> mesh3d -> center_at -> UVs -> cam_look_at -> cam_frame."""
     sim = _make_quad_simdata()
-    mesh = render.mesh3d_from_simdata(sim, shader=None)
+    mesh = render.meshes3d_from_simdata(sim, _CONVENTIONS)["surf"]
     centered_mesh = render.mesh_center_at(mesh, np.zeros(3))
 
     np.testing.assert_allclose(
@@ -66,7 +73,10 @@ def test_workflow_single_planar_specimen() -> None:
 def test_workflow_multi_specimen_grid() -> None:
     """scene_arrange_grid -> scene_bounds -> cam_frame_scene."""
     sim = _make_quad_simdata()
-    meshes = [render.mesh3d_from_simdata(sim, shader=None) for _ in range(4)]
+    meshes = [
+        render.meshes3d_from_simdata(sim, _CONVENTIONS)["surf"]
+        for _ in range(4)
+    ]
 
     grid_meshes = render.scene_arrange_grid(
         meshes, columns=2, spacing=np.array((5.0, 5.0)), center=True
@@ -94,7 +104,7 @@ def test_workflow_multi_specimen_grid() -> None:
 def test_workflow_stereo_setup() -> None:
     """cam_frame_mesh -> stereo_build_symmetric."""
     sim = _make_quad_simdata()
-    mesh = render.mesh3d_from_simdata(sim, shader=None)
+    mesh = render.meshes3d_from_simdata(sim, _CONVENTIONS)["surf"]
 
     cam = render.Camera(
         pixels_num=np.array([512, 512]),

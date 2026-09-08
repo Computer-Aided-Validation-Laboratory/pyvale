@@ -14,7 +14,6 @@ import riley
 
 from pyvale import render
 
-
 RECTANGLE = np.array(
     ((0.0, 0.0, 0.0), (2.0, 0.0, 0.0),
      (2.0, 1.0, 0.0), (0.0, 1.0, 0.0)),
@@ -165,7 +164,7 @@ def test_riley_centered_projection_parity() -> None:
         RECTANGLE,
         (201, 101),
         uv_span_max=0.8,
-        proj_plane=riley.EProjPlane.XY,
+        proj_plane=riley.EUVProjPlane.XY,
     )
     actual = render.uv_project_planar_centered(
         RECTANGLE,
@@ -181,8 +180,8 @@ def test_riley_pixel_bounds_projection_parity() -> None:
         RECTANGLE,
         (201, 101),
         (20.0, 10.0, 180.0, 90.0),
-        riley.EProjPlane.XY,
-        riley.EPlanarProjMode.FIT_X,
+        riley.EUVProjPlane.XY,
+        riley.EUVPlanarProjMode.FIT_X,
     )
     actual = render.uv_project_planar_pixels(
         RECTANGLE,

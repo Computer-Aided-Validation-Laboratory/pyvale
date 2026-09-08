@@ -85,7 +85,7 @@ Double-letter iterators are the numpy-style convention sanctioned in
 
 ## Naming Conventions
 
-- `E` prefix: enumerations (`EMeshType`, `ELightType`, `EElementType`)
+- `E` prefix: enumerations (`EMeshType`, `ELightType`, `EElemType`)
 - `I` prefix: abstract-base-class interfaces (`ISensor`, `IRenderer3D`,
   `IImageWarp2D`)
 - `_` leading underscore: private/internal members and modules

@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import riley
 
-from pyvale.render.mesh import EElementType
+from pyvale.render.mesh import EElemType
 
 SIM_CASE_COUNT = 26
 """Constant describing the number of simulation test case input files for moose
@@ -766,7 +766,7 @@ def riley_stereocal_case_path() -> Path:
 
 def riley_rabbit_case_path(
     rabbit_name: str,
-    topology: EElementType,
+    topology: EElemType,
 ) -> Path:
     """Return one Riley rabbit mesh case packaged with pyvale.
 
@@ -774,7 +774,7 @@ def riley_rabbit_case_path(
     ----------
     rabbit_name : str
         One of ``"riley"`` or ``"feebs"``.
-    topology : EElementType
+    topology : EElemType
         One of the supported Riley surface topologies.
     """
     path = _data_path(
@@ -800,29 +800,27 @@ def riley_rabbit_meshes() -> list[riley.Mesh]:
         the shared mesh convention and textured with the packaged speckle
         image.
     """
-    from pyvale.dataio import SimData, enforce_mesh_convention
-
-    texture = riley.load_texture_u8(str(riley_speckle_texture_path()))
+    texture = riley.load_texture_mono_u8(riley_speckle_texture_path())
     meshes: list[riley.Mesh] = []
     for rabbit_name in ("riley", "feebs"):
-        data_path = riley_rabbit_case_path(rabbit_name, EElementType.TRI3)
-        mesh_data = enforce_mesh_convention(SimData(
-            coords=np.loadtxt(data_path / "coords.csv", delimiter=","),
-            connect={
-                "connect1": np.loadtxt(
-                    data_path / "connectivity.csv",
-                    delimiter=",",
-                    dtype=np.uintp,
-                ),
-            },
-        ))
-        assert mesh_data.coords is not None and mesh_data.connect is not None
-        uvs = np.loadtxt(data_path / "uvs.csv", delimiter=",")
-        meshes.append(riley.Mesh(
+        data_path = riley_rabbit_case_path(rabbit_name, EElemType.TRI3)
+        coords = riley.load_csv(data_path / "coords.csv")
+        connect = riley.load_csv(
+            data_path / "connectivity.csv", dtype=np.int64
+        )
+        uvs = riley.load_csv(data_path / "uvs.csv")
+        convention = riley.ConnectConvention(
+            riley.EElemType.TRI3,
+            riley.EConnectAxis.ROW,
+            0,
+            riley.ENodeOrder.RILEY,
+        )
+        meshes.append(riley.create_mesh(
+            convention,
             riley.MeshType.tri3,
-            mesh_data.coords,
-            mesh_data.connect["connect1"],
-            shader_type=riley.ShaderType.tex, uvs=uvs, texture=texture,
+            coords,
+            connect,
+            riley.TextureShader(uvs=uvs, texture=texture),
         ))
     return meshes
 

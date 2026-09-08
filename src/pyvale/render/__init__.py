@@ -79,11 +79,10 @@ from .imagetools import (
     image_save,
 )
 from .light import ELightType, Light
-from .mesh import EElementType, Mesh3D
+from .mesh import EElemType, Mesh3D
 from .meshtools import (
     evenly_spaced_frame_indices,
     first_last_frame_indices,
-    mesh3d_from_simdata,
     mesh_bounds,
     mesh_center,
     mesh_center_at,
@@ -91,6 +90,7 @@ from .meshtools import (
     mesh_scale,
     mesh_transform,
     mesh_translate,
+    meshes3d_from_simdata,
     select_frames,
 )
 from .rasterops import (
@@ -101,14 +101,7 @@ from .rasterops import (
 )
 from .renderer3d import IRenderer3D
 from .result import RenderResult
-from .riley import (
-    Riley,
-    RileyFunctionShader,
-    RileyNodalShader,
-    RileyTextureShader,
-    to_riley_camera,
-    to_riley_mesh,
-)
+from .riley import Riley, to_riley_camera, to_riley_mesh
 from .scene import Scene3D
 from .scenetools import (
     scene_arrange_circle,
@@ -153,15 +146,15 @@ __all__ = [
     "EBlenderDevice",
     "EBlenderEngine",
     "EDistortionModel",
-    "EUVBounds",
-    "EFrameFit",
-    "EElementType",
+    "EElemType",
     "EFeebeeMaterialType",
     "EFeebeeShading",
     "EFeebeeTextureSampler",
+    "EFrameFit",
     "EImageType",
     "ELightType",
     "EPSFType",
+    "EUVBounds",
     "EUVFit",
     "EUVOrigin",
     "EUVPlane",
@@ -177,15 +170,12 @@ __all__ = [
     "RenderInputError",
     "RenderResult",
     "Riley",
-    "RileyFunctionShader",
-    "RileyNodalShader",
-    "RileyTextureShader",
     "Scene3D",
     "StereoAngles",
     "StereoCameras",
     "StereoExtrinsics",
-    "UVPlane",
     "UVMapping",
+    "UVPlane",
     "UVTransform",
     "ValidationIssue",
     "average_subpixel_image",
@@ -219,7 +209,6 @@ __all__ = [
     "image_normalise",
     "image_resize",
     "image_save",
-    "mesh3d_from_simdata",
     "mesh_bounds",
     "mesh_center",
     "mesh_center_at",
@@ -227,6 +216,7 @@ __all__ = [
     "mesh_scale",
     "mesh_transform",
     "mesh_translate",
+    "meshes3d_from_simdata",
     "pixel_grid_leng",
     "pixel_vec_leng",
     "raise_if_blender_unavailable",

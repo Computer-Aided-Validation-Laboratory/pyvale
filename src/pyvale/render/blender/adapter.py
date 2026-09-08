@@ -13,7 +13,7 @@ from pyvale.sensorsim.simtools import centre_mesh_nodes
 from ..capabilities import RenderCapabilities
 from ..errors import ValidationIssue
 from ..light import ELightType, Light
-from ..mesh import EElementType, Mesh3D
+from ..mesh import EElemType, Mesh3D
 from ..renderer3d import IRenderer3D
 from ..result import RenderResult
 from ..scene import Scene3D
@@ -26,7 +26,7 @@ class Blender(IRenderer3D):
     """Render common scene data and deformation frames in Blender."""
 
     capabilities = RenderCapabilities(
-        element_types=frozenset((EElementType.TRI3,)),
+        element_types=frozenset((EElemType.TRI3,)),
         supports_lights=True,
         supports_camera_distortion=False,
         supports_psf=False,
@@ -154,7 +154,7 @@ class Blender(IRenderer3D):
                     )
                 )
                 continue
-            if mesh.element_type is not EElementType.TRI3:
+            if mesh.element_type is not EElemType.TRI3:
                 warnings.warn(
                     "Blender support is verified only for Tri3 meshes; "
                     f"received {mesh.element_type.value}.",
@@ -287,16 +287,16 @@ def _legacy_light(blender_module: object, light: Light) -> object:
 
 def _triangulate_mesh_for_blender(mesh: Mesh3D) -> Mesh3D:
     """Tessellate legacy surface cells for Blender's supported Tri3 path."""
-    if mesh.element_type is EElementType.TRI3:
+    if mesh.element_type is EElemType.TRI3:
         return mesh
 
     import pyvista as pv
 
     cell_types = {
-        EElementType.TRI6: pv.CellType.QUADRATIC_TRIANGLE,
-        EElementType.QUAD4: pv.CellType.QUAD,
-        EElementType.QUAD8: pv.CellType.QUADRATIC_QUAD,
-        EElementType.QUAD9: pv.CellType.BIQUADRATIC_QUAD,
+        EElemType.TRI6: pv.CellType.QUADRATIC_TRIANGLE,
+        EElemType.QUAD4: pv.CellType.QUAD,
+        EElemType.QUAD8: pv.CellType.QUADRATIC_QUAD,
+        EElemType.QUAD9: pv.CellType.BIQUADRATIC_QUAD,
     }
     nodes_per_element = mesh.connectivity.shape[1]
     cells = np.column_stack(
@@ -317,7 +317,7 @@ def _triangulate_mesh_for_blender(mesh: Mesh3D) -> Mesh3D:
     surface = grid.extract_surface(algorithm="dataset_surface").triangulate()
     connectivity = np.asarray(surface.faces).reshape((-1, 4))[:, 1:]
     return Mesh3D(
-        EElementType.TRI3,
+        EElemType.TRI3,
         np.asarray(surface.points),
         connectivity,
         mesh.shader,

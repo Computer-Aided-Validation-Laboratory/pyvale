@@ -9,11 +9,12 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
-import pyvale.render as render
-import pyvale.verif.renderverif as renderverif
+from pyvale import render
+from pyvale.verif import renderverif
 
 
 def _camera(pixels: tuple[int, int] = (20, 20)) -> render.Camera:
@@ -35,7 +36,18 @@ def _mesh(camera: render.Camera) -> render.Mesh3D:
     shader = render.BlenderTextureShader(
         dataset.dic_pattern_5mpx_path(), resolution
     )
-    return render.mesh3d_from_simdata(sim_data, shader, ("disp_x", "disp_y"))
+    conventions = {"connect1": riley.ConnectConvention(
+        riley.EElemType.QUAD9,
+        riley.EConnectAxis.ROW,
+        0,
+        riley.ENodeOrder.RILEY,
+    )}
+    return render.meshes3d_from_simdata(
+        sim_data,
+        conventions,
+        shaders={"connect1": shader},
+        displacement_keys=("disp_x", "disp_y"),
+    )["connect1"]
 
 
 def _render(

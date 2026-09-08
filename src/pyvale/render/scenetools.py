@@ -13,7 +13,6 @@ from scipy.spatial.transform import Rotation
 from .mesh import Mesh3D
 from .meshtools import (
     mesh_bounds,
-    mesh_center,
     mesh_center_at,
     mesh_rotate,
     mesh_translate,

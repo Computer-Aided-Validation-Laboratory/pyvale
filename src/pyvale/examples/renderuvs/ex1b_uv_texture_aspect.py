@@ -16,6 +16,7 @@ the effect of projecting an oblique target onto fixed UV axes.
 from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
@@ -35,9 +36,15 @@ simulation = io.MeshLoader(
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_mesh()
 
-base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
+base_mesh = render.meshes3d_from_simdata(
+    simulation,
+    {"connect": riley.ConnectConvention(
+        riley.EElemType.TRI3, riley.EConnectAxis.ROW, 0,
+        riley.ENodeOrder.RILEY,
+    )},
+)["connect"]
 
-texture = render.image_load(dataset.riley_cal_target_texture_path())
+texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
 
 # %%
 # 2. Define the three aspect preserving fit modes
@@ -95,7 +102,7 @@ for orientation_name, mesh in (
     for fit_name, fit_mode in fit_modes:
         uvs = render.uv_project_planar(
             mesh.coords,
-            texture_shape=texture.shape[:2],
+            texture_shape=texture.shape[-2:],
             fit=fit_mode,
         )
 
@@ -103,7 +110,7 @@ for orientation_name, mesh in (
             element_type=mesh.element_type,
             coords=mesh.coords,
             connectivity=mesh.connectivity,
-            shader=render.RileyTextureShader(uvs=uvs, texture=texture),
+            shader=riley.TextureShader(uvs=uvs, texture=texture),
         )
 
         render_uv_example(
@@ -127,7 +134,7 @@ texture_px_per_leng = render.uv_calc_texture_px_per_leng(
 
 physical_mapping = render.uv_map_planar_scaled(
     rotated_mesh.coords,
-    texture,
+    texture[0],
     texture_px_per_leng,
 )
 
@@ -135,9 +142,9 @@ physical_mesh = render.Mesh3D(
     element_type=rotated_mesh.element_type,
     coords=rotated_mesh.coords,
     connectivity=rotated_mesh.connectivity,
-    shader=render.RileyTextureShader(
+    shader=riley.TextureShader(
         uvs=physical_mapping.uvs,
-        texture=physical_mapping.texture,
+        texture=physical_mapping.texture[None, :, :],
     ),
 )
 

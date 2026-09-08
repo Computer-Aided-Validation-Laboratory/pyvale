@@ -5,13 +5,12 @@
 # ============================================================================
 """Concrete scene input for three dimensional and planar renderers."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import riley
 
 from .camera import Camera
 from .light import Light
-from .mesh import Mesh3D
 
 
 @dataclass(slots=True)

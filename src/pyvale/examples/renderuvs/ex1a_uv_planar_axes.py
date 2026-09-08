@@ -34,6 +34,7 @@ you need them.
 from pathlib import Path
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
@@ -55,8 +56,14 @@ simulation = io.MeshLoader(
     load_opts=io.SimLoadOpts(coord_header=None),
 ).load_mesh()
 
-base_mesh = render.mesh3d_from_simdata(simulation, shader=None)
-cal_texture = render.image_load(dataset.riley_cal_target_texture_path())
+base_mesh = render.meshes3d_from_simdata(
+    simulation,
+    {"connect": riley.ConnectConvention(
+        riley.EElemType.TRI3, riley.EConnectAxis.ROW, 0,
+        riley.ENodeOrder.RILEY,
+    )},
+)["connect"]
+cal_texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
 
 mesh_center = render.mesh_center(base_mesh)
 
@@ -147,7 +154,7 @@ for variant_name, projection_plane, mesh_rotation, camera_rotation in variants:
 
     mapping = render.uv_map_planar_scaled(
         oriented_mesh.coords,
-        cal_texture,
+        cal_texture[0],
         texture_px_per_leng,
         plane=projection_plane,
     )
@@ -156,9 +163,9 @@ for variant_name, projection_plane, mesh_rotation, camera_rotation in variants:
         element_type=oriented_mesh.element_type,
         coords=oriented_mesh.coords,
         connectivity=oriented_mesh.connectivity,
-        shader=render.RileyTextureShader(
+        shader=riley.TextureShader(
             uvs=mapping.uvs,
-            texture=mapping.texture,
+            texture=mapping.texture[None, :, :],
         ),
     )
 
@@ -181,7 +188,7 @@ for variant_name, projection_plane, mesh_rotation, camera_rotation in variants:
 # pixels. We also request five image pixels per feature in the rendered image.
 # The camera scale at the ROI connects these two pixel spaces through physical
 # simulation length.
-speckle_texture = render.image_load(dataset.riley_speckle_texture_path())
+speckle_texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
 
 speckle_mesh = base_mesh
 
@@ -213,7 +220,7 @@ speckle_texture_px_per_leng =  render.uv_calc_texture_px_per_leng_from_image(
 
 speckle_mapping = render.uv_map_planar_scaled(
     speckle_mesh.coords,
-    speckle_texture,
+    speckle_texture[0],
     speckle_texture_px_per_leng,
     bounds=render.EUVBounds.TILED,
 )
@@ -222,9 +229,9 @@ speckled_mesh = render.Mesh3D(
     element_type=speckle_mesh.element_type,
     coords=speckle_mesh.coords,
     connectivity=speckle_mesh.connectivity,
-    shader=render.RileyTextureShader(
+    shader=riley.TextureShader(
         uvs=speckle_mapping.uvs,
-        texture=speckle_mapping.texture,
+        texture=speckle_mapping.texture[None, :, :],
     ),
 )
 

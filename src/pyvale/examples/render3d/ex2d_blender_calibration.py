@@ -28,8 +28,7 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-import pyvale.render as render
-
+from pyvale import render
 
 # %%
 # 1. Define base camera and build convergent stereo system
