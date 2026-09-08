@@ -1,89 +1,96 @@
-# pyvale
-![fig_pyvale_logo](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/pyvale_logo.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/pyvale_logo.png" alt="PyVale" width="620">
+</p>
 
-The python validation engine (`pyvale`) is your virtual engineering laboratory: An all-in-one package for sensor uncertainty quantification simulations, experimental design/sensor placement optimisation and simulation calibration/validation. Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties. Useful for experimental design, sensor placement optimisation, testing simulation validation metrics and virtually testing digital shadows/twins.
+<p align="center"><strong>Your virtual engineering laboratory: design experiments, analyse measurements, and iterate with confidence.</strong></p>
 
-We are actively developing dedicated tools for simulation and uncertainty quantification of imaging sensors including digital image correlation (DIC) and infra-red thermography (IRT). Check out the [documentation](https://computer-aided-validation-laboratory.github.io/pyvale/index.html) to get started with some of our examples.
+<p align="center">
+  <a href="https://pypi.org/project/pyvale/"><img src="https://img.shields.io/pypi/v/pyvale?label=PyPI" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/pyvale/"><img src="https://img.shields.io/pypi/pyversions/pyvale" alt="Supported Python versions"></a>
+  <a href="https://github.com/Computer-Aided-Validation-Laboratory/pyvale/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/tests.yml?branch=main&label=tests" alt="Tests"></a>
+  <a href="https://github.com/Computer-Aided-Validation-Laboratory/pyvale/actions/workflows/wheels.yml"><img src="https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/wheels.yml?branch=main&label=wheels" alt="Wheels"></a>
+  <a href="https://computer-aided-validation-laboratory.github.io/pyvale/"><img src="https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/docs.yml?branch=main&label=docs" alt="Documentation"></a>
+  <a href="https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Computer-Aided-Validation-Laboratory/pyvale" alt="MIT license"></a>
+</p>
 
-## Quick Install
-We recommend installing `pyvale` into a virtual environment of your choice as `pyvale` requires python 3.13. If you need help setting up your virtual environment and installing `pyvale` head over to the [installation guide](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html) in our docs.
+PyVale is a general purpose toolbox for simulation driven experimental design
+and experimental mechanics. Build virtual sensor arrays, generate realistic
+camera images, analyse DIC measurements, and feed what you learn into the next
+experiment.
 
-`pyvale` can be installed from pypi:
-```shell
-pip install pyvale
-```
+The core **SensorSim**, **DIC**, and **Render** modules are ready for general
+use. Tools for sensor placement optimisation, experimental design, and
+simulation validation metrics are under active development.
 
-## Quick Demo: Digital Image Correlation
-Below is a really quick example for setting up a DIC calculation. It's highly likely that your case will require a more tailored calculation configuration.  
+## PyVale Design Framework
 
-**For further details please see the DIC [examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_dic.html), [theory guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_theory/guide_theory_dic.html),  [user guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_dic.html)  and [API](https://computer-aided-validation-laboratory.github.io/pyvale/pyvale.dic.html).**
+PyVale connects experiment design, measurement simulation, data analysis, and
+model improvement in an iterative workflow. Its core modules can be used
+independently or combined to close the loop between simulation and experiment.
 
-Define the Region of Interest (ROI):
+| Capability | What it gives you | Documentation |
+|:---|:---|:---:|
+| **SensorSim** | Virtual sensor arrays, uncertainty models, and repeated simulated experiments | [Examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_basics_sensorsim.html) · [Guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_sensorsim.html) |
+| **DIC** | Two dimensional and stereo correlation, shape reconstruction, displacement, and strain | [Examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_dic.html) · [Guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_dic.html) |
+| **Render** | Synthetic camera images, deforming meshes, and optical realism | [Examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_render3d.html) · [UV Examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_renderuvs.html) |
 
-```python
-import pyvale.dic as dic
+## Core Capabilities
 
-roi = dic.RegionOfInterest(ref_image="image0000.tiff")
-roi.interactive_selection()
-```
-run the DIC:
+### SensorSim · simulate measurements and uncertainty
 
-```python
-# use dic.calculate_3d for stereo
-dic.calculate_2d(reference="image0000.tiff",
-                 deformed="image*.tiff",
-                 roi_mask=roi.mask, # built using ROI tool
-                 seed=roi.seed, # built using ROI tool
-                 subset_size=21,
-                 subset_step=10)
-```
-Import the results for any analysis/plotting:
+Create virtual thermocouples, strain gauges, and other sensor arrays on
+multiphysics simulations. Model systematic and random uncertainty, repeat
+virtual experiments, and inspect the resulting measurement distributions.
 
-```python
-dicdata = dic.import_2d(data="dic_results*.csv", # default result files prefix
-                        delimiter=",")
+[**SensorSim examples**](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_basics_sensorsim.html) · [**User guide**](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_sensorsim.html)
 
+| Sensor locations | Simulated sensor traces |
+|:---:|:---:|
+| <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/basics_ex0_locs.png" alt="Virtual sensor locations" width="520"> | <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/basics_ex0_traces.png" alt="Simulated sensor traces" width="520"> |
 
-import matplotlib.pyplot as plt
-plt.pcolor(dicdata.ss_x, 
-           dicdata.ss_y, 
-           dicdata.u_px[0]) # horizontal displacement for 0th image
-plt.show()
-```
+### DIC · analyse deformation from images
 
+Run two dimensional and stereo digital image correlation on synthetic or
+experimental images. Define regions of interest, correlate large image sets,
+reconstruct surfaces, and calculate displacement and strain.
 
+[**DIC examples**](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_dic.html) · [**User guide**](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_dic.html)
 
+| Stereo region of interest | Reconstructed shape |
+|:---:|:---:|
+| <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex11_roi.png" alt="Stereo DIC region of interest" width="520"> | <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex11_3d.png" alt="Stereo DIC reconstructed shape" width="520"> |
 
-## Quick Demo: Simulating Point Sensors
-`/pyvale` can be used to simulate thermocouples and strain gauges applied to a [MOOSE](https://mooseframework.inl.gov/index.html) thermo-mechanical simulation of a fusion divertor armour heatsink. The figures below show visualisations of the virtual thermocouple and strain gauge locations on the simualtion mesh as well as time traces for each sensor over a series of simulated experiments.
+### Render · build virtual camera experiments
 
-The code to run the simulated experiments and produce the output shown here comes from [this example](https://computer-aided-validation-laboratory.github.io/pyvale/examples/basicsensorsim/ex0_quickstart.html). You can find more examples and details of `pyvale` python API in the `pyvale` [documentation](https://computer-aided-validation-laboratory.github.io/pyvale/index.html).
+Render deforming finite element meshes through the verified Riley rasteriser or
+the optional Blender backend. Configure camera geometry, distortion, point
+spread functions, textures, stereo pairs, and physically meaningful speckle
+scales.
 
-|![fig_thermomech3d_tc_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_tc_vis.png)|![fig_thermomech3d_sg_vis](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_vis.png)|
-|--|--|
-|*Visualisation of the thermocouple locations.*|*Visualisation of the strain gauge locations.*|
+[**Render examples →**](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_render3d.html) · [**UV mapping examples →**](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_renderuvs.html)
 
-|![fig_thermomech3d_tc_traces](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_tc_traces.png)|![fig_thermomech3d_sg_traces](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/thermomech3d_sg_traces.png)|
-|--|--|
-|*Thermocouple time traces over a series of simulated experiments.*|*Strain gauge time traces over a series of simulated experiments.*|
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/render3d_ex1d_riley_dicuq.png" alt="Riley render of a speckled plate with a hole" width="900">
+</p>
 
-## Contributors
-The Computer Aided Validation Team at UKAEA:
-- Lloyd Fletcher ([ScepticalRabbit](https://github.com/ScepticalRabbit)), UK Atomic Energy Authority
-- Joel Hirst ([JoelPhys](https://github.com/JoelPhys)), UK Atomic Energy Authority
-- Lorna Sibson ([lornasibson](https://github.com/lornasibson)), UK Atomic Energy Authority
-- Megan Sampson ([meganasampson](https://github.com/meganasampson)), UK Atomic Energy Authority
-- Wiera Bielajewa ([WieraB](https://github.com/WieraB)), UK Atomic Energy Authority
-- Chris Dawson ([ctdaws](https://github.com/ctdaws)), UK Atomic Energy Authority
-- Michael Darcy ([AnalogArnold](https://github.com/AnalogArnold)), Swansea University
-- Rob Hamill ([rob-hamill](https://github.com/rob-hamill)), UK Atomic Energy Authority
-- Michael Atkinson ([mikesmic](https://github.com/mikesmic)), UK Atomic Energy Authority
-- Adel Tayeb ([3adelTayeb](https://github.com/3adelTayeb)), UK Atomic Energy Authority
-- Alex Marsh ([alexmarsh2](https://github.com/alexmarsh2)), UK Atomic Energy Authority
-- Rory Spencer ([fusmatrs](https://github.com/fusmatrs)), UK Atomic Energy Authority
-- John Charlton ([coolmule0](https://github.com/coolmule0)), UK Atomic Energy Authority
+## Install
 
+PyVale supports Python 3.11 and newer. Blender integration requires Python
+3.13 and the optional Blender dependencies.
 
+| Platform | Install commands |
+|:---|:---|
+| pip | `pip install pyvale` |
+| uv | `uv add pyvale` |
+| Blender tools | `pip install "pyvale[blender]"` |
 
+[**Installation guide**](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html) · [**Browse all examples**](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples.html) · [**Open the documentation**](https://computer-aided-validation-laboratory.github.io/pyvale/)
 
+## Acknowledgements
 
+PyVale is developed by the Computer Aided Validation Team and collaborators.
+Its motivation comes from the demanding simulation validation experiments
+needed in fusion engineering, while its tools are intended for experimental
+mechanics generally.
+
+[Contributors](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/CONTRIBUTORS.md) · [Contributing](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/CONTRIBUTING.md) · [Citation](https://computer-aided-validation-laboratory.github.io/pyvale/cite.html) · [MIT license](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/LICENSE)
