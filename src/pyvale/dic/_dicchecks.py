@@ -408,7 +408,7 @@ def _check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int,
 
 def _check_images(reference: np.ndarray | str | Path,
                  deformed: np.ndarray | str | Path | list[Path],
-                 roi: np.ndarray, print_level: int) -> tuple[list[str], list[str], int, int, Path | None]:
+                 roi: np.ndarray, print_level: int) -> tuple[list[str], list[str], int, int, Path | None, list[np.ndarray] | None]:
     """
     Validate reference and deformed images, checks consistency in shape/format.
 
@@ -446,10 +446,12 @@ def _check_images(reference: np.ndarray | str | Path,
         Width of the images in pixels.
     h : int
         Height of the images in pixels.
-    temp_dir : pathlib.Path or None
-        Path to the temporary directory created to store array-based images on disk.
-        ``None`` if file-based input was used. Caller is responsible for cleanup
-        (e.g. ``shutil.rmtree(temp_dir)``).
+    temp_dir : None
+        Deprecated return slot retained for caller compatibility. Array inputs are
+        passed to the DIC engine in memory and no temporary directory is created.
+    image_arrays : list[numpy.ndarray] or None
+        Contiguous in-memory images for array-based input, or ``None`` for
+        file-based input.
 
     Raises
     ------
@@ -464,6 +466,7 @@ def _check_images(reference: np.ndarray | str | Path,
     basename = []
     fullpath = []
     temp_dir = None
+    image_arrays = None
 
     # Normalize Path or str to Path
     if isinstance(reference, (str, Path)):
@@ -549,21 +552,11 @@ def _check_images(reference: np.ndarray | str | Path,
                 print(f"Reference array has {ref_arr.shape[2]} channels. Using channel 0.")
             ref_arr = ref_arr[:, :, 0]
 
-        # Create a tmp directory under cwd
-        temp_dir = Path.cwd() / "tmp_dic"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-
-        if print_level > 0:
-            print(f"Saving array images to temporary directory: {temp_dir}\n")
-
-        # Save reference image
         ref_filename = "ref_img.tiff"
-        ref_path = temp_dir / ref_filename
-        Image.fromarray(ref_arr).save(ref_path)
         basename.append(ref_filename)
-        fullpath.append(str(ref_path))
+        fullpath.append("")
+        image_arrays = [_check_array_image_dtype(np.ascontiguousarray(ref_arr))]
 
-        # Save deformed images
         for i in range(def_arr.shape[0]):
             frame = def_arr[i]
             if frame.ndim == 3:
@@ -572,22 +565,38 @@ def _check_images(reference: np.ndarray | str | Path,
                 frame = frame[:, :, 0]
 
             def_filename = f"def_img_{i:04d}.tiff"
-            def_path = temp_dir / def_filename
-            Image.fromarray(frame).convert("L").save(def_path)
             basename.append(def_filename)
-            fullpath.append(str(def_path))
+            fullpath.append("")
+            image_arrays.append(_check_array_image_dtype(np.ascontiguousarray(frame)))
 
         if print_level > 1:
-            print(f"Saved {def_arr.shape[0]} deformed images to {temp_dir}")
+            print(f"Prepared {def_arr.shape[0]} deformed array images for in-memory DIC")
             for name in basename[1:]:
                 print(f"  - {name}")
             print("")
 
-        ref_img = Image.open(ref_path)
+        w = ref_arr.shape[1]
+        h = ref_arr.shape[0]
+        return basename, fullpath, w, h, temp_dir, image_arrays
 
     w, h = ref_img.size
 
-    return basename, fullpath, w, h, temp_dir
+    return basename, fullpath, w, h, temp_dir, image_arrays
+
+
+def _check_array_image_dtype(image: np.ndarray) -> np.ndarray:
+    allowed_dtypes = {
+        np.dtype(np.uint8),
+        np.dtype(np.uint16),
+        np.dtype(np.uint32),
+        np.dtype(np.float32),
+    }
+    if image.dtype not in allowed_dtypes:
+        raise TypeError(
+            "Array image dtype must be one of uint8, uint16, uint32, or float32. "
+            f"Got {image.dtype}."
+        )
+    return image
 
 
 

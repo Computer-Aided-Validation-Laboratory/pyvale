@@ -4,7 +4,6 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-import os
 from logging import debug
 import numpy as np
 from pathlib import Path
@@ -195,16 +194,20 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     roi_c = np.ascontiguousarray(roi_mask)
 
     # do checks on vars in python land
-    basenames0, fullpaths0, w0, h0, temp_dir = dicchecks._check_images(reference[0],deformed[0],roi_mask,print_level)
-    basenames1, fullpaths1, w1, h1, temp_dir = dicchecks._check_images(reference[1],deformed[1],roi_mask,print_level)
+    basenames0, fullpaths0, w0, h0, _, image_arrays0 = dicchecks._check_images(reference[0],deformed[0],roi_mask,print_level)
+    basenames1, fullpaths1, w1, h1, _, image_arrays1 = dicchecks._check_images(reference[1],deformed[1],roi_mask,print_level)
 
     assert(w0 == w1)
     assert(h0 == h1)
     assert(len(basenames0) == len(basenames1))
-    assert(len(basenames0) == len(basenames1))
     assert(len(fullpaths0) == len(fullpaths1))
     basenames = basenames0 + basenames1
     fullpaths = fullpaths0 + fullpaths1
+    image_arrays = None
+    if image_arrays0 is not None or image_arrays1 is not None:
+        if image_arrays0 is None or image_arrays1 is None:
+            raise ValueError("Stereo DIC array inputs must be arrays for both cameras or paths for both cameras.")
+        image_arrays = image_arrays0 + image_arrays1
 
     # string to enum
     method_enum = EScanMethod(method)
@@ -331,15 +334,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
-
-
-    if temp_dir is not None:
-
-        # delete each file in filename
-        for filename in os.listdir(temp_dir):
-            file_path = os.path.join(temp_dir, filename)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-
-        os.rmdir(temp_dir)
+        if image_arrays is None:
+            diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+        else:
+            diccpp.engine_images(image_arrays, roi_c, calib, config, multiwindowconf, saveconf)

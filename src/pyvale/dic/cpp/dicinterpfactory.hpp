@@ -31,9 +31,7 @@
  *
  * @throws std::invalid_argument if @p routine is not a recognised method.
  */
-inline std::unique_ptr<Interpolator> make_interp(util::InterpRoutine routine, const std::string &image_str) {
-
-    Image img = read_img(image_str);
+inline std::unique_ptr<Interpolator> make_interp(util::InterpRoutine routine, const Image &img) {
 
     switch (routine) {
         case util::InterpRoutine::BSPLINE:
@@ -42,4 +40,10 @@ inline std::unique_ptr<Interpolator> make_interp(util::InterpRoutine routine, co
             return std::make_unique<Hermite>(img);
     }
     throw std::invalid_argument("Unknown interpolation routine");
+}
+
+inline std::unique_ptr<Interpolator> make_interp(util::InterpRoutine routine, const std::string &image_str) {
+
+    Image img = read_img(image_str);
+    return make_interp(routine, img);
 }

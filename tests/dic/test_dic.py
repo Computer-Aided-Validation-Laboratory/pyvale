@@ -769,7 +769,7 @@ def test_3d_rg_znssd_quad():
 def test_f32_support():
 
     np.random.seed(100)
-    ref_arr = np.random.uniform(0, 200, size=(400,400))
+    ref_arr = np.random.uniform(0, 200, size=(400,400)).astype(np.float32)
     def_arr = np.roll(ref_arr,  1, axis=1)
     def_arr = np.roll(def_arr, -1, axis=0)
 

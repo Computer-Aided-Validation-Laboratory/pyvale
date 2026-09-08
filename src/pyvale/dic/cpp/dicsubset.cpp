@@ -27,6 +27,7 @@ namespace subset {
             case PixelType::UINT8:  fill_impl(ss_ref, img.data8,  ss_x, ss_y, px_hori); break;
             case PixelType::UINT16: fill_impl(ss_ref, img.data16, ss_x, ss_y, px_hori); break;
             case PixelType::UINT32: fill_impl(ss_ref, img.data32, ss_x, ss_y, px_hori); break;
+            case PixelType::UINT32F: fill_impl(ss_ref, img.data32f, ss_x, ss_y, px_hori); break;
         }
     }
 

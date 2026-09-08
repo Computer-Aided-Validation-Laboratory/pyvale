@@ -9,6 +9,7 @@
 
 // STD Library header files
 #include <iostream>
+#include <vector>
 
 // Pybind11 Header Files
 #include <pybind11/numpy.h>
@@ -61,6 +62,13 @@ void engine(const py::array_t<bool>& img_roi_arr,
             const util::Config& conf,
             const MultiwindowConfig &multiwindowconf,
             const common_util::SaveConfig& saveconf);
+
+void engine_images(const std::vector<Image>& images,
+                   const py::array_t<bool>& img_roi_arr,
+                   const Calib &calib,
+                   const util::Config& conf,
+                   const MultiwindowConfig &multiwindowconf,
+                   const common_util::SaveConfig& saveconf);
 
 void build_info();
 

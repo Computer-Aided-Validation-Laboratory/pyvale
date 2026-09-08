@@ -42,6 +42,11 @@ Hermite::Hermite(const Image &img) {
             image[i] = static_cast<double>(img.data32[i]);
         }
     }
+    else if (img.type == PixelType::UINT32F) {
+        for (size_t i = 0; i < img.data32f.size(); i++) {
+            image[i] = static_cast<double>(img.data32f[i]);
+        }
+    }
 
     // allocate memory for pixel coordinate arrays
     px_y.resize(px_vert);

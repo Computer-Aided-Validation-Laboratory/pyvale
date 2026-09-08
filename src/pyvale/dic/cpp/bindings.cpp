@@ -12,6 +12,9 @@
 
 // Standard Library
 #include <vector>
+#include <cstring>
+#include <stdexcept>
+#include <type_traits>
 
 // common_cpp Header Files
 #include "../../common_cpp/util.hpp"
@@ -24,6 +27,65 @@
 #include "./dicinterpBspline.hpp"
 
 namespace py = pybind11;
+
+namespace {
+
+template <typename T>
+bool copy_array_to_image(py::handle h, Image &img, PixelType type) {
+    using Array = py::array_t<T, py::array::c_style>;
+    auto arr = Array::ensure(h);
+    if (!arr || arr.ndim() != 2) {
+        return false;
+    }
+
+    img.width = static_cast<uint32_t>(arr.shape(1));
+    img.height = static_cast<uint32_t>(arr.shape(0));
+    img.type = type;
+
+    const size_t num_pixels = static_cast<size_t>(img.width) * img.height;
+    if constexpr (std::is_same_v<T, uint8_t>) {
+        img.data8.assign(arr.data(), arr.data() + num_pixels);
+    } else if constexpr (std::is_same_v<T, uint16_t>) {
+        img.data16.assign(arr.data(), arr.data() + num_pixels);
+    } else if constexpr (std::is_same_v<T, uint32_t>) {
+        img.data32.assign(arr.data(), arr.data() + num_pixels);
+    } else if constexpr (std::is_same_v<T, float>) {
+        img.data32f.assign(arr.data(), arr.data() + num_pixels);
+    }
+    return true;
+}
+
+Image image_from_array(py::handle h, const std::string &filename) {
+    Image img;
+    img.filename = filename;
+
+    if (copy_array_to_image<uint8_t>(h, img, PixelType::UINT8) ||
+        copy_array_to_image<uint16_t>(h, img, PixelType::UINT16) ||
+        copy_array_to_image<uint32_t>(h, img, PixelType::UINT32) ||
+        copy_array_to_image<float>(h, img, PixelType::UINT32F)) {
+        return img;
+    }
+
+    throw std::runtime_error(
+        "Unsupported array: expected 2D C-contiguous NumPy array of dtype uint8/uint16/uint32/float32"
+    );
+}
+
+std::vector<Image> images_from_sequence(py::sequence image_arrays, const util::Config &conf) {
+    std::vector<Image> images;
+    images.reserve(py::len(image_arrays));
+
+    for (size_t i = 0; i < py::len(image_arrays); ++i) {
+        std::string filename = i < conf.basenames.size()
+            ? conf.basenames[i]
+            : "array_img_" + std::to_string(i);
+        images.push_back(image_from_array(image_arrays[i], filename));
+    }
+
+    return images;
+}
+
+} // namespace
 
 PYBIND11_MODULE(diccpp, m) {
 
@@ -96,8 +158,16 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("subset_size", &MultiwindowConfig::subset_size)
         .def_readwrite("search_area", &MultiwindowConfig::search_area);
 
-    // Bind the engine function
-    m.def("engine", &engine, "Run DIC analysis on input images with config");
+    // Bind the engine functions
+    m.def("engine", &engine, "Run DIC analysis on image files with config");
+    m.def("engine_images", [](py::sequence image_arrays,
+                              const py::array_t<bool>& img_roi_arr,
+                              const Calib &calib,
+                              const util::Config& conf,
+                              const MultiwindowConfig &multiwindowconf,
+                              const common_util::SaveConfig& saveconf) {
+        engine_images(images_from_sequence(image_arrays, conf), img_roi_arr, calib, conf, multiwindowconf, saveconf);
+    }, "Run DIC analysis on in-memory image arrays with config");
 
     // interpolator bindings
     py::class_<InterpVals>(m, "InterpVals")
@@ -116,6 +186,7 @@ PYBIND11_MODULE(diccpp, m) {
     using U8Array  = py::array_t<uint8_t,  py::array::c_style>;
     using U16Array = py::array_t<uint16_t, py::array::c_style>;
     using U32Array = py::array_t<uint32_t, py::array::c_style>;
+    using F32Array = py::array_t<float, py::array::c_style>;
 
     py::class_<Bspline, Interpolator>(m, "Bspline")
         .def(py::init([](py::handle h) {
@@ -145,9 +216,17 @@ PYBIND11_MODULE(diccpp, m) {
                 img.height = arr.shape(0);
                 img.type = PixelType::UINT32;
                 img.data32.assign(arr.data(), arr.data() + img.width * img.height);
+            } else if (auto arr = F32Array::ensure(h)) {
+                if (arr.ndim() != 2)
+                    throw std::runtime_error("Unsupported array: expected 2D array");
+
+                img.width = arr.shape(1);
+                img.height = arr.shape(0);
+                img.type = PixelType::UINT32F;
+                img.data32f.assign(arr.data(), arr.data() + img.width * img.height);
             } else {
                 throw std::runtime_error(
-                    "Unsupported array: expected 2D C-contiguous NumPy array of dtype uint8/uint16/uint32"
+                    "Unsupported array: expected 2D C-contiguous NumPy array of dtype uint8/uint16/uint32/float32"
                 );
             }
 
