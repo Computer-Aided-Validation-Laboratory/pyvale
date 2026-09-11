@@ -70,7 +70,7 @@ camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
 # -------------------------------
 
 config = riley.create_raster_config(1, save_strategy=riley.SaveStrategy.both)
-config.report = 1
+config.report = riley.ReportMode.bench
 config.image_save_mode = riley.ImageSaveMode.grey
 config.save_scaling = riley.ScaleStrategy.none
 

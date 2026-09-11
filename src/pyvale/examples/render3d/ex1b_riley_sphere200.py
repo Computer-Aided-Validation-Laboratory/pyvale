@@ -21,6 +21,8 @@ pixel integration parameters (i.e. pixel subsampling).
 It is common to want to map a speckle pattern onto a 3D surface using UV
 coordinates for digital image correlation simulation. We provide a set of 
 examples on UV mapping for common cases in the "Render UVs" example gallery.
+
+There are also much more advanced tools for UV mapping in Blender if you require them.
 """
 
 from pathlib import Path
@@ -37,6 +39,7 @@ from pyvale import render
 # 1. Load the mesh and assign a texture shader
 # ------------------------------------------------------------
 data_dir: Path = dataset.riley_sphere200_case_path()
+
 simulation = io.MeshLoader(
     load_dir=data_dir,
     coords_file="coords.csv",
@@ -49,6 +52,7 @@ uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
 
 shader = riley.TextureShader(uvs=uvs, texture=texture)
+
 mesh = render.meshes3d_from_simdata(
     simulation,
     {"connect": riley.ConnectConvention(

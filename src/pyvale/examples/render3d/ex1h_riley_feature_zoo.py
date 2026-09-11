@@ -12,18 +12,225 @@ orientations, distortion, point-spread functions, and deformed frames through
 pyvale's simulation-mesh conversion boundary.
 """
 
-import shutil
+import copy
 from pathlib import Path
+import shutil
 
 import numpy as np
 import riley
-from riley.pydemos import demo9_feature_zoo as zoo
-from riley.python import sceneops
+from riley import sceneops
 
 import pyvale.dataio as io
 from pyvale import render
 
 OUT_DIR = Path.cwd() / "pyvale-output" / "render3d_ex1h_riley_feature_zoo"
+DATA_DIR = riley.data.feature_zoo_path()
+PIXEL_SIZE = (5.3e-6, 5.3e-6)
+FOCAL_LENGTH = 50.0e-3
+FRAME_INDICES = (0, 1, 2, 3, 4)
+
+CASES = (
+    ("cube_quad9", riley.EElemType.QUAD9, riley.MeshType.quad9),
+    ("cube_tri6", riley.EElemType.TRI6, riley.MeshType.tri6),
+    ("cylinder_quad8", riley.EElemType.QUAD8, riley.MeshType.quad8),
+    ("cylinder_tri6", riley.EElemType.TRI6, riley.MeshType.tri6),
+    ("plate_quad4ibi", riley.EElemType.QUAD4, riley.MeshType.quad4ibi),
+    (
+        "plate_quad4newton",
+        riley.EElemType.QUAD4,
+        riley.MeshType.quad4newton,
+    ),
+    ("plate_tri3", riley.EElemType.TRI3, riley.MeshType.tri3),
+)
+
+CAMERA_CASES = (
+    ((1024, 1024), (0.0, 0.0, 0.0), 1, "none"),
+    ((1024, 1024), (0.0, np.deg2rad(25.0), 0.0), 4, "distortion"),
+    ((1024, 1229), (0.0, np.deg2rad(-28.0), 0.0), 4, "psf"),
+    (
+        (1229, 1024),
+        (np.deg2rad(90.0), np.deg2rad(25.0), 0.0),
+        4,
+        "both",
+    ),
+    (
+        (1024, 1024),
+        (np.deg2rad(18.0), np.deg2rad(38.0), np.deg2rad(26.0)),
+        4,
+        "corner",
+    ),
+    (
+        (1229, 1024),
+        (np.deg2rad(-90.0), np.deg2rad(-20.0), np.deg2rad(5.0)),
+        4,
+        "ring",
+    ),
+)
+
+MESH_CENTERS = (
+    (0.016, -0.0065, 0.0),
+    (0.027, -0.0065, 0.0),
+    (0.016, -0.0195, 0.0),
+    (0.027, -0.0195, 0.0),
+    (-0.013, 0.018, 0.0),
+    (0.013, 0.018, 0.0),
+    (-0.008, -0.013, 0.0),
+)
+
+
+def load_case(case_name: str) -> tuple[np.ndarray, ...]:
+    """Load mesh coordinates, connectivity, UVs, and displacements."""
+    case_dir = DATA_DIR / case_name
+    return (
+        riley.load_csv(case_dir / "coords.csv"),
+        riley.load_csv(case_dir / "connect.csv", dtype=np.int64),
+        riley.load_csv(case_dir / "uvs.csv"),
+        riley.load_csv(case_dir / "temperature.csv")[:, FRAME_INDICES],
+        *(
+            riley.load_csv(case_dir / f"disp_{axis}.csv")[:, FRAME_INDICES]
+            for axis in "xyz"
+        ),
+    )
+
+
+def make_shader(
+    case_index: int,
+    channels: int,
+    bits: int,
+    uvs: np.ndarray,
+    temperature: np.ndarray,
+    disp: tuple[np.ndarray, np.ndarray, np.ndarray],
+    texture: np.ndarray,
+) -> riley.Shader:
+    """Build a shader for a specific case index."""
+    normal_modes = (
+        riley.NormalType.none,
+        riley.NormalType.exact,
+        riley.NormalType.averaged,
+    )
+    normal_type = normal_modes[case_index % len(normal_modes)]
+
+    if case_index in (0, 2, 6):
+        sample = (
+            riley.TextureSample.cubic_catmull_rom
+            if case_index == 0
+            else riley.TextureSample.linear
+        )
+        sample_mode = (
+            riley.TextureSampleMode.lut_lerp
+            if case_index == 0
+            else riley.TextureSampleMode.direct
+        )
+        return riley.TextureShader(
+            uvs=uvs,
+            texture=texture,
+            sample=sample,
+            sample_mode=sample_mode,
+            bits=bits,
+            scaling_type=riley.ScaleStrategy.auto,
+            normal_type=normal_type,
+        )
+
+    if case_index in (1, 5):
+        field = temperature[:, :, None]
+        if channels == 3:
+            field = np.stack(
+                (temperature, disp[0], disp[1]),
+                axis=2,
+            )
+        return riley.NodalShader(
+            field=np.ascontiguousarray(field),
+            bits=bits,
+            scaling_type=riley.ScaleStrategy.auto,
+            scale_over=(
+                riley.ScaleOver.over_frames
+                if case_index == 1
+                else riley.ScaleOver.within_frames
+            ),
+            normal_type=normal_type,
+        )
+
+    builtin = (
+        riley.FuncShaderBuiltin.checker
+        if case_index == 3
+        else riley.FuncShaderBuiltin.eggbox
+    )
+    return riley.FunctionShader(
+        builtin=builtin,
+        coord_mode=(
+            riley.FuncCoordMode.world_reference
+            if case_index == 3
+            else riley.FuncCoordMode.world_deformed
+        ),
+        params=riley.FuncShaderParams(
+            coord_scale=(
+                (1000.0, 1000.0)
+                if case_index == 3
+                else (1.0, 1.0)
+            ),
+            eggbox_pitch=(0.005, 0.005),
+        ),
+        channels=channels,
+        bits=bits,
+        scaling_type=riley.ScaleStrategy.auto,
+        normal_type=normal_type,
+    )
+
+
+def build_cameras(meshes: list[riley.Mesh]) -> list[riley.Camera]:
+    """Build cameras covering all test configurations."""
+    target = riley.roi_cent_over_meshes(meshes)
+    base_camera = riley.Camera(
+        pixels_num=(1024, 1024),
+        pixels_size=PIXEL_SIZE,
+        pos_world=(0.0, 0.0, 0.0),
+        rot_world=(0.0, 0.0, 0.0),
+        roi_cent_world=target,
+        focal_length=FOCAL_LENGTH,
+        sub_sample=1,
+    )
+
+    cameras = []
+    for pixels_num, rotation, sub_sample, optics in CAMERA_CASES:
+        position = riley.pos_frame_meshes(
+            meshes,
+            pixels_num,
+            PIXEL_SIZE,
+            FOCAL_LENGTH,
+            rotation,
+            fov_scale=1.1,
+            target=target,
+        )
+
+        cam = copy.deepcopy(base_camera)
+        cam.pixels_num = pixels_num
+        cam.pos_world = position
+        cam.rot_world = rotation
+        cam.sub_sample = sub_sample
+
+        if optics in ("distortion", "both", "ring"):
+            cam.distortion_model = 1
+            cam.distortion_k1 = -0.12
+            cam.distortion_k2 = 0.035
+            cam.distortion_p1 = 0.0002
+            cam.distortion_p2 = -0.0001
+
+        if optics in ("psf", "both"):
+            cam.psf_type = riley.PsfType.gaussian
+            cam.psf_sigma_x = 0.65
+            cam.psf_sigma_y = 0.65
+            cam.psf_support_rad = 2.0
+
+        if optics == "corner":
+            cam.psf_type = riley.PsfType.anisotropic_gaussian
+            cam.psf_sigma_x = 0.55
+            cam.psf_sigma_y = 0.9
+            cam.psf_theta = float(np.deg2rad(25.0))
+            cam.psf_support_rad = 2.5
+            cam.psf_separable = 0
+
+        cameras.append(cam)
+    return cameras
 
 
 def build_meshes(channels: int, bits: int) -> list[render.Mesh3D]:
@@ -45,12 +252,12 @@ def build_meshes(channels: int, bits: int) -> list[render.Mesh3D]:
         texture = texture_u8.astype(np.uint16) * np.uint16(257)
 
     meshes = []
-    for index, (case_name, elem_type, mesh_type) in enumerate(zoo.CASES):
+    for index, (case_name, elem_type, mesh_type) in enumerate(CASES):
         coords, connect, uvs, temperature, disp_x, disp_y, disp_z = (
-            zoo.load_case(case_name)
+            load_case(case_name)
         )
         disp = (disp_x, disp_y, disp_z)
-        shader = zoo.make_shader(
+        shader = make_shader(
             index, channels, bits, uvs, temperature, disp, texture
         )
         simulation = io.SimData(
@@ -85,7 +292,7 @@ def build_meshes(channels: int, bits: int) -> list[render.Mesh3D]:
     plate.coords[:, 0] = -plate.coords[:, 1]
     plate.coords[:, 1] = plate_x
     mesh_coords = [mesh.coords for mesh in meshes]
-    for index, center in enumerate(zoo.MESH_CENTERS):
+    for index, center in enumerate(MESH_CENTERS):
         sceneops.scene_center_mesh_group_at(
             mesh_coords,
             sceneops.scene_create_mesh_group_single(index),
@@ -98,10 +305,10 @@ def render_case(channels: int, bits: int) -> None:
     """Render one channel and bit-depth case."""
     meshes = build_meshes(channels, bits)
     native_meshes = [render.to_riley_mesh(mesh) for mesh in meshes]
-    cameras = zoo.build_cameras(native_meshes)
+    cameras = build_cameras(native_meshes)
     case_name = f"{'mono' if channels == 1 else 'rgb'}-u{bits}"
     config = riley.create_raster_config(
-        num_frames=len(zoo.FRAME_INDICES),
+        num_frames=len(FRAME_INDICES),
         total_threads=4,
         save_strategy=riley.SaveStrategy.disk,
     )
@@ -123,4 +330,3 @@ def render_case(channels: int, bits: int) -> None:
 shutil.rmtree(OUT_DIR, ignore_errors=True)
 for channel_count, bit_count in ((1, 8), (1, 16), (3, 8), (3, 16)):
     render_case(channel_count, bit_count)
-

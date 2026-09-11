@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import riley
-from riley.python import sceneops
+from riley import sceneops
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
