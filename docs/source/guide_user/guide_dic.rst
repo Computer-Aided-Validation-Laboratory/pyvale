@@ -274,9 +274,13 @@ by stereo matching and 3D reconstruction columns. The additional stereo columns 
 
 - ``stereo_disp_u_px``:
   Horizontal pixel displacement from the left image subset to the corresponding right image subset.
+  When imported with :code:`dic.import_3d`, this is available as
+  :code:`dic_data.stereo.disparity_u_px`.
 
 - ``stereo_disp_v_px``:
   Vertical pixel displacement from the left image subset to the corresponding right image subset.
+  When imported with :code:`dic.import_3d`, this is available as
+  :code:`dic_data.stereo.disparity_v_px`.
 
 - ``stereo_disp_mag_px``:
   Magnitude of the left-to-right stereo pixel displacement.
@@ -346,6 +350,11 @@ filname prefix. If you have changed :code:`output_delimiter` prior to the
 correlation you will also need to specify the same delimiter when importing the data.
 To read binary files (with ``.dic2d`` or ``.dic3d`` extension), pass :code:`binary=True`
 to the import function.
+
+For stereo imports, the left-to-right pixel matching offsets are stored as
+:code:`dic_data.stereo.disparity_u_px` and
+:code:`dic_data.stereo.disparity_v_px`. These correspond to the
+``stereo_disp_u_px`` and ``stereo_disp_v_px`` output file columns.
 
 Strain Calculation
 ^^^^^^^^^^^^^^^^^^^

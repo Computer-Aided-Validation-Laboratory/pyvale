@@ -159,8 +159,8 @@ def import_3d(data: str | Path | list[Path],
         niter=arrays[7],
 
         stereo=StereoResults(
-            u_px=arrays[8],
-            v_px=arrays[9],
+            disparity_u_px=arrays[8],
+            disparity_v_px=arrays[9],
             mag_px=arrays[10],
 
             u_mm=arrays[11],
@@ -325,10 +325,10 @@ def read_binary_3d(file: str, delimiter: str, print_level: int = 1):
     niter = extract(4, np.int32, offset); offset += 4
 
     # -----------------------
-    # stereo pixel fields
+    # stereo disparity pixel fields
     # -----------------------
-    stereo_u_px = extract(8, np.float64, offset); offset += 8
-    stereo_v_px = extract(8, np.float64, offset); offset += 8
+    stereo_disparity_u_px = extract(8, np.float64, offset); offset += 8
+    stereo_disparity_v_px = extract(8, np.float64, offset); offset += 8
     stereo_mag_px = extract(8, np.float64, offset); offset += 8
 
     # -----------------------
@@ -366,8 +366,8 @@ def read_binary_3d(file: str, delimiter: str, print_level: int = 1):
         xtol,
         niter,
 
-        stereo_u_px,
-        stereo_v_px,
+        stereo_disparity_u_px,
+        stereo_disparity_v_px,
         stereo_mag_px,
 
         stereo_u_mm,
