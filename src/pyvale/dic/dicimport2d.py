@@ -87,7 +87,7 @@ def import_2d(data: str | Path | list[Path],
 
 
     # Read first file to define reference coordinates
-    read_data = read_binary if binary else read_text
+    read_data = _read_binary if binary else _read_text
     ss_x_ref, ss_y_ref, *fields = read_data(files[0], delimiter=delimiter, print_level=print_level)
     frames = [list(fields)]
 
@@ -141,7 +141,7 @@ def import_2d(data: str | Path | list[Path],
                        filenames=files)
 
 
-def read_binary(file: str, delimiter: str, print_level: int=1):
+def _read_binary(file: str, delimiter: str, print_level: int=1):
     """
     Read a binary 2D DIC result file and extract DIC fields.
 
@@ -191,7 +191,7 @@ def read_binary(file: str, delimiter: str, print_level: int=1):
 
 
 
-def read_text(file: str, delimiter: str, print_level: int=1):
+def _read_text(file: str, delimiter: str, print_level: int=1):
     """
     Read a human-readable text DIC result file and extract DIC fields.
 

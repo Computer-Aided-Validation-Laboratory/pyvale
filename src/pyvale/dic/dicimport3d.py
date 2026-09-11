@@ -64,7 +64,7 @@ def import_3d(data: str | Path | list[Path],
         for file in files:
             common_util.info_out(f"{file}", "")
 
-    read_data = read_binary_3d if binary else read_text_3d
+    read_data = _read_binary_3d if binary else _read_text_3d
 
     ss_x_ref, ss_y_ref, *fields = read_data(
         files[0],
@@ -182,7 +182,7 @@ def import_3d(data: str | Path | list[Path],
     )
 
 
-def read_text_3d(
+def _read_text_3d(
     file: str,
     delimiter: str,
     print_level: int = 1
@@ -266,7 +266,7 @@ def read_text_3d(
         data[:, 23].astype(np.int32),  # stereo_num_iter
     )
 
-def read_binary_3d(file: str, delimiter: str, print_level: int = 1):
+def _read_binary_3d(file: str, delimiter: str, print_level: int = 1):
     """
     Read a binary stereo DIC result file and extract all fields.
 
