@@ -18,9 +18,9 @@
 #include <stdexcept>
 
 // Common Header files
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 // DIC Header files
 #include "./dicmultiwindow_util.hpp"

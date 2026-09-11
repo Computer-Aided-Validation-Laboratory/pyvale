@@ -18,7 +18,7 @@
 #include "./img_read.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "../common_cpp/stb_image.h"
+#include "../commoncpp/stb_image.h"
 
 Image read_img(const std::string& fullpath) {
 

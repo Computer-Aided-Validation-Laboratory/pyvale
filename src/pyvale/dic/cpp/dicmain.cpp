@@ -23,10 +23,10 @@
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
 
-// common_cpp header files
-#include "../../common_cpp/dicsignalhandler.hpp"
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/dicsignalhandler.hpp"
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/util.hpp"
 
 // DIC Header files
 #include "./dicinterpfactory.hpp"

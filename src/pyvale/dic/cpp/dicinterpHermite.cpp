@@ -10,11 +10,11 @@
 #include <iostream>
 #include <omp.h>
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 // DIC Header files
 #include "./dicinterpHermite.hpp"

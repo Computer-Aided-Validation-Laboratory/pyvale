@@ -16,8 +16,8 @@
 #include <stdexcept>
 #include <type_traits>
 
-// common_cpp Header Files
-#include "../../common_cpp/util.hpp"
+// commoncpp Header Files
+#include "../../commoncpp/util.hpp"
 
 // DIC Header files
 #include "./dicutil.hpp"

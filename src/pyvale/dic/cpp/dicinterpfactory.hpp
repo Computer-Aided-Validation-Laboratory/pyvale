@@ -17,9 +17,9 @@
 #include "dicinterpHermite.hpp"
 #include "dicutil.hpp"
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
-#include "../../common_cpp/img_read.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
+#include "../../commoncpp/img_read.hpp"
 
 /**
  * @brief Factory function for creating interpolator instances.

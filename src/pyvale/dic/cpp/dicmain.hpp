@@ -15,8 +15,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
 
 // calib header files
 #include "../../calib/cpp/calibstereo.hpp"

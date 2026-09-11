@@ -12,8 +12,8 @@
 #include "./dicsubset.hpp"
 #include "./dicshapefunc.hpp"
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
 
 namespace subset {
 

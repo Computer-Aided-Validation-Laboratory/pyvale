@@ -14,7 +14,7 @@ from typing import Literal
 
 # Pyvale modules
 from pyvale.dic.dicresults import Results
-import pyvale.common_py.util as common_py_util
+import pyvale.common.util as common_util
 
 """
 Module responsible for handling importing of DIC results from completed
@@ -67,7 +67,7 @@ def import_2d(data: str | Path | list[Path],
     """
 
     if (print_level>0):
-        common_py_util.print_title("Importing DIC Results")
+        common_util.print_title("Importing DIC Results")
 
     # convert to str 
     if isinstance(data, Path):
@@ -81,9 +81,9 @@ def import_2d(data: str | Path | list[Path],
             raise FileNotFoundError(f"No results found in: {data}")
     
     if print_level>0:
-        common_py_util.info_out(f"Found {len(files)} files containing DIC results:", "")
+        common_util.info_out(f"Found {len(files)} files containing DIC results:", "")
         for file in files:
-            common_py_util.info_out(f"{file}", "")
+            common_util.info_out(f"{file}", "")
 
 
     # Read first file to define reference coordinates
@@ -101,7 +101,7 @@ def import_2d(data: str | Path | list[Path],
     arrays = [np.stack([frame[i] for frame in frames]) for i in range(len(fields))]
 
     if print_level>0:
-        common_py_util.info_out(f"Imported {len(files)} frames of DIC data.", "")
+        common_util.info_out(f"Imported {len(files)} frames of DIC data.", "")
 
     if layout == "matrix":
 
@@ -153,7 +153,7 @@ def read_binary(file: str, delimiter: str, print_level: int=1):
     del delimiter
 
     if print_level>0:
-        common_py_util.info(f"Reading binary DIC result file: {file}")
+        common_util.info(f"Reading binary DIC result file: {file}")
 
     with open(file, "rb") as f:
         raw = f.read()
@@ -219,7 +219,7 @@ def read_text(file: str, delimiter: str, print_level: int=1):
         If the text file has fewer than 9 columns.
     """
     if print_level>0:
-        common_py_util.info(f"Reading text DIC result file: {file}")
+        common_util.info(f"Reading text DIC result file: {file}")
 
     check_delimiter(file, delimiter)
     data = np.loadtxt(file, delimiter=delimiter, skiprows=1)

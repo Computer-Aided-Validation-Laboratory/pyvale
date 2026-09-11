@@ -13,10 +13,10 @@ from typing import Literal
 import pyvale.dic.diccpp as diccpp
 import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic._dicchecks as dicchecks
-import pyvale.common_py.util as common_py_util
+import pyvale.common.util as common_util
 from pyvale.calib.calibdataclass import Calib
 from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod
-import pyvale.common_cpp.common_cpp as common_cpp
+import pyvale.commoncpp.commoncpp as commoncpp
 
 
 def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
@@ -187,8 +187,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
 
     if (print_level>0):
-        common_py_util.print_pyvale_banner()
-        common_py_util.print_title("Initial Checks")
+        common_util.print_pyvale_banner()
+        common_util.print_title("Initial Checks")
 
     # make sure ROI is in the correct format
     roi_c = np.ascontiguousarray(roi_mask)
@@ -229,7 +229,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     # checks on the config
     dicchecks._check_thresholds(threshold, precision)
-    common_py_util.check_output_directory(str(output_basepath), output_prefix, print_level)
+    common_util.check_output_directory(str(output_basepath), output_prefix, print_level)
     dicchecks._check_subsets(subset_size, subset_step)
     updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method_enum.value, w0, h0, subset_size, subset_step)
     num_params = dicchecks._check_shape_function(shape_function_enum)
@@ -283,7 +283,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     multiwindowconf.search_area = mw_search_area
 
     # assigning c++ struct vals for save config
-    saveconf = common_cpp.SaveConfig()
+    saveconf = commoncpp.SaveConfig()
     saveconf.basepath = str(output_basepath)
     saveconf.binary = output_binary
     saveconf.prefix = output_prefix
@@ -322,7 +322,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     #set the number of OMP threads
     if num_threads is not None:
-        common_cpp.set_num_threads(num_threads)
+        commoncpp.set_num_threads(num_threads)
 
     dicchecks._print_config_summary(
         w0, h0, config.num_def_img, max_iterations, correlation_criteria,

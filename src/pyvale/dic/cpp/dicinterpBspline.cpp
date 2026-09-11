@@ -12,7 +12,7 @@
 
 #include "./dicinterpBspline.hpp"
 
-#include "../../common_cpp/util.hpp"
+#include "../../commoncpp/util.hpp"
 
 
 

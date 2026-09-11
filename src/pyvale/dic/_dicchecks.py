@@ -10,7 +10,7 @@ import os
 import sys
 from PIL import Image
 from pathlib import Path
-import pyvale.common_py.util as common_py_util
+import pyvale.common.util as common_util
 from pyvale.dic.dicenum import EShape
 
 """
@@ -494,12 +494,12 @@ def _check_images(reference: np.ndarray | str | Path,
             raise ValueError(f"Reference image does not exist: {reference}")
 
         if print_level > 0:
-            common_py_util.info("Ref img: " + str(reference))
+            common_util.info("Ref img: " + str(reference))
 
         ref_img = Image.open(reference)
 
         if print_level > 0:
-            common_py_util.info(f"Ref img shape: {ref_img.size}")
+            common_util.info(f"Ref img shape: {ref_img.size}")
 
         basename.append(os.path.basename(reference))
         fullpath.append(str(reference))
@@ -513,7 +513,7 @@ def _check_images(reference: np.ndarray | str | Path,
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
         if print_level > 1:
-            common_py_util.info(f"Found {len(files)} deformation images in dir: {os.path.dirname(files[0])}")
+            common_util.info(f"Found {len(files)} deformation images in dir: {os.path.dirname(files[0])}")
 
         basename.extend(os.path.basename(f) for f in files)
         fullpath.extend(str(f) for f in files)
@@ -624,35 +624,35 @@ def _print_config_summary(image_width: int,
     if print_level <= 0:
         return
 
-    common_py_util.print_title("Config")
-    common_py_util.info_out("Width of Images: ", f"{image_width} [px]")
-    common_py_util.info_out("Height of Images: ", f"{image_height} [px]")
-    common_py_util.info_out("Number of Deformed Images: ", num_def_img)
-    common_py_util.info_out("Max number of solver iterations: ", max_iterations)
-    common_py_util.info_out("Correlation Criterion: ", correlation_criteria)
-    common_py_util.info_out("Shape Function: ", shape_function)
-    common_py_util.info_out("Interpolation Routine: ", interpolation_routine)
-    common_py_util.info_out("FFT displacement filter enabled: ", fft_filter)
-    common_py_util.info_out("FFT displacement filter threshold: ", fft_filter_threshold)
-    common_py_util.info_out("FFT displacement filter radius: ", fft_filter_radius)
-    common_py_util.info_out("FFT displacement filter correlation power: ", fft_filter_corr_power)
-    common_py_util.info_out("Image Scan Method: ", method)
-    common_py_util.info_out("Optimization Precision:", precision)
-    common_py_util.info_out("Correlation Cutoff Threshold:", threshold)
-    common_py_util.info_out("Estimate for Max Displacement:", f"{max_displacement} [px]")
+    common_util.print_title("Config")
+    common_util.info_out("Width of Images: ", f"{image_width} [px]")
+    common_util.info_out("Height of Images: ", f"{image_height} [px]")
+    common_util.info_out("Number of Deformed Images: ", num_def_img)
+    common_util.info_out("Max number of solver iterations: ", max_iterations)
+    common_util.info_out("Correlation Criterion: ", correlation_criteria)
+    common_util.info_out("Shape Function: ", shape_function)
+    common_util.info_out("Interpolation Routine: ", interpolation_routine)
+    common_util.info_out("FFT displacement filter enabled: ", fft_filter)
+    common_util.info_out("FFT displacement filter threshold: ", fft_filter_threshold)
+    common_util.info_out("FFT displacement filter radius: ", fft_filter_radius)
+    common_util.info_out("FFT displacement filter correlation power: ", fft_filter_corr_power)
+    common_util.info_out("Image Scan Method: ", method)
+    common_util.info_out("Optimization Precision:", precision)
+    common_util.info_out("Correlation Cutoff Threshold:", threshold)
+    common_util.info_out("Estimate for Max Displacement:", f"{max_displacement} [px]")
     if epi_distance is not None:
-        common_py_util.info_out("Estimate for Epipolar Distance:", f"{epi_distance} [px]")
-    common_py_util.info_out("Subset Size:", f"{subset_size} [px]")
-    common_py_util.info_out("Subset Step:", f"{subset_step} [px]")
+        common_util.info_out("Estimate for Epipolar Distance:", f"{epi_distance} [px]")
+    common_util.info_out("Subset Size:", f"{subset_size} [px]")
+    common_util.info_out("Subset Step:", f"{subset_step} [px]")
     if num_threads is None:
-        import pyvale.common_cpp.common_cpp as common_cpp
-        num_threads = common_cpp.get_num_threads()
-    common_py_util.info_out("Number of OMP threads:", num_threads)
-    common_py_util.info_out("Print level: ", print_level)
+        import pyvale.commoncpp.commoncpp as commoncpp
+        num_threads = commoncpp.get_num_threads()
+    common_util.info_out("Number of OMP threads:", num_threads)
+    common_util.info_out("Print level: ", print_level)
     if updated_seeds is not None and "RG" in method:
         for i in range(0, len(updated_seeds), 2):
             x, y = updated_seeds[i], updated_seeds[i + 1]
-            common_py_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
+            common_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
 
 
 

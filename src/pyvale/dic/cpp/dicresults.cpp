@@ -11,8 +11,8 @@
 #include <string>
 #include <vector>
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
 
 // DIC Header files
 #include "./dicresults.hpp"

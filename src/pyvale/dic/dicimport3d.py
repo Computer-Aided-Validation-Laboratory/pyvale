@@ -12,7 +12,7 @@ from typing import Literal
 # Pyvale modules
 from pyvale.dic.dicresults import Results, StereoResults
 from pyvale.dic.dicimport2d import to_grid, check_delimiter
-import pyvale.common_py.util as common_py_util
+import pyvale.common.util as common_util
 
 
 def import_3d(data: str | Path | list[Path],
@@ -46,7 +46,7 @@ def import_3d(data: str | Path | list[Path],
 
 
     if print_level > 0:
-        common_py_util.print_title("Importing Stereo DIC Results")
+        common_util.print_title("Importing Stereo DIC Results")
 
     # convert to str
     if isinstance(data, Path):
@@ -60,9 +60,9 @@ def import_3d(data: str | Path | list[Path],
             raise FileNotFoundError(f"No results found in: {data}")
 
     if print_level>0:
-        common_py_util.info_out(f"Found {len(files)} files containing DIC results:", "")
+        common_util.info_out(f"Found {len(files)} files containing DIC results:", "")
         for file in files:
-            common_py_util.info_out(f"{file}", "")
+            common_util.info_out(f"{file}", "")
 
     read_data = read_binary_3d if binary else read_text_3d
 
@@ -98,13 +98,13 @@ def import_3d(data: str | Path | list[Path],
     ]
 
     if print_level>0:
-        common_py_util.info_out(f"Imported {len(files)} frames of stereo DIC data.", "")
+        common_util.info_out(f"Imported {len(files)} frames of stereo DIC data.", "")
 
     if layout == "matrix":
 
 
         if print_level>0:
-            common_py_util.info_out(f"converting DIC data to matrix layout...", "")
+            common_util.info_out(f"converting DIC data to matrix layout...", "")
 
 
         x_unique = np.unique(ss_x_ref)
@@ -137,7 +137,7 @@ def import_3d(data: str | Path | list[Path],
         ss_y_out = Y
 
         if print_level>0:
-            common_py_util.info_out(f"Layout conversion finished.", "")
+            common_util.info_out(f"Layout conversion finished.", "")
 
     else:
 
@@ -219,7 +219,7 @@ def read_text_3d(
     """
 
     if print_level>0:
-        common_py_util.info(f"Reading text DIC result file: {file}")
+        common_util.info(f"Reading text DIC result file: {file}")
 
     check_delimiter(file, delimiter)
     data = np.loadtxt(
@@ -274,7 +274,7 @@ def read_binary_3d(file: str, delimiter: str, print_level: int = 1):
     """
 
     if print_level > 0:
-        common_py_util.info(f"Reading binary DIC result file: {file}")
+        common_util.info(f"Reading binary DIC result file: {file}")
 
     with open(file, "rb") as f:
         raw = f.read()
