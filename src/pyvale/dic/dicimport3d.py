@@ -8,11 +8,40 @@ import numpy as np
 import glob
 from pathlib import Path
 from typing import Literal
+from numpy.typing import NDArray
 
 # Pyvale modules
 from pyvale.dic.dicresults import Results, StereoResults
 from pyvale.dic.dicimport2d import to_grid, check_delimiter
 import pyvale.common.util as common_util
+
+
+_Dic3DData = tuple[
+    NDArray[np.int32],
+    NDArray[np.int32],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.bool_],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.int32],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.bool_],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.int32],
+]
 
 
 def import_3d(data: str | Path | list[Path],
@@ -186,7 +215,7 @@ def _read_text_3d(
     file: str,
     delimiter: str,
     print_level: int = 1
-):
+) -> _Dic3DData:
     """
     Read a human-readable stereo DIC result file.
 
@@ -266,7 +295,7 @@ def _read_text_3d(
         data[:, 23].astype(np.int32),  # stereo_num_iter
     )
 
-def _read_binary_3d(file: str, delimiter: str, print_level: int = 1):
+def _read_binary_3d(file: str, delimiter: str, print_level: int = 1) -> _Dic3DData:
     """
     Read a binary stereo DIC result file and extract all fields.
 

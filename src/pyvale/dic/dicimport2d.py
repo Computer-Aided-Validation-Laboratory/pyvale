@@ -11,6 +11,7 @@ import glob
 import os
 from pathlib import Path
 from typing import Literal
+from numpy.typing import NDArray
 
 # Pyvale modules
 from pyvale.dic.dicresults import Results
@@ -20,6 +21,19 @@ import pyvale.common.util as common_util
 Module responsible for handling importing of DIC results from completed
 calculations.
 """
+
+_Dic2DData = tuple[
+    NDArray[np.int32],
+    NDArray[np.int32],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.bool_],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.int32],
+]
 
 
 def import_2d(data: str | Path | list[Path],
@@ -141,7 +155,7 @@ def import_2d(data: str | Path | list[Path],
                        filenames=files)
 
 
-def _read_binary(file: str, delimiter: str, print_level: int=1):
+def _read_binary(file: str, delimiter: str, print_level: int=1) -> _Dic2DData:
     """
     Read a binary 2D DIC result file and extract DIC fields.
 
@@ -191,7 +205,7 @@ def _read_binary(file: str, delimiter: str, print_level: int=1):
 
 
 
-def _read_text(file: str, delimiter: str, print_level: int=1):
+def _read_text(file: str, delimiter: str, print_level: int=1) -> _Dic2DData:
     """
     Read a human-readable text DIC result file and extract DIC fields.
 
