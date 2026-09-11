@@ -29,13 +29,23 @@ import pyvale.dataset as dataset
 # %% 
 # We can use the same calibration parameters as before:
 
-calib_params = calib.loadtxt("./ex09_stereo_calibration.txt", delimiter=",")
+calib_params = calib.loadtxt(dataset.dic_ex09_stereo_calibration(), delimiter=",")
 
 
 # %%
-# select the images and build the ROI:
+# The dataset module provides access to the synthetic images used in this
+# example. These functions return Path objects pointing to TIFF files bundled
+# with pyvale. The reference helpers return a concrete image path, while the
+# deformed-image helpers return a wildcard path pattern. For example,
+# ``def0`` resolves to a path ending in ``hole_cam0_frame*.tiff``.
+#
+# During ``dic.calculate_3d`` pyvale expands each deformed-image wildcard with
+# ``glob`` and sorts the matching filenames. The sorted camera 0 and camera 1
+# lists are then processed as synchronized stereo frame pairs, so the image
+# naming must leave both cameras with the same number of frames in the same
+# order. To avoid wildcard discovery, you pass an explicit ``list[Path]`` for each
+# camera instead.
 
-# reference images
 ref0 = dataset.dic_plate_with_hole_cam0_ref()
 ref1 = dataset.dic_plate_with_hole_cam1_ref()
 
@@ -43,22 +53,31 @@ ref1 = dataset.dic_plate_with_hole_cam1_ref()
 def0 = dataset.dic_plate_with_hole_cam0_def()
 def1 = dataset.dic_plate_with_hole_cam1_def()
 
+# Deformed images can be supplied either as wildcard Path objects, as above,
+# or as explicit lists of image paths, for example:
+# def0 = [Path("cam0_frame00.tiff"), Path("cam0_frame01.tiff"), ...]
+# def1 = [Path("cam1_frame00.tiff"), Path("cam1_frame01.tiff"), ...]
+
 # Build ROI using cam 0 reference image
 roi = dic.RegionOfInterest(ref0)
-roi.read_yaml("./ex10_roi.yaml")
+roi.read_yaml(dataset.dic_ex10_roi())
 # roi.interactive_selection()
 
 # %%
 
 # create an output directory 
-output_path = Path.cwd() / "pyvale-output" / "ex10"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex10"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 # %% 
-# To perform the DIC calculation all the arguments we pass in the reference and deformed 
-# images as a list. we also pass in the calibration parameters. The rest
-# of the arguments remain the same as ``dic.calculate_2d``.
+# To perform the stereo DIC calculation, pass the two camera references as
+# ``[cam0_reference, cam1_reference]`` and the two deformed-image inputs as
+# ``[cam0_deformed, cam1_deformed]``. In this example the deformed inputs are
+# wildcard ``Path`` objects, so pyvale discovers all matching frames for each
+# camera before starting the calculation. The calibration parameters describe
+# the relationship between the two camera views. The remaining arguments are
+# the same as ``dic.calculate_2d``.
 
 dic.calculate_3d(reference=[ref0, ref1],
                  deformed=[def0, def1],

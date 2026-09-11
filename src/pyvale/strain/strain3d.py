@@ -12,10 +12,10 @@ from pyvale.strain.strainresults import StrainResults
 from pyvale.strain.strainchecks import check_strain_files
 from pyvale.dic.dicimport3d import import_3d
 from pyvale.dic.dicresults import Results as dicResults
-from pyvale.common_py.util import check_output_directory
+from pyvale.common.util import check_output_directory
 import pyvale.strain.strain_cpp as strain_cpp
-import pyvale.common_cpp.common_cpp as common_cpp
-import pyvale.common_py.util as common_py_util
+import pyvale.commoncpp.commoncpp as commoncpp
+import pyvale.common.util as common_util
 
 def calculate_3d(data: dicResults | str | Path | list[Path],
               window_size: int=5, 
@@ -28,7 +28,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
               output_delimiter: str=",",
               num_threads: int | None = None,
               strain_formulation: Literal["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"] = "HENCKY",
-              debug_level: int=1):
+              print_level: int=1):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
@@ -92,7 +92,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
 
         # Load data if a file path is given
         dicresults = import_3d(layout="matrix", data=data, 
-                            binary=input_binary, delimiter=input_delimiter, debug_level=debug_level)
+                            binary=input_binary, delimiter=input_delimiter, print_level=print_level)
 
     elif isinstance(data, dicResults):
         dicresults = data
@@ -119,7 +119,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
     check_output_directory(str(output_basepath), output_prefix, 0)
 
     # assigning c++ struct vals for save config
-    strain_save_conf = common_cpp.SaveConfig()
+    strain_save_conf = commoncpp.SaveConfig()
     strain_save_conf.basepath = str(output_basepath)
     strain_save_conf.binary = output_binary
     strain_save_conf.prefix = output_prefix
@@ -134,20 +134,20 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
 
     #set the number of OMP threads
     if num_threads is not None:
-        common_cpp.set_num_threads(num_threads)
+        commoncpp.set_num_threads(num_threads)
     else:
-        num_threads = common_cpp.get_num_threads()
+        num_threads = commoncpp.get_num_threads()
 
     # print the config
-    if debug_level>0:
-        common_py_util.print_title("Starting Strain Calculation")
-        common_py_util.info_out("Number of images: ", nimg)
-        common_py_util.info_out("Number of spatial points in x: ", nss_x)
-        common_py_util.info_out("Number of spatial points in y: ", nss_y)
-        common_py_util.info_out("Window size: ", window_size)
-        common_py_util.info_out("Window element type: ", window_element)
-        common_py_util.info_out("Strain formulation: ", strain_formulation)
-        common_py_util.info_out("Number of Threads: ", num_threads)
+    if print_level>0:
+        common_util.print_title("Starting Strain Calculation")
+        common_util.info_out("Number of images: ", nimg)
+        common_util.info_out("Number of spatial points in x: ", nss_x)
+        common_util.info_out("Number of spatial points in y: ", nss_y)
+        common_util.info_out("Window size: ", window_size)
+        common_util.info_out("Window element type: ", window_element)
+        common_util.info_out("Strain formulation: ", strain_formulation)
+        common_util.info_out("Number of Threads: ", num_threads)
 
     # Call to C++ backend
     with strain_cpp.ostream_redirect(stdout=True, stderr=True):
@@ -158,7 +158,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
                                  window_size, window_element, 
                                  strain_formulation, filenames,
                                  strain_save_conf,
-                                 debug_level)
+                                 print_level)
 
 
 

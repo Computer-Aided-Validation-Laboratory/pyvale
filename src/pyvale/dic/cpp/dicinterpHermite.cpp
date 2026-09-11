@@ -10,11 +10,11 @@
 #include <iostream>
 #include <omp.h>
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 // DIC Header files
 #include "./dicinterpHermite.hpp"
@@ -23,7 +23,7 @@
 
 Hermite::Hermite(const Image &img) {
 
-    common_util::Timer time("to init " + img.filename + " interp:", 2);
+    common_util::Timer time("to init " + img.filename + " interp:", 3);
 
     // intitialise vars used globally within Interpolator.
     image.resize(px_hori*px_vert);
@@ -40,6 +40,11 @@ Hermite::Hermite(const Image &img) {
     else if (img.type == PixelType::UINT32) {
         for (size_t i = 0; i < img.data32.size(); i++) {
             image[i] = static_cast<double>(img.data32[i]);
+        }
+    }
+    else if (img.type == PixelType::UINT32F) {
+        for (size_t i = 0; i < img.data32f.size(); i++) {
+            image[i] = static_cast<double>(img.data32f[i]);
         }
     }
 

@@ -11,7 +11,7 @@
 #include <string>
 #include <cstdint>
 
-// common_cpp header files
+// commoncpp header files
 #include "./util.hpp"
 
 Image  read_img(const std::string& filename);

@@ -16,8 +16,8 @@
 #include "./dicinterp.hpp"
 #include "./dicutil.hpp"
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
 
 namespace subset {
 

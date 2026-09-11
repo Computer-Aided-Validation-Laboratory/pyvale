@@ -13,7 +13,7 @@
 #include <omp.h>
 #include <sstream>
 
-// common_cpp header files
+// commoncpp header files
 #include "./util.hpp"
 
 namespace common_util {

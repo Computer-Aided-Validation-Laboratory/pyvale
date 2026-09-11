@@ -7,7 +7,7 @@
 // STD library Header files
 #include <vector>
 
-// common_cpp Header files
+// commoncpp Header files
 #include <Eigen/Dense>
 
 // Strain Header files

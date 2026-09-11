@@ -15,6 +15,7 @@
 #include <memory>
 #include <algorithm>
 #include <numeric>
+#include <functional>
 
 // pybind header files
 #include <pybind11/pybind11.h>
@@ -22,10 +23,10 @@
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
 
-// common_cpp header files
-#include "../../common_cpp/dicsignalhandler.hpp"
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/dicsignalhandler.hpp"
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/util.hpp"
 
 // DIC Header files
 #include "./dicinterpfactory.hpp"
@@ -48,11 +49,14 @@
 namespace py = pybind11;
 
 
-void engine(const py::array_t<bool>& img_roi_arr, 
-            const Calib &calib,
-            const util::Config &conf,
-            const MultiwindowConfig &mwconf,
-            const common_util::SaveConfig &saveconf){
+namespace {
+
+void engine_impl(const py::array_t<bool>& img_roi_arr,
+                 const Calib &calib,
+                 const util::Config &conf,
+                 const MultiwindowConfig &mwconf,
+                 const common_util::SaveConfig &saveconf,
+                 const std::function<std::unique_ptr<Interpolator>(int)> &interp_factory){
 
     // Register signal handler for Ctrl+C and set debug_level
     signal(SIGINT, signalHandler);
@@ -106,7 +110,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
     std::unique_ptr<Interpolator> interp_ref_r;
     std::unique_ptr<Interpolator> interp_def_l;
     std::unique_ptr<Interpolator> interp_def_r;
-    interp_ref_l = make_interp(conf.interp_routine, conf.fullpaths[0]);
+    interp_ref_l = interp_factory(0);
 
 
     // objects only needed for stereo
@@ -135,8 +139,8 @@ void engine(const py::array_t<bool>& img_roi_arr,
         // sort out intrinsic and extrinsic matrices into struct
         stereo_geom = stereo::compute_stereo_geometry(calib);
 
-        std::unique_ptr<Interpolator> interp_l = make_interp(conf.interp_routine, conf.fullpaths[0]);
-        std::unique_ptr<Interpolator> interp_r = make_interp(conf.interp_routine, conf.fullpaths[conf.num_def_img+1]);
+        std::unique_ptr<Interpolator> interp_l = interp_factory(0);
+        std::unique_ptr<Interpolator> interp_r = interp_factory(conf.num_def_img+1);
     }
 
 
@@ -151,11 +155,11 @@ void engine(const py::array_t<bool>& img_roi_arr,
         int img_num_def_r = conf.num_def_img+1+img_num;
 
         // interpolator for the L image
-        interp_def_l = make_interp(conf.interp_routine, conf.fullpaths[img_num_def_l]);
+        interp_def_l = interp_factory(img_num_def_l);
 
         // interpolator for the R image
         if (conf.stereo) {
-            interp_def_r = make_interp(conf.interp_routine, conf.fullpaths[img_num_def_r]);
+            interp_def_r = interp_factory(img_num_def_r);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -189,7 +193,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
             if (update_ref) {
                 img_num_ref_l = img_num_def_l - 1;
                 results_ref_l = results_def_l;
-                interp_ref_l = make_interp(conf.interp_routine, conf.fullpaths[img_num_ref_l]);
+                interp_ref_l = interp_factory(img_num_ref_l);
 
                 std::unique_ptr<bool[]> roi_updated(propagate_roi(img_roi, results_def_l, conf, ss_grid_l));
                 multiwindow_l.clear();
@@ -265,7 +269,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                 // update left image vars
                 img_num_ref_l = img_num_def_l - 1;
                 results_ref_l = results_def_l;
-                interp_ref_l = make_interp(conf.interp_routine, conf.fullpaths[img_num_ref_l]);
+                interp_ref_l = interp_factory(img_num_ref_l);
 
                 // update right image vars
                 if (conf.stereo)
@@ -347,7 +351,7 @@ void engine(const py::array_t<bool>& img_roi_arr,
                 // update left image vars
                 img_num_ref_l = img_num_def_l - 1;
                 results_ref_l = results_def_l;
-                interp_ref_l = make_interp(conf.interp_routine, conf.fullpaths[img_num_ref_l]);
+                interp_ref_l = interp_factory(img_num_ref_l);
 
                 // update right image vars
                 if (conf.stereo)
@@ -479,6 +483,47 @@ void engine(const py::array_t<bool>& img_roi_arr,
     raise_on_interrupt();
 }
 
+}
+
+void engine(const py::array_t<bool>& img_roi_arr,
+            const Calib &calib,
+            const util::Config &conf,
+            const MultiwindowConfig &mwconf,
+            const common_util::SaveConfig &saveconf){
+
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf,
+                [&](int image_index) {
+                    return make_interp(conf.interp_routine, conf.fullpaths.at(image_index));
+                });
+}
+
+void engine_images(const std::vector<Image>& images,
+                   const py::array_t<bool>& img_roi_arr,
+                   const Calib &calib,
+                   const util::Config &conf,
+                   const MultiwindowConfig &mwconf,
+                   const common_util::SaveConfig &saveconf){
+
+    const size_t expected_images = conf.stereo
+        ? static_cast<size_t>(2 * (conf.num_def_img + 1))
+        : static_cast<size_t>(conf.num_def_img + 1);
+
+    if (images.size() != expected_images) {
+        throw std::runtime_error("Image array count does not match DIC config.");
+    }
+
+    for (size_t i = 0; i < images.size(); ++i) {
+        if (images[i].width != static_cast<uint32_t>(conf.px_hori) ||
+            images[i].height != static_cast<uint32_t>(conf.px_vert)) {
+            throw std::runtime_error("Image array dimensions do not match DIC config.");
+        }
+    }
+
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf,
+                [&](int image_index) {
+                    return make_interp(conf.interp_routine, images.at(image_index));
+                });
+}
 
 void build_info(){
         //std::cout << "Buld Information:" << std::endl;

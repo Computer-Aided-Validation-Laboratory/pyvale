@@ -12,8 +12,8 @@
 #include "./dicsubset.hpp"
 #include "./dicshapefunc.hpp"
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
 
 namespace subset {
 
@@ -27,6 +27,7 @@ namespace subset {
             case PixelType::UINT8:  fill_impl(ss_ref, img.data8,  ss_x, ss_y, px_hori); break;
             case PixelType::UINT16: fill_impl(ss_ref, img.data16, ss_x, ss_y, px_hori); break;
             case PixelType::UINT32: fill_impl(ss_ref, img.data32, ss_x, ss_y, px_hori); break;
+            case PixelType::UINT32F: fill_impl(ss_ref, img.data32f, ss_x, ss_y, px_hori); break;
         }
     }
 

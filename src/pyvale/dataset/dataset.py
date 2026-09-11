@@ -717,6 +717,57 @@ def cal_target() -> Path:
     return Path(files("pyvale.data")
                 .joinpath("cal_target.tiff"))
 
+def dic_ex09_stereo_calibration() -> Path:
+    """
+    Path to the stereo calibration parameters for the DIC example.
+
+    Returns
+    -------
+    Path
+        Path to the stereo calibration file (``.txt``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("dic_ex09_stereo_calibration.txt"))
+
+
+def dic_ex10_roi() -> Path:
+    """
+    Path to the region of interest definition for the DIC example.
+
+    Returns
+    -------
+    Path
+        Path to the ROI definition file (``.yaml``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("dic_ex10_roi.yaml"))
+
+
+def dic_ex11_dic_chal_calibration() -> Path:
+    """
+    Path to the calibration parameters for the DIC Challenge example.
+
+    Returns
+    -------
+    Path
+        Path to the DIC Challenge calibration file (``.txt``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("dic_ex11_dic_chal_calibration.txt"))
+
+
+def dic_ex11_dic_chal_roi() -> Path:
+    """
+    Path to the region of interest definition for the DIC Challenge example.
+
+    Returns
+    -------
+    Path
+        Path to the DIC Challenge ROI definition file (``.yaml``).
+    """
+    return Path(files("pyvale.data")
+                .joinpath("dic_ex11_dic_chal_roi.yaml"))
+
 
 
 #TODO

@@ -98,11 +98,12 @@ Dependencies
 
 Apple has disabled OpenMP for the default C/C++ compilers shipped with Xcode. 
 Therefore, it's reccomended you install either ``gcc`` OR``llvm`` AND ``libomp`` using the homebrew (`https://brew.sh/`_) package manager. 
+You'll also need to install `libtiff <https://libtiff.gitlab.io/libtiff/>`_ as a dependency for ``pyvale``.
 For ``gcc`` you can install it via homebrew with the command:
 
 .. code-block:: bash
 
-   brew install gcc
+   brew install gcc libtiff
 
 You'll then need to ensure that the new compilers installed via homebrew are
 used during the build process:
@@ -120,7 +121,7 @@ with
 
 .. code-block:: bash
 
-   brew install llvm libomp
+   brew install llvm libomp libtiff
 
 
 You'll then need to ensure that the new compilers installed via homebrew are
@@ -138,7 +139,7 @@ Clone ``pyvale`` to your local system using git along with submodules using:
 
 .. code-block:: bash
 
-   git clone git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
+   git clone https://github.com/Computer-Aided-Validation-Laboratory/pyvale.git
 
 For this case it is normally easier to keep your virtual environment stored in the ``pyvale`` folder so create a virtual environment there first. Then, ensure you virtual environment is activated and run the following commmand from the ``pyvale`` folder:
 

@@ -10,43 +10,18 @@ import os
 import sys
 from PIL import Image
 from pathlib import Path
-from enum import Enum
-
-import pyvale.common_py.util as common_py_util
+import pyvale.common.util as common_util
+from pyvale.dic.dicenum import EShape
 
 """
 This module contains functions for checking arguments passed to the 2D DIC
 Engine.
 """
 
-class ScanMethod(str, Enum):
-    MULTIWINDOW_RG = "MULTIWINDOW_RG"
-    SINGLEWINDOW_RG = "SINGLEWINDOW_RG"
-    MULTIWINDOW = "MULTIWINDOW"
-    RASTER = "RASTER"
-
-class Shape(str, Enum):
-    RIGID = "RIGID"
-    AFFINE = "AFFINE"
-    QUAD = "QUAD"
-
-class CorrCrit(str, Enum):
-    SSD = "SSD"
-    NSSD = "NSSD"
-    ZNSSD = "ZNSSD"
-
-class Interp(str, Enum):
-    BSPLINE = "BSPLINE"
-    HERMITE = "HERMITE"
-
-class IncrementalMethod(str, Enum):
-    IMAGE = "IMAGE"
-    COST = "COST"
-    ITER = "ITER"
-
-
-def multiwindow_init(subset_size: int, 
+def _multiwindow_init(subset_size: int, 
                      subset_step: int,
+                     image_width: int,
+                     image_height: int,
                      max_displacement: int,
                      multiwindow_overlap: float,
                      multiwindow_subset_size: list[int],
@@ -71,6 +46,20 @@ def multiwindow_init(subset_size: int,
     if multiwindow_overlap < 0 or multiwindow_overlap > 1:
         raise ValueError(f"multiwindow_overlap must be a fractional value between 0 and 1."
                          f"Got {multiwindow_overlap}")
+
+
+    # check that the max displacement is a positive integer and that
+    # 2*max_displacement is less than the image size
+    if max_displacement <= 0:
+        raise ValueError(f"max_displacement must be a positive integer. Got {max_displacement}")
+
+    if 2*max_displacement >= image_width or 2*max_displacement >= image_height:
+        raise ValueError(
+            f"Subset search area must be less than the image size.\n"
+            f"\tSearch area diameter (2 * max_displacement): {2 * max_displacement} px\n"
+            f"\tImage width: {image_width} px\n"
+            f"\tImage height: {image_height} px"
+        )
 
     # if they are both empty then use max_displacement as the largest subset_size and multiwindow_search_area
     if len(multiwindow_subset_size) == 0 and len(multiwindow_search_area) == 0:
@@ -111,7 +100,7 @@ def multiwindow_init(subset_size: int,
 
 
 
-def check_correlation_criteria(correlation_criteria: str) -> None:
+def _check_correlation_criteria(correlation_criteria: str) -> None:
     """
     Validate that the correlation criteria is one of the allowed values.
 
@@ -139,7 +128,7 @@ def check_correlation_criteria(correlation_criteria: str) -> None:
 
 
 
-def check_shape_function(shape: Shape) -> int:
+def _check_shape_function(shape: EShape) -> int:
     """
     Returns the number of parameters associated with that shape function.
 
@@ -157,18 +146,18 @@ def check_shape_function(shape: Shape) -> int:
         - 12 for ``QUAD``
     """
 
-    if (shape==Shape.RIGID):
+    if (shape==EShape.RIGID):
         num_params = 2
-    elif (shape==Shape.AFFINE): 
+    elif (shape==EShape.AFFINE): 
         num_params = 6
-    elif (shape==Shape.QUAD): 
+    elif (shape==EShape.QUAD): 
         num_params = 12
     
     return num_params
 
 
 
-def check_interpolation(interpolation_routine: str) -> None:
+def _check_interpolation(interpolation_routine: str) -> None:
     """
     Validate that the interpolation routine is one of the allowed methods.
 
@@ -197,7 +186,7 @@ def check_interpolation(interpolation_routine: str) -> None:
 
 
 
-def check_method(method: str) -> None:
+def _check_method(method: str) -> None:
     """
     Validate that the scan type  one of the allowed methods.
 
@@ -221,7 +210,7 @@ def check_method(method: str) -> None:
 
 
 
-def check_thresholds(threshold: float, 
+def _check_thresholds(threshold: float, 
                      precision: float) -> None:
     """
     Ensures that ``threshold``, and ``precision``
@@ -248,7 +237,7 @@ def check_thresholds(threshold: float,
         raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
 
-def check_subsets(subset_size: int, subset_step: int) -> None:
+def _check_subsets(subset_size: int, subset_step: int) -> None:
     """
 
     Parameters
@@ -273,9 +262,11 @@ def check_subsets(subset_size: int, subset_step: int) -> None:
     if subset_step > subset_size:
         raise ValueError("subset_step is larger than the subset_size.")
 
+    if subset_step <= 0:
+        raise ValueError("subset_step must be a positive integer.")
 
 
-def check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, int]] | np.ndarray,
+def _check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, int]] | np.ndarray,
                              roi_mask: np.ndarray,
                              method: str,
                              px_hori: int,
@@ -381,12 +372,12 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, 
         corner_x = x - subset_size//2
         corner_y = y - subset_size//2
 
-        def round_to_step(value: int, step: int) -> int:
+        def _round_to_step(value: int, step: int) -> int:
             return round(value / step) * step
 
         # snap to grid
-        new_x = round_to_step(corner_x, subset_step)
-        new_y = round_to_step(corner_y, subset_step)
+        new_x = _round_to_step(corner_x, subset_step)
+        new_y = _round_to_step(corner_y, subset_step)
 
         # check if all pixel values within the seed location are within the ROI
         # seed coordinates are the central pixel to the subset
@@ -415,9 +406,9 @@ def check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int, 
 
     return updated_seeds
 
-def check_images(reference: np.ndarray | str | Path,
+def _check_images(reference: np.ndarray | str | Path,
                  deformed: np.ndarray | str | Path | list[Path],
-                 roi: np.ndarray, debug_level: int) -> tuple[list[str], list[str], int, int, Path | None]:
+                 roi: np.ndarray, print_level: int) -> tuple[list[str], list[str], int, int, Path | None, list[np.ndarray] | None]:
     """
     Validate reference and deformed images, checks consistency in shape/format.
 
@@ -442,7 +433,7 @@ def check_images(reference: np.ndarray | str | Path,
     roi : np.ndarray
         A 2D NumPy array defining the region of interest. Must match the reference image shape
         if ``reference`` is an array.
-    debug_level: int
+    print_level: int
         Determines how much information to provide in console output.
 
     Returns
@@ -455,10 +446,12 @@ def check_images(reference: np.ndarray | str | Path,
         Width of the images in pixels.
     h : int
         Height of the images in pixels.
-    temp_dir : pathlib.Path or None
-        Path to the temporary directory created to store array-based images on disk.
-        ``None`` if file-based input was used. Caller is responsible for cleanup
-        (e.g. ``shutil.rmtree(temp_dir)``).
+    temp_dir : None
+        Deprecated return slot retained for caller compatibility. Array inputs are
+        passed to the DIC engine in memory and no temporary directory is created.
+    image_arrays : list[numpy.ndarray] or None
+        Contiguous in-memory images for array-based input, or ``None`` for
+        file-based input.
 
     Raises
     ------
@@ -473,6 +466,7 @@ def check_images(reference: np.ndarray | str | Path,
     basename = []
     fullpath = []
     temp_dir = None
+    image_arrays = None
 
     # Normalize Path or str to Path
     if isinstance(reference, (str, Path)):
@@ -499,13 +493,13 @@ def check_images(reference: np.ndarray | str | Path,
         if not reference.is_file():
             raise ValueError(f"Reference image does not exist: {reference}")
 
-        if debug_level > 0:
-            common_py_util.info("Ref img: " + str(reference))
+        if print_level > 0:
+            common_util.info("Ref img: " + str(reference))
 
         ref_img = Image.open(reference)
 
-        if debug_level > 0:
-            common_py_util.info(f"Ref img shape: {ref_img.size}")
+        if print_level > 0:
+            common_util.info(f"Ref img shape: {ref_img.size}")
 
         basename.append(os.path.basename(reference))
         fullpath.append(str(reference))
@@ -518,8 +512,8 @@ def check_images(reference: np.ndarray | str | Path,
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
 
-        if debug_level > 1:
-            common_py_util.info(f"Found {len(files)} deformation images in dir: {os.path.dirname(files[0])}")
+        if print_level > 1:
+            common_util.info(f"Found {len(files)} deformation images in dir: {os.path.dirname(files[0])}")
 
         basename.extend(os.path.basename(f) for f in files)
         fullpath.extend(str(f) for f in files)
@@ -554,53 +548,59 @@ def check_images(reference: np.ndarray | str | Path,
 
         # Drop channel dim if multi-channel
         if ref_arr.ndim == 3:
-            if debug_level > 0:
+            if print_level > 0:
                 print(f"Reference array has {ref_arr.shape[2]} channels. Using channel 0.")
             ref_arr = ref_arr[:, :, 0]
 
-        # Create a tmp directory under cwd
-        temp_dir = Path.cwd() / "tmp_dic"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-
-        if debug_level > 0:
-            print(f"Saving array images to temporary directory: {temp_dir}\n")
-
-        # Save reference image
         ref_filename = "ref_img.tiff"
-        ref_path = temp_dir / ref_filename
-        Image.fromarray(ref_arr).save(ref_path)
         basename.append(ref_filename)
-        fullpath.append(str(ref_path))
+        fullpath.append("")
+        image_arrays = [_check_array_image_dtype(np.ascontiguousarray(ref_arr))]
 
-        # Save deformed images
         for i in range(def_arr.shape[0]):
             frame = def_arr[i]
             if frame.ndim == 3:
-                if debug_level > 0:
+                if print_level > 0:
                     print(f"Deformed array [{i}] has {frame.shape[2]} channels. Using channel 0.")
                 frame = frame[:, :, 0]
 
             def_filename = f"def_img_{i:04d}.tiff"
-            def_path = temp_dir / def_filename
-            Image.fromarray(frame).convert("L").save(def_path)
             basename.append(def_filename)
-            fullpath.append(str(def_path))
+            fullpath.append("")
+            image_arrays.append(_check_array_image_dtype(np.ascontiguousarray(frame)))
 
-        if debug_level > 1:
-            print(f"Saved {def_arr.shape[0]} deformed images to {temp_dir}")
+        if print_level > 1:
+            print(f"Prepared {def_arr.shape[0]} deformed array images for in-memory DIC")
             for name in basename[1:]:
                 print(f"  - {name}")
             print("")
 
-        ref_img = Image.open(ref_path)
+        w = ref_arr.shape[1]
+        h = ref_arr.shape[0]
+        return basename, fullpath, w, h, temp_dir, image_arrays
 
     w, h = ref_img.size
 
-    return basename, fullpath, w, h, temp_dir
+    return basename, fullpath, w, h, temp_dir, image_arrays
+
+
+def _check_array_image_dtype(image: np.ndarray) -> np.ndarray:
+    allowed_dtypes = {
+        np.dtype(np.uint8),
+        np.dtype(np.uint16),
+        np.dtype(np.uint32),
+        np.dtype(np.float32),
+    }
+    if image.dtype not in allowed_dtypes:
+        raise TypeError(
+            "Array image dtype must be one of uint8, uint16, uint32, or float32. "
+            f"Got {image.dtype}."
+        )
+    return image
 
 
 
-def print_config_summary(image_width: int,
+def _print_config_summary(image_width: int,
                          image_height: int,
                          num_def_img: int,
                          max_iterations: int,
@@ -618,41 +618,41 @@ def print_config_summary(image_width: int,
                          subset_size: int,
                          subset_step: int,
                          num_threads: int | None,
-                         debug_level: int,
+                         print_level: int,
                          updated_seeds: list[int] | None = None,
                          epi_distance: int | None = None) -> None:
-    if debug_level <= 0:
+    if print_level <= 0:
         return
 
-    common_py_util.print_title("Config")
-    common_py_util.info_out("Width of Images: ", f"{image_width} [px]")
-    common_py_util.info_out("Height of Images: ", f"{image_height} [px]")
-    common_py_util.info_out("Number of Deformed Images: ", num_def_img)
-    common_py_util.info_out("Max number of solver iterations: ", max_iterations)
-    common_py_util.info_out("Correlation Criterion: ", correlation_criteria)
-    common_py_util.info_out("Shape Function: ", shape_function)
-    common_py_util.info_out("Interpolation Routine: ", interpolation_routine)
-    common_py_util.info_out("FFT displacement filter enabled: ", fft_filter)
-    common_py_util.info_out("FFT displacement filter threshold: ", fft_filter_threshold)
-    common_py_util.info_out("FFT displacement filter radius: ", fft_filter_radius)
-    common_py_util.info_out("FFT displacement filter correlation power: ", fft_filter_corr_power)
-    common_py_util.info_out("Image Scan Method: ", method)
-    common_py_util.info_out("Optimization Precision:", precision)
-    common_py_util.info_out("Correlation Cutoff Threshold:", threshold)
-    common_py_util.info_out("Estimate for Max Displacement:", f"{max_displacement} [px]")
+    common_util.print_title("Config")
+    common_util.info_out("Width of Images: ", f"{image_width} [px]")
+    common_util.info_out("Height of Images: ", f"{image_height} [px]")
+    common_util.info_out("Number of Deformed Images: ", num_def_img)
+    common_util.info_out("Max number of solver iterations: ", max_iterations)
+    common_util.info_out("Correlation Criterion: ", correlation_criteria)
+    common_util.info_out("Shape Function: ", shape_function)
+    common_util.info_out("Interpolation Routine: ", interpolation_routine)
+    common_util.info_out("FFT displacement filter enabled: ", fft_filter)
+    common_util.info_out("FFT displacement filter threshold: ", fft_filter_threshold)
+    common_util.info_out("FFT displacement filter radius: ", fft_filter_radius)
+    common_util.info_out("FFT displacement filter correlation power: ", fft_filter_corr_power)
+    common_util.info_out("Image Scan Method: ", method)
+    common_util.info_out("Optimization Precision:", precision)
+    common_util.info_out("Correlation Cutoff Threshold:", threshold)
+    common_util.info_out("Estimate for Max Displacement:", f"{max_displacement} [px]")
     if epi_distance is not None:
-        common_py_util.info_out("Estimate for Epipolar Distance:", f"{epi_distance} [px]")
-    common_py_util.info_out("Subset Size:", f"{subset_size} [px]")
-    common_py_util.info_out("Subset Step:", f"{subset_step} [px]")
+        common_util.info_out("Estimate for Epipolar Distance:", f"{epi_distance} [px]")
+    common_util.info_out("Subset Size:", f"{subset_size} [px]")
+    common_util.info_out("Subset Step:", f"{subset_step} [px]")
     if num_threads is None:
-        import pyvale.common_cpp.common_cpp as common_cpp
-        num_threads = common_cpp.get_num_threads()
-    common_py_util.info_out("Number of OMP threads:", num_threads)
-    common_py_util.info_out("Debug level: ", debug_level)
+        import pyvale.commoncpp.commoncpp as commoncpp
+        num_threads = commoncpp.get_num_threads()
+    common_util.info_out("Number of OMP threads:", num_threads)
+    common_util.info_out("Print level: ", print_level)
     if updated_seeds is not None and "RG" in method:
         for i in range(0, len(updated_seeds), 2):
             x, y = updated_seeds[i], updated_seeds[i + 1]
-            common_py_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
+            common_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
 
 
 

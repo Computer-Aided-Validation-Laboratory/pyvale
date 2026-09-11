@@ -18,12 +18,12 @@
 #include "./img_read.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "../common_cpp/stb_image.h"
+#include "../commoncpp/stb_image.h"
 
 Image read_img(const std::string& fullpath) {
 
 
-    common_util::Timer time("to read " +std::filesystem::path(fullpath).filename().string() + ":", 2);
+    common_util::Timer time("to read " +std::filesystem::path(fullpath).filename().string() + ":", 3);
 
     // Find extension
     auto dotPos = fullpath.find_last_of('.');

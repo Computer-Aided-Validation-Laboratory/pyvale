@@ -23,11 +23,11 @@
 // eigen header files
 #include <Eigen/Dense>
 
-// common_cpp header files
-#include "../../common_cpp/dicsignalhandler.hpp"
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/dicsignalhandler.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/util.hpp"
 
 // Program Header files
 #include "./smooth.hpp"

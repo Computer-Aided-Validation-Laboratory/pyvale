@@ -95,7 +95,7 @@ def test_strain_deformations(strain_formulation, deformation_type, F):
         window_element=9,
         strain_formulation=strain_formulation,
         output_prefix=f"strain_{strain_formulation}_{deformation_type}_",
-        debug_level=2
+        print_level=2
     )
 
     # Analytic reference strain

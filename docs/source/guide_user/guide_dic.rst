@@ -274,9 +274,13 @@ by stereo matching and 3D reconstruction columns. The additional stereo columns 
 
 - ``stereo_disp_u_px``:
   Horizontal pixel displacement from the left image subset to the corresponding right image subset.
+  When imported with :code:`dic.import_3d`, this is available as
+  :code:`dic_data.stereo.disparity_u_px`.
 
 - ``stereo_disp_v_px``:
   Vertical pixel displacement from the left image subset to the corresponding right image subset.
+  When imported with :code:`dic.import_3d`, this is available as
+  :code:`dic_data.stereo.disparity_v_px`.
 
 - ``stereo_disp_mag_px``:
   Magnitude of the left-to-right stereo pixel displacement.
@@ -346,6 +350,11 @@ filname prefix. If you have changed :code:`output_delimiter` prior to the
 correlation you will also need to specify the same delimiter when importing the data.
 To read binary files (with ``.dic2d`` or ``.dic3d`` extension), pass :code:`binary=True`
 to the import function.
+
+For stereo imports, the left-to-right pixel matching offsets are stored as
+:code:`dic_data.stereo.disparity_u_px` and
+:code:`dic_data.stereo.disparity_v_px`. These correspond to the
+``stereo_disp_u_px`` and ``stereo_disp_v_px`` output file columns.
 
 Strain Calculation
 ^^^^^^^^^^^^^^^^^^^
@@ -463,13 +472,12 @@ Incremental DIC changes the reference image during a sequence:
 
    dic.calculate_2d(
         ...,
-        incremental=True,
-        incremental_update_condition="IMAGE",
+        incremental_update="IMAGE",
         incremental_update_value=1,
         ...,
    )
 
-When ``incremental=True``, Pyvale may replace the active reference image with
+When ``incremental_update`` is not ``"OFF"``, Pyvale may replace the active reference image with
 the previous deformed image before processing the next frame. This reduces the
 image-to-image deformation that the optimizer has to solve. The displacement
 values written to disk are still accumulated relative to the first reference
@@ -478,8 +486,9 @@ than only frame-to-frame increments. The correlation quality fields, such as
 ``cost_zncc``, ``ftol``, ``xtol`` and ``num_iter``, describe the match against
 the active, possibly updated reference image.
 
-The update rule is controlled with ``incremental_update_condition`` and
-``incremental_update_value``:
+The update rule is controlled with ``incremental_update`` and
+``incremental_update_value``. Use ``incremental_update="OFF"`` to disable
+incremental reference updates:
 
 - ``"IMAGE"``:
   Update after every ``N`` deformed images, where ``N`` is

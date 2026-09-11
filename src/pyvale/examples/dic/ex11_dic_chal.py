@@ -16,7 +16,7 @@ To keep the amount of images/data distributed with the package to a minimum,
 we've already run the calibration (but feel free to try running the calibration
 yourself by downloading all the images from the Stereo DIC challenge archive)
 and the intrinsic/extrinisic parameters can be found in
-`ex11_dic_chal_calibration.txt`. In this example we'll just use the reference
+`dic_ex11_dic_chal_calibration.txt`. In this example we'll just use the reference
 images from the left and right camera to build a 3D reconstruction.
 """
 
@@ -32,7 +32,7 @@ import pyvale.dataset as dataset
 # %% 
 # Import the calibration parameters:
 
-calib_params = calib.loadtxt("./ex11_dic_chal_calibration.txt", delimiter=",")
+calib_params = calib.loadtxt(dataset.dic_ex11_dic_chal_calibration(), delimiter=",")
 
 
 # %%
@@ -44,8 +44,8 @@ ref1 = dataset.dic_chal_3d_cam1()
 
 # Build ROI using cam 0 reference image.
 roi = dic.RegionOfInterest(ref0)
-# roi.interactive_selection() # <- you can use the intercatvie_selection to view the yaml
-roi.read_yaml("./ex11_dic_chal_roi.yaml")
+# roi.interactive_selection() # <- you can use the interactive_selection to view the yaml
+roi.read_yaml(dataset.dic_ex11_dic_chal_roi())
 
 
 # %%
@@ -57,7 +57,7 @@ roi.read_yaml("./ex11_dic_chal_roi.yaml")
 # %%
 
 # create an output directory 
-output_path = Path.cwd() / "pyvale-output" / "ex11"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex11"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 

@@ -14,8 +14,8 @@
 #include <cmath>
 #include <omp.h>
 
-// common_cpp Header files
-#include "../../common_cpp/util.hpp"
+// commoncpp Header files
+#include "../../commoncpp/util.hpp"
 
 // DIC Header files
 #include "./dicutil.hpp"
