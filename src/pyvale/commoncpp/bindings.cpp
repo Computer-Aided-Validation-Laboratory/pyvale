@@ -10,12 +10,12 @@
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
 
-// common_cpp Header Files
+// commoncpp Header Files
 #include "./util.hpp"
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(common_cpp, m) {
+PYBIND11_MODULE(commoncpp, m) {
 
     py::add_ostream_redirect(m, "ostream_redirect");
 

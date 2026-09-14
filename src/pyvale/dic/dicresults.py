@@ -15,11 +15,11 @@ class StereoResults:
     Data container for stereo DIC results
     """
     
-    u_px: np.ndarray
-    """Horizontal displacement in pixels to the right image. shape=(img_num,y,x)"""
+    disparity_u_px: np.ndarray
+    """Horizontal left-to-right stereo disparity in pixels. shape=(img_num,y,x)"""
 
-    v_px: np.ndarray
-    """Vertical displacement in pixels to the right image. shape=(img_num,y,x)"""
+    disparity_v_px: np.ndarray
+    """Vertical left-to-right stereo disparity in pixels. shape=(img_num,y,x)"""
 
     u_mm: np.ndarray
     """Horizontal displacement in physical units of mm relative in cam0 world coordinate system. shape=(img_num,y,x)"""
@@ -40,7 +40,7 @@ class StereoResults:
     """Z-coordinate in physical units of mm relative in cam0 world coordinate system. shape=(img_num,y,x)"""
     
     mag_px: np.ndarray | None = None
-    """Displacement magnitude to the right image, typically computed as sqrt(disp_u_px^2 + disp_v_px^2). shape=(img_num,y,x)"""
+    """Stereo disparity magnitude in pixels, typically computed as sqrt(disparity_u_px^2 + disparity_v_px^2). shape=(img_num,y,x)"""
 
     converged: np.ndarray | None = None
     """boolean value for whether the subset has converged or not. shape=(img_num,y,x)"""

@@ -21,7 +21,7 @@
 #include <cmath>
 #include <vector>
 
-// common_cpp header files
+// commoncpp header files
 #include "./defines.hpp"
 
 enum class PixelType { UINT8, UINT16, UINT32, UINT32F};

@@ -13,7 +13,7 @@
 #include <string>
 #include <ostream>
 
-// common_cpp header files
+// commoncpp header files
 
 // program Header files
 

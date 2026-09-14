@@ -4,7 +4,6 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-import os
 from logging import debug
 import numpy as np
 from pathlib import Path
@@ -13,10 +12,11 @@ from typing import Literal
 # pyvale
 import pyvale.dic.diccpp as diccpp
 import pyvale.calib.calibcpp as calibcpp
-import pyvale.dic.dicchecks as dicchecks
-import pyvale.common_py.util as common_py_util
+import pyvale.dic._dicchecks as dicchecks
+import pyvale.common.util as common_util
 from pyvale.calib.calibdataclass import Calib
-import pyvale.common_cpp.common_cpp as common_cpp
+from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod
+import pyvale.commoncpp.commoncpp as commoncpp
 
 
 def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
@@ -26,18 +26,17 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  seed: list[int] | list[np.int32] | list[tuple[int, int]] | np.ndarray,
                  subset_size: int = 21,
                  subset_step: int = 10,
-                 correlation_criteria: Literal["ZNSSD","NSSD","SSD"]="ZNSSD",
-                 shape_function: Literal["AFFINE","QUAD","RIGID"]="AFFINE",
-                 interpolation_routine: Literal["BSPLINE","HERMITE"]="BSPLINE",
+                 correlation_criteria: Literal["ZNSSD", "NSSD", "SSD"] | ECorrCrit = ECorrCrit.ZNSSD,
+                 shape_function: Literal["AFFINE", "QUAD", "RIGID"] | EShape = EShape.AFFINE,
+                 interpolation_routine: Literal["BSPLINE", "HERMITE"] | EInterp = EInterp.BSPLINE,
                  max_iterations: int=40,
                  precision: float=0.001,
                  threshold: float=0.9,
                  num_threads: int | None = None,
                  max_displacement: int=128,
                  epi_distance: int=300,
-                 method: Literal["MULTIWINDOW_RG","SINGLEWINDOW_RG","MULTIWINDOW","RASTER"] = "MULTIWINDOW_RG",
-                 incremental: bool=False,
-                 incremental_update_condition: Literal["IMAGE","COST","ITER"]="IMAGE",
+                 method: Literal["MULTIWINDOW_RG", "SINGLEWINDOW_RG", "MULTIWINDOW", "RASTER"] | EScanMethod = EScanMethod.MULTIWINDOW_RG,
+                 incremental_update: Literal["OFF", "IMAGE", "COST", "ITER"] | EIncrementalMethod = EIncrementalMethod.OFF,
                  incremental_update_value: float | int=1,
                  multiwindow_overlap: float=0.0,
                  multiwindow_subset_sizes: list[int] = [],
@@ -54,7 +53,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  output_delimiter: str=",",
                  output_below_threshold: bool=False,
                  output_shape_params: bool=False,
-                 debug_level: int=1) -> None:
+                 print_level: int=2) -> None:
 
     """
     Perform Stereo Digital Image Correlation (DIC) between a reference image and one or more deformed images.
@@ -117,19 +116,14 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         * ``"RASTER"``: No FFT initialization. Performs a raster scan of
         the image.
 
-    incremental : bool, optional
-        If True, then references images will be updated depending on the
-        condition set by argument `incremental_update_condition`. This is useful
-        for large deformations where the original reference may no longer be
-        valid for tracking. If False, the original reference image(s) will be
-        used for tracking all deformed images (default: False).
-    incremental_update_condition : str, optional
-        Condition for updating reference images when ``incremental`` is True. Options include:
+    incremental_update : str or EIncrementalMethod, optional
+        Condition for updating reference images. Use ``"OFF"`` to disable
+        incremental reference updates. Options include:
         ``"IMAGE"`` to update every ``N`` images, ``"COST"`` to update when the average ZNCC cost
         value falls below a threshold, ``"ITER"`` to update when the average number
-        of subset optimizer iterations exceeds a threshold. (default: `"PER_IMAGE"`).
+        of subset optimizer iterations exceeds a threshold. (default: ``"OFF"``).
     incremental_update_value : float, optional
-        Value corresponding to the ``incremental_update_condition``. For example,
+        Value corresponding to ``incremental_update``. For example,
         if the condition is "IMAGE", this would be the number of images after
         which to update the reference. If the condition is ``"COST"``, this would be
         the cost threshold for updating. If the condition is ``"ITER"``, this would
@@ -175,7 +169,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         will still be present in output (default: ``False``).
     output_shape_params : bool, optional
         If True, all shape parameters will be saved in the output files (default: ``False``).
-    debug_level:
+    print_level:
 
     Returns
     -------
@@ -192,35 +186,40 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
 
 
-    if (debug_level>0):
-        common_py_util.print_pyvale_banner()
-        common_py_util.print_title("Initial Checks")
+    if (print_level>0):
+        common_util.print_pyvale_banner()
+        common_util.print_title("Initial Checks")
 
     # make sure ROI is in the correct format
     roi_c = np.ascontiguousarray(roi_mask)
 
     # do checks on vars in python land
-    basenames0, fullpaths0, w0, h0, temp_dir = dicchecks.check_images(reference[0],deformed[0],roi_mask,debug_level)
-    basenames1, fullpaths1, w1, h1, temp_dir = dicchecks.check_images(reference[1],deformed[1],roi_mask,debug_level)
+    basenames0, fullpaths0, w0, h0, _, image_arrays0 = dicchecks._check_images(reference[0],deformed[0],roi_mask,print_level)
+    basenames1, fullpaths1, w1, h1, _, image_arrays1 = dicchecks._check_images(reference[1],deformed[1],roi_mask,print_level)
 
     assert(w0 == w1)
     assert(h0 == h1)
     assert(len(basenames0) == len(basenames1))
-    assert(len(basenames0) == len(basenames1))
     assert(len(fullpaths0) == len(fullpaths1))
     basenames = basenames0 + basenames1
     fullpaths = fullpaths0 + fullpaths1
+    image_arrays = None
+    if image_arrays0 is not None or image_arrays1 is not None:
+        if image_arrays0 is None or image_arrays1 is None:
+            raise ValueError("Stereo DIC array inputs must be arrays for both cameras or paths for both cameras.")
+        image_arrays = image_arrays0 + image_arrays1
 
     # string to enum
-    method_enum = dicchecks.ScanMethod(method)
-    shape_function_enum = dicchecks.Shape(shape_function)
-    correlation_criteria_enum = dicchecks.CorrCrit(correlation_criteria)
-    interpolation_routine_enum = dicchecks.Interp(interpolation_routine)
-    incremental_update_condition_enum = dicchecks.IncrementalMethod(incremental_update_condition)
+    method_enum = EScanMethod(method)
+    shape_function_enum = EShape(shape_function)
+    correlation_criteria_enum = ECorrCrit(correlation_criteria)
+    interpolation_routine_enum = EInterp(interpolation_routine)
+    incremental_update_enum = EIncrementalMethod(incremental_update)
 
     # checks on the config
-    mw_overlap, mw_subset_size, mw_search_area  = dicchecks.multiwindow_init(subset_size,
+    mw_overlap, mw_subset_size, mw_search_area  = dicchecks._multiwindow_init(subset_size,
                                                                  subset_step,
+                                                                 w0, h1,
                                                                  max_displacement, 
                                                                  multiwindow_overlap, 
                                                                  multiwindow_subset_sizes, 
@@ -229,11 +228,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
 
     # checks on the config
-    dicchecks.check_thresholds(threshold, precision)
-    common_py_util.check_output_directory(str(output_basepath), output_prefix, debug_level)
-    dicchecks.check_subsets(subset_size, subset_step)
-    updated_seeds = dicchecks.check_and_update_rg_seed(seed, roi_mask, method, w0, h0, subset_size, subset_step)
-    num_params = dicchecks.check_shape_function(shape_function_enum)
+    dicchecks._check_thresholds(threshold, precision)
+    common_util.check_output_directory(str(output_basepath), output_prefix, print_level)
+    dicchecks._check_subsets(subset_size, subset_step)
+    updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method_enum.value, w0, h0, subset_size, subset_step)
+    num_params = dicchecks._check_shape_function(shape_function_enum)
 
     # Assign values to config struct for c++ land
     config = diccpp.Config()
@@ -247,8 +246,12 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.interp_routine = getattr(diccpp.InterpRoutine, interpolation_routine_enum.name)
     config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
     config.scan_method = getattr(diccpp.ScanMethod, method_enum.name)
-    config.incremental = incremental
-    config.incremental_update_cond = getattr(diccpp.IncrementalCond, incremental_update_condition_enum.value)
+    config.incremental = incremental_update_enum != EIncrementalMethod.OFF
+    config.incremental_update_cond = (
+        getattr(diccpp.IncrementalCond, incremental_update_enum.name)
+        if config.incremental
+        else diccpp.IncrementalCond.IMAGE
+    )
     config.incremental_update_val = incremental_update_value
     config.px_hori = w0
     config.px_vert = h0
@@ -262,7 +265,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.fft_filter_radius = fft_filter_radius
     config.fft_filter_corr_power = fft_filter_corr_power
     config.fft_save = fft_save
-    config.debug_level = debug_level
+    config.debug_level = print_level
     config.epi_distance = epi_distance
     config.max_disp = max_displacement
 
@@ -280,7 +283,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     multiwindowconf.search_area = mw_search_area
 
     # assigning c++ struct vals for save config
-    saveconf = common_cpp.SaveConfig()
+    saveconf = commoncpp.SaveConfig()
     saveconf.basepath = str(output_basepath)
     saveconf.binary = output_binary
     saveconf.prefix = output_prefix
@@ -319,27 +322,19 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     #set the number of OMP threads
     if num_threads is not None:
-        common_cpp.set_num_threads(num_threads)
+        commoncpp.set_num_threads(num_threads)
 
-    dicchecks.print_config_summary(
+    dicchecks._print_config_summary(
         w0, h0, config.num_def_img, max_iterations, correlation_criteria,
         shape_function, interpolation_routine, fft_filter,
-        fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method,
+        fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method_enum.value,
         precision, threshold, max_displacement, subset_size, subset_step,
-        num_threads, debug_level, updated_seeds, epi_distance
+        num_threads, print_level, updated_seeds, epi_distance
     )
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
-
-
-    if temp_dir is not None:
-
-        # delete each file in filename
-        for filename in os.listdir(temp_dir):
-            file_path = os.path.join(temp_dir, filename)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-
-        os.rmdir(temp_dir)
+        if image_arrays is None:
+            diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+        else:
+            diccpp.engine_images(image_arrays, roi_c, calib, config, multiwindowconf, saveconf)

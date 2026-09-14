@@ -57,7 +57,7 @@ def info_out(label: object, value: object) -> None:
 
 
 def check_output_directory(output_basepath: str,
-                           output_prefix: str, debug_level: int) -> None:
+                           output_prefix: str, print_level: int) -> None:
     """
     Check for existing output files in a directory and prompt user confirmation before overwriting.
 
@@ -72,7 +72,7 @@ def check_output_directory(output_basepath: str,
         Path to the output directory where files are or will be saved.
     output_prefix : str
         Filename prefix used to identify potential conflicting output files.
-    debug_level: int
+    print_level: int
         Determines how much information to provide in console output.
 
     Raises
@@ -97,7 +97,7 @@ def check_output_directory(output_basepath: str,
 
     if conflicting_files:
         conflicting_files.sort()
-        if (debug_level>0):
+        if (print_level>0):
             info("WARNING: files with matching prefix in output dir")
 
 

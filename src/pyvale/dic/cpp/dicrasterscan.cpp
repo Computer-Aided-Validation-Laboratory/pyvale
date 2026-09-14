@@ -16,10 +16,10 @@
 #include <optional>
 #include <chrono>
 
-// common_cpp headers
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+// commoncpp headers
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 
 // Program Header files

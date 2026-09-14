@@ -82,9 +82,10 @@ def test_strain_deformations(strain_formulation, deformation_type, F):
     # Generate displacement field
     X, Y, Ux, Uy = generate_affine_displacement_grid(F)
 
-    TEST_DATA_DIR.mkdir(exist_ok=True)
-    np.savetxt(TEST_DATA_DIR / f"u_{strain_formulation}_{deformation_type}.txt", Ux[0])
-    np.savetxt(TEST_DATA_DIR / f"v_{strain_formulation}_{deformation_type}.txt", Uy[0])
+    # debugging output
+    # TEST_DATA_DIR.mkdir(exist_ok=True)
+    # np.savetxt(TEST_DATA_DIR / f"u_{strain_formulation}_{deformation_type}.txt", Ux[0])
+    # np.savetxt(TEST_DATA_DIR / f"v_{strain_formulation}_{deformation_type}.txt", Uy[0])
 
     input_data = dic.Results(ss_x=X, ss_y=Y, u_px=Ux, v_px=Uy)
 
@@ -95,7 +96,7 @@ def test_strain_deformations(strain_formulation, deformation_type, F):
         window_element=9,
         strain_formulation=strain_formulation,
         output_prefix=f"strain_{strain_formulation}_{deformation_type}_",
-        debug_level=2
+        print_level=2
     )
 
     # Analytic reference strain

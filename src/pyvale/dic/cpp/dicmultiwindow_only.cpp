@@ -16,10 +16,10 @@
 #include <optional>
 #include <chrono>
 
-// common_cpp headers
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+// commoncpp headers
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 
 // Program Header files
@@ -50,6 +50,7 @@ void multiwindow_only(const Interpolator &interp_ref,
                                                     lvl, multiwindow.size(),
                                                     conf.basenames,
                                                     conf.fft_precision);
+        raise_on_interrupt();
     }
 
     const subset::Grid &ss_grid = multiwindow.back().layout;

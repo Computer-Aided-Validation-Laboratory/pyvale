@@ -18,8 +18,8 @@
 // Program Header files
 #include "./dicinterp.hpp"
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
 
 
 class Bspline : public Interpolator {
