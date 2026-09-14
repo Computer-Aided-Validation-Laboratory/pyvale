@@ -92,6 +92,9 @@ build.verbose = true
 logging.level = "INFO"
 ninja.make-fallback = false
 build-dir = "build"
+sdist.exclude = [
+    "src/pyvale/data/**",
+]
 
 [tool.uv]
 required-version = ">=0.9.17"
