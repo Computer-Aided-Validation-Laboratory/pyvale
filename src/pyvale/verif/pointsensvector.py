@@ -7,6 +7,7 @@ import copy
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataio as io
+import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensmech as pointsensmech
 import pyvale.verif.analyticsimdatafactory as asd
 
@@ -31,6 +32,7 @@ def simdata_vec_2d_analytic() -> io.SimData:
 def simdata_vec_2d_analytic_nomesh() -> io.SimData:
     sim_data = simdata_vec_2d_analytic()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 

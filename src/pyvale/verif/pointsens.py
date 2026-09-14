@@ -21,6 +21,55 @@ import pyvale.dataio as io
 import pyvale.verif.pointsensconst as pointsensconst
 from pyvale.verif.pointsensconst import GOLD_SEED
 
+def joggle_meshfree_coords(
+    coords: np.ndarray,
+    scale_factor: float = 1e-10,
+    seed: int = GOLD_SEED,
+) -> np.ndarray:
+    """
+    Apply a deterministic perturbation to coordinate point clouds to
+    break geometric degeneracies (e.g. co-circular/co-spherical points) in
+    Delaunay triangulation across platforms and architectures.
+
+    Preserves bounding box planes so that sensors placed on outer faces remain
+    inside the convex hull without producing out-of-bounds NaNs.
+
+    Parameters
+    ----------
+    coords : np.ndarray
+        Array of nodal coordinates with shape (n_nodes, 3).
+    scale_factor : float, optional
+        Scale factor for coordinate perturbation relative to mesh bounding box
+        extent, by default 1e-10.
+    seed : int, optional
+        RNG seed for deterministic jitter, by default GOLD_SEED.
+
+    Returns
+    -------
+    np.ndarray
+        Perturbed coordinates array with shape (n_nodes, 3).
+    """
+    rng = np.random.default_rng(seed)
+    char_length = float(np.ptp(coords, axis=0).max())
+    jitter = scale_factor * char_length * rng.standard_normal(coords.shape)
+
+    coord_min = coords.min(axis=0)
+    coord_max = coords.max(axis=0)
+    tol = 1e-7
+
+    # Preserve bounding box faces to keep boundary sensors inside convex hull
+    for dd in range(coords.shape[1]):
+        mask_min = np.isclose(coords[:, dd], coord_min[dd], atol=tol)
+        mask_max = np.isclose(coords[:, dd], coord_max[dd], atol=tol)
+        jitter[mask_min, dd] = 0.0
+        jitter[mask_max, dd] = 0.0
+
+    if np.allclose(coords[:, 2], 0.0):
+        jitter[:, 2] = 0.0
+
+    return coords + jitter
+
+
 def samp_times(sim_data: io.SimData) -> dict[str, None | np.ndarray]:
     sim_dims = sens.simtools.get_sim_dims(sim_data)
     sample_times = {}
@@ -94,7 +143,7 @@ def gen_gold_measurements(sens_dict: dict[str,sens.SensorsPoint]) -> None:
     for ss in sens_dict:
         print(f"Generating gold output for case: {ss}")
         measurements = sens_dict[ss].sim_measurements()
-        save_path = pointsensconst.GOLD_PATH / f"{ss}.npy"
+        save_path = pointsensconst.GOLD_PATH / f"{ss.lower()}.npy"
         np.save(save_path,measurements)
 
 
@@ -105,16 +154,17 @@ def check_gold_measurements(sens_dict: dict[str,sens.SensorsPoint],
 
     for ss in sens_dict:
         measurements = sens_dict[ss].sim_measurements()
-        gold_path = pointsensconst.GOLD_PATH / f"{ss}.npy"
+        gold_path = pointsensconst.GOLD_PATH / f"{ss.lower()}.npy"
 
-        load_path = pointsensconst.GOLD_PATH / f"{ss.lower()}.npy"
-        if load_path.is_file():
-            gold = np.load(load_path)
+        if gold_path.is_file():
+            gold = np.load(gold_path)
 
             if not np.allclose(measurements,gold,rtol=rtol,atol=atol):
                 fails.append(f"Gold check failed for: {ss}")
         else:
-            fails.append(f"Gold file does not exist for: {ss}, path: {gold_path}")
+            fails.append(
+                f"Gold file does not exist for: {ss}, path: {gold_path}"
+            )
 
     return fails
 

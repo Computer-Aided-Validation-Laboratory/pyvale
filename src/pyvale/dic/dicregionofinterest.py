@@ -4,8 +4,14 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ================================================================================
 
-from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
-import pyqtgraph as pg
+try:
+    from pyqtgraph.Qt import QtWidgets, QtCore, QtGui
+    import pyqtgraph as pg
+except (ImportError, OSError):
+    QtWidgets = None
+    QtCore = None
+    QtGui = None
+    pg = None
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,6 +21,17 @@ import yaml
 import os
 from pathlib import Path
 from functools import partial
+
+
+def _require_gui_dependencies() -> None:
+    if pg is None or QtWidgets is None or QtCore is None or QtGui is None:
+        raise ImportError(
+            "RegionOfInterest interactive GUI features require pyqtgraph "
+            "and a working Qt runtime. Install the missing Qt system "
+            "libraries or use read_yaml, read_array, rect_boundary, or "
+            "rect_region for non-interactive ROI setup."
+        )
+
 
 class RegionOfInterest:
     """
@@ -57,6 +74,8 @@ class RegionOfInterest:
 
         self.mask = np.zeros(self.ref_image.shape[:2], dtype=bool)
         self.seed = []
+        self.seed_rois = []
+        self.seed_roi = None
         self.__roi_selected = False
         self.roi_list = []
         self.add_list = []
@@ -83,14 +102,14 @@ class RegionOfInterest:
 
         self.height = None
         self.width = None
-        self.subset_size = None
+        self.subset_size = 21
         self.coord_label = None
 
-    def interactive_selection(self, subset_size):
+    def interactive_selection(self):
         """
         Interactive GUI to select a region of interest (ROI) in the image using openCV.
         """
-        self.subset_size = subset_size
+        _require_gui_dependencies()
         self.__roi_selected = True
         
         # Initialize GUI
@@ -110,6 +129,7 @@ class RegionOfInterest:
 
     def _setup_gui(self) -> tuple[np.ndarray, np.ndarray]:
         """Setup the main GUI window and sidebar."""
+        _require_gui_dependencies()
         app = pg.mkQApp("ROI GUI")
         self.main_window = CustomMainWindow(dic_obj=self)
         main_layout = QtWidgets.QHBoxLayout()
@@ -145,10 +165,21 @@ class RegionOfInterest:
 
         # Create sidebar
         sidebar = self._create_sidebar(fill_array, temp_mask)
+        sidebar_widget = QtWidgets.QWidget()
+        sidebar_widget.setLayout(sidebar)
+        sidebar_widget.setFixedWidth(370)
+        sidebar_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Fixed,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
+        self.graphics_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
         
         # Create graphics widget
-        main_layout.addLayout(sidebar)
-        main_layout.addWidget(self.graphics_widget)
+        main_layout.addWidget(sidebar_widget)
+        main_layout.addWidget(self.graphics_widget, stretch=1)
 
         return fill_array, temp_mask
 
@@ -198,7 +229,7 @@ class RegionOfInterest:
                 seed_input.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
                 
                 # Default subset size
-                seed_input.setText("21")
+                seed_input.setText(str(self.subset_size))
 
                 # Restrict to integer input
                 validator = QtGui.QIntValidator(1, 999)
@@ -210,15 +241,26 @@ class RegionOfInterest:
                     if text.isdigit():
                         val = int(text)
                         if val % 2 == 0:  # Convert even → odd
-                            seed_input.setText(str(val + 1))
+                            val += 1
+                            seed_input.setText(str(val))
                         
                         self.subset_size = val
-                        if hasattr(self, 'seed_roi') and self.seed_roi is not None:
-                            # Compute current center of existing ROI
-                            old_rect = self.seed_roi.pos()
-                            center = QtCore.QPointF(old_rect.x() + self.subset_size / 2,
-                                                    old_rect.y() + self.subset_size / 2)
-                            self._draw_seed_roi(center, fill_array, temp_mask)
+                        if self.seed_rois:
+                            centers = []
+                            for seed_roi in self.seed_rois:
+                                try:
+                                    old_rect = seed_roi.pos()
+                                    old_size = seed_roi.size()
+                                except RuntimeError:
+                                    continue
+                                centers.append(QtCore.QPointF(old_rect.x() + old_size.x() / 2,
+                                                              old_rect.y() + old_size.y() / 2))
+                                self._remove_graphics_item(seed_roi)
+
+                            self.seed_rois = []
+                            self.seed_roi = None
+                            for center in centers:
+                                self._draw_seed_roi(center, fill_array, temp_mask)
 
                 seed_input.editingFinished.connect(enforce_odd)
 
@@ -363,6 +405,8 @@ class RegionOfInterest:
         """Finish current drawing/removing mode."""
         self._reset_all_modes()
         self.main_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        if 'add_seed' in self.buttons:
+            self.buttons['add_seed'].setEnabled(True)
         self._clear_redo_stack()
 
     def _mouse_clicked(self, event, fill_array: np.ndarray, temp_mask: np.ndarray) -> None:
@@ -394,20 +438,8 @@ class RegionOfInterest:
 
 
     def _draw_seed_roi(self, center_pos, fill_array, temp_mask):
-        """
-        Draw or redraw the seed ROI with current subset_size.
-        center_pos: QPointF in scene coordinates. If None, uses previous ROI center.
-        """
-        if hasattr(self, 'seed_roi') and self.seed_roi is not None:
-            # Save old center
-            old_rect = self.seed_roi.pos()
-            self.main_view.removeItem(self.seed_roi)
-            if center_pos is None:
-                center_pos = QtCore.QPointF(old_rect.x() + self.subset_size / 2,
-                                            old_rect.y() + self.subset_size / 2)
-
+        """Draw a seed ROI with current subset_size."""
         if center_pos is None:
-            # No previous position; nothing to draw
             return
 
         x = math.floor(center_pos.x() - self.subset_size / 2)
@@ -426,8 +458,9 @@ class RegionOfInterest:
             seed_roi.removeHandle(handle)
 
         self.main_view.addItem(seed_roi)
-        self.seed_roi = seed_roi#
-        self.seed_roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
+        self.seed_rois.append(seed_roi)
+        self.seed_roi = seed_roi
+        seed_roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
         self._redraw_fill_layer(fill_array, temp_mask)
 
     def _handle_seed_click(self, event, fill_array, temp_mask):
@@ -544,7 +577,7 @@ class RegionOfInterest:
     def _redraw_fill_layer(self, fill_array: np.ndarray, temp_mask: np.ndarray) -> None:
         """Redraw the fill layer based on current ROIs."""
 
-        has_seed = hasattr(self, 'seed_roi') and self.seed_roi is not None
+        has_seed = bool(self.seed_rois)
 
         if not self.roi_list and not has_seed:
             fill_array.fill(0)
@@ -570,10 +603,10 @@ class RegionOfInterest:
         #fill_array[:, :, 3] = np.flip(temp_mask,axis=0) * 80
         fill_array[:, :, 3] = temp_mask * 80
 
-        # Yellow fill for seed ROI
-        if has_seed:
-            pos = self.seed_roi.pos()
-            size = self.seed_roi.size()
+        # Yellow fill for seed ROIs
+        for seed_roi in self.seed_rois:
+            pos = seed_roi.pos()
+            size = seed_roi.size()
             x, y = int(pos[0]), int(pos[1])
             w, h = int(size[0]), int(size[1])
             
@@ -649,6 +682,50 @@ class RegionOfInterest:
         else:
             temp_mask &= ~mask.astype(bool)
 
+    def _apply_rect_data_mask(self, x, y, w, h, is_adding: bool, temp_mask: np.ndarray) -> None:
+        """Apply rectangle data loaded from YAML to temp_mask."""
+        x = int(np.floor(x))
+        y = int(np.floor(y))
+        w = int(np.floor(w))
+        h = int(np.floor(h))
+
+        x1 = max(0, x)
+        y1 = max(0, y)
+        x2 = min(temp_mask.shape[1], x + w)
+        y2 = min(temp_mask.shape[0], y + h)
+
+        if x2 > x1 and y2 > y1:
+            temp_mask[y1:y2, x1:x2] = is_adding
+
+    def _apply_circle_data_mask(self, cx, cy, w, h, is_adding: bool, temp_mask: np.ndarray) -> None:
+        """Apply circular or elliptical ROI data loaded from YAML to temp_mask."""
+        rx = float(w) / 2.0
+        ry = float(h) / 2.0
+        if rx <= 0 or ry <= 0:
+            return
+
+        y_coords, x_coords = np.ogrid[:temp_mask.shape[0], :temp_mask.shape[1]]
+        circle_mask = ((x_coords - float(cx)) / rx) ** 2 + ((y_coords - float(cy)) / ry) ** 2 <= 1
+
+        if is_adding:
+            temp_mask |= circle_mask
+        else:
+            temp_mask &= ~circle_mask
+
+    def _apply_poly_data_mask(self, points, is_adding: bool, temp_mask: np.ndarray) -> None:
+        """Apply polygon ROI data loaded from YAML to temp_mask."""
+        if len(points) < 3:
+            return
+
+        vertices = np.array(points, dtype=np.int32)
+        mask = np.zeros_like(temp_mask, dtype=np.uint8)
+        cv2.fillPoly(mask, [vertices], 1)
+
+        if is_adding:
+            temp_mask |= mask.astype(bool)
+        else:
+            temp_mask &= ~mask.astype(bool)
+
     def _update_button_states(self):
         """Update the enabled state of undo and redo buttons."""
         self.buttons['undo_prev'].setEnabled(len(self.roi_list) > 0)
@@ -658,6 +735,13 @@ class RegionOfInterest:
         """Clear the redo stack when new shapes are added."""
         self.undo_list = []
         self._update_button_states()
+
+    def _remove_graphics_item(self, item) -> None:
+        """Remove a pyqtgraph item, tolerating stale Qt wrappers."""
+        try:
+            self.main_view.removeItem(item)
+        except RuntimeError:
+            pass
 
     def _undo_last(self, fill_array: np.ndarray, temp_mask: np.ndarray):
         """Undo the last ROI operation."""
@@ -682,6 +766,7 @@ class RegionOfInterest:
 
     def _save_interactive_roi(self) -> None:
         """Save the current ROI to a YAML file. This only works with the interactive GUI."""
+        _require_gui_dependencies()
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(self.main_window, 'Save ROI', 'roi_interactive.yaml', filter='YAML Files (*.yaml)')
 
         if filename:
@@ -696,13 +781,14 @@ class RegionOfInterest:
                 for roi, add in zip(self.roi_list, self.add_list)
             ]
 
-            # add ROI to serialized data
-            if hasattr(self, 'seed_roi'):
-                self._finalize_seed_selection()
+            # add seed ROIs to serialized data
+            for seed_roi in self.seed_rois:
+                pos = seed_roi.pos()
+                size = seed_roi.size()
                 seed_data = {
                     'type': 'SeedROI',
-                    'pos': [self.seed[0], self.seed[1]],
-                    'size': [self.subset_size, self.subset_size],
+                    'pos': [int(np.floor(pos.x())), int(np.floor(pos.y()))],
+                    'size': [int(size.x()), int(size.y())],
                     'add': True
                 }
                 serialized.append(seed_data)
@@ -712,6 +798,7 @@ class RegionOfInterest:
 
     def _open_interactive_roi(self, fill_layer: np.ndarray, temp_mask: np.ndarray):
         """Open ROI from a YAML file. This only works with the interactive GUI."""
+        _require_gui_dependencies()
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.main_window, 'Open ROI', filter='YAML Files (*.yaml)'
         )
@@ -725,7 +812,10 @@ class RegionOfInterest:
             self.roi_list = []
             self.add_list = []
 
-            self.seed_roi = None  # Clear existing seed
+            for seed_roi in self.seed_rois:
+                self._remove_graphics_item(seed_roi)
+            self.seed_rois = []
+            self.seed_roi = None
 
             for entry in data:
                 if entry.get('type') == 'SeedROI':
@@ -735,14 +825,19 @@ class RegionOfInterest:
                     w,h = entry.get('size', [21, 21])  # fallback default
                     #y = self.width-y
                     print(x,y,w,h)
-                    self.seed_roi = pg.RectROI(
+                    seed_roi = pg.RectROI(
                         [x, y], [w, h],
                         pen=pg.mkPen('b', width=3),
                         hoverPen=pg.mkPen('y', width=3),
                         handlePen='#0000',
                         handleHoverPen='#0000'
                     )
-                    self.main_view.addItem(self.seed_roi)
+                    for handle in seed_roi.getHandles():
+                        seed_roi.removeHandle(handle)
+                    self.seed_rois.append(seed_roi)
+                    self.seed_roi = seed_roi
+                    self.main_view.addItem(seed_roi)
+                    seed_roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_layer, temp_mask))
 
                 else:
                     # Restore standard ROI
@@ -829,11 +924,12 @@ class RegionOfInterest:
         """Process the final mask and seed location."""
         #mask = np.flipud(temp_mask.T)
 
-        if hasattr(self, 'seed_roi'):
-            pos = self.seed_roi.pos()
+        self.seed = []
+        for seed_roi in self.seed_rois:
+            pos = seed_roi.pos()
             x = int(np.floor(pos.x()))
             y = int(np.floor(pos.y()))
-            self.seed = [x, y]
+            self.seed.extend([x, y])
 
             #if not mask[y, x]:
             #    raise ValueError(f"Seed location [{x}, {y}] is not within the mask")
@@ -1041,13 +1137,14 @@ class RegionOfInterest:
                 for roi, add in zip(self.roi_list, self.add_list)
             ]
 
-            # add ROI to serialized data
-            if hasattr(self, 'seed_roi'):
-                self._finalize_seed_selection()
+            # add seed ROIs to serialized data
+            for seed_roi in self.seed_rois:
+                pos = seed_roi.pos()
+                size = seed_roi.size()
                 seed_data = {
                     'type': 'SeedROI',
-                    'pos': [self.seed[0], self.seed[1]],
-                    'size': [self.subset_size, self.subset_size],
+                    'pos': [int(np.floor(pos.x())), int(np.floor(pos.y()))],
+                    'size': [int(size.x()), int(size.y())],
                     'add': True
                 }
                 serialized.append(seed_data)
@@ -1057,69 +1154,57 @@ class RegionOfInterest:
 
     def read_yaml(self, filename: str | Path) -> None:
         """
-        Load the ROI from a YAML file and restore the state of the GUI.
-        This method will clear existing ROIs and restore the state from the YAML file.
+        Load ROI geometry from a YAML file without initialising the GUI.
 
-        Parameters
-        ----------
-        filename : str or pathlib.Path
-            Path to the YAML file containing the ROI data.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the specified file does not exist.
-        ValueError
-            If the loaded data is not a valid ROI format.
+        The YAML format is the same one written by the interactive ROI tool.
+        Rectangular, circular, and polygonal entries are applied directly to
+        ``self.mask`` in file order, while ``SeedROI`` entries populate
+        ``self.seed``.
         """
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"File {filename!r} does not exist.")
 
-        # need to create a temp qapplication so I can import the ROI.
+        with open(filename, "r") as f:
+            data = yaml.safe_load(f)
+
+        if data is None:
+            data = []
+        if not isinstance(data, list):
+            raise ValueError("Loaded ROI YAML must contain a list of ROI entries.")
+
+        temp_mask = np.zeros(self.ref_image.shape[:2], dtype=bool)
+        self.roi_list = []
+        self.add_list = []
+        self.seed_rois = []
+        self.seed_roi = None
+        self.seed = []
+
+        for entry in data:
+            if not isinstance(entry, dict) or "type" not in entry:
+                raise ValueError("Loaded ROI YAML contains an invalid ROI entry.")
+
+            roi_type = entry["type"]
+            if roi_type == "SeedROI":
+                x, y = entry["pos"]
+                self.seed.extend([int(np.floor(x)), int(np.floor(y))])
+                continue
+
+            is_adding = bool(entry.get("add", True))
+            if roi_type == "RectROI":
+                x, y = entry["pos"]
+                w, h = entry["size"]
+                self._apply_rect_data_mask(x, y, w, h, is_adding, temp_mask)
+            elif roi_type == "CircleROI":
+                cx, cy = entry["pos"]
+                w, h = entry["size"]
+                self._apply_circle_data_mask(cx, cy, w, h, is_adding, temp_mask)
+            elif roi_type == "PolyLineROI":
+                self._apply_poly_data_mask(entry["points"], is_adding, temp_mask)
+            else:
+                raise TypeError(f"Unsupported ROI type: {roi_type}")
+
+        self.mask = temp_mask
         self.__roi_selected = True
-        
-        # Initialize GUI
-        fill_array, temp_mask = self._setup_gui()
-        self._connect_signals(fill_array, temp_mask)
-
-        if filename:
-            with open(filename, 'r') as f:
-                data = yaml.safe_load(f)
-
-            self.roi_list = []
-            self.add_list = []
-
-            self.seed_roi = None  # Clear existing seed
-
-            for entry in data:
-                if entry.get('type') == 'SeedROI':
-                    # Restore the seed ROI
-                    x, y = entry['pos']
-                    #y = self.width-y
-                    size = entry.get('size', [10, 10])  # fallback default
-                    self.seed_roi = pg.RectROI(
-                        [x, y], size,
-                        pen=pg.mkPen('y', width=3),
-                        hoverPen=pg.mkPen('b', width=3),
-                        handlePen='#0000',
-                        handleHoverPen='#0000'
-                    )
-                    self.main_view.addItem(self.seed_roi)
-
-                else:
-                    # Restore standard ROI
-                    roi = self._create_roi_from_data(entry)
-                    self.roi_list.append(roi)
-                    self.add_list.append(entry['add'])
-                    self.main_view.addItem(roi)
-                    roi.sigRegionChanged.connect(lambda: self._redraw_fill_layer(fill_array, temp_mask))
-
-            self._redraw_fill_layer(fill_array, temp_mask)
-            self._update_button_states()
-            self._finalize_seed_selection()
-
-            #finalize mask
-            self.mask = temp_mask
-            
-
 
 
     def show_image(self) -> None:
@@ -1161,7 +1246,7 @@ class RegionOfInterest:
         plt.show()
 
 
-class CustomMainWindow(QtWidgets.QWidget):
+class CustomMainWindow(QtWidgets.QWidget if QtWidgets is not None else object):
     
     def __init__(self, dic_obj=None, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyvale"
-version = "2026.7.0"
+version = "2026.9.0"
 description = "Your virtual engineering lab: An all-in-one package for sensor simulation, uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
@@ -88,7 +88,7 @@ filterwarnings = [
 "Issue Tracker" = "https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues"
 
 [tool.scikit-build]
-build.verbose = false
+build.verbose = true
 logging.level = "INFO"
 ninja.make-fallback = false
 build-dir = "build"

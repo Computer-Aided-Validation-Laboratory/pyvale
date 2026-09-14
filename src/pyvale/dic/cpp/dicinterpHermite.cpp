@@ -10,25 +10,43 @@
 #include <iostream>
 #include <omp.h>
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 // DIC Header files
 #include "./dicinterpHermite.hpp"
 
 
 
-Hermite::Hermite(double *img, int px_hori, int px_vert){
+Hermite::Hermite(const Image &img) {
 
-    //Timer timer("interpolator initialisation");
+    common_util::Timer time("to init " + img.filename + " interp:", 3);
 
     // intitialise vars used globally within Interpolator.
-    this->image = img;
-    this->px_vert = px_vert;
-    this->px_hori = px_hori;
+    image.resize(px_hori*px_vert);
+    if (img.type == PixelType::UINT8) {
+        for (size_t i = 0; i < img.data8.size(); i++) {
+            image[i] = static_cast<double>(img.data8[i]);
+        }
+    } 
+    else if (img.type == PixelType::UINT16) {
+        for (size_t i = 0; i < img.data16.size(); i++) {
+            image[i] = static_cast<double>(img.data16[i]);
+        }
+    } 
+    else if (img.type == PixelType::UINT32) {
+        for (size_t i = 0; i < img.data32.size(); i++) {
+            image[i] = static_cast<double>(img.data32[i]);
+        }
+    }
+    else if (img.type == PixelType::UINT32F) {
+        for (size_t i = 0; i < img.data32f.size(); i++) {
+            image[i] = static_cast<double>(img.data32f[i]);
+        }
+    }
 
     // allocate memory for pixel coordinate arrays
     px_y.resize(px_vert);
@@ -57,8 +75,7 @@ Hermite::Hermite(double *img, int px_hori, int px_vert){
     ProgressBar pbar("Interpolator Initialisation:", niters);
 
     #ifdef _MSC_VER
-        // Windows/MSVC - no explicit sharing of member variables
-        #pragma omp parallel for shared(px_hori, px_vert, stop_request)
+        #pragma omp parallel for shared(stop_request)
     #else
         // Linux/GCC - explicit sharing works
         #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request)
@@ -92,7 +109,7 @@ Hermite::Hermite(double *img, int px_hori, int px_vert){
 
     #ifdef _MSC_VER
         // Windows/MSVC - no explicit sharing of member variables
-        #pragma omp parallel for shared(px_hori, px_vert, stop_request)
+        #pragma omp parallel for shared(stop_request)
     #else
         // Linux/GCC - explicit sharing works
         #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request)
@@ -128,7 +145,7 @@ Hermite::Hermite(double *img, int px_hori, int px_vert){
     //
     #ifdef _MSC_VER
     // Windows/MSVC - no explicit sharing of member variables
-        #pragma omp parallel for shared(px_hori, px_vert, stop_request)
+        #pragma omp parallel for shared(stop_request)
     #else
         // Linux/GCC - explicit sharing works
         #pragma omp parallel for shared(px_x, image, dx, px_hori, px_vert, stop_request)
@@ -161,7 +178,6 @@ Hermite::Hermite(double *img, int px_hori, int px_vert){
 
 
     if (g_debug_level>1){
-        pbar.update(current_progress);
         pbar.finish();
     }
 }

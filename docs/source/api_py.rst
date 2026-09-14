@@ -9,6 +9,7 @@ Detailed Python API
 
    pyvale.sensorsim
    pyvale.blender
+   pyvale.calib
    pyvale.dic
    pyvale.strain
    pyvale.mooseherder
