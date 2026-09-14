@@ -29,6 +29,7 @@ jobs:
       - name: Install Pyvale
         run: |
           sudo apt update
+          sudo apt install libtiff-dev libtiff-tools
           sudo apt install libegl1
           sudo apt install libgl1 libxext6 libx11-6
           python -m pip install --upgrade pip
