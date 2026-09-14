@@ -126,9 +126,8 @@ cloud = pv.PolyData(points)
 cloud['elevation'] = points[:, 1]
 cloud.plot(eye_dome_lighting=True)
 
-
-
-
-
-
-
+# %%
+# .. image:: ../../../../_static/dic_ex09_3d.png
+#    :alt: 3D reconstruction
+#    :width: 100%
+#    :align: center
