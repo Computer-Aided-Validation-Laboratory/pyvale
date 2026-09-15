@@ -71,8 +71,8 @@ namespace stereo {
         
             // undistorted pixel value
             double u_cx_l, u_cx_r, u_cy_l, u_cy_r;
-            stereo::undistortPoint(u_cx_l, u_cy_l, cx_l, cy_l, K0, calib.cam0.distortion);
-            stereo::undistortPoint(u_cx_r, u_cy_r, cx_r, cy_r, K1, calib.cam1.distortion);
+            stereo::undistort_point(u_cx_l, u_cy_l, cx_l, cy_l, K0, calib.cam0.distortion);
+            stereo::undistort_point(u_cx_r, u_cy_r, cx_r, cy_r, K1, calib.cam1.distortion);
 
             // 3d pixel coords guess
             Eigen::Vector3d xl(u_cx_l, u_cy_l, 1.0);
@@ -119,7 +119,7 @@ namespace stereo {
         if (first_frame) stereo_ref = stereo_def;
     }
 
-    void undistortPoint(double &x_undistorted, double &y_undistorted,
+    void undistort_point(double &x_undistorted, double &y_undistorted,
                         const double x_distorted, const double y_distorted,
                         const Eigen::Matrix3d &K,
                         const std::vector<double> &d) {
