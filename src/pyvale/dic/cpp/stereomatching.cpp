@@ -10,9 +10,9 @@
 #include <cmath>
 #include <thread>
 
-// common_cpp header files
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+// commoncpp header files
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 // calibration header files
 

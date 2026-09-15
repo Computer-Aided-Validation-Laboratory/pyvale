@@ -10,7 +10,7 @@
 // STD library Header files
 #include <vector>
 
-// common_cpp header files
+// commoncpp header files
 #include <Eigen/Dense>
 
 // DIC Header files

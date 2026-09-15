@@ -31,7 +31,6 @@ def test_plate_with_hole_examples(run_example: Callable[..., Path]) -> None:
     work_dir = run_example(
         "dic/ex02_plate_with_hole.py",
         ("pyvale-output/ex02",),
-        support_files=("ex10_roi.yaml",),
         timeout=300.0,
     )
 

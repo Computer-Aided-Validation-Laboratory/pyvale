@@ -19,7 +19,7 @@
 #include "./dicoptimizer.hpp"
 #include "./dicresults.hpp"
 #include "./dicrg.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 
 namespace rg {

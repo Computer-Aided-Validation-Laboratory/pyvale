@@ -16,7 +16,7 @@
 #include <iostream>
 
 // common header files 
-#include "../../common_cpp/pocketfft_hdronly.h"
+#include "../../commoncpp/pocketfft_hdronly.h"
 #include <Eigen/Dense>
 
 // DIC Header files

@@ -15,8 +15,8 @@
 #include <vector>
 #include <numeric>
 
-// common_cpp Header files
-#include "../../common_cpp/util.hpp"
+// commoncpp Header files
+#include "../../commoncpp/util.hpp"
 
 // Eigen Header Files
 #include <Eigen/Dense>

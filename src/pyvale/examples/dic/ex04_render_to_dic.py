@@ -149,8 +149,8 @@ result = render.Riley(config, render_dir).render(
 )
 assert result.images is not None
 
-reference = result.images[0, 0, :, :, 0]
-deformed = result.images[1, 0, :, :, 0]
+reference = np.ascontiguousarray(result.images[0, 0, :, :, 0], dtype=np.float32)
+deformed = np.ascontiguousarray(result.images[1, 0, :, :, 0], dtype=np.float32)
 
 # %%
 # 6. Program a rectangular region of interest
@@ -213,7 +213,7 @@ dic.calculate_2d(
     num_threads=4,
     output_basepath=dic_dir,
     output_prefix="render_to_dic_",
-    debug_level=0,
+    print_level=0,
 )
 
 dic_results = dic.import_2d(
@@ -221,7 +221,7 @@ dic_results = dic.import_2d(
     delimiter=",",
     layout="matrix",
     binary=False,
-    debug_level=0,
+    print_level=0,
 )
 
 valid = np.asarray(dic_results.converged[0], dtype=bool)

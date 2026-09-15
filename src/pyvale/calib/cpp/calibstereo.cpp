@@ -21,7 +21,7 @@
 #include "./calibopt.hpp"
 #include "./calibstereo.hpp"
 
-#include "../../common_cpp/util.hpp"
+#include "../../commoncpp/util.hpp"
 
 
 StereoCalibResult calibrate_stereo(const std::vector<double> &init_params,

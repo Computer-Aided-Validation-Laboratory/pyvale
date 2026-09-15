@@ -18,8 +18,8 @@ from enum import Enum
 
 import pyvale.calib.calibcpp as calibcpp
 from pyvale.calib.calibdataclass import Calib, CamIntrinsics
-import pyvale.common_cpp.common_cpp as common_cpp
-import pyvale.common_py.util as common_py_util
+import pyvale.commoncpp.commoncpp as commoncpp
+import pyvale.common.util as common_util
 
 class ReprojError(str, Enum):
     """Available reprojection error formulations for calibration refinement."""
@@ -138,7 +138,7 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
     lengths = np.array([arr.shape[0] for arr in dots_cam1],dtype=np.int32).tolist()
 
 
-    common_py_util.info(f"Performing Initial calibration guess...")
+    common_util.info(f"Performing Initial calibration guess...")
 
     # initial parameter guess with fixed distortion parameters
     flags = cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_ZERO_TANGENT_DIST
@@ -156,7 +156,7 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
     )
 
 
-    common_py_util.info(f"Initial calibration guess completed.")
+    common_util.info(f"Initial calibration guess completed.")
 
     # Compute consistent cam0 poses using refined intrinsics  
     rvecs0_consistent = []
@@ -221,10 +221,10 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
 
     #set the number of OMP threads
     if num_threads is not None:
-        common_cpp.set_num_threads(num_threads)
+        commoncpp.set_num_threads(num_threads)
 
 
-    common_py_util.info("Starting stereo calibration bundle adjustment...")
+    common_util.info("Starting stereo calibration bundle adjustment...")
     result_cpp = calibcpp.calibrate_stereo(flat_initial_params,
                                            flat_dots_cam0,
                                            flat_dots_cam1,

@@ -11,8 +11,8 @@
 #include <vector>
 #include <cstdint>
 
-// common_cpp Header files
-#include "../../common_cpp/util.hpp"
+// commoncpp Header files
+#include "../../commoncpp/util.hpp"
 
 // DIC Header files
 #include "./dicsubset.hpp"
