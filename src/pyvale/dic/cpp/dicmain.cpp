@@ -7,7 +7,6 @@
 
 // STD library Header files
 #include <iomanip>
-#include <iostream>
 #include <cstring>
 #include <stdexcept>
 #include <vector>
@@ -118,9 +117,6 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
 
     // split out filenames into two vectors
     auto [basenames_l, basenames_r] = stereo::split_basenames(conf);
-
-    // main bulk of initialisation for stereo matching
-    int match_strat=3;
 
     ResultArrays results_ref_l(ss_grid_l.num, conf.num_params, false);
 
@@ -299,11 +295,6 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
 
                 if (conf.stereo) {
 
-                    if (match_strat != 3) {
-                        std::cerr << "UNKNOWN MATCH_STRAT\n";
-                        exit(0);
-                    }
-
                     singlewindow_rg(*interp_ref_l,
                                     *interp_def_r,
                                     ss_grid_l,
@@ -423,11 +414,6 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                 // stereo
                 // ------------------------------------------------------------
                 if (conf.stereo) {
-
-                    if (match_strat != 3) {
-                        std::cerr << "UNKNOWN MATCH_STRAT\n";
-                        exit(0);
-                    }
 
                     singlewindow_rg(*interp_ref_l,
                                     *interp_def_r,
