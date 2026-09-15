@@ -292,7 +292,7 @@ def to_riley_camera(camera: Camera | riley.Camera) -> riley.Camera:
 _RILEY_MESH_TYPES = {
     EElemType.TRI3: riley.MeshType.tri3,
     EElemType.TRI6: riley.MeshType.tri6,
-    EElemType.QUAD4: riley.MeshType.quad4newton,
+    EElemType.QUAD4: riley.MeshType.quad4,
     EElemType.QUAD8: riley.MeshType.quad8,
     EElemType.QUAD9: riley.MeshType.quad9,
 }
@@ -325,19 +325,23 @@ def to_riley_mesh(mesh: Mesh3D | riley.Mesh) -> riley.Mesh:
 
     if not isinstance(mesh.shader, riley.RileyShader):
         raise TypeError("Mesh3D.shader must be a Riley shader object.")
-    nodes_num = mesh.coords.shape[0]
-    conversion = riley.MeshConversion(
-        mesh_type=_RILEY_MESH_TYPES[mesh.element_type],
-        geometry=riley.MeshGeometry(
-            mesh.element_type, mesh.coords, mesh.connectivity
-        ),
-        source_node_indices=np.arange(nodes_num, dtype=np.uintp),
-        source_node_count=nodes_num,
-    )
     disp = None
     if mesh.displacements is not None:
         disp = tuple(mesh.displacements[:, :, ii].T for ii in range(3))
-    return riley.create_mesh_from_prepared(conversion, mesh.shader, disp)
+    convention = riley.ConnectConvention(
+        elem_type=mesh.element_type,
+        elem_axis=riley.EConnectAxis.ROW,
+        index_base=0,
+        node_order=riley.ENodeOrder.RILEY,
+    )
+    return riley.create_mesh(
+        convention=convention,
+        mesh_type=_RILEY_MESH_TYPES[mesh.element_type],
+        coords=mesh.coords,
+        connect=mesh.connectivity,
+        shader=mesh.shader,
+        disp=disp,
+    )
 
 
 __all__ = [

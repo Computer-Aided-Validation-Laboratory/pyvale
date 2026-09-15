@@ -292,7 +292,7 @@ def mesh_transform(
 
 def mesh_center_at(
     mesh: Mesh3D,
-    target: np.ndarray = np.array((0.0, 0.0, 0.0)),
+    target: np.ndarray | None = None,
 ) -> Mesh3D:
     """Translate a mesh so its bounding box center lies at ``target``.
 
@@ -300,9 +300,9 @@ def mesh_center_at(
     ----------
     mesh : Mesh3D
         Source surface mesh to re centre.
-    target : np.ndarray, optional
+    target : np.ndarray or None, optional
         Target center point array with shape ``(3,)`` and dtype ``float64``
-        representing (X, Y, Z) coordinates. Defaults to ``(0, 0, 0)``.
+        representing (X, Y, Z) coordinates. ``None`` uses ``(0, 0, 0)``.
 
     Returns
     -------
@@ -310,7 +310,11 @@ def mesh_center_at(
         New translated mesh instance.
     """
     current_center = mesh_center(mesh)
-    target_vec = np.asarray(target, dtype=np.float64)[:3]
+    target_vec = (
+        np.zeros(3, dtype=np.float64)
+        if target is None
+        else np.asarray(target, dtype=np.float64)[:3]
+    )
     delta = target_vec - current_center
 
     return mesh_translate(mesh, delta)
@@ -416,12 +420,12 @@ def _natural_mesh_type(elem_type: riley.EElemType) -> riley.MeshType:
         riley.EElemType.TRI3: riley.MeshType.tri3,
         riley.EElemType.TRI6: riley.MeshType.tri6,
         riley.EElemType.TRI7: riley.MeshType.tri6,
-        riley.EElemType.QUAD4: riley.MeshType.quad4newton,
+        riley.EElemType.QUAD4: riley.MeshType.quad4,
         riley.EElemType.QUAD8: riley.MeshType.quad8,
         riley.EElemType.QUAD9: riley.MeshType.quad9,
         riley.EElemType.TET4: riley.MeshType.tri3,
         riley.EElemType.TET10: riley.MeshType.tri6,
-        riley.EElemType.HEX8: riley.MeshType.quad4newton,
+        riley.EElemType.HEX8: riley.MeshType.quad4,
         riley.EElemType.HEX20: riley.MeshType.quad8,
         riley.EElemType.HEX27: riley.MeshType.quad9,
     }

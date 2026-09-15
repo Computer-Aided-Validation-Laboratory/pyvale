@@ -18,25 +18,33 @@ from pathlib import Path
 import numpy as np
 import riley
 
-import pyvale.data as dataset
+import pyvale.dataio as io
 from pyvale import render
-from pyvale.mooseherder import ExodusLoader
 
 # %%
 # 1. Load Exodus data and build a textured surface mesh
 # ------------------------------------------------------------
-simulation = ExodusLoader(
-    dataset.riley_platehole_exodus_path(),
-    enforce_convention=True,
-).load_all_sim_data()
+exodus_sim = riley.load_exodus(
+    riley.data.platehole_exodus_path(),
+    disp_keys=("disp_x", "disp_y", "disp_z"),
+)
+block = exodus_sim.elem_blocks["connect1"]
+assert exodus_sim.disp is not None
+simulation = io.SimData(
+    coords=exodus_sim.coords,
+    connect={"connect1": block.connect},
+    node_vars={
+        f"disp_{axis}": values
+        for axis, values in zip("xyz", exodus_sim.disp, strict=True)
+    },
+)
 
-texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.speckle_texture_path())
 
 surface_mesh = render.meshes3d_from_simdata(
     simulation,
     {"connect1": riley.ConnectConvention(
-        riley.EElemType.HEX20, riley.EConnectAxis.ROW, 0,
-        riley.ENodeOrder.RILEY,
+        block.elem_type, riley.EConnectAxis.ROW, 1, riley.ENodeOrder.EXODUS,
     )},
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )["connect1"]

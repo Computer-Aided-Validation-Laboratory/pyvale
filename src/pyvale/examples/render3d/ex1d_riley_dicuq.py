@@ -19,7 +19,6 @@ from pathlib import Path
 import numpy as np
 import riley
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 
@@ -27,26 +26,26 @@ from pyvale import render
 # 1. Load the deforming mesh and assign a speckle texture
 # ------------------------------------------------------------
 
-data_dir = dataset.riley_platehole_csv_case_path()
+data_dir = riley.data.platehole_csv_case_path()
 
-simulation = io.SimLoaderByField(
-    load_dir=data_dir,
-    coords_file="coords.csv",
-    time_step_file=None,
-    node_field_files={
-        "disp_x": "field_disp_x.csv",
-        "disp_y": "field_disp_y.csv",
-        "disp_z": "field_disp_z.csv",
+simulation = io.SimData(
+    coords=riley.load_csv(data_dir / "coords.csv"),
+    connect={
+        "connect": riley.load_csv(
+            data_dir / "connect.csv",
+            dtype=np.int64,
+        ),
     },
-    connect_files="connect.csv",
-    load_opts=io.SimLoadOpts(
-        coord_header=None,
-        node_field_header=None,
-    ),
-).load_all_sim_data()
+    node_vars={
+        f"disp_{axis}": riley.load_csv(
+            data_dir / f"field_disp_{axis}.csv",
+        )
+        for axis in "xyz"
+    },
+)
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
-texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.speckle_texture_path())
 
 mesh = render.meshes3d_from_simdata(
     simulation,
@@ -122,11 +121,10 @@ camera_1.pos_world = pos_world_1
 
 config = riley.create_raster_config(
     num_frames=mesh.displacements.shape[0],
-    total_threads=4,
+    total_threads=8,
     save_strategy=riley.SaveStrategy.disk,
 )
 config.background_value = 128.0
-config.tile_size_max = 128
 config.save_scaling = riley.ScaleStrategy.none
 
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1d_riley_dicuq"

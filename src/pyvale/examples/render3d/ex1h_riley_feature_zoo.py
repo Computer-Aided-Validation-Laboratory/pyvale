@@ -24,23 +24,17 @@ import pyvale.dataio as io
 from pyvale import render
 
 OUT_DIR = Path.cwd() / "pyvale-output" / "render3d_ex1h_riley_feature_zoo"
-DATA_DIR = riley.data.feature_zoo_path()
 PIXEL_SIZE = (5.3e-6, 5.3e-6)
 FOCAL_LENGTH = 50.0e-3
-FRAME_INDICES = (0, 1, 2, 3, 4)
+FRAME_INDICES = (0, 1, 2, 3)
 
 CASES = (
-    ("cube_quad9", riley.EElemType.QUAD9, riley.MeshType.quad9),
-    ("cube_tri6", riley.EElemType.TRI6, riley.MeshType.tri6),
-    ("cylinder_quad8", riley.EElemType.QUAD8, riley.MeshType.quad8),
-    ("cylinder_tri6", riley.EElemType.TRI6, riley.MeshType.tri6),
-    ("plate_quad4ibi", riley.EElemType.QUAD4, riley.MeshType.quad4ibi),
-    (
-        "plate_quad4newton",
-        riley.EElemType.QUAD4,
-        riley.MeshType.quad4newton,
-    ),
-    ("plate_tri3", riley.EElemType.TRI3, riley.MeshType.tri3),
+    ("cube", "quad9", riley.EElemType.QUAD9, riley.MeshType.quad9),
+    ("cube", "tri6", riley.EElemType.TRI6, riley.MeshType.tri6),
+    ("cylinder", "quad8", riley.EElemType.QUAD8, riley.MeshType.quad8),
+    ("cylinder", "tri6", riley.EElemType.TRI6, riley.MeshType.tri6),
+    ("platewithhole", "quad4", riley.EElemType.QUAD4, riley.MeshType.quad4),
+    ("platewithhole", "tri3", riley.EElemType.TRI3, riley.MeshType.tri3),
 )
 
 CAMERA_CASES = (
@@ -68,19 +62,18 @@ CAMERA_CASES = (
 )
 
 MESH_CENTERS = (
-    (0.016, -0.0065, 0.0),
-    (0.027, -0.0065, 0.0),
-    (0.016, -0.0195, 0.0),
-    (0.027, -0.0195, 0.0),
-    (-0.013, 0.018, 0.0),
-    (0.013, 0.018, 0.0),
-    (-0.008, -0.013, 0.0),
+    (-0.015, 0.0075, 0.0),
+    (0.0, 0.0075, 0.0),
+    (0.015, 0.0075, 0.0),
+    (-0.015, -0.0075, 0.0),
+    (0.0, -0.0075, 0.0),
+    (0.015, -0.0075, 0.0),
 )
 
 
-def load_case(case_name: str) -> tuple[np.ndarray, ...]:
+def load_case(case_name: str, elem_type: str) -> tuple[np.ndarray, ...]:
     """Load mesh coordinates, connectivity, UVs, and displacements."""
-    case_dir = DATA_DIR / case_name
+    case_dir = riley.data.shape_surface_dataset_path(case_name, elem_type)
     return (
         riley.load_csv(case_dir / "coords.csv"),
         riley.load_csv(case_dir / "connect.csv", dtype=np.int64),
@@ -110,7 +103,7 @@ def make_shader(
     )
     normal_type = normal_modes[case_index % len(normal_modes)]
 
-    if case_index in (0, 2, 6):
+    if case_index in (0, 2):
         sample = (
             riley.TextureSample.cubic_catmull_rom
             if case_index == 0
@@ -252,9 +245,9 @@ def build_meshes(channels: int, bits: int) -> list[render.Mesh3D]:
         texture = texture_u8.astype(np.uint16) * np.uint16(257)
 
     meshes = []
-    for index, (case_name, elem_type, mesh_type) in enumerate(CASES):
+    for index, (case_name, elem_name, elem_type, mesh_type) in enumerate(CASES):
         coords, connect, uvs, temperature, disp_x, disp_y, disp_z = (
-            load_case(case_name)
+            load_case(case_name, elem_name)
         )
         disp = (disp_x, disp_y, disp_z)
         shader = make_shader(
@@ -287,7 +280,7 @@ def build_meshes(channels: int, bits: int) -> list[render.Mesh3D]:
             )["surface"]
         )
 
-    plate = meshes[6]
+    plate = meshes[5]
     plate_x = np.array(plate.coords[:, 0], copy=True)
     plate.coords[:, 0] = -plate.coords[:, 1]
     plate.coords[:, 1] = plate_x
