@@ -70,8 +70,6 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
     }
 
 
-    int num_px_in_image = conf.px_hori * conf.px_vert;
-
     // get raw pointers
     const bool *img_roi = img_roi_arr.data();
 
@@ -107,20 +105,16 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
 
     // pointer to hold the reference interpolators (will be created once)
     std::unique_ptr<Interpolator> interp_ref_l;
-    std::unique_ptr<Interpolator> interp_ref_r;
     std::unique_ptr<Interpolator> interp_def_l;
     std::unique_ptr<Interpolator> interp_def_r;
     interp_ref_l = interp_factory(0);
 
 
     // objects only needed for stereo
-    std::vector<WindowLevel> multiwindow_r;
-    subset::Grid *ss_grid_r = nullptr;
     ResultArrays stereo_matches;
     ResultArrays results_ref_r;
     ResultArrays results_def_r;
     stereo::Geometry stereo_geom;
-    common_util::SaveConfig saveconf_stereo;
 
     // split out filenames into two vectors
     auto [basenames_l, basenames_r] = stereo::split_basenames(conf);
@@ -139,8 +133,6 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
         // sort out intrinsic and extrinsic matrices into struct
         stereo_geom = stereo::compute_stereo_geometry(calib);
 
-        std::unique_ptr<Interpolator> interp_l = interp_factory(0);
-        std::unique_ptr<Interpolator> interp_r = interp_factory(conf.num_def_img+1);
     }
 
 
