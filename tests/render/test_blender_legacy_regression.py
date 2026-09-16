@@ -4,6 +4,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+
+pytest.importorskip("bpy")
+
 import riley
 from scipy.spatial.transform import Rotation
 
