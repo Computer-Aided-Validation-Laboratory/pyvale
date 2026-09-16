@@ -9,7 +9,14 @@ import pytest
 import shutil
 from pyvale.mooseherder.gmshrunner import GmshRunner
 
-GMSH_INPUT_PATH = Path.cwd()/"tests"/"mooseherder"/"gmsh"
+GMSH_INPUT_PATH = Path(__file__).resolve().parent / "gmsh"
+
+
+def _clean_gmsh_outputs() -> None:
+    if GMSH_INPUT_PATH.is_dir():
+        for output_file in GMSH_INPUT_PATH.glob("*.msh"):
+            output_file.unlink(missing_ok=True)
+
 
 def test_gmsh_exists(gmsh_path: Path):
     assert gmsh_path.is_file()
@@ -30,16 +37,14 @@ def runner(gmsh_path: Path) -> GmshRunner:
 
 @pytest.fixture()
 def input_file() -> Path:
-    return GMSH_INPUT_PATH/"gmsh-test.geo"
+    return GMSH_INPUT_PATH / "gmsh-test.geo"
 
 
 @pytest.fixture(autouse=True)
 def setup_teardown():
-    # Setup here
+    _clean_gmsh_outputs()
     yield
-    # Teardown here - remove output files
-    for output_file in GMSH_INPUT_PATH.glob("*.msh"):
-        output_file.unlink()
+    _clean_gmsh_outputs()
 
 def test_create_runner(runner: GmshRunner, gmsh_path: Path) -> None:
     assert runner._gmsh_app == gmsh_path

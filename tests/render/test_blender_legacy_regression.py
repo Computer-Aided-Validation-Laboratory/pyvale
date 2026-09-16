@@ -174,6 +174,11 @@ def test_legacy_engine_gold(
     gold: str,
 ) -> None:
     """Blender engine selection retains the committed legacy image output."""
+    if (
+        engine == render.EBlenderEngine.EEVEE
+        and not render.blender_gpu_available()
+    ):
+        pytest.skip("EEVEE engine requires GPU hardware acceleration.")
     assert_render_allclose(
         _render(tmp_path, _camera(), engine=engine),
         np.load(_GOLD / f"{gold}.npy"),
@@ -185,7 +190,11 @@ def test_legacy_engine_gold(
 
 def test_legacy_workbench_engine(tmp_path: Path) -> None:
     """The legacy Blender Workbench engine remains selectable."""
-    image = _render(tmp_path, _camera(), engine=render.EBlenderEngine.WORKBENCH)
+    if not render.blender_gpu_available():
+        pytest.skip("Workbench engine requires GPU hardware acceleration.")
+    image = _render(
+        tmp_path, _camera(), engine=render.EBlenderEngine.WORKBENCH
+    )
     assert image.shape == (20, 20)
 
 
