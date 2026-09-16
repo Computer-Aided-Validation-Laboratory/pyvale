@@ -28,7 +28,7 @@ pytestmark = [
     ),
 ]
 
-_GOLD = Path(__file__).parents[1] / "blender" / "2D_gold"
+_GOLD = Path(__file__).parent / "gold_blender" / "2D_gold"
 
 
 def _camera(pixels: tuple[int, int] = (20, 20)) -> render.Camera:

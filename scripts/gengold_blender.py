@@ -87,7 +87,9 @@ def _render(
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    gold_2d_dir = repo_root / "tests" / "blender" / "2D_gold"
+    gold_2d_dir = (
+        repo_root / "tests" / "render" / "gold_blender" / "2D_gold"
+    )
     gold_2d_dir.mkdir(parents=True, exist_ok=True)
 
     print("Generating 2D Blender Gold Outputs...")

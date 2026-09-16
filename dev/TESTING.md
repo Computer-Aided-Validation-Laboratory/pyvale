@@ -83,7 +83,7 @@ Generated files belong beside the tests that consume them:
 | PixInt2D render | `python scripts/gengold_pxint2d.py --write` | `tests/render/gold_pxint2d/` |
 | Riley render | `python scripts/gengold_riley_rabbits.py --write` | `tests/render/gold_riley/` |
 | Blender triangle | `python scripts/gengold_blender_triangle.py` | `tests/render/gold_blender/` |
-| Legacy Blender | `python scripts/gengold_blender.py` | `tests/blender/2D_gold/`, `tests/blender/3D_gold/` |
+| Legacy Blender | `python scripts/gengold_blender.py` | `tests/render/gold_blender/2D_gold/`, `tests/render/gold_blender/3D_gold/` |
 | Simulation text I/O | `python scripts/gengold_sim_txt.py` | `tests/dataio/txt_gold/` |
 | Sensor simulation | `python scripts/gengold_sensorsim_scalar.py` | `tests/sensorsim/gold/` |
 

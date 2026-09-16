@@ -56,10 +56,11 @@ tests/strain/test/
 !tests/mooseherder/txt_gold/*.npy
 !tests/dataio/txt_gold/*.csv
 !tests/dataio/txt_gold/*.npy
-!tests/blender/2D_gold/*.npy
-!tests/blender/3D_gold/*.npy
 !tests/render/gold_riley/*.npy
+!tests/render/gold_riley/**/*.npy
 !tests/render/gold_blender/*.npy
+!tests/render/gold_blender/**/*.npy
+!tests/render/gold_blender/**/*.yaml
 
 # Image deformation test cases
 *.pkl
