@@ -16,17 +16,11 @@
 PyVale is a general purpose toolbox for simulation driven experimental design
 and experimental mechanics. Build virtual sensor arrays, generate realistic
 camera images, analyse DIC measurements, and feed what you learn into the next
-experiment.
-
-The core **SensorSim**, **DIC**, and **Render** modules are ready for general
-use. Tools for sensor placement optimisation, experimental design, and
-simulation validation metrics are under active development.
+experiment. The core **SensorSim**, **DIC**, and **Render** modules are ready for general use. Tools for sensor placement optimisation, experimental design, and simulation validation metrics are under active development.
 
 ## PyVale Design Framework
 
-PyVale connects experiment design, measurement simulation, data analysis, and
-model improvement in an iterative workflow. Its core modules can be used
-independently or combined to close the loop between simulation and experiment.
+PyVale connects experimental design, measurement simulation, data analysis simulation validation and uncertainty quantification in an iterative workflow. Its core modules can be used independently or combined to close the loop between simulation and experiment.
 
 | Capability | What it gives you | Documentation |
 |:---|:---|:---:|
@@ -75,8 +69,7 @@ scales.
 
 ## Install
 
-PyVale supports Python 3.11 and newer. Blender integration requires Python
-3.13 and the optional Blender dependencies.
+PyVale supports Python 3.11 and newer. Most users will use Riley as their rendering engine for image simulation however, if you need path tracing then Blender integration requires Python 3.13 and the optional Blender dependencies.
 
 | Platform | Install commands |
 |:---|:---|

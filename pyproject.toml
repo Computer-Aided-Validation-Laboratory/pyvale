@@ -6,7 +6,8 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "pyvale"
 version = "2026.9.2"
-description = "Your virtual engineering lab: An all-in-one package for sensor simulation, uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
+description = "Your virtual engineering lab: An all-in-one package for simulation-driven
+    experimental design."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
 ]
