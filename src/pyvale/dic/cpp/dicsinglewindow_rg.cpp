@@ -174,7 +174,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
                 if (mode=="stereo") {
                     const double offset_x = results_def_l ? results_def_l->u[idx] : 0.0;
                     const double offset_y = results_def_l ? results_def_l->v[idx] : 0.0;
-                    get_initial_guess_stereo(opt.p, cx, cy, offset_x, offset_y, true);
+                    get_initial_guess_stereo(opt.p, cx, cy, offset_x, offset_y, false);
                 }
 
 
