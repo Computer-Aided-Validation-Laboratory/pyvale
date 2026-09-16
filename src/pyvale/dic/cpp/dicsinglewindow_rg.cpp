@@ -69,8 +69,10 @@ void singlewindow_rg(const Interpolator &interp_ref,
 
 
     auto get_initial_guess_stereo = [&](std::vector<double> &p, double cx, double cy, double offset_x, double offset_y, bool print) {
+            const int epi_search_area_x = 2 * conf.epi_search_distance;
+            const int epi_search_area_y = 2 * conf.epi_distance_threshold + ss_size_y;
             stereo::get_rigid_translation_from_rectified_fft(p, cx, cy, ss_size_x, ss_size_y,
-                                                                2*conf.epi_distance, ss_size_y, F.value(),
+                                                                epi_search_area_x, epi_search_area_y, F.value(),
                                                                 interp_ref, interp_def, offset_x, offset_y, print);
     };
 
@@ -170,7 +172,9 @@ void singlewindow_rg(const Interpolator &interp_ref,
                     }
                 }
                 if (mode=="stereo") {
-                    get_initial_guess_stereo(opt.p, cx, cy, results_def_l->u[idx], results_def_l->v[idx], false);
+                    const double offset_x = results_def_l ? results_def_l->u[idx] : 0.0;
+                    const double offset_y = results_def_l ? results_def_l->v[idx] : 0.0;
+                    get_initial_guess_stereo(opt.p, cx, cy, offset_x, offset_y, true);
                 }
 
 

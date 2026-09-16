@@ -34,7 +34,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  threshold: float=0.9,
                  num_threads: int | None = None,
                  max_displacement: int=128,
-                 epi_distance: int=300,
+                 epi_search_distance: int=100,
+                 epi_distance_threshold: int=2,
                  method: Literal["MULTIWINDOW_RG", "SINGLEWINDOW_RG", "MULTIWINDOW", "RASTER"] | EScanMethod = EScanMethod.MULTIWINDOW_RG,
                  incremental_update: Literal["OFF", "IMAGE", "COST", "ITER"] | EIncrementalMethod = EIncrementalMethod.OFF,
                  incremental_update_value: float | int=1,
@@ -96,9 +97,12 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     max_displacement : int, optional
         Estimate for the Maximum displacement for images from the same camera in any 
         direction (in pixels) (default: 128).
-    epi_distance : int, optional
-        Estimate for the maximum distance along the epipolar line (in pixels) between a identical point in 
-        the left and right image (default: 300).
+    epi_search_distance : int, optional
+        Estimate for the maximum distance along the epipolar line (in pixels) between an identical point in
+        the left and right image (default: 100).
+    epi_distance_threshold : int, optional
+        Perpendicular tolerance around the epipolar line in pixels for the stereo FFT search. The FFT
+        search height is ``2 * epi_distance_threshold + subset_size`` (default: 2).
     method : str, optional
         The core algorithmic method used to perform the DIC.
 
@@ -266,7 +270,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.fft_filter_corr_power = fft_filter_corr_power
     config.fft_save = fft_save
     config.debug_level = print_level
-    config.epi_distance = epi_distance
+    config.epi_search_distance = epi_search_distance
+    config.epi_distance_threshold = epi_distance_threshold
     config.max_disp = max_displacement
 
     # sort precision to use for FFT windowing
@@ -329,7 +334,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         shape_function, interpolation_routine, fft_filter,
         fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method_enum.value,
         precision, threshold, max_displacement, subset_size, subset_step,
-        num_threads, print_level, updated_seeds, epi_distance
+        num_threads, print_level, updated_seeds, epi_search_distance,
+        config.epi_distance_threshold
     )
 
     # calling the c++ dic engine

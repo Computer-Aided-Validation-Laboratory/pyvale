@@ -620,7 +620,8 @@ def _print_config_summary(image_width: int,
                          num_threads: int | None,
                          print_level: int,
                          updated_seeds: list[int] | None = None,
-                         epi_distance: int | None = None) -> None:
+                         epi_search_distance: int | None = None,
+                         epi_distance_threshold: int | None = None) -> None:
     if print_level <= 0:
         return
 
@@ -640,8 +641,10 @@ def _print_config_summary(image_width: int,
     common_util.info_out("Optimization Precision:", precision)
     common_util.info_out("Correlation Cutoff Threshold:", threshold)
     common_util.info_out("Estimate for Max Displacement:", f"{max_displacement} [px]")
-    if epi_distance is not None:
-        common_util.info_out("Estimate for Epipolar Distance:", f"{epi_distance} [px]")
+    if epi_search_distance is not None:
+        common_util.info_out("Epipolar search distance:", f"{epi_search_distance} [px]")
+    if epi_distance_threshold is not None:
+        common_util.info_out("Epipolar distance threshold:", f"{epi_distance_threshold} [px]")
     common_util.info_out("Subset Size:", f"{subset_size} [px]")
     common_util.info_out("Subset Step:", f"{subset_step} [px]")
     if num_threads is None:

@@ -252,7 +252,6 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.fft_filter_corr_power = fft_filter_corr_power
     config.fft_save = fft_save
     config.debug_level = print_level
-    config.epi_distance = 0
 
     # sort precision to use for FFT windowing
     if fft_precision=="F32":
