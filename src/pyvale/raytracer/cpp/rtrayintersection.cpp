@@ -484,6 +484,14 @@ void boundary_limit_quad(Eigen::Vector2d& gh)
     gh.y() = std::max(-1.0,std::min(1.0,gh.y()));
 }
 
+// void boundary_limit_quad(Eigen::Vector2d& gh)
+// {
+//     double tol = 0.5;
+//     gh.x() = std::max(-1.0 - tol, std::min(1.0 + tol, gh.x()));
+//     gh.y() = std::max(-1.0 - tol, std::min(1.0 + tol, gh.y()));
+// }
+
+
 void boundary_limit_tri(Eigen::Vector2d& gh)
 {
     gh = gh.cwiseMax(0.0).cwiseMin(1.0);
@@ -493,9 +501,6 @@ void boundary_limit_tri(Eigen::Vector2d& gh)
         gh /= s;
     }
 }
-
-
-
 
 static void remove_duplicate_hull_points(
     std::vector<EiVector2d>& hull,
@@ -538,6 +543,40 @@ static void remove_duplicate_hull_points(
 }
 
 
+// ================================================================================
+//  Precision parameters for Newton solver and initial guess
+// ================================================================================
+
+// Minimum |det| accepted in the sub-triangle MT solve
+static const double eps_sub_det = 1e-12;
+// Minimum t accepted (initial guess and final acceptance floor)
+static const double eps_t_min = 1e-7;
+
+// Newton residual tolerance: max(eps_res_abs, eps_res_rel * find_element_diagonal)
+static const double eps_res_rel = 1e-10;
+static const double eps_res_abs = 1e-12;
+
+// Parametric slack on [-1, 1]^2 for final acceptance
+static const double eps_param_accept = 1e-6;
+// Trust region: abort the Newton seed if (xi, eta) leaves this box
+// static const double xi_eta_trust = 1.6;
+
+// Newton iteration budget
+static const int iter_max = 30;
+static const double offset_perc = 0.00; // offset_perc*100% of element size
+
+// Damping parameter for damped interpolation toward the center for initial guess
+// It preserves the direction from center_uv toward the barycentric estimate, but limits the distance to alpha*100%.
+// Alpha decreases, the point moves closer to the centre from the standard barycentric interpolation
+// alpha = 1.0 -> standard barycentric interpolation
+// alpha = 0.5 -> halfway toward center
+// alpha = 0.0 -> always center
+static const double alpha = 0.95;
+
+
+// ================================================================================
+//  TRI6, QUAD8, QUAD9 adaptive hulls and initial guess for Newton solver
+// ================================================================================
 
 template<ElementNodeCount element_node_count>
 InitialGuess compute_initial_guess_newton_solver(
@@ -619,7 +658,7 @@ InitialGuess compute_initial_guess_newton_solver(
     double winding = compute_winding(proj);
     
     const double diagonal = find_element_diagonal(&nodes[0], element_node_count);
-    const double offset = 0.05 * diagonal; // 5% of element size
+    const double offset = offset_perc * diagonal; // offset_perc*100% of element size
 
     // Construct adaptive hull
     std::vector<EiVector2d> hull;
@@ -716,15 +755,29 @@ InitialGuess compute_initial_guess_newton_solver(
         if(!barycentric_test(P, center, hull[i], hull[j], bc))
             continue;
 
+        // Standard barycentric interpolation for linear triangle
+        // result.gh =
+        //       bc.x()*center_uv
+        //     + bc.y()*hull_uv[i]
+        //     + bc.z()*hull_uv[j];
+
+        // Damped interpolation toward the center
+        // It preserves the direction from center_uv toward the barycentric estimate, but limits the distance to alpha*100%.
+        // Alpha decreases, the point moves closer to the centre from the standard barycentric interpolation
+        // alpha = 1.0 -> standard barycentric interpolation
+        // alpha = 0.5 -> halfway toward center
+        // alpha = 0.0 -> always center
+
+        Eigen::Vector2d gh_bary =
+             bc.x() * center_uv
+           + bc.y() * hull_uv[i]
+           + bc.z() * hull_uv[j];
+        
         result.gh =
-              bc.x()*center_uv
-            + bc.y()*hull_uv[i]
-            + bc.z()*hull_uv[j];
+              center_uv
+            + alpha * (gh_bary - center_uv);
 
         boundary_limit(result.gh);
-        // result.gh.x() = std::max(-1.0,std::min(1.0,result.gh.x()));
-
-        // result.gh.y() = std::max(-1.0,std::min(1.0,result.gh.y()));
 
         // t from projection on ray direction
 
@@ -739,33 +792,6 @@ InitialGuess compute_initial_guess_newton_solver(
 
     return result;
 }
-
-// ================================================================================
-//  Precision parameters for QUAD8 and QUAD9
-// ================================================================================
-
-// Sub-triangle Moller-Trumbore acceptance slack (on barycentrics)
-// static const double eps_sub_bary = 1e-6;
-static const double eps_sub_bary = 1e-0;
-// Minimum |det| accepted in the sub-triangle MT solve
-static const double eps_sub_det = 1e-12;
-// Minimum t accepted (initial guess and final acceptance floor)
-static const double eps_t_min = 1e-7;
-
-// Newton residual tolerance: max(eps_res_abs, eps_res_rel * find_element_diagonal)
-static const double eps_res_rel = 1e-10;
-static const double eps_res_abs = 1e-12;
-
-// Parametric slack on [-1, 1]^2 for final acceptance
-static const double eps_param_accept = 1e-6;
-// Trust region: abort the Newton seed if (xi, eta) leaves this box
-static const double xi_eta_trust = 1.6;
-
-// Newton iteration budget
-static const int iter_max = 30;
-// Backtracking line-search budget per Newton step
-static const int backtrack_max = 8;
-static const double backtrack_factor= 0.5;
 
 bool boundary_check_quad(Eigen::Vector2d gh) 
 {
