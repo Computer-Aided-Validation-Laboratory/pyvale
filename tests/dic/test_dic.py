@@ -7,20 +7,23 @@ license: mit
 copyright (c) 2024 the computer aided validation team
 ================================================================================
 """
-import os
+from collections.abc import Generator
 import glob
+import os
+from pathlib import Path
+import shutil
 
 os.environ["OMP_NUM_THREADS"] = "1"
 
 from PIL import Image
 import numpy as np
-import matplotlib.pyplot as plt
+import pytest
 import pyvale.dic as dic
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.calib as calib
 
 
-test_dir = os.path.dirname(__file__)
+TEST_DIR = Path(__file__).resolve().parent
 
 ref0 = dataset.dic_plate_rigid_cam0_ref()
 ref1 = dataset.dic_plate_rigid_cam1_ref()
@@ -37,7 +40,7 @@ def0_25px = dataset.dic_plate_rigid_cam0_def_25px()
 def0_50px = dataset.dic_plate_rigid_cam0_def_50px()
 
 
-calib_file = test_dir + "/calib.txt"
+calib_file = TEST_DIR / "calib.txt"
 calib_data = calib.loadtxt(calib_file)
 
 def_large = [def0_10px, def0_25px, def0_50px]
@@ -76,17 +79,57 @@ def_arr_scaled_offset = (def_arr_float * scale + offset).astype(original_dtype)
 # Ground truth displacements
 # ------------------------------------------------------------------------------
 
-u = [0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
-u_short = [0.0,0.5,1.0]
+u = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+u_short = [0.0, 0.5, 1.0]
+
+
+# ------------------------------------------------------------------------------
+# Fixtures
+# ------------------------------------------------------------------------------
+
+def _clean_dir_contents(path: Path) -> None:
+    if not path.is_dir():
+        return
+    for item in path.glob("*"):
+        if item.is_file() or item.is_symlink():
+            item.unlink(missing_ok=True)
+        elif item.is_dir():
+            shutil.rmtree(item, ignore_errors=True)
+
+
+@pytest.fixture
+def dic_temp_dir(tmp_path: Path) -> Generator[Path, None, None]:
+    """Provide a clean temporary output directory before and after each test."""
+    _clean_dir_contents(tmp_path)
+    yield tmp_path
+    _clean_dir_contents(tmp_path)
+
+
+@pytest.fixture(autouse=True)
+def clean_repo_dic_dir() -> Generator[None, None, None]:
+    """Purge any stale CSV outputs in tests/dic before and after every test."""
+    patterns = ("test_*.csv", "dic_results_*.csv", "test_fft_*.csv")
+    for pattern in patterns:
+        for f in TEST_DIR.glob(pattern):
+            f.unlink(missing_ok=True)
+    yield
+    for pattern in patterns:
+        for f in TEST_DIR.glob(pattern):
+            f.unlink(missing_ok=True)
 
 
 # ------------------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------------------
 
-def validate_col(csv_file, gt, col, rtol,atol):
+def validate_col(
+    csv_file: str | Path,
+    gt: float,
+    col: int,
+    rtol: float,
+    atol: float,
+) -> None:
     dic_data = np.loadtxt(csv_file, skiprows=1, delimiter=",")
-
     gt_u = np.full(dic_data.shape[0], gt)
 
     np.testing.assert_allclose(
@@ -94,135 +137,88 @@ def validate_col(csv_file, gt, col, rtol,atol):
         dic_data[:, col],
         rtol=rtol,
         atol=atol,
-        err_msg=f"Horizontal displacement mismatch for {gt} px",
+        err_msg=f"Displacement mismatch for {gt} px",
     )
 
 
-def validate(output_pattern, gt, atol, rtol=0.0, atol_stereo=0.001,stereo=False):
-    output_files = sorted(glob.glob(output_pattern))
+def validate(
+    output_pattern: str | Path,
+    gt: list[float],
+    atol: float,
+    rtol: float = 0.0,
+    atol_stereo: float = 0.001,
+    stereo: bool = False,
+) -> None:
+    output_files = sorted(glob.glob(str(output_pattern)))
 
     assert len(output_files) == len(gt), (
-        f"Expected {len(gt)} output files but found "
-        f"{len(output_files)}"
+        f"Expected {len(gt)} output files but found {len(output_files)}"
     )
 
     for gt_i, output_file in zip(gt, output_files):
-
         # check horizontal displacement PIXELS
-        validate_col(output_file, gt_i, 2, rtol,atol)
-        
-        # check horizontal displacement PIXELS 
-        validate_col(output_file, -1.0*gt_i, 3, rtol, atol)
+        validate_col(output_file, gt_i, 2, rtol, atol)
 
+        # check vertical displacement PIXELS
+        validate_col(output_file, -1.0 * gt_i, 3, rtol, atol)
 
-        if (stereo):
-
-            # check horizontal displacement MM 
-            validate_col(output_file, -0.01*gt_i, 13, rtol, atol_stereo)
+        if stereo:
+            # check horizontal displacement MM
+            validate_col(output_file, -0.01 * gt_i, 13, rtol, atol_stereo)
 
             # check vertical displacement MM
-            validate_col(output_file, 0.01*gt_i, 14, rtol, atol_stereo)
-
-    for files in (output_files):
-        os.remove(files)
+            validate_col(output_file, 0.01 * gt_i, 14, rtol, atol_stereo)
 
 
-def validate_hydro(output_pattern, gt, atol, rtol=0.0):
-
-    output_files = sorted(glob.glob(output_pattern))
+def validate_hydro(
+    output_pattern: str | Path,
+    gt: list[float],
+    atol: float,
+    rtol: float = 0.0,
+) -> None:
+    output_files = sorted(glob.glob(str(output_pattern)))
 
     assert len(output_files) == len(gt), (
         f"Expected {len(gt)} output files but found {len(output_files)}"
     )
 
     for edge_disp, output_file in zip(gt, output_files):
-
         dic_data = np.loadtxt(output_file, skiprows=1, delimiter=",")
 
         x = dic_data[:, 0]
         y = dic_data[:, 1]
-
         u = dic_data[:, 2]
         v = dic_data[:, 3]
 
         cx = (20 + 1019) / 2.0
         cy = (20 + 1519) / 2.0
-
         width = 999.0
         height = 1499.0
 
         u_gt = 2.0 * edge_disp * (x - cx) / width
         v_gt = 2.0 * edge_disp * (y - cy) / height
 
-        try:
-            np.testing.assert_allclose(
-                u,
-                u_gt,
-                rtol=rtol,
-                atol=atol,
-                err_msg=f"Horizontal displacement mismatch ({edge_disp} px)"
-            )
+        np.testing.assert_allclose(
+            u,
+            u_gt,
+            rtol=rtol,
+            atol=atol,
+            err_msg=f"Horizontal displacement mismatch ({edge_disp} px)",
+        )
+        np.testing.assert_allclose(
+            v,
+            v_gt,
+            rtol=rtol,
+            atol=atol,
+            err_msg=f"Vertical displacement mismatch ({edge_disp} px)",
+        )
 
-            np.testing.assert_allclose(
-                v,
-                v_gt,
-                rtol=rtol,
-                atol=atol,
-                err_msg=f"Vertical displacement mismatch ({edge_disp} px)"
-            )
-
-        except AssertionError:
-
-            # xs = np.unique(x)
-            # ys = np.unique(y)
-            # nx = len(xs)
-            # ny = len(ys)
-            #
-            # err_u = (u - u_gt).reshape(ny, nx)
-            # err_v = (v - v_gt).reshape(ny, nx)
-            # err_mag = np.sqrt(err_u**2 + err_v**2)
-            #
-            # fig, ax = plt.subplots(1, 3, figsize=(15, 4))
-            #
-            # im = ax[0].imshow(
-            #     err_u,
-            #     origin="lower",
-            #     extent=[xs.min(), xs.max(), ys.min(), ys.max()],
-            # )
-            # ax[0].set_title("u error")
-            # plt.colorbar(im, ax=ax[0])
-            #
-            # im = ax[1].imshow(
-            #     err_v,
-            #     origin="lower",
-            #     extent=[xs.min(), xs.max(), ys.min(), ys.max()],
-            # )
-            # ax[1].set_title("v error")
-            # plt.colorbar(im, ax=ax[1])
-            #
-            # im = ax[2].imshow(
-            #     err_mag,
-            #     origin="lower",
-            #     extent=[xs.min(), xs.max(), ys.min(), ys.max()],
-            # )
-            # ax[2].set_title("Error magnitude")
-            # plt.colorbar(im, ax=ax[2])
-            #
-            # plt.tight_layout()
-            # plt.savefig(f"hydro_error_{edge_disp:.1f}.png")
-            # plt.close(fig)
-
-            raise
-
-    for output_file in output_files:
-        os.remove(output_file)
 
 # ------------------------------------------------------------------------------
 # SSD
 # ------------------------------------------------------------------------------
 
-def test_2d_ssd_rigid():
-
+def test_2d_ssd_rigid(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -234,21 +230,19 @@ def test_2d_ssd_rigid():
         correlation_criteria="SSD",
         shape_function="AFFINE",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_ssd_rigid_",
     )
 
-
-    output_files = os.path.abspath( os.path.join(test_dir, "./test_ssd_rigid_*.csv"))
-    validate(output_pattern=output_files,gt=u,atol=0.01)
+    output_files = dic_temp_dir / "test_ssd_rigid_*.csv"
+    validate(output_pattern=output_files, gt=u, atol=0.01)
 
 
 # ------------------------------------------------------------------------------
 # NSSD
 # ------------------------------------------------------------------------------
 
-def test_2d_nssd_scaled_image_rigid():
-
+def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref_arr,
         deformed=def_arr_scaled,
@@ -260,26 +254,25 @@ def test_2d_nssd_scaled_image_rigid():
         correlation_criteria="NSSD",
         shape_function="AFFINE",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_2d_nssd_scaled_image_rigid_",
     )
 
-    output_file = os.path.abspath(
-        os.path.join(
-            test_dir,
-            "./test_2d_nssd_scaled_image_rigid_def_img_0000.csv",
-        )
+    output_file = (
+        dic_temp_dir
+        / "test_2d_nssd_scaled_image_rigid_def_img_0000.csv"
     )
 
-    validate(output_pattern=output_file,gt=[0.7],atol=0.01,stereo=False)
+    validate(output_pattern=output_file, gt=[0.7], atol=0.01, stereo=False)
 
 
 # ------------------------------------------------------------------------------
 # ZNSSD
 # ------------------------------------------------------------------------------
 
-def test_2d_znssd_scaled_offset_image_rigid():
-
+def test_2d_znssd_scaled_offset_image_rigid(
+    dic_temp_dir: Path,
+) -> None:
     dic.calculate_2d(
         reference=ref_arr,
         deformed=def_arr_scaled_offset,
@@ -291,26 +284,23 @@ def test_2d_znssd_scaled_offset_image_rigid():
         correlation_criteria="ZNSSD",
         shape_function="AFFINE",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_2d_znssd_scaled_offset_image_rigid_",
     )
 
-    output_file = os.path.abspath(
-        os.path.join(
-            test_dir,
-            "./test_2d_znssd_scaled_offset_image_rigid_def_img_0000.csv",
-        )
+    output_file = (
+        dic_temp_dir
+        / "test_2d_znssd_scaled_offset_image_rigid_def_img_0000.csv"
     )
 
-    validate(output_pattern=output_file,gt=[0.7],atol=0.01,stereo=False)
+    validate(output_pattern=output_file, gt=[0.7], atol=0.01, stereo=False)
 
 
 # ------------------------------------------------------------------------------
 # Raster ZNSSD Affine
 # ------------------------------------------------------------------------------
 
-def test_2d_image_scan_znssd_affine():
-
+def test_2d_image_scan_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -322,19 +312,14 @@ def test_2d_image_scan_znssd_affine():
         correlation_criteria="ZNSSD",
         shape_function="AFFINE",
         method="RASTER",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_znssd_affine_",
     )
 
     validate(
-        os.path.abspath(
-            os.path.join(
-                test_dir,
-                "./test_2d_image_scan_znssd_affine_*.csv",
-            )
-        ),
+        dic_temp_dir / "test_2d_image_scan_znssd_affine_*.csv",
         u,
-        atol=0.01
+        atol=0.01,
     )
 
 
@@ -342,8 +327,7 @@ def test_2d_image_scan_znssd_affine():
 # Raster ZNSSD Rigid
 # ------------------------------------------------------------------------------
 
-def test_2d_image_scan_znssd_rigid():
-
+def test_2d_image_scan_znssd_rigid(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -355,19 +339,14 @@ def test_2d_image_scan_znssd_rigid():
         correlation_criteria="ZNSSD",
         shape_function="RIGID",
         method="RASTER",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_znssd_rigid_",
     )
 
     validate(
-        os.path.abspath(
-            os.path.join(
-                test_dir,
-                "./test_2d_image_scan_znssd_rigid_*.csv",
-            )
-        ),
+        dic_temp_dir / "test_2d_image_scan_znssd_rigid_*.csv",
         u,
-        atol=0.01
+        atol=0.01,
     )
 
 
@@ -375,8 +354,7 @@ def test_2d_image_scan_znssd_rigid():
 # Raster NSSD
 # ------------------------------------------------------------------------------
 
-def test_2d_image_scan_nssd_affine():
-
+def test_2d_image_scan_nssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -388,19 +366,14 @@ def test_2d_image_scan_nssd_affine():
         correlation_criteria="NSSD",
         shape_function="AFFINE",
         method="RASTER",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_nssd_affine_",
     )
 
     validate(
-        os.path.abspath(
-            os.path.join(
-                test_dir,
-                "./test_2d_image_scan_nssd_affine_*.csv",
-            )
-        ),
+        dic_temp_dir / "test_2d_image_scan_nssd_affine_*.csv",
         u,
-        atol=0.01
+        atol=0.01,
     )
 
 
@@ -408,8 +381,7 @@ def test_2d_image_scan_nssd_affine():
 # Multiwindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_rg_znssd_affine():
-
+def test_2d_rg_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -421,27 +393,21 @@ def test_2d_rg_znssd_affine():
         correlation_criteria="ZNSSD",
         shape_function="AFFINE",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_affine_",
     )
 
     validate(
-        os.path.abspath(
-            os.path.join(
-                test_dir,
-                "./test_2d_rg_znssd_affine_*.csv",
-            )
-        ),
+        dic_temp_dir / "test_2d_rg_znssd_affine_*.csv",
         u,
-        atol=0.01
+        atol=0.01,
     )
 
 # ------------------------------------------------------------------------------
 # Multiwindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_rg_znssd_quad():
-
+def test_2d_rg_znssd_quad(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -453,27 +419,21 @@ def test_2d_rg_znssd_quad():
         correlation_criteria="ZNSSD",
         shape_function="QUAD",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_quad_",
     )
 
     validate(
-        os.path.abspath(
-            os.path.join(
-                test_dir,
-                "./test_2d_rg_znssd_quad_*.csv",
-            )
-        ),
+        dic_temp_dir / "test_2d_rg_znssd_quad_*.csv",
         u,
-        atol=0.01
+        atol=0.01,
     )
 
 # ------------------------------------------------------------------------------
 # singlewindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_singlewindow_znssd_affine():
-
+def test_2d_singlewindow_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -485,27 +445,21 @@ def test_2d_singlewindow_znssd_affine():
         correlation_criteria="ZNSSD",
         shape_function="AFFINE",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_affine_",
     )
 
     validate(
-        os.path.abspath(
-            os.path.join(
-                test_dir,
-                "./test_2d_rg_znssd_affine_*.csv",
-            )
-        ),
+        dic_temp_dir / "test_2d_rg_znssd_affine_*.csv",
         u,
-        atol=0.01
+        atol=0.01,
     )
 
 # ------------------------------------------------------------------------------
 # Large displacement FFT with mutlwindow
 # ------------------------------------------------------------------------------
 
-def test_2d_multiwindow_fft_large():
-
+def test_2d_multiwindow_fft_large(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def_large,
@@ -517,34 +471,25 @@ def test_2d_multiwindow_fft_large():
         correlation_criteria="ZNSSD",
         shape_function="RIGID",
         method="MULTIWINDOW",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
     )
 
     outputs = [
-        ("./test_fft_rigid_cam0_frame11.csv", 10.0),
-        ("./test_fft_rigid_cam0_frame12.csv", 25.0),
-        ("./test_fft_rigid_cam0_frame13.csv", 50.0),
+        ("test_fft_rigid_cam0_frame11.csv", 10.0),
+        ("test_fft_rigid_cam0_frame12.csv", 25.0),
+        ("test_fft_rigid_cam0_frame13.csv", 50.0),
     ]
 
-    for filename, u in outputs:
-
-        output_file = os.path.abspath(
-            os.path.join(test_dir, filename)
-        )
-
-        validate(
-            output_file,
-            [u],
-            atol=0.01,
-        )
+    for filename, disp in outputs:
+        output_file = dic_temp_dir / filename
+        validate(output_file, [disp], atol=0.01)
 
 # ------------------------------------------------------------------------------
 # Large displacement FFT with mutlwindow
 # ------------------------------------------------------------------------------
 
-def test_2d_multiwindow_rg_fft_large():
-
+def test_2d_multiwindow_rg_fft_large(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def_large,
@@ -556,33 +501,25 @@ def test_2d_multiwindow_rg_fft_large():
         correlation_criteria="ZNSSD",
         shape_function="RIGID",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
     )
 
     outputs = [
-        ("./test_fft_rigid_cam0_frame11.csv", 10.0),
-        ("./test_fft_rigid_cam0_frame12.csv", 25.0),
-        ("./test_fft_rigid_cam0_frame13.csv", 50.0),
+        ("test_fft_rigid_cam0_frame11.csv", 10.0),
+        ("test_fft_rigid_cam0_frame12.csv", 25.0),
+        ("test_fft_rigid_cam0_frame13.csv", 50.0),
     ]
 
-    for filename, u in outputs:
+    for filename, disp in outputs:
+        output_file = dic_temp_dir / filename
+        validate(output_file, [disp], atol=0.01)
 
-        output_file = os.path.abspath(
-            os.path.join(test_dir, filename)
-        )
-
-        validate(
-            output_file,
-            [u],
-            atol=0.01,
-        )
 # ------------------------------------------------------------------------------
 # Large displacement FFT with singlewindow
 # ------------------------------------------------------------------------------
 
-def test_2d_singlewindow_fft_large():
-
+def test_2d_singlewindow_fft_large(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def_large,
@@ -594,35 +531,26 @@ def test_2d_singlewindow_fft_large():
         correlation_criteria="ZNSSD",
         shape_function="RIGID",
         method="SINGLEWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
     )
 
     outputs = [
-        ("./test_fft_rigid_cam0_frame11.csv", 10.0),
-        ("./test_fft_rigid_cam0_frame12.csv", 25.0),
-        ("./test_fft_rigid_cam0_frame13.csv", 50.0),
+        ("test_fft_rigid_cam0_frame11.csv", 10.0),
+        ("test_fft_rigid_cam0_frame12.csv", 25.0),
+        ("test_fft_rigid_cam0_frame13.csv", 50.0),
     ]
 
-    for filename, u in outputs:
-
-        output_file = os.path.abspath(
-            os.path.join(test_dir, filename)
-        )
-
-        validate(
-            output_file,
-            [u],
-            atol=0.01,
-        )
+    for filename, disp in outputs:
+        output_file = dic_temp_dir / filename
+        validate(output_file, [disp], atol=0.01)
 
 
 # ------------------------------------------------------------------------------
 # Multiwindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_hydro_rg_znssd_affine():
-
+def test_2d_hydro_rg_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0_hydro,
         deformed=def0_hydro,
@@ -634,15 +562,12 @@ def test_2d_hydro_rg_znssd_affine():
         correlation_criteria="ZNSSD",
         shape_function="AFFINE",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_hydro_",
     )
 
     validate_hydro(
-        os.path.join(
-            test_dir,
-            "test_hydro_*.csv",
-        ),
+        dic_temp_dir / "test_hydro_*.csv",
         u_short,
         atol=0.005,
     )
@@ -651,8 +576,7 @@ def test_2d_hydro_rg_znssd_affine():
 # Multiwindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_hydro_rg_znssd_quad():
-
+def test_2d_hydro_rg_znssd_quad(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0_hydro,
         deformed=def0_hydro,
@@ -664,25 +588,21 @@ def test_2d_hydro_rg_znssd_quad():
         correlation_criteria="ZNSSD",
         shape_function="QUAD",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_hydro_",
     )
 
     validate_hydro(
-        os.path.join(
-            test_dir,
-            "test_hydro_*.csv",
-        ),
+        dic_temp_dir / "test_hydro_*.csv",
         u_short,
-        atol=0.008, # more noise for quad
+        atol=0.008,  # more noise for quad
     )
 
 # ------------------------------------------------------------------------------
 # STEREO
 # ------------------------------------------------------------------------------
 
-def test_3d_rg_znssd_affine():
-
+def test_3d_rg_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_3d(
         reference=[ref0, ref1],
         deformed=[def0, def1],
@@ -695,25 +615,20 @@ def test_3d_rg_znssd_affine():
         correlation_criteria="ZNSSD",
         shape_function="AFFINE",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_affine_",
     )
 
     validate(
-        os.path.abspath(
-            os.path.join(
-                test_dir,
-                "./test_3d_rg_znssd_affine_*.csv",
-            )
-        ),
+        dic_temp_dir / "test_3d_rg_znssd_affine_*.csv",
         u,
         atol=0.01,
         atol_stereo=0.0001,
-        stereo=True
+        stereo=True,
     )
 
-def test_3d_rg_znssd_affine_incremental():
 
+def test_3d_rg_znssd_affine_incremental(dic_temp_dir: Path) -> None:
     dic.calculate_3d(
         reference=[ref0, ref1],
         deformed=[def0, def1],
@@ -728,20 +643,20 @@ def test_3d_rg_znssd_affine_incremental():
         incremental_update="IMAGE",
         incremental_update_value=1,
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_incremental_affine_",
     )
 
     validate(
-        os.path.abspath(os.path.join(test_dir, "./test_3d_rg_znssd_incremental_affine*.csv",)),
+        dic_temp_dir / "test_3d_rg_znssd_incremental_affine*.csv",
         gt=u,
         stereo=True,
         atol=0.01,
-        atol_stereo=0.0001
+        atol_stereo=0.0001,
     )
 
-def test_3d_rg_znssd_quad():
 
+def test_3d_rg_znssd_quad(dic_temp_dir: Path) -> None:
     dic.calculate_3d(
         reference=[ref0, ref1],
         deformed=[def0, def1],
@@ -754,27 +669,27 @@ def test_3d_rg_znssd_quad():
         correlation_criteria="ZNSSD",
         shape_function="QUAD",
         method="MULTIWINDOW_RG",
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_quad_",
     )
 
     validate(
-        os.path.abspath(os.path.join(test_dir, "./test_3d_rg_znssd_quad_*.csv",)),
+        dic_temp_dir / "test_3d_rg_znssd_quad_*.csv",
         gt=u,
         stereo=True,
         atol=0.01,
-        atol_stereo=0.0005)
+        atol_stereo=0.0005,
+    )
 
 
-def test_f32_support():
-
+def test_f32_support(dic_temp_dir: Path) -> None:
     np.random.seed(100)
-    ref_arr = np.random.uniform(0, 200, size=(400,400)).astype(np.float32)
-    def_arr = np.roll(ref_arr,  1, axis=1)
+    ref_arr = np.random.uniform(0, 200, size=(400, 400)).astype(np.float32)
+    def_arr = np.roll(ref_arr, 1, axis=1)
     def_arr = np.roll(def_arr, -1, axis=0)
 
     roi = dic.RegionOfInterest(ref_arr)
-    roi.rect_boundary(10,10,10,10)
+    roi.rect_boundary(10, 10, 10, 10)
 
     dic.calculate_2d(
         reference=ref_arr,
@@ -784,14 +699,15 @@ def test_f32_support():
         subset_size=31,
         subset_step=15,
         max_displacement=10,
-        output_basepath=test_dir,
+        output_basepath=dic_temp_dir,
         output_prefix="test_f32_support_",
     )
 
     validate(
-        os.path.abspath(os.path.join(test_dir, "./test_f32_support*.csv",)),
+        dic_temp_dir / "test_f32_support*.csv",
         gt=[1.0],
         stereo=False,
         atol=0.001,
-        atol_stereo=0.00001)
+        atol_stereo=0.00001,
+    )
 

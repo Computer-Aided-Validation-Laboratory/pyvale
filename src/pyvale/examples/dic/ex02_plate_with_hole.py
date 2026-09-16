@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # pyvale modules
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.dic as dic
 
 # %%
@@ -36,7 +36,7 @@ ref_img = dataset.dic_plate_with_hole_cam0_ref()
 def_img = dataset.dic_plate_with_hole_cam0_def()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "dic_ex02"
+output_path = Path.cwd() / "pyvale-output" / "ex02"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -46,7 +46,7 @@ if not output_path.is_dir():
 # as input. This image will be shown as the underlay during any ROI selection or
 # visualization.
 roi = dic.RegionOfInterest(ref_img)
-roi.interactive_selection()
+roi.read_yaml(dataset.dic_ex10_roi())
 
 # %%
 # Once you've closed the ROI interactive window, a mask and seed location coordinates

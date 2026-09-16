@@ -47,12 +47,11 @@ def herd_gmsh(dir_manager) -> MooseHerd:
 
 
 @pytest.fixture(autouse=True)
-def setup_teardown(dir_manager):
-    # Setup here
+def setup_teardown(dir_manager: DirectoryManager):
     dir_manager.set_base_dir(hct.BASE_DIR)
+    dir_manager.clear_dirs()
     dir_manager.create_dirs()
     yield
-    # Teardown here
     dir_manager.clear_dirs()
 
 

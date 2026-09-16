@@ -14,6 +14,7 @@ from .directorymanager import DirectoryManager
 from .sweeploader import SweepLoader
 from .mooseconfig import MooseConfig
 from .sweeptools import sweep_param_grid
+from .availability import BackendAvailability, gmsh_availability, moose_availability
 
 __all__ = [
     "InputModifier",
@@ -26,4 +27,7 @@ __all__ = [
     "SweepLoader",
     "MooseConfig",
     "sweep_param_grid",
+    "BackendAvailability",
+    "gmsh_availability",
+    "moose_availability",
 ]

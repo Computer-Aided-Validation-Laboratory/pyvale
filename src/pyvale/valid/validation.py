@@ -64,9 +64,8 @@ def extract_val_data_by_key(
 
         # Allocate a numpy array based on how many sensors we want to extract
         # and analyse
-             
-        for ss in iter_list:
-        
+
+        #TODO: extract the val_points for each sensor list here.
 
 def extract_val_data_by_slice(
     exp_data: ExpData,

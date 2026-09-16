@@ -26,13 +26,13 @@ import matplotlib.pyplot as plt
 import pyvale.sensorsim as sens
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 #%%
 # 1. Load physics simulation data
 # -------------------------------
 # As we did in the last example we load a finite element simulation dataset that
-# comes packaged with `pyvale` in exodus (*.e) format. We also convert the
+# comes packaged with `pyvale` in exodus (``*.e``) format. We also convert the
 # length units of our simulation from meters to milli-meters as our
 # visualisation tools are based on unit scaling by default.
 
