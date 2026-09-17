@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyvale"
-version = "2026.7.0"
+version = "2026.9.1"
 description = "Your virtual engineering lab: An all-in-one package for sensor simulation, uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
@@ -92,6 +92,9 @@ build.verbose = true
 logging.level = "INFO"
 ninja.make-fallback = false
 build-dir = "build"
+sdist.exclude = [
+    "src/pyvale/data/**",
+]
 
 [tool.uv]
 required-version = ">=0.9.17"

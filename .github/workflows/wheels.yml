@@ -15,14 +15,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-14, macos-15-intel, macos-26]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-14, macos-26]
         include:
           - os: macos-14
             llvm: llvm@15
             macos_deployment_target: "14.0"
-          - os: macos-15-intel
-            llvm: llvm@18
-            macos_deployment_target: "15.0"
           - os: macos-26
             llvm: llvm@20
             macos_deployment_target: "26.0"
