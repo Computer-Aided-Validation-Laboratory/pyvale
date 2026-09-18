@@ -140,17 +140,17 @@ def sim_case_gmsh_file_path(case_num: int) -> Path | None:
 
 
 def dic_pattern_5mpx_path() -> Path:
-    """Path to a 5 mega-pixel speckle pattern image (2464 x 2056 pixels)
-    with 8 bit resolution stored as a ``*.tiff``. Speckles are sampled by
-    5 pixels. A gaussian blur has been applied to the image to remove sharp
-    transitions from black to white.
+    """Return Riley's 5 mega-pixel mono speckle pattern image.
 
+    The image has shape ``(2056, 2464)`` with 8-bit resolution. It is the
+    shared packaged Riley texture used by Pyvale's rendering and DIC examples.
+
+    Returns
+    -------
     Path
-        Path to the ``*.tiff`` file containing the speckle pattern.
+        Path to Riley's packaged speckle image.
     """
-    return _data_path(
-        "render", "patterns", "optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff",
-    )
+    return riley.data.speckle_texture_path()
 
 
 def thermal_2d_path() -> Path:
@@ -200,6 +200,8 @@ def mechanical_2d_path() -> Path:
     plate with a hole in the center with the bottom edge fixed and a
     displacement applied to the top edge. This is a mechanical problem and
     solves for the displacement vector field and the tensorial strain field.
+    Geometry and displacements are expressed in millimetres, with material
+    properties in N/mm² (MPa).
 
     The simulation parameters can be found in the corresponding MOOSE input
     file: case17.i which can be retrieved using `sim_case_input_file_path`
@@ -713,15 +715,14 @@ def dic_chal_3d_cam1() -> Path:
     )
 
 def cal_target() -> Path:
-    """
-    Path to example calibration target.
+    """Return Riley's packaged calibration-target image.
 
     Returns
     -------
     Path
-        Path to the image (``.tiff``).
+        Path to Riley's packaged calibration-target image.
     """
-    return _data_path("calibration", "cal_target.tiff")
+    return riley.data.cal_target_texture_path()
 
 
 def riley_rabbit_meshes() -> list[riley.Mesh]:
