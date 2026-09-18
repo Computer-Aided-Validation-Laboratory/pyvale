@@ -14,6 +14,7 @@ from pyvale.mooseherder.mooseconfig import MooseConfig
 from pyvale.mooseherder.gmshrunner import GmshRunner
 from pyvale.mooseherder.mooseherd import MooseHerd
 from pyvale.mooseherder.directorymanager import DirectoryManager
+from pyvale.mooseherder.availability import gmsh_availability
 
 
 NUM_DIRS = 4
@@ -26,7 +27,8 @@ MOOSE_APP_PATH = Path().home()/'proteus'
 MOOSE_APP_NAME = 'proteus-opt'
 MOOSE_INPUT = BASE_DIR/"moose"/"moose-test.i"
 
-GMSH_APP_PATH = Path().home() / 'gmsh/bin/gmsh'
+GMSH_AVAILABILITY = gmsh_availability()
+GMSH_APP_PATH = GMSH_AVAILABILITY.executable
 GMSH_INPUT = BASE_DIR/"gmsh/gmsh-test.geo"
 
 moose_present = (
@@ -35,7 +37,7 @@ moose_present = (
     and (MOOSE_APP_PATH / MOOSE_APP_NAME).is_file()
 )
 
-gmsh_present = GMSH_APP_PATH.is_file()
+gmsh_present = GMSH_AVAILABILITY.available
 
 OUTPUT_GOLD_PATH = BASE_DIR/"output_gold"
 TXT_GOLD_PATH = BASE_DIR/"txt_gold"
@@ -206,5 +208,4 @@ def debug_print(to_print: Any) -> None:
     pprint(to_print)
     print('-'*80)
     print()
-
 

@@ -23,13 +23,26 @@ message(STATUS "CMake install config name: ${CMAKE_INSTALL_CONFIG_NAME}")
 # ----------------------------
 # Dependencies
 # ----------------------------
-find_package(pybind11 REQUIRED)
+find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
+set(PYBIND11_FINDPYTHON ON)
+find_package(pybind11 CONFIG REQUIRED)
+message(STATUS "Python executable: ${Python_EXECUTABLE}")
+message(STATUS "Python version: ${Python_VERSION}")
+message(STATUS "Python SOABI: ${Python_SOABI}")
+
 find_package(OpenMP REQUIRED)
+message(STATUS "OpenMP_FOUND = ${OpenMP_FOUND}")
+message(STATUS "OpenMP_CXX_FOUND = ${OpenMP_CXX_FOUND}")
+message(STATUS "OpenMP_CXX_VERSION = ${OpenMP_CXX_VERSION}")
+message(STATUS "OpenMP_CXX_FLAGS = ${OpenMP_CXX_FLAGS}")
+message(STATUS "OpenMP_CXX_LIBRARIES = ${OpenMP_CXX_LIBRARIES}")
+
 #find_package(OpenCV REQUIRED)
 find_package(TIFF REQUIRED)
 message(STATUS "TIFF_FOUND = ${TIFF_FOUND}")
 message(STATUS "TIFF_INCLUDE_DIR = ${TIFF_INCLUDE_DIR}")
 message(STATUS "TIFF_LIBRARIES = ${TIFF_LIBRARIES}")
+
 # ----------------------------
 # Eigen3
 # ----------------------------
@@ -129,7 +142,6 @@ file(GLOB STRAIN_SRC_FILES src/pyvale/strain/cpp/*.cpp)
 
 pybind11_add_module(strain_cpp MODULE ${STRAIN_SRC_FILES} ${COMMON_SRC_FILES})
 target_include_directories(strain_cpp PRIVATE src/pyvale/commoncpp src/pyvale/strain ${TIFF_INCLUDE_DIR})
-target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES}) 
+target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(strain_cpp)
 install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)
-

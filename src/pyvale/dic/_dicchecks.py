@@ -18,7 +18,7 @@ This module contains functions for checking arguments passed to the 2D DIC
 Engine.
 """
 
-def _multiwindow_init(subset_size: int, 
+def _multiwindow_init(subset_size: int,
                      subset_step: int,
                      image_width: int,
                      image_height: int,
@@ -148,9 +148,9 @@ def _check_shape_function(shape: EShape) -> int:
 
     if (shape==EShape.RIGID):
         num_params = 2
-    elif (shape==EShape.AFFINE): 
+    elif (shape==EShape.AFFINE):
         num_params = 6
-    elif (shape==EShape.QUAD): 
+    elif (shape==EShape.QUAD):
         num_params = 12
     
     return num_params
@@ -210,7 +210,7 @@ def _check_method(method: str) -> None:
 
 
 
-def _check_thresholds(threshold: float, 
+def _check_thresholds(threshold: float,
                      precision: float) -> None:
     """
     Ensures that ``threshold``, and ``precision``
@@ -653,6 +653,5 @@ def _print_config_summary(image_width: int,
         for i in range(0, len(updated_seeds), 2):
             x, y = updated_seeds[i], updated_seeds[i + 1]
             common_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
-
 
 

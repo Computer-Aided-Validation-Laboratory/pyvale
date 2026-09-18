@@ -37,7 +37,7 @@ from pathlib import Path
 import numpy as np
 
 # pyvale modules
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.dic as dic
 
 subset_size = 31
@@ -45,7 +45,7 @@ ref_img = dataset.dic_plate_rigid_cam0_ref()
 def_img = dataset.dic_plate_rigid_cam0_def()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "dic_ex07"
+output_path = Path.cwd() / "pyvale-output" / "incremental"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -57,7 +57,7 @@ roi.rect_boundary(left=50,right=50,top=50,bottom=50)
 # We can now proceed with the incremental DIC calculation. There are two key
 # arguments to be aware of when enabling incremental DIC:
 #
-# - ``incremental_update`` (``str``): Specifies the condition under which the reference 
+# - ``incremental_update`` (``str``): Specifies the condition under which the reference
 #     image is updated. Use ``"OFF"`` to disable incremental DIC. Valid update options are:
 #
 #     - ``"IMAGE"``: Update the reference image every N images, where N is given by
@@ -85,5 +85,3 @@ dic.calculate_2d(reference=ref_img,
                  output_basepath=output_path,
                  output_delimiter=",",
                  output_prefix="results_inc_")
-
-

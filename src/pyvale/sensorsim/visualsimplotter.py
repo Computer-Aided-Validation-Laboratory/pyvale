@@ -9,6 +9,7 @@
 import pyvista as pv
 
 import pyvale.mooseherder as mh
+import pyvale.dataio as io
 
 from pyvale.sensorsim.sensorspoint import SensorsPoint
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_vis

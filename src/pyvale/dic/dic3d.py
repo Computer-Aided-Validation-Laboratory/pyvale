@@ -105,16 +105,16 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         Options include:
 
         * ``"MULTIWINDOW_RG"``: Multi-window Reliability-Guided DIC
-        (best overall approach).
+          (best overall approach).
 
         * ``"SINGLEWINDOW_RG"``: Uses a single window for the rigid estimate
-        for each subset. The size of the window is determined by the
-        ``max_displacement`` parameter.
+          for each subset. The size of the window is determined by the
+          ``max_displacement`` parameter.
 
         * ``"MULTIWINDOW"``: Uses only the multi-window FFT strategy.
 
         * ``"RASTER"``: No FFT initialization. Performs a raster scan of
-        the image.
+          the image.
 
     incremental_update : str or EIncrementalMethod, optional
         Condition for updating reference images. Use ``"OFF"`` to disable

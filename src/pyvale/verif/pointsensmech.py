@@ -9,7 +9,7 @@ import pyvale.sensorsim as sens
 import pyvale.dataio as io
 import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensconst as pointsensconst
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 """
 DEVELOPER VERIFICATION MODULE
