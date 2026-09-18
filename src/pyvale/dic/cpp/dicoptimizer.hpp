@@ -185,7 +185,7 @@ class Optimizer {
         * @return true Matrix inversion was successful
         * @return false Matrix inversion failed
         */
-        bool invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params);
+        bool invert_matrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params);
 
         /**
         * @brief Updates the shape function parameters based on the current and updated parameters.

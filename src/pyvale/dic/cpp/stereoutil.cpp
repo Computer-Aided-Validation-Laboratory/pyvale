@@ -71,8 +71,8 @@ namespace stereo {
         
             // undistorted pixel value
             double u_cx_l, u_cx_r, u_cy_l, u_cy_r;
-            stereo::undistortPoint(u_cx_l, u_cy_l, cx_l, cy_l, K0, calib.cam0.distortion);
-            stereo::undistortPoint(u_cx_r, u_cy_r, cx_r, cy_r, K1, calib.cam1.distortion);
+            stereo::undistort_point(u_cx_l, u_cy_l, cx_l, cy_l, K0, calib.cam0.distortion);
+            stereo::undistort_point(u_cx_r, u_cy_r, cx_r, cy_r, K1, calib.cam1.distortion);
 
             // 3d pixel coords guess
             Eigen::Vector3d xl(u_cx_l, u_cy_l, 1.0);
@@ -119,7 +119,7 @@ namespace stereo {
         if (first_frame) stereo_ref = stereo_def;
     }
 
-    void undistortPoint(double &x_undistorted, double &y_undistorted,
+    void undistort_point(double &x_undistorted, double &y_undistorted,
                         const double x_distorted, const double y_distorted,
                         const Eigen::Matrix3d &K,
                         const std::vector<double> &d) {
@@ -356,6 +356,16 @@ namespace stereo {
 
         // Compute the unrectified position in the right image
         Eigen::Vector2d unrectified_pos = closest_point + peak_x * dir - peak_y * perp;
+
+        if (print) {
+            Eigen::Vector3d epi_line = F * Eigen::Vector3d(cx + offset_x, cy + offset_y, 1.0);
+            double epi_dist = std::abs(epi_line(0) * unrectified_pos(0)
+                                     + epi_line(1) * unrectified_pos(1)
+                                     + epi_line(2))
+                            / std::sqrt(epi_line(0) * epi_line(0)
+                                      + epi_line(1) * epi_line(1));
+            std::cout << "epipolar distance: " << epi_dist << std::endl;
+        }
 
         //std::cout << "unrectified_pos: " << unrectified_pos(0) << " " << unrectified_pos(1) << std::endl;
         p[0] = unrectified_pos(0) - cx;
