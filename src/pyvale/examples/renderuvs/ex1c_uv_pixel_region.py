@@ -18,7 +18,6 @@ import numpy as np
 import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 from pyvale.examples.renderuvs.tools import render_uv_example
@@ -28,7 +27,7 @@ from pyvale.examples.renderuvs.tools import render_uv_example
 # ------------------------------------------------------------
 # The native PyVale CSV loader provides the three dimensional surface mesh.
 # Rotating about its centre makes the hole and exposed side edges legible.
-data_dir = dataset.riley_platehole_csv_case_path()
+data_dir = riley.data.platehole_csv_case_path()
 simulation = io.MeshLoader(
     load_dir=data_dir,
     coords_file="coords.csv",

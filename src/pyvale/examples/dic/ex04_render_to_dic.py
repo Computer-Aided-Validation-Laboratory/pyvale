@@ -35,7 +35,7 @@ ROI_SAFETY_PX = 10
 # The calibration plate used by the Render UV examples is a rectangular target
 # with front, back, and side faces. A face on camera gives it a rectangular
 # image footprint, which lets us define a reproducible ROI without user input.
-data_dir = dataset.riley_stereocal_case_path()
+data_dir = riley.data.stereocal_case_path()
 simulation = io.MeshLoader(
     load_dir=data_dir,
     coords_file="coords.csv",

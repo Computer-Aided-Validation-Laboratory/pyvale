@@ -18,7 +18,6 @@ from pathlib import Path
 import numpy as np
 import riley
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 
@@ -35,7 +34,7 @@ MATCHED_CAM1_POS = (0.067348011198, 0.0175, 0.151193672270)
 # %%
 # 1. Load the moving calibration target and its texture
 # ------------------------------------------------------------
-data_dir = dataset.riley_stereocal_case_path()
+data_dir = riley.data.stereocal_case_path()
 
 simulation = io.SimLoaderByField(
     load_dir=data_dir,
@@ -54,7 +53,7 @@ simulation = io.SimLoaderByField(
 ).load_all_sim_data()
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
-texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.cal_target_texture_path())
 
 shader = riley.TextureShader(uvs=uvs, texture=texture)
 mesh = render.meshes3d_from_simdata(
