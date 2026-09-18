@@ -31,14 +31,13 @@ import numpy as np
 import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 
 # %%
 # 1. Load the mesh and assign a texture shader
 # ------------------------------------------------------------
-data_dir: Path = dataset.riley_sphere200_case_path()
+data_dir: Path = riley.data.sphere200_case_path()
 
 simulation = io.MeshLoader(
     load_dir=data_dir,
@@ -49,7 +48,7 @@ simulation = io.MeshLoader(
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 
-texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.speckle_texture_path())
 
 shader = riley.TextureShader(uvs=uvs, texture=texture)
 
