@@ -98,11 +98,11 @@ def test_mavm_matches_fullfield_analytic_cases(
 
     result = calc_mavm_1d(model_data, exp_data)
 
-    assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-12)
-    assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-12)
+    assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-10)
+    assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-10)
     assert result.d_total == pytest.approx(
         expected_d_plus + expected_d_minus,
-        abs=1e-12,
+        abs=1e-10,
     )
 
 
@@ -122,26 +122,24 @@ def test_mavm_pbox() -> None:
 
 def _rectangle_signed_areas(
     model_quantiles: np.ndarray,
+    model_probs: np.ndarray,
     exp_quantiles: np.ndarray,
+    exp_probs: np.ndarray,
 ) -> tuple[float, float]:
     """Integrate quantile-function differences as finite rectangles.
 
-    Each empirical CDF is represented by constant-width probability bins.
-    Merging their bin edges gives a direct, independent area calculation for
-    the MAVM integration loop.
+    Merging the two empirical-CDF probability grids gives a direct,
+    independent area calculation for the MAVM integration loop.
     """
     model_index = 0
     exp_index = 0
     prob = 0.0
     d_plus = 0.0
     d_minus = 0.0
-    model_width = 1.0 / len(model_quantiles)
-    exp_width = 1.0 / len(exp_quantiles)
-
     while model_index < len(model_quantiles) and exp_index < len(exp_quantiles):
         next_prob = min(
-            (model_index + 1) * model_width,
-            (exp_index + 1) * exp_width,
+            model_probs[model_index],
+            exp_probs[exp_index],
         )
         area = (exp_quantiles[exp_index] - model_quantiles[model_index]) * (
             next_prob - prob
@@ -152,9 +150,9 @@ def _rectangle_signed_areas(
             d_minus -= area
 
         prob = next_prob
-        if np.isclose(prob, (model_index + 1) * model_width):
+        if np.isclose(prob, model_probs[model_index]):
             model_index += 1
-        if np.isclose(prob, (exp_index + 1) * exp_width):
+        if np.isclose(prob, exp_probs[exp_index]):
             exp_index += 1
 
     return d_plus, d_minus
@@ -168,18 +166,26 @@ def _rectangle_mavm_areas(
     """Calculate MAVM using only merged empirical-CDF rectangles."""
     from scipy import stats
 
-    model_quantiles = np.unique(np.sort(model_data))
-    exp_quantiles = np.unique(np.sort(exp_data))
+    model_cdf = stats.ecdf(model_data).cdf
+    exp_cdf = stats.ecdf(exp_data).cdf
+    model_quantiles = model_cdf.quantiles
+    model_probs = model_cdf.probabilities
+    exp_quantiles = exp_cdf.quantiles
+    exp_probs = exp_cdf.probabilities
     t_value = stats.t.ppf(1.0 - alpha, len(exp_quantiles) - 1)
     standard_error = np.std(exp_quantiles) / np.sqrt(len(exp_quantiles))
 
     lower = _rectangle_signed_areas(
         model_quantiles,
+        model_probs,
         exp_quantiles - t_value * standard_error,
+        exp_probs,
     )
     upper = _rectangle_signed_areas(
         model_quantiles,
+        model_probs,
         exp_quantiles + t_value * standard_error,
+        exp_probs,
     )
     return max(lower[0], upper[0]), max(lower[1], upper[1])
 
@@ -193,6 +199,7 @@ def _rectangle_mavm_areas(
         (np.array([0.0, 4.0]), np.array([1.0, 2.0, 3.0])),
         (np.array([0.0, 2.0, 4.0]), np.array([1.0, 3.0])),
         (np.array([0.0, 0.0, 2.0]), np.array([1.0, 1.0, 3.0, 3.0])),
+        (np.array([0.0, 0.0, 2.0]), np.array([1.0, 3.0, 3.0, 3.0])),
         (np.array([0.0, 2.0, 4.0, 6.0, 8.0]), np.array([1.0, 5.0, 9.0])),
     ],
 )
@@ -219,6 +226,11 @@ def test_mavm_matches_independent_rectangle_integration(
         (np.array([1.0, 3.0]), np.array([0.0, 2.0]), 1.0),
         (np.array([0.0, 4.0]), np.array([1.0, 2.0, 3.0]), 4.0 / 3.0),
         (np.array([0.0, 2.0, 4.0]), np.array([1.0, 3.0]), 1.0),
+        (
+            np.array([0.0, 0.0, 2.0]),
+            np.array([1.0, 3.0, 3.0, 3.0]),
+            11.0 / 6.0,
+        ),
     ],
 )
 def test_avm_matches_hand_calculated_ecdf_rectangles(

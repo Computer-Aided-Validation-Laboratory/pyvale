@@ -57,68 +57,40 @@ class MAVMResult:
 def _integrate_mavm_bound(
     f_mod: np.ndarray,
     sn_exp: np.ndarray,
-    p_f: float,
-    p_sn: float,
+    model_probs: np.ndarray,
+    exp_probs: np.ndarray,
     tol: float = 1e-12,
 ) -> tuple[float, float]:
-    """Integrates positive and negative areas between model CDF and exp bound."""
-    n_exp = len(sn_exp)
-    s_mod = len(f_mod)
+    """Integrate signed areas between empirical-CDF quantile functions.
 
+    The merged probability-grid implementation is algebraically equivalent to
+    the corrected fullfieldvalmetrics loop for uniform ECDF steps. It also
+    preserves the correct probability mass when an ECDF contains ties.
+    """
+    model_index = 0
+    exp_index = 0
+    probability = 0.0
     d_plus = 0.0
     d_minus = 0.0
-    d_rem = 0.0
-    ii = 0
 
-    if n_exp > s_mod:
-        for jj in range(s_mod):
-            if abs(d_rem) > tol:
-                d_ii = (sn_exp[ii] - f_mod[jj]) * (p_sn * (ii + 1) - p_f * jj)
-                if d_ii > 0.0:
-                    d_plus += d_ii
-                else:
-                    d_minus += d_ii
-                ii += 1
+    while model_index < len(f_mod) and exp_index < len(sn_exp):
+        next_probability = min(
+            model_probs[model_index],
+            exp_probs[exp_index],
+        )
+        d_area = (sn_exp[exp_index] - f_mod[model_index]) * (
+            next_probability - probability
+        )
+        if d_area > tol:
+            d_plus += d_area
+        elif d_area < -tol:
+            d_minus -= d_area
 
-            while (jj + 1) * p_f > (ii + 1) * p_sn:
-                # Bug fix from paper: step weight is experimental probability
-                d_ii = (sn_exp[ii] - f_mod[jj]) * p_sn
-                if d_ii > tol:
-                    d_plus += d_ii
-                else:
-                    d_minus += d_ii
-                ii += 1
-
-            if ii < n_exp and jj < s_mod:
-                d_rem = (sn_exp[ii] - f_mod[jj]) * (p_f * (jj + 1) - p_sn * ii)
-                if d_rem > 0.0:
-                    d_plus += d_rem
-                else:
-                    d_minus += d_rem
-    else:
-        for jj in range(n_exp):
-            if abs(d_rem) > tol:
-                d_ii = (sn_exp[jj] - f_mod[ii]) * (p_f * (ii + 1) - p_sn * jj)
-                if d_ii > tol:
-                    d_plus += d_ii
-                else:
-                    d_minus += d_ii
-                ii += 1
-
-            while (ii + 1) * p_f < (jj + 1) * p_sn:
-                d_ii = (sn_exp[jj] - f_mod[ii]) * p_f
-                if d_ii > tol:
-                    d_plus += d_ii
-                else:
-                    d_minus += d_ii
-                ii += 1
-
-            if ii < s_mod and jj < n_exp:
-                d_rem = (sn_exp[jj] - f_mod[ii]) * (p_sn * (jj + 1) - p_f * ii)
-                if d_rem > tol:
-                    d_plus += d_rem
-                else:
-                    d_minus += d_rem
+        probability = next_probability
+        if np.isclose(probability, model_probs[model_index]):
+            model_index += 1
+        if np.isclose(probability, exp_probs[exp_index]):
+            exp_index += 1
 
     return d_plus, d_minus
 
@@ -166,7 +138,6 @@ def calc_mavm_1d(
     f_mod_vec = np.array(model_cdf.quantiles, dtype=np.float64)
     sn_exp_vec = np.array(exp_cdf.quantiles, dtype=np.float64)
 
-    s_num_mod = len(f_mod_vec)
     n_num_exp = len(sn_exp_vec)
 
     df = n_num_exp - 1
@@ -176,14 +147,14 @@ def calc_mavm_1d(
     sn_conf_lower = sn_exp_vec - t_val * se
     sn_conf_upper = sn_exp_vec + t_val * se
 
-    p_f_mod = 1.0 / s_num_mod
-    p_sn_exp = 1.0 / n_num_exp
+    model_probs = np.array(model_cdf.probabilities, dtype=np.float64)
+    exp_probs = np.array(exp_cdf.probabilities, dtype=np.float64)
 
     lower_plus, lower_minus = _integrate_mavm_bound(
-        f_mod_vec, sn_conf_lower, p_f_mod, p_sn_exp, tol
+        f_mod_vec, sn_conf_lower, model_probs, exp_probs, tol
     )
     upper_plus, upper_minus = _integrate_mavm_bound(
-        f_mod_vec, sn_conf_upper, p_f_mod, p_sn_exp, tol
+        f_mod_vec, sn_conf_upper, model_probs, exp_probs, tol
     )
 
     d_plus = float(max(abs(lower_plus), abs(upper_plus)))
@@ -195,9 +166,9 @@ def calc_mavm_1d(
         d_minus=d_minus,
         d_total=d_total,
         model_quantiles=f_mod_vec,
-        model_probs=np.array(model_cdf.probabilities, dtype=np.float64),
+        model_probs=model_probs,
         exp_quantiles=sn_exp_vec,
-        exp_probs=np.array(exp_cdf.probabilities, dtype=np.float64),
+        exp_probs=exp_probs,
         exp_conf_lower=sn_conf_lower,
         exp_conf_upper=sn_conf_upper,
         alpha=alpha,
