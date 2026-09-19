@@ -11,8 +11,6 @@ thermocouple measurements (across multiple test pulses) against probabilistic
 finite element thermal simulations using the Modified Area Validation Metric.
 """
 
-from pathlib import Path
-import matplotlib.pyplot as plt
 import numpy as np
 
 import pyvale.data as dataset
@@ -73,6 +71,7 @@ def main() -> None:
         sim_data=sim_val_data,
         exp_data=exp_val_data,
         alpha=0.05,
+        mode=val.EMAVMMode.ROBUST,
     )
 
     print(80 * "=")
@@ -83,13 +82,12 @@ def main() -> None:
     print(80 * "-")
     for lbl, res in mavm_results.items():
         print(
-            f"{lbl:<10} {res.d_plus:<15.3f} {res.d_minus:<15.3f} "
-            f"{res.d_total:<15.3f}"
+            f"{lbl:<10} {res.d_plus:<15.3f} {res.d_minus:<15.3f} {res.d_total:<15.3f}"
         )
     print(80 * "=")
 
     # 4. Plot individual MAVM CDF comparison for TC3
-    fig_cdf, ax_cdf = val.plot_mavm_cdf_1d(
+    fig_cdf, _ = val.plot_mavm_cdf_1d(
         mavm_results["TC3"],
         title="Thermocouple TC3 MAVM Validation",
         unit=r"^\circ\text{C}",
@@ -97,7 +95,7 @@ def main() -> None:
     fig_cdf.savefig("ex4_mavm_tc3_cdf.png", dpi=200)
 
     # 5. Plot summary bar chart across all thermocouples
-    fig_bar, ax_bar = val.plot_mavm_summary_bars(
+    fig_bar, _ = val.plot_mavm_summary_bars(
         mavm_results,
         title="Thermocouple Point Sensors: MAVM Validation Summary",
         unit=r"^\circ\text{C}",

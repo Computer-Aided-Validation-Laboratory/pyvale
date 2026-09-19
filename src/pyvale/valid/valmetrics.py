@@ -14,6 +14,8 @@ from scipy import stats
 from scipy.interpolate import griddata
 import pyvale
 
+from pyvale.valid.constants import MAVM_AREA_TOLERANCE
+
 #-------------------------------------------------------------------------------
 # pyvale generic exp data reader, need to merge into pyvale main
 
@@ -728,7 +730,7 @@ def mavm(model_data: np.ndarray,
     d_conf_plus: list = []
     d_conf_minus: list = []
 
-    tol = 1e-12
+    tol = MAVM_AREA_TOLERANCE
 
 
 
@@ -1089,5 +1091,4 @@ def plot_mavm_map(mavm_d_plus: np.ndarray,
     else:
         image_path = save_path/f"mavm_map_{field_str}{ax_str}.png"
     fig.savefig(image_path,dpi=300,format="png",bbox_inches="tight")
-
 

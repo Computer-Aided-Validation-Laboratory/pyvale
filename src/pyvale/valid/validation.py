@@ -9,12 +9,13 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
 import numpy as np
 import pandas as pd
-from scipy import stats
 
 from pyvale.dataio.expdata import ExpData
 from pyvale.valid.metrics import (
+    EMAVMMode,
     MAVMResult,
     calc_mavm_1d,
     calc_mavm_pbox_1d,
@@ -34,19 +35,13 @@ class PointValData:
     val_points: dict[str, np.ndarray] = field(default_factory=dict)
     """Dictionary mapping array key to measurement data array."""
 
-    epistemic_intervals: dict[str, np.ndarray | None] = field(
-        default_factory=dict
-    )
+    epistemic_intervals: dict[str, np.ndarray | None] = field(default_factory=dict)
     """Optional epistemic parameter interval bounds."""
 
-    val_label_to_ind: dict[tuple[str, str], int] = field(
-        default_factory=dict
-    )
+    val_label_to_ind: dict[tuple[str, str], int] = field(default_factory=dict)
     """Mapping of (array_key, sensor_label) to row index."""
 
-    ind_to_val_label: dict[tuple[str, int], str] = field(
-        default_factory=dict
-    )
+    ind_to_val_label: dict[tuple[str, int], str] = field(default_factory=dict)
     """Mapping of (array_key, row_index) to sensor label."""
 
     coords: dict[str, np.ndarray | None] = field(default_factory=dict)
@@ -219,7 +214,7 @@ def calc_limit_cdfs_point(
         rightmost CDF.
     """
     data = val_data.val_points[array_key]
-    n_sensors, n_epistemic, _ = data.shape
+    n_sensors, _, _ = data.shape
 
     results = {}
     for s_idx in range(n_sensors):
@@ -240,6 +235,7 @@ def calc_mavm_point(
     exp_data: PointValData,
     alpha: float = 0.05,
     sim_key: str = "sim",
+    mode: EMAVMMode = EMAVMMode.DEFAULT,
 ) -> dict[str, MAVMResult]:
     """Calculates MAVM between simulation and experimental point sensor
     datasets.
@@ -257,6 +253,8 @@ def calc_mavm_point(
         Significance level (default 0.05).
     sim_key : str, optional
         Simulation array key.
+    mode : EMAVMMode, optional
+        MAVM empirical-CDF integration algorithm.
 
     Returns
     -------
@@ -286,6 +284,7 @@ def calc_mavm_point(
                 sim_max,
                 exp_samples,
                 alpha=alpha,
+                mode=mode,
             )
         else:
             sim_samples = sim_arr[sim_row, :].ravel()
@@ -293,6 +292,7 @@ def calc_mavm_point(
                 sim_samples,
                 exp_samples,
                 alpha=alpha,
+                mode=mode,
             )
 
         results[exp_lbl] = res

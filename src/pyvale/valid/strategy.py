@@ -8,15 +8,18 @@
 
 from abc import ABC, abstractmethod
 from typing import Any
+
 import numpy as np
 
+from pyvale.valid.constants import MAVM_AREA_TOLERANCE
 from pyvale.valid.metrics import (
+    EMAVMMode,
     MAVMResult,
-    calc_mavm_1d,
     calc_avm_1d,
-    calc_ks_1d,
     calc_cvm_1d,
     calc_deterministic_metrics_1d,
+    calc_ks_1d,
+    calc_mavm_1d,
 )
 
 
@@ -48,10 +51,16 @@ class IValMetric(ABC):
 class MetricMAVM(IValMetric):
     """Modified Area Validation Metric (MAVM) strategy."""
 
-    __slots__ = ("_alpha", "_tol")
+    __slots__ = ("_alpha", "_mode", "_tol")
 
-    def __init__(self, alpha: float = 0.05, tol: float = 1e-12) -> None:
+    def __init__(
+        self,
+        alpha: float = 0.05,
+        mode: EMAVMMode = EMAVMMode.DEFAULT,
+        tol: float = MAVM_AREA_TOLERANCE,
+    ) -> None:
         self._alpha = alpha
+        self._mode = mode
         self._tol = tol
 
     def calc(
@@ -63,6 +72,7 @@ class MetricMAVM(IValMetric):
             model_data=model_data,
             exp_data=exp_data,
             alpha=self._alpha,
+            mode=self._mode,
             tol=self._tol,
         )
 

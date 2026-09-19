@@ -7,6 +7,7 @@
 """Pyvale model validation metrics and analysis module."""
 
 from pyvale.valid.metrics import (
+    EMAVMMode,
     MAVMResult,
     calc_mavm_1d,
     calc_mavm_pbox_1d,
@@ -15,6 +16,12 @@ from pyvale.valid.metrics import (
     calc_cvm_1d,
     calc_u_pooling_1d,
     calc_deterministic_metrics_1d,
+)
+from pyvale.valid.constants import (
+    MAVM_AREA_TOLERANCE,
+    MAVM_DUPLICATE_TOLERANCE,
+    MAVM_PROBABILITY_TOLERANCE,
+    METRIC_ZERO_TOLERANCE,
 )
 from pyvale.valid.strategy import (
     IValMetric,

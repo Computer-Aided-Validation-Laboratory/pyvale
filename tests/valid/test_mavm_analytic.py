@@ -15,7 +15,12 @@ NumPy random seed because the source script leaves its random input unseeded.
 import numpy as np
 import pytest
 
-from pyvale.valid.metrics import calc_mavm_1d, calc_mavm_pbox_1d
+from pyvale.valid.constants import MAVM_DUPLICATE_TOLERANCE
+from pyvale.valid.metrics import (
+    EMAVMMode,
+    calc_mavm_1d,
+    calc_mavm_pbox_1d,
+)
 
 
 def _reference_cases() -> dict[str, tuple[np.ndarray, np.ndarray]]:
@@ -96,7 +101,11 @@ def test_mavm_matches_fullfield_analytic_cases(
     """Match fullfieldvalmetrics MAVM values to floating-point tolerance."""
     model_data, exp_data = _reference_cases()[case_name]
 
-    result = calc_mavm_1d(model_data, exp_data)
+    result = calc_mavm_1d(
+        model_data,
+        exp_data,
+        mode=EMAVMMode.ROBUST,
+    )
 
     assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-10)
     assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-10)
@@ -106,14 +115,51 @@ def test_mavm_matches_fullfield_analytic_cases(
     )
 
 
-def test_mavm_pbox() -> None:
-    """Epistemic p-box calculation evaluates outer envelope bounds."""
+@pytest.mark.parametrize(
+    ("case_name", "expected_d_plus", "expected_d_minus"),
+    [
+        ("test01", 0.0, 4.315570153994818),
+        ("test02", 6.232248255376777, 0.0),
+        ("test03", 1.315570153994818, 1.315570153994818),
+        ("test04", 0.0, 3.815570153994818),
+        ("test05", 4.87649440322337, 0.0),
+        ("test06", 1.315570153994818, 1.315570153994818),
+        ("test07", 2806.765551246437, 304.34465910224606),
+    ],
+)
+def test_mavm_default_matches_unique_fullfield_analytic_cases(
+    case_name: str,
+    expected_d_plus: float,
+    expected_d_minus: float,
+) -> None:
+    """DEFAULT matches the fullfield loop for every unique-value case."""
+    model_data, exp_data = _reference_cases()[case_name]
+
+    result = calc_mavm_1d(
+        model_data,
+        exp_data,
+        mode=EMAVMMode.DEFAULT,
+    )
+
+    assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-10)
+    assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-10)
+
+
+@pytest.mark.parametrize("mode", [EMAVMMode.DEFAULT, EMAVMMode.ROBUST])
+def test_mavm_pbox(mode: EMAVMMode) -> None:
+    """Both MAVM modes evaluate outer epistemic p-box bounds."""
     rng = np.random.default_rng(123)
     exp_data = rng.normal(loc=50.0, scale=2.0, size=100)
     sim_min = rng.normal(loc=45.0, scale=2.0, size=200)
     sim_max = rng.normal(loc=55.0, scale=2.0, size=200)
 
-    result = calc_mavm_pbox_1d(sim_min, sim_max, exp_data, alpha=0.05)
+    result = calc_mavm_pbox_1d(
+        sim_min,
+        sim_max,
+        exp_data,
+        alpha=0.05,
+        mode=mode,
+    )
 
     assert result.d_plus > 0.0
     assert result.d_minus > 0.0
@@ -213,10 +259,44 @@ def test_mavm_matches_independent_rectangle_integration(
         exp_data,
     )
 
-    result = calc_mavm_1d(model_data, exp_data)
+    result = calc_mavm_1d(
+        model_data,
+        exp_data,
+        mode=EMAVMMode.ROBUST,
+    )
 
     assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-12)
     assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-12)
+
+
+def test_mavm_default_rejects_near_duplicate_model_data() -> None:
+    """DEFAULT directs near-duplicate input to the robust implementation."""
+    model_data = np.array(
+        [0.0, MAVM_DUPLICATE_TOLERANCE / 2.0, 2.0],
+        dtype=np.float64,
+    )
+    exp_data = np.array([0.5, 1.5, 2.5], dtype=np.float64)
+
+    with pytest.raises(
+        ValueError,
+        match=r"DEFAULT MAVM mode requires unique model observations.*ROBUST",
+    ):
+        calc_mavm_1d(model_data, exp_data, mode=EMAVMMode.DEFAULT)
+
+
+def test_mavm_default_rejects_near_duplicate_experimental_data() -> None:
+    """DEFAULT names experimental data when it contains near duplicates."""
+    model_data = np.array([0.0, 1.0, 2.0], dtype=np.float64)
+    exp_data = np.array(
+        [0.5, 0.5 + MAVM_DUPLICATE_TOLERANCE / 2.0, 2.5],
+        dtype=np.float64,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"DEFAULT MAVM mode requires unique experimental observations.*ROBUST",
+    ):
+        calc_mavm_1d(model_data, exp_data, mode=EMAVMMode.DEFAULT)
 
 
 @pytest.mark.parametrize(

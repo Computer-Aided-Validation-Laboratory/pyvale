@@ -6,7 +6,6 @@
 
 """Tests for validation data I/O and PointValData batch calculations."""
 
-from pathlib import Path
 import numpy as np
 import pytest
 
@@ -113,10 +112,15 @@ def test_load_prob_sim_csv_and_calc_mavm_point() -> None:
     exp_data = io.load_exp_data(exp_loaders)
     exp_val_data = val.extract_val_data_by_key(exp_data)
 
-    mavm_results = val.calc_mavm_point(sim_val_data, exp_val_data, alpha=0.05)
+    mavm_results = val.calc_mavm_point(
+        sim_val_data,
+        exp_val_data,
+        alpha=0.05,
+        mode=val.EMAVMMode.ROBUST,
+    )
 
     assert "TC2" in mavm_results
     assert "TC3" in mavm_results
     assert "TC5" in mavm_results
-    for lbl, res in mavm_results.items():
+    for res in mavm_results.values():
         assert res.d_total >= 0.0
