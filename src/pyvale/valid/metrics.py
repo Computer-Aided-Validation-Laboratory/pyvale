@@ -12,6 +12,7 @@ U-pooling, and deterministic error metrics.
 """
 
 from dataclasses import dataclass
+
 import numpy as np
 from scipy import stats
 
@@ -23,10 +24,10 @@ class MAVMResult:
     """
 
     d_plus: float
-    """Positive mismatch area (model exceeds upper experimental bound)."""
+    """Positive support-shift mismatch area, matching fullfieldvalmetrics."""
 
     d_minus: float
-    """Negative mismatch area (model falls below lower experimental bound)."""
+    """Negative support-shift mismatch area, matching fullfieldvalmetrics."""
 
     d_total: float
     """Total mismatch distance (d_plus + d_minus)."""
@@ -60,8 +61,7 @@ def _integrate_mavm_bound(
     p_sn: float,
     tol: float = 1e-12,
 ) -> tuple[float, float]:
-    """Integrates positive and negative areas between model CDF and exp bound.
-    """
+    """Integrates positive and negative areas between model CDF and exp bound."""
     n_exp = len(sn_exp)
     s_mod = len(f_mod)
 
@@ -73,9 +73,7 @@ def _integrate_mavm_bound(
     if n_exp > s_mod:
         for jj in range(s_mod):
             if abs(d_rem) > tol:
-                d_ii = (sn_exp[ii] - f_mod[jj]) * (
-                    p_sn * (ii + 1) - p_f * jj
-                )
+                d_ii = (sn_exp[ii] - f_mod[jj]) * (p_sn * (ii + 1) - p_f * jj)
                 if d_ii > 0.0:
                     d_plus += d_ii
                 else:
@@ -85,16 +83,14 @@ def _integrate_mavm_bound(
             while (jj + 1) * p_f > (ii + 1) * p_sn:
                 # Bug fix from paper: step weight is experimental probability
                 d_ii = (sn_exp[ii] - f_mod[jj]) * p_sn
-                if d_ii > 0.0:
+                if d_ii > tol:
                     d_plus += d_ii
                 else:
                     d_minus += d_ii
                 ii += 1
 
             if ii < n_exp and jj < s_mod:
-                d_rem = (sn_exp[ii] - f_mod[jj]) * (
-                    p_f * (jj + 1) - p_sn * ii
-                )
+                d_rem = (sn_exp[ii] - f_mod[jj]) * (p_f * (jj + 1) - p_sn * ii)
                 if d_rem > 0.0:
                     d_plus += d_rem
                 else:
@@ -102,10 +98,8 @@ def _integrate_mavm_bound(
     else:
         for jj in range(n_exp):
             if abs(d_rem) > tol:
-                d_ii = (sn_exp[jj] - f_mod[ii]) * (
-                    p_f * (ii + 1) - p_sn * jj
-                )
-                if d_ii > 0.0:
+                d_ii = (sn_exp[jj] - f_mod[ii]) * (p_f * (ii + 1) - p_sn * jj)
+                if d_ii > tol:
                     d_plus += d_ii
                 else:
                     d_minus += d_ii
@@ -113,17 +107,15 @@ def _integrate_mavm_bound(
 
             while (ii + 1) * p_f < (jj + 1) * p_sn:
                 d_ii = (sn_exp[jj] - f_mod[ii]) * p_f
-                if d_ii > 0.0:
+                if d_ii > tol:
                     d_plus += d_ii
                 else:
                     d_minus += d_ii
                 ii += 1
 
             if ii < s_mod and jj < n_exp:
-                d_rem = (sn_exp[jj] - f_mod[ii]) * (
-                    p_sn * (jj + 1) - p_f * ii
-                )
-                if d_rem > 0.0:
+                d_rem = (sn_exp[jj] - f_mod[ii]) * (p_sn * (jj + 1) - p_f * ii)
+                if d_rem > tol:
                     d_plus += d_rem
                 else:
                     d_minus += d_rem
@@ -139,8 +131,9 @@ def calc_mavm_1d(
 ) -> MAVMResult:
     """Calculates the Modified Area Validation Metric (MAVM) between 1D arrays.
 
-    Implements the area metric with Student's t confidence bounds on the
-    experimental empirical CDF (Whiting et al., 2023).
+    Implements the corrected fullfieldvalmetrics MAVM algorithm, including
+    its fixed unequal-sample probability step. The result values match the
+    established fullfield validation workflow.
 
     Parameters
     ----------
@@ -178,11 +171,7 @@ def calc_mavm_1d(
 
     df = n_num_exp - 1
     t_val = stats.t.ppf(1.0 - alpha, df) if df >= 1 else 0.0
-    se = (
-        np.nanstd(sn_exp_vec, ddof=1) / np.sqrt(n_num_exp)
-        if n_num_exp > 1
-        else 0.0
-    )
+    se = np.nanstd(sn_exp_vec) / np.sqrt(n_num_exp)
 
     sn_conf_lower = sn_exp_vec - t_val * se
     sn_conf_upper = sn_exp_vec + t_val * se
@@ -190,17 +179,15 @@ def calc_mavm_1d(
     p_f_mod = 1.0 / s_num_mod
     p_sn_exp = 1.0 / n_num_exp
 
-    # d+ is area where model exceeds upper exp bound
-    _, dm_upper = _integrate_mavm_bound(
-        f_mod_vec, sn_conf_upper, p_f_mod, p_sn_exp, tol
-    )
-    # d- is area where model falls below lower exp bound
-    dp_lower, _ = _integrate_mavm_bound(
+    lower_plus, lower_minus = _integrate_mavm_bound(
         f_mod_vec, sn_conf_lower, p_f_mod, p_sn_exp, tol
     )
+    upper_plus, upper_minus = _integrate_mavm_bound(
+        f_mod_vec, sn_conf_upper, p_f_mod, p_sn_exp, tol
+    )
 
-    d_plus = float(max(0.0, abs(dm_upper)))
-    d_minus = float(max(0.0, dp_lower))
+    d_plus = float(max(abs(lower_plus), abs(upper_plus)))
+    d_minus = float(max(abs(lower_minus), abs(upper_minus)))
     d_total = d_plus + d_minus
 
     return MAVMResult(
@@ -248,8 +235,8 @@ def calc_mavm_pbox_1d(
     res_min = calc_mavm_1d(model_pbox_min, exp_data, alpha=alpha, tol=tol)
     res_max = calc_mavm_1d(model_pbox_max, exp_data, alpha=alpha, tol=tol)
 
-    d_plus = res_max.d_plus
-    d_minus = res_min.d_minus
+    d_plus = res_min.d_plus
+    d_minus = res_max.d_minus
 
     return MAVMResult(
         d_plus=d_plus,
@@ -401,11 +388,7 @@ def calc_deterministic_metrics_1d(
         denom = abs(exp_mean) if abs(exp_mean) > 1e-12 else 1.0
         rel_err = abs_err / denom
         var_exp = float(np.var(exp_arr))
-        nmse = (
-            float((abs_err**2) / var_exp)
-            if var_exp > 1e-12
-            else float(abs_err**2)
-        )
+        nmse = float((abs_err**2) / var_exp) if var_exp > 1e-12 else float(abs_err**2)
         return {
             "absolute_error": abs_err,
             "relative_error": rel_err,
