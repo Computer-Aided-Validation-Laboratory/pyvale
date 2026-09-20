@@ -3,6 +3,7 @@
 # License: MIT
 # Copyright (C) 2024 The Computer Aided Validation Team
 # ==============================================================================
+
 from typing import Any
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,8 +14,6 @@ import pandas as pd
 from scipy import stats
 from scipy.interpolate import griddata
 import pyvale
-
-from pyvale.valid.constants import MAVM_AREA_TOLERANCE
 
 #-------------------------------------------------------------------------------
 # pyvale generic exp data reader, need to merge into pyvale main
@@ -99,8 +98,8 @@ def load_exp_data(data_path: Path,
     csv_files.pop(0)
 
     if load_opts.threads_num is not None:
-        assert load_opts.threads_num > 0, (
-            "Number of threads must be greater than 0.")
+        assert load_opts.threads_num > 0, ("Number of threads must be greater 
+            + "than 0.")
 
         with Pool(load_opts.threads_num) as pool:
             processes_with_id = []
@@ -730,7 +729,7 @@ def mavm(model_data: np.ndarray,
     d_conf_plus: list = []
     d_conf_minus: list = []
 
-    tol = MAVM_AREA_TOLERANCE
+    tol = 1e-12
 
 
 
@@ -1091,4 +1090,5 @@ def plot_mavm_map(mavm_d_plus: np.ndarray,
     else:
         image_path = save_path/f"mavm_map_{field_str}{ax_str}.png"
     fig.savefig(image_path,dpi=300,format="png",bbox_inches="tight")
+
 
