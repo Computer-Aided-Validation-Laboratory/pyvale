@@ -17,6 +17,10 @@ from pyvale.valid.metrics import (
     calc_u_pooling_1d,
     calc_deterministic_metrics_1d,
 )
+from pyvale.valid.cython import (
+    cyth_calc_mavm_1d,
+    cyth_calc_mavm_pbox_1d,
+)
 from pyvale.valid.constants import (
     MAVM_AREA_TOLERANCE,
     MAVM_DUPLICATE_TOLERANCE,
@@ -29,8 +33,8 @@ from pyvale.valid.strategy import (
     MetricAVM,
     MetricKS,
     MetricCVM,
-    MetricRMSE,
     MetricRelativeError,
+    MetricRMSE,
 )
 from pyvale.valid.validation import (
     PointValData,
