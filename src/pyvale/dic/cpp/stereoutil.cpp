@@ -106,6 +106,21 @@ namespace stereo {
                 stereo_def.v_world[ss] = 0.0;
                 stereo_def.w_world[ss] = 0.0;
             }
+            else if (!stereo_ref.above_thresh[ss]
+                     || !std::isfinite(stereo_ref.x_world[ss])
+                     || !std::isfinite(stereo_ref.y_world[ss])
+                     || !std::isfinite(stereo_ref.z_world[ss])
+                     || !std::isfinite(stereo_ref.u_world[ss])
+                     || !std::isfinite(stereo_ref.v_world[ss])
+                     || !std::isfinite(stereo_ref.w_world[ss])) {
+                // A point which was not reconstructed in the reference frame
+                // has no valid displacement datum. Do not interpret its current
+                // absolute world position as displacement from a zero origin.
+                stereo_def.u_world[ss] = NAN;
+                stereo_def.v_world[ss] = NAN;
+                stereo_def.w_world[ss] = NAN;
+                stereo_def.above_thresh[ss] = false;
+            }
             else {
                 // compute delta relative to the provided stereo_ref world coords
                 // and add any previously-accumulated world displacement stored in

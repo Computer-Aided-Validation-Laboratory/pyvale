@@ -6,6 +6,7 @@
 
 from pathlib import Path
 from typing import Literal
+import numpy as np
 
 # pyvale
 from pyvale.strain.strainresults import StrainResults
@@ -128,9 +129,18 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
     if dicresults.stereo is None:
         raise ValueError("3D strain calculation requires DIC Results with stereo data.")
 
-    x_mm = dicresults.stereo.x_mm
-    y_mm = dicresults.stereo.y_mm
-    z_mm = dicresults.stereo.z_mm
+    # The C++ backend indexes these arrays through raw pointers, so every input
+    # must have a dense C-order layout. In particular, a field obtained as a
+    # column view (for example ``data[:, 13]``) is strided and would otherwise
+    # make the backend read adjacent result columns instead of successive points.
+    ss_x = np.ascontiguousarray(dicresults.ss_x, dtype=np.int32)
+    ss_y = np.ascontiguousarray(dicresults.ss_y, dtype=np.int32)
+    x_mm = np.ascontiguousarray(dicresults.stereo.x_mm, dtype=np.float64)
+    y_mm = np.ascontiguousarray(dicresults.stereo.y_mm, dtype=np.float64)
+    z_mm = np.ascontiguousarray(dicresults.stereo.z_mm, dtype=np.float64)
+    u_mm = np.ascontiguousarray(dicresults.stereo.u_mm, dtype=np.float64)
+    v_mm = np.ascontiguousarray(dicresults.stereo.v_mm, dtype=np.float64)
+    w_mm = np.ascontiguousarray(dicresults.stereo.w_mm, dtype=np.float64)
 
     #set the number of OMP threads
     if num_threads is not None:
@@ -151,9 +161,9 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
 
     # Call to C++ backend
     with strain_cpp.ostream_redirect(stdout=True, stderr=True):
-        strain_cpp.strain_engine_3d(dicresults.ss_x, dicresults.ss_y,
+        strain_cpp.strain_engine_3d(ss_x, ss_y,
                                  x_mm, y_mm, z_mm,
-                                 dicresults.stereo.u_mm, dicresults.stereo.v_mm, dicresults.stereo.w_mm,
+                                 u_mm, v_mm, w_mm,
                                  nss_x, nss_y, nimg,
                                  window_size, window_element, 
                                  strain_formulation, filenames,
