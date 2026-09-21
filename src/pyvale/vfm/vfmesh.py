@@ -322,8 +322,12 @@ def _generate_vf_mesh_nodal_coord(
     data_mesh_nodal_coord_x_1d = data_mesh.nodal_coord_x[0, :]
     data_mesh_nodal_coord_y_1d = data_mesh.nodal_coord_y[:, 0]
 
-    mean_data_dx = np.nanmean(np.diff(data_mesh_nodal_coord_x_1d,axis=0))
-    mean_data_dy = np.nanmean(np.diff(data_mesh_nodal_coord_y_1d,axis=0))
+    mean_data_dx = np.nanmean(
+        np.abs(np.diff(data_mesh_nodal_coord_x_1d, axis=0))
+    )
+    mean_data_dy = np.nanmean(
+        np.abs(np.diff(data_mesh_nodal_coord_y_1d, axis=0))
+    )
 
     # Initialise vf mesh nodal coord by linearly spacing along specimen dimensions, ensuring one on each edge
     vf_mesh_nodal_coord_y_1d=np.linspace(data_mesh_nodal_coord_y_1d[0],data_mesh_nodal_coord_y_1d[-1],mesh_size[0]+1)
@@ -355,7 +359,16 @@ def _generate_vf_mesh_nodal_coord(
     closest_x_idx = np.argmin(x_distances, axis=1)
 
     # Check max x distance is less than half the mean data mesh spacing (just ensures virtual nodes lie within data region)
-    if np.any(x_distances_closest > 0.5 * mean_data_dx):
+    coordinate_scale_x = max(
+        1.0,
+        float(np.nanmax(np.abs(data_mesh_nodal_coord_x_1d))),
+    )
+    rounding_tolerance_x = (
+        32.0 * np.finfo(np.float64).eps * coordinate_scale_x
+    )
+    if np.any(
+        x_distances_closest > 0.5 * mean_data_dx + rounding_tolerance_x
+    ):
         raise ValueError(
             "mesh_size is too coarse in the x direction: some virtual nodes are more than half a data-mesh spacing away from the closest data-mesh node."
         )
@@ -386,7 +399,16 @@ def _generate_vf_mesh_nodal_coord(
     closest_y_idx = np.argmin(y_distances, axis=1)
 
     # Check max y distance is less than half the mean data mesh spacing (just ensures virtual nodes lie within data region)
-    if np.any(y_distances_closest > 0.5 * mean_data_dy):
+    coordinate_scale_y = max(
+        1.0,
+        float(np.nanmax(np.abs(data_mesh_nodal_coord_y_1d))),
+    )
+    rounding_tolerance_y = (
+        32.0 * np.finfo(np.float64).eps * coordinate_scale_y
+    )
+    if np.any(
+        y_distances_closest > 0.5 * mean_data_dy + rounding_tolerance_y
+    ):
         raise ValueError(
             "mesh_size is too coarse in the y direction: some virtual nodes are more than half a data-mesh spacing away from the closest data-mesh node."
         )
