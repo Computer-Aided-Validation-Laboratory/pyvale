@@ -22,6 +22,7 @@ from pyvale.vfm.measurementnoise import (
 from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.metricsbvf import MetricSBVF
 from pyvale.vfm.objectivefunc import IScalarObjectiveFunction
 from pyvale.vfm.objectivefuncsensitivitygated import (
     SensitivityGatedEgiObjective,
@@ -69,6 +70,7 @@ class GuardedEgiPrimaryConfig:
     positive_activity_floor: float = 1.0e-6
     run_identifier: str = ""
     candidate_log_path: str | None = None
+    sbvf_guard_relative_limit: float | None = None
 
     def __post_init__(self) -> None:
         if not np.isfinite(self.fine_noise_scale) or self.fine_noise_scale <= 0.0:
@@ -77,6 +79,14 @@ class GuardedEgiPrimaryConfig:
             raise ValueError("broad_noise_scale must be finite and positive.")
         if not np.isclose(self.guard_relaxation, 0.10, rtol=0.0, atol=1.0e-15):
             raise ValueError("guard_relaxation is provisionally fixed at 0.10.")
+        if (
+            self.sbvf_guard_relative_limit is not None
+            and (
+                not np.isfinite(self.sbvf_guard_relative_limit)
+                or self.sbvf_guard_relative_limit < 1.0
+            )
+        ):
+            raise ValueError("sbvf_guard_relative_limit must be finite and at least 1.")
 
 
 @dataclass(slots=True, frozen=True)
@@ -88,6 +98,8 @@ class GuardedEgiPrimaryResult:
     broad_unmasked_guard_value: float | None
     feasible: bool
     rejection_reason: str
+    sbvf_guard_value: float | None = None
+    sbvf_guard_ratio: float | None = None
 
 
 class CandidateAuditRecorder:
@@ -130,6 +142,7 @@ class CandidateAuditRecorder:
         total = len(records)
         fre_rejected = sum(row["rejection_reason"] == "FRE" for row in records)
         broad_rejected = sum(row["rejection_reason"] == "BROAD" for row in records)
+        sbvf_rejected = sum(row["rejection_reason"] == "SBVF" for row in records)
         feasible = sum(row["rejection_reason"] == "NONE" for row in records)
         reached_broad = total - fre_rejected
         reached_fine = feasible
@@ -140,6 +153,8 @@ class CandidateAuditRecorder:
             "rejected_at_fre_fraction": fraction(fre_rejected),
             "rejected_at_broad": broad_rejected,
             "rejected_at_broad_fraction": fraction(broad_rejected),
+            "rejected_at_sbvf": sbvf_rejected,
+            "rejected_at_sbvf_fraction": fraction(sbvf_rejected),
             "reaching_fine_egi": reached_fine,
             "reaching_fine_egi_fraction": fraction(reached_fine),
             "fully_feasible": feasible,
@@ -147,6 +162,7 @@ class CandidateAuditRecorder:
             "total_stress_time_seconds": float(sum(float(row["stress_reconstruction_time_seconds"]) for row in records)),
             "total_fre_time_seconds": float(sum(float(row["fre_evaluation_time_seconds"]) for row in records)),
             "total_broad_egi_time_seconds": float(sum(float(row["broad_egi_evaluation_time_seconds"] or 0.0) for row in records)),
+            "total_sbvf_time_seconds": float(sum(float(row.get("sbvf_evaluation_time_seconds") or 0.0) for row in records)),
             "total_fine_egi_time_seconds": float(sum(float(row["fine_egi_evaluation_time_seconds"] or 0.0) for row in records)),
             "broad_egi_evaluations_avoided": fre_rejected,
             "fine_egi_evaluations_avoided": fre_rejected + broad_rejected,
@@ -195,6 +211,7 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
         self._fine_layout: CanonicalResidualLayout | None = None
         self._broad_gated_layout: CanonicalResidualLayout | None = None
         self._broad_guard_layout: CanonicalResidualLayout | None = None
+        self._sbvf_reference: float | None = None
         self._fre_reference: GuardReference | None = None
         self._broad_reference: GuardReference | None = None
         self._best_accepted_fre: float | None = None
@@ -243,8 +260,12 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
         if gate is None:
             raise RuntimeError("Sensitivity gate preparation produced no weights.")
         parent_results = context.parent_metric_results
-        if len(parent_results) != 3:
-            raise ValueError("guarded_egi_primary requires parent results ordered FRE, fine, broad.")
+        expected = 4 if self.config.sbvf_guard_relative_limit is not None else 3
+        if len(parent_results) != expected:
+            raise ValueError(
+                "guarded_egi_primary requires parent results ordered FRE, fine, "
+                "broad" + (", SBVF." if expected == 4 else ".")
+            )
         timestep_count = context.experiment_data.strain.shape[0]
         regimes = resolve_load_regimes(np.zeros(timestep_count))
         fre_temporal = _temporal_weights(parent_results[0], timestep_count)
@@ -295,6 +316,12 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
             self.config.guard_relaxation,
             best_accepted=self._best_accepted_broad,
         )
+        if self.config.sbvf_guard_relative_limit is not None:
+            sbvf_parent = _sbvf_rms(parent_results[3])
+            if self._sbvf_reference is None:
+                if not np.isfinite(sbvf_parent) or sbvf_parent <= 0.0:
+                    raise ValueError("Phase-0 SBVF reference must be finite and positive.")
+                self._sbvf_reference = sbvf_parent
         self._prepared_solve = context.solve_iteration
         self._last_fre_diagnostics = None
         self._recorder.start_solve(context.solve_iteration + 1)
@@ -312,6 +339,7 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
             "guard_relaxation": self.config.guard_relaxation,
             "fre_guard": asdict(self._fre_reference),
             "broad_unmasked_guard": asdict(self._broad_reference),
+            "sbvf_guard": self._sbvf_guard_diagnostics(),
             "measurement_noise_floor": floor_diagnostics,
             "sensitivity_gate": gate_diagnostics,
         }
@@ -443,6 +471,30 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
             self._recorder.append(record)
             return np.inf
 
+        if self.config.sbvf_guard_relative_limit is not None:
+            started = time.perf_counter()
+            sbvf_result = metrics[3].evaluate(
+                stress, constitutive_law, parameter_map_size,
+                spatial_parameterisations, experiment_data,
+            )
+            record["sbvf_evaluation_time_seconds"] = time.perf_counter() - started
+            sbvf_value = _sbvf_rms(sbvf_result)
+            reference = self._require_sbvf_reference()
+            sbvf_ratio = sbvf_value / reference
+            record["sbvf_value"] = sbvf_value
+            record["sbvf_ratio"] = sbvf_ratio
+            record["sbvf_passed"] = _passes_limit(
+                sbvf_ratio, float(self.config.sbvf_guard_relative_limit)
+            )
+            if not record["sbvf_passed"]:
+                record["rejection_reason"] = "SBVF"
+                self.last_result = GuardedEgiPrimaryResult(
+                    np.inf, None, broad_gated, fre_value, broad_guard, False,
+                    "SBVF", sbvf_value, sbvf_ratio,
+                )
+                self._recorder.append(record)
+                return np.inf
+
         started = time.perf_counter()
         assert isinstance(metrics[1], EquilibriumGapMetric)
         fine_result = metrics[1].evaluate_equilibrium_gap(
@@ -457,7 +509,8 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
         record["j_primary"] = primary
         record["rejection_reason"] = "NONE"
         self.last_result = GuardedEgiPrimaryResult(
-            primary, fine_gated, broad_gated, fre_value, broad_guard, True, "NONE"
+            primary, fine_gated, broad_gated, fre_value, broad_guard, True, "NONE",
+            record["sbvf_value"], record["sbvf_ratio"],
         )
         self._recorder.append(record)
         return primary
@@ -465,23 +518,38 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
     def evaluate(self, metric_results: list[MetricResult]) -> float:
         """Evaluate already-computed results; optimiser candidates use lazy path."""
         self._ensure_prepared()
-        if len(metric_results) != 3:
-            raise ValueError("guarded_egi_primary expects FRE, fine EGI and broad EGI results.")
+        expected = 4 if self.config.sbvf_guard_relative_limit is not None else 3
+        if len(metric_results) != expected:
+            raise ValueError(
+                "guarded_egi_primary expects FRE, fine EGI and broad EGI"
+                + (" plus SBVF results." if expected == 4 else " results.")
+            )
         fre = _layout_rms(self._require_layout(self._fre_layout), metric_results[0])
         broad_guard = _layout_rms(self._require_layout(self._broad_guard_layout), metric_results[2])
         broad_gated = _layout_rms(self._require_layout(self._broad_gated_layout), metric_results[2])
         fine_gated = _layout_rms(self._require_layout(self._fine_layout), metric_results[1])
         fre_pass = _passes_limit(fre, self._require_reference(self._fre_reference).limit)
         broad_pass = _passes_limit(broad_guard, self._require_reference(self._broad_reference).limit)
-        if not fre_pass or not broad_pass:
-            reason = "FRE" if not fre_pass else "BROAD"
+        sbvf_value = None
+        sbvf_ratio = None
+        sbvf_pass = True
+        if self.config.sbvf_guard_relative_limit is not None:
+            sbvf_value = _sbvf_rms(metric_results[3])
+            sbvf_ratio = sbvf_value / self._require_sbvf_reference()
+            sbvf_pass = _passes_limit(
+                sbvf_ratio, float(self.config.sbvf_guard_relative_limit)
+            )
+        if not fre_pass or not broad_pass or not sbvf_pass:
+            reason = "FRE" if not fre_pass else "BROAD" if not broad_pass else "SBVF"
             self.last_result = GuardedEgiPrimaryResult(
-                np.inf, fine_gated, broad_gated, fre, broad_guard, False, reason
+                np.inf, fine_gated, broad_gated, fre, broad_guard, False, reason,
+                sbvf_value, sbvf_ratio,
             )
             return np.inf
         primary = equal_mean_gated_egi_primary(fine_gated, broad_gated)
         self.last_result = GuardedEgiPrimaryResult(
-            primary, fine_gated, broad_gated, fre, broad_guard, True, "NONE"
+            primary, fine_gated, broad_gated, fre, broad_guard, True, "NONE",
+            sbvf_value, sbvf_ratio,
         )
         return primary
 
@@ -524,6 +592,12 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
             "broad_reference": broad.reference,
             "broad_limit": broad.limit,
             "broad_passed": None,
+            "sbvf_evaluation_time_seconds": None,
+            "sbvf_value": None,
+            "sbvf_reference": self._sbvf_reference,
+            "sbvf_limit": self.config.sbvf_guard_relative_limit,
+            "sbvf_ratio": None,
+            "sbvf_passed": None,
             "gated_broad_value": None,
             "fine_egi_evaluation_time_seconds": None,
             "gated_fine_value": None,
@@ -532,9 +606,12 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
         }
 
     def _validate_metrics(self, metrics: tuple[IMetric, ...]) -> None:
-        if len(metrics) != 3:
+        expected = 4 if self.config.sbvf_guard_relative_limit is not None else 3
+        if len(metrics) != expected:
             raise ValueError(
-                "guarded_egi_primary requires exactly three metrics: FRE, fine EGI, broad EGI; middle EGI is forbidden."
+                f"guarded_egi_primary requires exactly {expected} metrics: "
+                "FRE, fine EGI, broad EGI"
+                + (", SBVF; middle EGI is forbidden." if expected == 4 else "; middle EGI is forbidden.")
             )
         if not isinstance(metrics[0], SliceWiseForceReconstructionMetric):
             raise TypeError("Metric 0 must be SliceWiseForceReconstructionMetric.")
@@ -544,6 +621,28 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
         broad_area = int(np.prod(metrics[2].window_size))
         if fine_area >= broad_area:
             raise ValueError("Fine EGI support must be smaller than broad EGI support.")
+        if expected == 4 and not isinstance(metrics[3], MetricSBVF):
+            raise TypeError("Metric 3 must be MetricSBVF when its guard is enabled.")
+
+    def _sbvf_guard_diagnostics(self) -> dict[str, object]:
+        enabled = self.config.sbvf_guard_relative_limit is not None
+        return {
+            "enabled": enabled,
+            "reference": self._sbvf_reference,
+            "relative_limit": self.config.sbvf_guard_relative_limit,
+            "limit": (
+                None if not enabled or self._sbvf_reference is None
+                else self._sbvf_reference * float(self.config.sbvf_guard_relative_limit)
+            ),
+            "reference_state": "phase0",
+            "compounding": False,
+            "in_scalar_primary": False,
+        }
+
+    def _require_sbvf_reference(self) -> float:
+        if self._sbvf_reference is None:
+            raise RuntimeError("Frozen Phase-0 SBVF reference is not prepared.")
+        return self._sbvf_reference
 
     def _ensure_prepared(self) -> None:
         if self._prepared_solve is None:
@@ -565,6 +664,13 @@ class GuardedEgiPrimaryObjective(IScalarObjectiveFunction):
 def _layout_rms(layout: CanonicalResidualLayout, result: MetricResult) -> float:
     vector = layout.evaluate([result])
     return float(np.linalg.norm(vector.weighted))
+
+
+def _sbvf_rms(result: MetricResult) -> float:
+    """RMS of the Phase-0-scaled SBVF residual vector."""
+
+    residual = np.asarray(result.residual, dtype=np.float64)
+    return float(np.sqrt(np.mean(np.square(residual))))
 
 
 def _accepted_fre_diagnostics(

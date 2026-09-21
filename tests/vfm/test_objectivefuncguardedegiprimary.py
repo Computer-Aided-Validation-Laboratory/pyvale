@@ -17,6 +17,7 @@ from pyvale.vfm.measurementnoise import (
 from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.metricsbvf import MetricSBVF
 from pyvale.vfm.objectivefuncguardedegiprimary import (
     GuardedEgiPrimaryConfig,
     GuardedEgiPrimaryObjective,
@@ -160,7 +161,7 @@ def test_solve_context_preserves_explicit_accepted_parent() -> None:
 
 
 class _PreparationContext:
-    def __init__(self, parent_scale: float) -> None:
+    def __init__(self, parent_scale: float, *, sbvf_scale: float | None = None) -> None:
         self.phase_index = 1
         self.solve_iteration = 0
         self.experiment_data = SimpleNamespace(strain=np.zeros((1, 3, 1, 2)))
@@ -186,6 +187,11 @@ class _PreparationContext:
             EquilibriumGapMetric(window_size=(3, 3)),
             EquilibriumGapMetric(window_size=(5, 5)),
         ])
+        if sbvf_scale is not None:
+            sbvf = MetricResult(residual=np.asarray([sbvf_scale]))
+            self.metric_results += (sbvf,)
+            self.parent_metric_results += (sbvf,)
+            self.metrics += (MetricSBVF(freeze_virtual_fields=True),)
 
     def prepare_residual_layout(self, load_regimes, specs):
         return prepare_canonical_residual_layout(
@@ -233,6 +239,60 @@ def test_prepare_solve_keeps_best_accepted_guards_and_freezes_gate(monkeypatch) 
     assert sensitivity_calls == 1
     assert second["sensitivity_gate"]["refreshed"] is False
     assert third["sensitivity_gate"]["refreshed"] is False
+
+
+def test_disabled_sbvf_guard_preserves_three_metric_primary() -> None:
+    objective, _ = _prepared_objective()
+    value = objective.evaluate([
+        _fre_result(1.0), _egi_result(2.0), _egi_result(0.9),
+    ])
+    assert value == pytest.approx(0.6125)
+    assert objective.last_result is not None
+    assert objective.last_result.sbvf_guard_value is None
+
+
+def test_sbvf_guard_is_fixed_to_phase0_and_not_in_primary(monkeypatch) -> None:
+    def sensitivities(strain, stress, law, maps, names, perturbation_factor):
+        values = np.arange(stress.size, dtype=float).reshape(stress.shape) + 1.0
+        return {name: SimpleNamespace(total=values) for name in names}
+
+    monkeypatch.setattr(
+        "pyvale.vfm.objectivefuncsensitivitygated.calculate_parameter_stress_sensitivities",
+        sensitivities,
+    )
+    objective = GuardedEgiPrimaryObjective(
+        GuardedEgiPrimaryConfig(
+            2.0, 4.0, sbvf_guard_relative_limit=1.10,
+        )
+    )
+    first = objective.prepare_solve(
+        _PreparationContext(parent_scale=1.0, sbvf_scale=2.0)
+    )
+    assert first["sbvf_guard"]["reference"] == pytest.approx(2.0)
+    assert first["sbvf_guard"]["limit"] == pytest.approx(2.2)
+    assert first["sbvf_guard"]["in_scalar_primary"] is False
+
+    second_context = _PreparationContext(parent_scale=0.9, sbvf_scale=1.5)
+    second_context.solve_iteration = 1
+    second = objective.prepare_solve(second_context)
+    assert second["sbvf_guard"]["reference"] == pytest.approx(2.0)
+    assert second["sbvf_guard"]["limit"] == pytest.approx(2.2)
+
+    passing = objective.evaluate([
+        _fre_result(0.9), _egi_result(2.0), _egi_result(0.9),
+        MetricResult(residual=np.asarray([2.2])),
+    ])
+    assert passing == pytest.approx(0.6125)
+    assert objective.last_result is not None
+    assert objective.last_result.sbvf_guard_ratio == pytest.approx(1.10)
+
+    rejected = objective.evaluate([
+        _fre_result(0.9), _egi_result(0.01), _egi_result(0.01),
+        MetricResult(residual=np.asarray([2.2 + 1.0e-9])),
+    ])
+    assert np.isinf(rejected)
+    assert objective.last_result is not None
+    assert objective.last_result.rejection_reason == "SBVF"
 
 
 def test_only_parallel_candidate_clones_share_active_audit_recorder() -> None:
