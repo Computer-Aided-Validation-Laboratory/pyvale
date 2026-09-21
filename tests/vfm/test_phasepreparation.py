@@ -128,6 +128,33 @@ def test_fixed_egi_preparation_replaces_templates_in_role_order() -> None:
     assert result.diagnostics["mode"] == "fixed"
 
 
+def test_fixed_egi_preparation_preserves_metrics_after_template_bank() -> None:
+    support = lambda size: PhysicalEgiSupport(
+        requested_side_lengths=(float(size),),
+        window_size=(size, size),
+        nominal_side_lengths=(float(size), float(size)),
+        grid_spacing=(1.0, 1.0),
+    )
+    trailing = _Metric("trailing-guard")
+    context = type("Context", (), {
+        "configured_metrics": (
+            _Metric("force"),
+            EquilibriumGapMetric(window_size=(9, 9)),
+            trailing,
+        ),
+    })()
+
+    result = FixedEgiSupportPreparation(
+        (("fine", support(3)), ("broad", support(7)))
+    ).prepare(context)
+
+    assert isinstance(result.metrics[0], _Metric)
+    assert [tuple(metric.window_size) for metric in result.metrics[1:3]] == [
+        (3, 3), (7, 7),
+    ]
+    assert result.metrics[3] is trailing
+
+
 def test_user_fine_egi_preparation_derives_and_freezes_middle_broad() -> None:
     grid = np.linspace(0.0, 10.0, 101)
     x, y = np.meshgrid(grid, grid)

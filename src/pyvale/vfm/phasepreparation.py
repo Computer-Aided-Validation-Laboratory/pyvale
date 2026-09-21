@@ -357,11 +357,11 @@ class FixedEgiSupportPreparation:
                 "Fixed EGI support preparation requires an EquilibriumGapMetric template."
             )
         template = templates[0]
-        preserved = [
-            metric for metric in context.configured_metrics
-            if not isinstance(metric, EquilibriumGapMetric)
-        ]
-        metrics = [*preserved]
+        first_template_index = next(
+            index for index, metric in enumerate(context.configured_metrics)
+            if isinstance(metric, EquilibriumGapMetric)
+        )
+        replacement_metrics: list[EquilibriumGapMetric] = []
         support_diagnostics: dict[str, object] = {}
         for role, support in self.supports:
             metric = copy.deepcopy(template)
@@ -369,8 +369,17 @@ class FixedEgiSupportPreparation:
             # Window-dependent caches cannot be shared with the template.
             metric._operator = None
             metric._kernel_fft_cache = {}
-            metrics.append(metric)
+            replacement_metrics.append(metric)
             support_diagnostics[role] = support.diagnostics()
+        # Replace the configured EGI template bank in place.  Metrics before
+        # and after it retain their positions, which is important for lazy
+        # objectives whose metric order is part of their interface.
+        metrics: list[IMetric] = []
+        for index, metric in enumerate(context.configured_metrics):
+            if index == first_template_index:
+                metrics.extend(replacement_metrics)
+            if not isinstance(metric, EquilibriumGapMetric):
+                metrics.append(metric)
         return PhasePreparationResult(
             metrics=metrics,
             diagnostics={
