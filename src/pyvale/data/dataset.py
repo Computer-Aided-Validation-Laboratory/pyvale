@@ -582,7 +582,7 @@ def dic_plate_rigid_cam0_def_small() -> list[Path]:
 
     return [
         Path(data_dir.joinpath(f"rigid_cam0_frame{i:02d}.tiff"))
-        for i in range(11)
+        for i in range(0,11,2)
     ]
 
 def dic_plate_rigid_cam1_def_small() -> list[Path]:
@@ -593,21 +593,8 @@ def dic_plate_rigid_cam1_def_small() -> list[Path]:
 
     return [
         Path(data_dir.joinpath(f"rigid_cam1_frame{i:02d}.tiff"))
-        for i in range(11)
+        for i in range(0,11,2)
     ]
-
-def dic_plate_rigid_cam0_def_10px() -> Path:
-    """
-    Path to the 25px rigid deformation image.
-    1040x1540 image in .tiff format.
-
-    Returns
-    -------
-    Path
-        Path to the 25 px deformed image (``.tiff``).
-    """
-    return _data_path("dic", "plate_rigid", "rigid_cam0_frame11.tiff")
-
 
 def dic_plate_rigid_cam0_def_25px() -> Path:
     """

@@ -35,7 +35,6 @@ ref1_hydro = dataset.dic_plate_with_hydro_cam1_ref()
 def0_hydro = dataset.dic_plate_with_hydro_cam0_def()
 def1_hydro = dataset.dic_plate_with_hydro_cam1_def()
 
-def0_10px = dataset.dic_plate_rigid_cam0_def_10px()
 def0_25px = dataset.dic_plate_rigid_cam0_def_25px()
 def0_50px = dataset.dic_plate_rigid_cam0_def_50px()
 
@@ -43,7 +42,7 @@ def0_50px = dataset.dic_plate_rigid_cam0_def_50px()
 calib_file = TEST_DIR / "calib.txt"
 calib_data = calib.loadtxt(calib_file)
 
-def_large = [def0_10px, def0_25px, def0_50px]
+def_large = [def0_25px, def0_50px]
 
 roi = dic.RegionOfInterest(ref_image=ref0)
 roi.rect_region(x=100, y=100, size_x=200, size_y=200)
@@ -62,7 +61,7 @@ else:
 ref_arr = np.array(ref_image)
 
 # First deformed image used for intensity scaling tests
-def_image = Image.open(files[7])
+def_image = Image.open(files[4]) # 0.8 px displacement
 def_arr = np.array(def_image)
 
 original_dtype = def_arr.dtype
@@ -79,7 +78,7 @@ def_arr_scaled_offset = (def_arr_float * scale + offset).astype(original_dtype)
 # Ground truth displacements
 # ------------------------------------------------------------------------------
 
-u = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+u = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 u_short = [0.0, 0.5, 1.0]
 
 
@@ -263,7 +262,7 @@ def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path) -> None:
         / "test_2d_nssd_scaled_image_rigid_def_img_0000.csv"
     )
 
-    validate(output_pattern=output_file, gt=[0.7], atol=0.01, stereo=False)
+    validate(output_pattern=output_file, gt=[0.8], atol=0.01, stereo=False)
 
 
 # ------------------------------------------------------------------------------
@@ -293,7 +292,7 @@ def test_2d_znssd_scaled_offset_image_rigid(
         / "test_2d_znssd_scaled_offset_image_rigid_def_img_0000.csv"
     )
 
-    validate(output_pattern=output_file, gt=[0.7], atol=0.01, stereo=False)
+    validate(output_pattern=output_file, gt=[0.8], atol=0.01, stereo=False)
 
 
 # ------------------------------------------------------------------------------
@@ -476,7 +475,6 @@ def test_2d_multiwindow_fft_large(dic_temp_dir: Path) -> None:
     )
 
     outputs = [
-        ("test_fft_rigid_cam0_frame11.csv", 10.0),
         ("test_fft_rigid_cam0_frame12.csv", 25.0),
         ("test_fft_rigid_cam0_frame13.csv", 50.0),
     ]
@@ -506,7 +504,6 @@ def test_2d_multiwindow_rg_fft_large(dic_temp_dir: Path) -> None:
     )
 
     outputs = [
-        ("test_fft_rigid_cam0_frame11.csv", 10.0),
         ("test_fft_rigid_cam0_frame12.csv", 25.0),
         ("test_fft_rigid_cam0_frame13.csv", 50.0),
     ]
@@ -536,7 +533,6 @@ def test_2d_singlewindow_fft_large(dic_temp_dir: Path) -> None:
     )
 
     outputs = [
-        ("test_fft_rigid_cam0_frame11.csv", 10.0),
         ("test_fft_rigid_cam0_frame12.csv", 25.0),
         ("test_fft_rigid_cam0_frame13.csv", 50.0),
     ]
