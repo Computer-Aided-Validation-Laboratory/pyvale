@@ -7,7 +7,7 @@
 from pathlib import Path
 import pyvale.sensorsim as sens
 import pyvale.dataio as io
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.verif.matchsimdata as verif
 

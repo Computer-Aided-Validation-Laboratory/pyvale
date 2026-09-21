@@ -17,7 +17,7 @@ This example looks at the current core functionality of the Region of Interest
 from pathlib import Path
 
 # pyvale modules
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.dic as dic
 
 # %% 
@@ -96,6 +96,5 @@ roi.save_image(region_img)
 # You can also manually modify the ROI mask. A good starting point is:
 # `roi.rect_boundary(0, 0, 0, 0)` — this sets the ROI to include the full image.
 # From there, you can manipulate `roi.mask` as you would any other 2D NumPy array.
-
 
 

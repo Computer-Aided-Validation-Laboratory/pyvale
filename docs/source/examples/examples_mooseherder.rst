@@ -1,14 +1,14 @@
 .. _examples_mooseherder:
 
 Mooseherder
-=================
+===========
 
 .. toctree::
    :maxdepth: 1
 
-   mooseherder/ex0_create_moose_config.rst
-   mooseherder/ex1a_modify_moose_input.rst
-   mooseherder/ex1b_modify_gmsh_input.rst
+   mooseherder/ex0_create_moose_config
+   mooseherder/ex1a_modify_moose_input
+   mooseherder/ex1b_modify_gmsh_input
    mooseherder/ex2a_run_moose_once
    mooseherder/ex2b_run_gmsh_once
    mooseherder/ex2c_run_both_once
@@ -21,4 +21,3 @@ Mooseherder
    mooseherder/ex7c_read_multi_gmshmoose_results
    mooseherder/ex7d_readconfig_multi_gmshmoose_results
    mooseherder/ex8_read_existing_sweep_output
-

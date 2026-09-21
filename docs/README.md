@@ -7,7 +7,7 @@ sudo apt install doxygen
 ```
 init the API documentation using the `apidoc.sh` script:
 ```bash
-bash apidoc.sh 
+bash apidoc.sh
 ```
 build the documentation:
 ```bash

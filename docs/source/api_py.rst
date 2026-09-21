@@ -8,11 +8,10 @@ Detailed Python API
    :maxdepth: 1
 
    pyvale.sensorsim
-   pyvale.blender
+   pyvale.render
    pyvale.calib
    pyvale.dic
    pyvale.strain
    pyvale.mooseherder
    pyvale.verif
-   pyvale.dataset
-
+   pyvale.data

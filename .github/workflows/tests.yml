@@ -67,7 +67,7 @@ jobs:
         if: matrix.env-type == 'pip'
         run: |
           python -m pip install --upgrade pip
-          pip install -e . -v
+          pip install -e ".[blender]" -v
           pip install pytest pytest-mock
 
       - name: Smoke test
@@ -77,7 +77,7 @@ jobs:
         shell: bash -el {0}
         run: pytest -v tests/dic/. tests/sensorsim/. tests/strain/.
 
-      - name: Run blender tests (skip macOS ARM)
+      - name: Run render tests (skip macOS ARM)
         if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}
         shell: bash -el {0}
-        run: pytest -v tests/blender/.
+        run: pytest -v tests/render/.

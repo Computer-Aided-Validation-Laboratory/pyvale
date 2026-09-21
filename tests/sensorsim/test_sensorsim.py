@@ -6,7 +6,6 @@
 import pytest
 from typing import Callable, Dict, Any
 import numpy as np
-
 # Pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
@@ -322,5 +321,4 @@ def test_degenerate_delaunay_invariants() -> None:
     )
     sample_grid = field_interp.interp_field(sens_grid)
     assert not np.isnan(sample_grid).any()
-
 

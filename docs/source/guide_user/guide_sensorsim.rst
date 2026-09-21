@@ -64,7 +64,7 @@ While we have built and tested pyvale primarily with thermal and solid mechanics
 Bring your own simulation data
 ------------------------------
 
-To use pyvale with your own input physics simulation you will first need to parse the simulation data into a ``SimData`` object. To help users input arbitrary simulation data we have developed tools that allow users to directly load the data as either plain text delimited files (e.g. *.csv) or numpy arrays (i.e. *.npy). An example of loading arbitrary simulation data can be found in the :ref:`extended examples <examples_sensorsim_extended>`. 
+To use pyvale with your own input physics simulation you will first need to parse the simulation data into a ``SimData`` object. To help users input arbitrary simulation data we have developed tools that allow users to directly load the data as either plain text delimited files (e.g. ``*.csv``) or numpy arrays (i.e. ``*.npy``). An example of loading arbitrary simulation data can be found in the :ref:`extended examples <examples_sensorsim_extended>`. 
 
 For mesh-based simulations it is essential that the element connectivity tables conform to the node winding (i.e. node ordering) specified for exodus output files which can be found `here <https://sandialabs.github.io/seacas-docs/html/element_types.html>`_.    
 
