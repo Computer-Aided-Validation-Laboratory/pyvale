@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -47,6 +48,46 @@ KNOWN_STRESS_FILE = (
 )
 
 PLOT_METRIC_IDENTIFIED_DIFF = False
+
+
+@pytest.mark.parametrize(("frozen", "preserved"), [(False, False), (True, True)])
+def test_initialise_optionally_preserves_frozen_virtual_fields(
+    monkeypatch, frozen, preserved,
+) -> None:
+    metric = MetricSBVF(freeze_virtual_fields=frozen)
+    sentinel = [object()]
+    metric._sensitivity_based_virtual_fields = sentinel
+    metric._frozen_vw_scaling_factors = [2.0]
+    mesh = object()
+    monkeypatch.setattr(
+        "pyvale.vfm.metricsbvf.generate_virtual_fields_mesh",
+        lambda *args: mesh,
+    )
+    roi = SimpleNamespace(sample_specimen_mask=lambda x, y: np.ones_like(x, bool))
+    experiment = SimpleNamespace(
+        specimen_geometry=SimpleNamespace(
+            x=np.zeros((2, 2)), y=np.zeros((2, 2)), region_of_interest=roi,
+        ),
+        boundary_conditions=SimpleNamespace(edge_conditions=object()),
+    )
+    metric.initialise(experiment)
+    assert metric._virtual_fields_mesh is mesh
+    if preserved:
+        assert metric._sensitivity_based_virtual_fields is sentinel
+        assert metric._frozen_vw_scaling_factors == [2.0]
+    else:
+        assert metric._sensitivity_based_virtual_fields is None
+        assert metric._frozen_vw_scaling_factors is None
+
+
+def test_frozen_sbvf_reuses_phase0_residual_scaling() -> None:
+    metric = MetricSBVF(vf_scaling_fraction=0.5, freeze_virtual_fields=True)
+    phase0 = np.asarray([1.0, 2.0, 3.0, 4.0])
+    factor = metric.residual_scaling_factor(phase0, 0)
+    metric._frozen_vw_scaling_factors = [factor]
+    candidate = 10.0 * phase0
+    assert metric.residual_scaling_factor(candidate, 0) == pytest.approx(factor)
+    assert factor == pytest.approx(1.0 / 3.5)
 
 
 def test_dof_sensitivity_projects_additive_parameter_map_to_bounds() -> None:

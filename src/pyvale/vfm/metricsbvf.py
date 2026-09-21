@@ -92,6 +92,14 @@ class MetricSBVF(IMetric):
     same projected map used for candidate stress evaluation.
     """
 
+    freeze_virtual_fields: bool = False
+    """Keep the first virtual fields and residual scaling across evaluations.
+
+    This is intended for diagnostic guards anchored to a phase-start SBVF
+    definition.  The default remains ``False``, preserving the historical
+    behaviour of rebuilding fields and scaling residuals at each candidate.
+    """
+
     _virtual_fields_mesh: VirtualFieldsMesh | None = field(
         default=None,
         init=False
@@ -124,6 +132,11 @@ class MetricSBVF(IMetric):
         init=False
     )
 
+    _frozen_vw_scaling_factors: list[float] | None = field(
+        default=None,
+        init=False,
+    )
+
     def __post_init__(self) -> None:
         if self.perturbation_type not in {"constitutive_parameter", "dof"}:
             raise ValueError(
@@ -153,8 +166,11 @@ class MetricSBVF(IMetric):
             self.mesh_size
         )
         # A prepare call follows every structural refinement. Rebuild the
-        # SBVFs once on the next evaluation, then reuse them during the solve.
-        self._sensitivity_based_virtual_fields = None
+        # SBVFs once on the next evaluation, then reuse them during the solve,
+        # unless an explicitly frozen diagnostic metric already has fields.
+        if not self.freeze_virtual_fields:
+            self._sensitivity_based_virtual_fields = None
+            self._frozen_vw_scaling_factors = None
 
     def evaluate(
         self,
@@ -235,7 +251,8 @@ class MetricSBVF(IMetric):
         residual_vector = []
 
         # Compute PVW residuals for each SBVF and concatenate into single residual vector
-        for sbvf in sensitivity_based_virtual_fields:
+        scaling_factors: list[float] = []
+        for sbvf_index, sbvf in enumerate(sensitivity_based_virtual_fields):
             # Compute 4d IVW term for current SBVF
             # TODO: we have a 1e6 term here as stress in in MPa,
             #   and pixel area is in m^2, would be nice to avoid
@@ -275,25 +292,10 @@ class MetricSBVF(IMetric):
             external_virtual_work_vectors.append(external_virtual_work_vector)
 
             if self.vf_scaling_fraction is not None:
-                # Compute number of timesteps to use for scaling based on the chosen fraction (1 step min).
-                num_timesteps_used_for_scaling = max(
-                    1, 
-                    int(np.floor(len(external_virtual_work_vector) * self.vf_scaling_fraction)),
+                vw_scaling_factor = self.residual_scaling_factor(
+                    internal_virtual_work_vector, sbvf_index,
                 )
-
-                # Select the timesteps with the largest absolute IVW values.
-                # NumPy sorts ascending, so take the last n indices.
-                largest_ivw_indices = np.argsort(np.abs(internal_virtual_work_vector))[-num_timesteps_used_for_scaling:]
-
-                # Compute scaling factor as the reciprocal of the mean absolute IVW
-                # over the selected timesteps.
-                mean_abs_ivw_for_scaling = np.mean(
-                    np.abs(internal_virtual_work_vector[largest_ivw_indices])
-                )
-                if mean_abs_ivw_for_scaling != 0.0:
-                    vw_scaling_factor = 1.0 / mean_abs_ivw_for_scaling
-                else:
-                    vw_scaling_factor = 1.0
+                scaling_factors.append(float(vw_scaling_factor))
 
                 # Scale the full PVW residual for the current virtual field.
                 residual_vector.append(
@@ -305,6 +307,13 @@ class MetricSBVF(IMetric):
                     internal_virtual_work_vector - external_virtual_work_vector
                 )
 
+        if (
+            self.freeze_virtual_fields
+            and self.vf_scaling_fraction is not None
+            and self._frozen_vw_scaling_factors is None
+        ):
+            self._frozen_vw_scaling_factors = scaling_factors
+
 
         # Stack per-virtual-field vectors into (num_virtual_fields, timesteps)
         # arrays and store them for later access.
@@ -314,6 +323,24 @@ class MetricSBVF(IMetric):
         residual = np.concatenate(residual_vector)
 
         return MetricResult(residual)
+
+    def residual_scaling_factor(
+        self,
+        internal_virtual_work: npt.NDArray[np.float64],
+        virtual_field_index: int,
+    ) -> float:
+        """Return the frozen or state-derived SBVF residual scaling factor."""
+
+        if self.vf_scaling_fraction is None:
+            return 1.0
+        if self.freeze_virtual_fields and self._frozen_vw_scaling_factors is not None:
+            return self._frozen_vw_scaling_factors[virtual_field_index]
+        count = max(1, int(np.floor(
+            len(internal_virtual_work) * self.vf_scaling_fraction
+        )))
+        indices = np.argsort(np.abs(internal_virtual_work))[-count:]
+        mean_abs = float(np.mean(np.abs(internal_virtual_work[indices])))
+        return 1.0 if mean_abs == 0.0 else 1.0 / mean_abs
 
 
     def calculate_stress_sensitivities(
