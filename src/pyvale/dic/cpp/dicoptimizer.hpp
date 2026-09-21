@@ -75,7 +75,11 @@ class Optimizer {
                                     const std::vector<int> &neigh,
                                     const int fallback_idx);
 
-        void reset_params();
+        int average_params_from_neigh(const std::vector<double> &results_p,
+                              const std::vector<uint8_t> &successful,
+                              const std::vector<int> &neigh);
+
+void reset_params();
 
     private:
 

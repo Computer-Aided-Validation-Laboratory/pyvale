@@ -686,6 +686,29 @@ void Optimizer::copy_params_from_neigh(const std::vector<double> &results_p,
     }
 }
 
+int Optimizer::average_params_from_neigh(
+                            const std::vector<double> &results_p,
+                            const std::vector<uint8_t> &successful,
+                            const std::vector<int> &neigh) {
+    std::fill(p.begin(), p.end(), 0.0);
+
+    int count = 0;
+    for (int nidx : neigh) {
+        if (!successful[nidx]) continue;
+
+        const int idx_p = nidx * num_params;
+        for (int i = 0; i < static_cast<int>(p.size()); i++) {
+            p[i] += results_p[idx_p + i];
+        }
+        count++;
+    }
+
+    if (count > 0) {
+        for (double &param : p) param /= count;
+    }
+    return count;
+}
+
 // Reset parameters to zero
 void Optimizer::reset_params() {
     std::fill(p.begin(), p.end(), 0.0);

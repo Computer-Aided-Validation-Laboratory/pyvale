@@ -438,6 +438,11 @@ void singlewindow_rg(const Interpolator &interp_ref,
     //     }
     // }
 
+    if (!stop_request && !error_flag.load()) {
+        rg::retry_bad_points(interp_ref, interp_def, ss_grid, conf, results_ref,
+                             results_def, computed_mask);
+    }
+
     if (g_debug_level>0){
         pbar.finish();
     }
