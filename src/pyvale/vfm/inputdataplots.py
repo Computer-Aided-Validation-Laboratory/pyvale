@@ -23,6 +23,11 @@ _STRAIN_COMPONENT_NAMES: tuple[str, ...] = (
 # Force columns are ordered [Fx, Fy, ...]; used to label the force plots.
 _FORCE_COMPONENT_LABELS: tuple[str, ...] = ("Fx", "Fy", "Fz")
 
+# Diagnostic strain maps should reveal the field structure rather than allow a
+# handful of extreme points to determine the entire colour range.  The raw
+# strain arrays are not modified; this controls display scaling only.
+_STRAIN_DISPLAY_PERCENTILES: tuple[float, float] = (1.0, 99.0)
+
 def _create_diagnostic_plots(
     output_folder: Path,
     x: npt.NDArray[np.float64],
@@ -125,12 +130,23 @@ def _plot_strain_components(
         _scatter_field(
             axes[0, index], x, y, strain[0, index],
             f"{name} at first timestep", valid_mask=specimen_mask,
+            color_percentiles=_STRAIN_DISPLAY_PERCENTILES,
         )
         _scatter_field(
             axes[1, index], x, y, strain[-1, index],
             f"{name} at last timestep", valid_mask=specimen_mask,
+            color_percentiles=_STRAIN_DISPLAY_PERCENTILES,
         )
-    fig.tight_layout()
+    fig.text(
+        0.5,
+        0.01,
+        "Display colour limits use the 1st–99th percentiles; values outside "
+        "these limits are clipped visually only and remain unchanged in the data.",
+        ha="center",
+        va="bottom",
+        fontsize=9,
+    )
+    fig.tight_layout(rect=(0.0, 0.04, 1.0, 1.0))
     return fig
 
 
@@ -141,6 +157,7 @@ def _scatter_field(
     values: npt.NDArray[np.float64],
     title: str,
     valid_mask: npt.NDArray[np.bool_] | None = None,
+    color_percentiles: tuple[float, float] | None = None,
 ) -> None:
     """Scatter ``values`` at their physical coordinates, skipping NaNs."""
     ax.set(title=title, xlabel="x", ylabel="y")
@@ -151,13 +168,33 @@ def _scatter_field(
     if not valid.any():
         return
 
+    color_limits: dict[str, float] = {}
+    colorbar_extend = "neither"
+    if color_percentiles is not None:
+        lower, upper = color_percentiles
+        if not (0.0 <= lower < upper <= 100.0):
+            raise ValueError(
+                "color_percentiles must be an increasing pair between 0 and 100."
+            )
+        vmin, vmax = np.percentile(values[valid], (lower, upper))
+        if np.isfinite(vmin) and np.isfinite(vmax) and vmax > vmin:
+            color_limits = {"vmin": float(vmin), "vmax": float(vmax)}
+            colorbar_extend = "both"
+
     scatter = ax.scatter(
         x_coords[valid], y_coords[valid], c=values[valid],
         s=6, linewidths=0.0, cmap="viridis",
+        **color_limits,
     )
     ax.set_aspect("equal")
     ax.invert_yaxis()  # image convention: increasing y downwards
-    ax.figure.colorbar(scatter, ax=ax, fraction=0.046, pad=0.04)
+    ax.figure.colorbar(
+        scatter,
+        ax=ax,
+        fraction=0.046,
+        pad=0.04,
+        extend=colorbar_extend,
+    )
 
 
 def _plot_boundary_conditions(
