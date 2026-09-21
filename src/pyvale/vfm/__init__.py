@@ -33,6 +33,11 @@ from .experimentdata import (
 
 from .constlaw import IConstitutiveLaw
 from .constlaws import IsotropicVonMisesElastoplasticity
+from .identificationlinear import (
+    LinearElasticIdentificationResult,
+    identify_isotropic_linear_elasticity_plane_stress,
+    plane_stress_stiffness_bases,
+)
 from .constparam import ConstitutiveParameter
 from .dof import DegreeOfFreedom
 from .hardening import (
@@ -230,6 +235,9 @@ __all__ = [
     "EEdgeCondition",
     "IConstitutiveLaw",
     "IsotropicVonMisesElastoplasticity",
+    "LinearElasticIdentificationResult",
+    "identify_isotropic_linear_elasticity_plane_stress",
+    "plane_stress_stiffness_bases",
     "ConstitutiveParameter",
     "DegreeOfFreedom",
     "IHardeningFunction",
