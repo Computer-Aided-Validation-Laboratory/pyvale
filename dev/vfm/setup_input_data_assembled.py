@@ -20,7 +20,12 @@ def main() -> None:
     parser.add_argument("raw_data", type=Path, help="Published fe-data/raw directory")
     parser.add_argument("prepared", type=Path, help="Destination prepared directory")
     parser.add_argument("--thickness-mm", type=float, required=True)
-    parser.add_argument("--loading", choices=("tensile-x", "tensile-y", "free"), default="tensile-x")
+    parser.add_argument(
+        "--loading",
+        choices=("tensile-x", "tensile-y", "wdbn1-experimental-y", "free"),
+        default="tensile-x",
+        help="Boundary-condition convention to attach to the prepared data.",
+    )
     args = parser.parse_args()
     free = Edge(EEdgeCondition.Free, EEdgeCondition.Free)
     if args.loading == "tensile-x":
@@ -36,6 +41,15 @@ def main() -> None:
             max_x_edge=free,
             min_y_edge=Edge(EEdgeCondition.Free, EEdgeCondition.Fixed),
             max_y_edge=Edge(EEdgeCondition.Fixed, EEdgeCondition.Traction),
+        )
+    elif args.loading == "wdbn1-experimental-y":
+        # WDBN1 assembled experimental convention: y is the loading direction,
+        # the lower y edge is clamped, and the upper y edge carries traction.
+        edges = EdgeConditions(
+            min_x_edge=free,
+            max_x_edge=free,
+            min_y_edge=Edge(EEdgeCondition.Fixed, EEdgeCondition.Fixed),
+            max_y_edge=Edge(EEdgeCondition.Free, EEdgeCondition.Traction),
         )
     else:
         edges = EdgeConditions(free, free, free, free)
