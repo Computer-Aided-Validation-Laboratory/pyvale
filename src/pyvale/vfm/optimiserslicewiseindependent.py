@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import numpy.typing as npt
@@ -56,6 +57,15 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
 
     method: str = "trf"
 
+    def __init__(self, parallel_workers: int = 1) -> None:
+        if (
+            isinstance(parallel_workers, bool)
+            or not isinstance(parallel_workers, (int, np.integer))
+            or parallel_workers < 1
+        ):
+            raise ValueError("parallel_workers must be a positive integer")
+        self.parallel_workers = int(parallel_workers)
+
     def get_required_objective_function_type(self) -> type:
         return IVectorObjectiveFunction
 
@@ -91,20 +101,16 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
         child_results: list[SolveResult] = []
         skipped_slice_count = 0
 
-        # Solve each slice indentently, updating the optimised parameterisations in place
-        # Note: could be parallised in future if required
-        for slice_index in range(slice_metric.slice_partition.num_slices):
+        def solve_slice(slice_index: int):
             local_slice_data = _build_slice_solve_data(
                 slice_index=slice_index,
                 parameter_map_size=parameter_map_size,
-                spatial_parameterisations=optimised_spatial_parameterisations,
+                spatial_parameterisations=spatial_parameterisations,
                 slice_metric=slice_metric,
                 experiment_data=experiment_data,
             )
-            # If no unknown parameters for this slice, skip the solve and leave the parameterisations unchanged
             if len(local_slice_data.unknown_parameter_names) == 0:
-                skipped_slice_count += 1
-                continue
+                return None
 
             if (
                 local_slice_data.local_point_indices.size == 0
@@ -117,7 +123,7 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
 
             # Build the initial guess for the unknown parameters of this slice, normalised to [0, 1]
             initial_guess = _build_initial_guess(
-                optimised_spatial_parameterisations,
+                spatial_parameterisations,
                 slice_index,
                 local_slice_data.unknown_parameter_names,
             )
@@ -162,46 +168,74 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                 local_slice_data.lower_bounds,
                 local_slice_data.upper_bounds,
             )
-            _update_slice_parameterisations(
-                optimised_spatial_parameterisations,
-                slice_index,
-                local_slice_data.unknown_parameter_names,
-                solved_values,
-            )
-            child_results.append(
-                SolveResult(
-                    solve_iteration=slice_index,
-                    optimiser=snapshot_object(
-                        self,
-                        options={"method": self.method},
-                    ),
-                    runtime_seconds=slice_runtime,
-                    num_evaluations=int(result.nfev),
-                    success=bool(result.success),
-                    status=int(result.status),
-                    message=str(result.message),
-                    initial_dofs=[
-                        float(value)
-                        for value in denormalise_degrees_of_freedom(
-                            initial_guess,
-                            local_slice_data.lower_bounds,
-                            local_slice_data.upper_bounds,
-                        )
-                    ],
-                    final_dofs=[float(value) for value in solved_values],
-                    final_objective=_summarise_least_squares_result(result),
-                    details={
-                        "slice_index": int(slice_index),
-                        "unknown_parameter_names": [
-                            str(name)
-                            for name in local_slice_data.unknown_parameter_names
-                        ],
-                        "num_local_points": int(
-                            local_slice_data.global_point_indices.size
-                        ),
-                    },
+            return local_slice_data, result, slice_runtime, solved_values, initial_guess
+
+        slice_indices = range(slice_metric.slice_partition.num_slices)
+        executor = None
+        if self.parallel_workers == 1:
+            slice_outputs = map(solve_slice, slice_indices)
+        else:
+            executor = ThreadPoolExecutor(max_workers=self.parallel_workers)
+            slice_outputs = executor.map(solve_slice, slice_indices)
+
+        try:
+            for slice_index, output in enumerate(slice_outputs):
+                if output is None:
+                    skipped_slice_count += 1
+                    continue
+                (
+                    local_slice_data,
+                    result,
+                    slice_runtime,
+                    solved_values,
+                    initial_guess,
+                ) = output
+                _update_slice_parameterisations(
+                    optimised_spatial_parameterisations,
+                    slice_index,
+                    local_slice_data.unknown_parameter_names,
+                    solved_values,
                 )
-            )
+                child_results.append(
+                    SolveResult(
+                        solve_iteration=slice_index,
+                        optimiser=snapshot_object(
+                            self,
+                            options={
+                                "method": self.method,
+                                "parallel_workers": self.parallel_workers,
+                            },
+                        ),
+                        runtime_seconds=slice_runtime,
+                        num_evaluations=int(result.nfev),
+                        success=bool(result.success),
+                        status=int(result.status),
+                        message=str(result.message),
+                        initial_dofs=[
+                            float(value)
+                            for value in denormalise_degrees_of_freedom(
+                                initial_guess,
+                                local_slice_data.lower_bounds,
+                                local_slice_data.upper_bounds,
+                            )
+                        ],
+                        final_dofs=[float(value) for value in solved_values],
+                        final_objective=_summarise_least_squares_result(result),
+                        details={
+                            "slice_index": int(slice_index),
+                            "unknown_parameter_names": [
+                                str(name)
+                                for name in local_slice_data.unknown_parameter_names
+                            ],
+                            "num_local_points": int(
+                                local_slice_data.global_point_indices.size
+                            ),
+                        },
+                    )
+                )
+        finally:
+            if executor is not None:
+                executor.shutdown()
 
         parent_runtime = time.perf_counter() - parent_started_at
         num_evaluations = sum(
@@ -218,7 +252,10 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                 solve_iteration=0,
                 optimiser=snapshot_object(
                     self,
-                    options={"method": self.method},
+                    options={
+                        "method": self.method,
+                        "parallel_workers": self.parallel_workers,
+                    },
                 ),
                 runtime_seconds=parent_runtime,
                 num_evaluations=int(num_evaluations),
@@ -234,6 +271,7 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
                 ),
                 details={
                     "num_slices": int(slice_metric.slice_partition.num_slices),
+                    "parallel_workers": self.parallel_workers,
                     "solved_slice_count": int(len(child_results)),
                     "skipped_slice_count": int(skipped_slice_count),
                 },
