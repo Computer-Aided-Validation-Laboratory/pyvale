@@ -22,6 +22,7 @@ from pyvale.vfm.postprocessing import (
     check_stress_against_saved,
     component_history_map,
     compute_parameter_error_diagnostics,
+    compute_weighted_fre_profiles,
     evaluate_snapshot_parameter_maps,
     load_constitutive_law_from_result,
     parameter_map_summary,
@@ -35,6 +36,21 @@ from pyvale.vfm.spatialparambasisfuncs import (
     SpatialParameterisationBasisFunction,
 )
 from pyvale.vfm.spatialparamhomogeneous import SpatialParameterisationHomogeneous
+
+
+def test_weighted_fre_profiles_ignore_zero_force_and_remain_consistent() -> None:
+    applied = np.array([0.0, 1.0, 2.0])
+    reconstructed = np.array([
+        [1.0e9, -1.0e9],
+        [1.1, 0.8],
+        [2.2, 2.4],
+    ])
+
+    absolute, relative = compute_weighted_fre_profiles(reconstructed, applied)
+
+    npt.assert_allclose(absolute, np.sqrt([0.034, 0.136]))
+    npt.assert_allclose(relative, [10.0, 20.0])
+    assert np.all(np.isfinite(relative))
 
 
 def test_check_stress_against_saved_reports_match_and_difference() -> None:

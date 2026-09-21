@@ -31,6 +31,7 @@ from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
 from pyvale.vfm.metricsliceforce import (
     ForceReconstructionErrorResult,
     SliceWiseForceReconstructionMetric,
+    compute_force_temporal_weights,
 )
 from pyvale.vfm.radialreturn import radial_return
 from pyvale.vfm.slicewise_utils import SliceConfig
@@ -60,6 +61,39 @@ PLOT_COMPONENT_LABEL = {
     "xy": "xy",
     "vm": "von Mises",
 }
+
+
+def compute_weighted_fre_profiles(
+    reconstructed_force: npt.ArrayLike,
+    applied_force: npt.ArrayLike,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Return production-consistent absolute [N] and relative [%] FRE profiles.
+
+    The temporal weights are proportional to applied force squared, exactly as
+    in :class:`SliceWiseForceReconstructionMetric`.  Consequently a zero-load
+    frame has zero weight and low-load relative residuals cannot dominate the
+    diagnostic plot.
+    """
+
+    reconstructed = np.asarray(reconstructed_force, dtype=np.float64)
+    applied = np.asarray(applied_force, dtype=np.float64)
+    if reconstructed.ndim != 2 or applied.ndim != 1:
+        raise ValueError("Expected reconstructed (frames, slices) and applied (frames,) force arrays.")
+    if reconstructed.shape[0] != applied.size:
+        raise ValueError("Reconstructed and applied force histories must have the same frame count.")
+    weights = compute_force_temporal_weights(applied)
+    raw = reconstructed - applied[:, np.newaxis]
+    relative = np.divide(
+        raw,
+        applied[:, np.newaxis],
+        out=np.full_like(raw, np.nan),
+        where=np.abs(applied[:, np.newaxis]) > np.finfo(np.float64).eps,
+    )
+    absolute_profile = np.sqrt(np.nansum(weights[:, np.newaxis] * raw**2, axis=0))
+    relative_profile = 100.0 * np.sqrt(
+        np.nansum(weights[:, np.newaxis] * relative**2, axis=0)
+    )
+    return absolute_profile, relative_profile
 
 
 @dataclass(slots=True, frozen=True)
