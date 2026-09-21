@@ -319,6 +319,20 @@ class ExperimentData:
             output_dir / "region_of_interest.yaml"
         )
 
+        force_reconstruction_roi = (
+            self.specimen_geometry.force_reconstruction_region_of_interest
+        )
+        if force_reconstruction_roi is not None:
+            force_reconstruction_roi_filename = (
+                "force_reconstruction_region_of_interest.yaml"
+            )
+            force_reconstruction_roi.save_yaml(
+                output_dir / force_reconstruction_roi_filename
+            )
+            experiment_data_file_content[
+                "force_reconstruction_region_of_interest"
+            ] = force_reconstruction_roi_filename
+
         experiment_data_file = output_dir / "experiment_data.yaml"
 
         experiment_data_file.write_text(

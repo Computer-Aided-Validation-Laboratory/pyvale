@@ -196,6 +196,34 @@ def test_experiment_yaml_loads_and_records_optional_fre_roi(tmp_path) -> None:
     )
 
 
+def test_experiment_yaml_round_trip_preserves_optional_fre_roi(tmp_path) -> None:
+    experiment, _ = _uniform_stress_experiment(corrected=True)
+    original_roi = (
+        experiment.specimen_geometry.force_reconstruction_region_of_interest
+    )
+    assert original_roi is not None
+
+    experiment.save_to_yaml(tmp_path)
+
+    manifest_path = tmp_path / "experiment_data.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    roi_filename = "force_reconstruction_region_of_interest.yaml"
+    assert manifest["force_reconstruction_region_of_interest"] == roi_filename
+    assert (tmp_path / roi_filename).is_file()
+
+    loaded = ExperimentData.load_from_file(manifest_path)
+    loaded_roi = loaded.specimen_geometry.force_reconstruction_region_of_interest
+    assert loaded_roi is not None
+    probe_x, probe_y = np.meshgrid(
+        np.linspace(-4.0, 4.0, 17),
+        np.linspace(-1.0, 2.0, 13),
+    )
+    np.testing.assert_array_equal(
+        loaded_roi.sample_specimen_mask(probe_x, probe_y),
+        original_roi.sample_specimen_mask(probe_x, probe_y),
+    )
+
+
 def test_fre_physical_roi_does_not_change_egi() -> None:
     axis = np.arange(9, dtype=np.float64)
     x, y = np.meshgrid(axis, axis)
