@@ -124,6 +124,8 @@ PYBIND11_MODULE(diccpp, m) {
         .def(py::init<>())
         .def_readwrite("ss_step", &util::Config::ss_step)
         .def_readwrite("ss_size", &util::Config::ss_size)
+        .def_readwrite("partial_subset", &util::Config::partial_subset)
+        .def_readwrite("partial_subset_multiwindow", &util::Config::partial_subset_multiwindow)
         .def_readwrite("max_iter", &util::Config::max_iter)
         .def_readwrite("precision", &util::Config::precision)
         .def_readwrite("threshold", &util::Config::threshold)

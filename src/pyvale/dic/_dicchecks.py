@@ -210,6 +210,14 @@ def _check_method(method: str) -> None:
 
 
 
+def _check_partial_subsets(partial_subset: float,
+                           partial_subset_multiwindow: float) -> None:
+    for name, value in (("partial_subset", partial_subset),
+                        ("partial_subset_multiwindow", partial_subset_multiwindow)):
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be a fractional value between 0 and 1. Got {value}")
+
+
 def _check_thresholds(threshold: float,
                      precision: float) -> None:
     """
@@ -656,5 +664,4 @@ def _print_config_summary(image_width: int,
         for i in range(0, len(updated_seeds), 2):
             x, y = updated_seeds[i], updated_seeds[i + 1]
             common_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
-
 

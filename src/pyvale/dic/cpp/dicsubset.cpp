@@ -189,7 +189,7 @@ namespace subset {
     subset::Grid create_grid(const bool *img_roi, const int ss_step,
                              const int ss_size_x, const int ss_size_y,
                              const int px_hori, const int px_vert,
-                             const bool partial) {
+                             const double partial_subset) {
         
         //Timer timer("subset grid generation for subset size " + std::to_string(ss_size) + " [px] with step " + std::to_string(ss_step) + " [px]:" );
 
@@ -239,7 +239,7 @@ namespace subset {
                 for (int px_y = ymin; px_y <= ymax && valid; px_y++) {
                     for (int px_x = xmin; px_x <= xmax && valid; px_x++) {
 
-                        if (!partial) {
+                        if (partial_subset == 1.0) {
                             if (!px_in_img_dims(px_x, px_y, px_hori, px_vert) ||
                                 !px_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
                                 valid = false;
@@ -256,8 +256,8 @@ namespace subset {
                     }
                 }
 
-                if (partial && valid) {
-                    valid = (valid_count >= (ss_size_x * ss_size_y) * 0.70);
+                if (partial_subset < 1.0 && valid) {
+                    valid = (valid_count >= (ss_size_x * ss_size_y) * partial_subset);
                 }
 
                 valid_grid[j * num_ss_x + i] = static_cast<unsigned char>(valid);

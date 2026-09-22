@@ -96,7 +96,7 @@ struct WindowLevel {
            const int search_area,
            const int px_hori,
            const int px_vert,
-           const bool allow_outside,
+           const double partial_subset,
            const size_t level,
            const bool fft_filter,
            const double fft_filter_threshold,
@@ -107,7 +107,7 @@ struct WindowLevel {
            const subset::Grid *prev_layout) {
 
         // create grid for the window
-        layout = subset::create_grid(img_roi, step, template_size, template_size, px_hori, px_vert, allow_outside);
+        layout = subset::create_grid(img_roi, step, template_size, template_size, px_hori, px_vert, partial_subset);
         u.resize(layout.num);
         v.resize(layout.num);
         cost.resize(layout.num);

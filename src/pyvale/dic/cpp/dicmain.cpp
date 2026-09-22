@@ -90,7 +90,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
         common_util::Timer timer("to create subset grid:", 2);
         ss_grid_l = subset::create_grid(img_roi, conf.ss_step,
                                         conf.ss_size, conf.ss_size,
-                                        conf.px_hori, conf.px_vert, false);
+                                        conf.px_hori, conf.px_vert, conf.partial_subset);
         ss_grid_l_0 = ss_grid_l;
     }
     else {

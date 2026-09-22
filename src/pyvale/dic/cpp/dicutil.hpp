@@ -68,6 +68,8 @@ namespace util {
     struct Config {
         int ss_step;
         int ss_size;
+        double partial_subset = 1.0;
+        double partial_subset_multiwindow = 0.7;
         int max_iter;
         int px_hori;
         int px_vert;
