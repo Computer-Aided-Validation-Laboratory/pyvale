@@ -1,26 +1,32 @@
 #-------------------------------------------------------------------------
 # pyvale: simple,2DplateWHole,mechanical,transient
 #-------------------------------------------------------------------------
-# NOTE: default 2D MOOSE solid mechanics is plane strain
+# NOTE: weak plane stress assumes a unit out-of-plane thickness.
 
 #-------------------------------------------------------------------------
 #_* MOOSEHERDER VARIABLES - START
 
-endTime = 60
+endTime = 32
 timeStep = 1
 
 # Mechanical Loads/BCs
-topDispRate = ${fparse 1.5e-3 / 60}  # m/s
+topDispRate = ${fparse 1.0 / endTime}  # mm/s
 
 # Material Properties: OFHC Copper 250degC
-EMod= 108e9   # Pa
+EMod = 108e3  # MPa (N/mm^2)
 PRatio = 0.33     # -
 
 #** MOOSEHERDER VARIABLES - END
 #-------------------------------------------------------------------------
 
+[Variables]
+    [strain_zz]
+    []
+[]
+
 [GlobalParams]
     displacements = 'disp_x disp_y'
+    out_of_plane_strain = strain_zz
 []
 
 [Mesh]
@@ -28,14 +34,15 @@ PRatio = 0.33     # -
     file = 'case17.msh'
 []
 
-[Modules/TensorMechanics/Master]
+[Physics/SolidMechanics/QuasiStatic]
     [all]
         strain = SMALL
+        planar_formulation = WEAK_PLANE_STRESS
         incremental = true
         add_variables = true
         material_output_family = MONOMIAL   # MONOMIAL, LAGRANGE
         material_output_order = FIRST       # CONSTANT, FIRST, SECOND,
-        generate_output = 'vonmises_stress stress_xx stress_yy stress_xy strain_xx strain_yy strain_xy'
+        generate_output = 'vonmises_stress strain_xx strain_yy strain_xy'
     []
 []
 
@@ -119,20 +126,10 @@ PRatio = 0.33     # -
         variable = disp_x
     []
 
-    [max_yy_stress]
-        type = ElementExtremeValue
-        variable = stress_yy
-    []
-
     [strain_yy_avg]
         type = ElementAverageValue
         variable = strain_yy
     []
-    [strain_xx_avg]
-        type = ElementAverageValue
-        variable = strain_xx
-    []
-
     [stress_vm_max]
         type = ElementExtremeValue
         variable = vonmises_stress

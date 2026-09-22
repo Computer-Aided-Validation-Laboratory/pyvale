@@ -140,17 +140,17 @@ def sim_case_gmsh_file_path(case_num: int) -> Path | None:
 
 
 def dic_pattern_5mpx_path() -> Path:
-    """Path to a 5 mega-pixel speckle pattern image (2464 x 2056 pixels)
-    with 8 bit resolution stored as a ``*.tiff``. Speckles are sampled by
-    5 pixels. A gaussian blur has been applied to the image to remove sharp
-    transitions from black to white.
+    """Return Riley's 5 mega-pixel mono speckle pattern image.
 
+    The image has shape ``(2056, 2464)`` with 8-bit resolution. It is the
+    shared packaged Riley texture used by Pyvale's rendering and DIC examples.
+
+    Returns
+    -------
     Path
-        Path to the ``*.tiff`` file containing the speckle pattern.
+        Path to Riley's packaged speckle image.
     """
-    return _data_path(
-        "render", "patterns", "optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff",
-    )
+    return riley.data.speckle_texture_path()
 
 
 def thermal_2d_path() -> Path:
@@ -200,6 +200,8 @@ def mechanical_2d_path() -> Path:
     plate with a hole in the center with the bottom edge fixed and a
     displacement applied to the top edge. This is a mechanical problem and
     solves for the displacement vector field and the tensorial strain field.
+    Geometry and displacements are expressed in millimetres, with material
+    properties in N/mm² (MPa).
 
     The simulation parameters can be found in the corresponding MOOSE input
     file: case17.i which can be retrieved using `sim_case_input_file_path`
@@ -580,7 +582,7 @@ def dic_plate_rigid_cam0_def_small() -> list[Path]:
 
     return [
         Path(data_dir.joinpath(f"rigid_cam0_frame{i:02d}.tiff"))
-        for i in range(11)
+        for i in [0,4,8,10]
     ]
 
 def dic_plate_rigid_cam1_def_small() -> list[Path]:
@@ -591,21 +593,8 @@ def dic_plate_rigid_cam1_def_small() -> list[Path]:
 
     return [
         Path(data_dir.joinpath(f"rigid_cam1_frame{i:02d}.tiff"))
-        for i in range(11)
+        for i in [0,4,8,10]
     ]
-
-def dic_plate_rigid_cam0_def_10px() -> Path:
-    """
-    Path to the 25px rigid deformation image.
-    1040x1540 image in .tiff format.
-
-    Returns
-    -------
-    Path
-        Path to the 25 px deformed image (``.tiff``).
-    """
-    return _data_path("dic", "plate_rigid", "rigid_cam0_frame11.tiff")
-
 
 def dic_plate_rigid_cam0_def_25px() -> Path:
     """
@@ -617,7 +606,7 @@ def dic_plate_rigid_cam0_def_25px() -> Path:
     Path
         Path to the 25 px deformed image (``.tiff``).
     """
-    return _data_path("dic", "plate_rigid", "rigid_cam0_frame12.tiff")
+    return _data_path("dic", "plate_rigid", "rigid_cam0_frame25.tiff")
 
 
 def dic_plate_rigid_cam0_def_50px() -> Path:
@@ -630,7 +619,7 @@ def dic_plate_rigid_cam0_def_50px() -> Path:
     Path
         Path to the 50px deformed image (``.tiff``).
     """
-    return _data_path("dic", "plate_rigid", "rigid_cam0_frame13.tiff")
+    return _data_path("dic", "plate_rigid", "rigid_cam0_frame50.tiff")
 
 
 def dic_chal_2d_ref() -> Path:
@@ -713,97 +702,32 @@ def dic_chal_3d_cam1() -> Path:
     )
 
 def cal_target() -> Path:
-    """
-    Path to example calibration target.
+    """Return Riley's packaged calibration-target image.
 
     Returns
     -------
     Path
-        Path to the image (``.tiff``).
+        Path to Riley's packaged calibration-target image.
     """
-    return _data_path("calibration", "cal_target.tiff")
-
-
-def riley_speckle_texture_path() -> Path:
-    """Return the texture packaged for the Riley parity examples."""
-    return _data_path("render", "riley", "textures", "speckle.bmp")
-
-
-def riley_cal_target_texture_path() -> Path:
-    """Return the Riley stereo-calibration target texture."""
-    return _data_path(
-        "render",
-        "riley",
-        "textures",
-        "cal_target-simple.tiff",
-    )
-
-
-def riley_sphere200_case_path() -> Path:
-    """Return the Riley Tri6 sphere demonstration data directory."""
-    return _data_path("render", "riley", "min", "tri6_sphere200")
-
-
-def riley_platehole_csv_case_path() -> Path:
-    """Return the Riley plate-with-hole CSV demonstration data directory."""
-    return _data_path("render", "riley", "fe", "platehole3d_2mr_63f")
-
-
-def riley_platehole_exodus_path() -> Path:
-    """Return the Riley plate-with-hole Exodus demonstration file."""
-    return _data_path(
-        "render",
-        "riley",
-        "fe",
-        "platehole3d_2mr_63f.e",
-    )
-
-
-def riley_stereocal_case_path() -> Path:
-    """Return the Riley stereo-calibration mesh data directory."""
-    return _data_path("render", "riley", "calplate", "tri3_calplate3d")
-
-
-def riley_rabbit_case_path(
-    rabbit_name: str,
-    topology: EElemType,
-) -> Path:
-    """Return one Riley rabbit mesh case packaged with pyvale.
-
-    Parameters
-    ----------
-    rabbit_name : str
-        One of ``"riley"`` or ``"feebs"``.
-    topology : EElemType
-        One of the supported Riley surface topologies.
-    """
-    path = _data_path(
-        "render",
-        "riley",
-        "rabbits",
-        f"{rabbit_name}_{topology.value}",
-    )
-    if not path.is_dir():
-        raise DataSetError(
-            f"Unknown Riley rabbit case: {rabbit_name}_{topology.value}."
-        )
-    return path
+    return riley.data.cal_target_texture_path()
 
 
 def riley_rabbit_meshes() -> list[riley.Mesh]:
-    """Load the packaged Riley TRI3 rabbit meshes with the speckle texture.
+    """Load Riley's packaged TRI3 rabbit meshes with its speckle texture.
 
     Returns
     -------
     list[riley.Mesh]
         The ``"riley"`` and ``"feebs"`` TRI3 surface meshes normalised to
-        the shared mesh convention and textured with the packaged speckle
-        image.
+        the shared mesh convention and textured with Riley's speckle image.
     """
-    texture = riley.load_texture_mono_u8(riley_speckle_texture_path())
+    texture = riley.load_texture_mono_u8(riley.data.speckle_texture_path())
     meshes: list[riley.Mesh] = []
     for rabbit_name in ("riley", "feebs"):
-        data_path = riley_rabbit_case_path(rabbit_name, EElemType.TRI3)
+        data_path = riley.data.rabbit_case_path(
+            rabbit_name,
+            EElemType.TRI3.value,
+        )
         coords = riley.load_csv(data_path / "coords.csv")
         connect = riley.load_csv(
             data_path / "connectivity.csv", dtype=np.int64
