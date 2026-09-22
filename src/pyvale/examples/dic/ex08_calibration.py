@@ -46,8 +46,8 @@ import pyvale.calib as calib
 # path assumes you have saved the calibration images in a folder called
 # "calibration-data" in your current working directory.
 
-cam0 = "./calibration-data/cam0_*.bmp"
-cam1 = "./calibration-data/cam1_*.bmp"
+cam0 = "./calibration-example-data/cam0_*.bmp"
+cam1 = "./calibration-example-data/cam1_*.bmp"
 
 # %%
 # Dot detection needs the image pairs, the target dimensions and spacing, and
@@ -59,7 +59,7 @@ dots0, dots1, grid, filenames0, filenames1 = calib.detect_dots(
     cam1=cam1,
     grid_height=9,
     grid_width=12,
-    missing_dots=[(9, 6), (2, 2), (2, 6)], # order of white dots does not matter
+    hollow_dots=[(9, 6), (2, 2), (2, 6)], # order of white dots does not matter
     min_dot_fraction=0.5, # minimum fraction of matching dots.
     grid_spacing=1.25,  # in mm.
 )

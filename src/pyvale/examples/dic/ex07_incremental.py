@@ -45,12 +45,12 @@ ref_img = dataset.dic_plate_rigid_cam0_ref()
 def_img = dataset.dic_plate_rigid_cam0_def()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "incremental"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex07"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 roi = dic.RegionOfInterest(ref_img)
-roi.rect_boundary(left=50,right=50,top=50,bottom=50)
+roi.rect_boundary(left=0,right=100,top=100,bottom=0)
 
 
 # %%
@@ -77,11 +77,12 @@ roi.rect_boundary(left=50,right=50,top=50,bottom=50)
 dic.calculate_2d(reference=ref_img,
                  deformed=def_img,
                  roi_mask=roi.mask,
-                 seed=[500,500],
+                 seed=[100,100],
                  subset_size=subset_size,
                  subset_step=10,
                  incremental_update="IMAGE", # use "OFF" to disable; can also be "COST" or "ITER"
                  incremental_update_value=1, # update the reference every 1 image(s)
                  output_basepath=output_path,
                  output_delimiter=",",
-                 output_prefix="results_inc_")
+                 output_prefix="results_inc_",
+                 print_level=1)

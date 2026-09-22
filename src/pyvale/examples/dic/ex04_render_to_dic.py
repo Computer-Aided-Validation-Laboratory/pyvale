@@ -133,7 +133,7 @@ np.testing.assert_allclose(
 # %%
 # 5. Render the reference and deformed images with Riley
 # ------------------------------------------------------------
-output_dir = Path.cwd() / "pyvale-output" / "dic_ex04_render_to_dic"
+output_dir = Path.cwd() / "pyvale-output" / "dic_ex04"
 render_dir = output_dir / "render"
 
 config = riley.create_raster_config(
@@ -213,7 +213,7 @@ dic.calculate_2d(
     num_threads=4,
     output_basepath=dic_dir,
     output_prefix="render_to_dic_",
-    print_level=0,
+    print_level=1,
 )
 
 dic_results = dic.import_2d(

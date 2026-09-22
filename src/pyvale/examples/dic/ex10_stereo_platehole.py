@@ -87,7 +87,8 @@ dic.calculate_3d(reference=[ref0, ref1],
                  seed=roi.seed,
                  subset_size=31,
                  subset_step=10,
-                 output_basepath=output_path)
+                 output_basepath=output_path,
+                 print_level=1)
 
 
 # %%
