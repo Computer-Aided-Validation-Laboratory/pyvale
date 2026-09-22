@@ -104,6 +104,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
 
     // pointer to hold the reference interpolators (will be created once)
     std::unique_ptr<Interpolator> interp_ref_l;
+    std::unique_ptr<Interpolator> interp_ref_r;
     std::unique_ptr<Interpolator> interp_def_l;
     std::unique_ptr<Interpolator> interp_def_r;
     interp_ref_l = interp_factory(0);
@@ -128,6 +129,33 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
 
         // sort out intrinsic and extrinsic matrices into struct
         stereo_geom = stereo::compute_stereo_geometry(calib);
+
+        // Reconstruct the supplied stereo reference pair before processing any
+        // deformed images. Physical displacements must be measured from this
+        // geometry, rather than from the first deformed image pair.
+        const int img_num_ref_r = conf.num_def_img + 1;
+        interp_ref_r = interp_factory(img_num_ref_r);
+        singlewindow_rg(*interp_ref_l,
+                        *interp_ref_r,
+                        ss_grid_l_0,
+                        conf,
+                        0,
+                        img_num_ref_r,
+                        results_ref_l,
+                        results_ref_r,
+                        "stereo",
+                        stereo_geom.F);
+
+        stereo::pixel_to_world(ss_grid_l_0,
+                               calib,
+                               results_ref_l,
+                               results_ref_r,
+                               results_ref_r,
+                               stereo_geom.K0,
+                               stereo_geom.K1,
+                               stereo_geom.R,
+                               conf.ss_size,
+                               true);
 
     }
 
@@ -316,7 +344,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                                         stereo_geom.K1,
                                         stereo_geom.R,
                                         conf.ss_size,
-                                        (img_num_def_l==1));
+                                        false);
                 }
                 break;
             }
@@ -437,7 +465,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                                         stereo_geom.K1,
                                         stereo_geom.R,
                                         conf.ss_size,
-                                        (img_num_def_l==1));
+                                        false);
                 }
                 break;
             }

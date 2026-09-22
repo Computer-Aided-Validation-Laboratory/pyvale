@@ -264,9 +264,9 @@ coordinates are also in millimetres.
 
 3D Displacement
 ---------------
-For the first image pair, the triangulated coordinates are stored as the stereo
-reference coordinates and the world displacement is set to zero. For later image
-pairs, the 3D displacement is calculated by subtracting the reference stereo
+The supplied stereo reference pair is matched and triangulated before any
+deformed images are processed. For every deformed image pair, including the
+first, the 3D displacement is calculated by subtracting the reference stereo
 coordinates from the current triangulated coordinates,
 
 .. math::
