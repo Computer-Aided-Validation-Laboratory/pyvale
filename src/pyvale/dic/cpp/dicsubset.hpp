@@ -139,7 +139,7 @@ namespace subset {
                                      const double cx, const double cy,
                                      const std::vector<double>& p,
                                      const Interpolator &interp_def,
-                                     util::ShapeFunc shape_func);
+                                     util::EShapeFunc shape_func);
     /**
      * @brief Generates a list of subsets based on the provided image ROI and parameters.
      * 

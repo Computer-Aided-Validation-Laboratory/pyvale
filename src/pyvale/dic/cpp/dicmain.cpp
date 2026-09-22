@@ -79,13 +79,13 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
     subset::Grid ss_grid_l;
     subset::Grid ss_grid_l_0;
 
-    if (conf.scan_method == util::ScanMethod::MULTIWINDOW_RG || conf.scan_method == util::ScanMethod::MULTIWINDOW) {
+    if (conf.scan_method == util::EScanMethod::MULTIWINDOW_RG || conf.scan_method == util::EScanMethod::MULTIWINDOW) {
         multiwindow_init(multiwindow_l, img_roi, conf, mwconf, saveconf);
         ss_grid_l = multiwindow_l.back().layout;
         ss_grid_l_0 = ss_grid_l;
     }
-    else if (conf.scan_method == util::ScanMethod::SINGLEWINDOW_RG ||
-             conf.scan_method == util::ScanMethod::RASTER) {
+    else if (conf.scan_method == util::EScanMethod::SINGLEWINDOW_RG ||
+             conf.scan_method == util::EScanMethod::RASTER) {
 
         common_util::Timer timer("to create subset grid:", 2);
         ss_grid_l = subset::create_grid(img_roi, conf.ss_step,
@@ -179,7 +179,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
         }
 
         switch (conf.scan_method) {
-            case util::ScanMethod::RASTER: {
+            case util::EScanMethod::RASTER: {
                 // ----------------------------------------------------------------------------------------
                 // raster scan
                 // ----------------------------------------------------------------------------------------
@@ -201,7 +201,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                 break;
             }
 
-            case util::ScanMethod::MULTIWINDOW: {
+            case util::EScanMethod::MULTIWINDOW: {
                 // ----------------------------------------------------------------------------------------
                 // multiwindow FFTCC
                 // ----------------------------------------------------------------------------------------
@@ -273,7 +273,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                 break;
             }
 
-            case util::ScanMethod::SINGLEWINDOW_RG: {
+            case util::EScanMethod::SINGLEWINDOW_RG: {
                 // ----------------------------------------------------------------------------------------
                 // singlewindow FFTCC + RG
                 // ----------------------------------------------------------------------------------------
@@ -349,7 +349,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                 break;
             }
 
-            case util::ScanMethod::MULTIWINDOW_RG: {
+            case util::EScanMethod::MULTIWINDOW_RG: {
                 // ----------------------------------------------------------------------------------------
                 // multiwindow FFTCC + reliability Guided
                 // ----------------------------------------------------------------------------------------
@@ -550,19 +550,19 @@ bool should_update_ref(const int img_num_def_l, const ResultArrays& results, con
 
     switch (conf.incremental_update_cond) {
 
-        case util::IncrementalCond::IMAGE: {
+        case util::EIncrementalCond::IMAGE: {
             int interval = static_cast<int>(conf.incremental_update_val);
             return (img_num_def_l - 1) % interval == 0;
         }
 
-        case util::IncrementalCond::ITER: {
+        case util::EIncrementalCond::ITER: {
             if (results.niter.empty()) return false;
 
             double avg = std::accumulate(results.niter.begin(), results.niter.end(), 0.0) / results.niter.size();
             return avg > conf.incremental_update_val;
         }
 
-        case util::IncrementalCond::COST: {
+        case util::EIncrementalCond::COST: {
             if (results.cost.empty()) return false;
 
             double avg = std::accumulate(results.cost.begin(), results.cost.end(), 0.0) / results.cost.size();

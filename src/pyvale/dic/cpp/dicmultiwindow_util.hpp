@@ -204,7 +204,7 @@ struct WindowLevel {
                                   const int window_level,
                                   const int num_levels,
                                   const std::vector<std::string> &filenames,
-                                  const util::FFTPrecision fft_precision);
+                                  const util::EFFTPrecision fft_precision);
 
 
 

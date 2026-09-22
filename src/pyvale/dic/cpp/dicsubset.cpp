@@ -117,18 +117,18 @@ namespace subset {
                                      const double cx, const double cy,
                                      const std::vector<double>& p,
                                      const Interpolator &interp,
-                                     util::ShapeFunc shape_func){
+                                     util::EShapeFunc shape_func){
 
         // Get the right shape function
         void (*get_pixel)(double&, double&, const double, const double, const std::vector<double>&);
         switch (shape_func) {
-            case util::ShapeFunc::AFFINE:
+            case util::EShapeFunc::AFFINE:
                 get_pixel = &Affine::get_pixel;
                 break;
-            case util::ShapeFunc::RIGID:
+            case util::EShapeFunc::RIGID:
                 get_pixel = &Rigid::get_pixel;
                 break;
-            case util::ShapeFunc::QUAD:
+            case util::EShapeFunc::QUAD:
                 get_pixel = &Quad::get_pixel;
                 break;
         }

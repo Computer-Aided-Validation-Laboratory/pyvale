@@ -107,7 +107,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
         // initialize FFT stuff
         std::optional<FFTf> fft_float;
         std::optional<FFT> fft_double;
-        if (conf.fft_precision == util::FFTPrecision::FLOAT32) {
+        if (conf.fft_precision == util::EFFTPrecision::FLOAT32) {
             fft_float.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
         } else {
             fft_double.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
@@ -165,7 +165,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
 
                 // if the first image. Take the optimization parameters from rigid fourier
                 if (mode=="temporal") {
-                    if (conf.fft_precision == util::FFTPrecision::FLOAT32) {
+                    if (conf.fft_precision == util::EFFTPrecision::FLOAT32) {
                         get_initial_guess_temporal(*fft_float, opt.p, max_val, cx, cy, false);
                     } else {
                         get_initial_guess_temporal(*fft_double, opt.p, max_val, cx, cy, false);

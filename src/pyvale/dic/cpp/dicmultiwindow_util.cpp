@@ -205,7 +205,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
                                            const int window_level,
                                            const int num_levels,
                                            const std::vector<std::string> &filenames,
-                                           const util::FFTPrecision fft_precision){
+                                           const util::EFFTPrecision fft_precision){
 
         const int px_hori = interp_def.px_hori;
         const int px_vert = interp_def.px_vert;
@@ -276,7 +276,7 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
             #pragma omp parallel shared(stop_request, level, prev, interp_ref, interp_def, img_num_ref, search_area, u, v, max_val)
         #endif
         {
-            if (fft_precision == util::FFTPrecision::FLOAT32) {
+            if (fft_precision == util::EFFTPrecision::FLOAT32) {
                 FFTf fft(search_area, search_area, false);
                 run_fft_loop(fft);
             } else {

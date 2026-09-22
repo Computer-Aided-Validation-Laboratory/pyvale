@@ -26,8 +26,8 @@
 
 
 // Constructor
-Optimizer::Optimizer(util::ShapeFunc shape_func, 
-                        util::CorrCrit cost_func,
+Optimizer::Optimizer(util::EShapeFunc shape_func, 
+                        util::ECorrCrit cost_func,
                         int max_iter_,
                         double precision_,
                         double threshold_,
@@ -60,32 +60,32 @@ Optimizer::Optimizer(util::ShapeFunc shape_func,
 }
 
 // Get number of parameters from shape function name
-int Optimizer::get_num_params(util::ShapeFunc shape_func) {
+int Optimizer::get_num_params(util::EShapeFunc shape_func) {
     switch (shape_func) {
-        case util::ShapeFunc::RIGID:
+        case util::EShapeFunc::RIGID:
             return Rigid::num_params;
-        case util::ShapeFunc::AFFINE:
+        case util::EShapeFunc::AFFINE:
             return Affine::num_params;
-        case util::ShapeFunc::QUAD:
+        case util::EShapeFunc::QUAD:
             return Quad::num_params;
     }
     throw std::invalid_argument("Unknown shape function");
 }
 
 // Set shape function
-void Optimizer::set_shape(util::ShapeFunc shape_func) {
+void Optimizer::set_shape(util::EShapeFunc shape_func) {
     switch (shape_func) {
-        case util::ShapeFunc::AFFINE:
+        case util::EShapeFunc::AFFINE:
             get_pixel = &Affine::get_pixel;
             get_dfdp = &Affine::get_dshape_dp;
             get_displacement = &Affine::get_displacement;
             break;
-        case util::ShapeFunc::RIGID:
+        case util::EShapeFunc::RIGID:
             get_pixel = &Rigid::get_pixel;
             get_dfdp = &Rigid::get_dshape_dp;
             get_displacement = &Rigid::get_displacement;
             break;
-        case util::ShapeFunc::QUAD:
+        case util::EShapeFunc::QUAD:
             get_pixel = &Quad::get_pixel;
             get_dfdp = &Quad::get_dshape_dp;
             get_displacement = &Quad::get_displacement;
@@ -139,7 +139,7 @@ OptResult Optimizer::solve(const double cx,
 
         // Check converged
         if (converged) {
-            if (criteria == util::CorrCrit::SSD) break;
+            if (criteria == util::ECorrCrit::SSD) break;
             if (!check_on_thresh || good_enough) break;
         }
         iter++;
@@ -606,15 +606,15 @@ void Optimizer::update_shapefunc_parameters(std::vector<double> &pdp, std::vecto
 }
 
 
-void Optimizer::set_cost_function(util::CorrCrit corr_crit) {
+void Optimizer::set_cost_function(util::ECorrCrit corr_crit) {
     switch (corr_crit) {
-        case util::CorrCrit::SSD:
+        case util::ECorrCrit::SSD:
             optimize_cost = &Optimizer::ssd;
             break;
-        case util::CorrCrit::NSSD:
+        case util::ECorrCrit::NSSD:
             optimize_cost = &Optimizer::nssd;
             break;
-        case util::CorrCrit::ZNSSD:
+        case util::ECorrCrit::ZNSSD:
             optimize_cost = &Optimizer::znssd;
             break;
     }
