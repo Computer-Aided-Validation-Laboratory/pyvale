@@ -255,7 +255,7 @@ void Optimizer::ssd(const subset::Pixels &ss_ref,
     }
 
     populate_hessian_lower_tri(H, lambda, num_params);
-    invertMatrix(H, invH, augmented, num_params);
+    invert_matrix(H, invH, augmented, num_params);
     update_shapefunc_parameters(pdp, p, dp, invH, g, num_params);
 
     // calculate cost function for current and updated parameter values 
@@ -340,7 +340,7 @@ void Optimizer::nssd(const subset::Pixels &ss_ref,
     }
 
     populate_hessian_lower_tri(H, lambda, num_params);
-    invertMatrix(H, invH, augmented, num_params);
+    invert_matrix(H, invH, augmented, num_params);
     update_shapefunc_parameters(pdp, p, dp, invH, g, num_params);
 
 
@@ -461,7 +461,7 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
 
 
     populate_hessian_lower_tri(H, lambda, num_params);
-    invertMatrix(H, invH, augmented, num_params);
+    invert_matrix(H, invH, augmented, num_params);
     update_shapefunc_parameters(pdp, p, dp, invH, g, num_params);
 
     // calculate cost function for current parameter values
@@ -498,7 +498,7 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
 }
 
 // Inv matrix using Gauss Elim.
-bool Optimizer::invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params) {
+bool Optimizer::invert_matrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params) {
 
     const int n = num_params;
     
@@ -684,6 +684,29 @@ void Optimizer::copy_params_from_neigh(const std::vector<double> &results_p,
     for (int i = 0; i < static_cast<int>(p.size()); i++) {
         p[i] /= weight_sum;
     }
+}
+
+int Optimizer::average_params_from_neigh(
+                            const std::vector<double> &results_p,
+                            const std::vector<uint8_t> &successful,
+                            const std::vector<int> &neigh) {
+    std::fill(p.begin(), p.end(), 0.0);
+
+    int count = 0;
+    for (int nidx : neigh) {
+        if (!successful[nidx]) continue;
+
+        const int idx_p = nidx * num_params;
+        for (int i = 0; i < static_cast<int>(p.size()); i++) {
+            p[i] += results_p[idx_p + i];
+        }
+        count++;
+    }
+
+    if (count > 0) {
+        for (double &param : p) param /= count;
+    }
+    return count;
 }
 
 // Reset parameters to zero

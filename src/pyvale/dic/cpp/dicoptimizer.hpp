@@ -75,7 +75,11 @@ class Optimizer {
                                     const std::vector<int> &neigh,
                                     const int fallback_idx);
 
-        void reset_params();
+        int average_params_from_neigh(const std::vector<double> &results_p,
+                              const std::vector<uint8_t> &successful,
+                              const std::vector<int> &neigh);
+
+void reset_params();
 
     private:
 
@@ -185,7 +189,7 @@ class Optimizer {
         * @return true Matrix inversion was successful
         * @return false Matrix inversion failed
         */
-        bool invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params);
+        bool invert_matrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params);
 
         /**
         * @brief Updates the shape function parameters based on the current and updated parameters.

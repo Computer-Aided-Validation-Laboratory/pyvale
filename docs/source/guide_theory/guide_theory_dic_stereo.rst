@@ -299,11 +299,11 @@ routine all influence the final result. Parameters may need to be adjusted
 differently for stereo DIC compared to 2D DIC due to the additional complexity
 of the stereo matching process.
 
-When using ``calculate_3d()``, ensure that the :code:`epi_distance` parameter is
+When using ``calculate_3d()``, ensure that the :code:`epi_search_distance` parameter is
 set appropriately for your stereo baseline and resolution. This parameter controls
 the search distance along epipolar lines and affects both computation time and 
-matching robustness. The default value of 300 pixels is suitable for typical stereo 
-setups, but may need adjustment for very wide or very narrow baselines.
+matching robustness. The default value of 100 may need adjustment for very
+wide or very narrow baselines.
 
 For incremental stereo DIC, Pyvale carries forward the previous stereo match as
 the updated reference for 3D reconstruction. This helps maintain accuracy across

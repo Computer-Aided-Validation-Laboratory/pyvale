@@ -8,6 +8,7 @@
 // STD library Header files
 #include <sstream>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -49,12 +50,13 @@ ResultArrays::ResultArrays(int num_ss,
     // has_good_history.resize(num_ss, 0);
 
     if (stereo){
-        x_world.resize(num_ss,0.0);
-        y_world.resize(num_ss,0.0);
-        z_world.resize(num_ss,0.0);
-        u_world.resize(num_ss,0.0);
-        v_world.resize(num_ss,0.0);
-        w_world.resize(num_ss,0.0);
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        x_world.resize(num_ss, nan);
+        y_world.resize(num_ss, nan);
+        z_world.resize(num_ss, nan);
+        u_world.resize(num_ss, nan);
+        v_world.resize(num_ss, nan);
+        w_world.resize(num_ss, nan);
     }
 }
 
@@ -86,12 +88,13 @@ void ResultArrays::append(OptResult &res, const int i) {
     std::fill(above_thresh.begin(), above_thresh.end(), false);
 
     if (stereo) {
-        std::fill(x_world.begin(), x_world.end(), 0.0);
-        std::fill(y_world.begin(), y_world.end(), 0.0);
-        std::fill(z_world.begin(), z_world.end(), 0.0);
-        std::fill(u_world.begin(), u_world.end(), 0.0);
-        std::fill(v_world.begin(), v_world.end(), 0.0);
-        std::fill(w_world.begin(), w_world.end(), 0.0);
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        std::fill(x_world.begin(), x_world.end(), nan);
+        std::fill(y_world.begin(), y_world.end(), nan);
+        std::fill(z_world.begin(), z_world.end(), nan);
+        std::fill(u_world.begin(), u_world.end(), nan);
+        std::fill(v_world.begin(), v_world.end(), nan);
+        std::fill(w_world.begin(), w_world.end(), nan);
     }
   }
 

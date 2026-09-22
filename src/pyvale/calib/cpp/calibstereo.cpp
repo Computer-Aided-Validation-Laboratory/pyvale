@@ -10,7 +10,7 @@
 #include <cstring>
 #include <omp.h>
 #include <vector>
-#include <math.h>
+#include <cmath>
 #include <iomanip>
 #include <stdexcept>
 
@@ -22,6 +22,31 @@
 #include "./calibstereo.hpp"
 
 #include "../../commoncpp/util.hpp"
+
+namespace {
+
+std::vector<double> matrix_to_euler_xyz_degrees(const Eigen::Matrix3d &R) {
+    constexpr double rad_to_deg = 180.0 / M_PI;
+
+    double theta = 0.0;
+    double phi = 0.0;
+    double psi = 0.0;
+
+    // Invert the DIC convention R = Rz(psi) * Ry(phi) * Rx(theta).
+    if (std::abs(R(2, 0)) < 1.0 - 1e-12) {
+        phi = std::asin(-R(2, 0));
+        theta = std::atan2(R(2, 1), R(2, 2));
+        psi = std::atan2(R(1, 0), R(0, 0));
+    } else {
+        phi = (R(2, 0) <= -1.0) ? M_PI / 2.0 : -M_PI / 2.0;
+        theta = 0.0;
+        psi = std::atan2(-R(0, 1), R(1, 1));
+    }
+
+    return {theta * rad_to_deg, phi * rad_to_deg, psi * rad_to_deg};
+}
+
+}
 
 
 StereoCalibResult calibrate_stereo(const std::vector<double> &init_params,
@@ -151,13 +176,17 @@ StereoCalibResult calibrate_stereo(const std::vector<double> &init_params,
          Eigen::Vector3d tvec1 = R_stereo * tvec0 + tvec_stereo;
     }
 
+    Eigen::Vector3d rvec_stereo(opt.p[20], opt.p[21], opt.p[22]);
+    Eigen::Matrix3d R_stereo = optimization::rodrigues_to_matrix(rvec_stereo);
+    std::vector<double> rotation_euler_deg = matrix_to_euler_xyz_degrees(R_stereo);
+
     Calib calib{
         .cam0 = {opt.p[0], opt.p[1], opt.p[2], opt.p[3], opt.p[4],
                 {opt.p[5], opt.p[6], opt.p[7], opt.p[8], opt.p[9]}},
         .cam1 = {opt.p[10], opt.p[11], opt.p[12], opt.p[13], opt.p[14],
                 {opt.p[15], opt.p[16], opt.p[17], opt.p[18], opt.p[19]}},
         .translation = {opt.p[23], opt.p[24], opt.p[25]},
-        .rotation = {opt.p[20], opt.p[21], opt.p[22]},
+        .rotation = std::move(rotation_euler_deg),
     };
 
 

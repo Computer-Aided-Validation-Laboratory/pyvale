@@ -150,14 +150,14 @@ def import_3d(data: str | Path | list[Path],
             len(x_unique),
         )
 
+        x_indices = np.searchsorted(x_unique, ss_x_ref)
+        y_indices = np.searchsorted(y_unique, ss_y_ref)
         arrays = [
             to_grid(
                 a,
                 shape,
-                ss_x_ref,
-                ss_y_ref,
-                x_unique,
-                y_unique,
+                x_indices,
+                y_indices,
             )
             for a in arrays
         ]
