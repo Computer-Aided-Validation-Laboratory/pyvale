@@ -20,9 +20,10 @@ import numpy as np
 import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import dic, render
+
+RILEY_TEXTURE = Path("/home/kc4736/ukaea/datasets/dicbenchmarks/texture/speckle.bmp")
 
 SUBSET_SIZE = 21
 SPECKLE_SIZE_PX = 5.0
@@ -60,7 +61,7 @@ mesh = render.meshes3d_from_simdata(
 # to keep the target edges smooth. A ten percent border leaves room for the DIC
 # subsets and makes the target boundary easy to identify.
 camera = render.Camera(
-    pixels_num=np.array((1024, 640)),
+    pixels_num=np.array((1040, 1540)),
     pixels_size=np.array((5.5e-6, 5.5e-6)),
     pos_world=np.zeros(3),
     rot_world=Rotation.identity(),
@@ -82,7 +83,7 @@ camera = render.cam_frame_mesh(
 # pixels. We request the same five pixel feature size in the rendered image.
 # A 21 pixel DIC subset therefore spans about four speckles.
 
-texture = render.image_load(dataset.dic_pattern_5mpx_path())
+texture = render.image_load(RILEY_TEXTURE)
 image_leng_per_px = render.cam_calc_leng_per_px(camera)
 
 texture_px_per_leng = render.uv_calc_texture_px_per_leng_from_image(

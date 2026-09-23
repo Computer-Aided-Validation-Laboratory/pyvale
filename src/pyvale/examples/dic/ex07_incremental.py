@@ -37,17 +37,16 @@ from pathlib import Path
 import numpy as np
 
 # pyvale modules
-import pyvale.data as dataset
 import pyvale.dic as dic
+from riley_render import render_case
 
 subset_size = 31
-ref_img = dataset.dic_plate_rigid_cam0_ref()
-def_img = dataset.dic_plate_rigid_cam0_def()
-
-# create a directory for the the different outputs
 output_path = Path.cwd() / "pyvale-output" / "dic_ex07"
-if not output_path.is_dir():
-    output_path.mkdir(parents=True, exist_ok=True)
+output_path.mkdir(parents=True, exist_ok=True)
+render_dir = render_case("mechplate2d_rigid_1px", output_path / "riley")
+ref_img = render_dir / "cam0_frame0_field0.tiff"
+def_img = render_dir / "cam0_frame*_field0.tiff"
+
 
 roi = dic.RegionOfInterest(ref_img)
 roi.rect_boundary(left=0,right=100,top=100,bottom=0)
