@@ -1,8 +1,6 @@
 name: Deploy Sphinx Documentation
 
 on:
-  push:
-    branches: ["main"]
   release:
     types:
       - published
