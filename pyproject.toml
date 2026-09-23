@@ -121,4 +121,4 @@ exclude = [
 
 [tool.uv]
 required-version = ">=0.9.17"
-exclude-newer = "P30D"
+#exclude-newer = "P30D"
