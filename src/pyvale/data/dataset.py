@@ -371,6 +371,27 @@ def element_case_output_path(elem_type: EElemTest) -> Path:
     )
 
 
+
+def dic_rigid_exodus_path(max_displacement_px: int) -> Path:
+    """Path to a Riley rigid-plate DIC benchmark Exodus file.
+
+    Supported maximum displacements are 1, 25, and 50 pixels.
+    """
+    if max_displacement_px not in {1, 25, 50}:
+        raise DataSetError("Rigid DIC displacement must be 1, 25, or 50 pixels")
+    return _data_path(
+        "simulation",
+        "exodus",
+        f"mechplate2d_rigid_{max_displacement_px}px_out.e",
+    )
+
+
+def dic_platehole_exodus_path() -> Path:
+    """Path to the Riley plate-with-hole DIC benchmark Exodus file."""
+    return _data_path(
+        "simulation", "exodus", "platehole2d_pstress_out.e",
+    )
+
 def dic_plate_with_hole_cam0_ref() -> Path:
     """
     Path to the reference image for the plate with hole example.
@@ -748,7 +769,7 @@ def riley_rabbit_meshes() -> list[riley.Mesh]:
         ))
     return meshes
 
-def dic_ex09_stereo_calibration() -> Path:
+def dic_ex08_stereo_calibration() -> Path:
     """
     Path to the stereo calibration parameters for the DIC example.
 
@@ -758,10 +779,10 @@ def dic_ex09_stereo_calibration() -> Path:
         Path to the stereo calibration file (``.txt``).
     """
     return Path(files("pyvale.data")
-                .joinpath("dic_ex09_stereo_calibration.txt"))
+                .joinpath("dic_ex08_stereo_calibration.txt"))
 
 
-def dic_ex10_roi() -> Path:
+def dic_ex02_roi() -> Path:
     """
     Path to the region of interest definition for the DIC example.
 
@@ -771,10 +792,10 @@ def dic_ex10_roi() -> Path:
         Path to the ROI definition file (``.yaml``).
     """
     return Path(files("pyvale.data")
-                .joinpath("dic_ex10_roi.yaml"))
+                .joinpath("dic_ex02_roi.yaml"))
 
 
-def dic_ex11_dic_chal_calibration() -> Path:
+def dic_ex10_dic_chal_calibration() -> Path:
     """
     Path to the calibration parameters for the DIC Challenge example.
 
@@ -787,7 +808,7 @@ def dic_ex11_dic_chal_calibration() -> Path:
                 .joinpath("dic_ex11_dic_chal_calibration.txt"))
 
 
-def dic_ex11_dic_chal_roi() -> Path:
+def dic_ex10_dic_chal_roi() -> Path:
     """
     Path to the region of interest definition for the DIC Challenge example.
 
@@ -797,7 +818,7 @@ def dic_ex11_dic_chal_roi() -> Path:
         Path to the DIC Challenge ROI definition file (``.yaml``).
     """
     return Path(files("pyvale.data")
-                .joinpath("dic_ex11_dic_chal_roi.yaml"))
+                .joinpath("dic_ex10_dic_chal_roi.yaml"))
 
 
 

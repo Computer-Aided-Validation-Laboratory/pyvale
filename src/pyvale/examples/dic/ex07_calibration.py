@@ -35,8 +35,8 @@ then please get in touch and we'll see what we can do).
 import numpy as np
 from pathlib import Path
 
-import pyvale.dic as dic
-import pyvale.calib as calib
+from pyvale import dic
+from pyvale import calib
 
 # %%
 # Calibration has two stages: the dot detection, then a bundle adjustment 
@@ -76,7 +76,7 @@ dots0, dots1, grid, filenames0, filenames1 = calib.detect_dots(
 # to reperform a stereo calibration.
 
 # make the output directory
-output_dir = Path.cwd() / "pyvale-output" / "dic_ex08"
+output_dir = Path.cwd() / "pyvale-output" / "dic_ex07"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # save the detected points to plain text files
