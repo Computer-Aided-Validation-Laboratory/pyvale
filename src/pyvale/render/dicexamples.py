@@ -82,6 +82,7 @@ def _paths(case: str, output_dir: Path) -> DICExampleImages:
 
 
 def _complete(
+    case: str,
     paths: DICExampleImages,
     output_dir: Path,
     frame_labels: tuple[int, ...],
@@ -92,11 +93,12 @@ def _complete(
     every matching frame is not sufficient to determine whether one of the
     simulations is cached.
     """
+    prefix = "platehole" if case == "platehole" else "rigid"
     expected_cam0 = tuple(
-        output_dir / f"rigid_cam0_frame{label:02d}.tiff" for label in frame_labels
+        output_dir / f"{prefix}_cam0_frame{label:02d}.tiff" for label in frame_labels
     )
     expected_cam1 = tuple(
-        output_dir / f"rigid_cam1_frame{label:02d}.tiff" for label in frame_labels
+        output_dir / f"{prefix}_cam1_frame{label:02d}.tiff" for label in frame_labels
     )
     return (
         paths.cam0_reference.is_file()
@@ -129,7 +131,6 @@ def _render_case(
     frame_indices: tuple[int, ...] | None = None,
 ) -> DICExampleImages:
 
-
     mesh, num_frames = _load_mesh(_simulation_path(case))
     if frame_indices is not None:
         mesh.displacements = mesh.displacements[list(frame_indices)]
@@ -137,7 +138,7 @@ def _render_case(
     if frame_labels is None:
         frame_labels = tuple(range(num_frames))
     paths = _paths(case, output_dir)
-    if _complete(paths, output_dir, frame_labels):
+    if _complete(case, paths, output_dir, frame_labels):
         return paths
 
     texture = riley.load_texture_mono_u8(dataset.dic_pattern_5mpx_path())

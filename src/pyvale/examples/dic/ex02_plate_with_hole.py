@@ -104,7 +104,8 @@ dic.calculate_2d(reference=ref_img,
                  correlation_criteria="ZNSSD",
                  output_basepath=output_path,
                  output_delimiter=",",
-                 output_prefix="dic_results_")
+                 output_prefix="dic_results_",
+                 print_level=1)
 
 # %%
 # If you saved the results in a human-readable format, you can use any tool
