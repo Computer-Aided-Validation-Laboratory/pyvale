@@ -24,32 +24,32 @@ images from the left and right camera to build a 3D reconstruction.
 import numpy as np
 from pathlib import Path
 
-import pyvale.dic as dic
-import pyvale.calib as calib
-import pyvale.strain as strain
-import pyvale.data as dataset
+from pyvale import dic
+from pyvale import calib
+from pyvale import strain
+from pyvale import data
 
 # %% 
 # Import the calibration parameters:
 
-calib_params = calib.loadtxt(dataset.dic_ex11_dic_chal_calibration(), delimiter=",")
+calib_params = calib.loadtxt(data.dic_ex10_dic_chal_calibration(), delimiter=",")
 
 
 # %%
 # select the images and build the ROI:
 
 # reference images
-ref0 = dataset.dic_chal_3d_cam0()
-ref1 = dataset.dic_chal_3d_cam1()
+ref0 = data.dic_chal_3d_cam0()
+ref1 = data.dic_chal_3d_cam1()
 
 # Build ROI using cam 0 reference image.
 roi = dic.RegionOfInterest(ref0)
 # roi.interactive_selection() # <- you can use the interactive_selection to view the yaml
-roi.read_yaml(dataset.dic_ex11_dic_chal_roi())
+roi.read_yaml(data.dic_ex10_dic_chal_roi())
 
 
 # %%
-# .. image:: ../../../../_static/dic_ex11_roi.png
+# .. image:: ../../../../_static/dic_ex10_roi.png
 #    :alt: ROI
 #    :width: 100%
 #    :align: center
@@ -57,7 +57,7 @@ roi.read_yaml(dataset.dic_ex11_dic_chal_roi())
 # %%
 
 # create an output directory 
-output_path = Path.cwd() / "pyvale-output" / "dic_ex11"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex10"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -101,7 +101,7 @@ cloud.plot(
 )
 
 # %%
-# .. image:: ../../../../_static/dic_ex11_3d.png
+# .. image:: ../../../../_static/dic_ex10_3d.png
 #    :alt: ROI
 #    :width: 100%
 #    :align: center
