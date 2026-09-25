@@ -53,6 +53,7 @@ namespace stereo {
 
         P0 << Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero();
         P1 << R, t;   // just gonna assume t is in mm for now
+        const Eigen::Matrix3d F = fundamental(K0, K1, skew_translation(calib.translation), R);
     
 
         #pragma omp parallel for
@@ -77,6 +78,16 @@ namespace stereo {
             // 3d pixel coords guess
             Eigen::Vector3d xl(u_cx_l, u_cy_l, 1.0);
             Eigen::Vector3d xr(u_cx_r, u_cy_r, 1.0);
+
+            // Epipolar geometry uses undistorted pixel coordinates, while DLT
+            // below uses normalized camera coordinates.
+            const Eigen::Vector3d left_px = K0 * xl;
+            const Eigen::Vector3d right_px = K1 * xr;
+            const Eigen::Vector3d line = F * (left_px / left_px(2));
+            const double line_norm = std::hypot(line(0), line(1));
+            stereo_def.epi_dist_px[ss] = line_norm > 0.0
+                ? std::abs(line.dot(right_px / right_px(2))) / line_norm
+                : NAN;
 
             // Build DLT system
             Eigen::Matrix4d A;
@@ -776,5 +787,3 @@ namespace stereo {
 
 
 }
-
-

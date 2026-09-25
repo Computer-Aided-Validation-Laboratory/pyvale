@@ -58,10 +58,11 @@ ref1 = images.cam1_reference
 def0 = images.cam0_deformed
 def1 = images.cam1_deformed
 
-# Deformed images can be supplied either as wildcard Path objects, as above,
-# or as explicit lists of image paths, for example:
-# def0 = [Path("cam0_frame00.tiff"), Path("cam0_frame01.tiff"), ...]
-# def1 = [Path("cam1_frame00.tiff"), Path("cam1_frame01.tiff"), ...]
+# Deformed images can be supplied as wildcard Path objects or explicit lists of
+# image paths. The reference image must not also appear in a deformed sequence.
+# For example:
+# def0 = [Path("cam0_frame01.tiff"), Path("cam0_frame02.tiff"), ...]
+# def1 = [Path("cam1_frame01.tiff"), Path("cam1_frame02.tiff"), ...]
 
 
 # Build ROI using cam 0 reference image

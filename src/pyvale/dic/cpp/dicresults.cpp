@@ -57,6 +57,7 @@ ResultArrays::ResultArrays(int num_ss,
         u_world.resize(num_ss, nan);
         v_world.resize(num_ss, nan);
         w_world.resize(num_ss, nan);
+        epi_dist_px.resize(num_ss, nan);
     }
 }
 
@@ -95,6 +96,7 @@ void ResultArrays::append(OptResult &res, const int i) {
         std::fill(u_world.begin(), u_world.end(), nan);
         std::fill(v_world.begin(), v_world.end(), nan);
         std::fill(w_world.begin(), w_world.end(), nan);
+        std::fill(epi_dist_px.begin(), epi_dist_px.end(), nan);
     }
   }
 
@@ -426,6 +428,7 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
             common_util::write_dbl(outfile, stereo.ftol[i]);
             common_util::write_dbl(outfile, stereo.xtol[i]);
             common_util::write_int(outfile, stereo.niter[i]);
+            common_util::write_dbl(outfile, stereo.epi_dist_px[i]);
 
             // if (saveconf.shape_params) {
             //     for (int pp = 0; pp < num_params; pp++){
@@ -467,6 +470,7 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
         outfile << "\"stereo_ftol\"" <<  delimiter;
         outfile << "\"stereo_xtol\"" <<  delimiter;
         outfile << "\"stereo_num_iter\"" << delimiter;
+        outfile << "\"epi_dist_px\"";
         // column headers for shape parameters
         // if (saveconf.shape_params) {
         //     for (int p = 0; p < num_params; p++){
@@ -551,7 +555,8 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
             outfile << stereo.cost[i] << delimiter;
             outfile << stereo.ftol[i] << delimiter;
             outfile << stereo.xtol[i] << delimiter;
-            outfile << stereo.niter[i];
+            outfile << stereo.niter[i] << delimiter;
+            outfile << stereo.epi_dist_px[i];
 
             // write shape parameters if requested
             // if (saveconf.shape_params) {
@@ -569,6 +574,3 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
         outfile.close();
     }
 }
-
-
-
