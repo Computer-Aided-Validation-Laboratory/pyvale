@@ -91,39 +91,41 @@ PYBIND11_MODULE(diccpp, m) {
 
     py::add_ostream_redirect(m, "ostream_redirect");
 
-    py::enum_<util::CorrCrit>(m, "CorrCrit")
-        .value("SSD", util::CorrCrit::SSD)
-        .value("NSSD", util::CorrCrit::NSSD)
-        .value("ZNSSD", util::CorrCrit::ZNSSD);
+    py::enum_<util::ECorrCrit>(m, "CorrCrit")
+        .value("SSD", util::ECorrCrit::SSD)
+        .value("NSSD", util::ECorrCrit::NSSD)
+        .value("ZNSSD", util::ECorrCrit::ZNSSD);
 
-    py::enum_<util::ShapeFunc>(m, "ShapeFunc")
-        .value("RIGID", util::ShapeFunc::RIGID)
-        .value("AFFINE", util::ShapeFunc::AFFINE)
-        .value("QUAD", util::ShapeFunc::QUAD);
+    py::enum_<util::EShapeFunc>(m, "ShapeFunc")
+        .value("RIGID", util::EShapeFunc::RIGID)
+        .value("AFFINE", util::EShapeFunc::AFFINE)
+        .value("QUAD", util::EShapeFunc::QUAD);
 
-    py::enum_<util::InterpRoutine>(m, "InterpRoutine")
-        .value("BSPLINE", util::InterpRoutine::BSPLINE)
-        .value("HERMITE", util::InterpRoutine::HERMITE);
+    py::enum_<util::EInterpRoutine>(m, "InterpRoutine")
+        .value("BSPLINE", util::EInterpRoutine::BSPLINE)
+        .value("HERMITE", util::EInterpRoutine::HERMITE);
 
-    py::enum_<util::ScanMethod>(m, "ScanMethod")
-        .value("MULTIWINDOW_RG", util::ScanMethod::MULTIWINDOW_RG)
-        .value("SINGLEWINDOW_RG", util::ScanMethod::SINGLEWINDOW_RG)
-        .value("MULTIWINDOW", util::ScanMethod::MULTIWINDOW)
-        .value("RASTER", util::ScanMethod::RASTER);
+    py::enum_<util::EScanMethod>(m, "ScanMethod")
+        .value("MULTIWINDOW_RG", util::EScanMethod::MULTIWINDOW_RG)
+        .value("SINGLEWINDOW_RG", util::EScanMethod::SINGLEWINDOW_RG)
+        .value("MULTIWINDOW", util::EScanMethod::MULTIWINDOW)
+        .value("RASTER", util::EScanMethod::RASTER);
 
-    py::enum_<util::IncrementalCond>(m, "IncrementalCond")
-        .value("IMAGE", util::IncrementalCond::IMAGE)
-        .value("ITER", util::IncrementalCond::ITER)
-        .value("COST", util::IncrementalCond::COST);
+    py::enum_<util::EIncrementalCond>(m, "IncrementalCond")
+        .value("IMAGE", util::EIncrementalCond::IMAGE)
+        .value("ITER", util::EIncrementalCond::ITER)
+        .value("COST", util::EIncrementalCond::COST);
 
-    py::enum_<util::FFTPrecision>(m, "FFTPrecision")
-        .value("FLOAT32", util::FFTPrecision::FLOAT32)
-        .value("FLOAT64", util::FFTPrecision::FLOAT64);
+    py::enum_<util::EFFTPrecision>(m, "FFTPrecision")
+        .value("FLOAT32", util::EFFTPrecision::FLOAT32)
+        .value("FLOAT64", util::EFFTPrecision::FLOAT64);
 
     py::class_<util::Config>(m, "Config")
         .def(py::init<>())
         .def_readwrite("ss_step", &util::Config::ss_step)
         .def_readwrite("ss_size", &util::Config::ss_size)
+        .def_readwrite("partial_subset", &util::Config::partial_subset)
+        .def_readwrite("partial_subset_multiwindow", &util::Config::partial_subset_multiwindow)
         .def_readwrite("max_iter", &util::Config::max_iter)
         .def_readwrite("precision", &util::Config::precision)
         .def_readwrite("threshold", &util::Config::threshold)

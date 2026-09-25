@@ -57,6 +57,12 @@ class StereoResults:
     niter: np.ndarray | None = None
     """Number of iterations taken to converge for each subset point. shape=(img_num,y,x)"""
 
+    epi_dist_px: np.ndarray | None = None
+    """Perpendicular distance from the undistorted right subset centre to the
+    epipolar line of the undistorted left centre, in pixels. Missing or invalid
+    matches are NaN. shape=(img_num,y,x), or (img_num,subset) for column layout.
+    """
+
 @dataclass(slots=True)
 class Results:
     """
@@ -112,4 +118,3 @@ class Results:
 
     stereo: StereoResults | None = None
     """Optional field to store stereo DIC results if available."""
-

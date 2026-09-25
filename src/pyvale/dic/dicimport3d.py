@@ -41,6 +41,7 @@ _Dic3DData = tuple[
     NDArray[np.float64],
     NDArray[np.float64],
     NDArray[np.int32],
+    NDArray[np.float64],
 ]
 
 
@@ -205,6 +206,7 @@ def import_3d(data: str | Path | list[Path],
             ftol=arrays[19],
             xtol=arrays[20],
             niter=arrays[21],
+            epi_dist_px=arrays[22],
         ),
 
         filenames=files,
@@ -245,6 +247,7 @@ def _read_text_3d(
     stereo_ftol
     stereo_xtol
     stereo_num_iter
+    epi_dist_px
     """
 
     if print_level>0:
@@ -255,11 +258,12 @@ def _read_text_3d(
         file,
         delimiter=delimiter,
         skiprows=1,
+        ndmin=2,
     )
 
-    if data.shape[1] != 24:
+    if data.shape[1] != 25:
         raise ValueError(
-            "Input stereo DIC data must have exactly 24 columns."
+            "Input stereo DIC data must have exactly 25 columns."
         )
 
     return (
@@ -293,6 +297,7 @@ def _read_text_3d(
         data[:, 21],                   # stereo_ftol
         data[:, 22],                   # stereo_xtol
         data[:, 23].astype(np.int32),  # stereo_num_iter
+        data[:, 24],                   # epi_dist_px
     )
 
 def _read_binary_3d(file: str, delimiter: str, print_level: int = 1) -> _Dic3DData:
@@ -311,7 +316,7 @@ def _read_binary_3d(file: str, delimiter: str, print_level: int = 1) -> _Dic3DDa
     row_size = (
         4 * 4 +   # int32: ss_x, ss_y, niter, stereo_niter
         2 * 1 +   # uint8: conv, stereo_conv
-        18 * 8    # double fields written by ResultArrays::write_to_disk_stereo
+        19 * 8    # double fields written by ResultArrays::write_to_disk_stereo
     )
 
     file_size = len(raw)
@@ -381,6 +386,7 @@ def _read_binary_3d(file: str, delimiter: str, print_level: int = 1) -> _Dic3DDa
     stereo_xtol = extract(8, np.float64, offset); offset += 8
 
     stereo_niter = extract(4, np.int32, offset); offset += 4
+    epi_dist_px = extract(8, np.float64, offset); offset += 8
 
     return (
         ss_x,
@@ -412,4 +418,5 @@ def _read_binary_3d(file: str, delimiter: str, print_level: int = 1) -> _Dic3DDa
         stereo_ftol,
         stereo_xtol,
         stereo_niter,
+        epi_dist_px,
     )

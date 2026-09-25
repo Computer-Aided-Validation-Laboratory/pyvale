@@ -20,24 +20,24 @@
 
 namespace util {
 
-    enum class CorrCrit {
+    enum class ECorrCrit {
         SSD,
         NSSD,
         ZNSSD
     };
 
-    enum class ShapeFunc {
+    enum class EShapeFunc {
         RIGID,
         AFFINE,
         QUAD
     };
 
-    enum class InterpRoutine {
+    enum class EInterpRoutine {
         BSPLINE,
         HERMITE
     };
 
-    enum class ScanMethod {
+    enum class EScanMethod {
         MULTIWINDOW_RG,
         SINGLEWINDOW_RG,
         MULTIWINDOW,
@@ -45,13 +45,13 @@ namespace util {
     };
 
 
-    enum class IncrementalCond {
+    enum class EIncrementalCond {
         IMAGE,
         ITER,
         COST
     };
 
-    enum class FFTPrecision {
+    enum class EFFTPrecision {
         FLOAT32,
         FLOAT64
     };
@@ -68,6 +68,8 @@ namespace util {
     struct Config {
         int ss_step;
         int ss_size;
+        double partial_subset = 1.0;
+        double partial_subset_multiwindow = 0.7;
         int max_iter;
         int px_hori;
         int px_vert;
@@ -79,22 +81,22 @@ namespace util {
         int epi_search_distance;
         int epi_distance_threshold;
         std::vector<int> rg_seeds;
-        CorrCrit corr_crit;
-        ShapeFunc shape_func;
-        InterpRoutine interp_routine;
-        ScanMethod scan_method;
+        ECorrCrit corr_crit;
+        EShapeFunc shape_func;
+        EInterpRoutine interp_routine;
+        EScanMethod scan_method;
         std::vector<std::string> basenames;
         std::vector<std::string> fullpaths;
         bool fft_filter;
         bool fft_save;
-        FFTPrecision fft_precision;
+        EFFTPrecision fft_precision;
         double fft_filter_threshold;
         int fft_filter_radius;
         double fft_filter_corr_power;
         unsigned int debug_level;
         bool stereo;
         bool incremental;
-        IncrementalCond incremental_update_cond;
+        EIncrementalCond incremental_update_cond;
         double incremental_update_val;
         int multiwindow_overlap;
         std::vector<int> multiwindow_subset_size;

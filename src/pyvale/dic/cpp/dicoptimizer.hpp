@@ -37,8 +37,8 @@ class Optimizer {
 
     public:
         // Constructor
-        Optimizer(util::ShapeFunc shape_func, 
-                 util::CorrCrit cost_func,
+        Optimizer(util::EShapeFunc shape_func, 
+                 util::ECorrCrit cost_func,
                  int max_iter,
                  double precision,
                  double threshold,
@@ -83,7 +83,7 @@ void reset_params();
 
     private:
 
-        util::CorrCrit criteria;
+        util::ECorrCrit criteria;
         double costp;
         double costpdp;
         std::vector<double> g;          // Gradient
@@ -110,19 +110,19 @@ void reset_params();
         void (*get_displacement)(double&, double&, const double, const double, const std::vector<double>&);
         
         // Helper functions
-        static int get_num_params(util::ShapeFunc shape_func);
+        static int get_num_params(util::EShapeFunc shape_func);
 
 
 
 
-        void set_shape(util::ShapeFunc shape_func);
+        void set_shape(util::EShapeFunc shape_func);
     
         /**
         * @brief This function gets called before the corrolation optimization starts. Sets the function pointer for the user specified shape function.
         * 
         * @param[in] corr_crit correlation criteria enum.
         */
-        void set_cost_function(util::CorrCrit corr_crit);
+        void set_cost_function(util::ECorrCrit corr_crit);
 
         /**
         * @brief 

@@ -54,7 +54,9 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  output_delimiter: str=",",
                  output_below_threshold: bool=False,
                  output_shape_params: bool=False,
-                 print_level: int=2) -> None:
+                 print_level: int=2,
+                 partial_subset: float=1.0,
+                 partial_subset_multiwindow: float=0.7) -> None:
 
     """
     Perform Stereo Digital Image Correlation (DIC) between a reference image and one or more deformed images.
@@ -173,6 +175,13 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         will still be present in output (default: ``False``).
     output_shape_params : bool, optional
         If True, all shape parameters will be saved in the output files (default: ``False``).
+    partial_subset : float, optional
+        Minimum fraction of subset pixels inside the ROI for the final window,
+        between 0 and 1 inclusive (default: 1.0). Subsets must still fit entirely
+        inside the image. Smaller values allow partial ROI coverage.
+    partial_subset_multiwindow : float, optional
+        Minimum ROI filling fraction for intermediate multiwindow levels,
+        between 0 and 1 inclusive (default: 0.7).
     print_level:
 
     Returns
@@ -189,6 +198,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     """
 
 
+
+    dicchecks._check_partial_subsets(partial_subset, partial_subset_multiwindow)
 
     if (print_level>0):
         common_util.print_pyvale_banner()
@@ -242,6 +253,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config = diccpp.Config()
     config.ss_step = subset_step
     config.ss_size = subset_size
+    config.partial_subset = partial_subset
+    config.partial_subset_multiwindow = partial_subset_multiwindow
     config.max_iter = max_iterations
     config.precision = precision
     config.threshold = threshold
