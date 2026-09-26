@@ -39,7 +39,7 @@ requires Python 3.13.
       .. code-block:: bash
 
           # Create a conda environment with Python 3.13
-          conda create -n pyvale-env python=3.11
+          conda create -n pyvale-env python=3.13
 
           # Activate the environment
           conda activate pyvale-env

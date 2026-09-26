@@ -18,7 +18,6 @@ import numpy as np
 import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 from pyvale.examples.renderuvs.tools import render_uv_example
@@ -26,7 +25,7 @@ from pyvale.examples.renderuvs.tools import render_uv_example
 # %%
 # 1. Load and tilt the three dimensional calibration plate
 # ------------------------------------------------------------
-data_dir = dataset.riley_stereocal_case_path()
+data_dir = riley.data.stereocal_case_path()
 simulation = io.MeshLoader(
     load_dir=data_dir,
     coords_file="coords.csv",
@@ -60,7 +59,7 @@ plane = render.UVPlane(
     up=plate_rotation.apply(np.array((0.0, 1.0, 0.0))),
 )
 
-texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.cal_target_texture_path())
 
 texture_px_per_leng = render.uv_calc_texture_px_per_leng(
     texture_px_per_feature=177.1,

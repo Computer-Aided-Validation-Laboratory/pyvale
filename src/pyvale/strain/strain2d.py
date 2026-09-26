@@ -137,6 +137,17 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
         y_mm = dicresults.stereo.y_mm
         z_mm = dicresults.stereo.z_mm
 
+    # The C++ backend uses raw-pointer indexing and therefore requires dense,
+    # C-contiguous arrays rather than arbitrary NumPy views.
+    ss_x = np.ascontiguousarray(dicresults.ss_x, dtype=np.int32)
+    ss_y = np.ascontiguousarray(dicresults.ss_y, dtype=np.int32)
+    x_mm = np.ascontiguousarray(x_mm, dtype=np.float64)
+    y_mm = np.ascontiguousarray(y_mm, dtype=np.float64)
+    z_mm = np.ascontiguousarray(z_mm, dtype=np.float64)
+    u_px = np.ascontiguousarray(dicresults.u_px, dtype=np.float64)
+    v_px = np.ascontiguousarray(dicresults.v_px, dtype=np.float64)
+    w_dummy = np.ascontiguousarray(w_dummy, dtype=np.float64)
+
     #set the number of OMP threads
     if num_threads is not None:
         commoncpp.set_num_threads(num_threads)
@@ -156,9 +167,9 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
 
     # Call to C++ backend
     with strain_cpp.ostream_redirect(stdout=True, stderr=True):
-        strain_cpp.strain_engine_2d(dicresults.ss_x, dicresults.ss_y,
+        strain_cpp.strain_engine_2d(ss_x, ss_y,
                             x_mm, y_mm, z_mm,
-                            dicresults.u_px, dicresults.v_px, w_dummy,
+                            u_px, v_px, w_dummy,
                             nss_x, nss_y, nimg,
                             window_size, window_element, 
                             strain_formulation, filenames,

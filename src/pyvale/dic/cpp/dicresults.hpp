@@ -56,6 +56,7 @@ class ResultArrays {
         std::vector<double> u_world; 
         std::vector<double> v_world;
         std::vector<double> w_world;
+        std::vector<double> epi_dist_px;
 
         // constructors
         ResultArrays() = default;

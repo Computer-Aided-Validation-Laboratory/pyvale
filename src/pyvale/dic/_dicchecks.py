@@ -210,6 +210,14 @@ def _check_method(method: str) -> None:
 
 
 
+def _check_partial_subsets(partial_subset: float,
+                           partial_subset_multiwindow: float) -> None:
+    for name, value in (("partial_subset", partial_subset),
+                        ("partial_subset_multiwindow", partial_subset_multiwindow)):
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be a fractional value between 0 and 1. Got {value}")
+
+
 def _check_thresholds(threshold: float,
                      precision: float) -> None:
     """
@@ -620,7 +628,8 @@ def _print_config_summary(image_width: int,
                          num_threads: int | None,
                          print_level: int,
                          updated_seeds: list[int] | None = None,
-                         epi_distance: int | None = None) -> None:
+                         epi_search_distance: int | None = None,
+                         epi_distance_threshold: int | None = None) -> None:
     if print_level <= 0:
         return
 
@@ -640,8 +649,10 @@ def _print_config_summary(image_width: int,
     common_util.info_out("Optimization Precision:", precision)
     common_util.info_out("Correlation Cutoff Threshold:", threshold)
     common_util.info_out("Estimate for Max Displacement:", f"{max_displacement} [px]")
-    if epi_distance is not None:
-        common_util.info_out("Estimate for Epipolar Distance:", f"{epi_distance} [px]")
+    if epi_search_distance is not None:
+        common_util.info_out("Epipolar search distance:", f"{epi_search_distance} [px]")
+    if epi_distance_threshold is not None:
+        common_util.info_out("Epipolar distance threshold:", f"{epi_distance_threshold} [px]")
     common_util.info_out("Subset Size:", f"{subset_size} [px]")
     common_util.info_out("Subset Step:", f"{subset_step} [px]")
     if num_threads is None:
@@ -653,5 +664,4 @@ def _print_config_summary(image_width: int,
         for i in range(0, len(updated_seeds), 2):
             x, y = updated_seeds[i], updated_seeds[i + 1]
             common_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
-
 

@@ -69,8 +69,10 @@ void singlewindow_rg(const Interpolator &interp_ref,
 
 
     auto get_initial_guess_stereo = [&](std::vector<double> &p, double cx, double cy, double offset_x, double offset_y, bool print) {
+            const int epi_search_area_x = 2 * conf.epi_search_distance;
+            const int epi_search_area_y = 2 * conf.epi_distance_threshold + ss_size_y;
             stereo::get_rigid_translation_from_rectified_fft(p, cx, cy, ss_size_x, ss_size_y,
-                                                                2*conf.epi_distance, ss_size_y, F.value(),
+                                                                epi_search_area_x, epi_search_area_y, F.value(),
                                                                 interp_ref, interp_def, offset_x, offset_y, print);
     };
 
@@ -105,7 +107,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
         // initialize FFT stuff
         std::optional<FFTf> fft_float;
         std::optional<FFT> fft_double;
-        if (conf.fft_precision == util::FFTPrecision::FLOAT32) {
+        if (conf.fft_precision == util::EFFTPrecision::FLOAT32) {
             fft_float.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
         } else {
             fft_double.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
@@ -163,14 +165,16 @@ void singlewindow_rg(const Interpolator &interp_ref,
 
                 // if the first image. Take the optimization parameters from rigid fourier
                 if (mode=="temporal") {
-                    if (conf.fft_precision == util::FFTPrecision::FLOAT32) {
+                    if (conf.fft_precision == util::EFFTPrecision::FLOAT32) {
                         get_initial_guess_temporal(*fft_float, opt.p, max_val, cx, cy, false);
                     } else {
                         get_initial_guess_temporal(*fft_double, opt.p, max_val, cx, cy, false);
                     }
                 }
                 if (mode=="stereo") {
-                    get_initial_guess_stereo(opt.p, cx, cy, results_def_l->u[idx], results_def_l->v[idx], false);
+                    const double offset_x = results_def_l ? results_def_l->u[idx] : 0.0;
+                    const double offset_y = results_def_l ? results_def_l->v[idx] : 0.0;
+                    get_initial_guess_stereo(opt.p, cx, cy, offset_x, offset_y, false);
                 }
 
 
@@ -433,6 +437,11 @@ void singlewindow_rg(const Interpolator &interp_ref,
     //         }
     //     }
     // }
+
+    if (!stop_request && !error_flag.load()) {
+        rg::retry_bad_points(interp_ref, interp_def, ss_grid, conf, results_ref,
+                             results_def, computed_mask);
+    }
 
     if (g_debug_level>0){
         pbar.finish();

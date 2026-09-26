@@ -6,6 +6,7 @@
 """Tests for the consolidated packaged-data namespace."""
 
 import pyvale.data as dataset
+import riley
 
 
 def test_dataset_accessors_resolve_consolidated_resources() -> None:
@@ -19,3 +20,17 @@ def test_dataset_accessors_resolve_consolidated_resources() -> None:
         dataset.cal_target(),
     )
     assert all(path is not None and path.exists() for path in paths)
+
+
+def test_riley_data_accessors_resolve_packaged_resources() -> None:
+    """Riley-owned example assets resolve from the Riley package."""
+    paths = (
+        riley.data.speckle_texture_path(),
+        riley.data.cal_target_texture_path(),
+        riley.data.sphere200_case_path(),
+        riley.data.platehole_csv_case_path(),
+        riley.data.platehole_exodus_path(),
+        riley.data.stereocal_case_path(),
+        riley.data.rabbit_case_path("riley", "tri3"),
+    )
+    assert all(path.exists() for path in paths)
