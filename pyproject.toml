@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyvale"
-version = "2026.9.2"
+version = "2026.9.3"
 description = "Your virtual engineering lab: An all-in-one package for simulation-driven experimental design."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
@@ -29,7 +29,7 @@ dependencies = [
   "pyqtgraph>=0.13.7",
   "opencv-python>=4.13.0.92",
   "pandas>=2.3.1",
-  "riley-raster>=2026.9.0",
+  "riley-raster>=2026.9.2",
 ]
 
 [project.optional-dependencies]
@@ -108,6 +108,17 @@ ninja.make-fallback = false
 build-dir = "build"
 wheel.packages = ["src/pyvale"]
 
+[tool.scikit-build.sdist]
+exclude = [
+    ".github/**",
+    "dev/**",
+    "docs/**",
+    "images/**",
+    "reports/**",
+    "scripts/**",
+    "tests/**",
+]
+
 [tool.uv]
 required-version = ">=0.9.17"
-exclude-newer = "P30D"
+#exclude-newer = "P30D"

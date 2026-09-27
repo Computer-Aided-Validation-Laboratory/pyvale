@@ -537,7 +537,7 @@ The key differences from 2D DIC are:
 
 - ``reference`` and ``deformed`` are lists of image pairs ``[left_image, right_image]``.
 - A ``calibration`` parameter (of type ``Calib``) must be provided with camera intrinsics and stereo geometry.
-- An additional ``epi_distance`` parameter controls the search distance along epipolar lines (default: 300 pixels).
+- ``epi_search_distance`` controls the search distance along epipolar lines (default: 100 pixels), while ``epi_distance_threshold`` controls the perpendicular epipolar tolerance in pixels.
 
 Stereo DIC output includes all standard 2D columns for the left camera temporal correlation,
 plus stereo-specific columns for the left-to-right matching and 3D reconstruction. 

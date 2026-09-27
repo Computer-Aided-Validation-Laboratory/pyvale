@@ -50,6 +50,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  output_delimiter: str=",",
                  output_below_threshold: bool=False,
                  output_shape_params: bool=False,
+                 partial_subset: float=1.0,
+                 partial_subset_multiwindow: float=0.7,
                  print_level: int=2) -> None:
 
     """
@@ -169,6 +171,13 @@ def calculate_2d(reference: np.ndarray | str | Path,
         will still be present in output (default: ``False``).
     output_shape_params : bool, optional
         If True, all shape parameters will be saved in the output files (default: ``False``).
+    partial_subset : float, optional
+        Minimum fraction of subset pixels inside the ROI for the final window,
+        between 0 and 1 inclusive (default: 1.0). Subsets must still fit entirely
+        inside the image. Smaller values allow partial ROI coverage.
+    partial_subset_multiwindow : float, optional
+        Minimum ROI filling fraction for intermediate multiwindow levels,
+        between 0 and 1 inclusive (default: 0.7).
     print_level:
 
     Returns
@@ -183,6 +192,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
     FileNotFoundError
         If provided file paths do not exist.
     """
+
+    dicchecks._check_partial_subsets(partial_subset, partial_subset_multiwindow)
 
     if (print_level>0):
         common_util.print_pyvale_banner()
@@ -221,6 +232,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config = diccpp.Config()
     config.ss_step = subset_step
     config.ss_size = subset_size
+    config.partial_subset = partial_subset
+    config.partial_subset_multiwindow = partial_subset_multiwindow
     config.max_iter = max_iterations
     config.precision = precision
     config.threshold = threshold
@@ -252,7 +265,6 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.fft_filter_corr_power = fft_filter_corr_power
     config.fft_save = fft_save
     config.debug_level = print_level
-    config.epi_distance = 0
 
     # sort precision to use for FFT windowing
     if fft_precision=="F32":
@@ -325,5 +337,3 @@ def calculate_2d(reference: np.ndarray | str | Path,
             diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
         else:
             diccpp.engine_images(image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
-
-

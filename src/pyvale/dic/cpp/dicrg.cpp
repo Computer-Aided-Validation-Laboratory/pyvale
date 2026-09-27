@@ -149,6 +149,65 @@ namespace rg {
         }
         return true;
     }
+void retry_bad_points(const Interpolator &interp_ref,
+                      const Interpolator &interp_def,
+                      const subset::Grid &ss_grid,
+                      const util::Config &conf,
+                      const ResultArrays &results_ref,
+                      ResultArrays &results_def,
+                      const std::vector<std::atomic<int>> &computed_mask) {
+
+
+    for (int required_neigh = 4; required_neigh >= 2; --required_neigh) {
+
+        const std::vector<uint8_t> successful = results_def.above_thresh;
+        std::vector<int> retry_indices;
+
+        for (int idx = 0; idx < ss_grid.num; ++idx) {
+            if (!computed_mask[idx].load() || !ss_grid.active_ss[idx] || successful[idx]) continue;
+
+            int count = 0;
+            for (int nidx : ss_grid.neigh[idx]) count += successful[nidx] != 0;
+            if (count >= required_neigh) retry_indices.push_back(idx);
+        }
+
+        #pragma omp parallel
+        {
+            subset::Pixels ss_def(ss_grid.size_x, ss_grid.size_y);
+            subset::Pixels ss_ref(ss_grid.size_x, ss_grid.size_y);
+            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter,
+                          conf.precision, conf.threshold,
+                          ss_grid.size_x*ss_grid.size_y);
+
+            #pragma omp for
+            for (int i = 0; i < static_cast<int>(retry_indices.size()); ++i) {
+                const int idx = retry_indices[i];
+                const double cx = ss_grid.coords[2*idx];
+                const double cy = ss_grid.coords[2*idx+1];
+
+                subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
+                for (int px = 0; px < ss_ref.num_px; ++px) {
+                    ss_ref.x[px] -= cx;
+                    ss_ref.y[px] -= cy;
+                }
+
+                opt.average_params_from_neigh(results_def.p, successful,
+                                              ss_grid.neigh[idx]);
+                OptResult retry_res(opt.num_params);
+                if (ss_ref.sum != 0) {
+                    retry_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                }
+
+                if (retry_res.cost > results_def.cost[idx]) {
+                    retry_res.u += results_ref.u[idx];
+                    retry_res.v += results_ref.v[idx];
+                    results_def.append(retry_res, idx);
+                }
+            }
+        }
+    }
+}
+
 }
 
 

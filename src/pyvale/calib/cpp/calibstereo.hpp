@@ -36,7 +36,7 @@ struct Calib {
     CamIntrinsics cam0;              /**< Camera 0 intrinsic parameters */
     CamIntrinsics cam1;              /**< Camera 1 intrinsic parameters */
     std::vector<double> translation; /**< Translation vector [x, y, z] in mm */
-    std::vector<double> rotation;    /**< Stereo Rodrigues rotation vector [radians] */
+    std::vector<double> rotation;    /**< Stereo Euler angles [theta_x, phi_y, psi_z] in degrees */
 };
 
 

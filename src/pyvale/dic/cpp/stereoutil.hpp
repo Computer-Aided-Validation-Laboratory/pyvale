@@ -67,7 +67,7 @@ namespace stereo {
     */
     Geometry compute_stereo_geometry(const Calib &calib);
 
-    void undistortPoint(double &x_undistorted, double  &y_undistorted,
+    void undistort_point(double &x_undistorted, double  &y_undistorted,
                         const double x_distorted, const double y_distorted,
                         const Eigen::Matrix3d &K,
                         const std::vector<double> &d);

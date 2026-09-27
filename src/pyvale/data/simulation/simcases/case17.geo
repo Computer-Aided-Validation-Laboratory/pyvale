@@ -21,11 +21,11 @@ Geometry.VolumeLabels = 0;
 file_name = "case17.msh";
 
 // Geometric variables
-plate_width = 100e-3;
-plate_height = plate_width+50e-3; // Must be greater than plate width
+plate_width = 100.0; // mm
+plate_height = plate_width + 50.0; // mm; must be greater than plate width
 plate_diff = plate_height-plate_width;
 
-hole_rad = 25e-3/2;
+hole_rad = 12.5; // mm
 hole_loc_x = plate_width/2;
 hole_loc_y = plate_height/2;
 hole_circ = 2*Pi*hole_rad;
@@ -37,6 +37,7 @@ plate_diff_nodes = 5; // numbers of nodes along the rectangular extension
 plate_edge_nodes = Floor((hole_sect_nodes-1)/2)+1;
 elem_size = hole_circ/(4*(hole_sect_nodes-1));
 tol = elem_size; // Used for bounding box selection tolerance
+bias_factor = 1.1;
 //** MOOSEHERDER VARIABLES - START
 
 //------------------------------------------------------------------------------
@@ -87,7 +88,8 @@ BooleanDifference{ Surface{s3,s4,s5,s6}; Delete; }{ Surface{s9}; Delete; }
 
 //------------------------------------------------------------------------------
 // Transfinite meshing (line element sizes and mapped meshing)
-Transfinite Curve{31,24,26,28} = plate_rad_nodes;
+Transfinite Curve{31,24} = plate_rad_nodes Using Progression bias_factor;
+Transfinite Curve{26,28} = plate_rad_nodes Using Progression 1/bias_factor;
 Transfinite Curve{1,5,3,7,23,29,30,34,14,17,19,22} = plate_edge_nodes;
 Transfinite Curve{32,33,25,27} = hole_sect_nodes;
 Transfinite Curve{4,2,6,20,18,21} = plate_diff_nodes;

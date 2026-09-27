@@ -139,7 +139,7 @@ namespace subset {
                                      const double cx, const double cy,
                                      const std::vector<double>& p,
                                      const Interpolator &interp_def,
-                                     util::ShapeFunc shape_func);
+                                     util::EShapeFunc shape_func);
     /**
      * @brief Generates a list of subsets based on the provided image ROI and parameters.
      * 
@@ -152,12 +152,14 @@ namespace subset {
      * @param px_vert   Number of vertical pixels in the image.
      * @param ss_size      Size of each subset (in pixels).
      * @param ss_step      Step size for generating subsets.
+     * @param partial_subset Minimum ROI filling fraction in [0, 1]. Subsets must
+     *                       remain entirely inside the image.
      * @return            A subset::Grid object containing the generated subsets and their neighbours.
      */
     subset::Grid create_grid(const bool *img_roi, const int ss_step,
                              const int ss_size_x, const int ss_size_y,
                              const int px_hori, const int px_vert,
-                             const bool partial);
+                             const double partial_subset);
 
     
     static inline bool px_in_img_dims(const int px_x, const int px_y, const int px_hori, const int px_vert) {

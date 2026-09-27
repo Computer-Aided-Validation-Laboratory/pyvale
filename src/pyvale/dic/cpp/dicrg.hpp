@@ -17,6 +17,8 @@
 #include "./dicsubset.hpp"
 #include "./dicoptimizer.hpp"
 
+class ResultArrays;
+
 namespace rg {
 
     /**
@@ -159,6 +161,14 @@ namespace rg {
 
 
     bool check_convergence(const int x, const int y, const OptResult &res, std::string &msg, bool direct_neigh=false);
+
+void retry_bad_points(const Interpolator &interp_ref,
+                      const Interpolator &interp_def,
+                      const subset::Grid &ss_grid,
+                      const util::Config &conf,
+                      const ResultArrays &results_ref,
+                      ResultArrays &results_def,
+                      const std::vector<std::atomic<int>> &computed_mask);
 
 }
 

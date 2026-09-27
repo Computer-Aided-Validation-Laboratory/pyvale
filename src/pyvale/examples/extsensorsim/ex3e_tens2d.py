@@ -40,10 +40,6 @@ disp_keys = ("disp_x","disp_y")
 norm_comp_keys = ("strain_xx","strain_yy")
 dev_comp_keys = ("strain_xy",)
 
-sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
-                                               sim_data=sim_data,
-                                               disp_keys=("disp_x","disp_y"))
-
 #%%
 # 2. Build virtual sensor arrays
 # --------------------------------

@@ -53,6 +53,7 @@ namespace stereo {
 
         P0 << Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero();
         P1 << R, t;   // just gonna assume t is in mm for now
+        const Eigen::Matrix3d F = fundamental(K0, K1, skew_translation(calib.translation), R);
     
 
         #pragma omp parallel for
@@ -71,12 +72,22 @@ namespace stereo {
         
             // undistorted pixel value
             double u_cx_l, u_cx_r, u_cy_l, u_cy_r;
-            stereo::undistortPoint(u_cx_l, u_cy_l, cx_l, cy_l, K0, calib.cam0.distortion);
-            stereo::undistortPoint(u_cx_r, u_cy_r, cx_r, cy_r, K1, calib.cam1.distortion);
+            stereo::undistort_point(u_cx_l, u_cy_l, cx_l, cy_l, K0, calib.cam0.distortion);
+            stereo::undistort_point(u_cx_r, u_cy_r, cx_r, cy_r, K1, calib.cam1.distortion);
 
             // 3d pixel coords guess
             Eigen::Vector3d xl(u_cx_l, u_cy_l, 1.0);
             Eigen::Vector3d xr(u_cx_r, u_cy_r, 1.0);
+
+            // Epipolar geometry uses undistorted pixel coordinates, while DLT
+            // below uses normalized camera coordinates.
+            const Eigen::Vector3d left_px = K0 * xl;
+            const Eigen::Vector3d right_px = K1 * xr;
+            const Eigen::Vector3d line = F * (left_px / left_px(2));
+            const double line_norm = std::hypot(line(0), line(1));
+            stereo_def.epi_dist_px[ss] = line_norm > 0.0
+                ? std::abs(line.dot(right_px / right_px(2))) / line_norm
+                : NAN;
 
             // Build DLT system
             Eigen::Matrix4d A;
@@ -106,6 +117,21 @@ namespace stereo {
                 stereo_def.v_world[ss] = 0.0;
                 stereo_def.w_world[ss] = 0.0;
             }
+            else if (!stereo_ref.above_thresh[ss]
+                     || !std::isfinite(stereo_ref.x_world[ss])
+                     || !std::isfinite(stereo_ref.y_world[ss])
+                     || !std::isfinite(stereo_ref.z_world[ss])
+                     || !std::isfinite(stereo_ref.u_world[ss])
+                     || !std::isfinite(stereo_ref.v_world[ss])
+                     || !std::isfinite(stereo_ref.w_world[ss])) {
+                // A point which was not reconstructed in the reference frame
+                // has no valid displacement datum. Do not interpret its current
+                // absolute world position as displacement from a zero origin.
+                stereo_def.u_world[ss] = NAN;
+                stereo_def.v_world[ss] = NAN;
+                stereo_def.w_world[ss] = NAN;
+                stereo_def.above_thresh[ss] = false;
+            }
             else {
                 // compute delta relative to the provided stereo_ref world coords
                 // and add any previously-accumulated world displacement stored in
@@ -119,7 +145,7 @@ namespace stereo {
         if (first_frame) stereo_ref = stereo_def;
     }
 
-    void undistortPoint(double &x_undistorted, double &y_undistorted,
+    void undistort_point(double &x_undistorted, double &y_undistorted,
                         const double x_distorted, const double y_distorted,
                         const Eigen::Matrix3d &K,
                         const std::vector<double> &d) {
@@ -356,6 +382,16 @@ namespace stereo {
 
         // Compute the unrectified position in the right image
         Eigen::Vector2d unrectified_pos = closest_point + peak_x * dir - peak_y * perp;
+
+        if (print) {
+            Eigen::Vector3d epi_line = F * Eigen::Vector3d(cx + offset_x, cy + offset_y, 1.0);
+            double epi_dist = std::abs(epi_line(0) * unrectified_pos(0)
+                                     + epi_line(1) * unrectified_pos(1)
+                                     + epi_line(2))
+                            / std::sqrt(epi_line(0) * epi_line(0)
+                                      + epi_line(1) * epi_line(1));
+            std::cout << "epipolar distance: " << epi_dist << std::endl;
+        }
 
         //std::cout << "unrectified_pos: " << unrectified_pos(0) << " " << unrectified_pos(1) << std::endl;
         p[0] = unrectified_pos(0) - cx;
@@ -751,5 +787,3 @@ namespace stereo {
 
 
 }
-
-

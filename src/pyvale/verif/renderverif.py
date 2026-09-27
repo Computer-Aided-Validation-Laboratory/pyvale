@@ -24,7 +24,7 @@ from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
 import pyvale.dataio as io
-from pyvale import mooseherder, render, sensorsim
+from pyvale import mooseherder, render
 
 
 def assert_render_allclose(
@@ -199,12 +199,10 @@ def riley_rabbit_scene() -> render.Scene3D:
 
 
 def scaled_mechanical_2d() -> io.SimData:
-    """Load the mechanical 2D case scaled to millimetres for Blender scenes."""
-    sim_data = mooseherder.ExodusLoader(
+    """Load the mechanical 2D case, whose native length unit is millimetres."""
+    return mooseherder.ExodusLoader(
         dataset.mechanical_2d_path(),
     ).load_all_sim_data()
-    sensorsim.scale_length_units(1000.0, sim_data, ("disp_x", "disp_y"))
-    return sim_data
 
 
 __all__ = [

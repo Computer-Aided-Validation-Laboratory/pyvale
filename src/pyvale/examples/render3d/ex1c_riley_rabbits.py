@@ -20,7 +20,6 @@ import riley
 from riley import sceneops
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 
@@ -30,7 +29,7 @@ def load_rabbit(
     topology: render.EElemType,
 ) -> tuple[io.SimData, np.ndarray]:
     """Load one static rabbit mesh and its UV coordinates."""
-    data_dir = dataset.riley_rabbit_case_path(rabbit, topology)
+    data_dir = riley.data.rabbit_case_path(rabbit, topology.value)
 
     simulation = io.MeshLoader(
         load_dir=data_dir,
@@ -56,7 +55,7 @@ topologies = (
     render.EElemType.QUAD9,
 )
 
-texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.speckle_texture_path())
 
 meshes: list[render.Mesh3D] = []
 mesh_groups: list[sceneops.SceneMeshGroup] = []
