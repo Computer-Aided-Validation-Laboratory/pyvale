@@ -25,6 +25,7 @@ import numpy as np
 from pyvale import calib
 from pyvale import dic
 from pyvale import render
+from pyvale import data
 
 
 # %% 
@@ -33,10 +34,16 @@ from pyvale import render
 
 output_path = Path.cwd() / "pyvale-output" / "dic_ex08"
 output_path.mkdir(parents=True, exist_ok=True)
+
+# render the images
 images = render.create_example_images_rigid()
+
+# OR use your own
 # ref_img = Path("/path/to/reference.tiff")
 # def_img = Path("/path/to/deformed*.tiff")
-calib_params = calib.loadtxt(images.calibration, delimiter=",")
+
+# load the calibration parameters using prepackaged ground truth values.
+calib_params = calib.loadtxt(data.dic_ex08_stereo_calibration())
 
 
 # %%
