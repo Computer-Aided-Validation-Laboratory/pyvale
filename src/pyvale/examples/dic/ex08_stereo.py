@@ -93,7 +93,8 @@ dic.calculate_3d(reference=[ref0, ref1],
                  subset_size=31,
                  subset_step=10,
                  max_displacement=100,
-                 output_basepath=output_path)
+                 output_basepath=output_path,
+                 print_level=1)
 
 # %%
 # can now import the results using dic.import_3d
