@@ -27,16 +27,16 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # pyvale imports
-import pyvale.data as dataset
-import pyvale.dic as dic
+from pyvale import data
+from pyvale import dic
 
 
 
 # %%
 # There's a pair of DIC challenge images that come as part of the Pyvale install. 
 # We can preload them with:
-ref_pattern = dataset.dic_chal_2d_ref()
-def_pattern = dataset.dic_chal_2d_def()
+ref_pattern = data.dic_chal_2d_ref()
+def_pattern = data.dic_chal_2d_def()
 subset_size = 17
 
 
@@ -52,7 +52,7 @@ roi.rect_boundary(left=50,right=50,top=250-subset_radius,bottom=250-subset_radiu
 roi.show_image()
 
 # create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "dic_ex05"
+output_path = Path.cwd() / "pyvale-output" / "dic_ex04"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -89,14 +89,14 @@ dicdata = dic.import_2d(data=data_path, layout='column',
 # %%
 # Finally a simple plot of the calculated displacements at y=2500. This could be
 # extended and compared to other DIC engines used in the 2.0 DIC challenge. A
-# link to the dataset can be found under '2D-DIC Challenge 2.0' can be found
+# link to the data can be found under '2D-DIC Challenge 2.0' can be found
 # at `https://idics.org/challenge/ <https://idics.org/challenge/>`_
 plt.figure()
 plt.xlabel("subset x location [px]")
 plt.ylabel("Displacement [px]")
 plt.grid(True)
 plt.axhline(y=0.5, color='red', linestyle='--', linewidth=4)
-plt.plot(dicdata.ss_x[0], dicdata.v_px[0, 0])
+plt.plot(dicdata.ss_x, dicdata.v_px[0,:])
 plt.tight_layout()
 plt.show()
 

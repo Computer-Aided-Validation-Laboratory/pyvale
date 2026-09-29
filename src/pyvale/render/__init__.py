@@ -59,6 +59,11 @@ from .cameratools import (
 )
 from .capabilities import RenderCapabilities
 from .errors import RenderInputError, ValidationIssue
+from .dicexamples import (
+    DICExampleImages,
+    create_example_images_platehole,
+    create_example_images_rigid,
+)
 from .feebee import (
     EFeebeeMaterialType,
     EFeebeeShading,
@@ -143,6 +148,8 @@ __all__ = [
     "BlenderMaterial",
     "BlenderTextureShader",
     "Camera",
+    "DICExampleRigidImages",
+    "DICExampleImages",
     "EBlenderDevice",
     "EBlenderEngine",
     "EDistortionModel",
@@ -199,6 +206,8 @@ __all__ = [
     "cam_pos_frame_points",
     "cam_project_points",
     "crop_image_rectangle",
+    "create_example_images_platehole",
+    "create_example_images_rigid",
     "evenly_spaced_frame_indices",
     "first_last_frame_indices",
     "focal_length_from_resolution",

@@ -17,28 +17,31 @@ The calibration parameters are loaded from a text file, and the DIC calculation
 is performed on the reference and deformed images.
 """
 
-# pyvale modules
-import numpy as np
-from pathlib import Path
 from dataclasses import fields
+from pathlib import Path
 
-import pyvale.dic as dic
-import pyvale.calib as calib
-import pyvale.data as dataset
+import numpy as np
+
+from pyvale import calib
+from pyvale import dic
+from pyvale import render
+
 
 # %% 
 # Load in the ground truth calibration parameters. These are the parameters
 # that were used to generate the synthetic images:
 
-calib_params = calib.loadtxt(dataset.dic_ex09_stereo_calibration(), delimiter=",")
+output_path = Path.cwd() / "pyvale-output" / "dic_ex08"
+output_path.mkdir(parents=True, exist_ok=True)
+images = render.create_example_images_rigid()
+# ref_img = Path("/path/to/reference.tiff")
+# def_img = Path("/path/to/deformed*.tiff")
+calib_params = calib.loadtxt(images.calibration, delimiter=",")
 
 
 # %%
-# The dataset module provides access to the synthetic images used in this
-# example. These functions return Path objects pointing to TIFF files bundled
-# with pyvale. The reference helpers return a concrete image path, while the
-# deformed-image helpers return a wildcard path pattern. For example,
-# ``def0`` resolves to a path ending in ``rigid_cam0_frame*.tiff``.
+# Riley renders the reference and deformed stereo images into the generated image directory.
+# The wildcard paths below select the synchronised frame sequence.
 #
 # During ``dic.calculate_3d`` pyvale expands each deformed-image wildcard with
 # ``glob`` and sorts the matching filenames. The sorted camera 0 and camera 1
@@ -48,12 +51,12 @@ calib_params = calib.loadtxt(dataset.dic_ex09_stereo_calibration(), delimiter=",
 # camera instead.
 
 # reference images
-ref0 = dataset.dic_plate_rigid_cam0_ref()
-ref1 = dataset.dic_plate_rigid_cam1_ref()
+ref0 = images.cam0_reference
+ref1 = images.cam1_reference
 
 # deformed images
-def0 = dataset.dic_plate_rigid_cam0_def()
-def1 = dataset.dic_plate_rigid_cam1_def()
+def0 = images.cam0_deformed
+def1 = images.cam1_deformed
 
 # Deformed images can be supplied as wildcard Path objects or explicit lists of
 # image paths. The reference image must not also appear in a deformed sequence.
@@ -65,11 +68,6 @@ def1 = dataset.dic_plate_rigid_cam1_def()
 # Build ROI using cam 0 reference image
 roi = dic.RegionOfInterest(ref0)
 roi.rect_boundary(50,50,50,50)
-
-# create an output directory 
-output_path = Path.cwd() / "pyvale-output" / "dic_ex09"
-if not output_path.is_dir():
-    output_path.mkdir(parents=True, exist_ok=True)
 
 # %% 
 # To perform the stereo DIC calculation, pass the two camera references as
@@ -115,7 +113,7 @@ for field in fields(dic_results.stereo):
 import pyvista as pv
 
 stereo = dic_results.stereo
-frame = 12
+frame = 10
 
 
 points = np.column_stack((
@@ -129,7 +127,7 @@ cloud['elevation'] = points[:, 1]
 cloud.plot(eye_dome_lighting=True)
 
 # %%
-# .. image:: ../../../../_static/dic_ex09_3d.png
+# .. image:: ../../../../_static/dic_ex08_3d.png
 #    :alt: 3D reconstruction
 #    :width: 100%
 #    :align: center

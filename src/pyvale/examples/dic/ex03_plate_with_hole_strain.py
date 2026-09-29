@@ -7,7 +7,7 @@
 # ================================================================================
 
 """
-Strain and Deformation Gradient Calculations
+2D Strain and Deformation Gradient Calculations
 ---------------------------------------------
 
 This example follows on from the previous one. It assumes that the DIC results
@@ -19,8 +19,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # pyvale modules
-import pyvale.dic as dic
-import pyvale.strain as strain
+from pyvale import dic
+from pyvale import strain
 
 # %%
 # We'll start by importing the DIC data from the previous example.
@@ -58,29 +58,22 @@ strain.calculate_2d(data=input_data, window_size=5, window_element=4,
 #
 # Be sure to specify the delimiter, format (binary or not), and layout.
 strain_output = output_path / "strain_dic_results_*.csv"
-straindata = strain.import_2d(data=strain_output,
-                              binary=False, delimiter=",",
-                              layout="matrix")
+straindata = strain.import_2d(data=strain_output,delimiter=",")
 
 # %%
 # Here's a simple example of how to visualize the deformation gradient components
-# for the first deformation step using matplotlib.
+# for the first deformation step using matplotlib. Equally, you could plot the
+# strains using variables `eps_xx`, `eps_xy`, and `eps_yy` instead of
+# the deformation gradient components below.
+#
 fig, axes = plt.subplots(2, 2, figsize=(10, 10))
 axes = axes.flatten()
 fig.suptitle('Deformation Gradient for ' + straindata.filenames[0])
 
-im1 = axes[0].pcolor(
-    straindata.window_x, straindata.window_y, straindata.def_00[1],
-)
-im2 = axes[1].pcolor(
-    straindata.window_x, straindata.window_y, straindata.def_01[1],
-)
-im3 = axes[2].pcolor(
-    straindata.window_x, straindata.window_y, straindata.def_10[1],
-)
-im4 = axes[3].pcolor(
-    straindata.window_x, straindata.window_y, straindata.def_11[1],
-)
+im1 = axes[0].pcolor(straindata.window_x, straindata.window_y, straindata.def_00[1])
+im2 = axes[1].pcolor(straindata.window_x, straindata.window_y, straindata.def_01[1])
+im3 = axes[2].pcolor(straindata.window_x, straindata.window_y, straindata.def_10[1])
+im4 = axes[3].pcolor(straindata.window_x, straindata.window_y, straindata.def_11[1])
 
 # titles
 axes[0].set_title('deformation gradient xx')

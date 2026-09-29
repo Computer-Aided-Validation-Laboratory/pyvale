@@ -32,25 +32,36 @@ there is large deformation."""
 # 
 # We start in the usual way by selecting the images and building the ROI:
 
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 
-# pyvale modules
-import pyvale.data as dataset
-import pyvale.dic as dic
+from pyvale import dic
+from pyvale import render
 
-subset_size = 31
-ref_img = dataset.dic_plate_rigid_cam0_ref()
-def_img = dataset.dic_plate_rigid_cam0_def()
 
-# create a directory for the the different outputs
-output_path = Path.cwd() / "pyvale-output" / "dic_ex07"
-if not output_path.is_dir():
-    output_path.mkdir(parents=True, exist_ok=True)
+output_path = Path.cwd() / "pyvale-output" / "dic_ex06"
+output_path.mkdir(parents=True, exist_ok=True)
+
+# %%
+# Riley generates the example image sequence here. For a custom render, see the
+# Riley examples in the Render 3D section (:ref:`examples_render3d`) and the
+# implementation of :func:`pyvale.render.create_example_images_rigid`.
+
+images = render.create_example_images_rigid()
+ref_img = images.cam0_reference
+def_img = images.cam0_deformed
+
+# image files can be passed directly instead:
+# ref_img = Path("/path/to/reference.tiff")
+# def_img = Path("/path/to/deformed*.tiff")
+
+# %%
+# Create the ROI and exclude a rectangular border of 50 pixels on all sides.
 
 roi = dic.RegionOfInterest(ref_img)
-roi.rect_boundary(left=0,right=100,top=100,bottom=0)
+roi.rect_boundary(left=50, right=50, top=50, bottom=50)
 
 
 # %%
@@ -78,7 +89,7 @@ dic.calculate_2d(reference=ref_img,
                  deformed=def_img,
                  roi_mask=roi.mask,
                  seed=[100,100],
-                 subset_size=subset_size,
+                 subset_size=31,
                  subset_step=10,
                  incremental_update="IMAGE", # use "OFF" to disable; can also be "COST" or "ITER"
                  incremental_update_value=1, # update the reference every 1 image(s)
