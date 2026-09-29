@@ -19,6 +19,56 @@ from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncreme
 import pyvale.commoncpp.commoncpp as commoncpp
 
 
+def _reference_pair_index(
+    basenames0: list[str],
+    fullpaths0: list[str],
+    image_arrays0: list[np.ndarray] | None,
+    basenames1: list[str],
+    fullpaths1: list[str],
+    image_arrays1: list[np.ndarray] | None,
+) -> int | None:
+    """Find the first deformed pair which is identical to the reference pair."""
+    def _same_entry(
+        ref_path: str,
+        candidate_path: str,
+        ref_array: np.ndarray | None,
+        candidate_array: np.ndarray | None,
+    ) -> bool:
+        if ref_array is not None and candidate_array is not None:
+            return np.array_equal(ref_array, candidate_array)
+        if ref_path and candidate_path:
+            return Path(ref_path).resolve() == Path(candidate_path).resolve()
+        return False
+
+    match0 = None
+    match1 = None
+    for i in range(1, len(basenames0)):
+        ref_array0 = image_arrays0[0] if image_arrays0 is not None else None
+        candidate_array0 = image_arrays0[i] if image_arrays0 is not None else None
+        if _same_entry(fullpaths0[0], fullpaths0[i], ref_array0, candidate_array0):
+            match0 = i
+            break
+
+    for i in range(1, len(basenames1)):
+        ref_array1 = image_arrays1[0] if image_arrays1 is not None else None
+        candidate_array1 = image_arrays1[i] if image_arrays1 is not None else None
+        if _same_entry(fullpaths1[0], fullpaths1[i], ref_array1, candidate_array1):
+            match1 = i
+            break
+
+    if (match0 is None) != (match1 is None):
+        raise ValueError(
+            "The reference image must either be present in both stereo "
+            "deformed sequences or in neither sequence."
+        )
+    if match0 is not None and match0 != match1:
+        raise ValueError(
+            "The reference image pair occurs at different positions in the "
+            "two stereo deformed sequences."
+        )
+    return match0
+
+
 def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  deformed:  list[np.ndarray] | list[str] | list[Path],
                  roi_mask: np.ndarray,
@@ -216,6 +266,25 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     assert(h0 == h1)
     assert(len(basenames0) == len(basenames1))
     assert(len(fullpaths0) == len(fullpaths1))
+
+    # The reference stereo pair is reconstructed once by the C++ engine and
+    # written as the zero-displacement output frame. If it is also supplied as
+    # the first member of the deformed sequence, remove that pair after the
+    # normal image checks so it is not correlated a second time.
+    reference_pair_idx = _reference_pair_index(
+        basenames0, fullpaths0, image_arrays0,
+        basenames1, fullpaths1, image_arrays1,
+    )
+    if reference_pair_idx is not None:
+        del basenames0[reference_pair_idx]
+        del fullpaths0[reference_pair_idx]
+        del basenames1[reference_pair_idx]
+        del fullpaths1[reference_pair_idx]
+        if image_arrays0 is not None:
+            del image_arrays0[reference_pair_idx]
+        if image_arrays1 is not None:
+            del image_arrays1[reference_pair_idx]
+
     basenames = basenames0 + basenames1
     fullpaths = fullpaths0 + fullpaths1
     image_arrays = None

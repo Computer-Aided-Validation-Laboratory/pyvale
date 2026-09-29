@@ -157,6 +157,10 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                                conf.ss_size,
                                true);
 
+        results_ref_l.write_to_disk_stereo(results_ref_r,
+                                           saveconf,
+                                           ss_grid_l_0,
+                                           basenames_l[0]);
     }
 
 
