@@ -45,7 +45,7 @@ ref1 = data.dic_chal_3d_cam1()
 # Build ROI using cam 0 reference image.
 roi = dic.RegionOfInterest(ref0)
 # roi.interactive_selection() # <- you can use the interactive_selection to view the yaml
-roi.read_yaml(data.dic_ex10_dic_chal_roi())
+roi.read_yaml(data.dic_ex02_roi()) # <- or you can read the yaml file directly.
 
 
 # %%

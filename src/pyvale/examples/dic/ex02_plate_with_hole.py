@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 
 from pyvale import dic
 from pyvale import render
+from pyvale import data
 
 
 # %%
@@ -55,7 +56,7 @@ output_path.mkdir(parents=True, exist_ok=True)
 # as input. This image will be shown as the underlay during any ROI selection or
 # visualization.
 roi = dic.RegionOfInterest(ref_img)
-roi.read_yaml(Path(__file__).resolve().parents[2] / "data" / "dic_ex02_roi.yaml")
+roi.read_yaml(data.dic_ex02_roi())
 
 # %%
 # Once you've closed the ROI interactive window, a mask and seed location coordinates
