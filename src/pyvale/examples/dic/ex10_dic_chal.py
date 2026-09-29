@@ -15,9 +15,9 @@ of the `Stereo DIC challenge <https://link.springer.com/article/10.1007/s11340-0
 To keep the amount of images/data distributed with the package to a minimum,
 we've already run the calibration (but feel free to try running the calibration
 yourself by downloading all the images from the Stereo DIC challenge archive)
-and the intrinsic/extrinisic parameters can be found in
-`dic_ex11_dic_chal_calibration.txt`. In this example we'll just use the reference
-images from the left and right camera to build a 3D reconstruction.
+and the intrinsic/extrinisic parameters can be loaded internally. In this
+example we'll just use the reference images from the left and right camera to
+build a 3D reconstruction.
 """
 
 # pyvale modules
@@ -32,11 +32,14 @@ from pyvale import data
 # %% 
 # Import the calibration parameters:
 
-calib_params = calib.loadtxt(data.dic_ex10_dic_chal_calibration(), delimiter=",")
+calib_params = calib.loadtxt(data.dic_ex10_calibration(), delimiter=",")
 
 
 # %%
-# select the images and build the ROI:
+# select the images and build the ROI. It helps to select seed locations across
+# multiple regions of the sample to ensure that the DIC algorithm can find a
+# good solution across boundaries which are likely to correlate poorly (sharp
+# edges and changes in surface texture).
 
 # reference images
 ref0 = data.dic_chal_3d_cam0()
@@ -44,8 +47,8 @@ ref1 = data.dic_chal_3d_cam1()
 
 # Build ROI using cam 0 reference image.
 roi = dic.RegionOfInterest(ref0)
-# roi.interactive_selection() # <- you can use the interactive_selection to view the yaml
-roi.read_yaml(data.dic_ex02_roi()) # <- or you can read the yaml file directly.
+roi.read_yaml(data.dic_ex10_roi()) # <- or you can read the yaml file directly.
+#roi.interactive_selection() # <- you can use the interactive_selection to build the ROI yourself
 
 
 # %%

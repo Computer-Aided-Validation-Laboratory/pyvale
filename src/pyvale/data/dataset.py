@@ -795,7 +795,7 @@ def dic_ex02_roi() -> Path:
                 .joinpath("dic_ex02_roi.yaml"))
 
 
-def dic_ex10_dic_chal_calibration() -> Path:
+def dic_ex10_calibration() -> Path:
     """
     Path to the calibration parameters for the DIC Challenge example.
 
@@ -805,10 +805,10 @@ def dic_ex10_dic_chal_calibration() -> Path:
         Path to the DIC Challenge calibration file (``.txt``).
     """
     return Path(files("pyvale.data")
-                .joinpath("dic_ex11_dic_chal_calibration.txt"))
+                .joinpath("dic_ex10_dic_chal_calibration.txt"))
 
 
-def dic_ex10_dic_chal_roi() -> Path:
+def dic_ex10_roi() -> Path:
     """
     Path to the region of interest definition for the DIC Challenge example.
 
