@@ -40,10 +40,6 @@ namespace strain {
     Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
 
     namespace {
-        using SmoothFn = std::function<Eigen::VectorXd(const std::vector<double>&,
-                                                       const std::vector<double>&,
-                                                       const std::vector<double>&)>;
-
         Eigen::Vector2d eval_poly_gradient_at_centre(const int q, const Eigen::VectorXd &c,
                                                      const double x0, const double y0) {
             Eigen::Vector2d F = Eigen::Vector2d::Zero();
@@ -66,10 +62,7 @@ namespace strain {
         }
 
         Eigen::Matrix3d compute_tangent_fit_coordinates(Window &window,
-                                                                     const int centre_idx) {
-            const Eigen::Vector3d centre(window.x_mm[centre_idx],
-                                         window.y_mm[centre_idx],
-                                         window.z_mm[centre_idx]);
+                                                                     const Eigen::Vector3d &centre) {
 
             Eigen::Matrix3d covariance = Eigen::Matrix3d::Zero();
             for (size_t i = 0; i < window.x_mm.size(); ++i) {
@@ -80,13 +73,37 @@ namespace strain {
 
             Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(covariance);
             if (solver.info() != Eigen::Success) {
-                throw std::runtime_error("Tangent-basis eigen decomposition failed.");
+                return Eigen::Matrix3d::Constant(NAN);
             }
 
+            Eigen::Vector3d normal = solver.eigenvectors().col(0).normalized();
+            if (normal.dot(Eigen::Vector3d::UnitZ()) < 0.0) {
+                normal = -normal;
+            }
+
+            const auto project_to_surface = [&normal](const Eigen::Vector3d &axis) {
+                return axis - normal * normal.dot(axis);
+            };
+
+            Eigen::Vector3d tangent_x = project_to_surface(Eigen::Vector3d::UnitX());
+            constexpr double MIN_TANGENT_NORM = 0.0017453283658983088; // sin(0.1 degrees)
+
+            if (tangent_x.norm() < MIN_TANGENT_NORM) {
+                tangent_x = project_to_surface(Eigen::Vector3d::UnitZ());
+            }
+
+            if (tangent_x.norm() < MIN_TANGENT_NORM) {
+                return Eigen::Matrix3d::Constant(NAN);
+            }
+
+            tangent_x.normalize();
+
+            Eigen::Vector3d tangent_y = normal.cross(tangent_x).normalized();
+
             Eigen::Matrix3d basis;
-            basis.col(0) = solver.eigenvectors().col(2).normalized();
-            basis.col(1) = solver.eigenvectors().col(1).normalized();
-            basis.col(2) = basis.col(0).cross(basis.col(1));
+            basis.col(0) = tangent_x;
+            basis.col(1) = tangent_y;
+            basis.col(2) = normal;
 
             for (size_t i = 0; i < window.x_mm.size(); ++i) {
                 Eigen::Vector3d d(window.x_mm[i], window.y_mm[i], window.z_mm[i]);
@@ -112,7 +129,14 @@ namespace strain {
                          const std::vector<std::string> &filenames,
                          const common_util::SaveConfig &strain_save_conf,
                          const int debug_level,
-                         const bool use_3d_coordinates) {
+                         const bool use_3d_coordinates,
+                         const double partial_window) {
+
+            if (!(partial_window >= 0.0 && partial_window <= 1.0))
+                throw std::invalid_argument("partial_window must be between 0 and 1 inclusive.");
+
+            if (sw_size <= 0 || sw_size % 2 == 0 || (q != 4 && q != 9))
+                throw std::invalid_argument("Expected a positive odd window size and Q4 or Q9.");
 
             signal(SIGINT, signalHandler);
             g_debug_level = debug_level;
@@ -128,10 +152,9 @@ namespace strain {
             double* v = static_cast<double*>(v_arr.request().ptr);
             double* w = static_cast<double*>(w_arr.request().ptr);
 
-            SmoothFn smooth_window = (q == 4) ? SmoothFn(smooth::q4) : SmoothFn(smooth::q9);
-            strain::Results results(nwindows);
 
             for (int img_num = 0; img_num < nimg; img_num++) {
+                strain::Results results(nwindows);
 
                 ProgressBar pbar(filenames[img_num], nwindows);
                 std::atomic<int> current_progress(0);
@@ -153,37 +176,56 @@ namespace strain {
                     if (use_3d_coordinates) {
                         results.valid_window[sw] = fill_window_3d(ss_x, ss_y, x_mm, y_mm, z_mm,
                                                                   u, v, w, img_num, sw, window,
-                                                                  nss_x, nss_y, sw_size);
+                                                                  nss_x, nss_y, sw_size, partial_window);
                     }
                     else {
                         results.valid_window[sw] = fill_window_2d(ss_x, ss_y, u, v, w, img_num,
-                                                                  sw, window, nss_x, nss_y, sw_size);
+                                                                  sw, window, nss_x, nss_y, sw_size, partial_window);
                     }
 
                     Eigen::Matrix3d F = Eigen::Matrix3d::Zero();
                     Eigen::Matrix3d eps = Eigen::Matrix3d::Zero();
 
-                    if (results.valid_window[sw]){
+                    if (results.valid_window[sw]) {
+                        Eigen::Matrix3d basis = Eigen::Matrix3d::Identity();
                         if (use_3d_coordinates) {
-                            const int centre_idx = (sw_size * sw_size) / 2;
-                            Eigen::Matrix3d tangent_basis = compute_tangent_fit_coordinates(window, centre_idx);
-
-                            Eigen::VectorXd uc = smooth_window(window.x, window.y, window.u);
-                            Eigen::VectorXd vc = smooth_window(window.x, window.y, window.v);
-                            Eigen::VectorXd wc = smooth_window(window.x, window.y, window.w);
-
-                            F = compute_surface_F_3d(q, uc, vc, wc, tangent_basis);
-                        }
-                        else {
-                            Eigen::VectorXd uc = smooth_window(window.x, window.y, window.u);
-                            Eigen::VectorXd vc = smooth_window(window.x, window.y, window.v);
-                            Eigen::VectorXd wc = smooth_window(window.x, window.y, window.w);
-
-                            F = compute_F_2d(q, uc, vc, wc, 0.0, 0.0);
+                            const Eigen::Vector3d centre(x_mm[idx_3d_centre], y_mm[idx_3d_centre],
+                                                         z_mm[idx_3d_centre]);
+                            basis = compute_tangent_fit_coordinates(window, centre);
                         }
 
-                        eps = compute_strain(form, F);
-                        append_results(sw, results, x0, y0, F, eps, nwindows);
+                        Eigen::MatrixXd coefficients;
+
+                        const bool basis_valid = basis.allFinite();
+
+                        const bool fit_valid = smooth::fit_displacements(window.x,
+                                                                         window.y,
+                                                                         window.u,
+                                                                         window.v,
+                                                                         window.w,
+                                                                         q,
+                                                                         coefficients);
+
+                        results.valid_window[sw] = basis_valid && fit_valid;
+
+                        if (results.valid_window[sw]) {
+
+                            if (use_3d_coordinates) {
+                                F = compute_surface_F_3d(q, coefficients.col(0), coefficients.col(1),
+                                                         coefficients.col(2), basis);
+                            }
+                            else {
+                                F = compute_F_2d(q, coefficients.col(0), coefficients.col(1),
+                                                 coefficients.col(2), 0.0, 0.0);
+                            }
+
+                            eps = compute_strain(form, F);
+                            results.valid_window[sw] = F.allFinite() && eps.allFinite();
+
+                            if (results.valid_window[sw]) {
+                                append_results(sw, results, x0, y0, F, eps, nwindows);
+                            }
+                        }
                     }
 
                     if (g_debug_level>0){
@@ -218,10 +260,13 @@ namespace strain {
                    const int q, const std::string &form,
                    const std::vector<std::string> &filenames,
                    const common_util::SaveConfig &strain_save_conf,
-                   const int debug_level) {
+                   const int debug_level,
+                   const double partial_window) {
+
         engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr, u_arr, v_arr, w_arr,
                     nss_x, nss_y, nimg, sw_size, q, form, filenames, strain_save_conf,
-                    debug_level, false);
+                    debug_level, false, partial_window);
+
     }
 
     void engine_3d(const py::array_t<int> &ss_x_arr,
@@ -237,10 +282,13 @@ namespace strain {
                    const int q, const std::string &form,
                    const std::vector<std::string> &filenames,
                    const common_util::SaveConfig &strain_save_conf,
-                   const int debug_level) {
+                   const int debug_level,
+                   const double partial_window) {
+
         engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr, u_arr, v_arr, w_arr,
                     nss_x, nss_y, nimg, sw_size, q, form, filenames, strain_save_conf,
-                    debug_level, true);
+                    debug_level, true, partial_window);
+
     }
 
     void engine(const py::array_t<int> &ss_x_arr,
@@ -256,15 +304,18 @@ namespace strain {
                 const int q, const std::string &form,
                 const std::vector<std::string> &filenames,
                 const common_util::SaveConfig &strain_save_conf,
-                const int debug_level) {
+                const int debug_level,
+                const double partial_window) {
+
         engine_2d(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr, u_arr, v_arr, w_arr,
                   nss_x, nss_y, nimg, sw_size, q, form, filenames, strain_save_conf,
-                  debug_level);
+                  debug_level, partial_window);
+
     }
 
     bool fill_window_2d(int *ss_x, int *ss_y, double *u, double *v, double *w,
                         int img, int sw, Window &window,
-                        int nss_x, int nss_y, int sw_size){
+                        int nss_x, int nss_y, int sw_size, double partial_window){
 
         const int swr = sw_size / 2;
         const int x0_idx = sw % nss_x;
@@ -274,35 +325,46 @@ namespace strain {
         const int ymin = y0_idx - swr;
         const int ymax = y0_idx + swr;
 
-        // check centre of strain window is within mask bounds
-        if ((xmin < 0) || (xmax >= nss_x) || (ymin < 0) || (ymax >= nss_y)) return false;
+
         
         int widx = 0;
-        for (int j = ymin; j <= ymax; j++){
-            for (int i = xmin; i <= xmax; i++){
+        for (int j = std::max(0, ymin); j <= std::min(nss_y - 1, ymax); j++){
+            for (int i = std::max(0, xmin); i <= std::min(nss_x - 1, xmax); i++){
 
                 // index in 3d results array
                 int idx_2d = nss_x*j + i;
                 int idx_3d = nss_x*nss_y*img + idx_2d;
 
                 // check if all subsets in the strain window are not nan
-                if (std::isnan(u[idx_3d]) || std::isnan(v[idx_3d]) || std::isnan(w[idx_3d])) return false;
+                if (!std::isfinite(u[idx_3d]) || !std::isfinite(v[idx_3d]) || !std::isfinite(w[idx_3d])) continue;
 
-                window.x[widx] = static_cast<double>(ss_x[idx_2d]);
-                window.y[widx] = static_cast<double>(ss_y[idx_2d]);
+                window.x[widx] = static_cast<double>(ss_x[idx_2d]) - ss_x[sw];
+                window.y[widx] = static_cast<double>(ss_y[idx_2d]) - ss_y[sw];
                 window.u[widx] = u[idx_3d];
                 window.v[widx] = v[idx_3d];
                 window.w[widx] = w[idx_3d];
                 widx++;
             }
         }
-        return true;
+        window.x.resize(widx);
+        window.y.resize(widx);
+        window.x_mm.resize(widx);
+        window.y_mm.resize(widx);
+        window.z_mm.resize(widx);
+        window.u.resize(widx);
+        window.v.resize(widx);
+        window.w.resize(widx);
+        return widx >= std::ceil(partial_window * sw_size * sw_size);
     }
 
     bool fill_window_3d(int *ss_x, int *ss_y, double *x_mm, double *y_mm, double *z_mm,
                         double *u, double *v, double *w,
                         int img, int sw, Window &window,
-                        int nss_x, int nss_y, int sw_size){
+                        int nss_x, int nss_y, int sw_size, double partial_window){
+
+        const int centre = nss_x * nss_y * img + sw;
+        if (!std::isfinite(x_mm[centre]) || !std::isfinite(y_mm[centre]) ||
+            !std::isfinite(z_mm[centre])) return false;
 
         const int swr = sw_size / 2;
         const int x0_idx = sw % nss_x;
@@ -312,16 +374,16 @@ namespace strain {
         const int ymin = y0_idx - swr;
         const int ymax = y0_idx + swr;
 
-        if ((xmin < 0) || (xmax >= nss_x) || (ymin < 0) || (ymax >= nss_y)) return false;
+
 
         int widx = 0;
-        for (int j = ymin; j <= ymax; j++){
-            for (int i = xmin; i <= xmax; i++){
+        for (int j = std::max(0, ymin); j <= std::min(nss_y - 1, ymax); j++){
+            for (int i = std::max(0, xmin); i <= std::min(nss_x - 1, xmax); i++){
                 int idx_2d = nss_x*j + i;
                 int idx_3d = nss_x*nss_y*img + idx_2d;
 
-                if (std::isnan(x_mm[idx_3d]) || std::isnan(y_mm[idx_3d]) || std::isnan(z_mm[idx_3d]) ||
-                    std::isnan(u[idx_3d]) || std::isnan(v[idx_3d]) || std::isnan(w[idx_3d])) return false;
+                if (!std::isfinite(x_mm[idx_3d]) || !std::isfinite(y_mm[idx_3d]) || !std::isfinite(z_mm[idx_3d]) ||
+                    !std::isfinite(u[idx_3d]) || !std::isfinite(v[idx_3d]) || !std::isfinite(w[idx_3d])) continue;
 
                 window.x_mm[widx] = x_mm[idx_3d];
                 window.y_mm[widx] = y_mm[idx_3d];
@@ -332,7 +394,15 @@ namespace strain {
                 widx++;
             }
         }
-        return true;
+        window.x.resize(widx);
+        window.y.resize(widx);
+        window.x_mm.resize(widx);
+        window.y_mm.resize(widx);
+        window.z_mm.resize(widx);
+        window.u.resize(widx);
+        window.v.resize(widx);
+        window.w.resize(widx);
+        return widx >= std::ceil(partial_window * sw_size * sw_size);
     }
 
     Eigen::Matrix3d compute_F_2d(const int q,
@@ -359,10 +429,10 @@ namespace strain {
     }
 
     Eigen::Matrix3d compute_surface_F_3d(const int q,
-                                                const Eigen::VectorXd &uc,
-                                                const Eigen::VectorXd &vc,
-                                                const Eigen::VectorXd &wc,
-                                                const Eigen::Matrix3d &tangent_basis) {
+                                         const Eigen::VectorXd &uc,
+                                         const Eigen::VectorXd &vc,
+                                         const Eigen::VectorXd &wc,
+                                         const Eigen::Matrix3d &tangent_basis) {
 
         Eigen::Matrix3d F = Eigen::Matrix3d::Zero();
         F.block<1,2>(0,0) = eval_poly_gradient_at_centre(q, uc, 0.0, 0.0).transpose();

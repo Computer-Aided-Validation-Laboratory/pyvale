@@ -157,6 +157,17 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                                conf.ss_size,
                                true);
 
+        // The temporal part of this output is the supplied reference image
+        // compared with itself. It is not a correlation result, but it is a
+        // valid zero-displacement datum for the first saved frame.
+        std::fill(results_ref_l.conv.begin(), results_ref_l.conv.end(), 1);
+        std::fill(results_ref_l.above_thresh.begin(), results_ref_l.above_thresh.end(), 1);
+        std::fill(results_ref_l.cost.begin(), results_ref_l.cost.end(), 1.0);
+
+        results_ref_l.write_to_disk_stereo(results_ref_r,
+                                           saveconf,
+                                           ss_grid_l_0,
+                                           basenames_l[0]);
     }
 
 

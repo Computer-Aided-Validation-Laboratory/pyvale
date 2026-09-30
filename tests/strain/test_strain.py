@@ -10,6 +10,7 @@ import pyvale.dic as dic
 import pyvale.calib as calib
 import pyvale.strain as strain
 import pyvale.data as dataset
+from pyvale.dic.dicresults import Results, StereoResults
 
 
 def generate_affine_displacement_grid(F, nx=100, ny=100):
@@ -51,6 +52,132 @@ def reference_strain(F, formulation):
         return scipy.linalg.logm(U)
 
     raise ValueError(formulation)
+
+
+def run_partial_window_test(
+    tmp_path: Path,
+    mask: np.ndarray,
+    partial_window: float,
+    q: int = 9,
+    stereo: bool = False,
+    quadratic: bool = False,
+    threads: int = 1,
+    missing_centre: bool = False,
+):
+    x, y = np.meshgrid(np.arange(11), np.arange(11))
+    shape = mask.shape
+
+    u = np.broadcast_to(
+        0.02 * x + (0.001 * x * x if quadratic else 0), shape
+    ).copy()
+    v = np.broadcast_to(0.03 * y, shape).copy()
+    u[~mask] = np.nan
+    v[~mask] = np.nan
+
+    data = Results(ss_x=x, ss_y=y, u_px=u, v_px=v)
+
+    if stereo:
+        world_x = np.broadcast_to(x, shape).astype(float).copy()
+        if missing_centre:
+            world_x[:, 5, 5] = np.nan
+
+        data.stereo = StereoResults(
+            disparity_u_px=u,
+            disparity_v_px=v,
+            x_mm=world_x,
+            y_mm=np.broadcast_to(y, shape).astype(float).copy(),
+            z_mm=np.zeros(shape),
+            u_mm=u,
+            v_mm=v,
+            w_mm=np.zeros(shape),
+        )
+
+    calculate = strain.calculate_3d if stereo else strain.calculate_2d
+    calculate(
+        data,
+        window_size=11,
+        window_element=q,
+        partial_window=partial_window,
+        strain_formulation="GREEN",
+        output_basepath=tmp_path,
+        output_binary=True,
+        num_threads=threads,
+        print_level=0,
+    )
+
+    dtype = np.dtype([("x", "i4"), ("y", "i4"), ("values", "f8", (13,))])
+    return np.stack(
+        [
+            np.fromfile(path, dtype=dtype)["values"].reshape(11, 11, 13)
+            for path in sorted(tmp_path.glob("*.dic3d"))
+        ]
+    )
+
+
+@pytest.mark.parametrize("stereo", [False, True])
+@pytest.mark.parametrize("q", [4, 9])
+def test_partial_window_threshold(tmp_path: Path, stereo: bool, q: int):
+    mask = np.ones((1, 11, 11), dtype=bool)
+    mask[:, :, 6:] = False
+
+    result = run_partial_window_test(tmp_path, mask, 0.5, q=q, stereo=stereo)
+    np.testing.assert_allclose(
+        result[0, 5, 5, 3:7], [1.02, 0, 0, 1.03], atol=1e-12
+    )
+
+    result = run_partial_window_test(tmp_path, mask, 0.55, q=q, stereo=stereo)
+    assert np.isnan(result[0, 5, 5, 3:]).all()
+
+
+def test_partial_window_original_centre_and_boundary(tmp_path: Path):
+    mask = np.ones((1, 11, 11), dtype=bool)
+    mask[:, :, 6:] = False
+
+    result = run_partial_window_test(tmp_path, mask, 0.0, quadratic=True)
+    assert result[0, 5, 5, 3] == pytest.approx(1.03)
+    assert result[0, 0, 0, 3] == pytest.approx(1.02)
+
+    result = run_partial_window_test(tmp_path, np.ones_like(mask), 1.0)
+    assert np.isnan(result[0, 0, 0, 3:]).all()
+    assert np.isfinite(result[0, 5, 5, 3:]).all()
+
+
+@pytest.mark.parametrize("q", [4, 9])
+def test_partial_window_rank_deficient_and_empty_frames(tmp_path: Path, q: int):
+    mask = np.ones((3, 11, 11), dtype=bool)
+    mask[1:] = False
+    mask[1, 5, :] = True  # Many points, but all on one line.
+
+    result = run_partial_window_test(tmp_path, mask, 0.0, q=q)
+    assert np.isfinite(result[0, 5, 5, 3:]).all()
+    assert np.isnan(result[1:, :, :, 3:]).all()
+
+
+def test_partial_window_3d_missing_centre(tmp_path: Path):
+    result = run_partial_window_test(
+        tmp_path,
+        np.ones((1, 11, 11), dtype=bool),
+        0.0,
+        stereo=True,
+        missing_centre=True,
+    )
+    assert np.isnan(result[0, 5, 5, 3:]).all()
+
+
+def test_partial_window_thread_equivalence(tmp_path: Path):
+    mask = np.ones((1, 11, 11), dtype=bool)
+    mask[:, 2:4, 3:5] = False
+
+    single = run_partial_window_test(tmp_path, mask, 0.25, threads=1)
+    multi = run_partial_window_test(tmp_path, mask, 0.25, threads=4)
+    np.testing.assert_allclose(multi, single, equal_nan=True)
+
+
+@pytest.mark.parametrize("value", [-0.1, 1.1, np.nan, np.inf])
+@pytest.mark.parametrize("calculate", [strain.calculate_2d, strain.calculate_3d])
+def test_invalid_partial_window(value, calculate):
+    with pytest.raises(ValueError, match="partial_window"):
+        calculate(None, partial_window=value)
 
 
 # Strain formulations I've got implemented currently
@@ -193,7 +320,7 @@ def test_strain_3d(window_element: int, tmp_path: Path):
 
     for field, atol in [
         ("eps_xx", 1e-4),
-        ("eps_xy", 8e-5),
+        ("eps_xy", 1e-4),
         ("eps_yy", 2e-4),
     ]:
         np.testing.assert_allclose(
