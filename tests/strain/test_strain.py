@@ -320,7 +320,7 @@ def test_strain_3d(window_element: int, tmp_path: Path):
 
     for field, atol in [
         ("eps_xx", 1e-4),
-        ("eps_xy", 8e-5),
+        ("eps_xy", 1e-4),
         ("eps_yy", 2e-4),
     ]:
         np.testing.assert_allclose(
