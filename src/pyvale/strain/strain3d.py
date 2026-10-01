@@ -29,7 +29,8 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
               output_delimiter: str=",",
               num_threads: int | None = None,
               strain_formulation: Literal["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"] = "HENCKY",
-              print_level: int=1):
+              print_level: int=1,
+              partial_window: float=1.0):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
@@ -67,12 +68,21 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
     output_delimiter : str, optional
         Delimiter used in text output files (default: ",").
 
+    partial_window : float, optional
+        Minimum occupied fraction of the full window, in [0, 1] (default: 1).
+        Missing and out-of-grid points count as unoccupied. Q4/Q9 still require 4/9
+        suitably arranged finite points. Strain is evaluated at the original centre.
+        3D requires a finite centre position. Failed fits remain invalid.
+
     Raises
     ------
     ValueError
         If any of the input parameters are invalid (e.g., unsupported strain formulation,
         even window size, or invalid element type).
     """
+
+    if not 0.0 <= partial_window <= 1.0:
+        raise ValueError("partial_window must be between 0 and 1 inclusive.")
 
     allowed_formulations = ["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"]
     if strain_formulation not in allowed_formulations:
@@ -84,8 +94,8 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
         raise ValueError(f"Invalid strain window element type: Q{window_element}. "
                          f"Allowed values are: {', '.join(map(str, allowed_elements))}.")
 
-    if window_size % 2 == 0:
-        raise ValueError(f"Invalid strain window size: '{window_size}'. Must be an odd number.")
+    if window_size <= 0 or window_size % 2 == 0:
+        raise ValueError(f"Invalid strain window size: '{window_size}'. Must be a positive odd number.")
 
 
     if isinstance(data, (str, Path, list)):
@@ -168,8 +178,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
                                  window_size, window_element, 
                                  strain_formulation, filenames,
                                  strain_save_conf,
-                                 print_level)
-
+                                 print_level, partial_window)
 
 
 

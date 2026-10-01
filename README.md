@@ -52,7 +52,7 @@ reconstruct surfaces, and calculate displacement and strain.
 
 | Stereo region of interest | Reconstructed shape |
 |:---:|:---:|
-| <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex11_roi.png" alt="Stereo DIC region of interest" width="520"> | <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex11_3d.png" alt="Stereo DIC reconstructed shape" width="520"> |
+| <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex10_roi.png" alt="Stereo DIC region of interest" width="520"> | <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex10_3d.png" alt="Stereo DIC reconstructed shape" width="520"> |
 
 ### Render · build virtual camera experiments
 
