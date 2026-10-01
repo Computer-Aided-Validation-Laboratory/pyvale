@@ -93,30 +93,6 @@ class VectorFirstResultPassthrough(IVectorObjectiveFunction):
 
         return _finite_vector(metric_results[0].residual)
 
-class VectorConcatenateObjective(IVectorObjectiveFunction):
-    """
-    Vector objective that concatenates the residuals of every metric into a
-    single residual vector.
-
-    Use this to drive a least-squares optimiser with more than one metric
-    """
-
-    def evaluate(
-        self,
-        metric_results: list[MetricResult],
-    ) -> npt.NDArray[np.float64]:
-        if not metric_results:
-            return np.array([], dtype=np.float64)
-
-        residuals = []
-        for metric_result in metric_results:
-            if metric_result.residual is None:
-                raise ValueError("Metric residual doesn't exist")
-
-            residuals.append(_finite_vector(metric_result.residual))
-
-        return np.concatenate(residuals)
-
 
 class VectorWeightedObjective(IVectorObjectiveFunction):
     """Apply optional normalisation and metric-provided weights to vector residuals."""

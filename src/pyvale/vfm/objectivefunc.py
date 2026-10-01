@@ -6,35 +6,6 @@ import numpy.typing as npt
 from pyvale.vfm.metric import MetricResult
 
 
-class IScalarObjectiveFunction(ABC):
-    """
-    Interface (abstract base class) for a scalar objective function.
-
-    Aggregates a list of metric results into a single scalar value that the
-    optimiser minimises
-    """
-
-    @abstractmethod
-    def evaluate(
-        self,
-        metric_results: list[MetricResult],
-    ) -> float:
-        """
-        Aggregate metric results into a scalar cost
-
-        Parameters
-        ----------
-        metric_results : list[MetricResult]
-            One array per metric, each with the metric's output
-
-        Returns
-        -------
-        float
-            Scalar objective value to minimise
-        """
-        pass
-
-
 class IVectorObjectiveFunction(ABC):
     """
     Interface (abstract base class) for a vector objective function.
@@ -63,5 +34,5 @@ class IVectorObjectiveFunction(ABC):
         pass
 
 
-IObjectiveFunction = IScalarObjectiveFunction | IVectorObjectiveFunction
-"""Union type for objective functions that produce a scalar or vector cost"""
+IObjectiveFunction = IVectorObjectiveFunction
+"""Alias for the vector objective-function interface."""

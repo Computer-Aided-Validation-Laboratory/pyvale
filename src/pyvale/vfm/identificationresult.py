@@ -779,11 +779,6 @@ def summarise_parameterisation(
     """Return a YAML-safe plotting/explanation summary for known parameterisations."""
 
     try:
-        from pyvale.vfm.spatialparambasisfuncs import (
-            BasisFunctionKernelBivariate,
-            BasisFunctionKernelUnivariate,
-            SpatialParameterisationBasisFunction,
-        )
         from pyvale.vfm.spatialparamhomogeneous import (
             SpatialParameterisationHomogeneous,
         )
@@ -846,55 +841,6 @@ def summarise_parameterisation(
             )
         return summary
 
-    if isinstance(parameterisation, SpatialParameterisationBasisFunction):
-        kernels: list[JsonValue] = []
-        for kernel, height in zip(
-            parameterisation.kernels,
-            parameterisation.heights,
-            strict=True,
-        ):
-            kernel_summary: Summary = {
-                "kernel_type": type(kernel).__name__,
-                "centre": [
-                    _jsonify_value(_resolve_value(kernel.x)),
-                    _jsonify_value(_resolve_value(kernel.y)),
-                ],
-                "height": _jsonify_value(_resolve_value(height)),
-                "coordinate_system": "physical",
-            }
-            if isinstance(kernel, BasisFunctionKernelUnivariate):
-                variance = _resolve_value(kernel.variance)
-                kernel_summary.update(
-                    {
-                        "variance": _jsonify_value(variance),
-                        "width": _jsonify_value(np.sqrt(float(variance))),
-                        "angle": 0.0,
-                    }
-                )
-            elif isinstance(kernel, BasisFunctionKernelBivariate):
-                variance_x = _resolve_value(kernel.variance_x)
-                variance_y = _resolve_value(kernel.variance_y)
-                kernel_summary.update(
-                    {
-                        "variance": [
-                            _jsonify_value(variance_x),
-                            _jsonify_value(variance_y),
-                        ],
-                        "width": [
-                            _jsonify_value(np.sqrt(float(variance_x))),
-                            _jsonify_value(np.sqrt(float(variance_y))),
-                        ],
-                        "angle": _jsonify_value(_resolve_value(kernel.angle)),
-                    }
-                )
-            kernels.append(kernel_summary)
-
-        return {
-            "kind": "basis_functions",
-            "num_kernels": len(kernels),
-            "kernels": kernels,
-        }
-
     return {
         "kind": "unknown",
         "note": "No detailed parameterisation summary available.",
@@ -907,7 +853,6 @@ def summarise_refinement_target(
     """Return a literal support summary suitable for a refinement event."""
 
     try:
-        from pyvale.vfm.spatialparambasisfuncs import SupportBasis
         from pyvale.vfm.spatialparamslicewise import SupportSlice
     except ImportError as exc:
         return {
@@ -937,15 +882,6 @@ def summarise_refinement_target(
                 "coordinate_system": "physical",
             }
 
-    if isinstance(target, SupportBasis):
-        return {
-            "kind": "basis_support",
-            "grid_shape": _jsonify_value(np.asarray(target.x).shape),
-            "num_kernels": 0 if target.kernels is None else len(target.kernels),
-            "x_summary": summarise_array(target.x).to_dict(),
-            "y_summary": summarise_array(target.y).to_dict(),
-        }
-
     return {
         "kind": "unknown",
         "type_name": type(target).__name__,
@@ -965,8 +901,6 @@ def summarise_refinement_action(
         "action_type": type(action).__name__,
         "num_slices_before": before_summary.get("num_slices"),
         "num_slices_after": after_summary.get("num_slices"),
-        "num_kernels_before": before_summary.get("num_kernels"),
-        "num_kernels_after": after_summary.get("num_kernels"),
     }
     refined_boundaries = getattr(action, "refined_boundaries", None)
     if refined_boundaries is not None:
@@ -987,11 +921,6 @@ def snapshot_refinement_policy(
                 "max_refinements",
                 "merge_parameter_tolerance",
                 "split_error_threshold",
-                "max_basis_functions",
-                "relative_improvement_threshold",
-                "refinement_height_fraction",
-                "smoothing_points",
-                "minimum_separation_points",
             ),
         ),
     )

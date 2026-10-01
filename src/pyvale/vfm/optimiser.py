@@ -7,11 +7,6 @@ from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.identificationresult import OptimisationOutcome
 from pyvale.vfm.metric import IMetric, MetricResult
-from pyvale.vfm.metricequilibriumgap import (
-    EquilibriumGapMetric,
-    evaluate_equilibrium_gap_batch,
-    evaluate_batched_equilibrium_gap_metrics,
-)
 from pyvale.vfm.objectivefunc import IObjectiveFunction
 from pyvale.vfm.spatialparam import (
     ISpatialParameterisation,
@@ -36,7 +31,7 @@ class IOptimiser(ABC):
         Returns
         -------
         type
-            ``IScalarObjectiveFunction`` or ``IVectorObjectiveFunction``
+            Required vector objective-function type.
         """
         pass
 
@@ -88,7 +83,7 @@ def evaluate_candidate(
     metrics: list[IMetric],
     objective_function: IObjectiveFunction,
     experiment_data: ExperimentData,
-) -> float | npt.NDArray[np.float64]:
+) -> npt.NDArray[np.float64]:
     """
     Evaluate one candidate point in the design space.
 
@@ -109,14 +104,14 @@ def evaluate_candidate(
     metrics : list[IMetric]
         Virtual-work metrics
     objective_function : IObjectiveFunction
-        Scalar or vector objective
+        Vector objective
     experiment_data : ExperimentData
         Measured DIC data
 
     Returns
     -------
-    float | npt.NDArray[np.float64]
-        Scalar or vector objective value for the candidate
+    npt.NDArray[np.float64]
+        Vector objective value for the candidate
     """
     updated_phase_spatial_state = phase_spatial_state.copy()
     updated_phase_spatial_state.update_from_normalised_degrees_of_freedom(
@@ -152,47 +147,16 @@ def evaluate_metrics(
     spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
     metrics: list[IMetric],
     experiment_data: ExperimentData,
-    *,
-    include_egi_diagnostics: bool | None = None,
 ) -> list[MetricResult]:
-    """Evaluate metrics for a supplied stress field.
+    """Evaluate identification metrics for a supplied stress field."""
 
-    This is shared by optimiser candidates and phase-referenced objective
-    baselines so both paths use the same batched EGI evaluation behaviour.
-    """
-
-    metric_results: list[MetricResult | None] = [None] * len(metrics)
-
-    # Evaluate compatible EquilibriumGapMetrics in batches to improve performance
-    batched_results = evaluate_batched_equilibrium_gap_metrics(
-        stress,
-        metrics,
-        include_egi_diagnostics,
-    )
-
-    # Evaluate remaining metrics individually
-    for index, metric in enumerate(metrics):
-        if index in batched_results:
-            metric_results[index] = batched_results[index]
-            continue
-        if isinstance(metric, EquilibriumGapMetric):
-            metric_results[index] = metric.evaluate_equilibrium_gap(
-                stress,
-                include_diagnostics=(
-                    metric.include_optimisation_diagnostics
-                    if include_egi_diagnostics is None
-                    else include_egi_diagnostics
-                ),
-            ).metric_result
-            continue
-        metric_results[index] = metric.evaluate(
-                stress,
-                constitutive_law,
-                parameter_map_size,
-                spatial_parameterisations,
-                experiment_data,
-            )
-
-    if any(result is None for result in metric_results):
-        raise RuntimeError("A candidate metric evaluation did not produce a result.")
-    return [result for result in metric_results if result is not None]
+    return [
+        metric.evaluate(
+            stress,
+            constitutive_law,
+            parameter_map_size,
+            spatial_parameterisations,
+            experiment_data,
+        )
+        for metric in metrics
+    ]

@@ -1,10 +1,8 @@
 import copy
-from types import SimpleNamespace
 
 import pytest
 import numpy as np
 
-from pyvale.vfm.dof import DegreeOfFreedom
 from pyvale.vfm.experimentdata import (
     BoundaryConditions,
     Edge,
@@ -21,25 +19,16 @@ from pyvale.vfm.identificationconfig import (
 )
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
-from pyvale.vfm.objectivefunccombinedfreegi import (
-    CombinedForceAndEquilibriumGapObjective,
-)
 from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
 from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
 from pyvale.vfm.optimiserslicewiseindependent import (
     SliceWiseIndependentLeastSquares,
 )
-from pyvale.vfm.refinement import BasisAddRemoveRefinement
-from pyvale.vfm.refinement import EquilibriumGapBasisGrowthRefinement
 from pyvale.vfm.refinement import RefinementContext
 from pyvale.vfm.refinement import SliceMergeSplitRefinement
 from pyvale.vfm.spatialparam import PhaseSpatialState
 from pyvale.vfm.spatialparamhomogeneous import SpatialParameterisationHomogeneous
-from pyvale.vfm.spatialparambasisfuncs import (
-    BasisFunctionKernelUnivariate,
-    SpatialParameterisationBasisFunction,
-    SupportBasis,
-)
+from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 from pyvale.vfm.spatialparamslicewise import (
     SliceConfig,
     SliceWiseSpatialParameterisation,
@@ -184,367 +173,6 @@ def _build_refinement_context(
         parameter_map_size=parameter_map_size,
         parameter_maps=parameter_maps,
     )
-
-
-class _StaticEquilibriumGapMetric(EquilibriumGapMetric):
-    """EGI metric with a fixed map for structural-refinement tests."""
-
-    def evaluate_equilibrium_gap(self, stress, *, include_diagnostics=True):
-        _ = stress, include_diagnostics
-        return SimpleNamespace(
-            metric_result=MetricResult(
-                additional_fields={
-                    "weighted_temporal_rms": np.array(
-                        [
-                            [0.0, 0.0, 0.0, 0.0, 0.0],
-                            [0.0, 0.0, 1.0, 0.0, 0.0],
-                            [0.0, 0.0, 0.0, 0.0, 0.0],
-                            [0.0, 0.0, 0.0, 0.0, 0.0],
-                        ],
-                        dtype=np.float64,
-                    )
-                }
-            )
-        )
-
-
-def test_phase_initialisation_seeds_one_egi_basis_for_homogeneous_map() -> None:
-    experiment_data = _build_experiment_data()
-    shape = np.asarray(experiment_data.specimen_geometry.x.shape, dtype=np.uint32)
-    parameter = ConstitutiveParameter(2.0, 0.5, 5.0, shape)
-    metric = _StaticEquilibriumGapMetric(window_size=(3, 3))
-    objective = CombinedForceAndEquilibriumGapObjective(
-        egi_window_weights=(1.0,),
-    )
-    basis = SpatialParameterisationBasisFunction(
-        experiment_data.specimen_geometry.x,
-        experiment_data.specimen_geometry.y,
-    )
-    runtime = PhaseRuntime(
-        {"yield_strength": [SpatialParameterisationHomogeneous(), basis]},
-        [metric],
-        objective_function=objective,
-    )
-    runtime.initialise_parameterisation_structure(
-        {"yield_strength": parameter},
-        shape,
-        experiment_data,
-        [metric.evaluate_equilibrium_gap(np.empty(0)).metric_result],
-    )
-    assert len(basis.kernels) == 1
-    assert isinstance(basis.heights[0], DegreeOfFreedom)
-    assert basis.heights[0].value == 0.01 * (
-        parameter.upper_bound - parameter.lower_bound
-    )
-
-
-def test_phase_initialisation_fits_material_basis_residual() -> None:
-    experiment_data = _build_experiment_data()
-    shape = np.asarray(experiment_data.specimen_geometry.x.shape, dtype=np.uint32)
-    parameter = ConstitutiveParameter(
-        experiment_data.specimen_geometry.x,
-        0.0,
-        5.0,
-    )
-    basis = SpatialParameterisationBasisFunction(
-        experiment_data.specimen_geometry.x,
-        experiment_data.specimen_geometry.y,
-        initial_kernels_max=1,
-    )
-    runtime = PhaseRuntime({"yield_strength": [basis]}, [])
-
-    runtime.initialise_parameterisation_structure(
-        {"yield_strength": parameter}, shape, experiment_data, None,
-    )
-
-    assert len(basis.kernels) == 1
-
-
-def test_phase_initialisation_uses_domain_centre_without_prior_egi() -> None:
-    experiment_data = _build_experiment_data()
-    shape = np.asarray(experiment_data.specimen_geometry.x.shape, dtype=np.uint32)
-    parameter = ConstitutiveParameter(2.0, 0.5, 5.0, shape)
-    basis = SpatialParameterisationBasisFunction(
-        experiment_data.specimen_geometry.x,
-        experiment_data.specimen_geometry.y,
-    )
-    runtime = PhaseRuntime(
-        {"yield_strength": [SpatialParameterisationHomogeneous(), basis]},
-        [],
-    )
-
-    runtime.initialise_parameterisation_structure(
-        {"yield_strength": parameter}, shape, experiment_data, None,
-    )
-
-    kernel = basis.kernels[0]
-    assert isinstance(kernel.x, DegreeOfFreedom)
-    assert isinstance(kernel.y, DegreeOfFreedom)
-    assert kernel.x.value == pytest.approx(0.5)
-    assert kernel.y.value == pytest.approx(0.5)
-
-
-def test_egi_basis_growth_rejects_and_restores_complete_candidate() -> None:
-    experiment_data = _build_experiment_data()
-    shape = np.asarray(experiment_data.specimen_geometry.x.shape, dtype=np.uint32)
-    parameter = ConstitutiveParameter(2.0, 0.5, 5.0, shape)
-    metric = _StaticEquilibriumGapMetric(window_size=(3, 3))
-    objective = CombinedForceAndEquilibriumGapObjective(egi_window_weights=(1.0,))
-    basis = SpatialParameterisationBasisFunction(experiment_data.specimen_geometry.x, experiment_data.specimen_geometry.y)
-    runtime = PhaseRuntime(
-        {"yield_strength": [SpatialParameterisationHomogeneous(), basis]},
-        [metric],
-        objective_function=objective,
-    )
-    runtime.initialise_parameterisation_structure(
-        {"yield_strength": parameter}, shape, experiment_data,
-        [metric.evaluate_equilibrium_gap(np.empty(0)).metric_result],
-    )
-    policy = EquilibriumGapBasisGrowthRefinement(
-        target=basis,
-        max_basis_functions=2,
-        minimum_separation_points=0.0,
-    )
-
-    context = _build_refinement_context(
-        experiment_data,
-        {"yield_strength": parameter.map},
-    )
-    context.metrics = [metric]
-    context.objective_function = objective
-    context.objective_value = 10.0
-    candidate_action = policy.propose(runtime, context)
-    assert candidate_action is not None
-    candidate_action.apply(runtime, context)
-    assert len(basis.kernels) == 2
-
-    assert isinstance(basis.heights[0], DegreeOfFreedom)
-    accepted_height = basis.heights[0].value
-    basis.heights[0].value = accepted_height + 1.0
-    rejected_action = policy.propose(runtime, context)
-
-    assert rejected_action is not None
-    assert not rejected_action.accepts_current_solve
-    rejected_action.apply(runtime, context)
-    _, restored_basis = runtime.get_parameterisation("yield_strength", 1)
-    assert isinstance(restored_basis, SpatialParameterisationBasisFunction)
-    assert len(restored_basis.kernels) == 1
-    assert isinstance(restored_basis.heights[0], DegreeOfFreedom)
-    assert restored_basis.heights[0].value == accepted_height
-
-
-def test_phase_spatial_state_collects_shared_basis_support_dofs_once() -> None:
-    x_grid_1d = np.linspace(0.0, 1.0, 5)
-    y_grid_1d = np.linspace(0.0, 1.0, 4)
-    x_grid, y_grid = np.meshgrid(x_grid_1d, y_grid_1d)
-
-    shared_support = SupportBasis(
-        x=x_grid,
-        y=y_grid,
-        kernels=[
-            BasisFunctionKernelUnivariate(
-                x=DegreeOfFreedom(0.25, 0.0, 1.0),
-                y=DegreeOfFreedom(0.5, 0.0, 1.0),
-                variance=DegreeOfFreedom(0.1, 0.01, 1.0),
-            )
-        ],
-    )
-
-    spatial_parameterisations = {
-        "yield_strength": [
-            SpatialParameterisationBasisFunction(
-                support=shared_support,
-                heights=[DegreeOfFreedom(2.0, -5.0, 5.0)],
-            )
-        ],
-        "hardening_modulus": [
-            SpatialParameterisationBasisFunction(
-                support=shared_support,
-                heights=[DegreeOfFreedom(3.0, -5.0, 5.0)],
-            )
-        ],
-    }
-
-    phase_spatial_state = PhaseSpatialState(spatial_parameterisations)
-    degrees_of_freedom = phase_spatial_state.collect_degrees_of_freedom()
-    assert len(degrees_of_freedom) == 5
-
-    original_yield_map = spatial_parameterisations["yield_strength"][0].to_map(
-        np.array(x_grid.shape, dtype=np.uint32)
-    )
-    original_hardening_map = spatial_parameterisations["hardening_modulus"][0].to_map(
-        np.array(x_grid.shape, dtype=np.uint32)
-    )
-
-    perturbed_dofs = phase_spatial_state.collect_normalised_degrees_of_freedom()
-    perturbed_dofs[0] = 0.75
-    perturbed_phase_spatial_state = phase_spatial_state.copy()
-    perturbed_phase_spatial_state.update_from_normalised_degrees_of_freedom(
-        perturbed_dofs
-    )
-
-    yield_parameterisation = (
-        perturbed_phase_spatial_state.spatial_parameterisations["yield_strength"][0]
-    )
-    hardening_parameterisation = (
-        perturbed_phase_spatial_state.spatial_parameterisations["hardening_modulus"][0]
-    )
-    assert yield_parameterisation.support is hardening_parameterisation.support
-
-    perturbed_yield_map = yield_parameterisation.to_map(
-        np.array(x_grid.shape, dtype=np.uint32)
-    )
-    perturbed_hardening_map = hardening_parameterisation.to_map(
-        np.array(x_grid.shape, dtype=np.uint32)
-    )
-
-    assert not np.allclose(perturbed_yield_map, original_yield_map)
-    assert not np.allclose(perturbed_hardening_map, original_hardening_map)
-
-
-def test_basis_refinement_adds_kernel_to_shared_support_and_height_slots() -> None:
-    experiment_data = _build_experiment_data()
-    shared_support = SupportBasis(
-        x=experiment_data.specimen_geometry.x,
-        y=experiment_data.specimen_geometry.y,
-    )
-    parameter_map_size = np.array(
-        experiment_data.specimen_geometry.x.shape,
-        dtype=np.uint32,
-    )
-    phase = IdentificationPhase(
-        spatial_parameterisations={
-            "yield_strength": [
-                SpatialParameterisationBasisFunction(support=shared_support)
-            ],
-            "hardening_modulus": [
-                SpatialParameterisationBasisFunction(support=shared_support)
-            ],
-        },
-        metrics=[],
-        objective_function=_DummyObjective(),
-        optimiser=OptimiserLeastSquares(),
-        refinement_policy=BasisAddRemoveRefinement(
-            target=shared_support,
-            max_refinements=1,
-            seed_parameter_name="yield_strength",
-        ),
-    )
-    phase_runtime = prepare_phase_runtime(phase, experiment_data)
-    assert phase_runtime.refinement_policy is not None
-
-    parameter_maps = {
-        "yield_strength": np.asarray(
-            experiment_data.specimen_geometry.x
-            + experiment_data.specimen_geometry.y,
-            dtype=np.float64,
-        ),
-        "hardening_modulus": np.asarray(
-            2.0 * experiment_data.specimen_geometry.x,
-            dtype=np.float64,
-        ),
-    }
-    context = _build_refinement_context(experiment_data, parameter_maps)
-    context.parameter_map_size = parameter_map_size
-
-    action = phase_runtime.refinement_policy.propose(phase_runtime, context)
-    assert action is not None
-    action.apply(phase_runtime, context)
-
-    runtime_support = phase_runtime.resolve_support_target(
-        phase_runtime.refinement_policy.target,
-    )
-    assert isinstance(runtime_support, SupportBasis)
-    assert runtime_support.kernels is not None
-    assert len(runtime_support.kernels) == 1
-
-    _, yield_parameterisation = phase_runtime.get_parameterisation("yield_strength", 0)
-    _, hardening_parameterisation = phase_runtime.get_parameterisation(
-        "hardening_modulus",
-        0,
-    )
-    assert isinstance(yield_parameterisation, SpatialParameterisationBasisFunction)
-    assert isinstance(hardening_parameterisation, SpatialParameterisationBasisFunction)
-    assert yield_parameterisation.support is hardening_parameterisation.support
-    assert len(yield_parameterisation.heights) == 1
-    assert len(hardening_parameterisation.heights) == 1
-
-    phase_runtime.initialise_dofs(
-        context.constitutive_parameters,
-        parameter_map_size,
-    )
-    assert yield_parameterisation.heights[0] is not None
-    assert hardening_parameterisation.heights[0] is not None
-
-
-def test_basis_refinement_removes_small_shared_kernel() -> None:
-    experiment_data = _build_experiment_data()
-    shared_support = SupportBasis(
-        x=experiment_data.specimen_geometry.x,
-        y=experiment_data.specimen_geometry.y,
-        kernels=[
-            BasisFunctionKernelUnivariate(
-                x=DegreeOfFreedom(0.25, 0.0, 1.0),
-                y=DegreeOfFreedom(0.5, 0.0, 1.0),
-                variance=DegreeOfFreedom(0.1, 0.01, 1.0),
-            )
-        ],
-    )
-    phase = IdentificationPhase(
-        spatial_parameterisations={
-            "yield_strength": [
-                SpatialParameterisationBasisFunction(
-                    support=shared_support,
-                    heights=[DegreeOfFreedom(1.0e-4, -5.0, 5.0)],
-                )
-            ],
-            "hardening_modulus": [
-                SpatialParameterisationBasisFunction(
-                    support=shared_support,
-                    heights=[DegreeOfFreedom(2.0e-4, -5.0, 5.0)],
-                )
-            ],
-        },
-        metrics=[],
-        objective_function=_DummyObjective(),
-        optimiser=OptimiserLeastSquares(),
-        refinement_policy=BasisAddRemoveRefinement(
-            target=shared_support,
-            max_refinements=1,
-            mode="remove",
-            remove_height_threshold=1.0e-3,
-        ),
-    )
-    phase_runtime = prepare_phase_runtime(phase, experiment_data)
-    assert phase_runtime.refinement_policy is not None
-    context = _build_refinement_context(
-        experiment_data,
-        {
-            "yield_strength": np.zeros(experiment_data.specimen_geometry.x.shape),
-            "hardening_modulus": np.zeros(experiment_data.specimen_geometry.x.shape),
-        },
-    )
-
-    action = phase_runtime.refinement_policy.propose(phase_runtime, context)
-    assert action is not None
-    action.apply(phase_runtime, context)
-
-    runtime_support = phase_runtime.resolve_support_target(
-        phase_runtime.refinement_policy.target,
-    )
-    assert isinstance(runtime_support, SupportBasis)
-    assert runtime_support.kernels == []
-    _, yield_parameterisation = phase_runtime.get_parameterisation("yield_strength", 0)
-    _, hardening_parameterisation = phase_runtime.get_parameterisation(
-        "hardening_modulus",
-        0,
-    )
-    assert isinstance(yield_parameterisation, SpatialParameterisationBasisFunction)
-    assert isinstance(hardening_parameterisation, SpatialParameterisationBasisFunction)
-    assert yield_parameterisation.heights == []
-    assert hardening_parameterisation.heights == []
-
-
 def test_shared_slice_support_is_reused_by_metric_and_parameterisations() -> None:
     experiment_data = _build_experiment_data()
     shared_support = SupportSlice(
@@ -702,6 +330,72 @@ def test_run_validation_checks_slicewise_independent_phases() -> None:
         match="SliceWiseIndependentLeastSquares requires exactly one "
         "SliceWiseForceReconstructionMetric",
     ):
+        run_validation(_build_experiment_data(), identification)
+
+
+def test_run_validation_rejects_phase_with_only_known_parameters() -> None:
+    parameters = {
+        name: ConstitutiveParameter(
+            value,
+            0.5,
+            5.0,
+            np.array((4, 5), dtype=np.uint32),
+        )
+        for name, value in (
+            ("yield_strength", 2.0),
+            ("hardening_modulus", 3.0),
+        )
+    }
+    identification = IdentificationConfig(
+        constitutive_law=_DummyConstitutiveLaw(),
+        parameters=parameters,
+        phases=[
+            IdentificationPhase(
+                spatial_parameterisations={
+                    name: [SpatialParameterisationKnown()]
+                    for name in parameters
+                },
+                metrics=[_DummyMetric()],
+                objective_function=VectorFirstResultPassthrough(),
+                optimiser=OptimiserLeastSquares(),
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="at least one parameter must be identifiable"):
+        run_validation(_build_experiment_data(), identification)
+
+
+def test_run_validation_rejects_egi_as_identification_metric() -> None:
+    parameters = {
+        name: ConstitutiveParameter(
+            value,
+            0.5,
+            5.0,
+            np.array((4, 5), dtype=np.uint32),
+        )
+        for name, value in (
+            ("yield_strength", 2.0),
+            ("hardening_modulus", 3.0),
+        )
+    }
+    identification = IdentificationConfig(
+        constitutive_law=_DummyConstitutiveLaw(),
+        parameters=parameters,
+        phases=[
+            IdentificationPhase(
+                spatial_parameterisations={
+                    name: [SpatialParameterisationHomogeneous()]
+                    for name in parameters
+                },
+                metrics=[EquilibriumGapMetric(window_size=(3, 3))],
+                objective_function=VectorFirstResultPassthrough(),
+                optimiser=OptimiserLeastSquares(),
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="EquilibriumGapMetric is diagnostic-only"):
         run_validation(_build_experiment_data(), identification)
 
 

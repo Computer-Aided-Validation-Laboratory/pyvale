@@ -27,10 +27,6 @@ from pyvale.vfm.identificationresult import (
     summarise_parameterisation,
 )
 from pyvale.vfm.refinement import SliceMergeSplitAction, SliceMergeSplitRefinement
-from pyvale.vfm.spatialparambasisfuncs import (
-    BasisFunctionKernelBivariate,
-    SpatialParameterisationBasisFunction,
-)
 from pyvale.vfm.spatialparamslicewise import (
     SliceConfig,
     SupportSlice,
@@ -94,32 +90,6 @@ def test_identification_result_bundle_round_trips_maps_stress_and_history(
     assert loaded_snapshot.summary["axis"] == "x"
     assert loaded_snapshot.summary["boundaries"] == [0.0, 1.0, 2.0]
     assert loaded.history.phases[0].solve_results[0].accepted is False
-
-
-def test_basis_parameterisation_summary_stores_literal_kernel_geometry() -> None:
-    x, y = np.meshgrid(np.linspace(0.0, 1.0, 3), np.linspace(0.0, 1.0, 3))
-    parameterisation = SpatialParameterisationBasisFunction(x, y)
-    parameterisation.kernels.append(
-        BasisFunctionKernelBivariate(
-            x=0.25,
-            y=0.75,
-            variance_x=0.04,
-            variance_y=0.09,
-            angle=0.5,
-        )
-    )
-    parameterisation.heights.append(DegreeOfFreedom(120.0, -200.0, 200.0))
-
-    summary = summarise_parameterisation(parameterisation)
-
-    assert summary["kind"] == "basis_functions"
-    assert summary["num_kernels"] == 1
-    kernel = summary["kernels"][0]
-    assert kernel["centre"] == [0.25, 0.75]
-    assert kernel["variance"] == [0.04, 0.09]
-    assert kernel["width"] == [0.2, 0.3]
-    assert kernel["angle"] == 0.5
-    assert kernel["height"] == 120.0
 
 
 def test_refinement_snapshots_avoid_runtime_support_graph() -> None:

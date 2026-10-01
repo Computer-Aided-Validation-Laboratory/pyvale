@@ -3,17 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 import enum
 import warnings
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
-from scipy.fft import irfftn, next_fast_len, rfftn
 from scipy.signal import correlate, correlate2d
 
-from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import EEdgeCondition, ExperimentData
-from pyvale.vfm.metric import IMetric, MetricResult
-from pyvale.vfm.spatialparam import ISpatialParameterisation
+from pyvale.vfm.metric import MetricResult
 
 # TODO
 # should all normalisation be done in objective function, not in metric? (e.g. normalised_gap, weighted_temporal_rms, weighted_spatiotemporal_rms)
@@ -49,15 +45,14 @@ class _EquilibriumGapOperator:
 
 
 @dataclass(slots=True)
-class EquilibriumGapMetric(IMetric):
-    """Equilibrium gap indicator (EGI) metric.
+class EquilibriumGapMetric:
+    """Diagnostic equilibrium gap indicator (EGI) metric.
 
     The metric rasterises a set of virtual strain fields, defined by a 
     9-node, 4-element virtual window over the stress field, computing a
     scalar value of the internal virtual work (equilibrium gap) for each window. 
-    The raw residual is returned as the metric residual; normalised and weighted
-    fields are included in ``additional_fields`` for objective scaling or
-    plotting.   
+    The raw, normalised and weighted fields are returned for diagnostic
+    inspection and plotting. EGI is not an identification objective.
       
     Parameters
     ----------
@@ -92,11 +87,6 @@ class EquilibriumGapMetric(IMetric):
     compute_spatiotemporal_rms : bool, optional
         Whether to compute the force-weighted spatial-temporal RMS scalar of
         the normalised gap. Default is True.
-    include_optimisation_diagnostics : bool, optional
-        Whether optimiser candidate evaluations retain full residual maps and
-        diagnostic fields. Default is True. Set to False for scalar objectives
-        that require only ``weighted_spatiotemporal_rms`` and ``window_size``.
-        Normal calls to ``evaluate`` always retain full diagnostics.
     pixel_area_scale : float, optional
         Scale factor for the pixel area when computing the volume. Default is 1.0.
         This is only required if mismatch in units between the pixel area and the stress field, 
@@ -110,8 +100,6 @@ class EquilibriumGapMetric(IMetric):
         Whether to plot a schematic of the virtual field and window. Default is False.
     plot_virtual_window_raster : bool, optional
         Whether to plot a raster of the valid virtual window centres. Default is False.
-    _kernel_fft_cache : dict[tuple[int, int], npt.NDArray[np.complex128]]
-        Internal cache of the FFT of the virtual strain fields for each unique FFT shape.
     """
 
     # Define attributes of EquilibriumGapMetric class with type annotations
@@ -123,14 +111,10 @@ class EquilibriumGapMetric(IMetric):
     valid_window_fill_fraction: float
     compute_temporal_rms: bool
     compute_spatiotemporal_rms: bool
-    include_optimisation_diagnostics: bool
     pixel_area_scale: float
     _operator: _EquilibriumGapOperator | None
     plot_virtual_field_schematic: bool
     plot_virtual_window_raster: bool
-    _kernel_fft_cache: dict[
-        tuple[int, int], npt.NDArray[np.complex128]
-    ]
 
     def __init__(
         self,
@@ -143,7 +127,6 @@ class EquilibriumGapMetric(IMetric):
         valid_window_fill_fraction: float = 0.5,
         compute_temporal_rms: bool = True,
         compute_spatiotemporal_rms: bool = True,
-        include_optimisation_diagnostics: bool = True,
         pixel_area_scale: float = 1.0,
         plot_virtual_field_schematic: bool = False,
         plot_virtual_window_raster: bool = False,
@@ -156,14 +139,10 @@ class EquilibriumGapMetric(IMetric):
         self.valid_window_fill_fraction = float(valid_window_fill_fraction)
         self.compute_temporal_rms = compute_temporal_rms
         self.compute_spatiotemporal_rms = compute_spatiotemporal_rms
-        self.include_optimisation_diagnostics = bool(
-            include_optimisation_diagnostics
-        )
         self.pixel_area_scale = pixel_area_scale
         self.plot_virtual_field_schematic = plot_virtual_field_schematic
         self.plot_virtual_window_raster = plot_virtual_window_raster
         self._operator = None
-        self._kernel_fft_cache = {}
         _validate_window_definition(
             self.window_size,
             self.sliding_pitch,
@@ -189,25 +168,9 @@ class EquilibriumGapMetric(IMetric):
             plot_virtual_field_schematic=self.plot_virtual_field_schematic,
             plot_virtual_window_raster=self.plot_virtual_window_raster,
         )
-        # Clear the kernel FFT cache, as the operator has changed
-        # and the cached FFTs are no longer valid.
-        self._kernel_fft_cache.clear()
-
-    def evaluate(
-        self,
-        stress: npt.NDArray[np.float64],
-        constitutive_law: IConstitutiveLaw,
-        parameter_map_size: npt.NDArray[np.uint32],
-        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-        experiment_data: ExperimentData,
-    ) -> MetricResult:
-        return self.evaluate_equilibrium_gap(stress).metric_result
-
     def evaluate_equilibrium_gap(
         self,
         stress: npt.NDArray[np.float64],
-        *,
-        include_diagnostics: bool = True,
     ) -> EquilibriumGapResult:
         """Evaluate raw EGI and derived normalised RMS diagnostics."""
 
@@ -235,16 +198,11 @@ class EquilibriumGapMetric(IMetric):
         # Evaluate raw equilibrium gap for each window in the stress field, 
         # using the precomputed operator. raw_gap has shape (timesteps, y, x)
         raw_gap = _evaluate_raw_gap(stress, self._operator)
-        return self._result_from_raw_gap(
-            raw_gap,
-            include_diagnostics=include_diagnostics,
-        )
+        return self._result_from_raw_gap(raw_gap)
 
     def _result_from_raw_gap(
         self,
         raw_gap: npt.NDArray[np.float64],
-        *,
-        include_diagnostics: bool,
     ) -> EquilibriumGapResult:
         """Apply masks, normalisation, aggregation, and result packaging."""
 
@@ -261,23 +219,22 @@ class EquilibriumGapMetric(IMetric):
         )
 
         weighted_temporal_rms = None
-        if include_diagnostics and self.compute_temporal_rms:
+        if self.compute_temporal_rms:
             weighted_temporal_rms = _calculate_weighted_temporal_rms(
                 normalised_gap,
                 self._operator.force_weights,
             )
 
         weighted_spatiotemporal_rms = None
-        # Compute weighted spatiotemporal RMS if requested, or if diagnostics
-        # are not included (to ensure the result is available for objective scaling).
-        if self.compute_spatiotemporal_rms or not include_diagnostics:
+        if self.compute_spatiotemporal_rms:
             weighted_spatiotemporal_rms = _calculate_nan_rms(
                 normalised_gap
                 * np.sqrt(self._operator.force_weights)[:, np.newaxis, np.newaxis]
             )
 
-        if include_diagnostics:
-            additional_fields = {
+        metric_result = MetricResult(
+            residual=normalised_gap,
+            additional_fields={
                 "raw_gap": raw_gap,
                 "normalised_gap": normalised_gap,
                 "weighted_temporal_rms": weighted_temporal_rms,
@@ -294,18 +251,7 @@ class EquilibriumGapMetric(IMetric):
                 "nominal_window_point_count": self._operator.nominal_window_point_count,
                 "valid_centre_mask": self._operator.valid_centre_mask,
                 "virtual_strain_fields": self._operator.virtual_strain_fields,
-            }
-            residual = normalised_gap
-        else:
-            additional_fields = {
-                "weighted_spatiotemporal_rms": weighted_spatiotemporal_rms,
-                "window_size": self.window_size.copy(),
-            }
-            residual = None
-
-        metric_result = MetricResult(
-            residual=residual,
-            additional_fields=additional_fields,
+            },
         )
         return EquilibriumGapResult(
             metric_result=metric_result,
@@ -314,126 +260,6 @@ class EquilibriumGapMetric(IMetric):
             weighted_temporal_rms=weighted_temporal_rms,
             weighted_spatiotemporal_rms=weighted_spatiotemporal_rms,
         )
-
-
-def evaluate_equilibrium_gap_batch(
-    stress: npt.NDArray[np.float64],
-    metrics: list[EquilibriumGapMetric],
-    *,
-    include_diagnostics: bool,
-) -> list[MetricResult]:
-    """Evaluate compatible EGI windows with shared stress FFTs.
-
-    The stress-volume fields are transformed once per stress component. Each
-    virtual field then requires only its cached kernel transform and one
-    inverse transform after summing the three component contributions.
-    """
-
-    if not metrics:
-        return []
-    if stress.ndim != 4 or stress.shape[1] != 3:
-        raise ValueError(
-            "Expected stress with shape (timesteps, 3, y, x), "
-            f"got {stress.shape}."
-        )
-
-    operators: list[_EquilibriumGapOperator] = []
-    for metric in metrics:
-        operator = metric._operator
-        if operator is None:
-            raise RuntimeError(
-                "Equilibrium gap operator has not been prepared. "
-                "Call initialise(...) before batch evaluation."
-            )
-        if stress.shape[0] != operator.longitudinal_force.shape[0]:
-            raise ValueError("Stress and EGI force histories have different lengths.")
-        if stress.shape[2:] != operator.valid_centre_mask.shape:
-            raise ValueError("Stress and EGI operator spatial shapes differ.")
-        operators.append(operator)
-
-    reference_volume = operators[0].volume
-    if any(
-        not np.array_equal(operator.volume, reference_volume)
-        for operator in operators[1:]
-    ):
-        raise ValueError(
-            "Batched EGI metrics must use identical integration volumes."
-        )
-
-    # Determine the maximum window size across all metrics to define the FFT shape.
-    max_rows = max(int(metric.window_size[0]) for metric in metrics)
-    max_cols = max(int(metric.window_size[1]) for metric in metrics)
-    # Determine the FFT shape for the stress and kernel transforms,
-    # using next_fast_len for efficiency. This ensures that the FFTs are
-    # computed over a shape that is at least as large as the stress field
-    # plus the maximum window size minus one, which is necessary for valid convolution.
-    fft_shape = (
-        next_fast_len(stress.shape[2] + max_rows - 1),
-        next_fast_len(stress.shape[3] + max_cols - 1),
-    )
-    # Compute the stress-volume fields by multiplying the stress components by the reference volume.
-    # Shape: (timesteps, 3, y, x)
-    stress_volume = np.nan_to_num(
-        stress * reference_volume[np.newaxis, np.newaxis],
-        nan=0.0,
-    )
-    # Compute the FFT of the stress-volume fields along the last two axes (spatial dimensions).
-    stress_fft = rfftn(
-        stress_volume,
-        s=fft_shape,
-        axes=(-2, -1),
-    )
-
-    results: list[MetricResult] = []
-    for metric, operator in zip(metrics, operators, strict=True):
-        kernel_fft = metric._kernel_fft_cache.get(fft_shape)
-        if kernel_fft is None:
-            flipped_kernels = np.flip(
-                operator.virtual_strain_fields,
-                axis=(-2, -1),
-            )
-            kernel_fft = rfftn(
-                flipped_kernels,
-                s=fft_shape,
-                axes=(-2, -1),
-            )
-            metric._kernel_fft_cache[fft_shape] = kernel_fft
-
-        gaps: list[npt.NDArray[np.float64]] = []
-        window_rows = int(metric.window_size[0])
-        window_cols = int(metric.window_size[1])
-        row_start = (window_rows - 1) // 2
-        col_start = (window_cols - 1) // 2
-        for field_fft in kernel_fft:
-            gap_fft = np.sum(
-                stress_fft * field_fft[np.newaxis],
-                axis=1,
-            )
-            padded_gap = irfftn(
-                gap_fft,
-                s=fft_shape,
-                axes=(-2, -1),
-            )
-            gaps.append(
-                padded_gap[
-                    :,
-                    row_start:row_start + stress.shape[2],
-                    col_start:col_start + stress.shape[3],
-                ]
-            )
-
-        raw_gap = gaps[0] if len(gaps) == 1 else 0.5 * (
-            np.abs(gaps[0]) + np.abs(gaps[1])
-        )
-        results.append(
-            metric._result_from_raw_gap(
-                raw_gap,
-                include_diagnostics=include_diagnostics,
-            ).metric_result
-        )
-    return results
-
-
 def _validate_window_definition(
     window_size: npt.NDArray[np.uint32],
     sliding_pitch: npt.NDArray[np.uint32],
@@ -1524,72 +1350,3 @@ def _plot_virtual_window_raster(
         ax.axis("off")
 
     plt.show()
-
-
-def evaluate_batched_equilibrium_gap_metrics(
-    stress: npt.NDArray[np.float64],
-    metrics: list[IMetric],
-    include_egi_diagnostics: bool | None = None,
-) -> dict[int, MetricResult]:
-    """Evaluate compatible equilibrium-gap metrics in shared FFT batches.
-
-    Metrics are compatible when they use the same integration volume and
-    optimisation diagnostic setting. Results are keyed by the metrics'
-    original positions; unbatched metrics are omitted for the caller to
-    evaluate individually.
-    """
-    results: dict[int, MetricResult] = {}
-    remaining_egi_indices = [
-        index
-        for index, metric in enumerate(metrics)
-        if isinstance(metric, EquilibriumGapMetric)
-    ]
-    while remaining_egi_indices:
-        first_index = remaining_egi_indices.pop(0)
-        first_metric = metrics[first_index]
-        if not isinstance(first_metric, EquilibriumGapMetric):
-            raise RuntimeError("Expected an equilibrium-gap metric.")
-        first_operator = first_metric._operator
-        compatible_indices = [first_index]
-        incompatible_indices = []
-        for index in remaining_egi_indices:
-            metric = metrics[index]
-            if not isinstance(metric, EquilibriumGapMetric):
-                raise RuntimeError("Expected an equilibrium-gap metric.")
-            operator = metric._operator
-            if (
-                first_operator is not None
-                and operator is not None
-                and np.array_equal(first_operator.volume, operator.volume)
-                and (
-                    include_egi_diagnostics is not None
-                    or metric.include_optimisation_diagnostics
-                    == first_metric.include_optimisation_diagnostics
-                )
-            ):
-                compatible_indices.append(index)
-            else:
-                incompatible_indices.append(index)
-        remaining_egi_indices = incompatible_indices
-        if len(compatible_indices) < 2:
-            continue
-        egi_metrics = [
-            cast(EquilibriumGapMetric, metrics[index])
-            for index in compatible_indices
-        ]
-        batched_results = evaluate_equilibrium_gap_batch(
-            stress,
-            egi_metrics,
-            include_diagnostics=(
-                first_metric.include_optimisation_diagnostics
-                if include_egi_diagnostics is None
-                else include_egi_diagnostics
-            ),
-        )
-        for index, result in zip(
-            compatible_indices,
-            batched_results,
-            strict=True,
-        ):
-            results[index] = result
-    return results

@@ -44,10 +44,6 @@ from .hardening import (
 from .spatialparam import ISpatialParameterisation
 from .spatialparamknown import SpatialParameterisationKnown
 from .spatialparamhomogeneous import SpatialParameterisationHomogeneous
-from .spatialparambasisfuncs import (
-    SpatialParameterisationBasisFunction,
-    SupportBasis,
-)
 from .spatialparamslicewise import (
     SliceWiseSpatialParameterisation,
     SupportSlice,
@@ -60,48 +56,28 @@ from .slicewise_utils import (
 
 from .optimiser import IOptimiser
 from .optimiserleastsquares import OptimiserLeastSquares
-from .optimiserpatternsearch import OptimiserPatternSearch
 from .optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
 
 from .metric import IMetric, MetricResult
 from .metricsbvf import MetricSBVF
 from .metricsliceforce import SliceWiseForceReconstructionMetric
-from .metricequilibriumgap import EquilibriumGapMetric
+from .metricequilibriumgap import (
+    EquilibriumGapMetric,
+    EquilibriumGapResult,
+    EquilibriumGapVirtualFieldType,
+)
 
 from .objectivefunc import (
     IObjectiveFunction,
-    IScalarObjectiveFunction,
     IVectorObjectiveFunction,
 )
-from .objectivefuncscalar import ScalarFirstResultPassthrough
 from .objectivefuncvector import (
-    VectorConcatenateObjective,
     VectorFirstResultPassthrough,
     VectorWeightedObjective,
-)
-from .equilibriumgapaggregation import (
-    EquilibriumGapAggregationResult,
-    aggregate_equilibrium_gap_results,
-    calculate_combined_equilibrium_gap_spatial_rms,
-    combine_equilibrium_gap_maps,
-    infer_window_area_weights,
-)
-from .objectivefuncfreandegi import (
-    ForceAndEquilibriumGapObjectiveResult,
-    ScalarForceAndEquilibriumGapObjective,
-)
-from .objectivefunccombinedfreegi import (
-    CombinedForceAndEquilibriumGapObjective,
-    CombinedForceAndEquilibriumGapObjectiveResult,
-    CombinedObjectiveBaseline,
-    CombinedObjectiveBaselineMode,
-    infer_egi_window_length_weights,
 )
 from .progress import ConsoleProgressReporter, ProgressEvent
 
 from .refinement import (
-    BasisAddRemoveRefinement,
-    EquilibriumGapBasisGrowthRefinement,
     IRefinementAction,
     IRefinementPolicy,
     SliceMergeSplitRefinement,
@@ -145,8 +121,6 @@ __all__ = [
     "ISpatialParameterisation",
     "SpatialParameterisationKnown",
     "SpatialParameterisationHomogeneous",
-    "SpatialParameterisationBasisFunction",
-    "SupportBasis",
     "SliceWiseSpatialParameterisation",
     "SupportSlice",
     "SliceConfig",
@@ -154,39 +128,23 @@ __all__ = [
     "resolve_cell_aligned_slice_boundaries",
     "IOptimiser",
     "OptimiserLeastSquares",
-    "OptimiserPatternSearch",
     "SliceWiseIndependentLeastSquares",
     "IMetric",
     "MetricResult",
     "MetricSBVF",
     "SliceWiseForceReconstructionMetric",
     "EquilibriumGapMetric",
+    "EquilibriumGapResult",
+    "EquilibriumGapVirtualFieldType",
     "IObjectiveFunction",
-    "IScalarObjectiveFunction",
     "IVectorObjectiveFunction",
-    "ScalarFirstResultPassthrough",
     "VectorFirstResultPassthrough",
-    "VectorConcatenateObjective",
     "VectorWeightedObjective",
-    "EquilibriumGapAggregationResult",
-    "aggregate_equilibrium_gap_results",
-    "calculate_combined_equilibrium_gap_spatial_rms",
-    "combine_equilibrium_gap_maps",
-    "infer_window_area_weights",
-    "ForceAndEquilibriumGapObjectiveResult",
-    "ScalarForceAndEquilibriumGapObjective",
-    "CombinedForceAndEquilibriumGapObjective",
-    "CombinedForceAndEquilibriumGapObjectiveResult",
-    "CombinedObjectiveBaseline",
-    "CombinedObjectiveBaselineMode",
-    "infer_egi_window_length_weights",
     "ProgressEvent",
     "ConsoleProgressReporter",
     "IRefinementPolicy",
     "IRefinementAction",
     "SliceMergeSplitRefinement",
-    "BasisAddRemoveRefinement",
-    "EquilibriumGapBasisGrowthRefinement",
     "VfmRegionOfInterest",
     "convert_mask_to_physical_roi",
 ]

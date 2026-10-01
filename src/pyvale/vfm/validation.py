@@ -7,16 +7,10 @@ from pyvale.vfm.identificationconfig import (
 )
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
-from pyvale.vfm.objectivefunccombinedfreegi import (
-    CombinedForceAndEquilibriumGapObjective,
-    CombinedObjectiveBaselineMode,
-)
 from pyvale.vfm.optimiserslicewiseindependent import (
     SliceWiseIndependentLeastSquares,
 )
-from pyvale.vfm.refinement import EquilibriumGapBasisGrowthRefinement
 from pyvale.vfm.spatialparam import get_num_degrees_of_freedom
-from pyvale.vfm.spatialparambasisfuncs import SpatialParameterisationBasisFunction
 from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 
@@ -257,6 +251,11 @@ def _collect_identification_config_errors(
             errors.append(
                 f"phase {i} must have at least one metric"
             )
+        if any(isinstance(metric, EquilibriumGapMetric) for metric in phase.metrics):
+            errors.append(
+                f"phase {i}: EquilibriumGapMetric is diagnostic-only and cannot "
+                "be used as an identification metric"
+            )
 
         # Check that the radial return Newton-Raphson tolerance is finite and positive.
         if (
@@ -274,7 +273,6 @@ def _collect_identification_config_errors(
                 i,
             )
         )
-        errors.extend(_collect_egi_basis_growth_errors(phase, i))
 
     # Constitutive-law parameter requirements
     required = set(config.constitutive_law.get_required_parameters())
@@ -314,63 +312,18 @@ def _collect_identification_config_errors(
                 f"got {type(phase.objective_function).__name__}"
             )
 
-        if isinstance(
-            phase.objective_function,
-            CombinedForceAndEquilibriumGapObjective,
-        ):
-            baseline = phase.objective_function.baseline
-            if baseline.mode is CombinedObjectiveBaselineMode.PRIOR_PHASE:
-                if baseline.phase_index is None or baseline.phase_index < 0:
-                    errors.append(
-                        f"phase {i}: prior-phase baseline requires a "
-                        "non-negative phase_index"
-                    )
-                elif baseline.phase_index >= i:
-                    errors.append(
-                        f"phase {i}: prior-phase baseline must reference "
-                        "an earlier phase, got phase_index "
-                        f"{baseline.phase_index}"
-                    )
-            elif baseline.mode is CombinedObjectiveBaselineMode.MANUAL:
-                expected_egi_count = sum(
-                    isinstance(metric, EquilibriumGapMetric)
-                    for metric in phase.metrics
-                )
-                if (
-                    expected_egi_count
-                    and baseline.egi_values is not None
-                    and len(baseline.egi_values) != expected_egi_count
-                ):
-                    errors.append(
-                        f"phase {i}: manual baseline has "
-                        f"{len(baseline.egi_values)} EGI values but phase "
-                        f"defines {expected_egi_count} EGI metrics"
-                    )
-
-        for parameter_name, parameterisations in (
-            phase.spatial_parameterisations.items()
-        ):
-            basis_count = sum(
-                isinstance(parameterisation, SpatialParameterisationBasisFunction)
+        if phase.spatial_parameterisations and all(
+            bool(parameterisations)
+            and all(
+                isinstance(parameterisation, SpatialParameterisationKnown)
                 for parameterisation in parameterisations
             )
-            if basis_count > 1:
-                errors.append(
-                    f"phase {i} parameter '{parameter_name}': at most one "
-                    "SpatialParameterisationBasisFunction is allowed"
-                )
-
-        # Known maps may be combined with active additive parameterisations;
-        # this is useful for a frozen baseline plus basis-function increments.
-        # A phase is fixed only when every list contains Known entries alone.
-        if phase.spatial_parameterisations and all(
-            bool(sps) and all(isinstance(sp, SpatialParameterisationKnown) for sp in sps)
-            for sps in phase.spatial_parameterisations.values()
+            for parameterisations in phase.spatial_parameterisations.values()
         ):
             errors.append(
                 f"phase {i}: all parameters are specified by a "
-                f"SpatialParameterisationKnown; at least one parameter "
-                f"must be identifiable"
+                "SpatialParameterisationKnown; at least one parameter "
+                "must be identifiable"
             )
 
     # Value constraints
@@ -386,55 +339,6 @@ def _collect_identification_config_errors(
                 f"must be finite"
             )
 
-    return errors
-
-
-def _collect_egi_basis_growth_errors(
-    phase: IdentificationPhase,
-    phase_index: int,
-) -> list[str]:
-    policy = phase.refinement_policy
-    if not isinstance(policy, EquilibriumGapBasisGrowthRefinement):
-        return []
-
-    errors: list[str] = []
-    if not isinstance(phase.objective_function, CombinedForceAndEquilibriumGapObjective):
-        errors.append(
-            f"phase {phase_index}: EGI basis growth requires a "
-            "CombinedForceAndEquilibriumGapObjective"
-        )
-    if not any(isinstance(metric, EquilibriumGapMetric) for metric in phase.metrics):
-        errors.append(
-            f"phase {phase_index}: EGI basis growth requires at least one "
-            "EquilibriumGapMetric"
-        )
-    if (
-        isinstance(policy.target, tuple)
-        and len(policy.target) == 2
-        and isinstance(policy.target[0], str)
-    ):
-        parameter_name, parameterisation_index = policy.target
-        parameterisations = phase.spatial_parameterisations.get(parameter_name, [])
-        target_is_basis = (
-            isinstance(parameterisation_index, int)
-            and 0 <= parameterisation_index < len(parameterisations)
-            and isinstance(
-                parameterisations[parameterisation_index],
-                SpatialParameterisationBasisFunction,
-            )
-        )
-    else:
-        target_is_basis = any(
-            parameterisation is policy.target
-            and isinstance(parameterisation, SpatialParameterisationBasisFunction)
-            for parameterisations in phase.spatial_parameterisations.values()
-            for parameterisation in parameterisations
-        )
-    if not target_is_basis:
-        errors.append(
-            f"phase {phase_index}: EGI basis growth target must select a "
-            "SpatialParameterisationBasisFunction"
-        )
     return errors
 
 

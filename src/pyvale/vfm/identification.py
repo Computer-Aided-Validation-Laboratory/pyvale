@@ -4,15 +4,7 @@ from pathlib import Path
 import time
 
 import numpy as np
-from scipy.ndimage import uniform_filter
 
-from pyvale.vfm.dof import DegreeOfFreedom
-from pyvale.vfm.equilibriumgapaggregation import combine_equilibrium_gap_maps
-from pyvale.vfm.metricequilibriumgap import EquilibriumGapMetric
-from pyvale.vfm.spatialparambasisfuncs import (
-    BasisFunctionKernelUnivariate,
-    SpatialParameterisationBasisFunction,
-)
 from pyvale.vfm.constlaw import EIdentificationType, IConstitutiveLaw
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.experimentdata import ExperimentData
@@ -37,15 +29,11 @@ from pyvale.vfm.identificationresult import (
     summarise_refinement_action,
     summarise_refinement_target,
 )
-from pyvale.vfm.metric import IMetric, MetricResult
+from pyvale.vfm.metric import IMetric
 from pyvale.vfm.objectivefunc import IObjectiveFunction
-from pyvale.vfm.objectivefunccombinedfreegi import (
-    CombinedForceAndEquilibriumGapObjective,
-    CombinedObjectiveBaselineMode,
-)
-from pyvale.vfm.optimiser import IOptimiser, evaluate_metrics
+from pyvale.vfm.optimiser import IOptimiser
 from pyvale.vfm.progress import ProgressEvent, emit_progress
-from pyvale.vfm.refinement import IRefinementAction, IRefinementPolicy
+from pyvale.vfm.refinement import IRefinementPolicy
 from pyvale.vfm.refinement import RefinementContext
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.validation import run_validation
@@ -120,8 +108,6 @@ def run_identification(
 
     # Initialise identification history with empty phases list (populated as phases complete)
     history = IdentificationHistory()
-    completed_phase_maps: dict[int, dict[str, np.ndarray]] = {}
-
     match identification_config.constitutive_law.get_identification_type():
         # The current implementation assumes either linear or nonlinear identification is
         # being performed (not a mix thoughout). As such, it is recommended to first run a
@@ -168,34 +154,12 @@ def run_identification(
                     config=snapshot_phase_config(phase_index, phase),
                 )
 
-                # Evaluate current metrics on all previously identified phases.
-                # phase results. These may not always be used, but can be used to
-                # resolve baseline values to normalise metrics and / or for initialising DOFs.
-                # Simpler to always compute for now.
-                # The immediate predecessor is used only for EGI-informed seeding.
-                previous_phases_metrics = (
-                    phase_runtime.evaluate_previous_phases_metrics(
-                        phase_index,
-                        completed_phase_maps,
-                        identification_config.constitutive_law,
-                        experiment_data,
-                        parameter_map_size,
-                    )
-                )
-
-                # Resolve the baseline metric values for the current phase's objective function, if applicable.
-                phase_runtime.resolve_objective_baseline(
-                    previous_phases_metrics,
-                )
-
                 # Initialise phase structure from parameter-map residuals.
-                # This initialises the spatial parameterisations and their DOFs based on
-                # the current parameter maps and any previous phase metrics.
+                # This initialises the spatial parameterisations and their DOFs
+                # based on the current parameter maps.
                 phase_runtime.initialise_parameterisation_structure(
                     identification_config.parameters,
                     parameter_map_size,
-                    experiment_data,
-                    previous_phases_metrics.get(phase_index - 1),
                 )
 
                 # Prepare a phase-local constitutive law for optimisation,
@@ -265,12 +229,6 @@ def run_identification(
                     # Gather identified DOFs for logging
                     solve_result.final_dofs = _collect_dof_values(
                         phase_runtime.spatial_state.collect_degrees_of_freedom()
-                    )
-
-                    # Store the resolved objective baseline in the solve result for logging
-                    _record_objective_baseline(
-                        solve_result,
-                        phase_runtime.objective_function,
                     )
 
                     # Append solve result to list of solves for this phase
@@ -362,8 +320,8 @@ def run_identification(
                         message="refinement applied",
                     )
 
-                    # If the refinement action is terminal (e.g. RestoreBasisModelAction), update
-                    # the parameter maps and break the loop to proceed to the next phase.
+                    # If the refinement action is terminal, update the parameter
+                    # maps and break the loop to proceed to the next phase.
                     if action.terminal:
                         # Synchronise the phase runtime's parameter maps with the restored
                         # parameterisations after the terminal refinement action.
@@ -389,11 +347,6 @@ def run_identification(
                         phase_runtime.spatial_parameterisations
                     )
                 )
-                completed_phase_maps[phase_index] = {
-                    name: np.asarray(parameter.map, dtype=np.float64).copy()
-                    for name, parameter in identification_config.parameters.items()
-                }
-
                 # Append the completed phase result to the overall identification history
                 history.phases.append(phase_result)
                 _emit_phase_progress(
@@ -497,220 +450,6 @@ def _prepare_phase_constitutive_law(
         fixed_elastic_parameter_maps=fixed_elastic_parameter_maps,
         cache_radial_return=cache_radial_return,
     )
-
-
-def _get_phase_reference_metrics(
-    source_phase_index: int,
-    phase_runtime: "PhaseRuntime",
-    completed_phase_maps: dict[int, dict[str, np.ndarray]],
-    reference_metric_results: dict[int, list[MetricResult]],
-    constitutive_law: IConstitutiveLaw,
-    experiment_data: ExperimentData,
-    parameter_map_size: np.ndarray,
-) -> list[MetricResult]:
-    """Evaluate this phase's metrics on a completed phase, once."""
-
-    if source_phase_index not in reference_metric_results:
-        # Retrieve identified parameter maps for selected baseline phase
-        source_maps = completed_phase_maps[source_phase_index]
-        # Evaluate stress for selected baseline phase using its
-        # identified parameter maps and the constitutive law.
-        reference_stress = constitutive_law.calculate_stress(
-            experiment_data.strain,
-            source_maps,
-        )
-        # Evaluate the metrics for current phase using the baseline stress
-        reference_metric_results[source_phase_index] = evaluate_metrics(
-            reference_stress,
-            constitutive_law,
-            parameter_map_size,
-            phase_runtime.spatial_parameterisations,
-            phase_runtime.metrics,
-            experiment_data,
-            include_egi_diagnostics=True,
-        )
-    return reference_metric_results[source_phase_index]
-
-
-def _map_rms(values: np.ndarray) -> float:
-    finite_values = values[np.isfinite(values)]
-    if finite_values.size == 0:
-        return 0.0
-    return float(np.sqrt(np.mean(finite_values**2)))
-
-
-def _seed_initial_basis_function(
-    phase_runtime: "PhaseRuntime",
-    basis: SpatialParameterisationBasisFunction,
-    parameter: ConstitutiveParameter,
-    experiment_data: ExperimentData,
-    previous_phase_metric_results: list[MetricResult] | None,
-    egi_smoothing_points: int,
-) -> None:
-    """Add one metric-informed or deterministic seed basis function."""
-
-    centre = _previous_phase_egi_centre(
-        phase_runtime,
-        experiment_data,
-        previous_phase_metric_results,
-        egi_smoothing_points,
-    )
-    if centre is None:
-        centre = (
-            float(0.5 * (np.nanmin(basis.x) + np.nanmax(basis.x))),
-            float(0.5 * (np.nanmin(basis.y) + np.nanmax(basis.y))),
-        )
-
-    kernel, height = _default_initial_basis(
-        centre,
-        basis,
-        parameter,
-    )
-
-    assert basis.support.kernels is not None
-    basis.support.kernels.append(kernel)
-    for _, parameterisation in phase_runtime.get_parameterisations_using_support(
-        basis.support,
-    ):
-        if not isinstance(
-            parameterisation,
-            SpatialParameterisationBasisFunction,
-        ):
-            continue
-        parameterisation.heights.append(
-            height if parameterisation is basis else None
-        )
-
-
-def _previous_phase_egi_centre(
-    phase_runtime: "PhaseRuntime",
-    experiment_data: ExperimentData,
-    previous_phase_metric_results: list[MetricResult] | None,
-    egi_smoothing_points: int = 3,
-) -> tuple[float, float] | None:
-    """Return the maximum smoothed previous-phase EGI location, if available."""
-
-    if (
-        previous_phase_metric_results is None
-        or not isinstance(
-            phase_runtime.objective_function,
-            CombinedForceAndEquilibriumGapObjective,
-        )
-    ):
-        return None
-
-    egi_results = [
-        result
-        for metric, result in zip(
-            phase_runtime.metrics,
-            previous_phase_metric_results,
-            strict=True,
-        )
-        if isinstance(metric, EquilibriumGapMetric)
-    ]
-    if not egi_results:
-        return None
-
-    objective = phase_runtime.objective_function
-    egi_map = combine_equilibrium_gap_maps(
-        egi_results,
-        egi_baseline_values=objective.egi_baselines_for(len(egi_results)),
-        window_weights=objective.egi_window_weights,
-    )
-
-    x = experiment_data.specimen_geometry.x
-    y = experiment_data.specimen_geometry.y
-    specimen_mask = (
-        experiment_data.specimen_geometry.region_of_interest.sample_specimen_mask(
-            x,
-            y,
-        )
-    )
-    smoothed_map = uniform_filter(
-        np.where(np.isfinite(egi_map), egi_map, 0.0),
-        size=egi_smoothing_points,
-    )
-    valid_support = uniform_filter(
-        np.isfinite(egi_map).astype(float),
-        size=egi_smoothing_points,
-    )
-    candidates = np.where(
-        specimen_mask & (valid_support > 0.0),
-        smoothed_map,
-        np.nan,
-    )
-    if not np.any(np.isfinite(candidates)):
-        return None
-
-    row, column = np.unravel_index(
-        np.nanargmax(candidates),
-        candidates.shape,
-    )
-    return float(x[row, column]), float(y[row, column])
-
-
-def _default_initial_basis(
-    centre: tuple[float, float],
-    basis: SpatialParameterisationBasisFunction,
-    parameter: ConstitutiveParameter,
-) -> tuple[BasisFunctionKernelUnivariate, DegreeOfFreedom]:
-    """Create one univariate Gaussian with conventional initial DOFs."""
-
-    x, y = basis.x, basis.y
-    spacing = min(
-        float(np.nanmedian(np.diff(x, axis=1))),
-        float(np.nanmedian(np.diff(y, axis=0))),
-    )
-    diagonal = float(
-        np.hypot(
-            np.nanmax(x) - np.nanmin(x),
-            np.nanmax(y) - np.nanmin(y),
-        )
-    )
-    parameter_range = parameter.upper_bound - parameter.lower_bound
-    minimum_variance = (3.0 * spacing) ** 2
-    maximum_variance = max(
-        diagonal**2,
-        minimum_variance * (1.0 + 1.0e-6),
-    )
-    initial_variance = float(np.sqrt(minimum_variance * maximum_variance))
-
-    return (
-        BasisFunctionKernelUnivariate(
-            DegreeOfFreedom(
-                centre[0],
-                float(np.nanmin(x)),
-                float(np.nanmax(x)),
-            ),
-            DegreeOfFreedom(
-                centre[1],
-                float(np.nanmin(y)),
-                float(np.nanmax(y)),
-            ),
-            DegreeOfFreedom(
-                initial_variance,
-                minimum_variance,
-                maximum_variance,
-                scaling="log",
-            ),
-        ),
-        DegreeOfFreedom(
-            basis.initial_height_fraction * parameter_range,
-            -parameter_range,
-            parameter_range,
-        ),
-    )
-
-def _record_objective_baseline(
-    solve_result: SolveResult,
-    objective_function: object,
-) -> None:
-    """Add resolved combined-objective baselines to durable solve diagnostics."""
-
-    if isinstance(objective_function, CombinedForceAndEquilibriumGapObjective):
-        solve_result.final_objective["baseline"] = (
-            objective_function.baseline_diagnostics()
-        )
 
 
 def _emit_phase_progress(
@@ -947,13 +686,8 @@ class PhaseRuntime:
         self,
         constitutive_parameters: dict[str, ConstitutiveParameter],
         size: np.ndarray,
-        experiment_data: ExperimentData,
-        previous_phase_metric_results: list[MetricResult] | None,
     ) -> None:
         """Initialise parameterisations sequentially from their residual maps."""
-
-        parameter_map_relative_residual_tolerance = 0.01 # e.g. 0.01 is 1% of parameter range
-        egi_smoothing_points = 3
 
         for parameter_name, parameterisations in self.spatial_parameterisations.items():
             parameter = constitutive_parameters[parameter_name]
@@ -976,40 +710,9 @@ class PhaseRuntime:
                         else parameter_range
                     ),
                 )
-
-                if (
-                    isinstance(
-                        parameterisation,
-                        SpatialParameterisationBasisFunction,
-                    )
-                    and not parameterisation.kernels
-                ):
-                    residual_rms = _map_rms(residual_map)
-
-                    if (
-                        residual_rms
-                        > parameter_map_relative_residual_tolerance
-                        * parameter_range
-                    ):
-                        parameterisation.fit_to_map(
-                            residual_map,
-                            parameter_range=parameter_range,
-                            max_basis_functions=parameterisation.initial_kernels_max,
-                        )
-                    else:
-                        _seed_initial_basis_function(
-                            self,
-                            parameterisation,
-                            parameter,
-                            experiment_data,
-                            previous_phase_metric_results,
-                            egi_smoothing_points
-                        )
-                else:
-                    parameterisation.initialise_from_constitutive_parameter(
-                        residual_parameter,
-                    )
-
+                parameterisation.initialise_from_constitutive_parameter(
+                    residual_parameter,
+                )
                 residual_map = residual_map - parameterisation.to_map(size)
 
 
@@ -1024,70 +727,6 @@ class PhaseRuntime:
             constitutive_parameters,
             size,
         )
-
-    def evaluate_previous_phases_metrics(
-        self,
-        phase_index: int,
-        completed_phase_maps: dict[int, dict[str, np.ndarray]],
-        constitutive_law: IConstitutiveLaw,
-        experiment_data: ExperimentData,
-        parameter_map_size: np.ndarray,
-    ) -> dict[int, list[MetricResult]]:
-        """Evaluate this phase's metrics on every completed earlier phase."""
-
-        previous_phases_metrics: dict[int, list[MetricResult]] = {}
-        for source_phase_index in range(phase_index):
-            _get_phase_reference_metrics(
-                source_phase_index,
-                self,
-                completed_phase_maps,
-                previous_phases_metrics,
-                constitutive_law,
-                experiment_data,
-                parameter_map_size,
-            )
-        return previous_phases_metrics
-
-    def resolve_objective_baseline(
-        self,
-        previous_phases_metrics: dict[int, list[MetricResult]],
-    ) -> None:
-        """Resolve a prior-phase objective baseline, when configured."""
-
-        if self.objective_function is None:
-            raise RuntimeError("Phase runtime has no objective function.")
-
-        # Metric baselines are currently only required for the combined force-and-equilibrium-gap objective function.
-        if not isinstance(
-            self.objective_function,
-            CombinedForceAndEquilibriumGapObjective,
-        ):
-            return
-
-        # If the objective function is not configured to use a prior-phase baseline, no action is needed.
-        if (
-            self.objective_function.baseline.mode
-            is not CombinedObjectiveBaselineMode.PRIOR_PHASE
-        ):
-            return
-
-        # Resolve prior phase index to be used for baselines
-        source_phase_index = self.objective_function.baseline.phase_index
-        if source_phase_index is None:
-            raise RuntimeError("Validation did not provide a prior baseline phase.")
-
-        # Resolve the metrics to be used for baselines
-        try:
-            metric_results = previous_phases_metrics[source_phase_index]
-        except KeyError as error:
-            raise RuntimeError(
-                f"Prior baseline phase {source_phase_index} has not been evaluated."
-            ) from error
-
-        # Evaluate the baseline values from the defined phase metrics and store them
-        # in the objective function for use during optimisation.
-        self.objective_function.resolve_from_prior_phase(metric_results)
-
 
     def adopt_spatial_parameterisations(
         self,
