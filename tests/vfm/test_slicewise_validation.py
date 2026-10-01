@@ -174,6 +174,53 @@ def test_slicewise_identification_recovers_columnwise_distribution(
     )
 
 
+def test_slicewise_parallel_identification_matches_serial(
+    slicewise_case: SlicewiseValidationProcessedCase,
+) -> None:
+    experiment_data = ExperimentData.load_from_file(
+        slicewise_case.experiment_data_file
+    )
+    slice_config = SliceConfig(axis="x", num_slices=4)
+
+    serial = _run_yield_identification(
+        experiment_data,
+        slice_config=slice_config,
+        parallel_workers=1,
+    )
+    parallel = _run_yield_identification(
+        experiment_data,
+        slice_config=slice_config,
+        parallel_workers=2,
+    )
+
+    for parameter_name in PARAMETER_MAP_NAMES:
+        npt.assert_allclose(
+            parallel.parameter_maps[parameter_name],
+            serial.parameter_maps[parameter_name],
+            rtol=0.0,
+            atol=1.0e-12,
+        )
+
+    serial_solve = serial.history.phases[0].solve_results[-1]
+    parallel_solve = parallel.history.phases[0].solve_results[-1]
+    assert parallel_solve.details["parallel_workers"] == 2
+    assert [child.solve_iteration for child in parallel_solve.children] == [
+        child.solve_iteration for child in serial_solve.children
+    ]
+    npt.assert_allclose(
+        parallel_solve.final_dofs,
+        serial_solve.final_dofs,
+        rtol=0.0,
+        atol=1.0e-12,
+    )
+    npt.assert_allclose(
+        [child.final_objective["cost"] for child in parallel_solve.children],
+        [child.final_objective["cost"] for child in serial_solve.children],
+        rtol=0.0,
+        atol=1.0e-12,
+    )
+
+
 def test_slicewise_identification_with_refinement_recovers_expected_distribution(
     slicewise_case: SlicewiseValidationProcessedCase,
 ) -> None:
@@ -212,6 +259,7 @@ def _run_yield_identification(
     *,
     slice_config: SliceConfig,
     refinement_policy: bool = False,
+    parallel_workers: int = 1,
 ):
     """Run one phase of yield-strength identification on fixed E/nu/H maps."""
 
@@ -233,7 +281,9 @@ def _run_yield_identification(
         },
         metrics=[SliceWiseForceReconstructionMetric(support=shared_support)],
         objective_function=VectorWeightedObjective(),
-        optimiser=SliceWiseIndependentLeastSquares(),
+        optimiser=SliceWiseIndependentLeastSquares(
+            parallel_workers=parallel_workers
+        ),
         refinement_policy=(
             SliceMergeSplitRefinement(
                 target=shared_support,
