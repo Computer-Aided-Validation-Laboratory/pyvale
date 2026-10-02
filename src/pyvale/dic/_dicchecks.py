@@ -608,6 +608,17 @@ def _check_array_image_dtype(image: np.ndarray) -> np.ndarray:
 
 
 
+def _check_image_filter(kernel_size: int, sigma: float) -> None:
+    """Validate the optional Gaussian image prefilter configuration."""
+    if not isinstance(kernel_size, (int, np.integer)):
+        raise TypeError("image_filter_kernel must be an integer")
+    if kernel_size not in (0, 1) and (kernel_size < 3 or kernel_size % 2 == 0):
+        raise ValueError("image_filter_kernel must be 0, 1, or an odd integer >= 3")
+    if not np.isfinite(sigma) or sigma <= 0.0:
+        raise ValueError("image_filter_sigma must be finite and positive")
+
+
+
 def _print_config_summary(image_width: int,
                          image_height: int,
                          num_def_img: int,
