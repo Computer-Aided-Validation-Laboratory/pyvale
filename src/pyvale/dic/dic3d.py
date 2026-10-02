@@ -235,7 +235,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         Minimum ROI filling fraction for intermediate multiwindow levels,
         between 0 and 1 inclusive (default: 0.7).
     image_filter_kernel : int, optional
-        Image Gaussian prefilter kernel size. Use 0 or 1 to disable filtering,
+        Image Gaussian prefilter kernel size. Use 1 to disable filtering,
         or an odd value >= 3 to enable it (default: 5).
     image_filter_sigma : float, optional
         Standard deviation of the Gaussian image prefilter (default: 1.0).
