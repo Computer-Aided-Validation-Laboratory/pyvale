@@ -114,9 +114,8 @@ def run_identification(
         # linear identification to obtain elastic parameters, and then use those as known
         # parameters in a subsequent nonlinear identification. This decision was made to
         # simplify implementation and recognises generally different data (e.g. load steps) are used for each
-        # TODO: implement linear case
         case EIdentificationType.Linear:
-            ...
+            raise NotImplementedError("Linear identification is not yet implemented.") # deferred to future release
         case EIdentificationType.Nonlinear:
             # Store the specimen datapoint map size for use in phase runtimes
             parameter_map_size = np.array(

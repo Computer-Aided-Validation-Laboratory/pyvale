@@ -170,23 +170,21 @@ class ForceReconstructionDiagnostics:
 
 @dataclass(slots=True, frozen=True)
 class EquilibriumGapDiagnostics:
-    """Equilibrium-gap diagnostics and plotting fields."""
+    """Unitless, normalised equilibrium-gap diagnostics and plotting fields."""
 
     raw_gap: npt.NDArray[np.float64]
     normalised_gap: npt.NDArray[np.float64]
-    weighted_temporal_rms_percent_map: npt.NDArray[np.float64] | None
-    weighted_spatiotemporal_rms_percent: float | None
+    weighted_temporal_rms_map: npt.NDArray[np.float64] | None
+    weighted_spatiotemporal_rms: float | None
     window_size: tuple[int, int]
 
     def to_summary(self) -> dict[str, float | None]:
         return {
-            "weighted_equilibrium_gap_percent": (
-                self.weighted_spatiotemporal_rms_percent
-            ),
-            "equilibrium_gap_indicator_percent_max": (
+            "weighted_equilibrium_gap": self.weighted_spatiotemporal_rms,
+            "equilibrium_gap_indicator_max": (
                 None
-                if self.weighted_temporal_rms_percent_map is None
-                else float(np.nanmax(self.weighted_temporal_rms_percent_map))
+                if self.weighted_temporal_rms_map is None
+                else float(np.nanmax(self.weighted_temporal_rms_map))
             ),
         }
 
@@ -507,21 +505,16 @@ def compute_equilibrium_gap_diagnostics(
     metric = EquilibriumGapMetric(window_size=resolved_window)
     metric.initialise(experiment_data)
     result = metric.evaluate_equilibrium_gap(stress)
-    weighted_temporal_percent_map = (
+    weighted_temporal_rms_map = (
         None
         if result.weighted_temporal_rms is None
-        else masked_map(experiment_data, 100.0 * result.weighted_temporal_rms)
-    )
-    weighted_spatiotemporal_percent = (
-        None
-        if result.weighted_spatiotemporal_rms is None
-        else 100.0 * result.weighted_spatiotemporal_rms
+        else masked_map(experiment_data, result.weighted_temporal_rms)
     )
     return EquilibriumGapDiagnostics(
         raw_gap=result.raw_gap,
         normalised_gap=result.normalised_gap,
-        weighted_temporal_rms_percent_map=weighted_temporal_percent_map,
-        weighted_spatiotemporal_rms_percent=weighted_spatiotemporal_percent,
+        weighted_temporal_rms_map=weighted_temporal_rms_map,
+        weighted_spatiotemporal_rms=result.weighted_spatiotemporal_rms,
         window_size=resolved_window,
     )
 
@@ -648,16 +641,16 @@ def cache_equilibrium_gap_diagnostics(
     cache_dir.mkdir(parents=True, exist_ok=True)
     output_path = cache_dir / "equilibrium_gap.npz"
     egi_cache = {
-        "weighted_temporal_rms_percent_map": (
+        "weighted_temporal_rms_map": (
             np.array([], dtype=np.float64)
-            if equilibrium_gap.weighted_temporal_rms_percent_map is None
-            else equilibrium_gap.weighted_temporal_rms_percent_map
+            if equilibrium_gap.weighted_temporal_rms_map is None
+            else equilibrium_gap.weighted_temporal_rms_map
         ),
-        "weighted_spatiotemporal_rms_percent": np.asarray(
+        "weighted_spatiotemporal_rms": np.asarray(
             (
                 np.nan
-                if equilibrium_gap.weighted_spatiotemporal_rms_percent is None
-                else equilibrium_gap.weighted_spatiotemporal_rms_percent
+                if equilibrium_gap.weighted_spatiotemporal_rms is None
+                else equilibrium_gap.weighted_spatiotemporal_rms
             ),
             dtype=np.float64,
         ),

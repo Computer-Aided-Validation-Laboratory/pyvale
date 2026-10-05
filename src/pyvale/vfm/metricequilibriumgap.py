@@ -11,10 +11,6 @@ from scipy.signal import correlate, correlate2d
 from pyvale.vfm.experimentdata import EEdgeCondition, ExperimentData
 from pyvale.vfm.metric import MetricResult
 
-# TODO
-# should all normalisation be done in objective function, not in metric? (e.g. normalised_gap, weighted_temporal_rms, weighted_spatiotemporal_rms)
-# suitable default for window_size and sliding_pitch? (e.g. fraction of domain, 1x1)
-# remove pixel area scale? when is it used?
 
 class EquilibriumGapVirtualFieldType(enum.StrEnum):
     SINGLE_POS_POS = "single_pos_pos"
@@ -48,12 +44,12 @@ class _EquilibriumGapOperator:
 class EquilibriumGapMetric:
     """Diagnostic equilibrium gap indicator (EGI) metric.
 
-    The metric rasterises a set of virtual strain fields, defined by a 
+    The metric rasterises a set of virtual strain fields, defined by a
     9-node, 4-element virtual window over the stress field, computing a
-    scalar value of the internal virtual work (equilibrium gap) for each window. 
+    scalar value of the internal virtual work (equilibrium gap) for each window.
     The raw, normalised and weighted fields are returned for diagnostic
     inspection and plotting. EGI is not an identification objective.
-      
+
     Parameters
     ----------
     window_size : tuple[int, int] or npt.NDArray[np.uint32], optional
@@ -61,14 +57,14 @@ class EquilibriumGapMetric:
     sliding_pitch : tuple[int, int] or npt.NDArray[np.uint32], optional
         The number of rows and columns to slide the window for each evaluation, must be at least 1. Default is (1, 1).
     virtual_field_type : EquilibriumGapVirtualFieldType, optional
-        The type of virtual strain field to use for the equilibrium gap evaluation. 
+        The type of virtual strain field to use for the equilibrium gap evaluation.
         single_pos_pos: single virtual field with positive x and y displacements at the centre node.
         single_pos_neg: single virtual field with positive x and negative y displacements at the centre node.
         two_averaged: average of the two virtual fields above.
     normalise_virtual_strain : bool, optional
         Whether to normalise the virtual strain fields. Default is True.
-        Normalise virtual strain fields to the range [-1, 1] based on the minimum and maximum values of each field. 
-        This ensures that the virtual strain fields have a consistent scale, which can improve the stability and 
+        Normalise virtual strain fields to the range [-1, 1] based on the minimum and maximum values of each field.
+        This ensures that the virtual strain fields have a consistent scale, which can improve the stability and
         interpretability of the equilibrium gap metric.
     normalise_by_force_and_window : bool, optional
         Whether to divide the raw gap by the longitudinal force magnitude at
@@ -89,8 +85,8 @@ class EquilibriumGapMetric:
         the normalised gap. Default is True.
     pixel_area_scale : float, optional
         Scale factor for the pixel area when computing the volume. Default is 1.0.
-        This is only required if mismatch in units between the pixel area and the stress field, 
-        e.g. if the pixel area is in mm^2 and the stress is in Pa, then a scale factor of 1e-6 is 
+        This is only required if mismatch in units between the pixel area and the stress field,
+        e.g. if the pixel area is in mm^2 and the stress is in Pa, then a scale factor of 1e-6 is
         required to convert the pixel area to m^2.
     _operator : _EquilibriumGapOperator | None
         Internal operator for evaluating the equilibrium gap, initialised in ``initialise()``.
@@ -154,7 +150,7 @@ class EquilibriumGapMetric:
         experiment_data: ExperimentData,
     ) -> None:
         """Precompute the equilibrium gap operator.
-         
+
         The operator contains the virtual strain fields, integration volumes,
         valid window mask."""
         self._operator = _build_equilibrium_gap_operator(
@@ -195,7 +191,7 @@ class EquilibriumGapMetric:
                 f"{stress.shape[2:]} vs {self._operator.valid_centre_mask.shape}."
             )
 
-        # Evaluate raw equilibrium gap for each window in the stress field, 
+        # Evaluate raw equilibrium gap for each window in the stress field,
         # using the precomputed operator. raw_gap has shape (timesteps, y, x)
         raw_gap = _evaluate_raw_gap(stress, self._operator)
         return self._result_from_raw_gap(raw_gap)
@@ -305,10 +301,10 @@ def _build_equilibrium_gap_operator(
         & np.isfinite(specimen_geometry.y)
         & np.isfinite(specimen_geometry.pixel_area)
     )
-    
+
     # Raster a kernel of ones, with window size, over the valid point mask to count the number of valid points
     # in each window. The resulting 2D array has same shape as the valid point mask, with each element containing
-    # the count of valid points in the window centred on that element. So windows in specimen centre will have counts 
+    # the count of valid points in the window centred on that element. So windows in specimen centre will have counts
     # equal to the window size, windows outside specimen will be zero, while windows at the edge of the specimen will
     # have counts less than the window size but greater than zero.
     window_point_counts = _correlate_same(
@@ -334,17 +330,17 @@ def _build_equilibrium_gap_operator(
         & (window_point_counts >= minimum_window_point_count)
     )
 
-    # Compute a mask of valid window centres based on the sliding pitch. 
+    # Compute a mask of valid window centres based on the sliding pitch.
     # This ensures that only windows that are spaced by the sliding pitch are considered valid.
     pitch_mask = np.zeros(valid_centre_mask.shape, dtype=bool)
     pitch_mask[:: int(sliding_pitch[0]), :: int(sliding_pitch[1])] = True
 
     # Combine the valid centre mask and the pitch mask to create a final mask of valid window centres.
     valid_centre_mask &= pitch_mask
- 
-    # Exclude border of half the window size around non-free edges, 
+
+    # Exclude border of half the window size around non-free edges,
     # as these windows are not valid for equilibrium gap evaluation.
-    # Note: current implementation is simple and assumes that the 
+    # Note: current implementation is simple and assumes that the
     # bounding box of the specimen is rectangular and aligned with the x and y axes.
     valid_centre_mask &= _build_non_free_edge_mask(
         experiment_data.specimen_geometry.x.shape,
@@ -363,7 +359,7 @@ def _build_equilibrium_gap_operator(
     # Set the volume of pixels outside the specimen to zero, as these pixels are not valid for equilibrium gap evaluation.
     volume = np.where(valid_point_mask, volume, 0.0)
 
-    # Compute virtual strain fields for the equilibrium gap evaluation. 
+    # Compute virtual strain fields for the equilibrium gap evaluation.
     # These are 3D arrays of shape (3, window_rows, window_cols),
     # where the first dimension corresponds to the three strain components (xx, yy, xy).
     virtual_strain_fields = _build_virtual_strain_fields(
@@ -409,7 +405,7 @@ def _build_non_free_edge_mask(
     col_margin: int,
 ) -> np.ndarray[np.bool_]:
     """
-    Build a mask that excludes the border of half the window size around 
+    Build a mask that excludes the border of half the window size around
     traction edges, as evaluation of equilibrium gap is not valid across
     traction edges.
     """
@@ -444,12 +440,11 @@ def _build_virtual_strain_fields(
 
     Returns an array of shape (num_fields, 3, window_rows, window_cols), where the
     leading dimension indexes the virtual field set and the second dimension indexes
-    the strain components (xx, yy, xy). 
+    the strain components (xx, yy, xy).
     If virtual_field_type is TWO_AVERAGED, then num_fields=2, otherwise num_fields=1.
-    
-    NOTE: The magnitude of the virtual strain fields scales with the window size, so 
-    normalisation, in addition to he normalise_virtual_strain normalisation done here,
-    is recommended to ensure that the equilibrium gap values are independent of the window size.
+
+    NOTE: The magnitude of the virtual strain fields scales with the window size, so
+    normalisation,is recommended to ensure that the equilibrium gap values are independent of the window size.
     """
 
     if not normalise_virtual_strain:
@@ -501,7 +496,7 @@ def _build_virtual_strain_fields(
         raise ValueError(f"Unsupported virtual_field_type '{virtual_field_type}'.")
 
     # Convert the list of virtual strain fields to a 3D numpy array
-    # of shape (num_fields, 3, window_rows, window_cols). 
+    # of shape (num_fields, 3, window_rows, window_cols).
     # If virtual_field_type is TWO_AVERAGED, then num_fields=2, otherwise num_fields=1.
     virtual_strain_fields = np.asarray(fields, dtype=np.float64)
 
@@ -519,7 +514,7 @@ def _build_virtual_strain_fields(
                 continue
             # Normalise the field to the range [-1, 1] based on the minimum and maximum values of the field
             normalised = 2.0 * (field - min_value) / (max_value - min_value) - 1.0
-            # If original and normalised value is near zero, set the normalised value to zero. 
+            # If original and normalised value is near zero, set the normalised value to zero.
             zero_mask = np.isclose(field, 0.0, atol=1e-8) & np.isclose(normalised, 0.0, atol=1e-8)
             normalised[zero_mask] = 0.0
             # Append the normalised field to the list of normalised fields
@@ -527,8 +522,8 @@ def _build_virtual_strain_fields(
         # Convert the list of normalised fields to a 3D numpy array of shape (num_fields, 3, window_rows, window_cols)
         virtual_strain_fields = np.asarray(normalised_fields, dtype=np.float64)
 
-    # Debug: plot the window, mesh, virtual displacements and virtual strains 
-    plot_virtual_field_schematic = False 
+    # Debug: plot the window, mesh, virtual displacements and virtual strains
+    plot_virtual_field_schematic = False
     if plot_virtual_field_schematic:
         _plot_virtual_field_schematic(
             x,
@@ -551,11 +546,11 @@ def _build_virtual_strain_field(
     centre_dof_y: float,
 ) -> npt.NDArray[np.float64]:
     """
-    Build a single virtual strain field for the equilibrium gap evaluation, 
+    Build a single virtual strain field for the equilibrium gap evaluation,
     based on a 9-node, 4-element virtual window.
 
     EG WINDOW: 4 elements per window
-    
+
     ELEMENT ORDER:
                    N3
        N0 x--------x--------x N6
@@ -566,21 +561,21 @@ def _build_virtual_strain_field(
           |   E0   |   E1   |
        N2 x--------x--------x N8
                    N5
-    
+
     NODE ORDER:
-    
+
       3 x-------x 2
-        |       |    
-        |       |  
+        |       |
+        |       |
       0 x-------x 1
 
-      
+
     The virtual strain fields are returned as a 3D array of shape (3, window_rows, window_cols), where the
-    first dimension indexes the strain components (xx, yy, xy) and the second and third dimensions index 
+    first dimension indexes the strain components (xx, yy, xy) and the second and third dimensions index
     the rows and columns of the window.
     """
 
-    # Define window 
+    # Define window
     rows = int(window_size[0])
     cols = int(window_size[1])
     num_points = rows * cols
@@ -614,7 +609,7 @@ def _build_virtual_strain_field(
 
     # Define degrees of freedom associated with each element (2 DOF per node)
     # The DOF ordering is [u1, v1, u2, v2, u3, v3, u4, v4] for each element,
-    # x dof (u) index = node index * 2 
+    # x dof (u) index = node index * 2
     # y dof (v) index = node index * 2 + 1
     element_dofs = np.asarray(
         (
@@ -638,7 +633,7 @@ def _build_virtual_strain_field(
     # Create an array of point coordinates for each point in the window, with shape num_points x 2.
     point_coordinates = np.column_stack((window_x.ravel(), window_y.ravel()))
 
-    # Loop over elements and assemble the B matrices for each point in the window. 
+    # Loop over elements and assemble the B matrices for each point in the window.
 
     for nodes, dofs in zip(element_nodes, element_dofs, strict=True):
         # Get node coordinates for current element
@@ -656,7 +651,7 @@ def _build_virtual_strain_field(
             jacobian = shape_derivative_local.T @ coords
             # Transform shape function derivatives to global coordinates
             shape_derivative_global = shape_derivative_local @ np.linalg.inv(jacobian)
-            # Assemble the B matrix for the current point in the current element, 
+            # Assemble the B matrix for the current point in the current element,
             # with shape 3 x 8 (3 strain components, 8 DOF).
             b_matrix = np.asarray(
                 (
@@ -693,7 +688,7 @@ def _build_virtual_strain_field(
                 ),
                 dtype=np.float64,
             )
-            # Assign the B matrix values to the corresponding rows in the 
+            # Assign the B matrix values to the corresponding rows in the
             # global b_xx, b_yy, and b_xy matrices for the current point.
             b_xx[point_index, dofs] += b_matrix[0, :]
             b_yy[point_index, dofs] += b_matrix[1, :]
@@ -706,7 +701,7 @@ def _build_virtual_strain_field(
     if np.any(element_count == 0.0):
         raise ValueError("Some equilibrium-gap window points were not in any element.")
 
-    # Normalize the B matrices by the number of elements contributing to each point, 
+    # Normalise the B matrices by the number of elements contributing to each point,
     # so that the B matrices represent the average contribution of each element to the point.
     # This is equivalent to averaging the data on the element boundaries,
     # and ensures that the virtual strain field is continuous across element boundaries.
@@ -765,7 +760,7 @@ def _coordinate_transform(
 
     # xi = m-X1 / (X2 - X1) * 2 - 1
     # where:
-    # m is the x-coordinate of the point, 
+    # m is the x-coordinate of the point,
     # X1 is the x-coordinate of the bottom-left node
     # X2 is the x-coordinate of the bottom-right node.
     # 2 is the local element length (-1 to 1)
@@ -791,11 +786,11 @@ def _shape_functions(
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """
     Compute the shape functions and their derivatives for a 4-node quadrilateral element at local coordinates (xi, eta).
-    
+
     The shape functions are defined in the local coordinate system with xi and eta ranging from -1 to 1.
-    Shape functions are returned as a 1D array of shape (4,) corresponding to the 4 nodes of the element. 
-    The derivatives are returned as a 2D array of shape (4, 2) where the first column corresponds to 
-    the derivative with respect to xi and the second column corresponds to the derivative with respect to eta.    
+    Shape functions are returned as a 1D array of shape (4,) corresponding to the 4 nodes of the element.
+    The derivatives are returned as a 2D array of shape (4, 2) where the first column corresponds to
+    the derivative with respect to xi and the second column corresponds to the derivative with respect to eta.
     """
 
     # Shape functions for a 4-node quadrilateral element (bilinear shape functions)
@@ -903,7 +898,7 @@ def _evaluate_raw_gap(
     if len(raw_gap_by_field) == 1:
         return raw_gap_by_field[0]
 
-    # If there are two virtual strain fields, return the average of the absolute values 
+    # If there are two virtual strain fields, return the average of the absolute values
     # of the raw gaps for both fields.
     return 0.5 * (
         np.abs(raw_gap_by_field[0])
@@ -972,8 +967,8 @@ def _correlate_same(
     kernel: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """Correlate 2D array with kernel, returning an array of the same shape
-    as the input values. 
-    
+    as the input values.
+
     The correlation is performed with zero-padding at the boundaries.
     In other words, the output at each point is the sum of the element-wise
     product of the kernel and the overlapping values, with missing values treated as zero.

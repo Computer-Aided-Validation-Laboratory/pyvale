@@ -10,7 +10,7 @@ loading final maps must not require importing historical parameterisation
 classes. There is no gaurentee that the parameterisation classes used in a
 run will be available in the future so saved snapshots are deliberately lightweight
 and do not include any executable code. The ``final_stress`` array is a derived audit
-artifact saved when available. 
+artifact saved when available.
 """
 
 import copy

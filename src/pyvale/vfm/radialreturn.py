@@ -118,7 +118,6 @@ class EUnloading(enum.Enum):
     """Extrapolate the output stress from the two previous outputs"""
 
 
-# TODO: update docstring
 def radial_return(
     strain: npt.NDArray[np.float64],
     constitutive_parameter_maps: dict[str, npt.NDArray[np.float64]],
@@ -146,7 +145,7 @@ def radial_return(
     mechanical_properties : MechanicalProperties
         Material properties and selected constitutive hardening law.
     error_tolerance : float, optional
-        Normalized Newton-Raphson convergence tolerance.
+        Normalised Newton-Raphson convergence tolerance.
     iteration_limit : int, optional
         Maximum number of Newton-Raphson iterations per timestep.
     unloading : EUnloading, optional
@@ -194,16 +193,16 @@ def radial_return(
     Future enchancements:
     # TODO: support non linear geometries
     # TODO: support tangent modulus output
-    # TODO: require inputs to be flattened 2d arrays, to prevent wasted 
+    # TODO: require inputs to be flattened 2d arrays, to prevent wasted
     #       computation on reshaping (or perform reshaping once at start of function
-    #       Quick test of removing reshaping suggests it accounts for ~ 5% of time. 
+    #       Quick test of removing reshaping suggests it accounts for ~ 5% of time.
 
     Key Equations:
         Elastic trial stress (plane stress): sig_trial = sig_prev + D : delta_eps
             where D is plane stress stiffness matrix with terms like E/(1-nu^2)
         Yield criterion (J2 plasticity): f = sqrt(3*J2(sig)) - sigma_Y(p_eq) <= 0
             where J2 = (1/2)*dev(sig):dev(sig) and dev(sig) is deviatoric stress
-        ksi variable (effective stress squared measure): 
+        ksi variable (effective stress squared measure):
             ksi = (1/6)*(sig_xx + sig_yy)^2 + (1/2)*(sig_yy - sig_xx)^2 + 2*(sig_xy)^2
             This represents 3*J2 in the plane stress projected formulation
         Consistency/plastic criterion residual:
@@ -220,10 +219,10 @@ def radial_return(
         Equivalent plastic strain evolution:
             p_eq = p_eq_old + plastic_multiplier * sqrt(2/3) * sqrt(ksi)
             Accumulates total inelastic deformation magnitude
-    
+
     Spatial Variation: Material parameters may vary spatially through parameter maps. Each datapoint
     is evaluated independently in the Newton loop.
-    
+
     Load History: The unloading compensation is output-only. The internal constitutive
     state (`stress_state`) is never patched.
 
@@ -233,7 +232,7 @@ def radial_return(
     if strain.ndim != 4 or strain.shape[1] != 3:
         raise ValueError("strain must have shape (timesteps, 3, y, x)")
 
-    # == UNPACK COMMON VARIABLES == 
+    # == UNPACK COMMON VARIABLES ==
     num_timesteps = strain.shape[0]
     size_y = strain.shape[2]
     size_x = strain.shape[3]
@@ -270,8 +269,8 @@ def radial_return(
         elastic_modulus_flat = elastic_modulus.ravel()
         poissons_ratio_flat = poissons_ratio.ravel()
         shear_modulus_flat = shear_modulus.ravel()
- 
-    # Old: explicit elastic stiffness matrix for plane stress with engineering shear strain (only required if 
+
+    # Old: explicit elastic stiffness matrix for plane stress with engineering shear strain (only required if
     #       we want to do the elastic predictor with a single matrix multiply or output the stiffness matrix for some reason)
     # elastic_stiffness = elastic_modulus / (1 - poissons_ratio ** 2) * (
     #     np.array([
@@ -283,7 +282,7 @@ def radial_return(
 
 
     # == COMPUTE INCREMENTAL STRAINS ==
-    # The return-mapping algorithm works with strain increments. 
+    # The return-mapping algorithm works with strain increments.
     if prepared_inputs is None:
         incremental_strain = prepare_radial_return_inputs(strain).incremental_strain
         elastic_stress_increment = None
@@ -310,7 +309,7 @@ def radial_return(
 
     # loop through timesteps
     for t in range(num_timesteps):
-        # Define index of previous timestep (t=0 uses t_prev=0, falling back to zero-initialized state)
+        # Define index of previous timestep (t=0 uses t_prev=0, falling back to zero-initialised state)
         t_prev = max(0, t - 1)
         # Freeze previous-step PEEQ for this entire timestep. This must stay
         # constant during Newton iterations; otherwise at t=0 we'd get
@@ -356,7 +355,7 @@ def radial_return(
             trial_stress_xy = (
                 stress_state[t_prev, 2, :, :] + elastic_stress_increment[t, 2]
             )
-       
+
         # Keep the component fields flattened through the return mapping. This
         # avoids stacking and transposing the full stress field each timestep.
         trial_stress_xx_flat = trial_stress_xx.ravel()
@@ -367,8 +366,8 @@ def radial_return(
         # == CHECK YIELD CRITERION ==
         # Note: for heterogeneous material properties, evaluate yield pointwise.
 
-        # Compute the yield stress measure (3*J2 in the plane stress projected formulation) 
-        # for the trial stress state at each point. This is used to evaluate the yield criterion 
+        # Compute the yield stress measure (3*J2 in the plane stress projected formulation)
+        # for the trial stress state at each point. This is used to evaluate the yield criterion
         # and determine which points have yielded.
         yield_stress_measure[:] = 1/3 * (
             trial_stress_xx_flat ** 2
@@ -392,17 +391,17 @@ def radial_return(
 
 
         # == COMPUTE PLASTIC MULTIPLIER TO CORRECT THE STRESS STATE FOR PLASTIC POINTS ==
-        # For points that have yielded, we need to solve for the plastic_multiplier such 
-        # that the updated stress state lies on the yield surface. This is done using a 
-        # Newton-Raphson iteration to solve the nonlinear consistency condition. 
-        # The main unknown in this iteration is plastic_multiplier, which controls how 
-        # much we reduce the trial stress back to the yield surface. The iteration 
-        # continues until the yield residual (plastic_criterion) is sufficiently small, 
-        # indicating that we've found a stress state that satisfies the yield condition 
+        # For points that have yielded, we need to solve for the plastic_multiplier such
+        # that the updated stress state lies on the yield surface. This is done using a
+        # Newton-Raphson iteration to solve the nonlinear consistency condition.
+        # The main unknown in this iteration is plastic_multiplier, which controls how
+        # much we reduce the trial stress back to the yield surface. The iteration
+        # continues until the yield residual (plastic_criterion) is sufficiently small,
+        # indicating that we've found a stress state that satisfies the yield condition
         # for the current hardening state.
-        
+
         # Compute initial ksi for all points
-        # ksi is an internal scalar used in the plane-stress projected J2 (see de Souza Neto et al. 2008, section 3.6.2) 
+        # ksi is an internal scalar used in the plane-stress projected J2 (see de Souza Neto et al. 2008, section 3.6.2)
         # ksi = (1/6)*(sig_xx + sig_yy)^2 + (1/2)*(sig_yy - sig_xx)^2 + 2*(sig_xy)^2
         # This is the projected invariant used by this plane-stress return-mapping implementation.
         ksi[plasticity_mask] = (
@@ -417,19 +416,19 @@ def radial_return(
             + 2 * trial_stress_xy_flat[plasticity_mask] ** 2
         )
 
-        # Compute plastic criterion 
+        # Compute plastic criterion
         # Plastic criterion is the residual of the consistency condition (difference between
         # the current effective stress measure ksi and the yield stress squared).
-        # If plastic criterion is nonzero, the current stress state is not exactly on the yield surface, 
+        # If plastic criterion is nonzero, the current stress state is not exactly on the yield surface,
         # and we need to iterate on plastic_multiplier to reduce the stress back to the yield surface.
         plastic_criterion[plasticity_mask] = (
             0.5 * ksi[plasticity_mask]
             - 1 / 3 * yield_stress[plasticity_mask] ** 2
         )
 
-        # Compute initial error for Newton-Raphson iteration; this is the normalised residual 
-        # that drives convergence. We normalise by ksi to avoid issues with points that have 
-        # very small effective stress measures, which could otherwise lead to artificially 
+        # Compute initial error for Newton-Raphson iteration; this is the normalised residual
+        # that drives convergence. We normalise by ksi to avoid issues with points that have
+        # very small effective stress measures, which could otherwise lead to artificially
         # small residuals and premature convergence.
         error.fill(0)
         error[plasticity_mask] = np.abs(plastic_criterion[plasticity_mask])
@@ -474,8 +473,8 @@ def radial_return(
             # physical interpration: when plastic deformation occurs, the plastic strain increment
             # points in the direction normal to the yield surface in stress space.  (i.e. the direction of plastic
             # strain is determined by the gradient of the yield function wrt stress - which is equal to
-            # sqrt(2/3 * J2) in the case of J2 plasticity). The plastic multiplier scales this increment 
-            # so that the stress state is returned to the yield surface. 
+            # sqrt(2/3 * J2) in the case of J2 plasticity). The plastic multiplier scales this increment
+            # so that the stress state is returned to the yield surface.
             #
             # In this plane-stress projected J2 formulation, ksi is the projected invariant with:
             #     ksi = 2*J2
@@ -487,14 +486,14 @@ def radial_return(
             # expression gives the scalar magnitude of equivalent plastic strain accumulated.
             delta_equivalent_plastic_strain = plastic_multiplier * np.sqrt(2 / 3 * ksi)
 
-            # Update equivalent plastic strain for plastic points using the current plastic_multiplier 
+            # Update equivalent plastic strain for plastic points using the current plastic_multiplier
             # and ksi values. This is needed to evaluate the hardening law and its derivative in the consistency condition.
             equivalent_plastic_strain[t, plasticity_mask] = (
                 prev_equivalent_plastic_strain[plasticity_mask]
                 + delta_equivalent_plastic_strain[plasticity_mask]
             )
 
-            # Compute current yield stress and hardening variable using current equivalent plastic strain. 
+            # Compute current yield stress and hardening variable using current equivalent plastic strain.
             (
                 yield_stress,
                 delta_yield_stress_delta_equivalent_plastic_strain
@@ -530,7 +529,7 @@ def radial_return(
             )
 
             # == COMPUTE EQUIVALENT PLASTIC STRAIN USING IDENTIFIED PLASTIC MULTIPLIER ==
-            # Compute updated ksi (effective stress measure) using the current plastic_multiplier. 
+            # Compute updated ksi (effective stress measure) using the current plastic_multiplier.
             ksi_all = (
                 trial_stress_sum_sq
                 / (
@@ -547,7 +546,7 @@ def radial_return(
             ksi_all = np.maximum(ksi_all, 0)
             ksi[plasticity_mask] = ksi_all[plasticity_mask]
 
-            # Compute updated plastic strain increment from the current plastic multiplier and ksi values. 
+            # Compute updated plastic strain increment from the current plastic multiplier and ksi values.
             delta_equivalent_plastic_strain = plastic_multiplier * np.sqrt(2 / 3 * ksi)
 
             # Compute updated equivalent plastic strain
@@ -565,17 +564,17 @@ def radial_return(
 
 
             # == EVALUATE PLASTIC CRITERION (CONSISTENCY RESIDUAL) WITH UPDATED VARIABLES ==
-            # Computer plastic criterion using the updated effective stress measure ksi 
-            # and yield stress to evaluate the current plastic criterion (consistency residual). 
+            # Computer plastic criterion using the updated effective stress measure ksi
+            # and yield stress to evaluate the current plastic criterion (consistency residual).
             # This is the value we are driving to zero in the Newton-Raphson iteration.
             plastic_criterion[plasticity_mask] = (
                 0.5 * ksi[plasticity_mask]
                 - 1 / 3 * yield_stress[plasticity_mask] ** 2
             )
 
-            # Compute updated error for Newton-Raphson iteration; this is the normalised residual 
-            # that drives convergence. We normalise by ksi to avoid issues with points that have 
-            # very small effective stress measures, which could otherwise lead to artificially 
+            # Compute updated error for Newton-Raphson iteration; this is the normalised residual
+            # that drives convergence. We normalise by ksi to avoid issues with points that have
+            # very small effective stress measures, which could otherwise lead to artificially
             # small residuals and premature convergence.
             error.fill(0)
             error[plasticity_mask] = np.abs(plastic_criterion[plasticity_mask])
@@ -584,13 +583,13 @@ def radial_return(
             i += 1
             # Check iteration limit
             if i == iteration_limit:
-                print(
-                    "The convergence has not been achieved within "
-                    f"{iteration_limit} iterations in step {t}"
+                raise RuntimeError(
+                    f"Radial return mapping did not converge within {iteration_limit} iterations "
+                    f"at timestep {t}. Consider increasing the iteration limit or adjusting the error tolerance."
                 )
 
 
-        # == COMPUTE THE CORRECTED STRESS STATE USING THE DETERMINED PLASTIC MULTIPLIER == 
+        # == COMPUTE THE CORRECTED STRESS STATE USING THE DETERMINED PLASTIC MULTIPLIER ==
         # Compute stress correction factors that scale the trial stress back to the yield surface
         # correction_factor_1 applies to normal stress components (xx, yy)
         # correction_factor_2 applies to shear stress component (xy)
@@ -599,7 +598,7 @@ def radial_return(
             / (3 * (1 - poissons_ratio_flat) + elastic_modulus_flat * plastic_multiplier)
         )
         correction_factor_2 = 1 / (1 + 2 * shear_modulus_flat * plastic_multiplier)
-        
+
         # Compute average and difference of correction factors for stress transformation
         correction_factor_avg = 0.5 * (correction_factor_1 + correction_factor_2)
         correction_factor_diff = 0.5 * (correction_factor_1 - correction_factor_2)
@@ -625,25 +624,25 @@ def radial_return(
 
 
         # == HANDLE UNLOADING: OUTPUT-ONLY CORRECTION TO SMOOTH DISCONTINUITIES ==
-        # Noise in strain data may result in points that were plastic in the previous step 
-        # being classified as elastic in the current step, which can lead to artificial 
-        # stress discontinuities. 
+        # Noise in strain data may result in points that were plastic in the previous step
+        # being classified as elastic in the current step, which can lead to artificial
+        # stress discontinuities.
         # We have three options for how to handle this unloading compensation:
         # 1) no compensation: use the current step's trial elastic stress for points that have unloaded
         # 2) constant strain: for points that were plastic in the previous step but are
-        #    now elastic (unloading), report the previous step's stress state rather than the current trial elastic stress. 
+        #    now elastic (unloading), report the previous step's stress state rather than the current trial elastic stress.
         # 3) linear extrapolation: for points that were plastic in the previous step but
         #    are now elastic (unloading), report a linearly extrapolated stress state based on the previous two steps' stress states.
-        # Note, only the output stress is patched on unloading, not the internal state used 
-        # by the predictor (so the stress state progresses according to the return-mapping 
-        # algorithm regardless of unloading, but the reported output stress can be 
+        # Note, only the output stress is patched on unloading, not the internal state used
+        # by the predictor (so the stress state progresses according to the return-mapping
+        # algorithm regardless of unloading, but the reported output stress can be
         # smoothed on unloading to avoid discontinuities).
         stress_output[t] = stress_state[t].copy()
         match unloading:
             case EUnloading.NoCompensation:
                 pass  # keep return-mapped current-step output without unloading correction
             case EUnloading.ConstantStrain:
-                if t > 0: 
+                if t > 0:
                     unload_mask = prev_plasticity_mask & (~plasticity_mask)  # Points that were plastic in the previous step but are now elastic
                     if np.any(unload_mask):
                         out_flat = stress_output[t].reshape(3, num_datapoints)
@@ -651,7 +650,7 @@ def radial_return(
                         out_flat[:, unload_mask] = prev_out_flat[:, unload_mask]
 
             case EUnloading.LinearExtrapolation:
-                if t > 1: 
+                if t > 1:
                     unload_mask = prev_plasticity_mask & (~plasticity_mask)  # Points that were plastic in the previous step but are now elastic
                     if np.any(unload_mask):
                         out_flat = stress_output[t].reshape(3, num_datapoints)
@@ -667,7 +666,7 @@ def radial_return(
                     f"Invalid unloading option '{unloading}'. Supported options: "
                     "'no_compensation', 'constant_strain', 'linear_extrapolation'"
                 )
-        
+
         yield_map[t] = plasticity_mask.reshape(size_y, size_x)
         prev_plasticity_mask = plasticity_mask
 

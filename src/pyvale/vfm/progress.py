@@ -6,7 +6,7 @@ from datetime import datetime
 @dataclass(slots=True, frozen=True)
 class ProgressEvent:
     """Lightweight progress update emitted during identification.
-    
+
     Attributes:
         message: A human-readable message describing the progress event.
         kind: A string describing the type of progress event.
@@ -23,10 +23,10 @@ def emit_progress(
     event: ProgressEvent,
 ) -> None:
     """Send a progress event to a progress-reporting function.
-    
+
     Arguments:
-        progress_report_function: 
-            A callback function that takes a ProgressEvent as an argument. 
+        progress_report_function:
+            A callback function that takes a ProgressEvent as an argument.
             If None, the event is ignored.
         event: The ProgressEvent to be emitted.
     """
@@ -40,7 +40,7 @@ def emit_progress(
 @dataclass(slots=True)
 class ConsoleProgressReporter:
     """Print progress messages to the console.
-        
+
     Attributes:
         min_interval_seconds: The minimum time interval (in seconds) between printed messages.
         _last_printed_at: The timestamp of the last printed message (used internally).

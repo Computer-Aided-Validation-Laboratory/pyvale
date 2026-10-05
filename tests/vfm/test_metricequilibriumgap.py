@@ -17,6 +17,7 @@ from pyvale.vfm.metricequilibriumgap import (
     EquilibriumGapMetric,
     EquilibriumGapVirtualFieldType,
 )
+from pyvale.vfm.postprocessing import compute_equilibrium_gap_diagnostics
 from pyvale.vfm.roi import RoiDefinition, RoiShape, VfmRegionOfInterest
 
 
@@ -224,6 +225,36 @@ def test_common_stress_and_force_scaling_leaves_normalised_gap_unchanged() -> No
         rtol=1.0e-12,
         atol=1.0e-12,
     )
+
+
+def test_postprocessing_preserves_unitless_egi_scale() -> None:
+    """Postprocessing must not convert the normalised EGI to a percentage."""
+
+    experiment_data = _rectangle_experiment_data()
+    stress = _stress_with_central_inclusion(experiment_data)
+    metric = EquilibriumGapMetric(window_size=(5, 5))
+    metric.initialise(experiment_data)
+    metric_result = metric.evaluate_equilibrium_gap(stress)
+
+    diagnostics = compute_equilibrium_gap_diagnostics(
+        experiment_data,
+        stress,
+        window_size=(5, 5),
+    )
+
+    np.testing.assert_allclose(
+        diagnostics.weighted_temporal_rms_map,
+        metric_result.weighted_temporal_rms,
+        equal_nan=True,
+    )
+    assert diagnostics.weighted_spatiotemporal_rms == pytest.approx(
+        metric_result.weighted_spatiotemporal_rms
+    )
+    summary = diagnostics.to_summary()
+    assert summary["weighted_equilibrium_gap"] == pytest.approx(
+        metric_result.weighted_spatiotemporal_rms
+    )
+    assert all("percent" not in name for name in summary)
 
 
 def test_windows_can_cross_free_edges_but_not_non_free_edges() -> None:

@@ -1,13 +1,15 @@
-from pathlib import Path
+from __future__ import annotations
 
 import numpy as np
-import pytest
-from plots import plot_identification_diff
-from rms import rms, root_mean_square_percentage_error
+import numpy.testing as npt
 
+from pyvale.examples.vfm.synthetic_rectangular_tensile import (
+    SyntheticTensileMaterial,
+    build_synthetic_identification_parameters,
+    build_synthetic_tensile_case,
+)
 from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
 from pyvale.vfm.constparam import ConstitutiveParameter
-from pyvale.vfm.experimentdata import ExperimentData
 from pyvale.vfm.hardening import HardeningLinear
 from pyvale.vfm.identification import run_identification
 from pyvale.vfm.identificationconfig import (
@@ -15,121 +17,158 @@ from pyvale.vfm.identificationconfig import (
     IdentificationPhase,
 )
 from pyvale.vfm.metricsbvf import MetricSBVF
-from pyvale.vfm.objectivefuncvector import VectorFirstResultPassthrough
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.objectivefuncvector import (
+    VectorFirstResultPassthrough,
+    VectorWeightedObjective,
+)
 from pyvale.vfm.optimiserleastsquares import OptimiserLeastSquares
+from pyvale.vfm.slicewise_utils import SliceConfig
 from pyvale.vfm.spatialparamhomogeneous import (
     SpatialParameterisationHomogeneous,
 )
-
-EXPERIMENT_DATA_FILE = (
-    Path(__file__).parent
-    / "input"
-    / "hole2d_plas"
-    / "experiment_data.yaml"
+from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
+from pyvale.vfm.spatialparamslicewise import (
+    SliceWiseSpatialParameterisation,
+    SupportSlice,
 )
 
-KNOWN_PARAMETERS_FILE = (
-    Path(__file__).parent
-    / "gold"
-    / "hole2d_plas.npz"
-)
 
-PLOT_IDENTIFICATION_DIFF = False
-
-
-@pytest.mark.skip(reason="tolerances need to be revised")
-def test_end_to_end_homogeneous() -> None:
-    experiment_data = ExperimentData.load_from_file(EXPERIMENT_DATA_FILE)
-
-    # TODO: force is 1000x too large
-    experiment_data.boundary_conditions.force *= 1e-3
-
-    constitutive_law = IsotropicVonMisesElastoplasticity(HardeningLinear())
-
-    parameter_map_size = np.array(
-        experiment_data.specimen_geometry.x.shape,
-        dtype=np.uint32
+def test_end_to_end_homogeneous_sbvf_identification() -> None:
+    case = build_synthetic_tensile_case(
+        num_grid_columns=12,
+        length=12.0,
+        material=SyntheticTensileMaterial(yield_strengths=(250.0,)),
     )
-
+    map_size = np.asarray(
+        case.experiment_data.specimen_geometry.x.shape,
+        dtype=np.uint32,
+    )
     parameters = {
         "elastic_modulus": ConstitutiveParameter(
-            450_000, 100_000, 500_000, parameter_map_size
+            180_000.0, 150_000.0, 260_000.0, map_size
         ),
         "poissons_ratio": ConstitutiveParameter(
-            0.45, 0.1, 0.5, parameter_map_size
+            0.25, 0.15, 0.45, map_size
         ),
         "yield_strength": ConstitutiveParameter(
-            800, 100, 1000, parameter_map_size
+            220.0, 150.0, 350.0, map_size
         ),
         "hardening_modulus": ConstitutiveParameter(
-            7000, 500, 10_000, parameter_map_size
+            5_000.0, 1_000.0, 15_000.0, map_size
         ),
     }
-
-    metric = MetricSBVF(np.array([15, 15]))
-
-    phases = [
-        IdentificationPhase(
-            {
-                "elastic_modulus": [SpatialParameterisationHomogeneous()],
-                "poissons_ratio": [SpatialParameterisationHomogeneous()],
-                "yield_strength": [SpatialParameterisationHomogeneous()],
-                "hardening_modulus": [SpatialParameterisationHomogeneous()],
-            },
-            [metric],
-            VectorFirstResultPassthrough(),
-            OptimiserLeastSquares(),
-        )
-    ]
-
-    ident_config = IdentificationConfig(
-        constitutive_law,
-        parameters,
-        phases
+    phase = IdentificationPhase(
+        spatial_parameterisations={
+            name: [SpatialParameterisationHomogeneous()]
+            for name in parameters
+        },
+        metrics=[MetricSBVF(np.array([2, 3], dtype=np.uint32))],
+        objective_function=VectorFirstResultPassthrough(),
+        optimiser=OptimiserLeastSquares(max_evaluations=100),
+        optimisation_newton_tolerance=1.0e-8,
     )
 
-    print("Running identification...")
-    result = run_identification(experiment_data, ident_config)
+    result = run_identification(
+        case.experiment_data,
+        IdentificationConfig(
+            constitutive_law=IsotropicVonMisesElastoplasticity(
+                HardeningLinear(),
+                error_tolerance=1.0e-10,
+            ),
+            parameters=parameters,
+            phases=[phase],
+        ),
+    )
 
-    identified_maps = result.parameter_maps
-
-    for name, param_map in identified_maps.items():
-        print(f"{name} = {np.nanmean(param_map):.6f}")
-
-    known_parameter_maps = dict(np.load(KNOWN_PARAMETERS_FILE))
-
-    # ------------------------------------------------------------------
-    # Test the result of the identification: compare the identified parameter
-    # maps against the known parameter maps.
-    # ------------------------------------------------------------------
-    if PLOT_IDENTIFICATION_DIFF:
-        plot_identification_diff(
-            experiment_data.specimen_geometry.x,
-            experiment_data.specimen_geometry.y,
-            identified_maps,
-            known_parameter_maps
+    for name, expected_map in case.known_parameter_maps.items():
+        npt.assert_allclose(
+            result.parameter_maps[name],
+            expected_map,
+            rtol=5.0e-6,
+            atol=1.0e-6,
         )
 
-    # Per-parameter tolerances on the RMS of the absolute difference. The
-    # hardening modulus is only weakly sensitive to the virtual fields and so
-    # is identified less accurately than the other parameters.
-    abs_diff_rms_tolerances = {
-        "elastic_modulus": 400.0,
-        "poissons_ratio": 1e-3,
-        "yield_strength": 1.0,
-        "hardening_modulus": 250.0,
-    }
+    solve_result = result.history.phases[0].solve_results[-1]
+    assert solve_result.success is True
+    assert solve_result.final_objective is not None
+    assert solve_result.final_objective["residual_norm"] < 1.0e-2
 
-    for name in known_parameter_maps:
-        abs_diff = np.abs(identified_maps[name] - known_parameter_maps[name])
-        abs_diff_rms = rms(abs_diff)
-        rmspe = root_mean_square_percentage_error(
-            identified_maps[name], known_parameter_maps[name]
-        )
-        print(
-            f"{name}: abs diff rms = {abs_diff_rms:.6f}, rmspe = {rmspe:.6f} %"
+
+def test_end_to_end_homogeneous_then_slicewise_identification() -> None:
+    case = build_synthetic_tensile_case()
+    map_size = np.asarray(
+        case.experiment_data.specimen_geometry.x.shape,
+        dtype=np.uint32,
+    )
+    parameters = build_synthetic_identification_parameters(
+        map_size,
+        material=case.material,
+        initial_yield_strength=250.0,
+    )
+
+    homogeneous_phase = IdentificationPhase(
+        spatial_parameterisations={
+            "elastic_modulus": [SpatialParameterisationKnown()],
+            "poissons_ratio": [SpatialParameterisationKnown()],
+            "yield_strength": [SpatialParameterisationHomogeneous()],
+            "hardening_modulus": [SpatialParameterisationHomogeneous()],
+        },
+        metrics=[MetricSBVF(np.array([2, 3], dtype=np.uint32))],
+        objective_function=VectorFirstResultPassthrough(),
+        optimiser=OptimiserLeastSquares(max_evaluations=100),
+        optimisation_newton_tolerance=1.0e-8,
+    )
+    support = SupportSlice(
+        slice_config=SliceConfig(axis="x", num_slices=4),
+    )
+    slicewise_phase = IdentificationPhase(
+        spatial_parameterisations={
+            "elastic_modulus": [SpatialParameterisationKnown()],
+            "poissons_ratio": [SpatialParameterisationKnown()],
+            "yield_strength": [
+                SliceWiseSpatialParameterisation(support=support)
+            ],
+            "hardening_modulus": [SpatialParameterisationHomogeneous()],
+        },
+        metrics=[SliceWiseForceReconstructionMetric(support=support)],
+        objective_function=VectorWeightedObjective(),
+        optimiser=OptimiserLeastSquares(max_evaluations=100),
+        optimisation_newton_tolerance=1.0e-8,
+    )
+
+    result = run_identification(
+        case.experiment_data,
+        IdentificationConfig(
+            constitutive_law=IsotropicVonMisesElastoplasticity(
+                HardeningLinear(),
+                error_tolerance=1.0e-10,
+            ),
+            parameters=parameters,
+            phases=[homogeneous_phase, slicewise_phase],
+        ),
+    )
+
+    assert len(result.history.phases) == 2
+    phase_zero = result.history.phases[0].spatial_parameterisations
+    assert phase_zero["elastic_modulus"][0].summary["kind"] == "known"
+    assert phase_zero["poissons_ratio"][0].summary["kind"] == "known"
+    assert phase_zero["yield_strength"][0].summary["kind"] == "homogeneous"
+    assert phase_zero["hardening_modulus"][0].summary["kind"] == "homogeneous"
+
+    phase_one = result.history.phases[1].spatial_parameterisations
+    assert phase_one["yield_strength"][0].summary["kind"] == "slice_wise"
+    assert phase_one["hardening_modulus"][0].summary["kind"] == "homogeneous"
+
+    for name, expected_map in case.known_parameter_maps.items():
+        npt.assert_allclose(
+            result.parameter_maps[name],
+            expected_map,
+            rtol=1.0e-7,
+            atol=1.0e-5,
         )
 
-        # The identified parameters should be close to the known parameters.
-        assert abs_diff_rms < abs_diff_rms_tolerances[name]
-        assert rmspe < 20.0
+    phase_one_solve = result.history.phases[1].solve_results[-1]
+    assert phase_one_solve.success is True
+    assert phase_one_solve.final_objective is not None
+    assert phase_one_solve.final_objective["residual_norm"] < 1.0e-5

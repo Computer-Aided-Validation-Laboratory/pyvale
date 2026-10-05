@@ -65,8 +65,7 @@ class MetricSBVF(IMetric):
     """Convert ``stress * area`` to force for the experiment-data units.
 
     PyVale's VFM data contract uses mm, MPa and N, for which this is ``1``.
-    Legacy SI-coordinate datasets with stress still expressed in MPa should
-    supply ``1e6`` explicitly.
+
     """
 
     _virtual_fields_mesh: VirtualFieldsMesh | None = field(
@@ -157,7 +156,7 @@ class MetricSBVF(IMetric):
                 sensitivity_based_virtual_fields.append(
                     # TODO: option to use incremental stress sensitivities
                     generate_virtual_fields_from_mesh(
-                        stress_sensitivity.total,  
+                        stress_sensitivity.total,
                         self._virtual_fields_mesh
                     )
                 )
@@ -197,10 +196,6 @@ class MetricSBVF(IMetric):
         # Compute PVW residuals for each SBVF and concatenate into single residual vector
         for sbvf in sensitivity_based_virtual_fields:
             # Compute 4d IVW term for current SBVF
-            # TODO: we have a 1e6 term here as stress in in MPa,
-            #   and pixel area is in m^2, would be nice to avoid
-            #   having this magic number, maybe rescale stress into Pa
-            #   at the start of the func?
             internal_virtual_work_4d = (
                 stress
                 * sbvf.virtual_strain
@@ -220,8 +215,8 @@ class MetricSBVF(IMetric):
                 axis=(1, 2, 3)
             )
 
-            # Compute 4d EVW term for current SBVF 
-            # force_x * virtual_displacement_x + force_y * virtual_displacement_y on traction edge 
+            # Compute 4d EVW term for current SBVF
+            # force_x * virtual_displacement_x + force_y * virtual_displacement_y on traction edge
             # summed to get single EVW scalar for each timestep
             external_virtual_work_vector = (
                 experiment_data.boundary_conditions.force[:, 0]
@@ -237,7 +232,7 @@ class MetricSBVF(IMetric):
             if self.vf_scaling_fraction is not None:
                 # Compute number of timesteps to use for scaling based on the chosen fraction (1 step min).
                 num_timesteps_used_for_scaling = max(
-                    1, 
+                    1,
                     int(np.floor(len(external_virtual_work_vector) * self.vf_scaling_fraction)),
                 )
 
@@ -284,8 +279,8 @@ class MetricSBVF(IMetric):
         parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         delta_timesteps: npt.NDArray[np.float64],
-        perturbation_type: str = "constitutive_parameter",   #TODO better as enum? 
-        perturbation_factor_param: float = 0.15,   #TODO: single perturbation factor or separate for param and dof? 
+        perturbation_type: str = "constitutive_parameter",   #TODO better as enum?
+        perturbation_factor_param: float = 0.15,   #TODO: single perturbation factor or separate for param and dof?
         perturbation_factor_dof: float = 0.05,
     ) -> list[StressSensitivity]:
         """
@@ -360,7 +355,7 @@ def _calculate_stress_sensitivities_dof(
 
     normalised_perturbed = normalised_dof - perturbation_factor
 
-    Note in this case, the pertubation factor is a factor of the full allowed range of the DOF rather 
+    Note in this case, the pertubation factor is a factor of the full allowed range of the DOF rather
     than the current DOF value.
     Hence, 0.05 means perturbing by 5% of the full allowed range of the DOF, not 5% of current value.
 

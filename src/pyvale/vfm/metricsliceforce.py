@@ -61,7 +61,7 @@ def _build_slice_metric_result(
 ) -> MetricResult:
     # Raw residual is the difference between reconstructed and applied forces,
     resolved_raw_residual = np.asarray(raw_residual, dtype=np.float64)
-    
+
     # Normalised residual is relative to applied force, FRE(t) = (F_R(t) - F_A(t)) / F_A(t)
     normalised_residual = _compute_relative_force_residual(
         raw_residual=resolved_raw_residual,
@@ -112,7 +112,7 @@ def build_force_reconstruction_error_result(
 ) -> ForceReconstructionErrorResult:
     """Build global residuals and weighted diagnostic summaries."""
 
-    # Raw residual is the difference between reconstructed and applied forces, 
+    # Raw residual is the difference between reconstructed and applied forces,
     # with shape (timesteps, slices)
     raw_residual = reconstructed_force - applied_longitudinal_force[:, np.newaxis]
     # Normalised residual is relative to applied force, FRE(t) = (F_R(t) - F_A(t)) / F_A(t)
@@ -201,7 +201,7 @@ def _compute_relative_force_residual(
     applied_force = np.asarray(applied_longitudinal_force, dtype=np.float64)
     raw_residual = np.asarray(raw_residual, dtype=np.float64)
 
-    # If applied_force is 1D and raw_residual is 2D (timesteps x slices), 
+    # If applied_force is 1D and raw_residual is 2D (timesteps x slices),
     # broadcast applied_force to match shape for element-wise division
     if raw_residual.ndim > applied_force.ndim:
         applied_force = applied_force[:, np.newaxis]
@@ -399,8 +399,8 @@ def compute_force_temporal_weights(
     applied_longitudinal_force: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """Return normalised applied-force-squared temporal weights.
-    
-    F^2 weighting reduces sensitivity to low-load frames. 
+
+    F^2 weighting reduces sensitivity to low-load frames.
     """
     force = np.asarray(applied_longitudinal_force, dtype=np.float64)
     weights = force**2

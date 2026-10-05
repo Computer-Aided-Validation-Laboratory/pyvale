@@ -122,6 +122,12 @@ def _build_experiment_data(
     edge_conditions: EdgeConditions,
     region_of_interest: VfmRegionOfInterest | None = None,
 ) -> ExperimentData:
+
+    # If no region of interest is provided, use the finite strain values to define it.
+    # Note that this is not the recommended approach for real experiments,
+    # but it is useful for testing and debugging. Future versions of this code will
+    # seek to provide clearer, more robust guidance on how to define the region of interest
+    # for real experiments.
     if region_of_interest is None:
         specimen_mask = np.isfinite(strain[0, 0, :, :])
         region_of_interest = VfmRegionOfInterest.from_definition(

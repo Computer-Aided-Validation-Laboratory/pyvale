@@ -70,14 +70,14 @@ def _extend_centroid_grid(
     extended = np.empty((ny + 2, nx + 2), dtype=np.float64)
     # Populate interior with original values
     extended[1:-1, 1:-1] = values
-    
+
     # Populate edges by linear extrapolation from the interior
     # v_edge = v_boundary + (v_boundary - v_adjacent) = 2 * v_boundary - v_adjacent
     extended[0, 1:-1]  = 2.0 * extended[1, 1:-1]  - extended[2, 1:-1]  # top row = 2 * first interior row - second interior row
     extended[-1, 1:-1] = 2.0 * extended[-2, 1:-1] - extended[-3, 1:-1] # bottom row = 2 * last interior row - second to last interior row
     extended[1:-1, 0]  = 2.0 * extended[1:-1, 1]  - extended[1:-1, 2]  # left column = 2 * first interior column - second interior column
     extended[1:-1, -1] = 2.0 * extended[1:-1, -2] - extended[1:-1, -3] # right column = 2 * last interior column - second to last interior column
-    
+
     # Populate corners by linear extrapolation from the edges
     extended[0, 0] = extended[0, 1] + extended[1, 0] - extended[1, 1]           # top-left corner = top edge + left edge - first interior point
     extended[0, -1] = extended[0, -2] + extended[1, -1] - extended[1, -2]       # top-right corner = top edge + right edge - first interior point on the right
@@ -305,12 +305,12 @@ def _generate_vf_mesh_nodal_coord(
     mesh_size:npt.NDArray[np.uint32],  # row_count, column_count
 ) -> MeshNodalCoordinates:
     """Snap user-defined virtual mesh onto the measured x/y grid lines."""
-    
+
     if mesh_size.shape != (2,):
         raise ValueError("mesh_size must contain [row_count, column_count].")
     if mesh_size[0] < 1 or mesh_size[1] < 1:
         raise ValueError("mesh_size must be at least [1, 1].")
-    
+
     # Check data mesh nodal y coordinates are constant along rows (within 0.1% of mean row value)
     if not np.all(np.isclose(data_mesh.nodal_coord_y.mean(axis=1), data_mesh.nodal_coord_y[:, 0], rtol=0.001)):
         raise ValueError("Data mesh nodal y coordinates are not constant along rows. Current implementation assumes they should be.")
@@ -332,7 +332,7 @@ def _generate_vf_mesh_nodal_coord(
     # Initialise vf mesh nodal coord by linearly spacing along specimen dimensions, ensuring one on each edge
     vf_mesh_nodal_coord_y_1d=np.linspace(data_mesh_nodal_coord_y_1d[0],data_mesh_nodal_coord_y_1d[-1],mesh_size[0]+1)
     vf_mesh_nodal_coord_x_1d=np.linspace(data_mesh_nodal_coord_x_1d[0],data_mesh_nodal_coord_x_1d[-1],mesh_size[1]+1)
-    
+
 
     # Compute x distance from vf mesh nodes to data mesh nodes
 
@@ -438,7 +438,7 @@ def _generate_vf_mesh_nodal_coord(
         vf_mesh_nodal_coord_x_1d,
         vf_mesh_nodal_coord_y_1d,
     )
-    
+
     return MeshNodalCoordinates(
         nodal_coord_x=vf_mesh_nodal_coord_x,
         nodal_coord_y=vf_mesh_nodal_coord_y,
@@ -489,14 +489,14 @@ def _compute_local_element_coordinates(
 ) -> tuple[float, float]:
     """Find local element coordinates for a point inside a bilinear quad.
 
-    An iterative Newton-Raphson method is used to solve the nonlinear mapping 
+    An iterative Newton-Raphson method is used to solve the nonlinear mapping
     from local to global coordinates. It is possible to used a closed form solution,
     as per the previous MATLAB implementation of this code (see below). However,
     the iterative method is more general and readible and the performance is unlikely
     to be an issue.
 
-    % Closed form solution based on "Chongyu Hua, An inverse transformation for 
-    % quadrilateral isoparametric elements: Analysis and application, 
+    % Closed form solution based on "Chongyu Hua, An inverse transformation for
+    % quadrilateral isoparametric elements: Analysis and application,
     % Finite Elements in Analysis and Design, vol 7, 1990"
 
     % Node ordering is of type (d) in the article
@@ -529,7 +529,7 @@ def _compute_local_element_coordinates(
 
     """
 
-    # Initial guess at local coordinates is the element center (0, 0) 
+    # Initial guess at local coordinates is the element center (0, 0)
     xi = 0.0
     eta = 0.0
 
@@ -552,7 +552,7 @@ def _compute_local_element_coordinates(
             tol = 1e-3
             if not (-1.0 - tol <= xi <= 1.0 + tol and -1.0 - tol <= eta <= 1.0 + tol):
                 raise ValueError("Point mapped outside its assigned virtual element.")
-            
+
             return xi, eta
 
     raise ValueError(
@@ -565,7 +565,7 @@ def _assemble_strain_displacement_matrix(
     use_nlgeom: bool = False,
 ) -> npt.NDArray[np.float64]:
     """Assemble the strain-displacement matrix ("B matrix") for a 4-node quad.
-    
+
     shape_function_gradients_global is (4,2) with each row corresponding to a node, and the two columns corresponding to the derivatives with respect to x and y, respectively.
     [
     [dN1/dx, dN1/dy],
@@ -573,7 +573,7 @@ def _assemble_strain_displacement_matrix(
     [dN3/dx, dN3/dy],
     [dN4/dx, dN4/dy],
     ]
-    
+
     The element displacement vector is assumed to be ordered as
     u_e = [u1, v1, u2, v2, u3, v3, u4, v4]^T.
 
@@ -677,19 +677,19 @@ def _compute_point_shape_function_values_and_strain_displacement_matrices(
     # Compute shape functions and derivatives at this points local coordinates (could this use derivates from above to save recalc?)
     shape_function_values, shape_function_local_derivatives = _evaluate_bilinear_shape_functions(xi,eta)
 
-    # Note: shape_function_local_derivatives (4,2) are with respect to local element coordinates, 
+    # Note: shape_function_local_derivatives (4,2) are with respect to local element coordinates,
     # so we need to transform to global coordinates before assembling the strain-displacement matrix.
-    # Each row of shape_function_local_derivatives corresponds to a node, and the two columns correspond to 
+    # Each row of shape_function_local_derivatives corresponds to a node, and the two columns correspond to
     # the derivatives with respect to xi and eta, respectively.
-    # element_node_coordinates is (4,2) with each row corresponding to a node and the two columns 
+    # element_node_coordinates is (4,2) with each row corresponding to a node and the two columns
     # corresponding to x and y coordinates of the node, respectively.
-    # Hence: shape_function_local_derivatives.T is (2,4) and element_node_coordinates is (4,2), 
+    # Hence: shape_function_local_derivatives.T is (2,4) and element_node_coordinates is (4,2),
     # so the matrix multiplication gives a (2,2) jacobian matrix.
     # jacobian =[ [dx/dxi,  dy/dxi ],  [dx/deta, dy/deta] ]
 
     # Compute the Jacobian of the local-to-physical coordinate mapping (matrix multiplication of shape function derivatives with element node coordinates)
-    jacobian = shape_function_local_derivatives.T @ element_node_coordinates  
-    # Solve linear system to get shape function gradients with respect to global coordinates 
+    jacobian = shape_function_local_derivatives.T @ element_node_coordinates
+    # Solve linear system to get shape function gradients with respect to global coordinates
     # J.T @ shape_function_gradients_global.T = shape_function_local_derivatives.T
     # Ax=b where A is jacobian.T, x is shape_function_gradients_global.T and b is shape_function_local_derivatives.T
     shape_function_gradients_global = np.linalg.solve(
@@ -788,7 +788,7 @@ def _compute_constrained_strain_displacement_matrix(
       condensing slave edge DOFs into one master edge DOF.
 
     Input global_strain_displacement_matrix has shape (3 * n_specimen_points, 2 * n_nodes)
-    
+
     The rows correspond to virtual strain components at specimen data points:
         rows 0                    : n_specimen_points      -> eps_xx
         rows n_specimen_points    : 2*n_specimen_points    -> eps_yy
@@ -799,25 +799,25 @@ def _compute_constrained_strain_displacement_matrix(
 
     For a Traction condition we want to impose constant virtual displacement along the edge,
     which means all dofs (e.g. x dofs) on that edge are tied together. To do this we designate
-    one master DOF (e.g. x dof of first node on edge) and treat the rest as slave DOFs. The 
+    one master DOF (e.g. x dof of first node on edge) and treat the rest as slave DOFs. The
     slave DOFs are then condensed into the master DOF by summing the corresponding columns in the constrained matrix.
-    
+
     Before applying the constraint, the virtual strain field contains separate
     contributions from the master and slave DOFs:
         eps = B_m ux_m + B_s1 ux_s1 + B_s2 ux_s2 + ...
-    
+
     A Traction condition on this edge enforces:
         ux_s1 = ux_m
         ux_s2 = ux_m
         ...
-    
+
     Substituting this into the strain expression gives:
         eps = (B_m + B_s1 + B_s2 + ...) ux_m
-    
+
     Therefore, the slave columns are summed and added to the master column.
     The slave columns are then removed later because they are no longer
     independent unknowns.
-        
+
     """
 
     # Initialise the constrained matrix as a copy of the global matrix, and empty sets to track which DOFs are fixed, slave, or master.
@@ -943,7 +943,7 @@ def _apply_edge_conditions(
     updated = virtual_displacement.copy()
 
     for edge in range(4):
-        if edge == 0: 
+        if edge == 0:
             edge_nodes = virtual_node_ids[0, :]
             master_node = virtual_node_ids[0, 0]
             slave_nodes = edge_nodes[1:]
@@ -1010,8 +1010,8 @@ def _plot_generated_virtual_fields(
 
     # Create figure for each select timestep
     for timestep in timestep_indices:
-        # 3 x 3 grid of subplots. 
-        # Row 0: ref map, Row 1: virtual strain, Row 2: virtual displacement. 
+        # 3 x 3 grid of subplots.
+        # Row 0: ref map, Row 1: virtual strain, Row 2: virtual displacement.
         # Cols: components
         fig, axes = plt.subplots(3, 3, figsize=(14, 12))
 
@@ -1209,7 +1209,7 @@ def generate_virtual_fields_mesh(
     generate_plots: bool = False,
 ):
     """Construct a mesh over the test data to be used for virtual field generation.
-    
+
     Parameters
     ----------
     x : ndarray
@@ -1224,8 +1224,8 @@ def generate_virtual_fields_mesh(
     boundary_conditions : BoundaryConditions
         The boundary conditions associated with the test data.
     mesh_size : ndarray
-        Shape (2,1) 
-        The number of virtual elements in the y (n rows) and x directions (n columns), respectively.   
+        Shape (2,1)
+        The number of virtual elements in the y (n rows) and x directions (n columns), respectively.
 
     Returns
     -------
@@ -1239,7 +1239,7 @@ def generate_virtual_fields_mesh(
     2. Construct coarse virtual mesh by snapping a regular grid onto the data point element edges
     3. Assemble connectivity matrix (defining associations between virtual elements and data points)
     4. Assemble global shape function matrix (Nglob) and global strain-displacement matrix (Bglob) for the virtual mesh
-    5. Impose virtual boundary conditions to Bglob to get Bbar 
+    5. Impose virtual boundary conditions to Bglob to get Bbar
     6. Compute pseudo-inverse of Bbar (Binv)
     7. Return virtual fields mesh object containing required data
 
@@ -1248,11 +1248,11 @@ def generate_virtual_fields_mesh(
     # Check physical y coordinates increase as array row increases
     if y[0,0] > y[-1,0]:
         raise ValueError("Coordinate data is not in the expected format. y-coordinate should increase as array row increases.")
-    
+
     # Construct fine mesh around data points
     data_mesh_nodal_coord =_generate_data_mesh_nodal_coord(x,y)
 
-    # Debug: plot data mesh overlaid on data points 
+    # Debug: plot data mesh overlaid on data points
     if generate_plots:
         plot_virtual_fields_mesh(
             x,
@@ -1267,7 +1267,7 @@ def generate_virtual_fields_mesh(
     assignment_tolerance_x = _estimate_positive_spacing_tolerance(data_mesh_nodal_coord.nodal_coord_x[0, :])
     assignment_tolerance_y = _estimate_positive_spacing_tolerance(data_mesh_nodal_coord.nodal_coord_y[:, 0])
 
-    # Debug: plot virtual fields mesh and data mesh overlaid on data points 
+    # Debug: plot virtual fields mesh and data mesh overlaid on data points
     if generate_plots:
         plot_virtual_fields_mesh(
             x,
@@ -1418,10 +1418,10 @@ def generate_virtual_fields_mesh(
     vf_node_x_flat = vf_mesh_nodal_coord.nodal_coord_x.ravel()
     vf_node_y_flat = vf_mesh_nodal_coord.nodal_coord_y.ravel()
 
-    # Assemble global shape-function and strain-displacement matrices 
+    # Assemble global shape-function and strain-displacement matrices
     # TODO: vectorise this loop to increase speed (or even loop over elements rather than pts)
     for datapoint_row, datapoint_idx in enumerate(specimen_point_indices):  #does datapoint_row ever differ from datapoint_idx?
-        
+
         # Gather x and y coordinates of datapoint
         point_coordinates = np.array(
             [x_points[datapoint_idx], y_points[datapoint_idx]],
@@ -1520,18 +1520,18 @@ def generate_virtual_fields_from_mesh(
     virtual_fields_mesh: VirtualFieldsMesh,
     plot_fields: bool = False,
 ) -> GlobalVirtualFields:
-    """Generate virtual fields that replicate the reference map as closely as possible, 
+    """Generate virtual fields that replicate the reference map as closely as possible,
     while also enforcing any required virtual boundary conditions.
-    
+
     Parameters
     ----------
     reference_map : ndarray
         Shape (n_timesteps, n_components, n_points_y, n_points_x).
         The reference strain map from which to generate virtual fields. e.g. stress sensitivity map
     virtual_fields_mesh : VirtualFieldsMesh
-        The virtual fields mesh data containing global strain-displacement matrix etc. for 
+        The virtual fields mesh data containing global strain-displacement matrix etc. for
         construction of virtual fields.
-        
+
     Returns
     -------
     GlobalVirtualFields
@@ -1557,16 +1557,16 @@ def generate_virtual_fields_from_mesh(
         # Extract strain values at valid (non-NaN) specimen data points (shape: n_components, n_specimen_points)
         strain_at_points = strain_map.reshape(n_components, -1)[
             :, virtual_fields_mesh.specimen_point_indices]
-        # Flatten to 1D array (shape: n_components * n_specimen_points) where 
-        # target_strain(0:n_specimen_points) correspond to component 0 
-        # target_strain(n_specimen_points:2*n_specimen_points) corresponds to component 1 etc. 
+        # Flatten to 1D array (shape: n_components * n_specimen_points) where
+        # target_strain(0:n_specimen_points) correspond to component 0
+        # target_strain(n_specimen_points:2*n_specimen_points) corresponds to component 1 etc.
         # This is the format expected by the global strain-displacement matrix
         target_strain = strain_at_points.ravel()
 
         # Set NaN values to zero. Will mask out later
         # TODO: This is a bit hacky and will bias the generated virtual fields
         # towards replicating zero strain at the NaN points, which may not be desirable.
-        # Ideally would modify the least squares solve to ignore NaN values rather than 
+        # Ideally would modify the least squares solve to ignore NaN values rather than
         # setting to zero, but the pesudoinverse is built for full system.
         target_strain = np.nan_to_num(target_strain, nan=0.0)
 

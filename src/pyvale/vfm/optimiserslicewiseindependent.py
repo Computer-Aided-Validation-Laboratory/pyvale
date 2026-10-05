@@ -388,9 +388,9 @@ def _build_slice_solve_data(
 ) -> LocalSliceData:
     """ Build all cached inputs needed to solve one slice independently.
 
-    This converts the global problem into a local problem for one slice, 
+    This converts the global problem into a local problem for one slice,
     for repeated solving.
-    
+
     The returned object contains:
     - the local slice force reconstruction data
     - the strain history for the points in the slice (filtered to only include points with finite strain histories)
@@ -410,7 +410,7 @@ def _build_slice_solve_data(
     )
 
     # Compute the temporal and spatial weights for this slice (optionally used in objective function)
-    #temporal weights are normalised by applied longitudinal force squared, 
+    #temporal weights are normalised by applied longitudinal force squared,
     # reducing sensitivity to low-load frames
     temporal_weights = compute_force_temporal_weights(
         applied_longitudinal_force
