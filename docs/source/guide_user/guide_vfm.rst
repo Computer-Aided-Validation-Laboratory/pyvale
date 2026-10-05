@@ -3,14 +3,38 @@
 VFM User Guide
 ==============
 
-The Virtual Fields Method (VFM) engine in ``pyvale`` identifies the parameters
-of a material constitutive model directly from full-field strain measurements
-(for example from digital image correlation) together with the global reaction
-force measured during a mechanical test. Rather than running a forward
-simulation and iterating a full finite-element model, the VFM uses the
-principle of virtual work to compare the *internal* virtual work predicted by a
-candidate set of material parameters against the *external* virtual work done
-by the measured boundary force, and drives an optimiser until the two agree.
+``pyvale.vfm`` (VFMAP: Virtual Fields Method with Automated
+Parameterisation) provides a toolkit for the inverse identification of
+constitutive parameters from full-field strain measurements. The current
+implementation is focused on the Virtual Fields Method (VFM)
+[PierronGrediac2012]_.
+
+The VFM combines measured strain fields with a postulated constitutive model
+and initial parameter estimates to reconstruct stress fields. The static
+admissibility of the reconstructed stress is assessed using the principle of
+virtual work (PVW), which compares internal and external virtual work. The
+identified parameters are those that minimise the residual of the PVW.
+
+This toolkit was originally developed during a PhD project at the University
+of Southampton [Hamill2024]_ and was developed further during a UKAEA research
+fellowship [HamillEtAl2026]_. Full acknowledgements and references are given in
+the :ref:`acknowledgements section <acknowledgements>`.
+
+The code is modular and extensible, allowing users to implement new
+constitutive models, identification methods and spatial parameterisations. The
+current implementation supports plane-stress elasto-plasticity with an
+isotropic von Mises yield surface and linear, Swift, Voce or Ludwik hardening.
+
+
+Release scope
+-------------
+
+This initial release supports homogeneous and slicewise parameterisations,
+sequential identification phases, adaptive slice refinement, sensitivity-based
+virtual fields (SBVF), force reconstruction error (FRE), and the equilibrium
+gap indicator (EGI). EGI is currently provided as a diagnostic metric. The
+automated basis-function workflow and combined EGI--FRE cost function described
+in the wider VFMAP methodology are not included in this release.
 
 The workflow has four steps:
 
@@ -22,7 +46,7 @@ The workflow has four steps:
 #. **Run** the identification and inspect the identified parameters.
 
 The complete runnable script for this guide is available in the
-:ref:`VFM quickstart example <examples_vfm>`.
+:ref:`homogeneous VFM example <sphx_glr_examples_vfm_vfm_ex1_hom.py>`.
 
 Everything below is available from the ``pyvale.vfm`` namespace::
 
@@ -41,6 +65,7 @@ writes a set of diagnostic images, and saves a portable ``ExperimentData``
 bundle to disk (an ``experiment_data.yaml`` file alongside ``.npy`` field
 arrays).
 
+The current input data processor has some preliminary support for Moose, Ansys and MatchID data.
 You describe the input with a solver-specific configuration
 (``MooseConfig`` or
 ``AnsysConfig``). Both configs require the
@@ -92,6 +117,17 @@ By default the strain components are read from the exodus keys
    ``AnsysConfig`` instead, which points at
    the individual coordinate, strain-component, force and time text files. The
    rest of the workflow is identical.
+
+   If the regular-grid arrays have already been assembled, use
+   ``AssembledDataConfig`` with ``x.npy``, ``y.npy``, ``strain.npy``,
+   ``force.npy`` and ``time.npy``. The repository utility
+   ``dev/vfm/prepare_assembled_input.py`` provides a minimal example.
+
+.. important::
+
+   The current VFM data contract uses millimetres for geometry and thickness,
+   MPa for stress-like constitutive parameters, newtons for force, and
+   dimensionless strain.
 
 After processing, inspect the ``diagnostic_images`` written into the run
 directory to confirm the fields were loaded and interpolated as expected before
@@ -169,18 +205,22 @@ is allowed to vary in space) with the *metric*, *objective function* and
   ``SpatialParameterisationHomogeneous``
   treats a parameter as a single value across the whole specimen. Use
   ``SpatialParameterisationKnown`` to fix
-  a parameter to its supplied map, or
-  ``SpatialParameterisationBasisFunction``
-  to let it vary smoothly in space.
-* **Metric** – ``MetricSBVF`` implements the
-  sensitivity-based virtual fields, evaluated on a virtual mesh whose size you
-  provide (e.g. ``np.array([15, 15])``).
+  a parameter to its supplied map. ``SliceWiseSpatialParameterisation`` assigns
+  one value to each region in a ``SupportSlice`` partition.
+* **Metric** – ``MetricSBVF`` implements sensitivity-based virtual fields
+  [MarekEtAl2017]_. ``SliceWiseForceReconstructionMetric`` evaluates the
+  reconstructed force in each slice [SuttonEtAl2008]_.
 * **Objective function** –
   ``VectorFirstResultPassthrough``
   passes the metric residual vector straight to a least-squares optimiser.
 * **Optimiser** –
   ``OptimiserLeastSquares`` drives the
-  parameter search.
+  general parameter search. ``SliceWiseIndependentLeastSquares`` can solve
+  fully independent slices in parallel.
+
+``EquilibriumGapMetric`` evaluates local stress-equilibrium discrepancies
+[DevivierEtAl2013]_. Its reported diagnostic is the dimensionless
+``Normalised equilibrium gap [-]``.
 
 .. code-block:: python
 
@@ -199,9 +239,9 @@ is allowed to vary in space) with the *metric*, *objective function* and
     ]
 
 When several phases are supplied they run in sequence, with the output of one
-phase becoming the initial guess for the next — useful, for example, to first
-identify the elastic parameters homogeneously and then refine the plastic
-parameters.
+phase becoming the initial guess for the next. For example, yield strength and
+hardening modulus can first be identified homogeneously before yield strength
+is refined slicewise while hardening remains homogeneous.
 
 Finally, combine the model, initial parameters and phases into a single
 ``IdentificationConfig``:
@@ -247,16 +287,83 @@ The result has two parts:
             for snapshot in snapshots:
                 print(phase_index, name, snapshot.dof_values)
 
-The result can be saved to disk with ``save_to_yaml``, which writes an
-``identification_result.yaml`` plus a sibling ``.npy`` file per parameter map.
-With no argument it creates a new ``vfm-identification-result_{timestamp}``
-directory in the current directory; pass a path to choose your own:
+The result can be saved to disk with ``save_to_yaml``. The run bundle contains
+``identification_result.yaml`` and ``final_parameter_maps.npz``; when final
+stress is available it also contains ``final_identified_stress.npz``. With no
+argument a new ``vfm-identification-result_{timestamp}`` directory is created
+in the current directory; pass a path to choose your own:
 
 .. code-block:: python
 
     result.save_to_yaml()          # vfm-identification-result_<timestamp>/
     result.save_to_yaml("my_run")  # my_run/
 
-The yaml records the parameter-map file names and the history inline, storing
-each spatial parameterisation as its type name and its list of
-degree-of-freedom values.
+The YAML manifest records the array file names, metadata and identification
+history, including the spatial parameterisations and solve results for each
+phase.
+
+
+Examples
+--------
+
+The release includes four self-contained examples using synthetic tensile
+data:
+
+#. :ref:`Homogeneous SBVF identification
+   <sphx_glr_examples_vfm_vfm_ex1_hom.py>`.
+#. :ref:`Parallel slicewise FRE identification and result analysis
+   <sphx_glr_examples_vfm_vfm_ex2_slicewise.py>`.
+#. :ref:`Slicewise identification with adaptive refinement
+   <sphx_glr_examples_vfm_vfm_ex3_slicewise_refinement.py>`.
+#. :ref:`Homogeneous SBVF followed by slicewise FRE
+   <sphx_glr_examples_vfm_vfm_ex4_hom_slicewise.py>`.
+
+
+.. _acknowledgements:
+
+Acknowledgements and references
+-------------------------------
+
+The VFMAP methodology and original toolkit were developed through the doctoral
+research of Robert Hamill at the University of Southampton in collaboration
+with the United Kingdom Atomic Energy Authority. Continued development and
+integration into PyVale were undertaken during a UKAEA research fellowship
+(supported by the Engineering and Physical Sciences Research Council under
+grant EP/W006839/1).
+
+.. [PierronGrediac2012] F. Pierron and M. Grédiac, *The Virtual Fields Method:
+   Extracting Constitutive Mechanical Parameters from Full-field Deformation
+   Measurements*, Springer, 2012.
+   `doi:10.1007/978-1-4614-1824-5
+   <https://doi.org/10.1007/978-1-4614-1824-5>`__.
+
+.. [Hamill2024] R. J. Hamill, *Development of a Methodology for the Automated
+   Spatial Mapping of Heterogeneous Elastoplastic Properties of Welded Joints*,
+   PhD thesis, University of Southampton, 2024.
+
+.. [HamillEtAl2026] R. Hamill, A. Harte, A. Marek and F. Pierron,
+   "Development of a methodology for the automated spatial mapping of
+   heterogeneous elastoplastic properties of welded joints", *Comptes Rendus
+   Mécanique*, 354 (2026), pp. 561--592.
+   `doi:10.5802/crmeca.371 <https://doi.org/10.5802/crmeca.371>`__.
+
+.. [SuttonEtAl2008] M. A. Sutton, J. H. Yan, S. Avril, F. Pierron and
+   S. M. Adeeb, "Identification of Heterogeneous Constitutive Parameters in a
+   Welded Specimen: Uniform Stress and Virtual Fields Methods for Material
+   Property Estimation", *Experimental Mechanics*, 48 (2008), no. 4,
+   pp. 451--464.
+   `doi:10.1007/s11340-008-9132-6
+   <https://doi.org/10.1007/s11340-008-9132-6>`__.
+
+.. [DevivierEtAl2013] C. Devivier, F. Pierron and M. R. Wisnom, "Impact Damage
+   Detection in Composite Plates Using Deflectometry and the Virtual Fields
+   Method", *Composites Part A: Applied Science and Manufacturing*, 48 (2013),
+   pp. 201--218.
+   `doi:10.1016/j.compositesa.2013.01.011
+   <https://doi.org/10.1016/j.compositesa.2013.01.011>`__.
+
+.. [MarekEtAl2017] A. Marek, F. M. Davis and F. Pierron, "Sensitivity-Based
+   Virtual Fields for the Non-Linear Virtual Fields Method", *Computational
+   Mechanics*, 60 (2017), no. 3, pp. 409--431.
+   `doi:10.1007/s00466-017-1411-6
+   <https://doi.org/10.1007/s00466-017-1411-6>`__.

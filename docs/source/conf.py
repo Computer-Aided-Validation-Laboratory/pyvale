@@ -132,7 +132,8 @@ sphinx_gallery_conf = {
         'examples/vfm',
     ],
     # Pattern to identify example files
-    'filename_pattern': '/plot_',
+    'filename_pattern': r'/(plot_|vfm_ex)',
+    'ignore_pattern': r'(?:__init__|synthetic_rectangular_tensile)\.py',
     # Specify that examples should be ordered according to filename
     'within_subsection_order': FileNameSortKey,
     # Directory where function granular galleries are stored

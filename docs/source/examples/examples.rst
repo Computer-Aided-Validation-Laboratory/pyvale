@@ -43,4 +43,4 @@ Virtual Fields Method
 .. toctree::
    :maxdepth: 2
 
-   examples_vfm
+   vfm/index
