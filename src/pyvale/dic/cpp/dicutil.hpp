@@ -11,14 +11,50 @@
 // STD library Header files
 #include <vector>
 #include <string>
+#include <ostream>
 
-// common_cpp header files
+// commoncpp header files
 
 // program Header files
 
 
 namespace util {
 
+    enum class ECorrCrit {
+        SSD,
+        NSSD,
+        ZNSSD
+    };
+
+    enum class EShapeFunc {
+        RIGID,
+        AFFINE,
+        QUAD
+    };
+
+    enum class EInterpRoutine {
+        BSPLINE,
+        HERMITE
+    };
+
+    enum class EScanMethod {
+        MULTIWINDOW_RG,
+        SINGLEWINDOW_RG,
+        MULTIWINDOW,
+        RASTER
+    };
+
+
+    enum class EIncrementalCond {
+        IMAGE,
+        ITER,
+        COST
+    };
+
+    enum class EFFTPrecision {
+        FLOAT32,
+        FLOAT64
+    };
 
     // Custom hash from above
     struct PairHash {
@@ -32,6 +68,8 @@ namespace util {
     struct Config {
         int ss_step;
         int ss_size;
+        double partial_subset = 1.0;
+        double partial_subset_multiwindow = 0.7;
         int max_iter;
         int px_hori;
         int px_vert;
@@ -39,17 +77,30 @@ namespace util {
         int num_params;
         double precision;
         double threshold;
-        double bf_threshold;
         int max_disp;
-        std::pair<int, int> rg_seed;
-        std::string corr_crit;
-        std::string shape_func;
-        std::string interp_routine;
-        std::string scan_method;
-        std::vector<std::string> filenames;
-        bool fft_mad;
-        double fft_mad_scale;
+        int epi_search_distance;
+        int epi_distance_threshold;
+        std::vector<int> rg_seeds;
+        ECorrCrit corr_crit;
+        EShapeFunc shape_func;
+        EInterpRoutine interp_routine;
+        EScanMethod scan_method;
+        std::vector<std::string> basenames;
+        std::vector<std::string> fullpaths;
+        bool fft_filter;
+        bool fft_save;
+        EFFTPrecision fft_precision;
+        double fft_filter_threshold;
+        int fft_filter_radius;
+        double fft_filter_corr_power;
         unsigned int debug_level;
+        bool stereo;
+        bool incremental;
+        EIncrementalCond incremental_update_cond;
+        double incremental_update_val;
+        int multiwindow_overlap;
+        std::vector<int> multiwindow_subset_size;
+        std::vector<int> multiwindow_search_area;
     };
 
 

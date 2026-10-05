@@ -9,26 +9,30 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # Pyvale
-from pyvale.sensorsim.cameradata import CameraData
+from pyvale.render.camera import Camera
 
 
 class RenderEngine(Enum):
     """Different render engines on Blender
     """
     CYCLES = "CYCLES"
-    EEVEE = "BLENDER_EEVEE_NEXT"
+    EEVEE = "BLENDER_EEVEE"
     WORKBENCH = "BLENDER_WORKBENCH"
 
 @dataclass(slots=True)
 class RenderData:
-    cam_data: CameraData | tuple[CameraData, CameraData]
+    cam_data: Camera | tuple[Camera, Camera]
     base_dir: Path | None = None
     dir_name: str = "images"
     samples: int = 2
     engine: RenderEngine = RenderEngine.CYCLES
+    device: str = "CPU"
     max_bounces: int = 12
     bit_size: int = 8
     threads:int = 4
+    seed: int = 0
+    use_denoising: bool = True
+    use_adaptive_sampling: bool = True
 
     def __post_init__(self) -> None:
         if self.base_dir is None:

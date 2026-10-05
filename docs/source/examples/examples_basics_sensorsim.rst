@@ -1,12 +1,12 @@
 .. _examples_sensorsim_basics:
 
-Sensor Simulation Basics
-========================
+Basic Sensor Simulation
+=======================
 
 .. toctree::
    :maxdepth: 1
 
-   basicsensorsim/ex0_quickstart.rst	
-   basicsensorsim/ex1_scalar_sensors.rst
-   basicsensorsim/ex2_vector_tensor_sensors.rst
-   basicsensorsim/ex3_experiment_simulator.rst
+   basicsensorsim/ex0_quickstart
+   basicsensorsim/ex1_scalar_sensors
+   basicsensorsim/ex2_vector_tensor_sensors
+   basicsensorsim/ex3_experiment_simulator

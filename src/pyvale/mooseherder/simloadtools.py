@@ -8,9 +8,10 @@ from pathlib import Path
 from multiprocessing.pool import Pool
 import numpy as np
 import pandas as pd
-from pyvale.mooseherder.simdata import SimData
-from pyvale.mooseherder.simloadopts import SimLoadOpts
-from pyvale.mooseherder.exceptions import SimLoadErr
+
+from pyvale.dataio.loadopts import SimLoadOpts
+from pyvale.dataio.simdata import SimData
+from pyvale.dataio.exceptions import SimLoadErr
 
 def str_to_path(default_path: Path, file: str | Path) -> Path:
     """Appends a string filename to a path or just returns a path to the file.
@@ -71,7 +72,8 @@ def load_field_files(fields_dir: Path,
         Header rows to skip for loading plain text files, starts at 0 to skip
         the first row. None does not skip any rows.
     frames : slice | None, optional
-        _description_, by default None
+        The frames or time steps to load, by default None. If None load all
+        frames.
     load_opts : SimLoadOpts | None, optional
         Options for loading the data including parallelisation and delimiter for
         plain text files, by default None
@@ -282,7 +284,7 @@ def load_connectivity(connect_dir: Path,
                       ) -> dict[str,np.ndarray]:
     """Loads the connectivity tables for all meshes in a given simulation into
     a dictionary keyed by the mesh name. The keys default to "connectX" where
-    X is an integer. Note that files with a .npy extension will be loaded as 
+    X is an integer. Note that files with a .npy extension will be loaded as
     numpy binary arrays and any other extension is treated as delimited plain
     text.
 
@@ -295,7 +297,7 @@ def load_connectivity(connect_dir: Path,
         Wildcard pattern used to identify connectivity files in the directory or
         list of file names in the given directory to load
     load_opts : SimLoadOpts
-        Options for loading the simulation data including header information 
+        Options for loading the simulation data including header information
         for the connectivity file.
 
     Returns
@@ -334,7 +336,7 @@ def load_connectivity(connect_dir: Path,
 def load_glob_vars(glob_file: Path,
                    glob_slices: dict[str,slice],
                    load_opts: SimLoadOpts) -> dict[str,np.ndarray]:
-    """Loads the global variables from disk into a dictionary. Examples of 
+    """Loads the global variables from disk into a dictionary. Examples of
     global simulation variables include: the maximum temperature or a reaction
     force.
 
@@ -345,7 +347,7 @@ def load_glob_vars(glob_file: Path,
         numpy binary with a .npy extension of plain text with any other
         extension.
     glob_slices : dict[str,slice]
-        Dictionary specifying which columns should be sliced to extract the 
+        Dictionary specifying which columns should be sliced to extract the
         named global variable.
     load_opts : SimLoadOpts
         Options for loading the simulation data.
@@ -354,7 +356,7 @@ def load_glob_vars(glob_file: Path,
     -------
     dict[str,np.ndarray]
         Dictionary containing the global variables keyed using the same keys
-        as provided in the 'glob_slices' dictionary above. 
+        as provided in the 'glob_slices' dictionary above.
 
     Raises
     ------
@@ -389,7 +391,7 @@ def check_sim_data_consistency(sim_data: SimData) -> None:
     Raises
     ------
     SimLoadErr
-        The nodal fields in the node_vars dictionary are dimensionally 
+        The nodal fields in the node_vars dictionary are dimensionally
         inconsistent with themselves, the coordinates or the time steps.
     """
     # Check that the number of nodes and time steps is consistent over all

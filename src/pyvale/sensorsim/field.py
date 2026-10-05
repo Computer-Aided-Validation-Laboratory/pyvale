@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from scipy.spatial.transform import Rotation
 import pyvista as pv
-import pyvale.mooseherder as mh
+from pyvale.dataio.simdata import SimData
 
 
 class IField(ABC):
@@ -18,27 +18,27 @@ class IField(ABC):
     """
 
     @abstractmethod
-    def set_sim_data(self,sim_data: mh.SimData) -> None:
+    def set_sim_data(self,sim_data: SimData) -> None:
         """Sets the SimData object that will be interpolated to obtain sensor 
         values. The purpose of this is to be able to apply the same sensor array 
         to an array of different simulations.
 
         Parameters
         ----------
-        sim_data : mh.SimData
+        sim_data : SimData
             Mooseherder SimData object. Contains a mesh and a simulated
             physical field.
         """
 
     @abstractmethod
-    def get_sim_data(self) -> mh.SimData:
+    def get_sim_data(self) -> SimData:
         """Gets the simulation data object associated with this field. Used by 
         pyvale visualisation tools to display simulation data with simulated 
         sensor values.
 
         Returns
         -------
-        mh.SimData
+        SimData
             Mooseherder SimData object. Contains a mesh and a simulated
             physical field.
         """

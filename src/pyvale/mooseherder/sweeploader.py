@@ -7,10 +7,10 @@ import os
 import json
 from pathlib import Path
 from multiprocessing.pool import Pool
+from pyvale.dataio.simdata import SimData, SimLoadConfig
 from pyvale.mooseherder.directorymanager import DirectoryManager
 import pyvale.mooseherder.directorymanager as dm
 from pyvale.mooseherder.exodusloader import ExodusLoader
-from pyvale.mooseherder.simdata import SimData, SimLoadConfig
 
 
 class SweepLoader:

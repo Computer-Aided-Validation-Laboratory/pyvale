@@ -26,7 +26,7 @@ class InputModifier:
     ) -> None:
         """Initialise the class by reading in the input file. Find and read
         any variables that are at the top of the file. Default comment_char
-        and end_char are set based on reading MOOSE *.i files.
+        and end_char are set based on reading MOOSE ``*.i`` files.
 
 
         Parameters

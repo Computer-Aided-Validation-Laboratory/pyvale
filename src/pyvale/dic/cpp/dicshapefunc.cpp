@@ -11,56 +11,45 @@
 #include <cmath>
 
 // Program Header files
-#include "./dicresults.hpp"
-
-namespace shapefunc {
-
-    // Function pointer 
-    void (*get_pixel)(double &, double &, const double, const double, const std::vector<double> &);
-    void (*get_dfdp)(std::vector<double>&, double, double, double, double);
-    void (*get_displacement)(OptResult &results, double ss_x, double ss_y, std::vector<double> &p);
-
+#include "./dicshapefunc.hpp"
 
     // Shape function declarations
-    inline void get_pixel_affine(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
+    void Affine::get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
         x_new = p[0] + (1.0+p[2]) * x + p[3] * y;
         y_new = p[1] + (1.0+p[5]) * y + p[4] * x;
     }
 
-    inline void get_pixel_rigid(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
+    void Rigid::get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
         x_new = p[0] + x;
         y_new = p[1] + y;
     }
 
-    inline void get_pixel_quad(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
+    void Quad::get_pixel(double &x_new, double &y_new, const double x, const double y, const std::vector<double> &p){
         x_new = p[0] + (1.0+p[2])*x + p[3]*y + p[6]*x*x + p[7]*x*y + p[8]*y*y;
         y_new = p[1] + (1.0+p[5])*y + p[4]*x + p[9]*x*x + p[10]*x*y + p[11]*y*y;
     }
 
-    inline void get_displacement_from_quad(OptResult &res, double ss_x, double ss_y, std::vector<double> &p){
-        double x_new = p[0] + (1.0+p[2])*ss_x + p[3]*ss_y + p[6]*ss_x*ss_x + p[7]*ss_x*ss_y + p[8]*ss_y*ss_y;
-        double y_new = p[1] + (1.0+p[5])*ss_y + p[4]*ss_x + p[9]*ss_x*ss_x + p[10]*ss_x*ss_y + p[11]*ss_y*ss_y;
-        res.u = x_new - ss_x;
-        res.v = y_new - ss_y;
-        res.mag = std::sqrt(res.u * res.u + res.v * res.v);
+    void Quad::get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p){
+        double x_new = p[0] + (1.0+p[2])*x + p[3]*y + p[6]*x*x + p[7]*x*y + p[8]*y*y;
+        double y_new = p[1] + (1.0+p[5])*y + p[4]*x + p[9]*x*x + p[10]*x*y + p[11]*y*y;
+        u = x_new - x;
+        v = y_new - y;
     }
 
-    inline void get_displacement_from_affine(OptResult &res, double ss_x, double ss_y, std::vector<double> &p){
-        double x_new = p[0] + (1.0+p[2]) * ss_x + p[3] * ss_y;
-        double y_new = p[1] + (1.0+p[5]) * ss_y + p[4] * ss_x;
-        res.u = x_new - ss_x;
-        res.v = y_new - ss_y;
-        res.mag = std::sqrt(res.u * res.u + res.v * res.v);
+    void Affine::get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p){
+        double x_new = p[0] + (1.0+p[2]) * x + p[3] * y;
+        double y_new = p[1] + (1.0+p[5]) * y + p[4] * x;
+        u = x_new - x;
+        v = y_new - y;
     }
 
-    inline void get_displacement_from_rigid(OptResult &res, double ss_x, double ss_y, std::vector<double> &p){
-        res.u = p[0];
-        res.v = p[1];
-        res.mag = std::sqrt(res.u*res.u + res.v*res.v);
+    void Rigid::get_displacement(double &u, double &v, const double x, const double y, const std::vector<double> &p){
+        u = p[0];
+        v = p[1];
     }
 
 
-    inline void get_daffine_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy){
+    void Affine::get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy){
         dfdp[0] = dfdx;
         dfdp[1] = dfdy;
         dfdp[2] = dfdx * x;
@@ -69,12 +58,12 @@ namespace shapefunc {
         dfdp[5] = dfdy * y;
     }
 
-    inline void get_drigid_dp(std::vector<double> &dfdp, double x, double y,  double dfdx, double dfdy){
+    void Rigid::get_dshape_dp(std::vector<double> &dfdp, const double x, const double y,  const double dfdx, const double dfdy){
             dfdp[0] = dfdx;
             dfdp[1] = dfdy;
     }
 
-    inline void get_dquad_dp(std::vector<double> &dfdp, double x, double y, double dfdx, double dfdy){
+    void Quad::get_dshape_dp(std::vector<double> &dfdp, const double x, const double y, const double dfdx, const double dfdy){
         dfdp[0]  = dfdx;
         dfdp[1]  = dfdy;
         dfdp[2]  = dfdx * x;
@@ -89,29 +78,134 @@ namespace shapefunc {
         dfdp[11] = dfdy * y*y;
     }
 
-
-    // Setter for the current function
-    void set(const std::string& shape_func) {
-        if (shape_func == "RIGID") {
-            get_pixel = get_pixel_rigid;
-            get_dfdp = get_drigid_dp;
-            get_displacement = get_displacement_from_rigid;
-        }
-        else if (shape_func == "AFFINE") {
-            get_pixel = get_pixel_affine;
-            get_dfdp = get_daffine_dp;
-            get_displacement = get_displacement_from_affine;
-        }
-        else if (shape_func == "QUAD") {
-            get_pixel = get_pixel_quad;
-            get_dfdp = get_dquad_dp;
-            get_displacement = get_displacement_from_quad;
-        }
-        else {
-            std::cerr << "Unexpected Shape Function: '" << shape_func << "'" << std::endl;
-            std::cerr << "Allowed Values: 'RIGID', 'AFFINE', 'QUAD'." << std::endl;
-            exit(EXIT_FAILURE);
-        }
+    void Rigid::compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB){
+        pC[0] = pA[0] + pB[0];
+        pC[1] = pA[1] + pB[1];
     }
 
+    void Affine::compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB){
+        pC[0] = pB[0] + (1.0+pB[2])*pA[0] + pB[3]*pA[1];
+        pC[1] = pB[1] + (1.0+pB[5])*pA[1] + pB[4]*pA[0];
+        pC[2] = (1.0+pB[2])*(1.0+pA[2]) + pB[3]*pA[4]  - 1.0;
+        pC[3] = (1.0+pB[2])*pA[3]       + pB[3]*(1.0+pA[5]);
+        pC[4] = (1.0+pB[5])*pA[4]       + pB[4]*(1.0+pA[2]);
+        pC[5] = (1.0+pB[5])*(1.0+pA[5]) + pB[4]*pA[3]  - 1.0;
+    }
+
+    void Quad::compose(std::vector<double> &pC, const std::vector<double> &pA, const std::vector<double> &pB){
+        pC[0] = pB[0] + (1.0+pB[2])*pA[0] + pB[3]*pA[1];
+        pC[1] = pB[1] + (1.0+pB[5])*pA[1] + pB[4]*pA[0];
+        pC[2] = (1.0+pB[2])*(1.0+pA[2]) + pB[3]*pA[4]  - 1.0;
+        pC[3] = (1.0+pB[2])*pA[3]       + pB[3]*(1.0+pA[5]);
+        pC[4] = (1.0+pB[5])*pA[4]       + pB[4]*(1.0+pA[2]);
+        pC[5] = (1.0+pB[5])*(1.0+pA[5]) + pB[4]*pA[3]  - 1.0;
+        pC[6]  = (1.0+pB[2])*pA[6]  + pB[3]*pA[9]  + pB[6]*(1.0+pA[2])*(1.0+pA[2]) + pB[7]*(1.0+pA[2])*pA[4]          + pB[9]*pA[4]*pA[4];
+        pC[7]  = (1.0+pB[2])*pA[7]  + pB[3]*pA[10] + pB[6]*2.0*(1.0+pA[2])*pA[3]   + pB[7]*((1.0+pA[2])*(1.0+pA[5]) + pA[3]*pA[4]) + pB[9]*2.0*pA[4]*(1.0+pA[5]);
+        pC[8]  = (1.0+pB[2])*pA[8]  + pB[3]*pA[11] + pB[6]*pA[3]*pA[3]             + pB[7]*pA[3]*(1.0+pA[5])           + pB[9]*(1.0+pA[5])*(1.0+pA[5]);
+        pC[9]  = pB[4]*pA[6]  + (1.0+pB[5])*pA[9]  + pB[9]*(1.0+pA[2])*(1.0+pA[2]) + pB[10]*(1.0+pA[2])*pA[4]         + pB[11]*pA[4]*pA[4];
+        pC[10] = pB[4]*pA[7]  + (1.0+pB[5])*pA[10] + pB[9]*2.0*(1.0+pA[2])*pA[3]   + pB[10]*((1.0+pA[2])*(1.0+pA[5]) + pA[3]*pA[4]) + pB[11]*2.0*pA[4]*(1.0+pA[5]);
+        pC[11] = pB[4]*pA[8]  + (1.0+pB[5])*pA[11] + pB[9]*pA[3]*pA[3]             + pB[10]*pA[3]*(1.0+pA[5])          + pB[11]*(1.0+pA[5])*(1.0+pA[5]);
+    }
+
+void Affine::compose_inverse(std::vector<double>& p_new,
+                     const std::vector<double>& p,
+                     const std::vector<double>& dp)
+{
+    // Build 2×2 warp matrices  A = I + Jp,  B = I + Jdp
+    const double A[2][2] = { {1.0 + p[2],        p[3]  },
+                              {       p[4],  1.0 + p[5] } };
+    const double B[2][2] = { {1.0 + dp[2],        dp[3] },
+                              {       dp[4], 1.0 + dp[5] } };
+
+    // Invert B
+    const double detB = B[0][0]*B[1][1] - B[0][1]*B[1][0];
+    const double invB[2][2] = { { B[1][1]/detB, -B[0][1]/detB },
+                                 {-B[1][0]/detB,  B[0][0]/detB } };
+
+    // C = A · invB
+    const double C[2][2] = {
+        { A[0][0]*invB[0][0] + A[0][1]*invB[1][0],
+          A[0][0]*invB[0][1] + A[0][1]*invB[1][1] },
+        { A[1][0]*invB[0][0] + A[1][1]*invB[1][0],
+          A[1][0]*invB[0][1] + A[1][1]*invB[1][1] }
+    };
+
+    // Translation:  t_new = t_p - C · t_dp
+    p_new[0] = p[0] - (C[0][0]*dp[0] + C[0][1]*dp[1]);
+    p_new[1] = p[1] - (C[1][0]*dp[0] + C[1][1]*dp[1]);
+
+    // Deformation gradient
+    p_new[2] = C[0][0] - 1.0;
+    p_new[3] = C[0][1];
+    p_new[4] = C[1][0];
+    p_new[5] = C[1][1] - 1.0;
+}
+
+void Rigid::compose_inverse(std::vector<double>& p_new,
+                     const std::vector<double>& p,
+                     const std::vector<double>& dp)
+{
+    // Build 2×2 warp matrices  A = I + Jp,  B = I + Jdp
+    const double A[2][2] = { {1.0 + p[2],        p[3]  },
+                              {       p[4],  1.0 + p[5] } };
+    const double B[2][2] = { {1.0 + dp[2],        dp[3] },
+                              {       dp[4], 1.0 + dp[5] } };
+
+    // Invert B
+    const double detB = B[0][0]*B[1][1] - B[0][1]*B[1][0];
+    const double invB[2][2] = { { B[1][1]/detB, -B[0][1]/detB },
+                                 {-B[1][0]/detB,  B[0][0]/detB } };
+
+    // C = A · invB
+    const double C[2][2] = {
+        { A[0][0]*invB[0][0] + A[0][1]*invB[1][0],
+          A[0][0]*invB[0][1] + A[0][1]*invB[1][1] },
+        { A[1][0]*invB[0][0] + A[1][1]*invB[1][0],
+          A[1][0]*invB[0][1] + A[1][1]*invB[1][1] }
+    };
+
+    // Translation:  t_new = t_p - C · t_dp
+    p_new[0] = p[0] - (C[0][0]*dp[0] + C[0][1]*dp[1]);
+    p_new[1] = p[1] - (C[1][0]*dp[0] + C[1][1]*dp[1]);
+
+    // Deformation gradient
+    p_new[2] = C[0][0] - 1.0;
+    p_new[3] = C[0][1];
+    p_new[4] = C[1][0];
+    p_new[5] = C[1][1] - 1.0;
+}
+
+
+void Quad::compose_inverse(std::vector<double>& p_new,
+                     const std::vector<double>& p,
+                     const std::vector<double>& dp)
+{
+    // Build 2×2 warp matrices  A = I + Jp,  B = I + Jdp
+    const double A[2][2] = { {1.0 + p[2],        p[3]  },
+                              {       p[4],  1.0 + p[5] } };
+    const double B[2][2] = { {1.0 + dp[2],        dp[3] },
+                              {       dp[4], 1.0 + dp[5] } };
+
+    // Invert B
+    const double detB = B[0][0]*B[1][1] - B[0][1]*B[1][0];
+    const double invB[2][2] = { { B[1][1]/detB, -B[0][1]/detB },
+                                 {-B[1][0]/detB,  B[0][0]/detB } };
+
+    // C = A · invB
+    const double C[2][2] = {
+        { A[0][0]*invB[0][0] + A[0][1]*invB[1][0],
+          A[0][0]*invB[0][1] + A[0][1]*invB[1][1] },
+        { A[1][0]*invB[0][0] + A[1][1]*invB[1][0],
+          A[1][0]*invB[0][1] + A[1][1]*invB[1][1] }
+    };
+
+    // Translation:  t_new = t_p - C · t_dp
+    p_new[0] = p[0] - (C[0][0]*dp[0] + C[0][1]*dp[1]);
+    p_new[1] = p[1] - (C[1][0]*dp[0] + C[1][1]*dp[1]);
+
+    // Deformation gradient
+    p_new[2] = C[0][0] - 1.0;
+    p_new[3] = C[0][1];
+    p_new[4] = C[1][0];
+    p_new[5] = C[1][1] - 1.0;
 }

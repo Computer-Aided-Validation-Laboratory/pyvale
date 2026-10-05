@@ -14,8 +14,8 @@
 #include <cmath>
 #include <omp.h>
 
-// common_cpp Header files
-#include "../../common_cpp/util.hpp"
+// commoncpp Header files
+#include "../../commoncpp/util.hpp"
 
 // DIC Header files
 #include "./dicutil.hpp"
@@ -23,17 +23,6 @@
 
 
 namespace util {
-
-
-    std::vector<int> niter_arr;
-    std::vector<double> u_arr;
-    std::vector<double> v_arr;
-    std::vector<double> p_arr;
-    std::vector<double> ftol_arr;
-    std::vector<double> xtol_arr;
-    std::vector<double> cost_arr;
-    std::vector<uint8_t> conv_arr;
-    bool at_end;
 
 
 

@@ -25,11 +25,11 @@ mesh-free interpolation.
 import copy
 import time
 import numpy as np
-import pyvale as pyv
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.mooseherder as mh
+import pyvale.dataio as io
 import pyvale.verif as verif
 
 

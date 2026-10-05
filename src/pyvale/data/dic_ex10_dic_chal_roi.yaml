@@ -1,0 +1,43 @@
+- type: PolyLineROI
+  points:
+  - - 465.4554535914519
+    - 187.05839153246757
+  - - 484.525009227421
+    - 1763.474990772579
+  - - 2037.6343738013481
+    - 1746.5242746517179
+  - - 1988.9010649538716
+    - 206.12794716843666
+  add: true
+- type: SeedROI
+  pos:
+  - 1554
+  - 1204
+  size:
+  - 25
+  - 25
+  add: true
+- type: SeedROI
+  pos:
+  - 842
+  - 1202
+  size:
+  - 25
+  - 25
+  add: true
+- type: SeedROI
+  pos:
+  - 770
+  - 301
+  size:
+  - 25
+  - 25
+  add: true
+- type: SeedROI
+  pos:
+  - 1880
+  - 551
+  size:
+  - 25
+  - 25
+  add: true

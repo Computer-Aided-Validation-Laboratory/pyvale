@@ -23,22 +23,23 @@ import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.dataset as dataset
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
+import pyvale.data as dataset
 
 #%%
 # 1. Load physics simulation data
 # -------------------------------
 
 data_path: Path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
 disp_keys = ("disp_x","disp_y","disp_z")
 norm_comp_keys = ("strain_xx","strain_yy","strain_zz")
-dev_comp_keys = ("strain_xy","strain_yz","strain_xz")
+dev_comp_keys = ("strain_xy", "strain_xz", "strain_yz")
 
-sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=disp_keys)
 

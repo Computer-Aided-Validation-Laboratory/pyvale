@@ -169,7 +169,7 @@ class PlotOptsGeneral:
 
 @dataclass(slots=True)
 class TraceOptsSensor:
-    """Dataclass for controlling the appearance of sensor trace plots including
+    r"""Dataclass for controlling the appearance of sensor trace plots including
     axis labels, line styles and time over which to plot the sensor traces. Note
     that latex symbols can be used in label strings by using a python raw string
     . For example: r"strain, $\epsilon$ [-]".

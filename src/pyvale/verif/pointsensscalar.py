@@ -8,10 +8,11 @@ import numpy as np
 
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
 import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensconst as pointsensconst
 import pyvale.verif.analyticsimdatafactory as asd
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 """
 DEVELOPER VERIFICATION MODULE
@@ -25,7 +26,7 @@ applied to scalar fields.
 
 # TODO: fix position locking for 3D field errors
 
-def simdata_2d() -> mh.SimData:
+def simdata_2d() -> io.SimData:
     data_path = dataset.thermal_2d_path()
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
     sim_data = sens.scale_length_units(scale=1000.0,
@@ -34,17 +35,18 @@ def simdata_2d() -> mh.SimData:
     return sim_data
 
 
-def simdata_2d_analytic() -> mh.SimData:
+def simdata_2d_analytic() -> io.SimData:
     (sim_data,_) = asd.scalar_linear_2d()
     return sim_data
 
-def simdata_2d_analytic_nomesh() -> mh.SimData:
+def simdata_2d_analytic_nomesh() -> io.SimData:
     (sim_data,_) = asd.scalar_linear_2d()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 
-def simdata_3d() -> mh.SimData:
+def simdata_3d() -> io.SimData:
     # Monoblock 3D thermal transient
     data_path = dataset.thermal_3d_path()
     sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
@@ -53,13 +55,14 @@ def simdata_3d() -> mh.SimData:
                                       disp_keys=None)
     return sim_data
 
-def simdata_3d_nomesh() -> mh.SimData:
+def simdata_3d_nomesh() -> io.SimData:
     sim_data = simdata_3d()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 
-def sens_pos_2d(sim_data: mh.SimData) -> dict[str,np.ndarray]:
+def sens_pos_2d(sim_data: io.SimData) -> dict[str,np.ndarray]:
     sim_dims = sens.simtools.get_sim_dims(sim_data)
     sens_pos = {}
 
@@ -85,13 +88,19 @@ def sens_pos_3d(sim_data) -> dict[str,np.ndarray]:
     x_lims = (sim_dims["x"][1],sim_dims["x"][1])
     y_lims = sim_dims["y"]
     z_lims = sim_dims["z"]
-    sens_pos["line-y-yz"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-y-yz"] = sens.gen_pos_grid_inside(n_sens,
+                                                     x_lims,
+                                                     y_lims,
+                                                     z_lims)
 
     n_sens = (1,4,1)
     x_lims = (9.4,9.4) # Monoblock offset front face
     y_lims = sim_dims["y"]
     z_lims = (sim_dims["z"][1],sim_dims["z"][1])
-    sens_pos["line-y-xy"] = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
+    sens_pos["line-y-xy"] = sens.gen_pos_grid_inside(n_sens,
+                                                     x_lims,
+                                                     y_lims,
+                                                     z_lims)
 
     return sens_pos
 
@@ -124,11 +133,11 @@ def sens_pos_3d_lock(sens_pos: np.ndarray) -> dict[str,np.ndarray]:
     return pos_lock
 
 
-def sens_data_2d_dict(sim_data: mh.SimData) -> dict[str,sens.SensorData]:
+def sens_data_2d_dict(sim_data: io.SimData) -> dict[str,sens.SensorData]:
     return pointsens.sens_data_dict(sim_data,sens_pos_2d(sim_data))
 
 
-def sens_data_3d_dict(sim_data: mh.SimData) -> dict[str,sens.SensorData]:
+def sens_data_3d_dict(sim_data: io.SimData) -> dict[str,sens.SensorData]:
     return pointsens.sens_data_dict(sim_data,sens_pos_3d(sim_data))
 
 
@@ -265,7 +274,7 @@ def err_chain_3d_dict(field: sens.IField,
     return err_cases
 
 
-def sens_array_noerrs(sim_data: mh.SimData,
+def sens_array_noerrs(sim_data: io.SimData,
                       sens_data: sens.SensorData,
                       spatial_dims: sens.EDim) -> sens.SensorsPoint:
 
@@ -281,7 +290,7 @@ def sens_array_noerrs(sim_data: mh.SimData,
     return sens_array
 
 
-def gen_sens_array_dict_2d(sim_data: mh.SimData,
+def gen_sens_array_dict_2d(sim_data: io.SimData,
                     sens_data_dict: dict[str, sens.SensorData],
                     tag: str
                     ) -> dict[str, sens.SensorsPoint]:
@@ -314,7 +323,7 @@ def gen_sens_array_dict_2d(sim_data: mh.SimData,
 
     return sens_dict
 
-def gen_sens_array_dict_3d(sim_data: mh.SimData,
+def gen_sens_array_dict_3d(sim_data: io.SimData,
                            sens_data_dict: dict[str,sens.SensorData],
                            tag: str,
                            ) -> dict[str,sens.SensorsPoint]:

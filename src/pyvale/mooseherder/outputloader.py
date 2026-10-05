@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 from abc import ABC, abstractmethod
-from pyvale.mooseherder.simdata import SimData, SimLoadConfig
+from pyvale.dataio.simdata import SimData, SimLoadConfig
 
 
 class IOutputLoader(ABC):

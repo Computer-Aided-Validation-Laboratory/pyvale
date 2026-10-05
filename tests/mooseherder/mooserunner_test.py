@@ -11,46 +11,56 @@ import pytest
 from pyvale.mooseherder.mooserunner import MooseRunner
 import tests.mooseherder.herdchecker as hc
 
-MOOSE_INPUT_PATH = Path.cwd()/"tests"/"mooseherder"/"moose"
+MOOSE_INPUT_PATH = Path(__file__).resolve().parent / "moose"
+
+
+def _clean_moose_runner_outputs(input_dir: Path | None) -> None:
+    if input_dir is not None and input_dir.is_dir():
+        for ff in input_dir.glob("*.e"):
+            ff.unlink(missing_ok=True)
+        for ff in input_dir.glob("*stdout.processor*"):
+            ff.unlink(missing_ok=True)
+
 
 @pytest.fixture()
 def runner() -> MooseRunner:
+    if not hc.moose_present:
+        pytest.skip("MOOSE app not installed at the expected path")
     moose_config = hc.create_moose_config()
     return MooseRunner(moose_config)
+
 
 @pytest.fixture()
 def input_path() -> Path:
     return MOOSE_INPUT_PATH / "moose-test.i"
 
+
 @pytest.fixture()
 def input_noexist() -> Path:
     return MOOSE_INPUT_PATH / "moose-test-noexist.i"
+
 
 @pytest.fixture()
 def input_broken() -> Path:
     return MOOSE_INPUT_PATH / "moose-test-broken.i"
 
+
 @pytest.fixture()
 def input_runner(input_path: Path) -> MooseRunner:
+    if not hc.moose_present:
+        pytest.skip("MOOSE app not installed at the expected path")
     moose_config = hc.create_moose_config()
     my_runner = MooseRunner(moose_config)
     my_runner.set_input_file(input_path)
     return my_runner
 
+
 @pytest.fixture(autouse=True)
 def setup_teardown(input_runner: MooseRunner):
-    # Setup here
+    input_dir = input_runner.get_input_dir()
+    _clean_moose_runner_outputs(input_dir)
     yield
-    # Teardown here - remove output exodus files
-    moose_files = os.listdir(input_runner.get_input_dir())
-    for ff in moose_files:
-        if '.e' in ff:
-            os.remove(input_runner.get_input_dir() / ff) # type: ignore
-
-    stdout_files = os.listdir(input_runner.get_input_dir())
-    for ff in stdout_files:
-        if 'stdout.processor' in ff:
-            os.remove(input_runner.get_input_dir() / ff) # type: ignore
+    _clean_moose_runner_outputs(input_dir)
 
 def test_set_env_vars(runner: MooseRunner) -> None:
     runner.set_env_vars()

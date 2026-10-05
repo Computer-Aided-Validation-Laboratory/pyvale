@@ -6,7 +6,7 @@
 
 import enum
 import numpy as np
-from pyvale.mooseherder.simdata import SimData
+from pyvale.dataio.simdata import SimData
 
 
 class EDataCheck(enum.Enum):
@@ -53,9 +53,6 @@ def match_sim_data_get_fails(data0: SimData, data1: SimData) -> list[str]:
                     fails.append(f"{dd}: {data_checks[dd].name}")
 
     return fails
-
-
-
 
 
 def _check_sim_data_field(data0: np.ndarray | None,

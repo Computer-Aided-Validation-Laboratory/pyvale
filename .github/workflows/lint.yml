@@ -15,15 +15,16 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
           sudo apt update
           sudo apt install libegl1
           sudo apt install libgl1 libxext6 libx11-6
+          sudo apt install libtiff-dev libtiff-tools
           python -m pip install --upgrade pip
           pip install pylint
           pip install -e .

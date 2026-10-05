@@ -5,11 +5,25 @@
 #===============================================================================
 
 from .dic2d import calculate_2d
-from .dicdataimport import import_2d
+from .dic3d import calculate_3d
+from .dicimport2d import import_2d
+from .dicimport3d import import_3d
 from .dicregionofinterest import RegionOfInterest
 from .dicresults import Results
+from .dicenum import EScanMethod, EShape, ECorrCrit, EInterp, EIncrementalMethod
+from .diccpp import Bspline, Interpolator
+
 
 __all__ = ["calculate_2d",
+           "calculate_3d",
            "RegionOfInterest",
            "import_2d",
-           "Results"]
+           "import_3d",
+           "Bspline",
+           "Interpolator",
+           "Results",
+           "EScanMethod",
+           "EShape",
+           "ECorrCrit",
+           "EInterp",
+           "EIncrementalMethod"]

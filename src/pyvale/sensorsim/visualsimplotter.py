@@ -9,6 +9,7 @@
 import pyvista as pv
 
 import pyvale.mooseherder as mh
+import pyvale.dataio as io
 
 from pyvale.sensorsim.sensorspoint import SensorsPoint
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_vis
@@ -99,7 +100,7 @@ def add_sensor_points_pert(pv_plot: pv.Plotter,
     return pv_plot
 
 
-def plot_sim_mesh(sim_data: mh.SimData,
+def plot_sim_mesh(sim_data: io.SimData,
                   vis_opts: VisOptsSimSensors | None = None,
                   ) -> pv.Plotter:
 
@@ -120,7 +121,7 @@ def plot_sim_mesh(sim_data: mh.SimData,
     return pv_plot
 
 
-def plot_sim_data(sim_data: mh.SimData,
+def plot_sim_data(sim_data: io.SimData,
                   component: str,
                   time_step: int = -1,
                   vis_opts: VisOptsSimSensors | None = None

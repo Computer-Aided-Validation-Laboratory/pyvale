@@ -9,14 +9,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-14, macos-15-intel, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-14, macos-26]
         include:
         - os: macos-14
           llvm: llvm@15
-        - os: macos-15-intel
-          llvm: llvm@18
-        - os: macos-15-latest
-          llvm: llvm@18
+        - os: macos-26
+          llvm: llvm@20
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +24,7 @@ jobs:
           brew install libomp
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v4.0.0
         with:
           package-dir: .
           output-dir: wheelhouse

@@ -18,6 +18,12 @@
 
 namespace smooth {
 
+    // Coordinates are relative to the evaluation centre; false means an invalid fit.
+    bool fit_displacements(const std::vector<double> &x, const std::vector<double> &y,
+                           const std::vector<double> &u, const std::vector<double> &v,
+                           const std::vector<double> &w, int q, Eigen::MatrixXd &coefficients);
+
+
     /**
      * @brief 
      * 
@@ -26,7 +32,7 @@ namespace smooth {
      * @param[in] disp_vals 
      * @return Eigen::VectorXd A vector of coefficients for a bilinear fit inside strain window
      */
-    Eigen::VectorXd q4(std::vector<int> &x, std::vector<int> &y, std::vector<double>& disp_vals);
+    Eigen::VectorXd q4(const std::vector<double> &x, const std::vector<double> &y, const std::vector<double>& disp_vals);
 
     /**
      * @brief 
@@ -36,7 +42,7 @@ namespace smooth {
      * @param[in] disp_vals 
      * @return Eigen::VectorXd  A vector of coefficients for a bilinear fit inside strain window
      */
-    Eigen::VectorXd q9(std::vector<int> &x, std::vector<int> &y, std::vector<double>& disp_vals);
+    Eigen::VectorXd q9(const std::vector<double> &x, const std::vector<double> &y, const std::vector<double>& disp_vals);
 
     /**
      * @brief 
