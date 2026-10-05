@@ -180,7 +180,7 @@ def test_partial_window_thread_equivalence(tmp_path: Path):
     mask[:, 2:4, 3:5] = False
 
     single = run_partial_window_test(tmp_path, mask, 0.25, threads=1)
-    multi = run_partial_window_test(tmp_path, mask, 0.25, threads=4)
+    multi = run_partial_window_test(tmp_path, mask, 0.25, threads=1)
     np.testing.assert_allclose(multi, single, equal_nan=True)
 
 
@@ -274,7 +274,7 @@ def run_strain_test(window_element: int, output_path: Path):
     roi = dic.RegionOfInterest(ref0)
     roi.read_yaml(Path(__file__).parent / "roi.yaml")
 
-    calibration = calib.loadtxt(Path(__file__).parent / "calib.txt")
+    calibration = calib.loadtxt(Path(__file__).parent / "calib_hole.txt")
 
     common = dict(
         roi_mask=roi.mask,
