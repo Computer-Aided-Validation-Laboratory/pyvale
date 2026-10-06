@@ -38,6 +38,7 @@
 #include "./dicmultiwindow_only.hpp"
 #include "./dicsinglewindow_rg.hpp"
 #include "./dicrasterscan.hpp"
+#include "./dicfilter.hpp"
 
 // stereo header files
 #include "./stereoutil.hpp"
@@ -506,10 +507,13 @@ void engine(const py::array_t<bool>& img_roi_arr,
             const MultiwindowConfig &mwconf,
             const common_util::SaveConfig &saveconf){
 
-    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf,
-                [&](int image_index) {
-                    return make_interp(conf.interp_routine, conf.fullpaths.at(image_index));
-                });
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
+
+        Image image = read_img(conf.fullpaths.at(image_index));
+        apply_filter(image, conf.image_filter_kernel, static_cast<float>(conf.image_filter_sigma));
+        return make_interp(conf.interp_routine, image);
+
+    });
 }
 
 void engine_images(const std::vector<Image>& images,
@@ -534,23 +538,15 @@ void engine_images(const std::vector<Image>& images,
         }
     }
 
-    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf,
-                [&](int image_index) {
-                    return make_interp(conf.interp_routine, images.at(image_index));
-                });
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
+
+        Image image = images.at(image_index);
+        apply_filter(image, conf.image_filter_kernel, static_cast<float>(conf.image_filter_sigma));
+        return make_interp(conf.interp_routine, image);
+
+    });
 }
 
-void build_info(){
-        //std::cout << "Buld Information:" << std::endl;
-        //INFO_OUT("- g++ version:", CPUCOMP);
-        //INFO_OUT("- Co
-        //INFO_OUT("- Git SHA:", GITINFO);
-        //INFO_OUT("- Number of dirty files:", GITDIRTY);
-        //INFO_OUT("- Compiled on Machine:", HOSTNAME);
-        //INFO_OUT("- Compiled on OS:", OSNAME);
-        //INFO_OUT("- Compiled at:", BUILDTIME);
-        //std::cout << std::endl;
-}
 
 bool should_update_ref(const int img_num_def_l, const ResultArrays& results, const util::Config& conf) {
 
