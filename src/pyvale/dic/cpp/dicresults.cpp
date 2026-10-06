@@ -14,9 +14,12 @@
 
 // commoncpp header files
 #include "../../commoncpp/util.hpp"
+#include "../../commoncpp/csvbuffer.hpp"
 
 // DIC Header files
 #include "./dicresults.hpp"
+
+
 
 
 
@@ -254,6 +257,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
     else {
 
         outfile.open(outfile_str.str());
+        common_util::CsvBuffer csv(outfile, delimiter, saveconf.precision);
 
         // column headers
         outfile << "\"subset_x\"" <<  delimiter;
@@ -267,7 +271,6 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
         outfile << "\"xtol\"" <<  delimiter;
         outfile << "\"num_iter\"" << delimiter;
 
-        // column headers for shape parameters
         // if (saveconf.shape_params) {
         //     for (int p = 0; p < num_params; p++){
         //         outfile << "\"shape_p\"" <<  p;
@@ -299,18 +302,17 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             // displacement magnitude
             double mag = std::sqrt(u[i]*u[i]+v[i]*v[i]);
 
-            outfile << ss_x << delimiter;
-            outfile << ss_y << delimiter;
-            outfile << u[i] << delimiter;
-            outfile << v[i] << delimiter;
-            outfile << mag << delimiter;
-            outfile << static_cast<int>(conv[i]) << delimiter;
-            outfile << cost[i] << delimiter;
-            outfile << ftol[i] << delimiter;
-            outfile << xtol[i] << delimiter;
-            outfile << niter[i];
+            csv.field(ss_x);
+            csv.field(ss_y);
+            csv.field(u[i]);
+            csv.field(v[i]);
+            csv.field(mag);
+            csv.field(static_cast<int>(conv[i]));
+            csv.field(cost[i]);
+            csv.field(ftol[i]);
+            csv.field(xtol[i]);
+            csv.field(niter[i], true);
 
-            // write shape parameters if requested
             // if (saveconf.shape_params) {
             //     for (int pp = 0; pp < num_params; pp++){
             //         outfile << delimiter;
@@ -319,10 +321,11 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             // }
 
             // newline after each subset
-            outfile << "\n";
+            csv.newline();
 
 
         }
+        csv.flush();
         outfile.close();
     }
 }
@@ -433,6 +436,7 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
     else {
 
         outfile.open(outfile_str.str());
+        common_util::CsvBuffer csv(outfile, delimiter, saveconf.precision);
 
         // column headers
         outfile << "\"subset_x\"" <<  delimiter;
@@ -460,7 +464,6 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
         outfile << "\"stereo_xtol\"" <<  delimiter;
         outfile << "\"stereo_num_iter\"" << delimiter;
         outfile << "\"epi_dist_px\"";
-        // column headers for shape parameters
         // if (saveconf.shape_params) {
         //     for (int p = 0; p < num_params; p++){
         //         outfile << "\"shape_p\"" <<  p;
@@ -510,33 +513,32 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
             double mag_stereo = std::sqrt(out_stereo_u*out_stereo_u+out_stereo_v*out_stereo_v);
 
 
-            outfile << ss_x << delimiter;
-            outfile << ss_y << delimiter;
-            outfile << out_u << delimiter;
-            outfile << out_v << delimiter;
-            outfile << mag_<< delimiter;
-            outfile << static_cast<int>(conv[i]) << delimiter;
-            outfile << out_cost << delimiter;
-            outfile << out_ftol << delimiter;
-            outfile << out_xtol << delimiter;
-            outfile << niter[i] << delimiter;
-            outfile << out_stereo_u << delimiter;
-            outfile << out_stereo_v << delimiter;
-            outfile << mag_stereo << delimiter;
-            outfile << out_u_world << delimiter;
-            outfile << out_v_world << delimiter;
-            outfile << out_w_world << delimiter;
-            outfile << out_x_world << delimiter;
-            outfile << out_y_world << delimiter;
-            outfile << out_z_world << delimiter;
-            outfile << static_cast<int>(stereo.conv[i]) << delimiter;
-            outfile << out_stereo_cost << delimiter;
-            outfile << out_stereo_ftol << delimiter;
-            outfile << out_stereo_xtol << delimiter;
-            outfile << stereo.niter[i] << delimiter;
-            outfile << stereo.epi_dist_px[i];
+            csv.field(ss_x);
+            csv.field(ss_y);
+            csv.field(out_u);
+            csv.field(out_v);
+            csv.field(mag_);
+            csv.field(static_cast<int>(conv[i]));
+            csv.field(out_cost);
+            csv.field(out_ftol);
+            csv.field(out_xtol);
+            csv.field(niter[i]);
+            csv.field(out_stereo_u);
+            csv.field(out_stereo_v);
+            csv.field(mag_stereo);
+            csv.field(out_u_world);
+            csv.field(out_v_world);
+            csv.field(out_w_world);
+            csv.field(out_x_world);
+            csv.field(out_y_world);
+            csv.field(out_z_world);
+            csv.field(static_cast<int>(stereo.conv[i]));
+            csv.field(out_stereo_cost);
+            csv.field(out_stereo_ftol);
+            csv.field(out_stereo_xtol);
+            csv.field(stereo.niter[i]);
+            csv.field(stereo.epi_dist_px[i], true);
 
-            // write shape parameters if requested
             // if (saveconf.shape_params) {
             //     for (int pp = 0; pp < num_params; pp++){
             //         outfile << delimiter;
@@ -545,10 +547,11 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
             // }
 
             // newline after each subset
-            outfile << "\n";
+            csv.newline();
 
 
         }
+        csv.flush();
         outfile.close();
     }
 }

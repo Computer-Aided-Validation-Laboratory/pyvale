@@ -26,7 +26,8 @@ PYBIND11_MODULE(commoncpp, m) {
         .def_readwrite("prefix", &common_util::SaveConfig::prefix)
         .def_readwrite("delimiter", &common_util::SaveConfig::delimiter)
         .def_readwrite("output_below_threshold", &common_util::SaveConfig::output_below_threshold)
-        .def_readwrite("shape_params", &common_util::SaveConfig::shape_params);
+        .def_readwrite("shape_params", &common_util::SaveConfig::shape_params)
+        .def_readwrite("precision", &common_util::SaveConfig::precision);
 
     m.def("set_num_threads", &common_util::set_num_threads, "Set number of OMP threads");
     m.def("get_num_threads", &common_util::get_num_threads, "Get number of OMP threads");

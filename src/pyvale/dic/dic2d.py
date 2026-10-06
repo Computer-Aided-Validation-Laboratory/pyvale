@@ -50,6 +50,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  output_delimiter: str=",",
                  output_below_threshold: bool=False,
                  output_shape_params: bool=False,
+                 output_precision: int = 8,
                  partial_subset: float=1.0,
                  partial_subset_multiwindow: float=0.7,
                  image_filter_kernel: int=5,
@@ -168,6 +169,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
         changed to ``".csv"`` or ``".dic2d"`` depending on whether outputting as a binary.
     output_delimiter : str, optional
         Delimiter used in text output files (default: ``","``).
+    output_precision : int, optional
+        Number of significant digits used when writing floating-point CSV output (default: ``8``).
     output_below_threshold : bool, optional
         If True, subset results with cost values that did not exceed the cost threshold
         will still be present in output (default: ``False``).
@@ -298,6 +301,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     saveconf.delimiter = output_delimiter
     saveconf.output_below_threshold = output_below_threshold
     saveconf.shape_params = output_shape_params
+    saveconf.precision = output_precision
 
 
     #TODO: sort this out so you can actually read in intrinsic parameters for

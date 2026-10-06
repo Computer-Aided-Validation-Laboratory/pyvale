@@ -46,6 +46,7 @@ namespace common_util {
         bool binary;
         bool output_below_threshold;
         bool shape_params;
+        int precision = 8;
     };
 
     std::string current_datetime_ms();

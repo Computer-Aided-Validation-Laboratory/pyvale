@@ -27,6 +27,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
               output_binary: bool=False,
               output_prefix: str="strain_",
               output_delimiter: str=",",
+              output_precision: int = 8,
               num_threads: int | None = None,
               strain_formulation: Literal["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"] = "HENCKY",
               print_level: int=1,
@@ -67,6 +68,8 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
         changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional
         Delimiter used in text output files (default: ",").
+    output_precision : int, optional
+        Number of significant digits used when writing floating-point CSV output (default: 8).
     partial_window : float, optional
         Minimum occupied fraction of the full window, in [0, 1] (default: 0).
         Missing and out-of-grid points count as unoccupied. Q4/Q9 still require 4/9
@@ -134,6 +137,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
     strain_save_conf.binary = output_binary
     strain_save_conf.prefix = output_prefix
     strain_save_conf.delimiter = output_delimiter
+    strain_save_conf.precision = output_precision
 
     if dicresults.stereo is None:
         raise ValueError("3D strain calculation requires DIC Results with stereo data.")

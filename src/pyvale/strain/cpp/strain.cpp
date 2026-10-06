@@ -5,11 +5,13 @@
 // ================================================================================
 
 // STD library Header files
+#include <charconv>
 #include <cmath>
 #include <omp.h>
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #include <fstream>
 #include <signal.h>
 #include <functional>
@@ -28,6 +30,7 @@
 #include "../../commoncpp/progressbar.hpp"
 #include "../../commoncpp/defines.hpp"
 #include "../../commoncpp/util.hpp"
+#include "../../commoncpp/csvbuffer.hpp"
 
 // Program Header files
 #include "./smooth.hpp"
@@ -36,6 +39,8 @@
 namespace py = pybind11;
 
 namespace strain {
+
+
 
     Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
 
@@ -599,6 +604,7 @@ namespace strain {
         else
         {
             outfile.open(outfile_str.str());
+            common_util::CsvBuffer csv(outfile, delimiter, strain_save_conf.precision);
 
             outfile << "\"window_x\"" << delimiter
                     << "\"window_y\"" << delimiter
@@ -620,27 +626,28 @@ namespace strain {
             {
                 if (results.valid_window[i])
                 {
-                    outfile << results.x[i] << delimiter;
-                    outfile << results.y[i] << delimiter;
-                    outfile << results.x_mm[i] << delimiter;
-                    outfile << results.y_mm[i] << delimiter;
-                    outfile << results.z_mm[i] << delimiter;
+                    csv.field(results.x[i]);
+                    csv.field(results.y[i]);
+                    csv.field(results.x_mm[i]);
+                    csv.field(results.y_mm[i]);
+                    csv.field(results.z_mm[i]);
 
                     for (int k = 0; k < def_size; ++k)
                     {
-                        outfile << results.F[def_size * i + k] << delimiter;
+                        csv.field(results.F[def_size * i + k]);
                     }
 
                     for (int k = 0; k < tensor_size; ++k)
                     {
-                        outfile << results.strain[tensor_size * i + k];
-                        if (k != tensor_size - 1) outfile << delimiter;
+                        csv.field(results.strain[tensor_size * i + k],
+                                  k == tensor_size - 1);
                     }
 
-                    outfile << "\n";
+                    csv.newline();
                 }
             }
 
+            csv.flush();
             outfile.close();
         }
     }
