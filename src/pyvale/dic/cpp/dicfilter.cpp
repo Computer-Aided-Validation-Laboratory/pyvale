@@ -39,24 +39,27 @@ void apply_filter(Image& img, int kernel_size, float sigma) {
     switch (img.type) {
     case PixelType::UINT8: {
         img.data32f.resize(width * height);
+        #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < img.data8.size(); ++i)
             img.data32f[i] = static_cast<float>(img.data8[i]);
-        img.data8.clear();
+        std::vector<uint8_t>().swap(img.data8);
         break;
     }
     case PixelType::UINT16: {
         img.data32f.resize(width * height);
+        #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < img.data16.size(); ++i)
             img.data32f[i] = static_cast<float>(img.data16[i]);
-        img.data16.clear();
+        std::vector<uint16_t>().swap(img.data16);
         break;
     }
 
     case PixelType::UINT32: {
         img.data32f.resize(width * height);
+        #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < img.data32.size(); ++i)
             img.data32f[i] = static_cast<float>(img.data32[i]);
-        img.data32.clear();
+        std::vector<uint32_t>().swap(img.data32);
         break;
     }
     case PixelType::UINT32F:
@@ -82,38 +85,47 @@ void apply_filter(Image& img, int kernel_size, float sigma) {
     for (float& v : kernel)
         v /= sum;
 
-    // temporary image buffer
-    std::vector<float> tmp(width * height);
+    #pragma omp parallel
+    {
+        std::vector<float> line(static_cast<size_t>(std::max(width, height)));
 
-    // horizontal pass
-    #pragma omp parallel for schedule(static)
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
+        #pragma omp for schedule(static)
+        for (int y = 0; y < height; ++y) {
 
-            float accum = 0.0f;
+            const size_t row = static_cast<size_t>(y) * width;
+            std::copy_n(img.data32f.begin() + row, width, line.begin());
 
-            for (int k = -radius; k <= radius; ++k) {
-                int xx = std::clamp(x + k, 0, width - 1);
-                accum += img.data32f[y * width + xx] * kernel[k + radius];
+            for (int x = 0; x < width; ++x) {
+
+                float accum = 0.0f;
+
+                for (int k = -radius; k <= radius; ++k) {
+                    const int xx = std::clamp(x + k, 0, width - 1);
+                    accum += line[xx] * kernel[k + radius];
+                }
+
+                img.data32f[row + x] = accum;
             }
-
-            tmp[y * width + x] = accum;
         }
-    }
 
-    // vertical pass
-    #pragma omp parallel for schedule(static)
-    for (int y = 0; y < height; ++y) {
+        #pragma omp for schedule(static)
         for (int x = 0; x < width; ++x) {
 
-            float accum = 0.0f;
-
-            for (int k = -radius; k <= radius; ++k) {
-                int yy = std::clamp(y + k, 0, height - 1);
-                accum += tmp[yy * width + x] * kernel[k + radius];
+            for (int y = 0; y < height; ++y) {
+                line[y] = img.data32f[static_cast<size_t>(y) * width + x];
             }
 
-            img.data32f[y * width + x] = accum;
+            for (int y = 0; y < height; ++y) {
+
+                float accum = 0.0f;
+
+                for (int k = -radius; k <= radius; ++k) {
+                    const int yy = std::clamp(y + k, 0, height - 1);
+                    accum += line[yy] * kernel[k + radius];
+                }
+
+                img.data32f[static_cast<size_t>(y) * width + x] = accum;
+            }
         }
     }
 }
