@@ -40,7 +40,7 @@ void multiwindow_init(std::vector<WindowLevel> &level,
     for (size_t lvl = 0; lvl < mwconf.overlap.size(); lvl++) {
 
         const bool is_last = (lvl == mwconf.overlap.size() - 1);
-        const subset::Grid *prev = (lvl > 0) ? &level[lvl-1].layout : nullptr;
+        const SubsetGrid *prev = (lvl > 0) ? &level[lvl-1].layout : nullptr;
 
         level.emplace_back(img_roi, 
                            mwconf.overlap[lvl], 
@@ -66,7 +66,7 @@ void multiwindow_init_partial(std::vector<WindowLevel> &level,
     for (size_t lvl = 0; lvl < num_levels; lvl++) {
         
         const bool is_last = (lvl == mwconf.overlap.size() - 1);
-        const subset::Grid *prev = (lvl > 0) ? &level[lvl-1].layout : nullptr;
+        const SubsetGrid *prev = (lvl > 0) ? &level[lvl-1].layout : nullptr;
 
         level.emplace_back(img_roi,
                            mwconf.overlap[lvl],
@@ -81,7 +81,7 @@ void multiwindow_init_partial(std::vector<WindowLevel> &level,
     }
 }
 
-void WindowLevel::gen_neighlist(const subset::Grid &layout_prev) {
+void WindowLevel::gen_neighlist(const SubsetGrid &layout_prev) {
 
     //Timer timer("nearest neighbour collection for :");
 
@@ -277,10 +277,10 @@ void WindowLevel::calc_rigid_displacements(const WindowLevel &prev,
         #endif
         {
             if (fft_precision == util::EFFTPrecision::FLOAT32) {
-                FFTf fft(search_area, search_area, false);
+                FFTf fft(search_area, search_area);
                 run_fft_loop(fft);
             } else {
-                FFT fft(search_area, search_area, false);
+                FFT fft(search_area, search_area);
                 run_fft_loop(fft);
             }
         }

@@ -47,8 +47,8 @@ class Optimizer {
         // Main solve method
         OptResult solve(const double cx, 
                   const double cy, 
-                  subset::Pixels &ss_ref, 
-                  subset::Pixels &ss_def, 
+                  Subset<double> &ss_ref, 
+                  Subset<double> &ss_def, 
                   const Interpolator &interp_def,
                   const bool check_on_thresh=false);
         
@@ -102,7 +102,7 @@ void reset_params();
         int px_hori;
         
         // Points to cost function
-        void (Optimizer::*optimize_cost)(const subset::Pixels&, subset::Pixels&, const Interpolator&, const double, const double);
+        void (Optimizer::*optimize_cost)(const Subset<double>&, Subset<double>&, const Interpolator&, const double, const double);
         
         // Shape function pointers
         void (*get_pixel)(double&, double&, const double, const double, const std::vector<double>&);
@@ -142,8 +142,8 @@ void reset_params();
         * @param[in] cx x coordinate at subset centre
         * @param[in] cy y coordinate at subset centre
         */ 
-        void ssd(const subset::Pixels &ss_ref,
-             subset::Pixels &ss_def,
+        void ssd(const Subset<double> &ss_ref,
+             Subset<double> &ss_def,
              const Interpolator &interp_def,
              const double cx,
              const double cy);
@@ -157,8 +157,8 @@ void reset_params();
         * @param[in] cx x coordinate at subset centre
         * @param[in] cy y coordinate at subset centre
         */
-        void nssd(const subset::Pixels &ss_ref,
-                  subset::Pixels &ss_def,
+        void nssd(const Subset<double> &ss_ref,
+                  Subset<double> &ss_def,
                   const Interpolator &interp_def,
                   const double cx,
                   const double cy);
@@ -172,8 +172,8 @@ void reset_params();
         * @param[in] cx x coordinate at subset centre
         * @param[in] cy y coordinate at subset centre
         */
-         void znssd(const subset::Pixels &ss_ref,
-                    subset::Pixels &ss_def,
+         void znssd(const Subset<double> &ss_ref,
+                    Subset<double> &ss_def,
                     const Interpolator &interp_def,
                     const double cx,
                     const double cy);

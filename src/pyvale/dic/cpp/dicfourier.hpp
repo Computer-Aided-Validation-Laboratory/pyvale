@@ -26,36 +26,13 @@
 
 
 template<typename Real>
-struct FFTPixels {
-    std::vector<Real> vals;
-    std::vector<double> x;
-    std::vector<double> y;
-    int size_x;
-    int size_y;
-    int num_px;
-    Real sum;
-
-    FFTPixels(int ss_size_x, int ss_size_y, bool store_coords = true)
-        : vals(ss_size_x * ss_size_y, Real(0)),
-          x(store_coords ? ss_size_x * ss_size_y : 0, 0.0),
-          y(store_coords ? ss_size_x * ss_size_y : 0, 0.0),
-          size_x(ss_size_x),
-          size_y(ss_size_y),
-          num_px(ss_size_x * ss_size_y),
-          sum(0)
-    {}
-
-    bool has_coords() const { return !x.empty() && !y.empty(); }
-};
-
-template<typename Real>
 struct FFTImpl {
     int ss_size_x;
     int ss_size_y;
     int n_complex;
 
-    FFTPixels<Real> ss_def;
-    FFTPixels<Real> ss_ref;
+    Subset<Real, false> ss_def;
+    Subset<Real, false> ss_ref;
 
     std::vector<std::complex<Real>> fft_def;
     std::vector<std::complex<Real>> fft_ref;
@@ -70,12 +47,12 @@ struct FFTImpl {
     Eigen::MatrixXd A;
     Eigen::VectorXd b;
 
-    FFTImpl(int ss_size_x_, int ss_size_y_, bool store_coords = false)
+    FFTImpl(int ss_size_x_, int ss_size_y_)
         : ss_size_x(ss_size_x_),
           ss_size_y(ss_size_y_),
           n_complex(ss_size_x_ / 2 + 1),
-          ss_def(ss_size_x_, ss_size_y_, store_coords),
-          ss_ref(ss_size_x_, ss_size_y_, store_coords),
+          ss_def(ss_size_x_, ss_size_y_),
+          ss_ref(ss_size_x_, ss_size_y_),
           fft_def(ss_size_y_ * n_complex),
           fft_ref(ss_size_y_ * n_complex),
           cross_corr(ss_size_x_ * ss_size_y_),
@@ -355,7 +332,7 @@ struct FFTImpl {
         return true;
     }
 
-    bool zero_norm_subset(FFTPixels<Real> &ss,
+    bool zero_norm_subset(Subset<Real, false> &ss,
                           const int ss_size_x,
                           const int ss_size_y) {
 
@@ -392,7 +369,7 @@ struct FFTImpl {
         return true;
     }
 
-    bool zero_norm_subsets_centered(FFTPixels<Real> &ss,
+    bool zero_norm_subsets_centered(Subset<Real, false> &ss,
                                     const int ss_size_x,
                                     const int ss_size_y,
                                     const int window_size_x,
@@ -478,7 +455,7 @@ using FFTf = FFTImpl<float>;
                                              const bool debug=false);
 
     template<typename Real>
-    void fill_fft_window_with_subset_at_centre(FFTPixels<Real> &ss_ref,
+    void fill_fft_window_with_subset_at_centre(Subset<Real, false> &ss_ref,
                                      const Interpolator &interp_ref,
                                      const double ss_x,
                                      const double ss_y,
@@ -491,7 +468,7 @@ using FFTf = FFTImpl<float>;
 
 
     template<typename Real>
-    void fill_fft_window_with_subset_at_corner(FFTPixels<Real> &ss_ref,
+    void fill_fft_window_with_subset_at_corner(Subset<Real, false> &ss_ref,
                                                const Image &img_ref,
                                                const int ss_x,
                                                const int ss_y,
@@ -563,8 +540,8 @@ using FFTf = FFTImpl<float>;
         }
     }
 
-    double debugcost(subset::Pixels &ss_ref, subset::Pixels &ss_def);
-    void smooth_field(std::vector<double>& shift, const subset::Grid& ss_grid, double sigma, int radius);
+    double debugcost(Subset<double> &ss_ref, Subset<double> &ss_def);
+    void smooth_field(std::vector<double>& shift, const SubsetGrid& ss_grid, double sigma, int radius);
 
     
     /**

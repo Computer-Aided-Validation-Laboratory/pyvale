@@ -77,8 +77,8 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
     // get a list of ss coordinates within RIO;
     // ------------------------------------------------------------------------
     std::vector<WindowLevel> multiwindow_l;
-    subset::Grid ss_grid_l;
-    subset::Grid ss_grid_l_0;
+    SubsetGrid ss_grid_l;
+    SubsetGrid ss_grid_l_0;
 
     if (conf.scan_method == util::EScanMethod::MULTIWINDOW_RG || conf.scan_method == util::EScanMethod::MULTIWINDOW) {
         multiwindow_init(multiwindow_l, img_roi, conf, mwconf, saveconf);
@@ -89,7 +89,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
              conf.scan_method == util::EScanMethod::RASTER) {
 
         common_util::Timer timer("to create subset grid:", 2);
-        ss_grid_l = subset::create_grid(img_roi, conf.ss_step,
+        ss_grid_l = create_grid(img_roi, conf.ss_step,
                                         conf.ss_size, conf.ss_size,
                                         conf.px_hori, conf.px_vert, conf.partial_subset);
         ss_grid_l_0 = ss_grid_l;

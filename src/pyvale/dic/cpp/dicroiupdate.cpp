@@ -19,7 +19,7 @@ bool* propagate_roi(
     const bool* img_roi,
     const ResultArrays results_def,
     const util::Config conf,
-    const subset::Grid ss_grid,
+    const SubsetGrid ss_grid,
     const bool debug){
 
 

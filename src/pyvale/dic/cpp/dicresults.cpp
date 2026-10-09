@@ -177,7 +177,7 @@ void ResultArrays::append(OptResult &res, const int i) {
 
 
 void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
-                                    const subset::Grid &ss_grid,
+                                    const SubsetGrid &ss_grid,
                                     const std::string &filename){
 
 
@@ -334,7 +334,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
 
 void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
                                         const common_util::SaveConfig &saveconf,
-                                        const subset::Grid &ss_grid,
+                                        const SubsetGrid &ss_grid,
                                         const std::string &filename){
 
     const std::string delimiter = saveconf.delimiter;

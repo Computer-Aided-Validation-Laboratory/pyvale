@@ -105,7 +105,7 @@ namespace rg {
         }
     }
 
-    bool is_valid_point(const int ss_x, const int ss_y, const subset::Grid &ss_grid) {
+    bool is_valid_point(const int ss_x, const int ss_y, const SubsetGrid &ss_grid) {
 
         int x = ss_x / ss_grid.step;
         int y = ss_y / ss_grid.step;
@@ -113,13 +113,13 @@ namespace rg {
         int idx = y * ss_grid.num_ss_x + x;
 
         if ((ss_x % ss_grid.step) || (ss_y % ss_grid.step)){
-            std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
-            std::cerr << "Subset ss_step size: " << ss_grid.step << std::endl;
+            std::cerr << "Subset<double> coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
+            std::cerr << "Subset<double> ss_step size: " << ss_grid.step << std::endl;
             return false;
             exit(EXIT_FAILURE);
         }
         else if (ss_grid.mask[idx] == -1){
-            std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
+            std::cerr << "Subset<double> coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
             std::cerr << "subset mask index: " << idx << std::endl;
             return false;
             exit(EXIT_FAILURE);
@@ -151,7 +151,7 @@ namespace rg {
     }
 void retry_bad_points(const Interpolator &interp_ref,
                       const Interpolator &interp_def,
-                      const subset::Grid &ss_grid,
+                      const SubsetGrid &ss_grid,
                       const util::Config &conf,
                       const ResultArrays &results_ref,
                       ResultArrays &results_def,
@@ -173,8 +173,8 @@ void retry_bad_points(const Interpolator &interp_ref,
 
         #pragma omp parallel
         {
-            subset::Pixels ss_def(ss_grid.size_x, ss_grid.size_y);
-            subset::Pixels ss_ref(ss_grid.size_x, ss_grid.size_y);
+            Subset<double> ss_def(ss_grid.size_x, ss_grid.size_y);
+            Subset<double> ss_ref(ss_grid.size_x, ss_grid.size_y);
             Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter,
                           conf.precision, conf.threshold,
                           ss_grid.size_x*ss_grid.size_y);
@@ -185,11 +185,8 @@ void retry_bad_points(const Interpolator &interp_ref,
                 const double cx = ss_grid.coords[2*idx];
                 const double cy = ss_grid.coords[2*idx+1];
 
-                subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                for (int px = 0; px < ss_ref.num_px; ++px) {
-                    ss_ref.x[px] -= cx;
-                    ss_ref.y[px] -= cy;
-                }
+                ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                ss_ref.shift_to_local_coordinates(cx, cy);
 
                 opt.average_params_from_neigh(results_def.p, successful,
                                               ss_grid.neigh[idx]);

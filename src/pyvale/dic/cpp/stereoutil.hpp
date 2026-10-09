@@ -167,13 +167,13 @@ namespace stereo {
     *  4) Builds the DLT system with P0 = [I | 0], P1 = [R | t],
     *  5) Solves via SVD and recovers X in homogeneous coordinates.
     *
-    * @param ss_grid Grid of subset (patch) top-left coordinates (pixel space).
+    * @param ss_grid SubsetGrid of subset (patch) top-left coordinates (pixel space).
     * @param calib   Calibration containing intrinsics/distortion for cam0/cam1 and translation (t).
     * @param stereo_matches Match results; uses u,v (pixel disparities) and above_thresh mask.
     * @param K0      Intrinsic matrix of camera 0 (used only for undistortion here).
     * @param K1      Intrinsic matrix of camera 1 (used only for undistortion here).
     * @param R       Rotation from camera 0 to camera 1.
-    * @param ss_size Subset (patch) size in pixels (assumed square).
+    * @param ss_size Subset<double> (patch) size in pixels (assumed square).
     *
     * @note Points are undistorted and treated as normalized image coordinates when building
     *       the DLT system (i.e., P0 = [I|0], P1 = [R|t]). Ensure undistortion produces
@@ -186,7 +186,7 @@ namespace stereo {
     *          persist (X_mm, Y_mm, Z_mm) into your results container as needed.
     *          TODO: NEED TO FIX THIS
     */
-    void pixel_to_world(const subset::Grid &ss_grid,
+    void pixel_to_world(const SubsetGrid &ss_grid,
                         const Calib &calib,
                         ResultArrays &temporal,
                         ResultArrays &stereo_ref,
@@ -218,8 +218,8 @@ namespace stereo {
                          double &best_disp_y,
                          const double x,
                          const double y,
-                         const subset::Pixels &ss_l,
-                         subset::Pixels &ss_r,
+                         const Subset<double> &ss_l,
+                         Subset<double> &ss_r,
                          const Eigen::Vector2d P,
                          const Eigen::Vector2d dir,
                          const Interpolator &interp_r,
@@ -245,10 +245,10 @@ namespace stereo {
     /**
     * @brief Estimates rigid translation using FFT correlation on a rectified search grid.
     * @param p Output: 6‑parameter rigid/affine displacement seed.
-    * @param cx Subset centre x coordinate.
-    * @param cy Subset centre y coordinate.
-    * @param ss_size_x Subset width.
-    * @param ss_size_y Subset height.
+    * @param cx Subset<double> centre x coordinate.
+    * @param cy Subset<double> centre y coordinate.
+    * @param ss_size_x Subset<double> width.
+    * @param ss_size_y Subset<double> height.
     * @param closest_point Epipolar closest point to the reference pixel.
     * @param dir Epipolar direction unit vector.
     * @param window_size_x FFT window width.
@@ -272,10 +272,10 @@ namespace stereo {
     /**
     * @brief Estimates rigid translation by brute‑force ZNCC search along the epipolar line.
     * @param p Output: 6‑parameter rigid/affine displacement seed.
-    * @param ss_x Subset top‑left x coordinate.
-    * @param ss_y Subset top‑left y coordinate.
-    * @param ss_size_x Subset width.
-    * @param ss_size_y Subset height.
+    * @param ss_x Subset<double> top‑left x coordinate.
+    * @param ss_y Subset<double> top‑left y coordinate.
+    * @param ss_size_x Subset<double> width.
+    * @param ss_size_y Subset<double> height.
     * @param closest_point Epipolar closest point to the reference pixel.
     * @param dir Epipolar direction unit vector.
     * @param ss_l Reference subset (left image).
@@ -287,13 +287,13 @@ namespace stereo {
                                                     const int ss_size_x, const int ss_size_y,
                                                     const Eigen::Vector2d closest_point,
                                                     const Eigen::Vector2d dir,
-                                                    subset::Pixels &ss_l,
+                                                    Subset<double> &ss_l,
                                                     const Interpolator &interp_ref,
                                                     const Interpolator &interp_def);
 
 
 
-    bool* compute_roi_r(const subset::Grid ss_grid,
+    bool* compute_roi_r(const SubsetGrid ss_grid,
                           const ResultArrays &stereo_matches,
                           const int px_hori,
                           const int px_vert,
@@ -303,13 +303,13 @@ namespace stereo {
 
 
     bool* compute_roi_r_test(const bool* img_roi_l,
-                    const subset::Grid& ss_grid,
+                    const SubsetGrid& ss_grid,
                     const ResultArrays& stereo_matches,
                     const int px_hori,
                     const int px_vert);
 
-    void remove_unmatched_subsets(subset::Grid& ss_grid_l, 
-                                  subset::Grid& ss_grid_r,
+    void remove_unmatched_subsets(SubsetGrid& ss_grid_l, 
+                                  SubsetGrid& ss_grid_r,
                                   const ResultArrays stereo_matches);
 
 

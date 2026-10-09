@@ -35,7 +35,7 @@
 
 void singlewindow_rg(const Interpolator &interp_ref,
                      const Interpolator &interp_def,
-                     const subset::Grid &ss_grid,
+                     const SubsetGrid &ss_grid,
                      const util::Config &conf,
                      const int img_num_ref,
                      const int img_num_def,
@@ -101,16 +101,16 @@ void singlewindow_rg(const Interpolator &interp_ref,
         int tid = omp_get_thread_num();
 
         // Initialize ref and def subsets
-        subset::Pixels ss_def(ss_size_x, ss_size_y);
-        subset::Pixels ss_ref(ss_size_x, ss_size_y);
+        Subset<double> ss_def(ss_size_x, ss_size_y);
+        Subset<double> ss_ref(ss_size_x, ss_size_y);
 
         // initialize FFT stuff
         std::optional<FFTf> fft_float;
         std::optional<FFT> fft_double;
         if (conf.fft_precision == util::EFFTPrecision::FLOAT32) {
-            fft_float.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
+            fft_float.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y));
         } else {
-            fft_double.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y), false);
+            fft_double.emplace(std::max(2*conf.max_disp, ss_size_x), std::max(2*conf.max_disp, ss_size_y));
         }
 
         double max_val = 0.0;
@@ -157,11 +157,8 @@ void singlewindow_rg(const Interpolator &interp_ref,
                 // count++;
 
                 // fill the reference subset
-                subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                for (int px = 0; px < ss_ref.num_px; px++) {
-                    ss_ref.x[px] -= cx;
-                    ss_ref.y[px] -= cy;
-                }
+                ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                ss_ref.shift_to_local_coordinates(cx, cy);
 
                 // if the first image. Take the optimization parameters from rigid fourier
                 if (mode=="temporal") {
@@ -219,11 +216,8 @@ void singlewindow_rg(const Interpolator &interp_ref,
                     }
 
                     // fill the reference subset
-                    subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                    for (int px = 0; px < ss_ref.num_px; px++) {
-                        ss_ref.x[px] -= cx;
-                        ss_ref.y[px] -= cy;
-                    }
+                    ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                    ss_ref.shift_to_local_coordinates(cx, cy);
 
                     // perform optimization for seed point neighbours
                     opt.copy_params_from_neigh(results_def.p,
@@ -309,11 +303,8 @@ void singlewindow_rg(const Interpolator &interp_ref,
                     }
 
                     // fill the reference subset
-                    subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                    for (int px = 0; px < ss_ref.num_px; px++) {
-                        ss_ref.x[px] -= cx;
-                        ss_ref.y[px] -= cy;
-                    }
+                    ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                    ss_ref.shift_to_local_coordinates(cx, cy);
 
                     if (results_def.above_thresh[current.idx]){
                         opt.copy_params_from_neigh(results_def.p,
@@ -374,8 +365,8 @@ void singlewindow_rg(const Interpolator &interp_ref,
     //
     // #pragma omp parallel
     // {
-    //     subset::Pixels ss_def(ss_size_x, ss_size_y);
-    //     subset::Pixels ss_ref(ss_size_x, ss_size_y);
+    //     Subset<double> ss_def(ss_size_x, ss_size_y);
+    //     Subset<double> ss_ref(ss_size_x, ss_size_y);
     //     Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
     //
     //     #pragma omp for
@@ -400,7 +391,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
     //
     //             // Re-fill reference
     //             opt.copy_params_from_neigh(results_ref.p, idx * conf.num_params);
-    //             subset::fill_from_shape_params(ss_ref, cx_img0, cy_img0, opt.p, interp_ref, conf.shape_func);
+    //             ss_ref.fill_from_shape_params( cx_img0, cy_img0, opt.p, interp_ref, conf.shape_func);
     //
     //             // Use best neighbor's converged parameters as the new starting point
     //             opt.copy_params_from_neigh(results_def.p, best_neigh * conf.num_params);

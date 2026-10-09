@@ -101,8 +101,8 @@ void Optimizer::set_rigid_displacement(double dx, double dy) {
 
 OptResult Optimizer::solve(const double cx, 
                            const double cy,
-                        subset::Pixels &ss_ref,
-                        subset::Pixels &ss_def,
+                        Subset<double> &ss_ref,
+                        Subset<double> &ss_def,
                         const Interpolator &interp_def,
                         const bool check_on_thresh){
 
@@ -198,8 +198,8 @@ OptResult Optimizer::solve(const double cx,
     return res;
 }
 
-void Optimizer::ssd(const subset::Pixels &ss_ref,
-            subset::Pixels &ss_def,
+void Optimizer::ssd(const Subset<double> &ss_ref,
+            Subset<double> &ss_def,
             const Interpolator &interp_def,
             const double cx,
             const double cy){
@@ -275,8 +275,8 @@ void Optimizer::ssd(const subset::Pixels &ss_ref,
 }
 
 
-void Optimizer::nssd(const subset::Pixels &ss_ref,
-                        subset::Pixels &ss_def,
+void Optimizer::nssd(const Subset<double> &ss_ref,
+                        Subset<double> &ss_def,
                         const Interpolator &interp_def,
                         const double cx,
                         const double cy){
@@ -371,8 +371,8 @@ void Optimizer::nssd(const subset::Pixels &ss_ref,
 }
 
 
-void Optimizer::znssd(const subset::Pixels &ss_ref,
-                        subset::Pixels &ss_def,
+void Optimizer::znssd(const Subset<double> &ss_ref,
+                        Subset<double> &ss_def,
                         const Interpolator &interp_def,
                         const double cx,
                         const double cy){

@@ -74,13 +74,13 @@ class ResultArrays {
         //void get_latest_matches(const ResultArrays &results_def, const int img_num_def);
 
         void write_to_disk_2d(const common_util::SaveConfig &saveconf,
-                              const subset::Grid &ss_grid,
+                              const SubsetGrid &ss_grid,
                               const std::string &filename);
 
 
         void write_to_disk_stereo(const ResultArrays &stereo,
                                   const common_util::SaveConfig &saveconf,
-                                  const subset::Grid &ss_grid,
+                                  const SubsetGrid &ss_grid,
                                   const std::string &filename);
 
 

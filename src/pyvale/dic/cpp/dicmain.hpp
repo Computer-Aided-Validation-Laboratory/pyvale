@@ -51,7 +51,7 @@ namespace py = pybind11;
  * reliability-guided, and Fourier-based approaches. It computes correlation
  * between the reference and deformed images over subsets defined by the ROI.
  * 
- * Subset data is initialized and processed in parallel using OpenMP.
+ * Subset<double> data is initialized and processed in parallel using OpenMP.
  * Results are saved after processing each image.
  *
  * @note This function is intended to be called via the Python interface using pybind11.

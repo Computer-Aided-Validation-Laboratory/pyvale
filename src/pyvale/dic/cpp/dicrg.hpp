@@ -156,7 +156,7 @@ namespace rg {
      * @return true 
      * @return false 
      */
-     bool is_valid_point(const int ss_x, const int ss_y, const subset::Grid &ss_grid);
+     bool is_valid_point(const int ss_x, const int ss_y, const SubsetGrid &ss_grid);
 
 
 
@@ -164,7 +164,7 @@ namespace rg {
 
 void retry_bad_points(const Interpolator &interp_ref,
                       const Interpolator &interp_def,
-                      const subset::Grid &ss_grid,
+                      const SubsetGrid &ss_grid,
                       const util::Config &conf,
                       const ResultArrays &results_ref,
                       ResultArrays &results_def,

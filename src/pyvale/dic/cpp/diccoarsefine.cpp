@@ -123,7 +123,7 @@ namespace coarsefine {
             if (!ok_ref || !ok_def) continue;
 
             // Run FFT cross-correlation
-            FFT fft(ss_size, ss_size, true);
+            FFT fft(ss_size, ss_size);
             fft.ss_ref.vals = patch_ref;
             fft.ss_def.vals = patch_def;
             // fft.zero_norm_subset(fft.ss_ref, ss_size, ss_size);
@@ -135,8 +135,8 @@ namespace coarsefine {
                 for (int col = 0; col < ss_size; ++col) {
                     int idx  = row*ss_size+col;
                     std::cout << col << " " << row << " ";
-                    std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
-                    std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
+                    std::cout << fft.ss_ref.vals[idx] << " ";
+                    std::cout << fft.ss_def.vals[idx] << " ";
                     std::cout << fft.cross_corr[idx] << std::endl;
                 }
             }

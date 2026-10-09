@@ -76,7 +76,7 @@ struct WindowLevel {
     std::vector<int> num_neigh_list;
     size_t max_num_neigh = 4;
     size_t level; // 0 is largest window
-    subset::Grid layout;
+    SubsetGrid layout;
     bool fft_filter;
     double fft_filter_threshold;
     int fft_filter_radius;
@@ -104,10 +104,10 @@ struct WindowLevel {
            const double fft_filter_corr_power,
            const bool fft_save,
            const common_util::SaveConfig &saveconf,
-           const subset::Grid *prev_layout) {
+           const SubsetGrid *prev_layout) {
 
         // create grid for the window
-        layout = subset::create_grid(img_roi, step, template_size, template_size, px_hori, px_vert, partial_subset);
+        layout = create_grid(img_roi, step, template_size, template_size, px_hori, px_vert, partial_subset);
         u.resize(layout.num);
         v.resize(layout.num);
         cost.resize(layout.num);
@@ -158,7 +158,7 @@ struct WindowLevel {
     * Uses `#pragma omp parallel for` over subsets; writes to disjoint regions of
     * `num_neigh_list` and `neigh_list`, making it thread-safe for the given buffers.
     */
-    void gen_neighlist(const subset::Grid &layout_prev);
+    void gen_neighlist(const SubsetGrid &layout_prev);
 
 
 

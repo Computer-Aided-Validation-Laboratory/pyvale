@@ -46,7 +46,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
     const int px_vert = conf.px_vert;
 
     // subset information
-    const subset::Grid &ss_grid = multiwindow.back().layout;
+    const SubsetGrid &ss_grid = multiwindow.back().layout;
     const int num_ss = ss_grid.num;
     const int ss_size_x = ss_grid.size_x;
     const int ss_size_y = ss_grid.size_y;
@@ -89,8 +89,8 @@ void multiwindow_rg(const Interpolator &interp_ref,
         int tid = omp_get_thread_num();
 
         // Initialize ref and def subsets
-        subset::Pixels ss_def(ss_size_x, ss_size_y);
-        subset::Pixels ss_ref(ss_size_x, ss_size_y);
+        Subset<double> ss_def(ss_size_x, ss_size_y);
+        Subset<double> ss_ref(ss_size_x, ss_size_y);
 
         // Optimization parameters
         Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
@@ -139,11 +139,8 @@ void multiwindow_rg(const Interpolator &interp_ref,
                 opt.copy_params_from_fft(idx, multiwindow.back().u, multiwindow.back().v);
 
                 // Extract reference subset and solve for starting seed point
-                subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                for (int px = 0; px < ss_ref.num_px; px++) {
-                    ss_ref.x[px] -= cx;
-                    ss_ref.y[px] -= cy;
-                }
+                ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                ss_ref.shift_to_local_coordinates(cx, cy);
 
                 OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
 
@@ -180,11 +177,8 @@ void multiwindow_rg(const Interpolator &interp_ref,
                     }
 
                     // fill the reference subset
-                    subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                    for (int px = 0; px < ss_ref.num_px; px++) {
-                        ss_ref.x[px] -= cx;
-                        ss_ref.y[px] -= cy;
-                    }
+                    ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                    ss_ref.shift_to_local_coordinates(cx, cy);
 
                     // perform optimization for seed point neighbours
                     opt.copy_params_from_neigh(results_def.p,
@@ -265,11 +259,8 @@ void multiwindow_rg(const Interpolator &interp_ref,
                     }
 
                     // fill the reference subset
-                    subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                    for (int px = 0; px < ss_ref.num_px; px++) {
-                        ss_ref.x[px] -= cx;
-                        ss_ref.y[px] -= cy;
-                    }
+                    ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                    ss_ref.shift_to_local_coordinates(cx, cy);
 
                     if (results_def.above_thresh[current.idx])
                         opt.copy_params_from_neigh(results_def.p,

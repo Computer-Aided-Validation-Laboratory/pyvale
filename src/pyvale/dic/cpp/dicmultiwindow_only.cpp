@@ -53,15 +53,15 @@ void multiwindow_only(const Interpolator &interp_ref,
         raise_on_interrupt();
     }
 
-    const subset::Grid &ss_grid = multiwindow.back().layout;
+    const SubsetGrid &ss_grid = multiwindow.back().layout;
     const int nsizes = multiwindow.size();
     const int last_size = nsizes-1;
 
     #pragma omp parallel shared(stop_request, results_ref, results_def, multiwindow, ss_grid, conf, interp_ref, interp_def)
     {
 
-        subset::Pixels ss_ref(ss_grid.size_x, ss_grid.size_y);
-        subset::Pixels ss_def(ss_grid.size_x, ss_grid.size_y);
+        Subset<double> ss_ref(ss_grid.size_x, ss_grid.size_y);
+        Subset<double> ss_def(ss_grid.size_x, ss_grid.size_y);
 
         // get number of subsets and the size for the smalllest window size
         const int num_ss  = multiwindow[last_size].layout.num;
@@ -96,8 +96,8 @@ void multiwindow_only(const Interpolator &interp_ref,
             const double cy_img0 = ss_grid.coords[ss*2+1];
 
             // get the reference subset
-            subset::fill_from_centre_coords(ss_ref, cx_img0, cy_img0, interp_ref);
-            subset::fill_from_shape_params(ss_def, cx_img0, cy_img0, res.p, interp_def, util::EShapeFunc::RIGID);
+            ss_ref.fill_from_centre_coords( cx_img0, cy_img0, interp_ref);
+            ss_def.fill_from_shape_params( cx_img0, cy_img0, res.p, interp_def, util::EShapeFunc::RIGID);
 
             // calculate zncc value
             double zncc = 0.0;

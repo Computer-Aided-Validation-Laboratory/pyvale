@@ -37,7 +37,7 @@ namespace stereo {
         return geom;
     }
 
-    void pixel_to_world(const subset::Grid &ss_grid,
+    void pixel_to_world(const SubsetGrid &ss_grid,
                         const Calib &calib,
                         ResultArrays &temporal,
                         ResultArrays &stereo_ref,
@@ -212,13 +212,13 @@ namespace stereo {
         y_undistorted = y_u;
     }
 
-    void search_epi_line(double &best_zncc, 
+    void search_epi_line(double &zncc_best, 
                          double &best_disp_x, 
                          double &best_disp_y,
                          const double x,
                          const double y,
-                         const subset::Pixels &ss_l,
-                         subset::Pixels &ss_r,
+                         const Subset<double> &ss_l,
+                         Subset<double> &ss_r,
                          const Eigen::Vector2d P,
                          const Eigen::Vector2d dir,
                          const Interpolator &interp_r,
@@ -227,11 +227,11 @@ namespace stereo {
 
         
 
-        best_zncc = -1.0;
+        zncc_best = -1.0;
         best_disp_x = 0.0;
         best_disp_y = 0.0;
 
-        double corner_x, corner_y, zncc;
+        double corner_x, corner_y, zncc_val;
         Eigen::Vector2d P_i;
 
         for (int i = -range; i < range; i++){
@@ -239,14 +239,14 @@ namespace stereo {
             P_i = P + static_cast<double>(i)*dir;
 
             // Convert to CORNER position for get_subpx_from_img
-            subset::get_corner(corner_x,corner_y, P_i(0),P_i(1),ss_l.size_x,ss_l.size_y);
+            get_corner(corner_x,corner_y, P_i(0),P_i(1),ss_l.size_x,ss_l.size_y);
 
-            subset::fill_from_img_subpx(ss_r, corner_x, corner_y, interp_r);
+            ss_r.fill_from_img_subpx( corner_x, corner_y, interp_r);
 
-            zncc = subset::zncc(ss_l, ss_r);
+            zncc_val = zncc(ss_l, ss_r);
 
-            if (zncc > best_zncc) {
-                best_zncc = zncc;
+            if (zncc_val > zncc_best) {
+                zncc_best = zncc_val;
                 best_disp_x = corner_x - x;
                 best_disp_y = corner_y - y;
             }
@@ -307,7 +307,7 @@ namespace stereo {
         const int ss_half_y = ss_size_y/2;
 
         // class for FFT
-        FFT fft(window_size_x, window_size_y, print);
+        FFT fft(window_size_x, window_size_y);
 
         // put the subset at the corner of the window.
         // for the FFT I'm just using a square subset and not the shape function
@@ -334,10 +334,6 @@ namespace stereo {
                 Eigen::Vector2d sample_pt = centre - (y-window_half_y)*perp;
                 double val = interp_def.eval(0,0,sample_pt(0),sample_pt(1));
                 const int idx = y * window_size_x + x;
-                if (fft.ss_def.has_coords()) {
-                    fft.ss_def.x[idx] = sample_pt(0);
-                    fft.ss_def.y[idx] = sample_pt(1);
-                }
                 fft.ss_def.vals[idx] = val;
             }
         }
@@ -371,8 +367,8 @@ namespace stereo {
                 for (int col = 0; col < window_size_x; ++col) {
                     int idx  = row*window_size_x+col;
                     std::cout << col << " " << row << " ";
-                    std::cout << fft.ss_ref.x[idx] << " " << fft.ss_ref.y[idx] << " " << fft.ss_ref.vals[idx] << " ";
-                    std::cout << fft.ss_def.x[idx] << " " << fft.ss_def.y[idx] << " " << fft.ss_def.vals[idx] << " ";
+                    std::cout << fft.ss_ref.vals[idx] << " ";
+                    std::cout << fft.ss_def.vals[idx] << " ";
                     std::cout << fft.cross_corr[idx] << std::endl;
                 }
             }
@@ -408,7 +404,7 @@ namespace stereo {
                                                     const int ss_size_x, const int ss_size_y,
                                                     const Eigen::Vector2d closest_point,
                                                     const Eigen::Vector2d dir,
-                                                    subset::Pixels &ss_l,
+                                                    Subset<double> &ss_l,
                                                     const Interpolator &interp_ref,
                                                     const Interpolator &interp_def){
 
@@ -417,9 +413,9 @@ namespace stereo {
 
         int range = 100;
         Eigen::Vector2d perp(dir(1), -dir(0));
-        subset::Pixels ss_r(ss_size_x, ss_size_y);
-        subset::Pixels ss_final(ss_size_x, ss_size_y);
-        double best_zncc = -1.0;
+        Subset<double> ss_r(ss_size_x, ss_size_y);
+        Subset<double> ss_final(ss_size_x, ss_size_y);
+        double zncc_best = -1.0;
 
         //Optimizer opt_affine("AFFINE", "ZNSSD", 40, 0.0001, 0.90);
 
@@ -443,11 +439,11 @@ namespace stereo {
                     // std::cout << ss_r.x[idx] << " " << ss_r.y[idx] << " " << ss_r.vals[idx] << std::endl;
                 }
             }
-            double zncc = subset::zncc(ss_l,ss_r);
+            const double zncc_val = zncc(ss_l,ss_r);
 
             
             // testing with optimizer here
-            // subset::get_subpx_from_img(ss_l, ss_x, ss_y, interp_ref);
+            // get_subpx_from_img(ss_l, ss_x, ss_y, interp_ref);
             // opt_affine.p[0] = def_coord(0) - ss_x;
             // opt_affine.p[1] = def_coord(1) - ss_y;
             // opt_affine.p[2] = dir(0) - 1.0;
@@ -457,8 +453,8 @@ namespace stereo {
             // OptResult seed_res = opt_affine.solve(ss_x, ss_y, ss_l, ss_r, interp_def);
             // std::cout << seed_res.cost << " " << int(seed_res.converged) << " " << seed_res.iter << std::endl;
 
-            if (zncc > best_zncc) {
-                best_zncc = zncc;
+            if (zncc_val > zncc_best) {
+                zncc_best = zncc_val;
                 p[0] = def_coord(0) - ss_x;
                 p[1] = def_coord(1) - ss_y;
                 p[2] = dir(0) - 1.0;
@@ -608,7 +604,7 @@ namespace stereo {
 
 
 
-    bool* compute_roi_r(const subset::Grid ss_grid_l,
+    bool* compute_roi_r(const SubsetGrid ss_grid_l,
                         const ResultArrays &stereo_matches,
                         const int px_hori,
                         const int px_vert,
@@ -628,7 +624,7 @@ namespace stereo {
             
             ss_x_l = ss_grid_l.coords[2*i];
             ss_y_l = ss_grid_l.coords[2*i+1];
-            subset::get_centre(cx, cy, ss_x_l, ss_y_l, ss_size_x, ss_size_y);
+            get_centre(cx, cy, ss_x_l, ss_y_l, ss_size_x, ss_size_y);
 
             ss_x_r = ss_x_l+stereo_matches.u[i];
             ss_y_r = ss_y_l+stereo_matches.v[i];
@@ -648,7 +644,7 @@ namespace stereo {
     }
 
    bool* compute_roi_r_test(const bool* img_roi_l,
-                    const subset::Grid& ss_grid,
+                    const SubsetGrid& ss_grid,
                     const ResultArrays& stereo_matches,
                     const int px_hori,
                     const int px_vert) {
@@ -707,8 +703,8 @@ namespace stereo {
     return img_roi_r;
 }
 
-    void remove_unmatched_subsets(subset::Grid& ss_grid_l, 
-                                  subset::Grid& ss_grid_r,
+    void remove_unmatched_subsets(SubsetGrid& ss_grid_l, 
+                                  SubsetGrid& ss_grid_r,
                                   const ResultArrays stereo_matches) {
 
         // Build list of subsets to keep

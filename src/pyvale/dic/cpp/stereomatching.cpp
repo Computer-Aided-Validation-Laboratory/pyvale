@@ -36,7 +36,7 @@ void matching(const Image &img_l,
               const Image &img_r,
               const Interpolator &interp_l,
               const Interpolator &interp_r,
-              const subset::Grid &ss_grid,
+              const SubsetGrid &ss_grid,
               const util::Config &conf,
               const int img_num_def_l,
               const int img_num_def_r,
@@ -85,8 +85,8 @@ void matching(const Image &img_l,
             int tid = omp_get_thread_num();
 
             // Initialize ref and def subsets
-            subset::Pixels ss_r(ss_size_x, ss_size_y);
-            subset::Pixels ss_l(ss_size_x, ss_size_y);
+            Subset<double> ss_r(ss_size_x, ss_size_y);
+            Subset<double> ss_l(ss_size_x, ss_size_y);
 
             // Optimization parameters
             Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
@@ -124,7 +124,7 @@ void matching(const Image &img_l,
                     // populate the subset for img k using shape function parameters
                     // that map subset in img k0 to k.
                     opt.copy_params_from_neigh(results_l.p, idx);
-                    subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
+                    ss_l.fill_from_shape_params( cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
 
                     // if the first image. Take the optimization parameters from rigid fourier
                     get_initial_guess(opt.p, cx_def_l, cy_def_l, false);
@@ -186,7 +186,7 @@ void matching(const Image &img_l,
                         // the shape function parameters for the correlation of
                         // the reference image
                         opt.copy_params_from_neigh(results_l.p, nidx);
-                        subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
+                        ss_l.fill_from_shape_params( cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
 
                         // perform optimization for seed point neighbours
                         opt.copy_params_from_neigh(results_r.p, idx);
@@ -285,7 +285,7 @@ void matching(const Image &img_l,
                         // the shape function parameters for the correlation of
                         // the reference image
                         opt.copy_params_from_neigh(results_l.p, nidx);
-                        subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
+                        ss_l.fill_from_shape_params( cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
                         if (results_r.above_thresh[current.idx])
@@ -368,8 +368,8 @@ void matching(const Image &img_l,
         //
         // #pragma omp parallel
         // {
-        //     subset::Pixels ss_r(ss_size_x, ss_size_y);
-        //     subset::Pixels ss_l(ss_size_x, ss_size_y);
+        //     Subset<double> ss_r(ss_size_x, ss_size_y);
+        //     Subset<double> ss_l(ss_size_x, ss_size_y);
         //     Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
         //
         //     #pragma omp for
@@ -394,7 +394,7 @@ void matching(const Image &img_l,
         //
         //             // Re-fill reference
         //             opt.copy_params_from_neigh(results_l.p, idx * conf.num_params);
-        //             subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
+        //             ss_l.fill_from_shape_params( cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
         //
         //             // Use best neighbor's converged parameters as the new starting point
         //             opt.copy_params_from_neigh(results_r.p, best_neigh * conf.num_params);
