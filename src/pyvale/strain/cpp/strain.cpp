@@ -545,6 +545,14 @@ namespace strain {
         results.strain[4*sw+1] = eps(0,1);
         results.strain[4*sw+2] = eps(1,0);
         results.strain[4*sw+3] = eps(1,1);
+
+
+        // principal strain
+        const Eigen::Matrix2d in_plane_strain = eps.block<2,2>(0, 0);
+        const Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(in_plane_strain);
+        const Eigen::Vector2d values = solver.eigenvalues();
+        results.principal_strain[2*sw+0] = values(1);
+        results.principal_strain[2*sw+1] = values(0);
     }
 
     void save_to_disk(int img_num,
@@ -579,6 +587,7 @@ namespace strain {
 
         const int def_size = 6;
         const int tensor_size = 4;
+        const int principal_size = 2;
 
         if (strain_save_conf.binary)
         {
@@ -597,6 +606,9 @@ namespace strain {
 
                 for (int k = 0; k < tensor_size; ++k)
                     common_util::write_dbl(outfile, results.strain[tensor_size * i + k]);
+
+                for (int k = 0; k < principal_size; ++k)
+                    common_util::write_dbl(outfile, results.principal_strain[principal_size * i + k]);
             }
 
             outfile.close();
@@ -620,7 +632,9 @@ namespace strain {
                     << "\"eps_00\"" << delimiter
                     << "\"eps_01\"" << delimiter
                     << "\"eps_10\"" << delimiter
-                    << "\"eps_11\"\n";
+                    << "\"eps_11\"" << delimiter
+                    << "\"eps1\"" << delimiter
+                    << "\"eps2\"\n";
 
             for (int i = 0; i < nwindows; i++)
             {
@@ -639,8 +653,13 @@ namespace strain {
 
                     for (int k = 0; k < tensor_size; ++k)
                     {
-                        csv.field(results.strain[tensor_size * i + k],
-                                  k == tensor_size - 1);
+                        csv.field(results.strain[tensor_size * i + k], false);
+                    }
+
+                    for (int k = 0; k < principal_size; ++k)
+                    {
+                        csv.field(results.principal_strain[principal_size * i + k],
+                                  k == principal_size - 1);
                     }
 
                     csv.newline();

@@ -47,6 +47,12 @@ class StrainResults:
         The yx component of the surface strain tensor. shape=(img_num, y, x)
     eps_yy : np.ndarray
         The yy component of the surface strain tensor. shape=(img_num, y, x)
+    eps1 : np.ndarray | None
+        The larger in-plane principal strain, ordered so eps1 >= eps2.
+        shape=(img_num, y, x). None when importing legacy files.
+    eps2 : np.ndarray | None
+        The smaller in-plane principal strain, ordered so eps1 >= eps2.
+        shape=(img_num, y, x). None when importing legacy files.
     filenames : list[str]
         name of Strain result files that have been found
     """
@@ -64,6 +70,8 @@ class StrainResults:
     eps_yx: np.ndarray
     eps_yy: np.ndarray
     filenames: list[str]
+    eps1: np.ndarray | None = None
+    eps2: np.ndarray | None = None
     x_mm: np.ndarray | None = None
     y_mm: np.ndarray | None = None
     z_mm: np.ndarray | None = None

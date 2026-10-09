@@ -20,9 +20,9 @@ def import_2d(data: str | Path | list[Path],
               delimiter: str = ",") -> StrainResults:
     """Import 2D strain result data from text or binary files.
 
-    The importer accepts the legacy 20-column strain format and the 3D-aware
-    23-column format that appends ``x_mm``, ``y_mm`` and ``z_mm`` after the
-    strain-window pixel coordinates.
+    The importer expects the current format containing the two trailing
+    in-plane principal-strain columns, ``eps1`` and ``eps2``. Files also
+    contain ``x_mm``, ``y_mm`` and ``z_mm`` after the window pixel coordinates.
     """
 
     return _import(data, binary=binary, layout=layout, delimiter=delimiter, require_coords=False)
@@ -85,19 +85,13 @@ def _import(data: str | Path | list[Path],
 
     arrays = [np.stack([frame[i] for frame in frames]) for i in range(len(frames[0]))]
 
-    has_coords = len(arrays) == 13
-    if require_coords and not has_coords:
-        raise ValueError("3D strain data must include x_mm, y_mm and z_mm columns.")
+    if len(arrays) != 15:
+        raise ValueError( "Strain data must be in 17-column format.")
 
-    if has_coords:
-        x_mm, y_mm, z_mm = arrays[:3]
-        tensor_arrays = arrays[3:]
-    else:
-        x_mm = y_mm = z_mm = None
-        tensor_arrays = arrays
-
-    if len(tensor_arrays) != 10:
-        raise ValueError(f"Strain data must contain 10 deformation-gradient and strain tensor columns. Number of cols = {len(tensor_arrays)}")
+    x_mm, y_mm, z_mm = arrays[:3]
+    tensor_arrays = arrays[3:]
+    principal_arrays = tensor_arrays[10:12]
+    tensor_arrays = tensor_arrays[:10]
 
     if layout == "matrix":
         x_unique = np.unique(window_x_ref)
@@ -112,10 +106,14 @@ def _import(data: str | Path | list[Path],
             for a in tensor_arrays
         ]
 
-        if has_coords:
-            x_mm = to_grid(x_mm, shape, x_indices, y_indices)
-            y_mm = to_grid(y_mm, shape, x_indices, y_indices)
-            z_mm = to_grid(z_mm, shape, x_indices, y_indices)
+        principal_arrays = [
+            to_grid(a, shape, x_indices, y_indices)
+            for a in principal_arrays
+        ]
+
+        x_mm = to_grid(x_mm, shape, x_indices, y_indices)
+        y_mm = to_grid(y_mm, shape, x_indices, y_indices)
+        z_mm = to_grid(z_mm, shape, x_indices, y_indices)
     else:
         window_x_out = window_x_ref
         window_y_out = window_y_ref
@@ -134,6 +132,8 @@ def _import(data: str | Path | list[Path],
         eps_yx=tensor_arrays[8],
         eps_yy=tensor_arrays[9],
         filenames=files,
+        eps1=principal_arrays[0],
+        eps2=principal_arrays[1],
         x_mm=x_mm,
         y_mm=y_mm,
         z_mm=z_mm,
@@ -141,47 +141,22 @@ def _import(data: str | Path | list[Path],
 
 
 def read_binary(file: str, delimiter: str, require_coords: bool | None = None):
-    """Read a binary strain result file.
+    """Read the current binary strain format.
 
-    Supports legacy rows with ``window_x``, ``window_y`` and 18 doubles, plus
-    new 3D-aware rows with ``x_mm``, ``y_mm`` and ``z_mm`` before the 18 tensor
-    values.
+    Each row contains two window indices, three physical coordinates, six
+    deformation-gradient values, four tensor-strain values, and eps1/eps2.
     """
 
-    del delimiter
+    del delimiter, require_coords
 
-    row_size_2d = 2 * 4 + 18 * 8
-    row_size_3d = 2 * 4 + 3 * 8 + 18 * 8
-
+    row_size = 2 * 4 + 3 * 8 + 12 * 8
     with open(file, "rb") as f:
         raw = f.read()
 
-    if require_coords is True:
-        if len(raw) % row_size_3d != 0:
-            raise ValueError(
-                f"Binary 3D strain file has incomplete rows: {file}. "
-                f"Expected row size {row_size_3d}, got {len(raw)} bytes."
-            )
-        row_size = row_size_3d
-        has_coords = True
-    elif require_coords is False and Path(file).suffix != ".dic3d":
-        if len(raw) % row_size_2d != 0:
-            raise ValueError(
-                f"Binary 2D strain file has incomplete rows: {file}. "
-                f"Expected row size {row_size_2d}, got {len(raw)} bytes."
-            )
-        row_size = row_size_2d
-        has_coords = False
-    elif len(raw) % row_size_3d == 0:
-        row_size = row_size_3d
-        has_coords = True
-    elif len(raw) % row_size_2d == 0:
-        row_size = row_size_2d
-        has_coords = False
-    else:
+    if len(raw) % row_size != 0:
         raise ValueError(
-            f"Binary file has incomplete rows: {file}. "
-            f"Expected row size {row_size_2d} or {row_size_3d}, got {len(raw)} bytes."
+            f"Binary strain file has incomplete rows: {file}. "
+            f"Expected row size {row_size}, got {len(raw)} bytes."
         )
 
     rows = len(raw) // row_size
@@ -193,18 +168,15 @@ def read_binary(file: str, delimiter: str, require_coords: bool | None = None):
     offset = 0
     window_x = extract(4, np.int32, offset); offset += 4
     window_y = extract(4, np.int32, offset); offset += 4
-
-    coord_arrays = []
-    if has_coords:
-        coord_arrays = [
-            extract(8, np.float64, offset),
-            extract(8, np.float64, offset + 8),
-            extract(8, np.float64, offset + 16),
-        ]
-        offset += 24
+    coord_arrays = [
+        extract(8, np.float64, offset),
+        extract(8, np.float64, offset + 8),
+        extract(8, np.float64, offset + 16),
+    ]
+    offset += 24
 
     tensor_arrays = []
-    for _ in range(18):
+    for _ in range(12):
         tensor_arrays.append(extract(8, np.float64, offset))
         offset += 8
 
@@ -214,12 +186,9 @@ def read_binary(file: str, delimiter: str, require_coords: bool | None = None):
 def read_text(file: str, delimiter: str):
     """Read a text strain result file.
 
-    Expected formats are either 20 columns::
+    The current text format contains 17 columns, including three physical
+    coordinates and the final ``eps1`` and ``eps2`` columns.
 
-        window_x, window_y, def_grad_00..def_grad_22, eps_00..eps_22
-
-    or 23 columns with ``x_mm``, ``y_mm`` and ``z_mm`` inserted after
-    ``window_y``.
     """
 
     check_delimiter(file, delimiter)
@@ -227,8 +196,8 @@ def read_text(file: str, delimiter: str):
     if data.ndim == 1:
         data = data.reshape(1, -1)
 
-    if data.shape[1] not in {15, 18}:
-        raise ValueError(f"Text strain data must have exactly 15 or 18 columns. Number of cols = {data.shape[1]}")
+    if data.shape[1] != 17:
+        raise ValueError(f"Text strain data must contain 17 columns, got {data.shape[1]}")
 
     return (
         data[:, 0].astype(np.int32),

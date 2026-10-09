@@ -108,10 +108,10 @@ def run_partial_window_test(
         print_level=0,
     )
 
-    dtype = np.dtype([("x", "i4"), ("y", "i4"), ("values", "f8", (13,))])
+    dtype = np.dtype([("x", "i4"), ("y", "i4"), ("values", "f8", (15,))])
     return np.stack(
         [
-            np.fromfile(path, dtype=dtype)["values"].reshape(11, 11, 13)
+            np.fromfile(path, dtype=dtype)["values"].reshape(11, 11, 15)
             for path in sorted(tmp_path.glob("*.dic3d"))
         ]
     )
@@ -264,6 +264,34 @@ def test_strain_deformations(
             atol=1e-7,
             err_msg=f"{attr} incorrect for {strain_formulation} / {deformation_type}"
         )
+
+def test_principal_strains(tmp_path: Path):
+    """Principal strains are the descending eigenvalues of the in-plane tensor."""
+    F = np.array([[1.02, 0.03], [0.0, 1.01]])
+    _, _, Ux, Uy = generate_affine_displacement_grid(F)
+    input_data = dic.Results(
+        ss_x=np.meshgrid(np.linspace(0, 990, 100), np.linspace(0, 990, 100), indexing="ij")[0],
+        ss_y=np.meshgrid(np.linspace(0, 990, 100), np.linspace(0, 990, 100), indexing="ij")[1],
+        u_px=Ux,
+        v_px=Uy,
+    )
+
+    strain.calculate_2d(
+        input_data,
+        window_size=5,
+        window_element=9,
+        strain_formulation="GREEN",
+        output_basepath=tmp_path,
+        print_level=0,
+    )
+    result = strain.import_2d(tmp_path / "strain_*.csv")
+
+    expected_tensor = reference_strain(F, "GREEN")
+    expected_principal = np.linalg.eigvalsh(expected_tensor)[::-1]
+    np.testing.assert_allclose(result.eps1, expected_principal[0], rtol=1e-5, atol=1e-7)
+    np.testing.assert_allclose(result.eps2, expected_principal[1], rtol=1e-5, atol=1e-7)
+    assert np.all(result.eps1 >= result.eps2)
+
 
 def run_strain_test(window_element: int, output_path: Path):
     ref0 = dataset.dic_plate_with_hole_cam0_ref()

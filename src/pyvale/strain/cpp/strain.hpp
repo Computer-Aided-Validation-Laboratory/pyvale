@@ -63,6 +63,7 @@ namespace strain {
         std::vector<double> z_mm;
         std::vector<double> F;
         std::vector<double> strain;
+        std::vector<double> principal_strain;
         std::vector<unsigned char> valid_window;
 
         Results(int nwindows) 
@@ -73,6 +74,7 @@ namespace strain {
               z_mm(nwindows, std::nan("")),
               F(nwindows*6, std::nan("")),
               strain(nwindows*4, std::nan("")),
+              principal_strain(nwindows*2, std::nan("")),
               valid_window(nwindows, false)
         {}
     };
