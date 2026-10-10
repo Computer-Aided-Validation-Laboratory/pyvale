@@ -159,8 +159,9 @@ def render_triangle(output_dir: Path) -> np.ndarray:
 
 def riley_memory_config() -> riley.RasterConfig:
     """Return a single-frame Riley raster configuration kept in memory."""
-    return riley.create_raster_config(
-        1, save_strategy=riley.SaveStrategy.memory,
+    return riley.RasterConfig(
+        parallel=1,
+        save_strategy=riley.SaveStrategy.memory,
     )
 
 

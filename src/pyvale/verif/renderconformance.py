@@ -223,9 +223,8 @@ def _render_riley(
             scaling_type=riley.ScaleStrategy.none,
         ),
     )
-    config = riley.create_raster_config(
-        2,
-        total_threads=1,
+    config = riley.RasterConfig(
+        parallel=1,
         save_strategy=riley.SaveStrategy.memory,
     )
     config.background_value = 0.15
