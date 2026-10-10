@@ -202,11 +202,11 @@ def build_cameras(meshes: list[riley.Mesh]) -> list[riley.Camera]:
         cam.sub_sample = sub_sample
 
         if optics in ("distortion", "both", "ring"):
-            cam.distortion_model = 1
-            cam.distortion_k1 = -0.12
-            cam.distortion_k2 = 0.035
-            cam.distortion_p1 = 0.0002
-            cam.distortion_p2 = -0.0001
+            cam.distort_model = 1
+            cam.distort_k1 = -0.12
+            cam.distort_k2 = 0.035
+            cam.distort_p1 = 0.0002
+            cam.distort_p2 = -0.0001
 
         if optics in ("psf", "both"):
             cam.psf_type = riley.PsfType.gaussian
@@ -300,9 +300,8 @@ def render_case(channels: int, bits: int) -> None:
     native_meshes = [render.to_riley_mesh(mesh) for mesh in meshes]
     cameras = build_cameras(native_meshes)
     case_name = f"{'mono' if channels == 1 else 'rgb'}-u{bits}"
-    config = riley.create_raster_config(
-        num_frames=len(FRAME_INDICES),
-        total_threads=4,
+    config = riley.RasterConfig(
+        parallel=4,
         save_strategy=riley.SaveStrategy.disk,
     )
     config.image_save_mode = (

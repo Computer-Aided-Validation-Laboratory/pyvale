@@ -98,13 +98,13 @@ camera_0 = riley.Camera(
     rot_world=rot_world_0,
     roi_cent_world=roi_cent,
     focal_length=focal_length,
-    sub_sample=2,
-    distortion_model=distortion_model,
-    distortion_k1=-0.2,
-    distortion_k2=0.1,
-    distortion_k3=0.0,
-    distortion_p1=0.0001,
-    distortion_p2=-0.0001,
+    sub_sample=4,
+    distort_model=distortion_model,
+    distort_k1=-0.2,
+    distort_k2=0.1,
+    distort_k3=0.0,
+    distort_p1=0.0001,
+    distort_p2=-0.0001,
 )
 
 camera_1 = copy.deepcopy(camera_0)
@@ -126,10 +126,10 @@ camera_0, camera_1 = riley.load_stereo_pair(str(output_dir), stereo_file_name)
 # 5. Configure and build the renderer
 # ------------------------------------------------------------
 
-config = riley.create_raster_config(
-    num_frames=mesh.displacements.shape[0],
-    total_threads=4,
+config = riley.RasterConfig(
+    parallel=4,
     save_strategy=riley.SaveStrategy.disk,
+    save_scaling=riley.ScaleStrategy.auto,
 )
 config.background_value = 128.0
 

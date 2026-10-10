@@ -79,12 +79,11 @@ buffer_modes = (
 scene = render.Scene3D(meshes=[mesh], cameras=[camera])
 
 for buffer_mode in buffer_modes:
-    config = riley.create_raster_config(
-        num_frames=1,
-        total_threads=4,
+    config = riley.RasterConfig(
+        parallel=4,
         save_strategy=riley.SaveStrategy.disk,
     )
-    
+
     config.buffer_mode = buffer_mode
     output_dir = output_root / buffer_mode.name
     renderer = render.Riley(config, output_dir)

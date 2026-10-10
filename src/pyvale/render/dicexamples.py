@@ -201,8 +201,9 @@ def _render_case(
             )
         )
 
-    config = riley.create_raster_config(
-        num_frames=num_frames, total_threads=8, save_strategy=riley.SaveStrategy.disk
+    config = riley.RasterConfig(
+        parallel=8,
+        save_strategy=riley.SaveStrategy.disk,
     )
     config.background_value = 128.0
     config.tile_size_max = 128

@@ -59,8 +59,9 @@ def test_riley_returns_canonical_image_layout() -> None:
         roi_cent_world=np.zeros(3),
         focal_length=1.0,
     )
-    config = riley.create_raster_config(
-        1, save_strategy=riley.SaveStrategy.memory
+    config = riley.RasterConfig(
+        parallel=1,
+        save_strategy=riley.SaveStrategy.memory,
     )
     result = render.Riley(config).render(render.Scene3D([mesh], [camera]))
     assert result.images is not None
@@ -100,9 +101,8 @@ def test_common_mesh_matches_native_riley_mesh() -> None:
     )
 
     def render_mesh(mesh: object) -> np.ndarray:
-        config = riley.create_raster_config(
-            1,
-            total_threads=1,
+        config = riley.RasterConfig(
+            parallel=1,
             save_strategy=riley.SaveStrategy.memory,
         )
         result = render.Riley(config).render(render.Scene3D([mesh], [camera]))
