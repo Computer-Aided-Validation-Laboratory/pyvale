@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/pyvale/"><img src="https://img.shields.io/pypi/v/pyvale?label=PyPI" alt="PyPI version"></a>
-  <a href="https://pypi.org/project/pyvale/"><img src="https://img.shields.io/pypi/pyversions/pyvale" alt="Supported Python versions"></a>
+  <a href="https://pypi.org/project/pyvale/"><img src="https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white" alt="Supported Python versions"></a>
   <a href="https://github.com/Computer-Aided-Validation-Laboratory/pyvale/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/tests.yml?branch=main&label=tests" alt="Tests"></a>
   <a href="https://github.com/Computer-Aided-Validation-Laboratory/pyvale/actions/workflows/wheels.yml"><img src="https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/wheels.yml?branch=main&label=wheels" alt="Wheels"></a>
   <a href="https://computer-aided-validation-laboratory.github.io/pyvale/"><img src="https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/docs.yml?branch=main&label=docs" alt="Documentation"></a>
