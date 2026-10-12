@@ -30,7 +30,7 @@
  */
 void multiwindow_rg(const Interpolator &interp_ref,
                     const Interpolator &interp_def,
-                    std::vector<WindowLevel> &multiwindow,
+                    MultiwindowPyramid &pyramid,
                     const util::Config &conf,
                     const int img_num_ref,
                     const int img_num_def,

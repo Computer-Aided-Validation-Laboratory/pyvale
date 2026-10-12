@@ -33,38 +33,29 @@
 
 void multiwindow_only(const Interpolator &interp_ref,
                       const Interpolator &interp_def,
-                      std::vector<WindowLevel> &multiwindow,
+                      MultiwindowPyramid &pyramid,
                       const util::Config &conf,
                       const int img_num_ref,
                       const int img_num_def,
                       const ResultArrays &results_ref,
                       ResultArrays &results_def){
 
-    // loop over the window sizes and calculate estimates for rigid
-    // displacement using FFTCC
-    for (int lvl = 0; lvl < multiwindow.size(); lvl++){
-        multiwindow[lvl].calc_rigid_displacements(multiwindow[std::max(0,lvl-1)],
-                                                    interp_ref,
-                                                    interp_def,
-                                                    img_num_ref, img_num_def,
-                                                    lvl, multiwindow.size(),
-                                                    conf.basenames,
-                                                    conf.fft_precision);
-        raise_on_interrupt();
-    }
+    pyramid.calc_rigid_displacements(interp_ref, interp_def,
+                                     img_num_ref, img_num_def,
+                                     conf.basenames, conf.fft_precision);
 
-    const SubsetGrid &ss_grid = multiwindow.back().layout;
-    const int nsizes = multiwindow.size();
+    const SubsetGrid &ss_grid = pyramid.back().grid;
+    const int nsizes = pyramid.size();
     const int last_size = nsizes-1;
 
-    #pragma omp parallel shared(stop_request, results_ref, results_def, multiwindow, ss_grid, conf, interp_ref, interp_def)
+    #pragma omp parallel shared(stop_request, results_ref, results_def, pyramid, ss_grid, conf, interp_ref, interp_def)
     {
 
         Subset<double> ss_ref(ss_grid.size_x, ss_grid.size_y);
         Subset<double> ss_def(ss_grid.size_x, ss_grid.size_y);
 
         // get number of subsets and the size for the smalllest window size
-        const int num_ss  = multiwindow[last_size].layout.num;
+        const int num_ss  = pyramid[last_size].grid.num;
 
 
 
@@ -86,10 +77,10 @@ void multiwindow_only(const Interpolator &interp_ref,
                 continue;
             }
 
-            res.u    = multiwindow.back().u[ss];
-            res.p[0] = multiwindow.back().u[ss];
-            res.v    = multiwindow.back().v[ss];
-            res.p[1] = multiwindow.back().v[ss];
+            res.u    = pyramid.back().u[ss];
+            res.p[0] = pyramid.back().u[ss];
+            res.v    = pyramid.back().v[ss];
+            res.p[1] = pyramid.back().v[ss];
 
             // get the reference subset
             const double cx_img0 = ss_grid.coords[ss*2];

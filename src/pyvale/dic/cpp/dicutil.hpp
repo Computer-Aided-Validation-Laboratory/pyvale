@@ -87,12 +87,7 @@ namespace util {
         EScanMethod scan_method;
         std::vector<std::string> basenames;
         std::vector<std::string> fullpaths;
-        bool fft_filter;
-        bool fft_save;
         EFFTPrecision fft_precision;
-        double fft_filter_threshold;
-        int fft_filter_radius;
-        double fft_filter_corr_power;
         unsigned int debug_level;
         bool stereo;
         bool incremental;

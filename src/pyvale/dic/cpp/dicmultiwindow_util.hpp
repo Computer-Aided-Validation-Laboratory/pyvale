@@ -11,6 +11,8 @@
 #include <csignal>
 #include <cstdlib>
 #include <cmath>
+#include <array>
+#include <cstdint>
 
 // common header files 
 #include <Eigen/Dense>
@@ -31,12 +33,18 @@
  *   - @c subset_size : vector of subset sizes for each level, ordered from coarsest (largest window) to finest (smallest window).
  *   - @c search_area : vector of search area sizes (in pixels) for FFT
  *   correlation at each level, ordered from coarsest to finest.
+ *   - FFT displacement filtering and intermediate FFT output settings.
  */
 struct MultiwindowConfig
 {
     std::vector<int> overlap;
     std::vector<int> subset_size;
     std::vector<int> search_area;
+    bool fft_filter = true;
+    double fft_filter_threshold = 3.0;
+    int fft_filter_radius = 3;
+    double fft_filter_corr_power = 2.0;
+    bool fft_save = false;
 };
 
 /**
@@ -44,93 +52,31 @@ struct MultiwindowConfig
  *
  * A WindowLevel defines:
  *   - the subset layout (grid) at a particular window size,
- *   - allocated storage for displacement fields (@c u, @c v),
- *   - peak metrics (@c max_val, @c cost),
- *   - neighbour relationships to the previous (coarser) level for seeding.
+ *   - the subset grid at a particular window size,
+ *   - displacement and correlation data,
+ *   - seed relationships to the previous (coarser) level.
  *
  * Members:
- *   - @c u, @c v : displacement fields for each subset at this level.
- *   - @c cost    : user-defined cost value per subset (e.g., ZNSSD or debug metric).
- *   - @c max_val : peak height from FFT cross-correlation for this subset.
- *   - @c neigh_list      : flattened list of neighbouring indices (previous level).
- *   - @c num_neigh_list  : number of neighbours used for each subset.
- *   - @c max_num_neigh   : maximum neighbours assigned per subset (default: 4).
- *   - @c level           : multi-window level index (0 = coarsest / largest window).
- *   - @c layout          : subset grid definition (coords, mask, sizes, steps).
- *
- * @note The constructor builds the grid and optionally generates neighbour lists
- *       if a pointer to @p prev_layout is provided.
- *
- * @warning The pointer @p img_roi must remain valid during grid construction.
- *
- * @see WindowLevel::gen_neighlist()
+ *   - @c u, @c v, @c cost : displacement and correlation data for this level.
+ *   - @c peak_amplitude : FFT correlation peak amplitude for each subset.
+ *   - @c seed_idx     : up to four indices into the previous level.
+ *   - @c seed_count   : number of valid entries in @c seed_idx for each subset.
  * @see WindowLevel::calc_rigid_displacements()
  */
 struct WindowLevel {
 
+    SubsetGrid grid;
     std::vector<double> u;
     std::vector<double> v;
     std::vector<double> cost;
-    std::vector<double> max_val;
-    std::vector<int> neigh_list;
-    std::vector<int> num_neigh_list;
-    size_t max_num_neigh = 4;
-    size_t level; // 0 is largest window
-    SubsetGrid layout;
-    bool fft_filter;
-    double fft_filter_threshold;
-    int fft_filter_radius;
-    double fft_filter_corr_power;
-    bool fft_save;
+    std::vector<double> peak_amplitude;
     common_util::SaveConfig saveconf;
-    int step;
-    int template_size;
-    int search_area;
 
+    // Seed mapping to previous level (up to 4 nearest neighbours)
+    std::vector<std::array<int, 4>> seed_idx;
+    std::vector<uint8_t> seed_count;
 
     WindowLevel() = default;
-
-    WindowLevel(const bool *img_roi,
-           const int step,
-           const int template_size,
-           const int search_area,
-           const int px_hori,
-           const int px_vert,
-           const double partial_subset,
-           const size_t level,
-           const bool fft_filter,
-           const double fft_filter_threshold,
-           const int fft_filter_radius,
-           const double fft_filter_corr_power,
-           const bool fft_save,
-           const common_util::SaveConfig &saveconf,
-           const SubsetGrid *prev_layout) {
-
-        // create grid for the window
-        layout = create_grid(img_roi, step, template_size, template_size, px_hori, px_vert, partial_subset);
-        u.resize(layout.num);
-        v.resize(layout.num);
-        cost.resize(layout.num);
-        max_val.resize(layout.num);
-
-        this->level = level;
-        this->fft_filter = fft_filter;
-        this->fft_filter_threshold = fft_filter_threshold;
-        this->fft_filter_radius = fft_filter_radius;
-        this->fft_filter_corr_power = fft_filter_corr_power;
-        this->fft_save = fft_save;
-        this->saveconf = saveconf;
-        this->step = step;
-        this->template_size = template_size;
-        this->search_area = search_area;
-
-        // create neighbourlist if there's a a previous window size
-        if (prev_layout) {
-            gen_neighlist(*prev_layout);
-        }
-    }
-
-
     /**
     * @brief Generate nearest-neighbour mappings from a previous level's grid.
     *
@@ -158,7 +104,7 @@ struct WindowLevel {
     * Uses `#pragma omp parallel for` over subsets; writes to disjoint regions of
     * `num_neigh_list` and `neigh_list`, making it thread-safe for the given buffers.
     */
-    void gen_neighlist(const SubsetGrid &layout_prev);
+    void build_seed_map(const SubsetGrid &grid_prev);
 
 
 
@@ -204,7 +150,8 @@ struct WindowLevel {
                                   const int window_level,
                                   const int num_levels,
                                   const std::vector<std::string> &filenames,
-                                  const util::EFFTPrecision fft_precision);
+                                  const util::EFFTPrecision fft_precision,
+                                  const MultiwindowConfig &config);
 
 
 
@@ -250,6 +197,55 @@ struct WindowLevel {
 
 };
 
+/**
+ * @brief Owns and coordinates the levels of a multiwindow correlation pyramid.
+ */
+class MultiwindowPyramid {
+public:
+    std::vector<WindowLevel> levels;
+    MultiwindowConfig config;
+
+    WindowLevel &operator[](size_t index) { return levels[index]; }
+    const WindowLevel &operator[](size_t index) const { return levels[index]; }
+    WindowLevel &back() { return levels.back(); }
+    const WindowLevel &back() const { return levels.back(); }
+    size_t size() const { return levels.size(); }
+
+    /**
+     * @brief Builds a coarse-to-fine multiwindow pyramid.
+     */
+    void build(const bool *img_roi,
+               const util::Config &conf,
+               const MultiwindowConfig &mwconf,
+               const common_util::SaveConfig &saveconf,
+               size_t num_levels = 0);
+
+    /**
+     * @brief Rebuilds the pyramid after the reference image and ROI move.
+     *
+     * The finest level is replaced by @p final_grid, translated by the supplied
+     * reference displacement. Coarser levels are rebuilt from @p img_roi.
+     */
+    void rebuild_for_new_reference(const bool *img_roi,
+                                   const SubsetGrid &final_grid,
+                                   const std::vector<double> &reference_u,
+                                   const std::vector<double> &reference_v,
+                                   const util::Config &conf,
+                                   const MultiwindowConfig &mwconf,
+                                   const common_util::SaveConfig &saveconf,
+                                   size_t num_levels);
+
+    /**
+     * @brief Calculates rigid FFT displacements from coarse to fine.
+     */
+    void calc_rigid_displacements(const Interpolator &interp_ref,
+                                  const Interpolator &interp_def,
+                                  int img_num_ref,
+                                  int img_num_def,
+                                  const std::vector<std::string> &filenames,
+                                  util::EFFTPrecision fft_precision);
+};
+
 
 
 /**
@@ -274,18 +270,4 @@ struct WindowLevel {
  * @param[in]  conf    Runtime configuration containing max_disp, ss_size, ss_step, px_hori, px_vert.
  * @param[in]  saveconf Configuration for saving intermediate FFT results .
  */
-void multiwindow_init(std::vector<WindowLevel> &level, 
-                      const bool *img_roi, 
-                      const util::Config &conf,
-                      const MultiwindowConfig &mwconf,
-                      const common_util::SaveConfig &saveconf);
-
-void multiwindow_init_partial(std::vector<WindowLevel> &level,
-                               const bool *img_roi,
-                               const util::Config &conf,
-                               const MultiwindowConfig &mwconf,
-                               const common_util::SaveConfig &saveconf,
-                               const size_t num_levels);
-
-
 #endif // DICMULTIWINDOW_UTIL_H

@@ -141,11 +141,6 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("num_def_img", &util::Config::num_def_img)
         .def_readwrite("rg_seeds", &util::Config::rg_seeds)
         .def_readwrite("num_params", &util::Config::num_params)
-        .def_readwrite("fft_filter", &util::Config::fft_filter)
-        .def_readwrite("fft_filter_threshold", &util::Config::fft_filter_threshold)
-        .def_readwrite("fft_filter_radius", &util::Config::fft_filter_radius)
-        .def_readwrite("fft_filter_corr_power", &util::Config::fft_filter_corr_power)
-        .def_readwrite("fft_save", &util::Config::fft_save)
         .def_readwrite("fft_precision", &util::Config::fft_precision)
         .def_readwrite("basenames", &util::Config::basenames)
         .def_readwrite("fullpaths", &util::Config::fullpaths)
@@ -161,7 +156,12 @@ PYBIND11_MODULE(diccpp, m) {
         .def(py::init<>())
         .def_readwrite("overlap", &MultiwindowConfig::overlap)
         .def_readwrite("subset_size", &MultiwindowConfig::subset_size)
-        .def_readwrite("search_area", &MultiwindowConfig::search_area);
+        .def_readwrite("search_area", &MultiwindowConfig::search_area)
+        .def_readwrite("fft_filter", &MultiwindowConfig::fft_filter)
+        .def_readwrite("fft_filter_threshold", &MultiwindowConfig::fft_filter_threshold)
+        .def_readwrite("fft_filter_radius", &MultiwindowConfig::fft_filter_radius)
+        .def_readwrite("fft_filter_corr_power", &MultiwindowConfig::fft_filter_corr_power)
+        .def_readwrite("fft_save", &MultiwindowConfig::fft_save);
 
     // Bind the engine functions
     m.def("engine", &engine, "Run DIC analysis on image files with config");

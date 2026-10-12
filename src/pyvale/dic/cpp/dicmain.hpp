@@ -9,6 +9,8 @@
 
 // STD Library header files
 #include <iostream>
+#include <functional>
+#include <memory>
 #include <vector>
 
 // Pybind11 Header Files
@@ -29,33 +31,13 @@
 namespace py = pybind11;
 
 /**
- * @brief Runs Digital Image Correlation (DIC) engine on input image data.
+ * @brief Runs DIC using images loaded from the configured file paths.
  *
- * This function performs 2D DIC using a specified correlation criterion,
- * shape function, interpolation scheme, and scan method.
- * It computes displacement fields by comparing a reference image with a stack of
- * deformed images over a defined region of interest (ROI).
- *
- * @param img_ref_arr A 2D NumPy array (pybind11) representing the reference image.
- * @param img_def_stack_arr A 3D NumPy array containing a stack of deformed images.
- *                          Each image must have the same dimensions as the reference image.
- * @param img_roi_arr A 2D boolean NumPy array specifying the region of interest (ROI).
- *                    True values indicate active ROI pixels.
- * @param conf Configuration parameters for the DIC engine (subset size, correlation method, etc.).
- *             This is an instance of `util::Config`.
- * @param saveconf Output configuration for saving DIC results to disk.
- *                 This is an instance of `SaveConfig`.
- *
- * @details
- * The function supports multiple scan methods including raster scan, brute force,
- * reliability-guided, and Fourier-based approaches. It computes correlation
- * between the reference and deformed images over subsets defined by the ROI.
- * 
- * Subset<double> data is initialized and processed in parallel using OpenMP.
- * Results are saved after processing each image.
- *
- * @note This function is intended to be called via the Python interface using pybind11.
- *       Image arrays are expected to be contiguous and C-style (row-major) in memory.
+ * @param img_roi_arr Boolean ROI mask.
+ * @param calib Stereo calibration data.
+ * @param conf DIC and image configuration.
+ * @param multiwindowconf Multiwindow pyramid configuration.
+ * @param saveconf Output configuration.
  */
 void engine(const py::array_t<bool>& img_roi_arr,
             const Calib &calib,
@@ -63,6 +45,16 @@ void engine(const py::array_t<bool>& img_roi_arr,
             const MultiwindowConfig &multiwindowconf,
             const common_util::SaveConfig& saveconf);
 
+/**
+ * @brief Runs DIC using images supplied in memory.
+ *
+ * @param images Reference and deformed images.
+ * @param img_roi_arr Boolean ROI mask.
+ * @param calib Stereo calibration data.
+ * @param conf DIC and image configuration.
+ * @param multiwindowconf Multiwindow pyramid configuration.
+ * @param saveconf Output configuration.
+ */
 void engine_images(const std::vector<Image>& images,
                    const py::array_t<bool>& img_roi_arr,
                    const Calib &calib,
@@ -70,11 +62,22 @@ void engine_images(const std::vector<Image>& images,
                    const MultiwindowConfig &multiwindowconf,
                    const common_util::SaveConfig& saveconf);
 
-void build_info();
-
-
-
-bool should_update_ref(const int img_num_def_l, const ResultArrays& results, const util::Config& conf);
+/**
+ * @brief Shared implementation used by both public engine entry points.
+ *
+ * @param img_roi_arr Boolean ROI mask.
+ * @param calib Stereo calibration data.
+ * @param conf DIC and image configuration.
+ * @param mwconf Multiwindow pyramid configuration.
+ * @param saveconf Output configuration.
+ * @param interp_factory Creates an interpolator for a requested image index.
+ */
+void engine_impl(const py::array_t<bool>& img_roi_arr,
+                 const Calib &calib,
+                 const util::Config &conf,
+                 const MultiwindowConfig &mwconf,
+                 const common_util::SaveConfig &saveconf,
+                 const std::function<std::unique_ptr<Interpolator>(int)> &interp_factory);
 
 
 

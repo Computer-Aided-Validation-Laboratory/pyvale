@@ -13,9 +13,25 @@
 // commoncpp Header Files
 #include "./util.hpp"
 
+#ifndef PYVALE_GIT_COMMIT
+#define PYVALE_GIT_COMMIT "unknown"
+#endif
+
+#ifndef PYVALE_GIT_BRANCH
+#define PYVALE_GIT_BRANCH "unknown"
+#endif
+
+#ifndef PYVALE_GIT_CLEAN
+#define PYVALE_GIT_CLEAN 0
+#endif
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(commoncpp, m) {
+
+    m.attr("_git_commit") = PYVALE_GIT_COMMIT;
+    m.attr("_git_branch") = PYVALE_GIT_BRANCH;
+    m.attr("_git_clean") = static_cast<bool>(PYVALE_GIT_CLEAN);
 
     py::add_ostream_redirect(m, "ostream_redirect");
 

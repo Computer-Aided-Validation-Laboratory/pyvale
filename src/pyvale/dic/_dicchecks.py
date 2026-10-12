@@ -27,6 +27,9 @@ def _multiwindow_init(subset_size: int,
                      multiwindow_subset_size: list[int],
                      multiwindow_search_area: list[int]) -> tuple[list[int], list[int], list[int]]:
 
+    # Work on local copies because the final subset level is appended below.
+    multiwindow_subset_size = list(multiwindow_subset_size)
+    multiwindow_search_area = list(multiwindow_search_area)
 
     # check multiwindow_subset_size and multiwindow_search_area are same length
     if len(multiwindow_subset_size) != len(multiwindow_search_area):
@@ -75,8 +78,10 @@ def _multiwindow_init(subset_size: int,
             multiwindow_subset_size = [2*max_displacement] + powers_of_two
             multiwindow_search_area = [2*max_displacement] + powers_of_two
         else:
-            multiwindow_subset_size = powers_of_two
-            multiwindow_search_area = powers_of_two
+            # Keep the two configuration vectors independent. Without these
+            # copies, appending the final level modifies both lists twice.
+            multiwindow_subset_size = list(powers_of_two)
+            multiwindow_search_area = list(powers_of_two)
 
     # check that all multiwindow_subset_sizes are less than or equal to the
     # multiwindow_search_area elements

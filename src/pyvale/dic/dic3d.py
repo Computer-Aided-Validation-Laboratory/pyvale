@@ -358,11 +358,6 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.rg_seeds = updated_seeds
     config.basenames = basenames
     config.fullpaths = fullpaths
-    config.fft_filter = fft_filter
-    config.fft_filter_threshold = fft_filter_threshold
-    config.fft_filter_radius = fft_filter_radius
-    config.fft_filter_corr_power = fft_filter_corr_power
-    config.fft_save = fft_save
     config.debug_level = print_level
     config.image_filter_kernel = image_filter_kernel
     config.image_filter_sigma = image_filter_sigma
@@ -382,6 +377,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     multiwindowconf.overlap = mw_overlap
     multiwindowconf.subset_size = mw_subset_size
     multiwindowconf.search_area = mw_search_area
+    multiwindowconf.fft_filter = fft_filter
+    multiwindowconf.fft_filter_threshold = fft_filter_threshold
+    multiwindowconf.fft_filter_radius = fft_filter_radius
+    multiwindowconf.fft_filter_corr_power = fft_filter_corr_power
+    multiwindowconf.fft_save = fft_save
 
     # assigning c++ struct vals for save config
     saveconf = commoncpp.SaveConfig()

@@ -34,7 +34,7 @@
 
 void multiwindow_rg(const Interpolator &interp_ref,
                     const Interpolator &interp_def,
-                    std::vector<WindowLevel> &multiwindow,
+                    MultiwindowPyramid &pyramid,
                     const util::Config &conf,
                     const int img_num_ref,
                     const int img_num_def,
@@ -46,24 +46,15 @@ void multiwindow_rg(const Interpolator &interp_ref,
     const int px_vert = conf.px_vert;
 
     // subset information
-    const SubsetGrid &ss_grid = multiwindow.back().layout;
+    const SubsetGrid &ss_grid = pyramid.back().grid;
     const int num_ss = ss_grid.num;
     const int ss_size_x = ss_grid.size_x;
     const int ss_size_y = ss_grid.size_y;
     const int ss_step = ss_grid.step;
 
-    // loop over the window sizes and calculate estimates for rigid
-    // displacement using FFTCC
-    for (int lvl = 0; lvl < multiwindow.size(); lvl++){
-        multiwindow[lvl].calc_rigid_displacements(multiwindow[std::max(0,lvl-1)],
-                                                    interp_ref,
-                                                    interp_def,
-                                                    img_num_ref, img_num_def,
-                                                    lvl, multiwindow.size(),
-                                                    conf.basenames,
-                                                    conf.fft_precision);
-        raise_on_interrupt();
-    }
+    pyramid.calc_rigid_displacements(interp_ref, interp_def,
+                                     img_num_ref, img_num_def,
+                                     conf.basenames, conf.fft_precision);
 
 
     // progress bar
@@ -136,7 +127,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
 
 
                 // if the first image. Take the optimization parameters from rigid fourier
-                opt.copy_params_from_fft(idx, multiwindow.back().u, multiwindow.back().v);
+                opt.copy_params_from_fft(idx, pyramid.back().u, pyramid.back().v);
 
                 // Extract reference subset and solve for starting seed point
                 ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
@@ -269,13 +260,13 @@ void multiwindow_rg(const Interpolator &interp_ref,
                                                    ss_grid.neigh[nidx],
                                                    current.idx);
                     else
-                        opt.copy_params_from_fft(nidx, multiwindow.back().u, multiwindow.back().v);
+                        opt.copy_params_from_fft(nidx, pyramid.back().u, pyramid.back().v);
 
                     // optimize
                     if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
 
-                    nres.u += results_ref.u[nidx];
-                    nres.v += results_ref.v[nidx];
+                        nres.u += results_ref.u[nidx];
+                        nres.v += results_ref.v[nidx];
 
                     // append results
                     results_def.append(nres, nidx);

@@ -2,6 +2,50 @@ cmake_minimum_required(VERSION 3.15)
 
 project(${SKBUILD_PROJECT_NAME} LANGUAGES CXX)
 
+# -----------------------------------------------------------------------------
+# Source revision metadata
+# -----------------------------------------------------------------------------
+find_package(Git QUIET)
+
+set(PYVALE_GIT_COMMIT "unknown")
+set(PYVALE_GIT_BRANCH "unknown")
+set(PYVALE_GIT_CLEAN 0)
+
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PYVALE_GIT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE PYVALE_GIT_COMMIT_RESULT)
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} branch --show-current
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PYVALE_GIT_BRANCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE PYVALE_GIT_BRANCH_RESULT)
+
+    if(PYVALE_GIT_BRANCH STREQUAL "")
+        set(PYVALE_GIT_BRANCH "unknown")
+    endif()
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} status --porcelain --untracked-files=all
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PYVALE_GIT_STATUS
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE PYVALE_GIT_STATUS_RESULT)
+
+    if(PYVALE_GIT_COMMIT_RESULT EQUAL 0 AND PYVALE_GIT_STATUS_RESULT EQUAL 0 AND
+       PYVALE_GIT_STATUS STREQUAL "")
+        set(PYVALE_GIT_CLEAN 1)
+    endif()
+endif()
+
 # ----------------------------
 # C++ standard
 # ----------------------------
@@ -110,6 +154,10 @@ file(GLOB COMMON_SRC_FILES src/pyvale/commoncpp/*.cpp)
 pybind11_add_module(commoncpp MODULE ${COMMON_SRC_FILES})
 target_include_directories(commoncpp PRIVATE src/pyvale/commoncpp ${TIFF_INCLUDE_DIR})
 target_link_libraries(commoncpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
+target_compile_definitions(commoncpp PRIVATE
+    PYVALE_GIT_COMMIT="${PYVALE_GIT_COMMIT}"
+    PYVALE_GIT_BRANCH="${PYVALE_GIT_BRANCH}"
+    PYVALE_GIT_CLEAN=${PYVALE_GIT_CLEAN})
 apply_compile_flags(commoncpp)
 install(TARGETS commoncpp LIBRARY DESTINATION pyvale/commoncpp)
 

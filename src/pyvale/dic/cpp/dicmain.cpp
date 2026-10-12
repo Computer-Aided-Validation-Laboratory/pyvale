@@ -34,6 +34,7 @@
 #include "./dicsubset.hpp"
 #include "./dicroiupdate.hpp"
 #include "./dicmain.hpp"
+#include "./dicengine.hpp"
 #include "./dicmultiwindow_rg.hpp"
 #include "./dicmultiwindow_only.hpp"
 #include "./dicsinglewindow_rg.hpp"
@@ -48,8 +49,51 @@
 
 namespace py = pybind11;
 
+void engine(const py::array_t<bool>& img_roi_arr,
+            const Calib &calib,
+            const util::Config &conf,
+            const MultiwindowConfig &mwconf,
+            const common_util::SaveConfig &saveconf){
 
-namespace {
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
+
+        Image image = read_img(conf.fullpaths.at(image_index));
+        apply_filter(image, conf.image_filter_kernel, static_cast<float>(conf.image_filter_sigma));
+        return make_interp(conf.interp_routine, image);
+
+    });
+}
+
+void engine_images(const std::vector<Image>& images,
+                   const py::array_t<bool>& img_roi_arr,
+                   const Calib &calib,
+                   const util::Config &conf,
+                   const MultiwindowConfig &mwconf,
+                   const common_util::SaveConfig &saveconf){
+
+    const size_t expected_images = conf.stereo
+        ? static_cast<size_t>(2 * (conf.num_def_img + 1))
+        : static_cast<size_t>(conf.num_def_img + 1);
+
+    if (images.size() != expected_images) {
+        throw std::runtime_error("Image array count does not match DIC config.");
+    }
+
+    for (size_t i = 0; i < images.size(); ++i) {
+        if (images[i].width != static_cast<uint32_t>(conf.px_hori) ||
+            images[i].height != static_cast<uint32_t>(conf.px_vert)) {
+            throw std::runtime_error("Image array dimensions do not match DIC config.");
+        }
+    }
+
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
+
+        Image image = images.at(image_index);
+        apply_filter(image, conf.image_filter_kernel, static_cast<float>(conf.image_filter_sigma));
+        return make_interp(conf.interp_routine, image);
+
+    });
+}
 
 void engine_impl(const py::array_t<bool>& img_roi_arr,
                  const Calib &calib,
@@ -58,69 +102,46 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                  const common_util::SaveConfig &saveconf,
                  const std::function<std::unique_ptr<Interpolator>(int)> &interp_factory){
 
-    // Register signal handler for Ctrl+C and set debug_level
+
     signal(SIGINT, signalHandler);
     g_debug_level = conf.debug_level;
 
-    // -----------------------------------------------------------------------
-    // loop over deformed images and perform DIC
-    // -----------------------------------------------------------------------
     if (g_debug_level>0){
         common_util::title("Starting Correlation");
     }
 
-
-    // get raw pointers
     const bool *img_roi = img_roi_arr.data();
 
-    // ------------------------------------------------------------------------
-    // get a list of ss coordinates within RIO;
-    // ------------------------------------------------------------------------
-    std::vector<WindowLevel> multiwindow_l;
+    MultiwindowPyramid multiwindow_l;
     SubsetGrid ss_grid_l;
     SubsetGrid ss_grid_l_0;
 
-    if (conf.scan_method == util::EScanMethod::MULTIWINDOW_RG || conf.scan_method == util::EScanMethod::MULTIWINDOW) {
-        multiwindow_init(multiwindow_l, img_roi, conf, mwconf, saveconf);
-        ss_grid_l = multiwindow_l.back().layout;
-        ss_grid_l_0 = ss_grid_l;
-    }
-    else if (conf.scan_method == util::EScanMethod::SINGLEWINDOW_RG ||
-             conf.scan_method == util::EScanMethod::RASTER) {
-
-        common_util::Timer timer("to create subset grid:", 2);
-        ss_grid_l = create_grid(img_roi, conf.ss_step,
-                                        conf.ss_size, conf.ss_size,
-                                        conf.px_hori, conf.px_vert, conf.partial_subset);
-        ss_grid_l_0 = ss_grid_l;
-    }
-    else {
-        throw std::invalid_argument("Unsupported scan method");
-    }
+    ss_grid_l = build_initial_grid(img_roi,
+                                   conf,
+                                   mwconf,
+                                   saveconf,
+                                   multiwindow_l);
+    ss_grid_l_0 = ss_grid_l;
 
 
     // resize the results based on subset information
     ResultArrays results_def_l(ss_grid_l.num, conf.num_params, false);
 
 
-    // pointer to hold the reference interpolators (will be created once)
     std::unique_ptr<Interpolator> interp_ref_l;
     std::unique_ptr<Interpolator> interp_ref_r;
     std::unique_ptr<Interpolator> interp_def_l;
     std::unique_ptr<Interpolator> interp_def_r;
-    interp_ref_l = interp_factory(0);
+    interp_ref_l = interp_factory(0); // image 0
 
 
-    // objects only needed for stereo
-    ResultArrays stereo_matches;
+    ResultArrays results_ref_l(ss_grid_l.num, conf.num_params, false);
     ResultArrays results_ref_r;
     ResultArrays results_def_r;
     stereo::Geometry stereo_geom;
 
-    // split out filenames into two vectors
     auto [basenames_l, basenames_r] = stereo::split_basenames(conf);
 
-    ResultArrays results_ref_l(ss_grid_l.num, conf.num_params, false);
 
     if (conf.stereo){
 
@@ -217,35 +238,20 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                 // ----------------------------------------------------------------------------------------
                 // multiwindow FFTCC
                 // ----------------------------------------------------------------------------------------
-                bool update_ref = conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf);
+                bool update_ref = conf.incremental && should_update_ref(img_num_def_l,
+                                                                        results_def_l,
+                                                                        conf);
                 if (update_ref) {
                     img_num_ref_l = img_num_def_l - 1;
                     results_ref_l = results_def_l;
                     interp_ref_l = interp_factory(img_num_ref_l);
 
-                    std::unique_ptr<bool[]> roi_updated(propagate_roi(img_roi, results_def_l, conf, ss_grid_l));
-                    multiwindow_l.clear();
-                    multiwindow_init_partial(multiwindow_l, roi_updated.get(), conf, mwconf, saveconf,
-                                            mwconf.overlap.size() - 1);
+                    std::unique_ptr<bool[]> roi_updated(propagate_roi(img_roi,
+                                                                      results_def_l,
+                                                                      conf,
+                                                                      ss_grid_l));
 
-                    WindowLevel last_level;
-                    last_level.u.assign(ss_grid_l.num, 0.0);
-                    last_level.v.assign(ss_grid_l.num, 0.0);
-                    last_level.cost.assign(ss_grid_l.num, 0.0);
-                    last_level.max_val.assign(ss_grid_l.num, 0.0);
-                    last_level.level         = mwconf.overlap.size() - 1;
-                    last_level.fft_filter             = conf.fft_filter;
-                    last_level.fft_filter_threshold   = conf.fft_filter_threshold;
-                    last_level.fft_filter_radius      = conf.fft_filter_radius;
-                    last_level.fft_filter_corr_power  = conf.fft_filter_corr_power;
-                    last_level.fft_save      = conf.fft_save;
-                    last_level.saveconf      = saveconf;
-                    last_level.step          = mwconf.overlap.back();
-                    last_level.template_size = mwconf.subset_size.back();
-                    last_level.search_area   = mwconf.search_area.back();
-
-
-                    // Step 1: update active flags on ss_grid_l
+                    // Update the active finest-level grid before rebuilding the pyramid.
                     if (img_num_def_l > 1){
                         for (int i = 0; i < ss_grid_l.num; i++) {
                             if (!results_ref_l.above_thresh[i]) {
@@ -255,18 +261,15 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                         ss_grid_l.active_total = std::count(ss_grid_l.active_ss.begin(),
                                                             ss_grid_l.active_ss.end(), true);
                     }
-                    last_level.layout = ss_grid_l;
-                    for (int i = 0; i < ss_grid_l.num; i++) {
-                        if (ss_grid_l.active_ss[i]) {
-                            last_level.layout.coords[2*i]   += results_ref_l.u[i];
-                            last_level.layout.coords[2*i+1] += results_ref_l.v[i];
-                        }
-                    }
 
-                    multiwindow_l.push_back(std::move(last_level));
-                    if (multiwindow_l.size() > 1) {
-                        multiwindow_l.back().gen_neighlist(multiwindow_l[multiwindow_l.size()-2].layout);
-                    }
+                    multiwindow_l.rebuild_for_new_reference(roi_updated.get(),
+                                                            ss_grid_l,
+                                                            results_ref_l.u,
+                                                            results_ref_l.v,
+                                                            conf,
+                                                            mwconf,
+                                                            saveconf,
+                                                            mwconf.overlap.size() - 1);
 
                 }
 
@@ -365,7 +368,9 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                 // ----------------------------------------------------------------------------------------
                 // multiwindow FFTCC + reliability Guided
                 // ----------------------------------------------------------------------------------------
-                bool update_ref = conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf);
+                bool update_ref = conf.incremental && should_update_ref(img_num_def_l,
+                                                                        results_def_l,
+                                                                        conf);
                 if (update_ref) {
 
                     // update left image vars
@@ -378,29 +383,12 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                         results_ref_r = results_def_r;
 
 
-                    std::unique_ptr<bool[]> roi_updated(propagate_roi(img_roi, results_def_l, conf, ss_grid_l));
-                    multiwindow_l.clear();
-                    multiwindow_init_partial(multiwindow_l, roi_updated.get(), conf, mwconf, saveconf,
-                                            mwconf.overlap.size() - 1);
+                    std::unique_ptr<bool[]> roi_updated(propagate_roi(img_roi,
+                                                                      results_def_l,
+                                                                      conf,
+                                                                      ss_grid_l));
 
-                    WindowLevel last_level;
-                    last_level.u.assign(ss_grid_l.num, 0.0);
-                    last_level.v.assign(ss_grid_l.num, 0.0);
-                    last_level.cost.assign(ss_grid_l.num, 0.0);
-                    last_level.max_val.assign(ss_grid_l.num, 0.0);
-                    last_level.level         = mwconf.overlap.size() - 1;
-                    last_level.fft_filter             = conf.fft_filter;
-                    last_level.fft_filter_threshold   = conf.fft_filter_threshold;
-                    last_level.fft_filter_radius      = conf.fft_filter_radius;
-                    last_level.fft_filter_corr_power  = conf.fft_filter_corr_power;
-                    last_level.fft_save      = conf.fft_save;
-                    last_level.saveconf      = saveconf;
-                    last_level.step          = mwconf.overlap.back();
-                    last_level.template_size = mwconf.subset_size.back();
-                    last_level.search_area   = mwconf.search_area.back();
-
-
-                    // Step 1: update active flags on ss_grid_l
+                    // Update the active finest-level grid before rebuilding the pyramid.
                     if (img_num_def_l > 1){
                         for (int i = 0; i < ss_grid_l.num; i++) {
                             if (!results_ref_l.above_thresh[i]) {
@@ -410,18 +398,15 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                         ss_grid_l.active_total = std::count(ss_grid_l.active_ss.begin(),
                                                             ss_grid_l.active_ss.end(), true);
                     }
-                    last_level.layout = ss_grid_l;
-                    for (int i = 0; i < ss_grid_l.num; i++) {
-                        if (ss_grid_l.active_ss[i]) {
-                            last_level.layout.coords[2*i]   += results_ref_l.u[i];
-                            last_level.layout.coords[2*i+1] += results_ref_l.v[i];
-                        }
-                    }
 
-                    multiwindow_l.push_back(std::move(last_level));
-                    if (multiwindow_l.size() > 1) {
-                        multiwindow_l.back().gen_neighlist(multiwindow_l[multiwindow_l.size()-2].layout);
-                    }
+                    multiwindow_l.rebuild_for_new_reference(roi_updated.get(),
+                                                            ss_grid_l,
+                                                            results_ref_l.u,
+                                                            results_ref_l.v,
+                                                            conf,
+                                                            mwconf,
+                                                            saveconf,
+                                                            mwconf.overlap.size() - 1);
 
                 }
 
@@ -458,7 +443,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
 
                     singlewindow_rg(*interp_ref_l,
                                     *interp_def_r,
-                                    multiwindow_l.back().layout,
+                                    multiwindow_l.back().grid,
                                     conf,
                                     img_num_ref_l,
                                     img_num_def_r,
@@ -487,99 +472,19 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
         }
 
         if (!conf.stereo){
-            results_def_l.write_to_disk_2d(saveconf, ss_grid_l, basenames_l[img_num]);
+            results_def_l.write_to_disk_2d(saveconf,
+                                           ss_grid_l,
+                                           basenames_l[img_num]);
         }
         else {
-            results_def_l.write_to_disk_stereo(results_def_r, saveconf, ss_grid_l, basenames_l[img_num]);
+            results_def_l.write_to_disk_stereo(results_def_r,
+                                               saveconf,
+                                               ss_grid_l,
+                                               basenames_l[img_num]);
         }
 
         if (stop_request) break;
     }
 
     raise_on_interrupt();
-}
-
-}
-
-void engine(const py::array_t<bool>& img_roi_arr,
-            const Calib &calib,
-            const util::Config &conf,
-            const MultiwindowConfig &mwconf,
-            const common_util::SaveConfig &saveconf){
-
-    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
-
-        Image image = read_img(conf.fullpaths.at(image_index));
-        apply_filter(image, conf.image_filter_kernel, static_cast<float>(conf.image_filter_sigma));
-        return make_interp(conf.interp_routine, image);
-
-    });
-}
-
-void engine_images(const std::vector<Image>& images,
-                   const py::array_t<bool>& img_roi_arr,
-                   const Calib &calib,
-                   const util::Config &conf,
-                   const MultiwindowConfig &mwconf,
-                   const common_util::SaveConfig &saveconf){
-
-    const size_t expected_images = conf.stereo
-        ? static_cast<size_t>(2 * (conf.num_def_img + 1))
-        : static_cast<size_t>(conf.num_def_img + 1);
-
-    if (images.size() != expected_images) {
-        throw std::runtime_error("Image array count does not match DIC config.");
-    }
-
-    for (size_t i = 0; i < images.size(); ++i) {
-        if (images[i].width != static_cast<uint32_t>(conf.px_hori) ||
-            images[i].height != static_cast<uint32_t>(conf.px_vert)) {
-            throw std::runtime_error("Image array dimensions do not match DIC config.");
-        }
-    }
-
-    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
-
-        Image image = images.at(image_index);
-        apply_filter(image, conf.image_filter_kernel, static_cast<float>(conf.image_filter_sigma));
-        return make_interp(conf.interp_routine, image);
-
-    });
-}
-
-
-bool should_update_ref(const int img_num_def_l, const ResultArrays& results, const util::Config& conf) {
-
-    // never update on the first deformed image
-    if (img_num_def_l == 1) {
-        return false;
-    }
-
-    switch (conf.incremental_update_cond) {
-
-        case util::EIncrementalCond::IMAGE: {
-            int interval = static_cast<int>(conf.incremental_update_val);
-            return (img_num_def_l - 1) % interval == 0;
-        }
-
-        case util::EIncrementalCond::ITER: {
-            if (results.niter.empty()) return false;
-
-            double avg = std::accumulate(results.niter.begin(), results.niter.end(), 0.0) / results.niter.size();
-            return avg > conf.incremental_update_val;
-        }
-
-        case util::EIncrementalCond::COST: {
-            if (results.cost.empty()) return false;
-
-            double avg = std::accumulate(results.cost.begin(), results.cost.end(), 0.0) / results.cost.size();
-            return avg > conf.incremental_update_val;
-        }
-
-        default:
-            throw std::runtime_error(
-                "Unknown incremental update condition: " +
-                std::to_string(static_cast<int>(conf.incremental_update_cond))
-            );
-    }
 }
