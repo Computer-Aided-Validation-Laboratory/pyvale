@@ -5,39 +5,24 @@
 // ================================================================================
 
 
-#ifndef DICOPTIMIZER_H
-#define DICOPTIMIZER_H
+#ifndef OPTIMIZERFALM_HPP
+#define OPTIMIZERFALM_HPP
 
 // STD library Header files
 #include <vector>
-#include <cstdint>
 #include <string>
 
 // Program Header files
-#include "./dicsubset.hpp"
+#include "./dicoptimizerbase.hpp"
 #include "./dicinterp.hpp"
 #include "./dicutil.hpp"
 
 
-struct OptResult {
-    std::vector<double> p;
-    double u = 0.0;
-    double v = 0.0;
-    double mag = 0.0;
-    double ftol = 0.0;
-    double xtol = 0.0;
-    int iter = 0;
-    double cost = 0.0;
-    uint8_t converged = false;
-    uint8_t above_thresh = false;
-    OptResult(size_t num_params) : p(num_params, 0.0) {}
-};
-
-class Optimizer {
+class OptimizerFALM : public OptimizerBase {
 
     public:
         // Constructor
-        Optimizer(util::EShapeFunc shape_func, 
+        OptimizerFALM(util::EShapeFunc shape_func,
                  util::ECorrCrit cost_func,
                  int max_iter,
                  double precision,
@@ -50,37 +35,8 @@ class Optimizer {
                   Subset<double> &ss_ref, 
                   Subset<double> &ss_def, 
                   const Interpolator &interp_def,
-                  const bool check_on_thresh=false);
+                  const bool check_on_thresh=false) override;
         
-        // Public access to parameters
-        const int num_params;             // Number of parameters
-        int max_iter;
-        std::vector<double> p;      // Current parameters
-        std::vector<double> dp;     // Parameter updates
-        std::vector<double> pdp;    // p + dp
-
-
-        void set_rigid_displacement(double dx, double dy);
-
-        void copy_params_from_fft(const int idx,
-                                  const std::vector<double> &shift_x,
-                                  const std::vector<double> &shift_y);
-
-        void copy_params_from_neigh(const std::vector<double> &results_p,
-                                    const int idx);
-
-        void copy_params_from_neigh(const std::vector<double> &results_p,
-                                    const std::vector<double> &results_cost,
-                                    const std::vector<uint8_t> &results_above_thresh,
-                                    const std::vector<int> &neigh,
-                                    const int fallback_idx);
-
-        int average_params_from_neigh(const std::vector<double> &results_p,
-                              const std::vector<uint8_t> &successful,
-                              const std::vector<int> &neigh);
-
-void reset_params();
-
     private:
 
         util::ECorrCrit criteria;
@@ -101,21 +57,8 @@ void reset_params();
         int px_vert;
         int px_hori;
         
-        // Points to cost function
-        void (Optimizer::*optimize_cost)(const Subset<double>&, Subset<double>&, const Interpolator&, const double, const double);
-        
-        // Shape function pointers
-        void (*get_pixel)(double&, double&, const double, const double, const std::vector<double>&);
-        void (*get_dfdp)(std::vector<double>&, const double, const double, const double, const double);
-        void (*get_displacement)(double&, double&, const double, const double, const std::vector<double>&);
-        
-        // Helper functions
-        static int get_num_params(util::EShapeFunc shape_func);
-
-
-
-
-        void set_shape(util::EShapeFunc shape_func);
+        // Points to the selected FALM cost function.
+        void (OptimizerFALM::*optimize_cost)(const Subset<double>&, Subset<double>&, const Interpolator&, const double, const double);
     
         /**
         * @brief This function gets called before the corrolation optimization starts. Sets the function pointer for the user specified shape function.
@@ -227,4 +170,4 @@ void reset_params();
 
 };
 
-#endif //DICOPTIMIZER_H
+#endif // OPTIMIZERFALM_HPP
