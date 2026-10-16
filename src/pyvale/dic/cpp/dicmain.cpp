@@ -187,7 +187,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
         // compared with itself. It is not a correlation result, but it is a
         // valid zero-displacement datum for the first saved frame.
         std::fill(results_ref_l.conv.begin(), results_ref_l.conv.end(), 1);
-        std::fill(results_ref_l.above_thresh.begin(), results_ref_l.above_thresh.end(), 1);
+        std::fill(results_ref_l.valid_match.begin(), results_ref_l.valid_match.end(), 1);
         std::fill(results_ref_l.cost.begin(), results_ref_l.cost.end(), 1.0);
 
         results_ref_l.write_to_disk_stereo(results_ref_r,
@@ -258,7 +258,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                     // Update the active finest-level grid before rebuilding the pyramid.
                     if (img_num_def_l > 1){
                         for (int i = 0; i < ss_grid_l.num; i++) {
-                            if (!results_ref_l.above_thresh[i]) {
+                            if (!results_ref_l.valid_match[i]) {
                                 ss_grid_l.active_ss[i] = false;
                             }
                         }
@@ -310,7 +310,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                     // Step 1: update active flags on ss_grid_l
                     if (img_num_def_l > 1){
                         for (int i = 0; i < ss_grid_l.num; i++) {
-                            if (!results_ref_l.above_thresh[i]) {
+                            if (!results_ref_l.valid_match[i]) {
                                 ss_grid_l.active_ss[i] = false;
                             }
                         }
@@ -395,7 +395,7 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                     // Update the active finest-level grid before rebuilding the pyramid.
                     if (img_num_def_l > 1){
                         for (int i = 0; i < ss_grid_l.num; i++) {
-                            if (!results_ref_l.above_thresh[i]) {
+                            if (!results_ref_l.valid_match[i]) {
                                 ss_grid_l.active_ss[i] = false;
                             }
                         }

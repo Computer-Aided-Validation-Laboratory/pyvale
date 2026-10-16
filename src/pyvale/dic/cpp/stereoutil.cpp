@@ -59,7 +59,7 @@ namespace stereo {
         #pragma omp parallel for
         for (int ss = 0; ss < ss_grid.num; ss++){
             
-            if ((!first_frame && !temporal.above_thresh[ss]) || !stereo_def.above_thresh[ss])
+            if ((!first_frame && !temporal.valid_match[ss]) || !stereo_def.valid_match[ss])
                 continue;
 
             // centre coords left
@@ -117,7 +117,7 @@ namespace stereo {
                 stereo_def.v_world[ss] = 0.0;
                 stereo_def.w_world[ss] = 0.0;
             }
-            else if (!stereo_ref.above_thresh[ss]
+            else if (!stereo_ref.valid_match[ss]
                      || !std::isfinite(stereo_ref.x_world[ss])
                      || !std::isfinite(stereo_ref.y_world[ss])
                      || !std::isfinite(stereo_ref.z_world[ss])
@@ -130,7 +130,7 @@ namespace stereo {
                 stereo_def.u_world[ss] = NAN;
                 stereo_def.v_world[ss] = NAN;
                 stereo_def.w_world[ss] = NAN;
-                stereo_def.above_thresh[ss] = false;
+                stereo_def.valid_match[ss] = false;
             }
             else {
                 // compute delta relative to the provided stereo_ref world coords
@@ -652,7 +652,7 @@ namespace stereo {
     // Count valid matches first
     std::vector<int> valid;
     for (int i = 0; i < stereo_matches.u.size(); i++)
-        if (stereo_matches.conv[i] && stereo_matches.above_thresh[i])
+        if (stereo_matches.conv[i] && stereo_matches.valid_match[i])
             valid.push_back(i);
 
     assert(valid.size() >= 4 && "Not enough valid matches to compute H");
@@ -710,7 +710,7 @@ namespace stereo {
         // Build list of subsets to keep
         std::vector<int> keep;
         for (int ss = 0; ss < ss_grid_l.num; ss++) {
-            if (stereo_matches.above_thresh[ss])
+            if (stereo_matches.valid_match[ss])
                 keep.push_back(ss);
         }
 

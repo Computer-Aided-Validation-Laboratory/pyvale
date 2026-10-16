@@ -130,7 +130,7 @@ namespace rg {
 
 
     bool check_convergence(const int x, const int y, const OptResult &res, std::string &msg, bool direct_neigh) {
-        if (!res.above_thresh) {
+        if (!res.valid_match) {
             std::ostringstream oss;
 
             oss << (direct_neigh
@@ -142,7 +142,7 @@ namespace rg {
                 << "cost: " << res.cost << "\n"
                 << "xtol: " << res.xtol << "\n"
                 << "ftol: " << res.ftol << "\n"
-                << "above_thresh: " << static_cast<unsigned>(res.above_thresh) << "\n"
+                << "valid_match: " << static_cast<unsigned>(res.valid_match) << "\n"
                 << "converged: " << static_cast<unsigned>(res.converged) << "\n"
                 << "iterations: " << res.iter;
             msg = oss.str();
@@ -162,7 +162,7 @@ void retry_bad_points(const Interpolator &interp_ref,
 
     for (int required_neigh = 4; required_neigh >= 2; --required_neigh) {
 
-        const std::vector<uint8_t> successful = results_def.above_thresh;
+        const std::vector<uint8_t> successful = results_def.valid_match;
         std::vector<int> retry_indices;
 
         for (int idx = 0; idx < ss_grid.num; ++idx) {

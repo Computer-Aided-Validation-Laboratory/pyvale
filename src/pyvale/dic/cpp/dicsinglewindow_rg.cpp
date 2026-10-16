@@ -224,7 +224,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
                     // perform optimization for seed point neighbours
                     opt->copy_params_from_neigh(results_def.p,
                                                results_def.cost,
-                                               results_def.above_thresh,
+                                               results_def.valid_match,
                                                ss_grid.neigh[nidx],
                                                idx);
 
@@ -308,10 +308,10 @@ void singlewindow_rg(const Interpolator &interp_ref,
                     ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
                     ss_ref.shift_to_local_coordinates(cx, cy);
 
-                    if (results_def.above_thresh[current.idx]){
+                    if (results_def.valid_match[current.idx]){
                         opt->copy_params_from_neigh(results_def.p,
                                                    results_def.cost,
-                                                   results_def.above_thresh,
+                                                   results_def.valid_match,
                                                    ss_grid.neigh[nidx],
                                                    current.idx);
                         if (ss_ref.sum!=0) nres = opt->solve(cx, cy, ss_ref, ss_def, interp_def, false);

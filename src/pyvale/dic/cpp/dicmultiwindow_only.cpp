@@ -128,7 +128,7 @@ void multiwindow_only(const Interpolator &interp_ref,
             res.converged=true;
 
             if (zncc>=conf.threshold)
-                res.above_thresh=true;
+                res.valid_match=true;
 
             res.u += results_ref.u[ss];
             res.v += results_ref.v[ss];

@@ -291,7 +291,7 @@ void matching(const Image &img_l,
                             ss_l.fill_from_shape_params( cx_ref_l, cy_ref_l, opt->p, interp_l, conf.shape_func);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
-                        if (results_r.above_thresh[current.idx])
+                        if (results_r.valid_match[current.idx])
                             opt->copy_params_from_neigh(results_r.p, current.idx);
                         else
                             get_initial_guess(opt->p, cx_def_l, cy_def_l, false);
@@ -300,7 +300,7 @@ void matching(const Image &img_l,
                             OptResult nres = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r);
 
                         // add deformation from reference image to new results
-                        if (nres.above_thresh){
+                        if (nres.valid_match){
                             std::vector<double> pA(conf.num_params);
                             std::vector<double> pB = nres.p;
                             std::vector<double> pC(conf.num_params);
@@ -344,7 +344,7 @@ void matching(const Image &img_l,
         }
 
         // // TODO: build a list of subsets using openmp that have correlated poorly but have atleast
-        // // one immediate neighbour above_threshold
+        // // one immediate neighbour valid_matchold
         // std::vector<int> retry_indices;
         // #pragma omp parallel
         // {
@@ -352,10 +352,10 @@ void matching(const Image &img_l,
         //     #pragma omp for nowait
         //     for (int i = 0; i < num_ss; ++i) {
         //         // If the point was reached but failed threshold
-        //         if (computed_mask[i].load() == 1 && !results_r.above_thresh[i]) {
+        //         if (computed_mask[i].load() == 1 && !results_r.valid_match[i]) {
         //             // Check if any neighbor was successful
         //             for (int nidx : ss_grid.neigh[i]) {
-        //                 if (results_r.above_thresh[nidx]) {
+        //                 if (results_r.valid_match[nidx]) {
         //                     local_retry.push_back(i);
         //                     break;
         //                 }
@@ -383,7 +383,7 @@ void matching(const Image &img_l,
         //         int best_neigh = -1;
         //         double best_cost = -std::numeric_limits<double>::max();
         //         for (int nidx : ss_grid.neigh[idx]) {
-        //             if (results_r.above_thresh[nidx] && results_r.cost[nidx] > best_cost) {
+        //             if (results_r.valid_match[nidx] && results_r.cost[nidx] > best_cost) {
         //                 best_cost = results_r.cost[nidx];
         //                 best_neigh = nidx;
         //             }

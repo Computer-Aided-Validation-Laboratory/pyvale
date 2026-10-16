@@ -111,7 +111,7 @@ OptResult OptimizerFALM::solve(const double cx,
                            std::abs(res.v) <= static_cast<double>(interp_def.px_vert);
 
 
-    res.above_thresh = in_bounds && res.cost >= threshold;
+    res.valid_match = in_bounds && res.cost >= threshold;
 
     // debugging
     //if (iter == max_iter) {

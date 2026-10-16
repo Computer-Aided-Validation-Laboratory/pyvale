@@ -39,7 +39,7 @@ class ResultArrays {
         std::vector<double> xtol;
         std::vector<double> cost;
         std::vector<uint8_t> conv;
-        std::vector<uint8_t> above_thresh;
+        std::vector<uint8_t> valid_match;
 
         // incremental tracking;
         // std::vector<double> u_last_good;

@@ -18,7 +18,7 @@ struct OptResult {
     int iter = 0;
     double cost = 0.0;
     uint8_t converged = false;
-    uint8_t above_thresh = false;
+    uint8_t valid_match = false;
 
     explicit OptResult(size_t num_params) : p(num_params, 0.0) {}
 };
@@ -41,7 +41,7 @@ public:
     void copy_params_from_neigh(const std::vector<double> &results_p, int idx);
     void copy_params_from_neigh(const std::vector<double> &results_p,
                                 const std::vector<double> &results_cost,
-                                const std::vector<uint8_t> &results_above_thresh,
+                                const std::vector<uint8_t> &results_valid_match,
                                 const std::vector<int> &neigh,
                                 int fallback_idx);
     int average_params_from_neigh(const std::vector<double> &results_p,

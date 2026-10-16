@@ -263,7 +263,7 @@ OptResult OptimizerICGN::solve(const double cx, const double cy,
                            std::abs(result.u) <= static_cast<double>(interp_def.px_hori) &&
                            std::abs(result.v) <= static_cast<double>(interp_def.px_vert);
 
-    result.above_thresh = in_bounds && result.cost >= threshold;
+    result.valid_match = in_bounds && result.cost >= threshold;
 
     return result;
 }

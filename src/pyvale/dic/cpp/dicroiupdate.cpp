@@ -29,7 +29,7 @@ bool* propagate_roi(
 
     for (int i = 0; i < results_def.conv.size(); i++)
     {
-        if (!results_def.conv[i] || !results_def.above_thresh[i])
+        if (!results_def.conv[i] || !results_def.valid_match[i])
             continue;
 
         int new_cx = static_cast<int>(std::round(ss_grid.coords[2*i + 0] + results_def.u[i]));

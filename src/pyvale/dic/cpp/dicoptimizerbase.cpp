@@ -74,7 +74,7 @@ void OptimizerBase::copy_params_from_neigh(const std::vector<double> &results_p,
 void OptimizerBase::copy_params_from_neigh(
     const std::vector<double> &results_p,
     const std::vector<double> &results_cost,
-    const std::vector<uint8_t> &results_above_thresh,
+    const std::vector<uint8_t> &results_valid_match,
     const std::vector<int> &neigh,
     int fallback_idx) {
     std::fill(p.begin(), p.end(), 0.0);
@@ -83,7 +83,7 @@ void OptimizerBase::copy_params_from_neigh(
 
     for (int nidx : neigh) {
         if (count == 4) break;
-        if (!results_above_thresh[nidx] || results_cost[nidx] <= 0.0) continue;
+        if (!results_valid_match[nidx] || results_cost[nidx] <= 0.0) continue;
 
         const double weight = results_cost[nidx];
         for (int i = 0; i < num_params; ++i)

@@ -169,7 +169,7 @@ namespace stereo {
     *
     * @param ss_grid SubsetGrid of subset (patch) top-left coordinates (pixel space).
     * @param calib   Calibration containing intrinsics/distortion for cam0/cam1 and translation (t).
-    * @param stereo_matches Match results; uses u,v (pixel disparities) and above_thresh mask.
+    * @param stereo_matches Match results; uses u,v (pixel disparities) and valid_match mask.
     * @param K0      Intrinsic matrix of camera 0 (used only for undistortion here).
     * @param K1      Intrinsic matrix of camera 1 (used only for undistortion here).
     * @param R       Rotation from camera 0 to camera 1.
@@ -181,7 +181,7 @@ namespace stereo {
     * @note Translation vector @p calib.translation is assumed to be in millimeters, so the
     *       resulting (X, Y, Z) will also be in millimeters.
     * @pre  ss_grid.num == stereo_matches.u.size() == stereo_matches.v.size()
-    *       == stereo_matches.above_thresh.size()
+    *       == stereo_matches.valid_match.size()
     * @warning This implementation computes X but does not store it; add assignments to
     *          persist (X_mm, Y_mm, Z_mm) into your results container as needed.
     *          TODO: NEED TO FIX THIS

@@ -41,7 +41,7 @@ ResultArrays::ResultArrays(int num_ss,
     xtol.resize(num_ss, 0.0);
     cost.resize(num_ss, 0.0);
     conv.resize(num_ss, 0.0);
-    above_thresh.resize(num_ss);
+    valid_match.resize(num_ss);
 
 
     // incremental tracking
@@ -74,7 +74,7 @@ void ResultArrays::append(OptResult &res, const int i) {
     xtol[i] = res.xtol;
     cost[i] = res.cost;
     conv[i] = res.converged;
-    above_thresh[i] = res.above_thresh;
+    valid_match[i] = res.valid_match;
     for (size_t i = 0; i < num_params; i++){
         p[pp+i] = res.p[i];
     }
@@ -89,7 +89,7 @@ void ResultArrays::append(OptResult &res, const int i) {
     std::fill(xtol.begin(), xtol.end(), 0.0);
     std::fill(cost.begin(), cost.end(), 0.0);
     std::fill(conv.begin(), conv.end(), false);
-    std::fill(above_thresh.begin(), above_thresh.end(), false);
+    std::fill(valid_match.begin(), valid_match.end(), false);
 
     if (stereo) {
         const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -115,7 +115,7 @@ void ResultArrays::append(OptResult &res, const int i) {
 //         xtol.resize(num_ss, 0.0);
 //         cost.resize(num_ss, 0.0);
 //         conv.resize(num_ss, 0.0);
-//         above_thresh.resize(num_ss);
+//         valid_match.resize(num_ss);
 //
 //
 //         // incremental tracking
@@ -138,7 +138,7 @@ void ResultArrays::append(OptResult &res, const int i) {
 //
 //     for (int i = 0; i < u.size(); i++){
 //
-//         if (results_def.above_thresh[i]){
+//         if (results_def.valid_match[i]){
 //
 //             if (has_good_history[i]){
 //
@@ -158,7 +158,7 @@ void ResultArrays::append(OptResult &res, const int i) {
 //             u[i] = results_def.u[i];
 //             v[i] = results_def.v[i];
 //             p[i] = results_def.p[i];
-//             above_thresh[i] = 1;
+//             valid_match[i] = 1;
 //         }
 //     }
 // }
@@ -215,7 +215,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
         for (int i = 0; i < ss_grid.num; ++i) {
 
             // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !above_thresh[i]) {
+            if (!saveconf.output_below_threshold && !valid_match[i]) {
                 u[i] = NAN;
                 v[i] = NAN;
                 for (int pp = 0; pp < num_params; pp++){
@@ -288,7 +288,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             double ss_y = ss_grid.coords[2*i+1];
 
             // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !above_thresh[i]) {
+            if (!saveconf.output_below_threshold && !valid_match[i]) {
                 u[i] = NAN;
                 v[i] = NAN;
                 for (int pi = 0; pi < num_params; pi++){
@@ -368,8 +368,8 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
 
         for (int i = 0; i < ss_grid.num; ++i) {
 
-            const bool temporal_valid = saveconf.output_below_threshold || above_thresh[i];
-            const bool stereo_valid = saveconf.output_below_threshold || stereo.above_thresh[i];
+            const bool temporal_valid = saveconf.output_below_threshold || valid_match[i];
+            const bool stereo_valid = saveconf.output_below_threshold || stereo.valid_match[i];
             const double out_u = temporal_valid ? u[i] : NAN;
             const double out_v = temporal_valid ? v[i] : NAN;
             const double out_cost = temporal_valid ? cost[i] : NAN;
@@ -489,8 +489,8 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
             double ss_y = ss_grid.coords[2*i+1];
 
             // if the subset has not met threshold, set values to nan
-                        const bool temporal_valid = saveconf.output_below_threshold || above_thresh[i];
-            const bool stereo_valid = saveconf.output_below_threshold || stereo.above_thresh[i];
+                        const bool temporal_valid = saveconf.output_below_threshold || valid_match[i];
+            const bool stereo_valid = saveconf.output_below_threshold || stereo.valid_match[i];
             const double out_u = temporal_valid ? u[i] : NAN;
             const double out_v = temporal_valid ? v[i] : NAN;
             const double out_cost = temporal_valid ? cost[i] : NAN;
