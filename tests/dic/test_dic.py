@@ -39,8 +39,12 @@ def0_25px = dataset.dic_plate_rigid_cam0_def_25px()
 def0_50px = dataset.dic_plate_rigid_cam0_def_50px()
 
 
-calib_file = TEST_DIR / "calib.txt"
-calib_data = calib.loadtxt(calib_file)
+calib_rigid_file = TEST_DIR / "calib_rigid.txt"
+calib_rigid = calib.loadtxt(calib_rigid_file)
+
+calib_hole_file = TEST_DIR / "calib_hole.txt"
+calib_hole = calib.loadtxt(calib_hole_file)
+
 
 def_large = [def0_25px, def0_50px]
 
@@ -233,6 +237,7 @@ def test_2d_ssd_rigid(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_ssd_rigid_",
+        image_filter_kernel=1,
     )
 
     output_files = dic_temp_dir / "test_ssd_rigid_*.csv"
@@ -257,6 +262,7 @@ def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_nssd_scaled_image_rigid_",
+        image_filter_kernel=1,
     )
 
     output_file = (
@@ -287,6 +293,7 @@ def test_2d_znssd_scaled_offset_image_rigid(
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_znssd_scaled_offset_image_rigid_",
+        image_filter_kernel=1,
     )
 
     output_file = (
@@ -315,6 +322,7 @@ def test_2d_image_scan_znssd_affine(dic_temp_dir: Path) -> None:
         method="RASTER",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_znssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -342,6 +350,7 @@ def test_2d_image_scan_znssd_rigid(dic_temp_dir: Path) -> None:
         method="RASTER",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_znssd_rigid_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -369,6 +378,7 @@ def test_2d_image_scan_nssd_affine(dic_temp_dir: Path) -> None:
         method="RASTER",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_nssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -396,6 +406,7 @@ def test_2d_rg_znssd_affine(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -422,6 +433,7 @@ def test_2d_rg_znssd_quad(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_quad_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -448,6 +460,7 @@ def test_2d_singlewindow_znssd_affine(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -474,6 +487,7 @@ def test_2d_multiwindow_fft_large(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW",
         output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
+        image_filter_kernel=1,
     )
 
     outputs = [
@@ -503,6 +517,7 @@ def test_2d_multiwindow_rg_fft_large(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
+        image_filter_kernel=1,
     )
 
     outputs = [
@@ -532,6 +547,7 @@ def test_2d_singlewindow_fft_large(dic_temp_dir: Path) -> None:
         method="SINGLEWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
+        image_filter_kernel=1,
     )
 
     outputs = [
@@ -562,6 +578,7 @@ def test_2d_hydro_rg_znssd_affine(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_hydro_",
+        image_filter_kernel=1,
     )
 
     validate_hydro(
@@ -588,6 +605,7 @@ def test_2d_hydro_rg_znssd_quad(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_hydro_",
+        image_filter_kernel=1,
     )
 
     validate_hydro(
@@ -605,7 +623,7 @@ def test_3d_rg_znssd_affine(dic_temp_dir: Path) -> None:
         reference=[ref0, ref1],
         deformed=[def0, def1],
         roi_mask=roi_rigid.mask,
-        calibration=calib_data,
+        calibration=calib_hole,
         seed=seed,
         subset_size=31,
         subset_step=15,
@@ -615,6 +633,7 @@ def test_3d_rg_znssd_affine(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -631,7 +650,7 @@ def test_3d_rg_znssd_affine_incremental(dic_temp_dir: Path) -> None:
         reference=[ref0, ref1],
         deformed=[def0, def1],
         roi_mask=roi_rigid.mask,
-        calibration=calib_data,
+        calibration=calib_hole,
         seed=seed,
         subset_size=31,
         subset_step=15,
@@ -643,6 +662,7 @@ def test_3d_rg_znssd_affine_incremental(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_incremental_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -659,7 +679,7 @@ def test_3d_rg_znssd_quad(dic_temp_dir: Path) -> None:
         reference=[ref0, ref1],
         deformed=[def0, def1],
         roi_mask=roi_rigid.mask,
-        calibration=calib_data,
+        calibration=calib_hole,
         seed=seed,
         subset_size=31,
         subset_step=15,
@@ -669,6 +689,7 @@ def test_3d_rg_znssd_quad(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_quad_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -699,6 +720,7 @@ def test_f32_support(dic_temp_dir: Path) -> None:
         max_displacement=10,
         output_basepath=dic_temp_dir,
         output_prefix="test_f32_support_",
+        image_filter_kernel=1,
     )
 
     validate(

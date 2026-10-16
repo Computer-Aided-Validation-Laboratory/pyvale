@@ -78,7 +78,7 @@ class ResultArrays {
                               const std::string &filename);
 
 
-        void write_to_disk_stereo(ResultArrays &stereo,
+        void write_to_disk_stereo(const ResultArrays &stereo,
                                   const common_util::SaveConfig &saveconf,
                                   const subset::Grid &ss_grid,
                                   const std::string &filename);

@@ -153,6 +153,8 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("stereo", &util::Config::stereo)
         .def_readwrite("incremental", &util::Config::incremental)
         .def_readwrite("incremental_update_cond", &util::Config::incremental_update_cond)
+        .def_readwrite("image_filter_kernel", &util::Config::image_filter_kernel)
+        .def_readwrite("image_filter_sigma", &util::Config::image_filter_sigma)
         .def_readwrite("incremental_update_val",  &util::Config::incremental_update_val);
 
     py::class_<MultiwindowConfig>(m, "MultiwindowConfig")

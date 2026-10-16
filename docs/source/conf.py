@@ -1,5 +1,6 @@
 import os
 from sphinx_gallery.sorting import FileNameSortKey
+from importlib.metadata import version as get_version
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -12,8 +13,8 @@ from sphinx_gallery.sorting import FileNameSortKey
 project = 'Pyvale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
-release = '2026.9.4'
-version = '2026.9.4'
+release = get_version('pyvale')
+version = release
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

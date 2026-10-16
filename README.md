@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/pyvale/"><img src="https://img.shields.io/pypi/v/pyvale?label=PyPI" alt="PyPI version"></a>
-  <a href="https://pypi.org/project/pyvale/"><img src="https://img.shields.io/pypi/pyversions/pyvale" alt="Supported Python versions"></a>
+  <a href="https://pypi.org/project/pyvale/"><img src="https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white" alt="Supported Python versions"></a>
   <a href="https://github.com/Computer-Aided-Validation-Laboratory/pyvale/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/tests.yml?branch=main&label=tests" alt="Tests"></a>
   <a href="https://github.com/Computer-Aided-Validation-Laboratory/pyvale/actions/workflows/wheels.yml"><img src="https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/wheels.yml?branch=main&label=wheels" alt="Wheels"></a>
   <a href="https://computer-aided-validation-laboratory.github.io/pyvale/"><img src="https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/docs.yml?branch=main&label=docs" alt="Documentation"></a>
@@ -52,7 +52,7 @@ reconstruct surfaces, and calculate displacement and strain.
 
 | Stereo region of interest | Reconstructed shape |
 |:---:|:---:|
-| <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex11_roi.png" alt="Stereo DIC region of interest" width="520"> | <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex11_3d.png" alt="Stereo DIC reconstructed shape" width="520"> |
+| <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex10_roi.png" alt="Stereo DIC region of interest" width="520"> | <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/dic_ex10_3d.png" alt="Stereo DIC reconstructed shape" width="520"> |
 
 ### Render · build virtual camera experiments
 

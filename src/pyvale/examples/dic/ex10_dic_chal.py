@@ -15,8 +15,8 @@ of the `Stereo DIC challenge <https://link.springer.com/article/10.1007/s11340-0
 To keep the amount of images/data distributed with the package to a minimum,
 we've already run the calibration (but feel free to try running the calibration
 yourself by downloading all the images from the Stereo DIC challenge archive)
-and the intrinsic/extrinisic parameters can be found in
-`dic_ex11_dic_chal_calibration.txt`. In this example we'll just use the reference
+and the intrinsic/extrinisic parameters can be called using the
+function `data.dic_ex10_dic_chal_calibration()`. In this example we'll just use the reference
 images from the left and right camera to build a 3D reconstruction.
 """
 
@@ -45,7 +45,7 @@ ref1 = data.dic_chal_3d_cam1()
 # Build ROI using cam 0 reference image.
 roi = dic.RegionOfInterest(ref0)
 # roi.interactive_selection() # <- you can use the interactive_selection to view the yaml
-roi.read_yaml(data.dic_ex02_roi()) # <- or you can read the yaml file directly.
+roi.read_yaml(data.dic_ex10_dic_chal_roi()) # <- or you can read the yaml file directly.
 
 
 # %%

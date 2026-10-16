@@ -101,22 +101,8 @@ namespace util {
         int multiwindow_overlap;
         std::vector<int> multiwindow_subset_size;
         std::vector<int> multiwindow_search_area;
-    };
-
-
-
-
-    /**
-     * @brief Represents an image with pixel data and dimensions.
-     * 
-     * This struct holds the pixel values of an image along with its
-     * dimensions. The pixel data is stored in row-major order.
-     */
-    struct Image {
-        double *vals;
-        int px_hori;
-        int px_vert;
-        int num;
+        int image_filter_kernel = 0;
+        double image_filter_sigma = 1.0;
     };
 
 
