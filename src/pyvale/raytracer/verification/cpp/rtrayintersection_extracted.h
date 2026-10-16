@@ -38,14 +38,17 @@ struct IntersectionOutput {
 double intersect_tri6(const Ray &ray,
     const std::array<EiVector3d, ElementNodeCount::TRI6> nodes,
     EiVector3d &surface_normals_out,
-    Eigen::Vector2d &uv);
+    Eigen::Vector2d &uv,
+    int* iterations_out = nullptr);
 
 double intersect_quad8(const Ray& ray,
     const std::array<EiVector3d, ElementNodeCount::QUAD8>& nodes,
     EiVector3d& surface_normals_out,
-    Eigen::Vector2d& xi_eta_out);
+    Eigen::Vector2d& xi_eta_out,
+    int* iterations_out = nullptr);
 
 double intersect_quad9(const Ray& ray,
     const std::array<EiVector3d, ElementNodeCount::QUAD9>& nodes,
     EiVector3d& surface_normals_out,
-    Eigen::Vector2d& xi_eta_out);
+    Eigen::Vector2d& xi_eta_out,
+    int* iterations_out = nullptr);

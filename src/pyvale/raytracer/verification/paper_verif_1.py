@@ -33,8 +33,8 @@ from paper_const import (
 
 
 VERIF_DIR = pathlib.Path("verification/verif/verif_1")
-OUT_TABS_TEX_PATH = VERIF_DIR / "verif_1_tabs.tex"
-OUT_FIGS_TEX_PATH = VERIF_DIR / "verif_1_figs.tex"
+OUT_TABS_TEX_PATH = VERIF_DIR / "tabs_verif_1.tex"
+OUT_FIGS_TEX_PATH = VERIF_DIR / "figs_verif_1.tex"
 SCI_THRESHOLD = 1.0e-12
 VERIF_A_MAP_WIDTH = "0.19\\textwidth"
 
@@ -140,7 +140,6 @@ def accepted_mask(rows: list[dict[str, str]]) -> np.ndarray:
 
 def get_reproj_err_array(rows: list[dict[str, str]]) -> np.ndarray:
     return np.asarray([float(row["reproj_err"]) for row in rows], dtype=float)
-    # return np.asarray([float(row["err_dir"]) for row in rows], dtype=float)
 
 def get_iters_array(rows: list[dict[str, str]]) -> np.ndarray:
     return np.asarray([float(row["iters"]) for row in rows], dtype=float)
@@ -223,8 +222,6 @@ def make_table_row(
 
 def build_case_rows_for_table() -> list[tuple[str, str, str, int, str]]:
     return [
-        ("quad4", "quad4newton", "shear", SHEAR_REGULAR, "regular"),
-        ("quad4", "quad4newton", "shear", SHEAR_SHEAR, "shear"),
         ("tri6", "tri6", "shear", SHEAR_REGULAR, "regular"),
         ("tri6", "tri6", "shear", SHEAR_SHEAR, "shear"),
         ("tri6", "tri6", "bulge", bulge_in_frame("tri6"), "bulge inward"),
@@ -325,15 +322,13 @@ def save_png_figure(
     ax.set_yticks(tick_vals, tick_labels)
     if scale_exp == 0:
         ax.set_title(
-            # r"$\epsilon_{rp}$ [px]",
-            r"$\epsilon_{rp}$ [\%]",
+            r"$\epsilon_{rp}$ [px]",
             fontsize=PLOT_TITLE_FONT_SIZE,
             pad=16.0,
         )
     else:
         ax.set_title(
-            # rf"$\epsilon_{{rp}}$ [px] $(\times 10^{{{scale_exp}}})$",
-            rf"$\epsilon_{{rp}}$ [%] $(\times 10^{{{scale_exp}}})$",
+            rf"$\epsilon_{{rp}}$ [px] $(\times 10^{{{scale_exp}}})$",
             fontsize=PLOT_TITLE_FONT_SIZE,
             pad=16.0,
         )
@@ -417,7 +412,7 @@ def build_bulge_fig_tex(style: PlotStyle) -> str:
 
 def build_shear_fig_tex(style: PlotStyle) -> str:
     del style
-    mesh_specs = ["quad4", "tri6", "quad8", "quad9"]
+    mesh_specs = ["tri6", "quad8", "quad9"]
     col_specs = [("Regular", "regular"), ("Shear", "shear")]
     row_blocks: list[str] = []
     for mesh_name in mesh_specs:
@@ -464,35 +459,29 @@ def generate_case_figure(
 
 
 def generate_all_figures(style: PlotStyle) -> None:
-#     print("Generating bulge RMSE figures...")
-#     for mesh_name in ["tri6", "quad8", "quad9"]:
-#         frame_cases = [
-#             ("bulge_out_limit", bulge_out_limit_frame(mesh_name)),
-#             ("bulge_out", bulge_out_frame(mesh_name)),
-#             ("bulge_regular", bulge_regular_frame(mesh_name)),
-#             ("bulge_in", bulge_in_frame(mesh_name)),
-#             ("bulge_in_limit", bulge_in_limit_frame(mesh_name)),
-#         ]
-#         for suffix, frame_idx in frame_cases:
-#             out_name = f"fig_verifa_{mesh_name}_{suffix}.png"
-#             print(
-#                 f"  {mesh_name} {suffix}: frame {frame_idx} -> {out_name}",
-#             )
-#             generate_case_figure(
-#                 mesh_name,
-#                 "bulge",
-#                 frame_idx,
-#                 out_name,
-#                 style,
-#             )
+    print("Generating bulge RMSE figures...")
+    for mesh_name in ["tri6", "quad8", "quad9"]:
+        frame_cases = [
+            ("bulge_out_limit", bulge_out_limit_frame(mesh_name)),
+            ("bulge_out", bulge_out_frame(mesh_name)),
+            ("bulge_regular", bulge_regular_frame(mesh_name)),
+            ("bulge_in", bulge_in_frame(mesh_name)),
+            ("bulge_in_limit", bulge_in_limit_frame(mesh_name)),
+        ]
+        for suffix, frame_idx in frame_cases:
+            out_name = f"fig_verifa_{mesh_name}_{suffix}.png"
+            print(
+                f"  {mesh_name} {suffix}: frame {frame_idx} -> {out_name}",
+            )
+            generate_case_figure(
+                mesh_name,
+                "bulge",
+                frame_idx,
+                out_name,
+                style,
+            )
 
     print("Generating shear RMSE figures...")
-    # for elem_label, mesh_name in [
-    #     ("quad4", "quad4newton"),
-    #     ("tri6", "tri6"),
-    #     ("quad8", "quad8"),
-    #     ("quad9", "quad9"),
-
     for elem_label, mesh_name in [
         ("tri6", "tri6"),
         ("quad8", "quad8"),
@@ -538,13 +527,13 @@ def write_tex_outputs(
 def main() -> int:
     print("Loading pyvale-style plot options...")
     style = load_plot_style()
-    # print("Building verif_1 LaTeX table...")
-    # tables_tex = build_table_tex()
+    print("Building verif_1 LaTeX table...")
+    tables_tex = build_table_tex()
     print("Generating verif_1 figures...")
     generate_all_figures(style)
     print("Building verif_1 figure TeX...")
     figs_tex = build_shear_fig_tex(style) + "\n" + build_bulge_fig_tex(style)
-    # write_tex_outputs(tables_tex, figs_tex)
+    write_tex_outputs(tables_tex, figs_tex)
     print(f"Saved PNG figures to {PAPER_DIR}")
     return 0
 

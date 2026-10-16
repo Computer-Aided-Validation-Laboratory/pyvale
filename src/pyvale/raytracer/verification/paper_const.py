@@ -35,7 +35,7 @@ PLOT_LINE_TITLE_FONT_SIZE = 14.0
 PLOT_LINE_LEGEND_FONT_SIZE = 10.0
 PLOT_LINE_SECONDARY_AXIS_FONT_SIZE = 10.0
 
-PAPER_DIR = pathlib.Path("~/ray_tracing_verification/verif_1").expanduser()
+PAPER_DIR = pathlib.Path("/home/wiera/Documents/paper-feebee-raytracer/figures/verif_1").expanduser()
 
 
 def repo_root() -> pathlib.Path:

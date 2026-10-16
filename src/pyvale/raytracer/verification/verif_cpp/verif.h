@@ -58,6 +58,7 @@ struct SampleRecord
     double err_t_reproj;
     std::size_t converged; 
     std::size_t in_domain;
+    std::size_t iters = 0;
 
     std::size_t row_idx = INVALID_GRID_IDX;
     std::size_t col_idx = INVALID_GRID_IDX;
@@ -163,6 +164,7 @@ void writeSolverStatsCsv(
         << "err_param,err_dir,"
         << "t_true,t_rec,t_reproj,"
         << "err_t,reproj_err,"
+        << "iters,"
         << "converged,"
         << "in_domain,"
         << "row_idx,col_idx\n";
@@ -176,6 +178,7 @@ void writeSolverStatsCsv(
             << record.err_param << ',' << record.err_dir << ','
             << record.t_true << ',' << record.t_rec << ',' << record.t_reproj << ','
             << record.err_t << ',' << record.err_t_reproj << ','
+            << record.iters << ','
             << record.converged << ','
             << record.in_domain << ','
             << record.row_idx << ',' << record.col_idx

@@ -131,19 +131,19 @@ double forwardMap(
 
     if constexpr (nodes_per_element == 6)
     {
-        Eigen::VectorXd N = compute_shape_tri6(xi, eta);
+        std::array<double, nodes_per_element> N = shapefuncs::compute_shape_tri6(xi, eta);
         for (int i = 0; i < 6; ++i)
             P += N[i] * nodes[i];
     }
     else if constexpr (nodes_per_element == 8)
     {
-        std::array<double, nodes_per_element> N = compute_shape_quad8(xi, eta);
+        std::array<double, nodes_per_element> N = shapefuncs::compute_shape_quad8(xi, eta);
         for (int i = 0; i < 8; ++i)
             P += N[i] * nodes[i];
     }
     else if constexpr (nodes_per_element == 9)
     {
-        std::array<double, nodes_per_element> N = compute_shape_quad9(xi, eta);
+        std::array<double, nodes_per_element> N = shapefuncs::compute_shape_quad9(xi, eta);
         for (int i = 0; i < 9; ++i)
             P += N[i] * nodes[i];
     }
@@ -160,19 +160,21 @@ double inverseMap(
                 const Ray ray,
                 const NodeArray<nodes_per_element>& nodes,
                 double& xi, 
-                double& eta)
+                double& eta,
+                int& iters)
 {
     EiVector3d n_tmp;
-    Eigen::Vector2d gh_rec;
+    Eigen::Vector2d gh_rec =
+        Eigen::Vector2d::Constant(std::numeric_limits<double>::quiet_NaN());
     double t = 0;
     if constexpr (nodes_per_element == 6) {
-        t = intersect_tri6(ray, nodes, n_tmp, gh_rec);
+        t = intersect_tri6(ray, nodes, n_tmp, gh_rec, &iters);
     }
     else if constexpr (nodes_per_element == 8) {
-        t = intersect_quad8(ray, nodes, n_tmp, gh_rec);
+        t = intersect_quad8(ray, nodes, n_tmp, gh_rec, &iters);
     }
     else if constexpr (nodes_per_element == 9) {
-        t = intersect_quad9(ray, nodes, n_tmp, gh_rec);
+        t = intersect_quad9(ray, nodes, n_tmp, gh_rec, &iters);
     }
     xi = gh_rec.x();
     eta = gh_rec.y();
@@ -199,10 +201,12 @@ void evalSample(const EiVector3d& camera_center,
 
     // 3. Recover ground truth sample
     double xi_rec, eta_rec;
+    int iters = 0;
     double t_rec = inverseMap<nodes_per_element>(
                 ray,
                 nodes,
-                xi_rec, eta_rec);
+                xi_rec, eta_rec,
+                iters);
     std::size_t converged = std::isfinite(t_rec) ? 1 : 0;
     bool in_domain = isInParametricDomain<nodes_per_element>(xi_rec, eta_rec);
             
@@ -246,6 +250,7 @@ void evalSample(const EiVector3d& camera_center,
     record.col_idx = sample.col_idx;
     record.converged = converged;
     record.in_domain = static_cast<std::size_t>(in_domain);
+    record.iters = static_cast<std::size_t>(iters);
 }
 
 
@@ -473,7 +478,7 @@ void runDistortCase(
 
             std::cout
                 << "a_distort_" << case_spec.case_name << "_"
-                << nodes_per_element
+                << static_cast<int>(nodes_per_element)
                 << " frame " << frame_idx
                 << ": reproj max=" << reproj_stats.max
                 << " param max=" << param_stats.max
@@ -483,7 +488,7 @@ void runDistortCase(
         {
             std::cout
                 << "a_distort_" << case_spec.case_name << "_"
-                << nodes_per_element
+                << static_cast<int>(nodes_per_element)
                 << " frame " << frame_idx
                 << ": no converged samples\n";
         }
