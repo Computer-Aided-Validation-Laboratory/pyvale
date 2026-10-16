@@ -571,8 +571,16 @@ static const double offset_perc = 0.00; // offset_perc*100% of element size
 // alpha = 1.0 -> standard barycentric interpolation
 // alpha = 0.5 -> halfway toward center
 // alpha = 0.0 -> always center
-static const double alpha = 0.95;
+static const double alpha = 0.90;
 
+
+// nodes[i] - Physical space, R3, Actual element node positions
+// proj[i] - Projected space, R2, Node positions in the plane perpendicular to the ray
+// hull[i] - Projected space, R2, Vertices of the adaptive hull
+// hull_uv[i] - Reference space, R2, Reference coordinates associated with the hull vertices
+// center - Projected space, R2, Arithmetic mean of the projected hull vertices
+// center_uv - Reference space, R2, Arithmetic mean of the corresponding reference coordinates
+// result.gh - Reference space, R2, Initial guess for the non-linear solver
 
 // ================================================================================
 //  TRI6, QUAD8, QUAD9 adaptive hulls and initial guess for Newton solver
@@ -814,22 +822,27 @@ template<ElementNodeCount element_node_count>
 double intersect_newton_solver(const Ray& ray,
     const std::array<EiVector3d, element_node_count>& nodes,
     EiVector3d& surface_normals_out,
-    Eigen::Vector2d& xi_eta_out) {
+    Eigen::Vector2d& xi_eta_out,
+    int* iterations_out) {
 
     Eigen::Matrix<double, 3, 2> (*get_face_Jacobian_ptr)(double, double, 
             const std::array<EiVector3d, element_node_count>&);
     bool (*boundary_check)(Eigen::Vector2d);
+    void (*boundary_limit_ptr)(Eigen::Vector2d&);
     if constexpr (element_node_count == ElementNodeCount::QUAD8) {
         get_face_Jacobian_ptr = shapefuncs::get_face_Jacobian_quad8;
         boundary_check = boundary_check_quad;
+        boundary_limit_ptr = boundary_limit_quad;
     }
     else if constexpr (element_node_count == ElementNodeCount::QUAD9) {
         get_face_Jacobian_ptr = shapefuncs::get_face_Jacobian_quad9;
         boundary_check = boundary_check_quad;
+        boundary_limit_ptr = boundary_limit_quad;
     }
     else if constexpr (element_node_count == ElementNodeCount::TRI6) {
         get_face_Jacobian_ptr = shapefuncs::get_face_Jacobian_tri6;
         boundary_check = boundary_check_tri;
+        boundary_limit_ptr = boundary_limit_tri;
     }
     else {
         static_assert(
@@ -847,14 +860,17 @@ double intersect_newton_solver(const Ray& ray,
 
     // Find initial guess and confirm that it is valid
     InitialGuess guess = compute_initial_guess_newton_solver<element_node_count>(ray, nodes);
-    if (!guess.valid)
+    if (!guess.valid) {
+        if (iterations_out) *iterations_out = 0;
         return std::numeric_limits<double>::infinity();
+    }
 
     // Search for the intersection if the initial guess is found
     double min_t = std::numeric_limits<double>::infinity();
     bool converged = false;
     Eigen::Vector2d gh = guess.gh;
     double t = guess.t;
+    int iter_used = 0;
 
     // Uncomment this and comment out Newton solver if just initial guesses are required
     // converged = true;
@@ -875,6 +891,7 @@ double intersect_newton_solver(const Ray& ray,
         EiVector3d residual = ray.origin + t * ray.direction - P;
 
         if (residual.norm() < res_tol_local) {
+            iter_used = iter + 1;
             if (boundary_check(gh))
                 {
                     if (t < min_t && t > eps_t_min && 
@@ -905,10 +922,15 @@ double intersect_newton_solver(const Ray& ray,
         gh.x() += delta.y();
         gh.y() += delta.z();
 
+        boundary_limit_ptr(gh);
+
+        iter_used = iter + 1;
+
         // if (gh.x() < -0.5 || gh.y() < -0.5 || (gh.x() + gh.y()) > 1.5)
         //     break;
     }
 
+    if (iterations_out) *iterations_out = iter_used;
     return converged ? min_t : std::numeric_limits<double>::infinity();
 }
 
@@ -938,7 +960,7 @@ IntersectionOutput intersect_bvh_quad9(const Ray& ray,
         get_face_data_vector(element_idx, node_coords, ElementNodeCount::QUAD9, &quad9_node_coords[0]);
         EiVector3d n_tmp;
         Eigen::Vector2d xe_tmp;
-        const double t = intersect_newton_solver<ElementNodeCount::QUAD9>(ray, quad9_node_coords, n_tmp, xe_tmp);
+        const double t = intersect_newton_solver<ElementNodeCount::QUAD9>(ray, quad9_node_coords, n_tmp, xe_tmp, nullptr);
 
         t_values  (element_idx, 0) = t;
         xi_values (element_idx, 0) = xe_tmp.x();
@@ -998,7 +1020,7 @@ IntersectionOutput intersect_bvh_quad8(const Ray& ray,
 
         EiVector3d n_tmp;
         Eigen::Vector2d xe_tmp;
-        const double t = intersect_newton_solver<ElementNodeCount::QUAD8>(ray, quad8_node_coords, n_tmp, xe_tmp);
+        const double t = intersect_newton_solver<ElementNodeCount::QUAD8>(ray, quad8_node_coords, n_tmp, xe_tmp, nullptr);
 
         t_values  (element_idx, 0) = t;
         xi_values (element_idx, 0) = xe_tmp.x();
@@ -1057,7 +1079,7 @@ IntersectionOutput intersect_bvh_tri6(const Ray& ray,
 
         EiVector3d n_tmp;
         Eigen::Vector2d uv_tmp;
-        const double t = intersect_newton_solver<ElementNodeCount::TRI6>(ray, tri6_node_coords, n_tmp, uv_tmp);
+        const double t = intersect_newton_solver<ElementNodeCount::TRI6>(ray, tri6_node_coords, n_tmp, uv_tmp, nullptr);
 
         // Convert the intersection results to acceptable format
         for (int i = 0; i < 3; ++i) {
