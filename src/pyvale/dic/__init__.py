@@ -10,8 +10,12 @@ from .dicimport2d import import_2d
 from .dicimport3d import import_3d
 from .dicregionofinterest import RegionOfInterest
 from .dicresults import Results
-from .dicenum import EScanMethod, EShape, ECorrCrit, EInterp, EIncrementalMethod
+from .dicenum import EScanMethod, EShape, ECorrCrit, EInterp, EIncrementalMethod, EOptimizer
 from .diccpp import Bspline, Interpolator
+from .parameter_optimization import (
+    DICOptimizationResult, DICParameterResult, DICParameterSet,
+    optimize_dic_parameters, sample_strain_line,
+)
 
 
 __all__ = ["calculate_2d",
@@ -26,4 +30,10 @@ __all__ = ["calculate_2d",
            "EShape",
            "ECorrCrit",
            "EInterp",
-           "EIncrementalMethod"]
+           "EIncrementalMethod",
+           "EOptimizer",
+           "DICParameterSet",
+           "DICParameterResult",
+           "DICOptimizationResult",
+           "optimize_dic_parameters",
+           "sample_strain_line"]

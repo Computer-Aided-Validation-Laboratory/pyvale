@@ -266,12 +266,9 @@ def _check_subsets(subset_size: int, subset_step: int) -> None:
         If any input value is not a float strictly between 0 and 1.
     """
 
-
-    # Enforce scalar types for non-FFT methods
     if subset_size % 2 == 0:
         raise ValueError("subset_size must be an odd number.")
 
-    # check if subset_step is larger than the subset_size
     if subset_step > subset_size:
         raise ValueError("subset_step is larger than the subset_size.")
 
@@ -421,7 +418,9 @@ def _check_and_update_rg_seed(seed: list[int] | list[np.int32] | list[tuple[int,
 
 def _check_images(reference: np.ndarray | str | Path,
                  deformed: np.ndarray | str | Path | list[Path],
-                 roi: np.ndarray, print_level: int) -> tuple[list[str], list[str], int, int, Path | None, list[np.ndarray] | None]:
+                 roi: np.ndarray, print_level: int,
+                 camera_index: int | None = None
+                 ) -> tuple[list[str], list[str], int, int, Path | None, list[np.ndarray] | None]:
     """
     Validate reference and deformed images, checks consistency in shape/format.
 
@@ -448,6 +447,10 @@ def _check_images(reference: np.ndarray | str | Path,
         if ``reference`` is an array.
     print_level: int
         Determines how much information to provide in console output.
+    camera_index: int, optional
+        Camera number used to disambiguate generated filenames for in-memory
+        stereo inputs. Real input filenames are never modified. If omitted,
+        the historical names are retained.
 
     Returns
     -------
@@ -565,7 +568,12 @@ def _check_images(reference: np.ndarray | str | Path,
                 print(f"Reference array has {ref_arr.shape[2]} channels. Using channel 0.")
             ref_arr = ref_arr[:, :, 0]
 
-        ref_filename = "ref_img.tiff"
+        if camera_index is None:
+            ref_filename = "ref_img.tiff"
+            def_filename = lambda i: f"def_img_{i:04d}.tiff"
+        else:
+            ref_filename = f"ref_img_{camera_index}.tiff"
+            def_filename = lambda i: f"def_img_{i:04d}_{camera_index}.tiff"
         basename.append(ref_filename)
         fullpath.append("")
         image_arrays = [_check_array_image_dtype(np.ascontiguousarray(ref_arr))]
@@ -577,8 +585,7 @@ def _check_images(reference: np.ndarray | str | Path,
                     print(f"Deformed array [{i}] has {frame.shape[2]} channels. Using channel 0.")
                 frame = frame[:, :, 0]
 
-            def_filename = f"def_img_{i:04d}.tiff"
-            basename.append(def_filename)
+            basename.append(def_filename(i))
             fullpath.append("")
             image_arrays.append(_check_array_image_dtype(np.ascontiguousarray(frame)))
 
@@ -603,10 +610,11 @@ def _check_array_image_dtype(image: np.ndarray) -> np.ndarray:
         np.dtype(np.uint16),
         np.dtype(np.uint32),
         np.dtype(np.float32),
+        np.dtype(np.float64),
     }
     if image.dtype not in allowed_dtypes:
         raise TypeError(
-            "Array image dtype must be one of uint8, uint16, uint32, or float32. "
+            "Array image dtype must be one of uint8, uint16, uint32, float32 or float64. "
             f"Got {image.dtype}."
         )
     return image

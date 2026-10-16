@@ -15,7 +15,7 @@ import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic._dicchecks as dicchecks
 import pyvale.common.util as common_util
 from pyvale.calib.calibdataclass import Calib
-from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod
+from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod, EOptimizer
 import pyvale.commoncpp.commoncpp as commoncpp
 
 
@@ -78,6 +78,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  subset_step: int = 10,
                  correlation_criteria: Literal["ZNSSD", "NSSD", "SSD"] | ECorrCrit = ECorrCrit.ZNSSD,
                  shape_function: Literal["AFFINE", "QUAD", "RIGID"] | EShape = EShape.AFFINE,
+                 optimizer: Literal["ICGN", "FALM"] | EOptimizer = EOptimizer.ICGN,
                  interpolation_routine: Literal["BSPLINE", "HERMITE"] | EInterp = EInterp.BSPLINE,
                  max_iterations: int=40,
                  precision: float=0.001,
@@ -271,8 +272,12 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     roi_c = np.ascontiguousarray(roi_mask)
 
     # do checks on vars in python land
-    basenames0, fullpaths0, w0, h0, _, image_arrays0 = dicchecks._check_images(reference[0],deformed[0],roi_mask,print_level)
-    basenames1, fullpaths1, w1, h1, _, image_arrays1 = dicchecks._check_images(reference[1],deformed[1],roi_mask,print_level)
+    basenames0, fullpaths0, w0, h0, _, image_arrays0 = dicchecks._check_images(
+        reference[0], deformed[0], roi_mask, print_level, camera_index=0
+    )
+    basenames1, fullpaths1, w1, h1, _, image_arrays1 = dicchecks._check_images(
+        reference[1], deformed[1], roi_mask, print_level, camera_index=1
+    )
 
     assert(w0 == w1)
     assert(h0 == h1)
@@ -309,6 +314,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     method_enum = EScanMethod(method)
     shape_function_enum = EShape(shape_function)
     correlation_criteria_enum = ECorrCrit(correlation_criteria)
+    optimizer_enum = EOptimizer(optimizer)
     interpolation_routine_enum = EInterp(interpolation_routine)
     incremental_update_enum = EIncrementalMethod(incremental_update)
 
@@ -341,6 +347,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.threshold = threshold
     config.corr_crit = getattr(diccpp.CorrCrit, correlation_criteria_enum.name)
     config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
+    config.optimizer = getattr(diccpp.Optimizer, optimizer_enum.name)
     config.interp_routine = getattr(diccpp.InterpRoutine, interpolation_routine_enum.name)
     config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
     config.scan_method = getattr(diccpp.ScanMethod, method_enum.name)

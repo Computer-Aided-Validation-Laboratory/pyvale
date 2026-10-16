@@ -15,7 +15,7 @@ import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic._dicchecks as dicchecks
 import pyvale.common.util as common_util
 from pyvale.calib.calibdataclass import Calib
-from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod
+from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod, EOptimizer
 import pyvale.commoncpp.commoncpp as commoncpp
 
 def calculate_2d(reference: np.ndarray | str | Path,
@@ -26,6 +26,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  subset_step: int = 10,
                  correlation_criteria: Literal["ZNSSD", "NSSD", "SSD"] | ECorrCrit = ECorrCrit.ZNSSD,
                  shape_function: Literal["AFFINE", "QUAD", "RIGID"] | EShape = EShape.AFFINE,
+                 optimizer: Literal["ICGN", "FALM"] | EOptimizer = EOptimizer.ICGN,
                  interpolation_routine: Literal["BSPLINE", "HERMITE"] | EInterp = EInterp.BSPLINE,
                  max_iterations: int=40,
                  precision: float=0.001,
@@ -220,6 +221,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     # string to enum
     method_enum = EScanMethod(method)
     shape_function_enum = EShape(shape_function)
+    optimizer_enum = EOptimizer(optimizer)
     correlation_criteria_enum = ECorrCrit(correlation_criteria)
     interpolation_routine_enum = EInterp(interpolation_routine)
     incremental_update_enum = EIncrementalMethod(incremental_update)
@@ -235,7 +237,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     dicchecks._check_thresholds(threshold, precision)
     common_util.check_output_directory(str(output_basepath), output_prefix, print_level)
-    dicchecks._check_subsets(subset_size, subset_step)
+    dicchecks._check_subsets(subset_size, subset_step, method_enum.value)
     updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method_enum.value, w, h, subset_size, subset_step)
     num_params = dicchecks._check_shape_function(shape_function_enum)
 
@@ -252,6 +254,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.max_disp = max_displacement
     config.corr_crit = getattr(diccpp.CorrCrit, correlation_criteria_enum.name)
     config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
+    config.optimizer = getattr(diccpp.Optimizer, optimizer_enum.name)
     config.interp_routine = getattr(diccpp.InterpRoutine, interpolation_routine_enum.name)
     config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
     config.scan_method = getattr(diccpp.ScanMethod, method_enum.name)
