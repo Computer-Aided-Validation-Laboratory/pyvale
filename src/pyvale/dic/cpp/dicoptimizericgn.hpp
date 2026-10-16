@@ -43,13 +43,13 @@ private:
 
     void calculate_reference_gradients(const Subset<double> &ss_ref);
     void precompute_hessian(const Subset<double> &ss_ref);
-    void calculate_current_cost(const Subset<double> &ss_ref,
+    bool calculate_current_cost(const Subset<double> &ss_ref,
                                 Subset<double> &ss_def,
                                 const Interpolator &interp_def,
                                 double cx,
                                 double cy,
                                 double &cost);
-    void calculate_trial_cost(const Subset<double> &ss_ref,
+    bool calculate_trial_cost(const Subset<double> &ss_ref,
                               Subset<double> &ss_def,
                               const Interpolator &interp_def,
                               double cx,

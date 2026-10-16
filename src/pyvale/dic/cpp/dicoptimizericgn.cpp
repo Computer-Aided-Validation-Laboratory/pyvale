@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <numeric>
 #include <stdexcept>
 
@@ -104,14 +105,22 @@ void OptimizerICGN::precompute_hessian(const Subset<double> &ss_ref) {
     hessian_valid = invert_matrix(H, invH, augmented, num_params);
 }
 
-void OptimizerICGN::calculate_current_cost(const Subset<double> &ss_ref,
+bool OptimizerICGN::calculate_current_cost(const Subset<double> &ss_ref,
                                            Subset<double> &ss_def,
                                            const Interpolator &interp_def,
                                            double cx, double cy,
                                            double &cost) {
     for (int i = 0; i < ss_def.num_px; ++i) {
         get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], p);
-        ss_def.vals[i] = interp_def.eval(cx, cy, cx + ss_def.x[i], cy + ss_def.y[i]);
+        const double x = cx + ss_def.x[i];
+        const double y = cy + ss_def.y[i];
+        if (!std::isfinite(x) || !std::isfinite(y) ||
+            x < 0.0 || x > static_cast<double>(interp_def.px_hori - 1) ||
+            y < 0.0 || y > static_cast<double>(interp_def.px_vert - 1)) {
+            cost = std::numeric_limits<double>::infinity();
+            return false;
+        }
+        ss_def.vals[i] = interp_def.eval(cx, cy, x, y);
     }
 
     double mean_ref = 0.0, norm_ref = 1.0;
@@ -132,7 +141,7 @@ void OptimizerICGN::calculate_current_cost(const Subset<double> &ss_ref,
     cost = 0.0;
     if (norm_ref <= 1e-12 || norm_def <= 1e-12) {
         cost = 2.0;
-        return;
+        return true;
     }
     for (int i = 0; i < ss_def.num_px; ++i) {
         const double ref = criteria == util::ECorrCrit::SSD ? ss_ref.vals[i] : normalized_value(ss_ref.vals[i], mean_ref, norm_ref);
@@ -140,9 +149,10 @@ void OptimizerICGN::calculate_current_cost(const Subset<double> &ss_ref,
         const double residual = def - ref;
         cost += residual * residual;
     }
+    return std::isfinite(cost);
 }
 
-void OptimizerICGN::calculate_trial_cost(const Subset<double> &ss_ref,
+bool OptimizerICGN::calculate_trial_cost(const Subset<double> &ss_ref,
                                          Subset<double> &ss_def,
                                          const Interpolator &interp_def,
                                          double cx, double cy,
@@ -150,8 +160,9 @@ void OptimizerICGN::calculate_trial_cost(const Subset<double> &ss_ref,
                                          double &cost) {
     const std::vector<double> saved = p;
     p = trial;
-    calculate_current_cost(ss_ref, ss_def, interp_def, cx, cy, cost);
+    const bool valid = calculate_current_cost(ss_ref, ss_def, interp_def, cx, cy, cost);
     p = saved;
+    return valid;
 }
 
 void OptimizerICGN::calculate_gradient(const Subset<double> &ss_ref,
@@ -206,7 +217,7 @@ OptResult OptimizerICGN::solve(const double cx, const double cy,
 
     while (iter < max_iter && hessian_valid) {
 
-        calculate_current_cost(ss_ref, ss_def, interp_def, cx, cy, cost);
+        if (!calculate_current_cost(ss_ref, ss_def, interp_def, cx, cy, cost)) break;
 
         std::vector<double> gradient(num_params, 0.0);
         calculate_gradient(ss_ref, ss_def, gradient);
@@ -221,14 +232,20 @@ OptResult OptimizerICGN::solve(const double cx, const double cy,
 
         compose_inverse(pdp, p, dp);
         double trial_cost = 0.0;
-        calculate_trial_cost(ss_ref, ss_def, interp_def, cx, cy, pdp, trial_cost);
+        bool trial_valid = calculate_trial_cost(ss_ref, ss_def, interp_def, cx, cy, pdp, trial_cost);
 
         int backtrack = 0;
-        while (trial_cost > cost && backtrack < 4) {
+        while ((!trial_valid || trial_cost > cost) && backtrack < 8) {
             for (double &value : dp) value *= 0.5;
             compose_inverse(pdp, p, dp);
-            calculate_trial_cost(ss_ref, ss_def, interp_def, cx, cy, pdp, trial_cost);
+            trial_valid = calculate_trial_cost(ss_ref, ss_def, interp_def, cx, cy, pdp, trial_cost);
             ++backtrack;
+        }
+
+        if (!trial_valid || !std::isfinite(trial_cost) || trial_cost > cost) {
+            pdp = p;
+            std::fill(dp.begin(), dp.end(), 0.0);
+            trial_cost = cost;
         }
 
         const double dp_norm = std::sqrt(std::inner_product(dp.begin(), dp.end(), dp.begin(), 0.0));
@@ -245,8 +262,6 @@ OptResult OptimizerICGN::solve(const double cx, const double cy,
         if (converged && (criteria == util::ECorrCrit::SSD || !check_on_thresh || good_enough))
             break;
     }
-
-    calculate_current_cost(ss_ref, ss_def, interp_def, cx, cy, cost);
 
     OptResult result(num_params);
 
