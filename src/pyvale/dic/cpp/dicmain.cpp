@@ -58,7 +58,10 @@ void engine(const py::array_t<bool>& img_roi_arr,
     engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
 
         Image image = read_img(conf.fullpaths.at(image_index));
-        apply_filter(image, conf.image_filter_kernel, static_cast<float>(conf.image_filter_sigma));
+
+        if (conf.image_filter_kernel > 1)
+            apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
+
         return make_interp(conf.interp_routine, image);
 
     });
@@ -89,7 +92,8 @@ void engine_images(const std::vector<Image>& images,
     engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
 
         Image image = images.at(image_index);
-        apply_filter(image, conf.image_filter_kernel, static_cast<float>(conf.image_filter_sigma));
+        if (conf.image_filter_kernel > 1)
+            apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
         return make_interp(conf.interp_routine, image);
 
     });

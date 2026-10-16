@@ -19,9 +19,9 @@
 /**
  * @brief Apply a Gaussian filter to image.
  *
- * Converts the image to float if required and stores the filtered
- * result in @c data32f. The filter is applied using separable
- * horizontal and vertical Gaussian convolutions.
+ * Converts integer images to float32. Float32 and float64 images retain their
+ * input precision. The filter is applied using separable horizontal and
+ * vertical Gaussian convolutions.
  *
  * @param[in,out] img Image to filter.
  * @param[in] kernel_size Odd Gaussian kernel size (e.g. 3, 5, 7).
@@ -30,7 +30,7 @@
  * @throws std::runtime_error If @p kernel_size is even or
  *                            @p sigma is not positive.
  */
-void apply_filter(Image& img, int kernel_size, float sigma);
+void apply_filter(Image& img, int kernel_size, double sigma);
 
 
 

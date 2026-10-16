@@ -19,7 +19,78 @@
 
 
 
-void apply_filter(Image& img, int kernel_size, float sigma) {
+/**
+ * @brief Apply a separable Gaussian filter to floating-point image data.
+ *
+ * The input vector is filtered in place. The template preserves the scalar
+ * type of the supplied image data, allowing the same implementation to be
+ * used for float32 and float64 images.
+ *
+ * @tparam T Floating-point image scalar type.
+ * @param[in,out] data Image pixels in row-major order.
+ * @param[in] width Image width in pixels.
+ * @param[in] height Image height in pixels.
+ * @param[in] kernel_size Odd Gaussian kernel size.
+ * @param[in] sigma Gaussian standard deviation.
+ */
+template <typename T>
+void filter_float_image(std::vector<T>& data,
+                        int width,
+                        int height,
+                        int kernel_size,
+                        double sigma) {
+
+    const int radius = kernel_size / 2;
+    const T denom = static_cast<T>(2.0 * sigma * sigma);
+    T sum = static_cast<T>(0);
+    std::vector<T> kernel(kernel_size);
+
+    for (int i = -radius; i <= radius; ++i) {
+        T v = std::exp(static_cast<T>(-(i * i)) / denom);
+        kernel[i + radius] = v;
+        sum += v;
+    }
+
+    for (T& v : kernel)
+        v /= sum;
+
+    #pragma omp parallel
+    {
+        std::vector<T> line(static_cast<size_t>(std::max(width, height)));
+
+        #pragma omp for schedule(static)
+        for (int y = 0; y < height; ++y) {
+            const size_t row = static_cast<size_t>(y) * width;
+            std::copy_n(data.begin() + row, width, line.begin());
+
+            for (int x = 0; x < width; ++x) {
+                T accum = 0;
+                for (int k = -radius; k <= radius; ++k) {
+                    const int xx = std::clamp(x + k, 0, width - 1);
+                    accum += line[xx] * kernel[k + radius];
+                }
+                data[row + x] = accum;
+            }
+        }
+
+        #pragma omp for schedule(static)
+        for (int x = 0; x < width; ++x) {
+            for (int y = 0; y < height; ++y)
+                line[y] = data[static_cast<size_t>(y) * width + x];
+
+            for (int y = 0; y < height; ++y) {
+                T accum = 0;
+                for (int k = -radius; k <= radius; ++k) {
+                    const int yy = std::clamp(y + k, 0, height - 1);
+                    accum += line[yy] * kernel[k + radius];
+                }
+                data[static_cast<size_t>(y) * width + x] = accum;
+            }
+        }
+    }
+}
+
+void apply_filter(Image& img, int kernel_size, double sigma) {
 
     if (kernel_size < 0 || kernel_size % 2 == 0)
         throw std::runtime_error("image prefilter kernel size must be an odd number");
@@ -27,7 +98,7 @@ void apply_filter(Image& img, int kernel_size, float sigma) {
     if (kernel_size <= 1)
         return;
 
-    if (sigma <= 0.0f)
+    if (sigma <= 0.0)
         throw std::runtime_error("sigma must be positive");
 
     const int width  = static_cast<int>(img.width);
@@ -63,69 +134,13 @@ void apply_filter(Image& img, int kernel_size, float sigma) {
         break;
     }
     case PixelType::UINT32F:
-        break;
+        filter_float_image(img.data32f, width, height, kernel_size, sigma);
+        return;
+    case PixelType::FLOAT64:
+        filter_float_image(img.data64f, width, height, kernel_size, sigma);
+        return;
     }
 
-    // change image type
     img.type = PixelType::UINT32F;
-
-    const int radius = kernel_size / 2;
-    const float denom = 2.0f * sigma * sigma;
-
-    float sum = 0.0f;
-
-    std::vector<float> kernel(kernel_size);
-
-    for (int i = -radius; i <= radius; ++i) {
-        float v = std::exp(-(i * i) / denom);
-        kernel[i + radius] = v;
-        sum += v;
-    }
-
-    for (float& v : kernel)
-        v /= sum;
-
-    #pragma omp parallel
-    {
-        std::vector<float> line(static_cast<size_t>(std::max(width, height)));
-
-        #pragma omp for schedule(static)
-        for (int y = 0; y < height; ++y) {
-
-            const size_t row = static_cast<size_t>(y) * width;
-            std::copy_n(img.data32f.begin() + row, width, line.begin());
-
-            for (int x = 0; x < width; ++x) {
-
-                float accum = 0.0f;
-
-                for (int k = -radius; k <= radius; ++k) {
-                    const int xx = std::clamp(x + k, 0, width - 1);
-                    accum += line[xx] * kernel[k + radius];
-                }
-
-                img.data32f[row + x] = accum;
-            }
-        }
-
-        #pragma omp for schedule(static)
-        for (int x = 0; x < width; ++x) {
-
-            for (int y = 0; y < height; ++y) {
-                line[y] = img.data32f[static_cast<size_t>(y) * width + x];
-            }
-
-            for (int y = 0; y < height; ++y) {
-
-                float accum = 0.0f;
-
-                for (int k = -radius; k <= radius; ++k) {
-                    const int yy = std::clamp(y + k, 0, height - 1);
-                    accum += line[yy] * kernel[k + radius];
-                }
-
-                img.data32f[static_cast<size_t>(y) * width + x] = accum;
-            }
-        }
-    }
+    filter_float_image(img.data32f, width, height, kernel_size, sigma);
 }

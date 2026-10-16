@@ -24,7 +24,6 @@
 
 // Program Header files
 #include "./dicinterp.hpp"
-#include "./dicoptimizer.hpp"
 #include "./dicutil.hpp"
 #include "./dicsubset.hpp"
 #include "./dicresults.hpp"

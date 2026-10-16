@@ -145,34 +145,10 @@ void Rigid::compose_inverse(std::vector<double>& p_new,
                      const std::vector<double>& p,
                      const std::vector<double>& dp)
 {
-    // Build 2×2 warp matrices  A = I + Jp,  B = I + Jdp
-    const double A[2][2] = { {1.0 + p[2],        p[3]  },
-                              {       p[4],  1.0 + p[5] } };
-    const double B[2][2] = { {1.0 + dp[2],        dp[3] },
-                              {       dp[4], 1.0 + dp[5] } };
-
-    // Invert B
-    const double detB = B[0][0]*B[1][1] - B[0][1]*B[1][0];
-    const double invB[2][2] = { { B[1][1]/detB, -B[0][1]/detB },
-                                 {-B[1][0]/detB,  B[0][0]/detB } };
-
-    // C = A · invB
-    const double C[2][2] = {
-        { A[0][0]*invB[0][0] + A[0][1]*invB[1][0],
-          A[0][0]*invB[0][1] + A[0][1]*invB[1][1] },
-        { A[1][0]*invB[0][0] + A[1][1]*invB[1][0],
-          A[1][0]*invB[0][1] + A[1][1]*invB[1][1] }
-    };
-
-    // Translation:  t_new = t_p - C · t_dp
-    p_new[0] = p[0] - (C[0][0]*dp[0] + C[0][1]*dp[1]);
-    p_new[1] = p[1] - (C[1][0]*dp[0] + C[1][1]*dp[1]);
-
-    // Deformation gradient
-    p_new[2] = C[0][0] - 1.0;
-    p_new[3] = C[0][1];
-    p_new[4] = C[1][0];
-    p_new[5] = C[1][1] - 1.0;
+    // Rigid motion has only two parameters: horizontal and vertical
+    // translation. Do not access affine parameters here.
+    p_new[0] = p[0] - dp[0];
+    p_new[1] = p[1] - dp[1];
 }
 
 

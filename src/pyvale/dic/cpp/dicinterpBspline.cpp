@@ -35,6 +35,7 @@ Bspline::Bspline(const Image &img) {
         else if (img.type == PixelType::UINT16) return img.data16[y * px_hori + x];
         else if (img.type == PixelType::UINT32) return img.data32[y * px_hori + x];
         else if (img.type == PixelType::UINT32F) return img.data32f[y * px_hori + x];
+        else if (img.type == PixelType::FLOAT64) return img.data64f[y * px_hori + x];
         else throw std::runtime_error("Unsupported pixel type");
     };
 

@@ -51,6 +51,8 @@ bool copy_array_to_image(py::handle h, Image &img, PixelType type) {
         img.data32.assign(arr.data(), arr.data() + num_pixels);
     } else if constexpr (std::is_same_v<T, float>) {
         img.data32f.assign(arr.data(), arr.data() + num_pixels);
+    } else if constexpr (std::is_same_v<T, double>) {
+        img.data64f.assign(arr.data(), arr.data() + num_pixels);
     }
     return true;
 }
@@ -62,12 +64,13 @@ Image image_from_array(py::handle h, const std::string &filename) {
     if (copy_array_to_image<uint8_t>(h, img, PixelType::UINT8) ||
         copy_array_to_image<uint16_t>(h, img, PixelType::UINT16) ||
         copy_array_to_image<uint32_t>(h, img, PixelType::UINT32) ||
-        copy_array_to_image<float>(h, img, PixelType::UINT32F)) {
+        copy_array_to_image<float>(h, img, PixelType::UINT32F) ||
+        copy_array_to_image<double>(h, img, PixelType::FLOAT64)) {
         return img;
     }
 
     throw std::runtime_error(
-        "Unsupported array: expected 2D C-contiguous NumPy array of dtype uint8/uint16/uint32/float32"
+        "Unsupported array: expected 2D C-contiguous NumPy array of dtype uint8/uint16/uint32/float32/float64"
     );
 }
 
@@ -95,6 +98,10 @@ PYBIND11_MODULE(diccpp, m) {
         .value("SSD", util::ECorrCrit::SSD)
         .value("NSSD", util::ECorrCrit::NSSD)
         .value("ZNSSD", util::ECorrCrit::ZNSSD);
+
+    py::enum_<util::EOptimizer>(m, "Optimizer")
+        .value("ICGN", util::EOptimizer::ICGN)
+        .value("FALM", util::EOptimizer::FALM);
 
     py::enum_<util::EShapeFunc>(m, "ShapeFunc")
         .value("RIGID", util::EShapeFunc::RIGID)
@@ -133,6 +140,7 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("epi_search_distance", &util::Config::epi_search_distance)
         .def_readwrite("epi_distance_threshold", &util::Config::epi_distance_threshold)
         .def_readwrite("corr_crit", &util::Config::corr_crit)
+        .def_readwrite("optimizer", &util::Config::optimizer)
         .def_readwrite("shape_func", &util::Config::shape_func)
         .def_readwrite("interp_routine", &util::Config::interp_routine)
         .def_readwrite("scan_method", &util::Config::scan_method)
@@ -192,6 +200,7 @@ PYBIND11_MODULE(diccpp, m) {
     using U16Array = py::array_t<uint16_t, py::array::c_style>;
     using U32Array = py::array_t<uint32_t, py::array::c_style>;
     using F32Array = py::array_t<float, py::array::c_style>;
+    using F64Array = py::array_t<double, py::array::c_style>;
 
     py::class_<Bspline, Interpolator>(m, "Bspline")
         .def(py::init([](py::handle h) {
@@ -229,9 +238,17 @@ PYBIND11_MODULE(diccpp, m) {
                 img.height = arr.shape(0);
                 img.type = PixelType::UINT32F;
                 img.data32f.assign(arr.data(), arr.data() + img.width * img.height);
+            } else if (auto arr = F64Array::ensure(h)) {
+                if (arr.ndim() != 2)
+                    throw std::runtime_error("Unsupported array: expected 2D array");
+
+                img.width = arr.shape(1);
+                img.height = arr.shape(0);
+                img.type = PixelType::FLOAT64;
+                img.data64f.assign(arr.data(), arr.data() + img.width * img.height);
             } else {
                 throw std::runtime_error(
-                    "Unsupported array: expected 2D C-contiguous NumPy array of dtype uint8/uint16/uint32/float32"
+                    "Unsupported array: expected 2D C-contiguous NumPy array of dtype uint8/uint16/uint32/float32/float64"
                 );
             }
 

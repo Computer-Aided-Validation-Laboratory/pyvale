@@ -1042,9 +1042,25 @@ class RegionOfInterest:
         if not self.__roi_selected:
             raise ValueError("No ROI selected with \'interactive_selection\', \'rect_boundary\', \'read_array\' or \'rect_region\'. ")
 
-        overlay = self.ref_image.copy()
+        image = self.ref_image
+        if image.ndim == 2:
+            image = cv2.normalize(
+                image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U
+            )
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        elif image.ndim == 3 and image.shape[2] == 3:
+            if image.dtype != np.uint8:
+                image = cv2.normalize(
+                    image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U
+                )
+            else:
+                image = image.copy()
+        else:
+            raise ValueError("Reference image must be grayscale or 3-channel colour.")
+
+        overlay = image.copy()
         overlay[self.mask] = (0, 255, 0)
-        result = cv2.addWeighted(self.ref_image, 0.6, overlay, 0.4, 0)
+        result = cv2.addWeighted(image, 0.6, overlay, 0.4, 0)
         cv2.imwrite(str(filename), result)
 
 
