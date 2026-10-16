@@ -1,6 +1,7 @@
 #include "./dicoptimizerbase.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 OptimizerBase::OptimizerBase(util::EShapeFunc shape_func,
@@ -119,4 +120,38 @@ int OptimizerBase::average_params_from_neigh(
 
 void OptimizerBase::reset_params() {
     std::fill(p.begin(), p.end(), 0.0);
+}
+
+double OptimizerBase::calculate_zncc(const Subset<double> &ss_ref,
+                                     const Subset<double> &ss_def) const {
+    double mean_ref = 0.0;
+    double mean_def = 0.0;
+
+    for (int i = 0; i < ss_ref.num_px; ++i) {
+        mean_ref += ss_ref.vals[i];
+        mean_def += ss_def.vals[i];
+    }
+
+    mean_ref /= ss_ref.num_px;
+    mean_def /= ss_def.num_px;
+
+    double ref_norm = 0.0;
+    double def_norm = 0.0;
+
+    for (int i = 0; i < ss_ref.num_px; ++i) {
+        const double ref = ss_ref.vals[i] - mean_ref;
+        const double def = ss_def.vals[i] - mean_def;
+        ref_norm += ref * ref;
+        def_norm += def * def;
+    }
+
+    if (ref_norm < 1e-12 || def_norm < 1e-12) return 0.0;
+
+    double corr = 0.0;
+    for (int i = 0; i < ss_ref.num_px; ++i) {
+        corr += (ss_ref.vals[i] - mean_ref) *
+                (ss_def.vals[i] - mean_def);
+    }
+
+    return corr / std::sqrt(ref_norm * def_norm);
 }

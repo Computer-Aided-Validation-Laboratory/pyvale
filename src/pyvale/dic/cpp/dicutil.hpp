@@ -26,6 +26,11 @@ namespace util {
         ZNSSD
     };
 
+    enum class EOptimizer {
+        ICGN,
+        FALM
+    };
+
     enum class EShapeFunc {
         RIGID,
         AFFINE,
@@ -82,6 +87,7 @@ namespace util {
         int epi_distance_threshold;
         std::vector<int> rg_seeds;
         ECorrCrit corr_crit;
+        EOptimizer optimizer = EOptimizer::ICGN;
         EShapeFunc shape_func;
         EInterpRoutine interp_routine;
         EScanMethod scan_method;

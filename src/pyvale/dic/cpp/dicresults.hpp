@@ -16,7 +16,7 @@
 
 // DIC Header files
 #include "./dicsubset.hpp"
-#include "./dicoptimizer.hpp"
+#include "./dicoptimizerbase.hpp"
 
 
 class ResultArrays {

@@ -68,6 +68,9 @@ protected:
 
     OptimizerBase(util::EShapeFunc shape_func, int max_iter, int num_px);
 
+    double calculate_zncc(const Subset<double> &ss_ref,
+                          const Subset<double> &ss_def) const;
+
     static int get_num_params(util::EShapeFunc shape_func);
     void set_shape(util::EShapeFunc shape_func);
 

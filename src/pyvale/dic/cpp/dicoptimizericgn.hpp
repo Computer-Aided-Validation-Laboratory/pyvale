@@ -63,8 +63,6 @@ private:
                               double &mean,
                               double &norm) const;
     double normalized_value(double value, double mean, double norm) const;
-    double calculate_zncc(const Subset<double> &ss_ref,
-                          const Subset<double> &ss_def) const;
     bool invert_matrix(const std::vector<double> &matrix,
                        std::vector<double> &inverse,
                        std::vector<double> &augmented,

@@ -15,7 +15,7 @@
 
 // Program Header files
 #include "./dicsubset.hpp"
-#include "./dicoptimizer.hpp"
+#include "./dicoptimizerfalm.hpp"
 
 class ResultArrays;
 

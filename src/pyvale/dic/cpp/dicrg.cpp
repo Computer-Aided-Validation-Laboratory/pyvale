@@ -16,7 +16,8 @@
 // Program Header files
 #include "./dicsubset.hpp"
 #include "./dicfourier.hpp"
-#include "./dicoptimizer.hpp"
+#include "./dicoptimizerfalm.hpp"
+#include "./dicoptimizerfactory.hpp"
 #include "./dicresults.hpp"
 #include "./dicrg.hpp"
 #include "../../commoncpp/dicsignalhandler.hpp"
@@ -149,6 +150,7 @@ namespace rg {
         }
         return true;
     }
+
 void retry_bad_points(const Interpolator &interp_ref,
                       const Interpolator &interp_def,
                       const SubsetGrid &ss_grid,
@@ -175,9 +177,9 @@ void retry_bad_points(const Interpolator &interp_ref,
         {
             Subset<double> ss_def(ss_grid.size_x, ss_grid.size_y);
             Subset<double> ss_ref(ss_grid.size_x, ss_grid.size_y);
-            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter,
-                          conf.precision, conf.threshold,
-                          ss_grid.size_x*ss_grid.size_y);
+            auto opt = make_optimizer(conf.optimizer, conf.shape_func, conf.corr_crit,
+                                      conf.max_iter, conf.precision, conf.threshold,
+                                      ss_grid.size_x * ss_grid.size_y);
 
             #pragma omp for
             for (int i = 0; i < static_cast<int>(retry_indices.size()); ++i) {
@@ -188,11 +190,11 @@ void retry_bad_points(const Interpolator &interp_ref,
                 ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
                 ss_ref.shift_to_local_coordinates(cx, cy);
 
-                opt.average_params_from_neigh(results_def.p, successful,
-                                              ss_grid.neigh[idx]);
-                OptResult retry_res(opt.num_params);
+                opt->average_params_from_neigh(results_def.p, successful,
+                                               ss_grid.neigh[idx]);
+                OptResult retry_res(opt->num_params);
                 if (ss_ref.sum != 0) {
-                    retry_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                    retry_res = opt->solve(cx, cy, ss_ref, ss_def, interp_def);
                 }
 
                 if (retry_res.cost > results_def.cost[idx]) {

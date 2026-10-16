@@ -258,39 +258,14 @@ OptResult OptimizerICGN::solve(const double cx, const double cy,
     result.p = p;
     result.cost = calculate_zncc(ss_ref, ss_def);
     result.converged = converged;
-    result.above_thresh = result.cost >= threshold;
+
+    const bool in_bounds = std::isfinite(result.u) && std::isfinite(result.v) &&
+                           std::abs(result.u) <= static_cast<double>(interp_def.px_hori) &&
+                           std::abs(result.v) <= static_cast<double>(interp_def.px_vert);
+
+    result.above_thresh = in_bounds && result.cost >= threshold;
 
     return result;
-}
-
-double OptimizerICGN::calculate_zncc(const Subset<double> &ss_ref,
-                                     const Subset<double> &ss_def) const {
-
-    double mean_ref = 0.0, mean_def = 0.0;
-
-    for (int i = 0; i < ss_ref.num_px; ++i) {
-        mean_ref += ss_ref.vals[i];
-        mean_def += ss_def.vals[i];
-    }
-    mean_ref /= ss_ref.num_px;
-    mean_def /= ss_def.num_px;
-
-    double ref_norm = 0.0, def_norm = 0.0;
-
-    for (int i = 0; i < ss_ref.num_px; ++i) {
-        const double r = ss_ref.vals[i] - mean_ref;
-        const double d = ss_def.vals[i] - mean_def;
-        ref_norm += r * r;
-        def_norm += d * d;
-    }
-    if (ref_norm < 1e-12 || def_norm < 1e-12) return 0.0;
-
-    double corr = 0.0;
-    for (int i = 0; i < ss_ref.num_px; ++i) {
-        corr += (ss_ref.vals[i] - mean_ref) * (ss_def.vals[i] - mean_def);
-    }
-
-    return corr / std::sqrt(ref_norm * def_norm);
 }
 
 bool OptimizerICGN::invert_matrix(const std::vector<double> &matrix,

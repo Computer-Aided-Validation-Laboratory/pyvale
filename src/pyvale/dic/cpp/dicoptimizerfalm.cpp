@@ -97,49 +97,21 @@ OptResult OptimizerFALM::solve(const double cx,
     }
 
 
-    // calculate zncc value
-    double zncc = 0.0;
-    double mean_def = 0.0;
-    double mean_ref = 0.0;
-
-    for (int i = 0; i < ss_def.num_px; ++i) {
-        mean_ref += ss_ref.vals[i];
-        mean_def += ss_def.vals[i];
-    }
-
-    mean_ref /= ss_ref.num_px;
-    mean_def /= ss_def.num_px;
-
-    double sum_squared_ref = 0.0;
-    double sum_squared_def = 0.0;
-    for (int i = 0; i < ss_def.num_px; ++i) {
-        sum_squared_ref += (ss_ref.vals[i] - mean_ref) * (ss_ref.vals[i] - mean_ref);
-        sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
-    }
-
-    // Bail out if either subset is degenerate (uniform/zero intensity)
-    if (sum_squared_def < 1e-12 || sum_squared_ref < 1e-12) {
-        zncc = 0.0;
-    }
-    else {
-        const double inv_sum_squared = 1.0 / sqrt(sum_squared_ref*sum_squared_def);
-
-        for (int i = 0; i < ss_def.num_px; ++i) {
-            const double def_norm = (ss_def.vals[i] - mean_def);
-            const double ref_norm = (ss_ref.vals[i] - mean_ref);
-            zncc += ref_norm*def_norm; 
-        }
-        zncc *= inv_sum_squared;
-    }
     OptResult res(num_params);
     get_displacement(res.u, res.v, 0.0, 0.0, p);
     res.iter = iter;
     res.ftol = ftol;
     res.xtol = xtol;
     res.p = p;
-    res.cost = zncc;
+    res.cost = calculate_zncc(ss_ref, ss_def);
     res.converged = converged;
-    if (zncc >= threshold) res.above_thresh = true;
+
+    const bool in_bounds = std::isfinite(res.u) && std::isfinite(res.v) &&
+                           std::abs(res.u) <= static_cast<double>(interp_def.px_hori) &&
+                           std::abs(res.v) <= static_cast<double>(interp_def.px_vert);
+
+
+    res.above_thresh = in_bounds && res.cost >= threshold;
 
     // debugging
     //if (iter == max_iter) {
