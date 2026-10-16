@@ -170,36 +170,37 @@ def quadratic_edge_nodes(
 
 def iter_edges(
     mesh_name: str,
+    # normalize case
     node_coords: list[tuple[float, float]],
 ) -> list[tuple[str, tuple[float, float], ...]]:
-    print(mesh_name)
-    if mesh_name == "TRI3":
+    mesh_name = mesh_name.lower()
+    if mesh_name == "tri3":
         return [
             ("linear", node_coords[0], node_coords[1]),
             ("linear", node_coords[1], node_coords[2]),
             ("linear", node_coords[2], node_coords[0]),
         ]
-    if mesh_name == "TRI6":
+    if mesh_name == "tri6":
         return [
             ("quadratic", node_coords[0], node_coords[3], node_coords[1]),
             ("quadratic", node_coords[1], node_coords[4], node_coords[2]),
             ("quadratic", node_coords[2], node_coords[5], node_coords[0]),
         ]
-    if mesh_name == "QUAD4":
+    if mesh_name == "quad4":
         return [
             ("linear", node_coords[0], node_coords[1]),
             ("linear", node_coords[1], node_coords[2]),
             ("linear", node_coords[2], node_coords[3]),
             ("linear", node_coords[3], node_coords[0]),
         ]
-    if mesh_name == "QUAD8":
+    if mesh_name == "quad8":
         return [
             ("quadratic", node_coords[0], node_coords[4], node_coords[1]),
             ("quadratic", node_coords[1], node_coords[5], node_coords[2]),
             ("quadratic", node_coords[2], node_coords[6], node_coords[3]),
             ("quadratic", node_coords[3], node_coords[7], node_coords[0]),
         ]
-    if mesh_name == "QUAD9":
+    if mesh_name == "quad9":
         return [
             ("quadratic", node_coords[0], node_coords[4], node_coords[1]),
             ("quadratic", node_coords[1], node_coords[5], node_coords[2]),
@@ -436,8 +437,8 @@ def run_self_test() -> None:
     ]
     area_exact = 0.25 * math.sqrt(3.0) * side_leng * side_leng
 
-    tri3_area = calc_reference_area_px2("TRI3", tri3_nodes)
-    tri6_area = calc_reference_area_px2("TRI6", tri6_nodes)
+    tri3_area = calc_reference_area_px2("tri3", tri3_nodes)
+    tri6_area = calc_reference_area_px2("tri6", tri6_nodes)
 
     if not math.isclose(tri3_area, area_exact, rel_tol=0.0, abs_tol=1.0e-10):
         raise RuntimeError("tri3 area self-test failed")
@@ -455,37 +456,45 @@ def analyse_stats_file(
     image_vals = load_scalar_csv(image_path)
 
     case_name, mesh_name, distort_name, frame_idx = parse_case_info(stats_path)
+    mesh_name = mesh_name.lower()
     centroid_num_x, centroid_num_y, area_num_px2, fill_value = calc_image_centroid_and_area(
         image_vals,
     )
 
-    # node_coords = get_node_coords(stats)
-    # area_ref_px2 = calc_reference_area_px2(mesh_name, node_coords)
-    if "sensor_pixels_x" in stats and "sensor_pixels_y" in stats:
-        sensor_x = int(round(stats["sensor_pixels_x"]))
-        sensor_y = int(round(stats["sensor_pixels_y"]))
+    node_coords = get_node_coords(stats)
+    if node_coords:
+        area_ref_px2 = calc_reference_area_px2(mesh_name, node_coords)
+        if "sensor_pixels_x" in stats and "sensor_pixels_y" in stats:
+            sensor_x = int(round(stats["sensor_pixels_x"]))
+            sensor_y = int(round(stats["sensor_pixels_y"]))
+        else:
+            sensor_y, sensor_x = image_vals.shape
+        edge_segments_num = calc_edge_segments(
+            sensor_x,
+            sensor_y,
+            edge_segments,
+            edge_segments_sensor_mult,
+        )
+        mask_ref = build_reference_mask(
+            mesh_name,
+            node_coords,
+            sensor_x,
+            sensor_y,
+            edge_segments_num,
+        )
+        mask_render = normalize_render_mask(image_vals)
+        if mask_render.shape != mask_ref.shape:
+            raise ValueError(
+                f"mask shape mismatch for {stats_path}: "
+                f"{mask_ref.shape} vs {mask_render.shape}",
+            )
+        mask_diff_pct = calc_mask_diff_pct(mask_ref, mask_render)
     else:
-        sensor_y, sensor_x = image_vals.shape
-    edge_segments_num = calc_edge_segments(
-        sensor_x,
-        sensor_y,
-        edge_segments,
-        edge_segments_sensor_mult,
-    )
-    # mask_ref = build_reference_mask(
-    #     mesh_name,
-    #     node_coords,
-    #     sensor_x,
-    #     sensor_y,
-    #     edge_segments_num,
-    # )
-    mask_render = normalize_render_mask(image_vals)
-    # if mask_render.shape != mask_ref.shape:
-    #     raise ValueError(
-    #         f"mask shape mismatch for {stats_path}: "
-    #         f"{mask_ref.shape} vs {mask_render.shape}",
-    #     )
-    # mask_diff_pct = calc_mask_diff_pct(mask_ref, mask_render)
+        area_ref_px2 = float("nan")
+        edge_segments_num = 0
+        mask_diff_pct = float("nan")
+        sensor_x = image_vals.shape[1]
+        sensor_y = image_vals.shape[0]
 
     centroid_ref_x = stats["cent_ideal_x"]
     centroid_ref_y = stats["cent_ideal_y"]
@@ -493,17 +502,16 @@ def analyse_stats_file(
     centroid_diff_y = centroid_num_y - centroid_ref_y
     centroid_dist = math.hypot(centroid_diff_x, centroid_diff_y)
 
-    # area_diff_px2 = area_num_px2 - area_ref_px2
-    # area_rel_diff = area_diff_px2 / area_ref_px2 if area_ref_px2 != 0.0 else math.nan
-    # area_err_pct = 100.0 * area_rel_diff
+    area_diff_px2 = area_num_px2 - area_ref_px2 if math.isfinite(area_ref_px2) else float("nan")
+    area_rel_diff = area_diff_px2 / area_ref_px2 if (math.isfinite(area_ref_px2) and area_ref_px2 != 0.0) else float("nan")
+    area_err_pct = 100.0 * area_rel_diff if math.isfinite(area_rel_diff) else float("nan")
 
     return {
         "case_name": case_name,
         "mesh_name": mesh_name,
         "distort_name": distort_name,
         "frame_idx": frame_idx,
-        # "node_count": len(node_coords),
-        # "node_count": 0.0,
+        "node_count": len(node_coords),
         "fill_value": fill_value,
         "centroid_ref_x_px": centroid_ref_x,
         "centroid_ref_y_px": centroid_ref_y,
@@ -512,22 +520,17 @@ def analyse_stats_file(
         "centroid_diff_x_px": centroid_diff_x,
         "centroid_diff_y_px": centroid_diff_y,
         "centroid_dist_px": centroid_dist,
-        # "area_ref_px2": area_ref_px2,
-        # "area_ref_px2": 0.0,
+        "area_ref_px2": area_ref_px2,
         "area_num_px2": area_num_px2,
-        # "area_diff_px2": area_diff_px2,
-        # "area_rel_diff": area_rel_diff,
-        # "area_err_pct": area_err_pct,
-        # "area_diff_px2": 0.0,
-        # "area_rel_diff": 0.0,
-        # "area_err_pct": 0.0,
+        "area_diff_px2": area_diff_px2,
+        "area_rel_diff": area_rel_diff,
+        "area_err_pct": area_err_pct,
         "sensor_x_px": sensor_x,
         "sensor_y_px": sensor_y,
         "edge_segments": edge_segments_num,
-        # "mask_diff_pct": mask_diff_pct,
-        # "mask_diff_pct": 0.0,
+        "mask_diff_pct": mask_diff_pct,
         "stats_path": str(stats_path.relative_to(repo_root())),
-        "image_path": str(image_path.relative_to(repo_root())),
+        "image_path": str((stats_path.parent / f"rtimage_{frame_idx}_cam0.bmp").relative_to(repo_root())),
     }
 
 
@@ -541,7 +544,7 @@ def write_summary_csv(
         "mesh_name",
         "distort_name",
         "frame_idx",
-        # "node_count",
+        "node_count",
         "fill_value",
         "centroid_ref_x_px",
         "centroid_ref_y_px",
@@ -550,15 +553,15 @@ def write_summary_csv(
         "centroid_diff_x_px",
         "centroid_diff_y_px",
         "centroid_dist_px",
-        # "area_ref_px2",
+        "area_ref_px2",
         "area_num_px2",
-        # "area_diff_px2",
-        # "area_rel_diff",
-        # "area_err_pct",
+        "area_diff_px2",
+        "area_rel_diff",
+        "area_err_pct",
         "sensor_x_px",
         "sensor_y_px",
         "edge_segments",
-        # "mask_diff_pct",
+        "mask_diff_pct",
         "stats_path",
         "image_path",
     ]
@@ -633,13 +636,13 @@ def main() -> int:
     write_summary_csv(args.out_csv, rows)
 
     max_centroid = max(abs(float(row["centroid_dist_px"])) for row in rows)
-    # max_area_rel = max(abs(float(row["area_rel_diff"])) for row in rows)
-    # max_mask_diff = max(abs(float(row["mask_diff_pct"])) for row in rows)
+    max_area_rel = max(abs(float(row["area_rel_diff"])) for row in rows)
+    max_mask_diff = max(abs(float(row["mask_diff_pct"])) for row in rows)
     print(f"Processed {len(rows)} verif_2 frames")
     print(f"Wrote summary to {args.out_csv}")
     print(f"Max centroid error: {max_centroid:.6f} px")
-    # print(f"Max area rel error: {max_area_rel:.6e}")
-    # print(f"Max mask diff: {max_mask_diff:.6f} %")
+    print(f"Max area rel error: {max_area_rel:.6e}")
+    print(f"Max mask diff: {max_mask_diff:.6f} %")
     return 0
 
 

@@ -298,13 +298,57 @@ def calcCentroidStats(camera_input, rows_num, cols_num, vals):
     )
 
 
+def project_world_node_to_raster(camera_prepared, point_world, camera_obj=None):
+    point_world = np.asarray(point_world, dtype=float)
+    camera = camera_obj
+    if camera is not None:
+        vector_p = point_world - np.asarray(camera.viewport_upper_left, dtype=float)
+        du = np.asarray(camera.matrix_pixel_spacing[0], dtype=float)
+        dv = np.asarray(camera.matrix_pixel_spacing[1], dtype=float)
+        denom_u = np.dot(du, du)
+        denom_v = np.dot(dv, dv)
+        if denom_u <= 0.0 or denom_v <= 0.0:
+            return 0.5, 0.5
+        px = (np.dot(vector_p, du) / denom_u) + 0.5
+        py = (np.dot(vector_p, dv) / denom_v) + 0.5
+        return float(px), float(py)
+
+    # Fallback for prepared-only projection:
+    pos_world = np.asarray(camera_prepared.pos_world, dtype=float)
+    rot_world = np.asarray(camera_prepared.rot_world, dtype=float)
+    vector = point_world - pos_world
+    if rot_world.shape == (3, 3):
+        vector = rot_world.T @ vector
+    if abs(vector[2]) < 1e-15:
+        return 0.0, 0.0
+    x = camera_prepared.image_dist * vector[0] / (-vector[2])
+    y = camera_prepared.image_dist * vector[1] / (-vector[2])
+    x = 2.0 * x / camera_prepared.image_dims[0]
+    y = 2.0 * y / camera_prepared.image_dims[1]
+    px = (x + 1.0) * 0.5 * float(camera_prepared.pixels_num[0])
+    py = (1.0 - y) * 0.5 * float(camera_prepared.pixels_num[1])
+    return float(px), float(py)
+
+    x = (camera_prepared.image_dist * vector[0]) / (-depth)
+    y = (camera_prepared.image_dist * vector[1]) / (-depth)
+
+    x = 2.0 * x / camera_prepared.image_dims[0]
+    y = 2.0 * y / camera_prepared.image_dims[1]
+
+    px = (x + 1.0) * 0.5 * float(camera_prepared.pixels_num[0])
+    py = (1.0 - y) * 0.5 * float(camera_prepared.pixels_num[1])
+    return float(px), float(py)
+
+
 def writeStatsCsv(
     out_dir: Path,
     file_name: str,
     stats: dict,
     centroid_world: np.ndarray,
     scaling,
-    camera_prepared
+    camera_prepared,
+    node_raster_coords=None,
+    camera_obj=None
 ):
     file_path = out_dir / file_name
 
@@ -324,6 +368,11 @@ def writeStatsCsv(
 
         writer.writerow(["sensor_pixels_x", "px", camera_prepared.pixels_num[0]])
         writer.writerow(["sensor_pixels_y", "px", camera_prepared.pixels_num[1]])
+
+        if node_raster_coords is not None:
+            for nn, coord in enumerate(node_raster_coords):
+                writer.writerow([f"N{nn}_x", "px", f"{float(coord[0]):.17f}"])
+                writer.writerow([f"N{nn}_y", "px", f"{float(coord[1]):.17f}"])
 
         writer.writerow(["centroid_x", "length", f"{centroid_world[0]:.17f}"])
         writer.writerow(["centroid_y", "length", f"{centroid_world[1]:.17f}"])
@@ -506,12 +555,24 @@ def verif_case2_test() -> None:
             writeScalarMapCsv(out_dir=out_dir,
                               file_name=f"cam0_frame{frame_idx}_field0.csv",
                               scalar_map=scalar_map)
+            frame_nodes = (
+                test_rtmesh.node_coords_over_time[frame_idx]
+                if test_rtmesh.node_coords_over_time is not None
+                else test_rtmesh.node_coords
+            )
+            node_raster_coords = [
+                project_world_node_to_raster(camera_prepared, node, dic_cam)
+                for node in frame_nodes
+            ]
+
             writeStatsCsv(out_dir=out_dir,
                           file_name=f"cam0_frame{frame_idx}_field0_stats.csv",
                           stats=stats,
                           centroid_world=base_camera_input.roi_cent_world,
                           scaling = fov_scaling,
-                          camera_prepared=camera_prepared)
+                          camera_prepared=camera_prepared,
+                          node_raster_coords=node_raster_coords,
+                          camera_obj=dic_cam)
             
             mesh_name = case_spec["mesh_type"].name
             case_name = case_spec["case_name"]
