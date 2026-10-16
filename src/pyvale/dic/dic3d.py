@@ -130,7 +130,9 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         the existing flat format ``[x0, y0, x1, y1, ...]`` or tuple format
         ``[(x0, y0), (x1, y1), ...]``. If the method is not RG, this will be ignored.
     subset_size : int, optional
-        Size of the square subset window in pixels (default: 21).
+        Size of the square subset window in pixels (default: 21). Must be odd
+        except for the FFT-only ``"MULTIWINDOW"`` method, which also supports
+        even sizes.
     subset_step : int, optional
         Step size between subset centers in pixels (default: 10).
     correlation_criteria : str, optional
@@ -323,7 +325,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     # checks on the config
     dicchecks._check_thresholds(threshold, precision)
     common_util.check_output_directory(str(output_basepath), output_prefix, print_level)
-    dicchecks._check_subsets(subset_size, subset_step)
+    dicchecks._check_subsets(subset_size, subset_step, method_enum.value)
     updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method_enum.value, w0, h0, subset_size, subset_step)
     num_params = dicchecks._check_shape_function(shape_function_enum)
 
