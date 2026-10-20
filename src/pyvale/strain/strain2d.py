@@ -9,10 +9,11 @@ from typing import Literal
 import numpy as np
 
 # pyvale
-from pyvale.strain.strainresults import StrainResults
+from pyvale.strain.strainresults import StrainResults, from_in_memory, convert_dic_layout
 from pyvale.strain.strainchecks import check_strain_files
 from pyvale.dic.dicimport2d import import_2d
 from pyvale.dic.dicresults import Results as dicResults
+from pyvale.dic.dicenum import ELayout
 from pyvale.common.util import check_output_directory
 import pyvale.strain.strain_cpp as strain_cpp
 import pyvale.commoncpp.commoncpp as commoncpp
@@ -23,6 +24,8 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
               window_element: int=9,
               input_binary: bool=False,
               input_delimiter: str=",",
+              output_results: bool = True,
+              layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
               output_basepath: Path | str="./",
               output_binary: bool=False,
               output_prefix: str="strain_",
@@ -104,16 +107,18 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
         filenames = check_strain_files(strain_files=data)
 
         # Load data if a file path is given
-        dicresults = import_2d(layout="matrix", data=data, 
+        dicresults = import_2d(layout=layout, data=data,
                             binary=input_binary, delimiter=input_delimiter, print_level=print_level)
 
     elif isinstance(data, dicResults):
         dicresults = data
-        assert dicresults.ss_x.ndim == 2 and dicresults.ss_y.ndim == 2, "ss_x and ss_y must be 2D"
+        column_layout = dicresults.ss_x.ndim == 1
+        expected_field_ndim = 2 if column_layout else 3
+        assert dicresults.ss_x.ndim in (1, 2) and dicresults.ss_y.ndim == dicresults.ss_x.ndim, "ss_x and ss_y must be 1D or 2D"
         assert dicresults.ss_x.shape == dicresults.ss_y.shape, "ss_x and ss_y must have the same shape"
-        assert dicresults.u_px.ndim == 3 and dicresults.v_px.ndim == 3, "u_px and v_px must be 3D"
+        assert dicresults.u_px.ndim == expected_field_ndim and dicresults.v_px.ndim == expected_field_ndim, "u_px and v_px have an invalid layout"
         assert dicresults.u_px.shape == dicresults.v_px.shape, "u_px and v_px must have the same shape"
-        assert dicresults.u_px.shape[1:] == dicresults.ss_x.shape, "Spatial dimensions of u_px must match ss_x"
+        assert dicresults.u_px.shape[-1:] == dicresults.ss_x.shape[-1:], "Number of points in u_px must match ss_x"
 
         # need to make dummy filenames
         filenames = []
@@ -123,9 +128,12 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
     else: 
         raise TypeError(f"Unexpected displacement data type: {type(data)}")
 
+    dicresults = convert_dic_layout(dicresults, layout)
+
     # Extract dimensions from the validated object
-    nss_x = dicresults.ss_x.shape[1]
-    nss_y = dicresults.ss_x.shape[0]
+    column_layout = dicresults.ss_x.ndim == 1
+    nss_x = len(np.unique(dicresults.ss_x)) if column_layout else dicresults.ss_x.shape[1]
+    nss_y = len(np.unique(dicresults.ss_y)) if column_layout else dicresults.ss_x.shape[0]
     nimg = dicresults.u_px.shape[0]
 
 
@@ -180,14 +188,29 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
 
     # Call to C++ backend
     with strain_cpp.ostream_redirect(stdout=True, stderr=True):
-        strain_cpp.strain_engine_2d(ss_x, ss_y,
-                            x_mm, y_mm, z_mm,
-                            u_px, v_px, w_dummy,
-                            nss_x, nss_y, nimg,
-                            window_size, window_element, 
-                            strain_formulation, filenames,
-                            strain_save_conf,
-                            print_level, partial_window)
+        if output_results:
+            result_function = (strain_cpp.strain_engine_2d_column_results
+                               if column_layout else strain_cpp.strain_engine_2d_results)
+            results = result_function(
+                ss_x, ss_y, x_mm, y_mm, z_mm,
+                u_px, v_px, w_dummy,
+                nss_x, nss_y, nimg,
+                window_size, window_element,
+                strain_formulation, filenames,
+                strain_save_conf, print_level, partial_window)
+        else:
+            engine_function = (strain_cpp.strain_engine_2d_column
+                               if column_layout else strain_cpp.strain_engine_2d)
+            engine_function(
+                ss_x, ss_y, x_mm, y_mm, z_mm,
+                u_px, v_px, w_dummy,
+                nss_x, nss_y, nimg,
+                window_size, window_element,
+                strain_formulation, filenames,
+                strain_save_conf, print_level, partial_window)
+
+    if output_results:
+        return from_in_memory(results, filenames=filenames)
 
 
 

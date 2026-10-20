@@ -10,6 +10,9 @@
 // STD library Header files
 #include <vector>
 #include <cmath>
+#include <memory>
+#include <algorithm>
+#include <cstddef>
 
 // pybind header files
 #include <pybind11/pybind11.h>
@@ -79,6 +82,47 @@ namespace strain {
         {}
     };
 
+    struct InMemoryResults {
+        std::size_t nframes;
+        std::size_t nwindows;
+        std::size_t nss_x;
+        std::size_t nss_y;
+
+        std::vector<int> x;
+        std::vector<int> y;
+        std::vector<double> x_mm;
+        std::vector<double> y_mm;
+        std::vector<double> z_mm;
+        std::vector<double> F;
+        std::vector<double> strain;
+        std::vector<double> principal_strain;
+        std::vector<unsigned char> valid_window;
+
+        InMemoryResults(std::size_t nframes, std::size_t nss_x, std::size_t nss_y)
+            : nframes(nframes), nwindows(nss_x*nss_y), nss_x(nss_x), nss_y(nss_y),
+              x(nframes*nwindows), y(nframes*nwindows),
+              x_mm(nframes*nwindows), y_mm(nframes*nwindows),
+              z_mm(nframes*nwindows), F(nframes*nwindows*6),
+              strain(nframes*nwindows*4),
+              principal_strain(nframes*nwindows*2),
+              valid_window(nframes*nwindows) {}
+
+        void store(std::size_t frame, const Results &source) {
+            const std::size_t offset = frame * nwindows;
+            std::copy(source.x.begin(), source.x.end(), x.begin() + offset);
+            std::copy(source.y.begin(), source.y.end(), y.begin() + offset);
+            std::copy(source.x_mm.begin(), source.x_mm.end(), x_mm.begin() + offset);
+            std::copy(source.y_mm.begin(), source.y_mm.end(), y_mm.begin() + offset);
+            std::copy(source.z_mm.begin(), source.z_mm.end(), z_mm.begin() + offset);
+            std::copy(source.F.begin(), source.F.end(), F.begin() + offset * 6);
+            std::copy(source.strain.begin(), source.strain.end(), strain.begin() + offset * 4);
+            std::copy(source.principal_strain.begin(), source.principal_strain.end(),
+                      principal_strain.begin() + offset * 2);
+            std::copy(source.valid_window.begin(), source.valid_window.end(),
+                      valid_window.begin() + offset);
+        }
+    };
+
 
 
     void engine_2d(const py::array_t<int> &ss_x_arr,
@@ -96,6 +140,53 @@ namespace strain {
                    const common_util::SaveConfig &strain_save_conf,
                    const int debug_level, const double partial_window = 1.0);
 
+    std::shared_ptr<InMemoryResults> engine_2d_results(
+                   const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &strain_save_conf,
+                   const int debug_level, const double partial_window = 1.0);
+
+    void engine_2d_column(const py::array_t<int> &ss_x_arr,
+                          const py::array_t<int> &ss_y_arr,
+                          const py::array_t<double> &x_mm_arr,
+                          const py::array_t<double> &y_mm_arr,
+                          const py::array_t<double> &z_mm_arr,
+                          const py::array_t<double> &u_arr,
+                          const py::array_t<double> &v_arr,
+                          const py::array_t<double> &w_arr,
+                          const int nss_x, const int nss_y,
+                          const int nimg, const int sw_size,
+                          const int q, const std::string &form,
+                          const std::vector<std::string> &filenames,
+                          const common_util::SaveConfig &strain_save_conf,
+                          const int debug_level, const double partial_window = 1.0);
+
+    std::shared_ptr<InMemoryResults> engine_2d_column_results(
+                          const py::array_t<int> &ss_x_arr,
+                          const py::array_t<int> &ss_y_arr,
+                          const py::array_t<double> &x_mm_arr,
+                          const py::array_t<double> &y_mm_arr,
+                          const py::array_t<double> &z_mm_arr,
+                          const py::array_t<double> &u_arr,
+                          const py::array_t<double> &v_arr,
+                          const py::array_t<double> &w_arr,
+                          const int nss_x, const int nss_y,
+                          const int nimg, const int sw_size,
+                          const int q, const std::string &form,
+                          const std::vector<std::string> &filenames,
+                          const common_util::SaveConfig &strain_save_conf,
+                          const int debug_level, const double partial_window = 1.0);
+
     void engine_3d(const py::array_t<int> &ss_x_arr,
                    const py::array_t<int> &ss_y_arr,
                    const py::array_t<double> &x_mm_arr,
@@ -110,6 +201,53 @@ namespace strain {
                    const std::vector<std::string> &filenames,
                    const common_util::SaveConfig &strain_save_conf,
                    const int debug_level, const double partial_window = 1.0);
+
+    std::shared_ptr<InMemoryResults> engine_3d_results(
+                   const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &strain_save_conf,
+                   const int debug_level, const double partial_window = 1.0);
+
+    void engine_3d_column(const py::array_t<int> &ss_x_arr,
+                          const py::array_t<int> &ss_y_arr,
+                          const py::array_t<double> &x_mm_arr,
+                          const py::array_t<double> &y_mm_arr,
+                          const py::array_t<double> &z_mm_arr,
+                          const py::array_t<double> &u_arr,
+                          const py::array_t<double> &v_arr,
+                          const py::array_t<double> &w_arr,
+                          const int nss_x, const int nss_y,
+                          const int nimg, const int sw_size,
+                          const int q, const std::string &form,
+                          const std::vector<std::string> &filenames,
+                          const common_util::SaveConfig &strain_save_conf,
+                          const int debug_level, const double partial_window = 1.0);
+
+    std::shared_ptr<InMemoryResults> engine_3d_column_results(
+                          const py::array_t<int> &ss_x_arr,
+                          const py::array_t<int> &ss_y_arr,
+                          const py::array_t<double> &x_mm_arr,
+                          const py::array_t<double> &y_mm_arr,
+                          const py::array_t<double> &z_mm_arr,
+                          const py::array_t<double> &u_arr,
+                          const py::array_t<double> &v_arr,
+                          const py::array_t<double> &w_arr,
+                          const int nss_x, const int nss_y,
+                          const int nimg, const int sw_size,
+                          const int q, const std::string &form,
+                          const std::vector<std::string> &filenames,
+                          const common_util::SaveConfig &strain_save_conf,
+                          const int debug_level, const double partial_window = 1.0);
 
     void engine(const py::array_t<int> &ss_x_arr,
                 const py::array_t<int> &ss_y_arr,
@@ -146,12 +284,14 @@ namespace strain {
      */
     bool fill_window_2d(int *ss_x, int *ss_y, double *u, double *v, double *w,
                         int img, int sw, Window &window,
-                        int nss_x, int nss_y, int sw_size, double partial_window);
+                        int nss_x, int nss_y, int sw_size, double partial_window,
+                        const int *grid_to_column = nullptr, int input_stride = 0);
 
     bool fill_window_3d(int *ss_x, int *ss_y, double *x_mm, double *y_mm, double *z_mm,
                         double *u, double *v, double *w,
                         int img, int sw, Window &window,
-                        int nss_x, int nss_y, int sw_size, double partial_window);
+                        int nss_x, int nss_y, int sw_size, double partial_window,
+                        const int *grid_to_column = nullptr, int input_stride = 0);
 
 
 

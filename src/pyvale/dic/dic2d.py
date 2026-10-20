@@ -15,8 +15,9 @@ import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic._dicchecks as dicchecks
 import pyvale.common.util as common_util
 from pyvale.calib.calibdataclass import Calib
-from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod, EOptimizer
+from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod, EOptimizer, ELayout
 import pyvale.commoncpp.commoncpp as commoncpp
+from pyvale.dic.dicresults import from_in_memory
 
 def calculate_2d(reference: np.ndarray | str | Path,
                  deformed: np.ndarray | str | Path | list[Path],
@@ -45,6 +46,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  fft_filter_corr_power: float=2.0,
                  fft_save: bool=False,
                  fft_precision: Literal["F64","F32"]="F32",
+                 output_results: bool = True,
+                 layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
                  output_prefix: str="dic_results_",
@@ -56,7 +59,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  partial_subset_multiwindow: float=0.7,
                  image_filter_kernel: int=5,
                  image_filter_sigma: float=1.0,
-                 print_level: int=2) -> None:
+                 print_level: int=2):
 
     """
     Perform 2D Digital Image Correlation (DIC) between a reference image and one or more deformed images.
@@ -193,8 +196,10 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     Returns
     -------
-    None
-        All outputs are written to files; no values are returned.
+    Results | None
+        When ``output_results`` is False, outputs are written to files and
+        ``None`` is returned. When True, the in-memory ``Results`` dataclass
+        is returned.
 
     Raises
     ------
@@ -351,7 +356,19 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        if image_arrays is None:
-            diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+        if output_results:
+            if image_arrays is None:
+                results = diccpp.engine_results(roi_c, calib, config, multiwindowconf, saveconf)
+            else:
+                results = diccpp.engine_images_results(
+                    image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
         else:
-            diccpp.engine_images(image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
+            if image_arrays is None:
+                diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+            else:
+                diccpp.engine_images(image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
+
+    if output_results:
+        # The C++ result contains one frame per deformed image; the reference
+        # image is used for correlation but is not included in the results.
+        return from_in_memory(results, layout=layout, filenames=basenames[1:])

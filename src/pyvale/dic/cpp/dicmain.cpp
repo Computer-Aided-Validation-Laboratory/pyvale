@@ -99,12 +99,58 @@ void engine_images(const std::vector<Image>& images,
     });
 }
 
+std::shared_ptr<InMemoryResults> engine_results(
+    const py::array_t<bool>& img_roi_arr,
+    const Calib &calib,
+    const util::Config& conf,
+    const MultiwindowConfig &mwconf,
+    const common_util::SaveConfig& saveconf) {
+    std::shared_ptr<InMemoryResults> results;
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
+        Image image = read_img(conf.fullpaths.at(image_index));
+        if (conf.image_filter_kernel > 1)
+            apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
+        return make_interp(conf.interp_routine, image);
+    }, &results, false);
+    return results;
+}
+
+std::shared_ptr<InMemoryResults> engine_images_results(
+    const std::vector<Image>& images,
+    const py::array_t<bool>& img_roi_arr,
+    const Calib &calib,
+    const util::Config& conf,
+    const MultiwindowConfig &mwconf,
+    const common_util::SaveConfig& saveconf) {
+    const size_t expected_images = conf.stereo
+        ? static_cast<size_t>(2 * (conf.num_def_img + 1))
+        : static_cast<size_t>(conf.num_def_img + 1);
+    if (images.size() != expected_images)
+        throw std::runtime_error("Image array count does not match DIC config.");
+    for (const auto &image : images) {
+        if (image.width != static_cast<uint32_t>(conf.px_hori) ||
+            image.height != static_cast<uint32_t>(conf.px_vert))
+            throw std::runtime_error("Image array dimensions do not match DIC config.");
+    }
+
+    std::shared_ptr<InMemoryResults> results;
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
+        Image image = images.at(image_index);
+        if (conf.image_filter_kernel > 1)
+            apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
+        return make_interp(conf.interp_routine, image);
+    }, &results, false);
+    return results;
+}
+
 void engine_impl(const py::array_t<bool>& img_roi_arr,
                  const Calib &calib,
                  const util::Config &conf,
                  const MultiwindowConfig &mwconf,
                  const common_util::SaveConfig &saveconf,
-                 const std::function<std::unique_ptr<Interpolator>(int)> &interp_factory){
+                 const std::function<std::unique_ptr<Interpolator>(int)> &interp_factory,
+                 std::shared_ptr<InMemoryResults> *memory_results,
+                 const bool write_to_disk){
 
 
     signal(SIGINT, signalHandler);
@@ -126,6 +172,15 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                                    saveconf,
                                    multiwindow_l);
     ss_grid_l_0 = ss_grid_l;
+
+    if (memory_results != nullptr) {
+        const std::size_t num_frames = conf.stereo
+            ? static_cast<std::size_t>(conf.num_def_img + 1)
+            : static_cast<std::size_t>(conf.num_def_img);
+        *memory_results = std::make_shared<InMemoryResults>(
+            num_frames, static_cast<std::size_t>(ss_grid_l.num), conf.stereo);
+        (*memory_results)->set_coordinates(ss_grid_l_0);
+    }
 
 
     // resize the results based on subset information
@@ -190,10 +245,14 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
         std::fill(results_ref_l.valid_match.begin(), results_ref_l.valid_match.end(), 1);
         std::fill(results_ref_l.cost.begin(), results_ref_l.cost.end(), 1.0);
 
-        results_ref_l.write_to_disk_stereo(results_ref_r,
-                                           saveconf,
-                                           ss_grid_l_0,
-                                           basenames_l[0]);
+        if (memory_results != nullptr) {
+            (*memory_results)->store_stereo_frame(
+                0, results_ref_l, results_ref_r, ss_grid_l_0, saveconf);
+        }
+        if (write_to_disk) {
+            results_ref_l.write_to_disk_stereo(
+                results_ref_r, saveconf, ss_grid_l_0, basenames_l[0]);
+        }
     }
 
 
@@ -475,16 +534,30 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                 throw std::invalid_argument("Unsupported scan method");
         }
 
-        if (!conf.stereo){
-            results_def_l.write_to_disk_2d(saveconf,
-                                           ss_grid_l,
-                                           basenames_l[img_num]);
+        const std::size_t memory_frame = conf.stereo
+            ? static_cast<std::size_t>(img_num)
+            : static_cast<std::size_t>(img_num - 1);
+
+        if (memory_results != nullptr) {
+            if (conf.stereo) {
+                (*memory_results)->store_stereo_frame(
+                    memory_frame, results_def_l, results_def_r, ss_grid_l, saveconf);
+            }
+            else {
+                (*memory_results)->store_frame(
+                    memory_frame, results_def_l, ss_grid_l, saveconf);
+            }
         }
-        else {
-            results_def_l.write_to_disk_stereo(results_def_r,
-                                               saveconf,
-                                               ss_grid_l,
-                                               basenames_l[img_num]);
+
+        if (write_to_disk) {
+            if (!conf.stereo) {
+                results_def_l.write_to_disk_2d(
+                    saveconf, ss_grid_l, basenames_l[img_num]);
+            }
+            else {
+                results_def_l.write_to_disk_stereo(
+                    results_def_r, saveconf, ss_grid_l, basenames_l[img_num]);
+            }
         }
 
         if (stop_request) break;

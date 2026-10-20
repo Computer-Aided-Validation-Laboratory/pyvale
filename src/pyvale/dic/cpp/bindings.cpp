@@ -15,6 +15,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <type_traits>
+#include <memory>
 
 // commoncpp Header Files
 #include "../../commoncpp/util.hpp"
@@ -29,6 +30,24 @@
 namespace py = pybind11;
 
 namespace {
+
+template <typename T>
+py::array_t<T> result_view(const std::vector<T> &data,
+                           const std::size_t frames,
+                           const std::size_t points,
+                           const py::object &owner) {
+    return py::array_t<T>(
+        {static_cast<ssize_t>(frames), static_cast<ssize_t>(points)},
+        {static_cast<ssize_t>(points * sizeof(T)), static_cast<ssize_t>(sizeof(T))},
+        data.data(), owner);
+}
+
+template <typename T>
+py::array_t<T> point_view(const std::vector<T> &data, const py::object &owner) {
+    return py::array_t<T>(
+        {static_cast<ssize_t>(data.size())},
+        {static_cast<ssize_t>(sizeof(T))}, data.data(), owner);
+}
 
 template <typename T>
 bool copy_array_to_image(py::handle h, Image &img, PixelType type) {
@@ -171,8 +190,51 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("fft_filter_corr_power", &MultiwindowConfig::fft_filter_corr_power)
         .def_readwrite("fft_save", &MultiwindowConfig::fft_save);
 
+    py::class_<InMemoryResults, std::shared_ptr<InMemoryResults>>(m, "InMemoryResults")
+        .def_property_readonly("num_frames", [](const InMemoryResults &r) { return r.num_frames; })
+        .def_property_readonly("num_points", [](const InMemoryResults &r) { return r.num_ss; })
+        .def_property_readonly("num_ss_x", [](const InMemoryResults &r) { return r.num_ss_x; })
+        .def_property_readonly("num_ss_y", [](const InMemoryResults &r) { return r.num_ss_y; })
+        .def_property_readonly("stereo", [](const InMemoryResults &r) { return r.stereo; })
+        .def("ss_x", [](const std::shared_ptr<InMemoryResults> &r) { return point_view(r->ss_x, py::cast(r)); })
+        .def("ss_y", [](const std::shared_ptr<InMemoryResults> &r) { return point_view(r->ss_y, py::cast(r)); })
+        .def("u", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->u, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("v", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->v, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("mag", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->mag, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("converged", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->converged, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("cost", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->cost, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("ftol", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->ftol, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("xtol", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->xtol, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("niter", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->niter, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("disparity_u", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->disparity_u, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("disparity_v", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->disparity_v, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("disparity_mag", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->disparity_mag, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("x_mm", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->x_mm, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("y_mm", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->y_mm, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("z_mm", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->z_mm, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("u_mm", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->u_mm, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("v_mm", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->v_mm, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("w_mm", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->w_mm, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("stereo_converged", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->stereo_converged, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("stereo_cost", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->stereo_cost, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("stereo_ftol", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->stereo_ftol, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("stereo_xtol", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->stereo_xtol, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("stereo_niter", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->stereo_niter, r->num_frames, r->num_ss, py::cast(r)); })
+        .def("epi_dist_px", [](const std::shared_ptr<InMemoryResults> &r) { return result_view(r->epi_dist_px, r->num_frames, r->num_ss, py::cast(r)); });
+
     // Bind the engine functions
     m.def("engine", &engine, "Run DIC analysis on image files with config");
+    m.def("engine_results", &engine_results, "Run DIC analysis and retain results in memory");
+    m.def("engine_images_results", [](py::sequence image_arrays,
+                                       const py::array_t<bool>& img_roi_arr,
+                                       const Calib &calib,
+                                       const util::Config& conf,
+                                       const MultiwindowConfig &multiwindowconf,
+                                       const common_util::SaveConfig& saveconf) {
+        return engine_images_results(images_from_sequence(image_arrays, conf),
+                                     img_roi_arr, calib, conf,
+                                     multiwindowconf, saveconf);
+    }, "Run in-memory-image DIC and retain results in memory");
     m.def("engine_images", [](py::sequence image_arrays,
                               const py::array_t<bool>& img_roi_arr,
                               const Calib &calib,

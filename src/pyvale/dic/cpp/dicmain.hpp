@@ -62,6 +62,21 @@ void engine_images(const std::vector<Image>& images,
                    const MultiwindowConfig &multiwindowconf,
                    const common_util::SaveConfig& saveconf);
 
+std::shared_ptr<InMemoryResults> engine_results(
+    const py::array_t<bool>& img_roi_arr,
+    const Calib &calib,
+    const util::Config& conf,
+    const MultiwindowConfig &multiwindowconf,
+    const common_util::SaveConfig& saveconf);
+
+std::shared_ptr<InMemoryResults> engine_images_results(
+    const std::vector<Image>& images,
+    const py::array_t<bool>& img_roi_arr,
+    const Calib &calib,
+    const util::Config& conf,
+    const MultiwindowConfig &multiwindowconf,
+    const common_util::SaveConfig& saveconf);
+
 /**
  * @brief Shared implementation used by both public engine entry points.
  *
@@ -77,7 +92,9 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                  const util::Config &conf,
                  const MultiwindowConfig &mwconf,
                  const common_util::SaveConfig &saveconf,
-                 const std::function<std::unique_ptr<Interpolator>(int)> &interp_factory);
+                 const std::function<std::unique_ptr<Interpolator>(int)> &interp_factory,
+                 std::shared_ptr<InMemoryResults> *memory_results = nullptr,
+                 bool write_to_disk = true);
 
 
 

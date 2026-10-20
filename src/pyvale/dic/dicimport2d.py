@@ -15,6 +15,7 @@ from numpy.typing import NDArray
 
 # Pyvale modules
 from pyvale.dic.dicresults import Results
+from pyvale.dic.dicenum import ELayout
 import pyvale.common.util as common_util
 
 """
@@ -39,7 +40,7 @@ _Dic2DData = tuple[
 def import_2d(data: str | Path | list[Path],
               delimiter: str,
               binary: bool = False,
-              layout: Literal["column", "matrix"] = "matrix",
+              layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
               print_level: int=1) -> Results:
 
     """
@@ -117,7 +118,8 @@ def import_2d(data: str | Path | list[Path],
     if print_level>0:
         common_util.info_out(f"Imported {len(files)} frames of DIC data.", "")
 
-    if layout == "matrix":
+    layout = ELayout(layout)
+    if layout == ELayout.MATRIX:
 
         # convert x and y data to meshgrid
         x_unique = np.unique(ss_x_ref)

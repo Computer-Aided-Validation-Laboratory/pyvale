@@ -135,7 +135,10 @@ namespace strain {
                          const common_util::SaveConfig &strain_save_conf,
                          const int debug_level,
                          const bool use_3d_coordinates,
-                         const double partial_window) {
+                         const double partial_window,
+                         std::shared_ptr<strain::InMemoryResults> *memory_results = nullptr,
+                         const bool write_to_disk = true,
+                         const bool compact_input = false) {
 
             if (!(partial_window >= 0.0 && partial_window <= 1.0))
                 throw std::invalid_argument("partial_window must be between 0 and 1 inclusive.");
@@ -157,6 +160,33 @@ namespace strain {
             double* v = static_cast<double*>(v_arr.request().ptr);
             double* w = static_cast<double*>(w_arr.request().ptr);
 
+            std::vector<int> grid_to_column;
+            if (compact_input) {
+                std::vector<int> x_unique(ss_x, ss_x + ss_x_arr.size());
+                std::vector<int> y_unique(ss_y, ss_y + ss_y_arr.size());
+                std::sort(x_unique.begin(), x_unique.end());
+                x_unique.erase(std::unique(x_unique.begin(), x_unique.end()), x_unique.end());
+                std::sort(y_unique.begin(), y_unique.end());
+                y_unique.erase(std::unique(y_unique.begin(), y_unique.end()), y_unique.end());
+                if (static_cast<int>(x_unique.size()) != nss_x ||
+                    static_cast<int>(y_unique.size()) != nss_y)
+                    throw std::invalid_argument("Column coordinates do not match grid dimensions");
+
+                grid_to_column.assign(nwindows, -1);
+                for (int column = 0; column < ss_x_arr.size(); ++column) {
+                    const auto x_it = std::lower_bound(x_unique.begin(), x_unique.end(), ss_x[column]);
+                    const auto y_it = std::lower_bound(y_unique.begin(), y_unique.end(), ss_y[column]);
+                    const int grid_x = static_cast<int>(x_it - x_unique.begin());
+                    const int grid_y = static_cast<int>(y_it - y_unique.begin());
+                    const int grid_index = grid_y * nss_x + grid_x;
+                    if (grid_to_column[grid_index] != -1)
+                        throw std::invalid_argument("Duplicate column coordinates");
+                    grid_to_column[grid_index] = column;
+                }
+            }
+            const int *map = compact_input ? grid_to_column.data() : nullptr;
+            const int input_stride = compact_input ? static_cast<int>(ss_x_arr.size()) : nwindows;
+
 
             for (int img_num = 0; img_num < nimg; img_num++) {
                 strain::Results results(nwindows);
@@ -169,9 +199,12 @@ namespace strain {
 
                     Window window(sw_size);
 
-                    const int x0 = ss_x[sw];
-                    const int y0 = ss_y[sw];
-                    const int idx_3d_centre = nss_x*nss_y*img_num + sw;
+                    const int centre_column = map == nullptr ? sw : map[sw];
+                    if (centre_column < 0)
+                        continue;
+                    const int x0 = ss_x[centre_column];
+                    const int y0 = ss_y[centre_column];
+                    const int idx_3d_centre = input_stride*img_num + centre_column;
                     results.x[sw] = x0;
                     results.y[sw] = y0;
                     results.x_mm[sw] = x_mm[idx_3d_centre];
@@ -181,11 +214,13 @@ namespace strain {
                     if (use_3d_coordinates) {
                         results.valid_window[sw] = fill_window_3d(ss_x, ss_y, x_mm, y_mm, z_mm,
                                                                   u, v, w, img_num, sw, window,
-                                                                  nss_x, nss_y, sw_size, partial_window);
+                                                                  nss_x, nss_y, sw_size, partial_window,
+                                                                  map, input_stride);
                     }
                     else {
                         results.valid_window[sw] = fill_window_2d(ss_x, ss_y, u, v, w, img_num,
-                                                                  sw, window, nss_x, nss_y, sw_size, partial_window);
+                                                                  sw, window, nss_x, nss_y, sw_size, partial_window,
+                                                                  map, input_stride);
                     }
 
                     Eigen::Matrix3d F = Eigen::Matrix3d::Zero();
@@ -244,7 +279,11 @@ namespace strain {
                     pbar.finish();
                 }
 
-                strain::save_to_disk(img_num, results, strain_save_conf, nwindows, nimg, filenames);
+                if (memory_results != nullptr)
+                    (*memory_results)->store(static_cast<std::size_t>(img_num), results);
+
+                if (write_to_disk)
+                    strain::save_to_disk(img_num, results, strain_save_conf, nwindows, nimg, filenames);
                 
                 if (stop_request) break;
             }
@@ -297,6 +336,140 @@ namespace strain {
 
     }
 
+    std::shared_ptr<InMemoryResults> engine_2d_results(
+                   const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &saveconf,
+                   const int debug_level, const double partial_window) {
+        auto results = std::make_shared<InMemoryResults>(nimg, nss_x, nss_y);
+        engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
+                    u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
+                    q, form, filenames, saveconf, debug_level, false,
+                    partial_window, &results, false);
+        return results;
+    }
+
+    void engine_2d_column(
+                   const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &saveconf,
+                   const int debug_level, const double partial_window) {
+        engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
+                    u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
+                    q, form, filenames, saveconf, debug_level, false,
+                    partial_window, nullptr, true, true);
+    }
+
+    std::shared_ptr<InMemoryResults> engine_2d_column_results(
+                   const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &saveconf,
+                   const int debug_level, const double partial_window) {
+        auto results = std::make_shared<InMemoryResults>(nimg, nss_x, nss_y);
+        engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
+                    u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
+                    q, form, filenames, saveconf, debug_level, false,
+                    partial_window, &results, false, true);
+        return results;
+    }
+
+    std::shared_ptr<InMemoryResults> engine_3d_results(
+                   const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &saveconf,
+                   const int debug_level, const double partial_window) {
+        auto results = std::make_shared<InMemoryResults>(nimg, nss_x, nss_y);
+        engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
+                    u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
+                    q, form, filenames, saveconf, debug_level, true,
+                    partial_window, &results, false);
+        return results;
+    }
+
+    void engine_3d_column(
+                   const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &saveconf,
+                   const int debug_level, const double partial_window) {
+        engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
+                    u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
+                    q, form, filenames, saveconf, debug_level, true,
+                    partial_window, nullptr, true, true);
+    }
+
+    std::shared_ptr<InMemoryResults> engine_3d_column_results(
+                   const py::array_t<int> &ss_x_arr,
+                   const py::array_t<int> &ss_y_arr,
+                   const py::array_t<double> &x_mm_arr,
+                   const py::array_t<double> &y_mm_arr,
+                   const py::array_t<double> &z_mm_arr,
+                   const py::array_t<double> &u_arr,
+                   const py::array_t<double> &v_arr,
+                   const py::array_t<double> &w_arr,
+                   const int nss_x, const int nss_y,
+                   const int nimg, const int sw_size,
+                   const int q, const std::string &form,
+                   const std::vector<std::string> &filenames,
+                   const common_util::SaveConfig &saveconf,
+                   const int debug_level, const double partial_window) {
+        auto results = std::make_shared<InMemoryResults>(nimg, nss_x, nss_y);
+        engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
+                    u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
+                    q, form, filenames, saveconf, debug_level, true,
+                    partial_window, &results, false, true);
+        return results;
+    }
+
     void engine(const py::array_t<int> &ss_x_arr,
                 const py::array_t<int> &ss_y_arr,
                 const py::array_t<double> &x_mm_arr,
@@ -321,11 +494,14 @@ namespace strain {
 
     bool fill_window_2d(int *ss_x, int *ss_y, double *u, double *v, double *w,
                         int img, int sw, Window &window,
-                        int nss_x, int nss_y, int sw_size, double partial_window){
+                        int nss_x, int nss_y, int sw_size, double partial_window,
+                        const int *grid_to_column, int input_stride){
 
         const int swr = sw_size / 2;
         const int x0_idx = sw % nss_x;
         const int y0_idx = sw / nss_x;
+        const int centre_column = grid_to_column == nullptr ? sw : grid_to_column[sw];
+        if (centre_column < 0) return false;
         const int xmin = x0_idx - swr;
         const int xmax = x0_idx + swr;
         const int ymin = y0_idx - swr;
@@ -339,13 +515,15 @@ namespace strain {
 
                 // index in 3d results array
                 int idx_2d = nss_x*j + i;
-                int idx_3d = nss_x*nss_y*img + idx_2d;
+                const int column = grid_to_column == nullptr ? idx_2d : grid_to_column[idx_2d];
+                if (column < 0) continue;
+                int idx_3d = input_stride*img + column;
 
                 // check if all subsets in the strain window are not nan
                 if (!std::isfinite(u[idx_3d]) || !std::isfinite(v[idx_3d]) || !std::isfinite(w[idx_3d])) continue;
 
-                window.x[widx] = static_cast<double>(ss_x[idx_2d]) - ss_x[sw];
-                window.y[widx] = static_cast<double>(ss_y[idx_2d]) - ss_y[sw];
+                window.x[widx] = static_cast<double>(ss_x[column]) - ss_x[centre_column];
+                window.y[widx] = static_cast<double>(ss_y[column]) - ss_y[centre_column];
                 window.u[widx] = u[idx_3d];
                 window.v[widx] = v[idx_3d];
                 window.w[widx] = w[idx_3d];
@@ -366,9 +544,12 @@ namespace strain {
     bool fill_window_3d(int *ss_x, int *ss_y, double *x_mm, double *y_mm, double *z_mm,
                         double *u, double *v, double *w,
                         int img, int sw, Window &window,
-                        int nss_x, int nss_y, int sw_size, double partial_window){
+                        int nss_x, int nss_y, int sw_size, double partial_window,
+                        const int *grid_to_column, int input_stride){
 
-        const int centre = nss_x * nss_y * img + sw;
+        const int centre_column = grid_to_column == nullptr ? sw : grid_to_column[sw];
+        if (centre_column < 0) return false;
+        const int centre = input_stride * img + centre_column;
         if (!std::isfinite(x_mm[centre]) || !std::isfinite(y_mm[centre]) ||
             !std::isfinite(z_mm[centre])) return false;
 
@@ -386,7 +567,9 @@ namespace strain {
         for (int j = std::max(0, ymin); j <= std::min(nss_y - 1, ymax); j++){
             for (int i = std::max(0, xmin); i <= std::min(nss_x - 1, xmax); i++){
                 int idx_2d = nss_x*j + i;
-                int idx_3d = nss_x*nss_y*img + idx_2d;
+                const int column = grid_to_column == nullptr ? idx_2d : grid_to_column[idx_2d];
+                if (column < 0) continue;
+                int idx_3d = input_stride*img + column;
 
                 if (!std::isfinite(x_mm[idx_3d]) || !std::isfinite(y_mm[idx_3d]) || !std::isfinite(z_mm[idx_3d]) ||
                     !std::isfinite(u[idx_3d]) || !std::isfinite(v[idx_3d]) || !std::isfinite(w[idx_3d])) continue;

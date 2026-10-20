@@ -156,6 +156,10 @@ def validate(
 ) -> None:
     output_files = sorted(glob.glob(str(output_pattern)))
 
+    if stereo:
+        # Stereo output include reconstructed ref img.
+        output_files.sort(key=lambda file: ("ref_img" not in Path(file).name, file))
+
     assert len(output_files) == len(gt), (
         f"Expected {len(gt)} output files but found {len(output_files)}"
     )
@@ -217,6 +221,52 @@ def validate_hydro(
             atol=atol,
             err_msg=f"Vertical displacement mismatch ({edge_disp} px)",
         )
+
+
+def test_2d_returned_results_match_saved_text_results(dic_temp_dir: Path) -> None:
+    """The in-memory result should contain the same values as text output."""
+    output_prefix = "test_in_memory_"
+
+    common_args = dict(
+        reference=ref0,
+        deformed=def0,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="RASTER",
+        output_basepath=dic_temp_dir,
+        output_prefix=output_prefix,
+        output_below_threshold=True,
+        image_filter_kernel=1,
+    )
+    dic.calculate_2d(**common_args, output_results=False)
+    returned = dic.calculate_2d(
+        **common_args,
+        output_results=True,
+        layout="column",
+    )
+
+    output_files = sorted(dic_temp_dir.glob(f"{output_prefix}*.csv"))
+    input_files = sorted(files)
+    assert len(output_files) == len(input_files)
+    assert returned.filenames == [file.name for file in input_files]
+
+    for frame, output_file in enumerate(output_files):
+        saved = np.loadtxt(output_file, skiprows=1, delimiter=",")
+        np.testing.assert_allclose(saved[:, 0], returned.ss_x)
+        np.testing.assert_allclose(saved[:, 1], returned.ss_y)
+        np.testing.assert_allclose(saved[:, 2], returned.u_px[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 3], returned.v_px[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 4], returned.mag_px[frame], equal_nan=True)
+        np.testing.assert_array_equal(saved[:, 5], returned.converged[frame])
+        np.testing.assert_allclose(saved[:, 6], returned.cost[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 7], returned.ftol[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 8], returned.xtol[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 9], returned.niter[frame], equal_nan=True)
 
 
 # ------------------------------------------------------------------------------
@@ -729,5 +779,115 @@ def test_f32_support(dic_temp_dir: Path) -> None:
         stereo=False,
         atol=0.001,
         atol_stereo=0.00001,
+    )
+
+
+@pytest.mark.parametrize("interpolation_routine", ["BSPLINE", "HERMITE"])
+def test_f64_support_with_filter(
+    dic_temp_dir: Path,
+    interpolation_routine: str,
+) -> None:
+    np.random.seed(100)
+    ref_arr = np.random.uniform(0, 200, size=(400, 400)).astype(np.float64)
+    def_arr = np.roll(ref_arr, 1, axis=1)
+    def_arr = np.roll(def_arr, -1, axis=0)
+
+    roi = dic.RegionOfInterest(ref_arr)
+    roi.rect_boundary(10, 10, 10, 10)
+
+    dic.calculate_2d(
+        reference=ref_arr,
+        deformed=def_arr,
+        roi_mask=roi.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=10,
+        interpolation_routine=interpolation_routine,
+        method="RASTER",
+        output_basepath=dic_temp_dir,
+        output_prefix=f"test_f64_{interpolation_routine.lower()}_filter_",
+        image_filter_kernel=5,
+    )
+
+    validate(
+        dic_temp_dir / f"test_f64_{interpolation_routine.lower()}_filter_*.csv",
+        gt=[1.0],
+        stereo=False,
+        atol=0.01,
+        atol_stereo=0.00001,
+    )
+
+
+@pytest.mark.parametrize("fft_precision", ["F32", "F64"])
+def test_f64_support_with_fft(
+    dic_temp_dir: Path,
+    fft_precision: str,
+) -> None:
+    np.random.seed(100)
+    ref_arr = np.random.uniform(0, 200, size=(400, 400)).astype(np.float64)
+    def_arr = np.roll(ref_arr, 1, axis=1)
+    def_arr = np.roll(def_arr, -1, axis=0)
+
+    roi = dic.RegionOfInterest(ref_arr)
+    roi.rect_boundary(10, 10, 10, 10)
+
+    dic.calculate_2d(
+        reference=ref_arr,
+        deformed=def_arr,
+        roi_mask=roi.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=10,
+        method="MULTIWINDOW_RG",
+        fft_precision=fft_precision,
+        output_basepath=dic_temp_dir,
+        output_prefix=f"test_f64_fft_{fft_precision.lower()}_",
+        image_filter_kernel=1,
+    )
+
+    validate(
+        dic_temp_dir / f"test_f64_fft_{fft_precision.lower()}_*.csv",
+        gt=[1.0],
+        stereo=False,
+        atol=0.01,
+        atol_stereo=0.00001,
+    )
+
+
+def test_f64_stereo_support(dic_temp_dir: Path) -> None:
+    reference = [
+        np.asarray(Image.open(path), dtype=np.float64)
+        for path in (ref0, ref1)
+    ]
+    deformed = [
+        np.stack([np.asarray(Image.open(path), dtype=np.float64) for path in paths])
+        for paths in (def0, def1)
+    ]
+
+    dic.calculate_3d(
+        reference=reference,
+        deformed=deformed,
+        roi_mask=roi_rigid.mask,
+        calibration=calib_hole,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_f64_stereo_",
+        image_filter_kernel=1,
+    )
+
+    validate(
+        dic_temp_dir / "test_f64_stereo_*.csv",
+        u,
+        atol=0.01,
+        atol_stereo=0.0001,
+        stereo=True,
     )
 

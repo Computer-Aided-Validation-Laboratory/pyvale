@@ -11,12 +11,13 @@ from typing import Literal
 import numpy as np
 
 from pyvale.strain.strainresults import StrainResults
+from pyvale.dic.dicenum import ELayout
 from pyvale.dic.dicimport2d import check_delimiter, to_grid
 
 
 def import_2d(data: str | Path | list[Path],
               binary: bool = False,
-              layout: Literal["column", "matrix"] = "matrix",
+              layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
               delimiter: str = ",") -> StrainResults:
     """Import 2D strain result data from text or binary files.
 
@@ -30,7 +31,7 @@ def import_2d(data: str | Path | list[Path],
 
 def import_3d(data: str | Path | list[Path],
               binary: bool = False,
-              layout: Literal["column", "matrix"] = "matrix",
+              layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
               delimiter: str = ",") -> StrainResults:
     """Import 3D-aware strain result data from text or binary files.
 
@@ -43,11 +44,10 @@ def import_3d(data: str | Path | list[Path],
 
 def _import(data: str | Path | list[Path],
             binary: bool,
-            layout: Literal["column", "matrix"],
+            layout: Literal["COLUMN", "MATRIX"] | ELayout,
             delimiter: str,
             require_coords: bool) -> StrainResults:
-    if layout not in {"column", "matrix"}:
-        raise ValueError("layout must be 'column' or 'matrix'.")
+    layout = ELayout(layout)
 
     print("Attempting Strain Data import...")
 
@@ -93,7 +93,7 @@ def _import(data: str | Path | list[Path],
     principal_arrays = tensor_arrays[10:12]
     tensor_arrays = tensor_arrays[:10]
 
-    if layout == "matrix":
+    if layout == ELayout.MATRIX:
         x_unique = np.unique(window_x_ref)
         y_unique = np.unique(window_y_ref)
         window_x_out, window_y_out = np.meshgrid(x_unique, y_unique)

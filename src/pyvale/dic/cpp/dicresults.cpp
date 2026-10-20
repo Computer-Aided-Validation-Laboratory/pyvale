@@ -11,6 +11,7 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 // commoncpp header files
 #include "../../commoncpp/util.hpp"
@@ -102,6 +103,98 @@ void ResultArrays::append(OptResult &res, const int i) {
         std::fill(epi_dist_px.begin(), epi_dist_px.end(), nan);
     }
   }
+
+InMemoryResults::InMemoryResults(const std::size_t frames,
+                                 const std::size_t points,
+                                 const bool is_stereo)
+    : num_frames(frames), num_ss(points), stereo(is_stereo),
+      ss_x(points), ss_y(points),
+      u(frames * points), v(frames * points), mag(frames * points),
+      cost(frames * points), ftol(frames * points), xtol(frames * points),
+      niter(frames * points), converged(frames * points) {
+    if (stereo) {
+        disparity_u.resize(frames * points);
+        disparity_v.resize(frames * points);
+        disparity_mag.resize(frames * points);
+        x_mm.resize(frames * points);
+        y_mm.resize(frames * points);
+        z_mm.resize(frames * points);
+        u_mm.resize(frames * points);
+        v_mm.resize(frames * points);
+        w_mm.resize(frames * points);
+        stereo_converged.resize(frames * points);
+        stereo_cost.resize(frames * points);
+        stereo_ftol.resize(frames * points);
+        stereo_xtol.resize(frames * points);
+        stereo_niter.resize(frames * points);
+        epi_dist_px.resize(frames * points);
+    }
+}
+
+void InMemoryResults::set_coordinates(const SubsetGrid &grid) {
+    num_ss_x = static_cast<std::size_t>(grid.num_ss_x);
+    num_ss_y = static_cast<std::size_t>(grid.num_ss_y);
+    for (std::size_t i = 0; i < num_ss; ++i) {
+        ss_x[i] = static_cast<int32_t>(grid.coords[2*i]);
+        ss_y[i] = static_cast<int32_t>(grid.coords[2*i + 1]);
+    }
+}
+
+void InMemoryResults::store_frame(const std::size_t frame,
+                                  const ResultArrays &source,
+                                  const SubsetGrid &grid,
+                                  const common_util::SaveConfig &saveconf) {
+    if (frame >= num_frames || source.num_ss != static_cast<int>(num_ss))
+        throw std::invalid_argument("In-memory result frame size mismatch");
+    if (frame == 0)
+        set_coordinates(grid);
+
+    const std::size_t offset = frame * num_ss;
+    for (std::size_t i = 0; i < num_ss; ++i) {
+        const bool valid = saveconf.output_below_threshold || source.valid_match[i];
+        const double out_u = valid ? source.u[i] : NAN;
+        const double out_v = valid ? source.v[i] : NAN;
+        u[offset+i] = out_u;
+        v[offset+i] = out_v;
+        mag[offset+i] = std::sqrt(out_u*out_u + out_v*out_v);
+        converged[offset+i] = source.conv[i];
+        cost[offset+i] = valid ? source.cost[i] : NAN;
+        ftol[offset+i] = valid ? source.ftol[i] : NAN;
+        xtol[offset+i] = valid ? source.xtol[i] : NAN;
+        niter[offset+i] = source.niter[i];
+    }
+}
+
+void InMemoryResults::store_stereo_frame(
+    const std::size_t frame,
+    const ResultArrays &temporal,
+    const ResultArrays &stereo_results,
+    const SubsetGrid &grid,
+    const common_util::SaveConfig &saveconf) {
+    store_frame(frame, temporal, grid, saveconf);
+    const std::size_t offset = frame * num_ss;
+    for (std::size_t i = 0; i < num_ss; ++i) {
+        const bool temporal_valid = saveconf.output_below_threshold || temporal.valid_match[i];
+        const bool stereo_valid = saveconf.output_below_threshold || stereo_results.valid_match[i];
+        const double out_u = temporal_valid ? stereo_results.u[i] : NAN;
+        const double out_v = temporal_valid ? stereo_results.v[i] : NAN;
+        disparity_u[offset+i] = out_u;
+        disparity_v[offset+i] = out_v;
+        disparity_mag[offset+i] = std::sqrt(out_u*out_u + out_v*out_v);
+        u_mm[offset+i] = temporal_valid ? stereo_results.u_world[i] : NAN;
+        v_mm[offset+i] = temporal_valid ? stereo_results.v_world[i] : NAN;
+        w_mm[offset+i] = temporal_valid ? stereo_results.w_world[i] : NAN;
+        x_mm[offset+i] = stereo_valid ? stereo_results.x_world[i] : NAN;
+        y_mm[offset+i] = stereo_valid ? stereo_results.y_world[i] : NAN;
+        z_mm[offset+i] = stereo_valid ? stereo_results.z_world[i] : NAN;
+        stereo_converged[offset+i] = stereo_results.conv[i];
+        stereo_cost[offset+i] = stereo_valid ? stereo_results.cost[i] : NAN;
+        stereo_ftol[offset+i] = stereo_valid ? stereo_results.ftol[i] : NAN;
+        stereo_xtol[offset+i] = stereo_valid ? stereo_results.xtol[i] : NAN;
+        stereo_niter[offset+i] = stereo_results.niter[i];
+        epi_dist_px[offset+i] = stereo_results.epi_dist_px[i];
+    }
+}
 
 // void ResultArrays::get_latest_matches(const ResultArrays &results_def, const int img_num_def) {
 //
