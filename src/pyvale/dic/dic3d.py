@@ -15,8 +15,9 @@ import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic._dicchecks as dicchecks
 import pyvale.common.util as common_util
 from pyvale.calib.calibdataclass import Calib
-from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod, EOptimizer
+from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod, EOptimizer, ELayout
 import pyvale.commoncpp.commoncpp as commoncpp
+from pyvale.dic.dicresults import from_in_memory
 
 
 def _reference_pair_index(
@@ -99,6 +100,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  fft_filter_corr_power: float=2.0,
                  fft_save: bool=False,
                  fft_precision: Literal["F64","F32"]="F32",
+                 output_results: bool = True,
+                 layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
                  output_prefix: str="dic_results_",
@@ -110,7 +113,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  partial_subset_multiwindow: float=0.7,
                  image_filter_kernel: int=5,
                  image_filter_sigma: float=1.0,
-                 print_level: int=2) -> None:
+                 print_level: int=2):
 
     """
     Perform Stereo Digital Image Correlation (DIC) between a reference image and one or more deformed images.
@@ -247,8 +250,10 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     Returns
     -------
-    None
-        All outputs are written to files; no values are returned.
+    Results | None
+        When ``output_results`` is False, outputs are written to files and
+        ``None`` is returned. When True, the in-memory ``Results`` dataclass
+        is returned.
 
     Raises
     ------
@@ -444,7 +449,21 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        if image_arrays is None:
-            diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+        if output_results:
+            if image_arrays is None:
+                results = diccpp.engine_results(roi_c, calib, config, multiwindowconf, saveconf)
+            else:
+                results = diccpp.engine_images_results(
+                    image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
         else:
-            diccpp.engine_images(image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
+            if image_arrays is None:
+                diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+            else:
+                diccpp.engine_images(image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
+
+
+
+    if output_results:
+        # Stereo in-memory results include the reconstructed reference frame
+        # followed by the left-camera deformed frames.
+        return from_in_memory(results, layout=layout, filenames=basenames0)
