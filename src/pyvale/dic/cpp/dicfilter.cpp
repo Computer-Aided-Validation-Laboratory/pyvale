@@ -111,7 +111,7 @@ void apply_filter(Image& img, int kernel_size, double sigma) {
     case PixelType::UINT8: {
         img.data32f.resize(width * height);
         #pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < img.data8.size(); ++i)
+        for (int i = 0; i < img.data8.size(); ++i)
             img.data32f[i] = static_cast<float>(img.data8[i]);
         std::vector<uint8_t>().swap(img.data8);
         break;
@@ -119,7 +119,7 @@ void apply_filter(Image& img, int kernel_size, double sigma) {
     case PixelType::UINT16: {
         img.data32f.resize(width * height);
         #pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < img.data16.size(); ++i)
+        for (int i = 0; i < img.data16.size(); ++i)
             img.data32f[i] = static_cast<float>(img.data16[i]);
         std::vector<uint16_t>().swap(img.data16);
         break;
@@ -128,7 +128,7 @@ void apply_filter(Image& img, int kernel_size, double sigma) {
     case PixelType::UINT32: {
         img.data32f.resize(width * height);
         #pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < img.data32.size(); ++i)
+        for (int i = 0; i < img.data32.size(); ++i)
             img.data32f[i] = static_cast<float>(img.data32[i]);
         std::vector<uint32_t>().swap(img.data32);
         break;
