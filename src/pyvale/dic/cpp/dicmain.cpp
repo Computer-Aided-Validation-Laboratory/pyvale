@@ -573,7 +573,7 @@ bool should_update_ref(const int img_num_def_l, const ResultArrays& results, con
             if (results.cost.empty()) return false;
 
             double avg = std::accumulate(results.cost.begin(), results.cost.end(), 0.0) / results.cost.size();
-            return avg > conf.incremental_update_val;
+            return avg < conf.incremental_update_val;
         }
 
         default:
