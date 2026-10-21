@@ -15,6 +15,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <type_traits>
+#include <algorithm>
 
 // commoncpp Header Files
 #include "../../commoncpp/util.hpp"
@@ -173,6 +174,22 @@ PYBIND11_MODULE(diccpp, m) {
                               const common_util::SaveConfig& saveconf) {
         engine_images(images_from_sequence(image_arrays, conf), img_roi_arr, calib, conf, multiwindowconf, saveconf);
     }, "Run DIC analysis on in-memory image arrays with config");
+
+    m.def("_should_update_ref", [](int image_number,
+                                    const std::vector<int>& iterations,
+                                    const std::vector<double>& costs,
+                                    util::EIncrementalCond condition,
+                                    double threshold) {
+        const int num_results = static_cast<int>(std::max(iterations.size(), costs.size()));
+        ResultArrays results(num_results, 0, false);
+        results.niter = iterations;
+        results.cost = costs;
+
+        util::Config config{};
+        config.incremental_update_cond = condition;
+        config.incremental_update_val = threshold;
+        return should_update_ref(image_number, results, config);
+    }, "Evaluate an incremental-reference update condition");
 
     // interpolator bindings
     py::class_<InterpVals>(m, "InterpVals")
