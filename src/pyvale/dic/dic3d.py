@@ -311,6 +311,12 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     interpolation_routine_enum = EInterp(interpolation_routine)
     incremental_update_enum = EIncrementalMethod(incremental_update)
 
+    if incremental_update_enum != EIncrementalMethod.OFF:
+        dicchecks._check_incremental_update_value(
+            incremental_update_enum.value,
+            incremental_update_value,
+        )
+
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks._multiwindow_init(subset_size,
                                                                  subset_step,
