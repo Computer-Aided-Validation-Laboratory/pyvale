@@ -253,6 +253,28 @@ def _check_thresholds(threshold: float,
         raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
 
+
+def _check_incremental_update_value(
+    incremental_update: str,
+    incremental_update_value: float | int,
+) -> None:
+    """Validate the value associated with an incremental update condition."""
+    try:
+        value = float(incremental_update_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "incremental_update_value must be a finite number."
+        ) from exc
+
+    if not np.isfinite(value):
+        raise ValueError("incremental_update_value must be finite.")
+
+    if incremental_update == "IMAGE" and (value <= 0 or not value.is_integer()):
+        raise ValueError(
+            "incremental_update_value must be a positive integer when "
+            "incremental_update='IMAGE'."
+        )
+
 def _check_subsets(subset_size: int,
                    subset_step: int,
                    method: str | None = None) -> None:
