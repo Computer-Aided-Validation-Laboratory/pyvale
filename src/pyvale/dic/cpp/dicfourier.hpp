@@ -369,6 +369,49 @@ struct FFTImpl {
         return true;
     }
 
+    bool zero_norm_subset_from_centered_patch(Subset<Real, false> &ss,
+                                              const int patch_size_x,
+                                              const int patch_size_y,
+                                              const int window_size_x,
+                                              const int window_size_y) {
+        const int window_half_x = window_size_x / 2;
+        const int window_half_y = window_size_y / 2;
+        const int patch_half_x = patch_size_x / 2;
+        const int patch_half_y = patch_size_y / 2;
+
+        double mean = 0.0;
+        int count = 0;
+        for (int row = -patch_half_y; row < patch_size_y - patch_half_y; ++row) {
+            for (int col = -patch_half_x; col < patch_size_x - patch_half_x; ++col) {
+                const int x = window_half_x + col;
+                const int y = window_half_y + row;
+                mean += ss.vals[y * window_size_x + x];
+                ++count;
+            }
+        }
+        mean /= count;
+
+        double std_dev = 0.0;
+        for (int row = -patch_half_y; row < patch_size_y - patch_half_y; ++row) {
+            for (int col = -patch_half_x; col < patch_size_x - patch_half_x; ++col) {
+                const int x = window_half_x + col;
+                const int y = window_half_y + row;
+                const double delta = static_cast<double>(ss.vals[y * window_size_x + x]) - mean;
+                std_dev += delta * delta;
+            }
+        }
+        std_dev = std::sqrt(std_dev / count);
+
+        if (std_dev < 1e-10) return false;
+
+        const int total_px = window_size_x * window_size_y;
+        for (int i = 0; i < total_px; ++i) {
+            ss.vals[i] = static_cast<Real>((ss.vals[i] - mean) / std_dev);
+        }
+
+        return true;
+    }
+
     bool zero_norm_subsets_centered(Subset<Real, false> &ss,
                                     const int ss_size_x,
                                     const int ss_size_y,

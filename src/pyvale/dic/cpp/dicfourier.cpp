@@ -258,7 +258,11 @@ void get_single_window_fftcc_peak_centre(FFTImpl<Real> &fft,
 
     // zero norm the subsets
     bool normed_ref = fft.zero_norm_subsets_centered(fft.ss_ref,ss_size_x,ss_size_y, window_size_x, window_size_y);
-    bool normed_def = fft.zero_norm_subset(fft.ss_def, window_size_x,window_size_y);
+    bool normed_def = fft.zero_norm_subset_from_centered_patch(fft.ss_def,
+                                                               ss_size_x,
+                                                               ss_size_y,
+                                                               window_size_x,
+                                                               window_size_y);
 
     // get peaks from the cross correlation
     double peak_x = 0.0, peak_y = 0.0;
