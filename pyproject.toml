@@ -29,6 +29,7 @@ dependencies = [
   "pyqtgraph>=0.13.7",
   "opencv-python>=4.13.0.92",
   "pandas>=2.3.1",
+  "pooch>=1.8.2",
   "riley-raster==2026.10.1",
 ]
 
@@ -90,6 +91,7 @@ filterwarnings = [
     "ignore:Setting the shape on a NumPy array:DeprecationWarning:vtkmodules.util.numpy_support",
 ]
 markers = [
+    "data: requires network access to the PyVale example-data repository",
     "example: smoke test for a documented gallery example",
     "example_module(name): documented example sub-module for filtering",
     "example_slow: longer-running documented gallery example",

@@ -12,12 +12,9 @@ Stereo Calibration + DIC
 This example detects a calibration-dot target in synchronised stereo images
 and uses the detected correspondences to calibrate the two cameras.
 
-The required calibration images are not distributed with the package to keep
-things lightweight. You can download them `here <https://github.com/Computer-Aided-Validation-Laboratory/calibration-example-data>`_.
-
-**Make sure to download/clone the repository and unzip the calibration images.
-For this example we'll assume you've cloned the images to your current working
-directory.**
+The calibration image set is downloaded on demand by PyVale and extracted into
+the local Pooch cache. To use a local copy instead, set ``PYVALE_DATA`` to the
+``Data`` directory of the ``pyvale-data`` repository.
 
 Currently, the DIC module in pyvale only supports the below type of calibration
 targets (If there's a specific type of calibration target you would like adding
@@ -35,6 +32,7 @@ then please get in touch and we'll see what we can do).
 import numpy as np
 from pathlib import Path
 
+from pyvale import data
 from pyvale import dic
 from pyvale import calib
 
@@ -42,12 +40,11 @@ from pyvale import calib
 # Calibration has two stages: the dot detection, then a bundle adjustment 
 # to find the camera parameters that minimise
 # the reprojection error across every image pair. you might need to ammend the
-# below path depending on where you have saved the calibration images. The below
-# path assumes you have saved the calibration images in a folder called
-# "calibration-data" in your current working directory.
+# The calibration images are provided by PyVale's data accessor.
 
-cam0 = "./calibration-example-data/cam0_*.bmp"
-cam1 = "./calibration-example-data/cam1_*.bmp"
+calibration = data.dic_calibration()
+cam0 = str(calibration / "cam0_*.bmp")
+cam1 = str(calibration / "cam1_*.bmp")
 
 # %%
 # Dot detection needs the image pairs, the target dimensions and spacing, and
