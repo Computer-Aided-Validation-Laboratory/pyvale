@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(${SKBUILD_PROJECT_NAME} LANGUAGES CXX)
+project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
 
 # ----------------------------
 # C++ standard
@@ -145,3 +145,36 @@ target_include_directories(strain_cpp PRIVATE src/pyvale/commoncpp src/pyvale/st
 target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(strain_cpp)
 install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)
+
+# ----------------------------
+# Validation Cython module
+# ----------------------------
+# The source uses Cython's pure-Python syntax, so the .py file remains an
+# importable fallback in source checkouts. Packaged builds install this compiled
+# extension with the same module name.
+execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
+    OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY
+)
+
+set(MAVM_CYTHON_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/pyvale/valid/cython/mavm.py)
+set(MAVM_CYTHON_GENERATED ${CMAKE_CURRENT_BINARY_DIR}/mavm_cython.c)
+
+add_custom_command(
+    OUTPUT ${MAVM_CYTHON_GENERATED}
+    COMMAND ${Python_EXECUTABLE} -m cython -3 -o ${MAVM_CYTHON_GENERATED}
+            ${MAVM_CYTHON_SOURCE}
+    DEPENDS ${MAVM_CYTHON_SOURCE}
+    COMMENT "Generating C source for pyvale.valid.cython.mavm"
+    VERBATIM
+)
+
+Python_add_library(mavm MODULE WITH_SOABI ${MAVM_CYTHON_GENERATED})
+target_include_directories(mavm PRIVATE ${NUMPY_INCLUDE_DIR})
+install(
+    TARGETS mavm
+    LIBRARY DESTINATION pyvale/valid/cython
+    RUNTIME DESTINATION pyvale/valid/cython
+)
