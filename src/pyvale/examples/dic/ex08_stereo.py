@@ -42,7 +42,7 @@ images = render.create_example_images_rigid()
 # ref_img = Path("/path/to/reference.tiff")
 # def_img = Path("/path/to/deformed*.tiff")
 
-# load the calibration parameters using prepackaged ground truth values.
+# Load the calibration parameters using PyVale's cached demonstration data.
 calib_params = calib.loadtxt(data.dic_ex08_stereo_calibration())
 
 
