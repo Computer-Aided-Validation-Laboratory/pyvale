@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 import pyvale.sensorsim as sens
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 #%%
 # 1. Load physics simulation data
@@ -36,9 +36,6 @@ data_path: Path = dataset.mechanical_2d_path()
 sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
 disp_keys = ("disp_x","disp_y")
-sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
-                                               sim_data=sim_data,
-                                               disp_keys=disp_keys)
 #%%
 # 2. Build virtual sensor arrays
 # --------------------------------

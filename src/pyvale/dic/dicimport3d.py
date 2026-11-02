@@ -8,18 +8,48 @@ import numpy as np
 import glob
 from pathlib import Path
 from typing import Literal
+from numpy.typing import NDArray
 
 # Pyvale modules
 from pyvale.dic.dicresults import Results, StereoResults
 from pyvale.dic.dicimport2d import to_grid, check_delimiter
-import pyvale.common_py.util as common_py_util
+import pyvale.common.util as common_util
+
+
+_Dic3DData = tuple[
+    NDArray[np.int32],
+    NDArray[np.int32],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.bool_],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.int32],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.bool_],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.int32],
+    NDArray[np.float64],
+]
 
 
 def import_3d(data: str | Path | list[Path],
               delimiter: str,
               binary: bool = False,
               layout: Literal["column", "matrix"] = "matrix",
-              debug_level: int=1) -> Results:
+              print_level: int=1) -> Results:
     """
     Import stereo DIC result data from human readable text or binary files.
 
@@ -45,8 +75,8 @@ def import_3d(data: str | Path | list[Path],
     """
 
 
-    if debug_level > 0:
-        common_py_util.print_title("Importing Stereo DIC Results")
+    if print_level > 0:
+        common_util.print_title("Importing Stereo DIC Results")
 
     # convert to str
     if isinstance(data, Path):
@@ -59,17 +89,17 @@ def import_3d(data: str | Path | list[Path],
         if not files:
             raise FileNotFoundError(f"No results found in: {data}")
 
-    if debug_level>0:
-        common_py_util.info_out(f"Found {len(files)} files containing DIC results:", "")
+    if print_level>0:
+        common_util.info_out(f"Found {len(files)} files containing DIC results:", "")
         for file in files:
-            common_py_util.info_out(f"{file}", "")
+            common_util.info_out(f"{file}", "")
 
-    read_data = read_binary_3d if binary else read_text_3d
+    read_data = _read_binary_3d if binary else _read_text_3d
 
     ss_x_ref, ss_y_ref, *fields = read_data(
         files[0],
         delimiter=delimiter,
-        debug_level=debug_level
+        print_level=print_level
     )
 
     frames = [list(fields)]
@@ -79,7 +109,7 @@ def import_3d(data: str | Path | list[Path],
         ss_x, ss_y, *f = read_data(
             file,
             delimiter=delimiter,
-            debug_level=debug_level
+            print_level=print_level
         )
 
         if not (
@@ -97,14 +127,14 @@ def import_3d(data: str | Path | list[Path],
         for i in range(len(fields))
     ]
 
-    if debug_level>0:
-        common_py_util.info_out(f"Imported {len(files)} frames of stereo DIC data.", "")
+    if print_level>0:
+        common_util.info_out(f"Imported {len(files)} frames of stereo DIC data.", "")
 
     if layout == "matrix":
 
 
-        if debug_level>0:
-            common_py_util.info_out(f"converting DIC data to matrix layout...", "")
+        if print_level>0:
+            common_util.info_out(f"converting DIC data to matrix layout...", "")
 
 
         x_unique = np.unique(ss_x_ref)
@@ -121,14 +151,14 @@ def import_3d(data: str | Path | list[Path],
             len(x_unique),
         )
 
+        x_indices = np.searchsorted(x_unique, ss_x_ref)
+        y_indices = np.searchsorted(y_unique, ss_y_ref)
         arrays = [
             to_grid(
                 a,
                 shape,
-                ss_x_ref,
-                ss_y_ref,
-                x_unique,
-                y_unique,
+                x_indices,
+                y_indices,
             )
             for a in arrays
         ]
@@ -136,8 +166,8 @@ def import_3d(data: str | Path | list[Path],
         ss_x_out = X
         ss_y_out = Y
 
-        if debug_level>0:
-            common_py_util.info_out(f"Layout conversion finished.", "")
+        if print_level>0:
+            common_util.info_out(f"Layout conversion finished.", "")
 
     else:
 
@@ -159,8 +189,8 @@ def import_3d(data: str | Path | list[Path],
         niter=arrays[7],
 
         stereo=StereoResults(
-            u_px=arrays[8],
-            v_px=arrays[9],
+            disparity_u_px=arrays[8],
+            disparity_v_px=arrays[9],
             mag_px=arrays[10],
 
             u_mm=arrays[11],
@@ -176,17 +206,18 @@ def import_3d(data: str | Path | list[Path],
             ftol=arrays[19],
             xtol=arrays[20],
             niter=arrays[21],
+            epi_dist_px=arrays[22],
         ),
 
         filenames=files,
     )
 
 
-def read_text_3d(
+def _read_text_3d(
     file: str,
     delimiter: str,
-    debug_level: int = 1
-):
+    print_level: int = 1
+) -> _Dic3DData:
     """
     Read a human-readable stereo DIC result file.
 
@@ -216,21 +247,23 @@ def read_text_3d(
     stereo_ftol
     stereo_xtol
     stereo_num_iter
+    epi_dist_px
     """
 
-    if debug_level>0:
-        common_py_util.info(f"Reading text DIC result file: {file}")
+    if print_level>0:
+        common_util.info(f"Reading text DIC result file: {file}")
 
     check_delimiter(file, delimiter)
     data = np.loadtxt(
         file,
         delimiter=delimiter,
         skiprows=1,
+        ndmin=2,
     )
 
-    if data.shape[1] != 24:
+    if data.shape[1] != 25:
         raise ValueError(
-            "Input stereo DIC data must have exactly 24 columns."
+            "Input stereo DIC data must have exactly 25 columns."
         )
 
     return (
@@ -264,17 +297,18 @@ def read_text_3d(
         data[:, 21],                   # stereo_ftol
         data[:, 22],                   # stereo_xtol
         data[:, 23].astype(np.int32),  # stereo_num_iter
+        data[:, 24],                   # epi_dist_px
     )
 
-def read_binary_3d(file: str, delimiter: str, debug_level: int = 1):
+def _read_binary_3d(file: str, delimiter: str, print_level: int = 1) -> _Dic3DData:
     """
     Read a binary stereo DIC result file and extract all fields.
 
     Must match ResultArrays::write_to_disk_stereo exactly.
     """
 
-    if debug_level > 0:
-        common_py_util.info(f"Reading binary DIC result file: {file}")
+    if print_level > 0:
+        common_util.info(f"Reading binary DIC result file: {file}")
 
     with open(file, "rb") as f:
         raw = f.read()
@@ -282,7 +316,7 @@ def read_binary_3d(file: str, delimiter: str, debug_level: int = 1):
     row_size = (
         4 * 4 +   # int32: ss_x, ss_y, niter, stereo_niter
         2 * 1 +   # uint8: conv, stereo_conv
-        18 * 8    # double fields written by ResultArrays::write_to_disk_stereo
+        19 * 8    # double fields written by ResultArrays::write_to_disk_stereo
     )
 
     file_size = len(raw)
@@ -325,10 +359,10 @@ def read_binary_3d(file: str, delimiter: str, debug_level: int = 1):
     niter = extract(4, np.int32, offset); offset += 4
 
     # -----------------------
-    # stereo pixel fields
+    # stereo disparity pixel fields
     # -----------------------
-    stereo_u_px = extract(8, np.float64, offset); offset += 8
-    stereo_v_px = extract(8, np.float64, offset); offset += 8
+    stereo_disparity_u_px = extract(8, np.float64, offset); offset += 8
+    stereo_disparity_v_px = extract(8, np.float64, offset); offset += 8
     stereo_mag_px = extract(8, np.float64, offset); offset += 8
 
     # -----------------------
@@ -352,6 +386,7 @@ def read_binary_3d(file: str, delimiter: str, debug_level: int = 1):
     stereo_xtol = extract(8, np.float64, offset); offset += 8
 
     stereo_niter = extract(4, np.int32, offset); offset += 4
+    epi_dist_px = extract(8, np.float64, offset); offset += 8
 
     return (
         ss_x,
@@ -366,8 +401,8 @@ def read_binary_3d(file: str, delimiter: str, debug_level: int = 1):
         xtol,
         niter,
 
-        stereo_u_px,
-        stereo_v_px,
+        stereo_disparity_u_px,
+        stereo_disparity_v_px,
         stereo_mag_px,
 
         stereo_u_mm,
@@ -383,4 +418,5 @@ def read_binary_3d(file: str, delimiter: str, debug_level: int = 1):
         stereo_ftol,
         stereo_xtol,
         stereo_niter,
+        epi_dist_px,
     )

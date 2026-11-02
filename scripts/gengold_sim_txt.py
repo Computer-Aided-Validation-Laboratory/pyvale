@@ -5,7 +5,7 @@
 #===============================================================================
 
 from pathlib import Path
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.mooseherder as mh
 from pyvale.dataio.simsaver import (SimDataSaveOpts,
                                     ESaveFieldOpt,

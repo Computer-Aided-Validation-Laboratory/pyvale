@@ -16,10 +16,10 @@
 #include <optional>
 #include <chrono>
 
-// common_cpp headers
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+// commoncpp headers
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 
 // Program Header files
@@ -50,6 +50,7 @@ void multiwindow_only(const Interpolator &interp_ref,
                                                     lvl, multiwindow.size(),
                                                     conf.basenames,
                                                     conf.fft_precision);
+        raise_on_interrupt();
     }
 
     const subset::Grid &ss_grid = multiwindow.back().layout;
@@ -77,6 +78,14 @@ void multiwindow_only(const Interpolator &interp_ref,
 
             // append fourier results to master result vectors
             OptResult res(conf.num_params);
+
+            // Keep inactive subsets at their reset/default result state, matching
+            // multiwindow_rg and calc_rigid_displacements.
+            if (!ss_grid.active_ss[ss]) {
+                results_def.append(res, ss);
+                continue;
+            }
+
             res.u    = multiwindow.back().u[ss];
             res.p[0] = multiwindow.back().u[ss];
             res.v    = multiwindow.back().v[ss];
@@ -88,7 +97,7 @@ void multiwindow_only(const Interpolator &interp_ref,
 
             // get the reference subset
             subset::fill_from_centre_coords(ss_ref, cx_img0, cy_img0, interp_ref);
-            subset::fill_from_shape_params(ss_def, cx_img0, cy_img0, res.p, interp_def, util::ShapeFunc::RIGID);
+            subset::fill_from_shape_params(ss_def, cx_img0, cy_img0, res.p, interp_def, util::EShapeFunc::RIGID);
 
             // calculate zncc value
             double zncc = 0.0;

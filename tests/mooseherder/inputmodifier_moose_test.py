@@ -9,23 +9,26 @@ from pathlib import Path
 import pytest
 from pyvale.mooseherder.inputmodifier import InputModifier
 
-MOOSE_INPUT_PATH = Path.cwd()/"tests"/"mooseherder"/"moose"
+MOOSE_INPUT_PATH = Path(__file__).resolve().parent / "moose"
+
+
+def _clean_moose_mod_files() -> None:
+    if MOOSE_INPUT_PATH.is_dir():
+        for ff in MOOSE_INPUT_PATH.glob("*-mod*"):
+            ff.unlink(missing_ok=True)
+
 
 @pytest.fixture
 def moose_mod() -> InputModifier:
-    input_file = MOOSE_INPUT_PATH/"moose-test.i"
+    input_file = MOOSE_INPUT_PATH / "moose-test.i"
     return InputModifier(input_file, "#", "")
 
 
 @pytest.fixture(autouse=True)
 def setup_teardown_moose():
-    # Setup here
+    _clean_moose_mod_files()
     yield
-    # Teardown here - remove output files
-    all_files = os.listdir(MOOSE_INPUT_PATH)
-    for ff in all_files:
-        if "-mod" in ff:
-            os.remove(MOOSE_INPUT_PATH / ff)
+    _clean_moose_mod_files()
 
 
 def test_moose_find_vars(moose_mod: InputModifier) -> None:

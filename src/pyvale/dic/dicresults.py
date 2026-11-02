@@ -15,11 +15,11 @@ class StereoResults:
     Data container for stereo DIC results
     """
     
-    u_px: np.ndarray
-    """Horizontal displacement in pixels to the right image. shape=(img_num,y,x)"""
+    disparity_u_px: np.ndarray
+    """Horizontal left-to-right stereo disparity in pixels. shape=(img_num,y,x)"""
 
-    v_px: np.ndarray
-    """Vertical displacement in pixels to the right image. shape=(img_num,y,x)"""
+    disparity_v_px: np.ndarray
+    """Vertical left-to-right stereo disparity in pixels. shape=(img_num,y,x)"""
 
     u_mm: np.ndarray
     """Horizontal displacement in physical units of mm relative in cam0 world coordinate system. shape=(img_num,y,x)"""
@@ -40,7 +40,7 @@ class StereoResults:
     """Z-coordinate in physical units of mm relative in cam0 world coordinate system. shape=(img_num,y,x)"""
     
     mag_px: np.ndarray | None = None
-    """Displacement magnitude to the right image, typically computed as sqrt(disp_u_px^2 + disp_v_px^2). shape=(img_num,y,x)"""
+    """Stereo disparity magnitude in pixels, typically computed as sqrt(disparity_u_px^2 + disparity_v_px^2). shape=(img_num,y,x)"""
 
     converged: np.ndarray | None = None
     """boolean value for whether the subset has converged or not. shape=(img_num,y,x)"""
@@ -56,6 +56,12 @@ class StereoResults:
     
     niter: np.ndarray | None = None
     """Number of iterations taken to converge for each subset point. shape=(img_num,y,x)"""
+
+    epi_dist_px: np.ndarray | None = None
+    """Perpendicular distance from the undistorted right subset centre to the
+    epipolar line of the undistorted left centre, in pixels. Missing or invalid
+    matches are NaN. shape=(img_num,y,x), or (img_num,subset) for column layout.
+    """
 
 @dataclass(slots=True)
 class Results:
@@ -112,4 +118,3 @@ class Results:
 
     stereo: StereoResults | None = None
     """Optional field to store stereo DIC results if available."""
-

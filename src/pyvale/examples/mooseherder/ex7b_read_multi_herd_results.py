@@ -28,7 +28,7 @@ from pathlib import Path
 import numpy as np
 
 #pyvale imports
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 from pyvale.mooseherder import (MooseHerd,
                                 MooseRunner,
                                 MooseConfig,
@@ -38,79 +38,93 @@ from pyvale.mooseherder import (MooseHerd,
                                 sweep_param_grid)
 
 
-#%%
-# The first part of this example is the same as our previous example called:
-# 'Using multiple calls to run parallel sweeps'. For a detailed explanation of
-# the code below head to that example. For now we use this to generate multiple
-# sets of outputs and then use a sweep reader to read this all in below.
+def main() -> None:
 
-moose_input = dataset.element_case_input_path(dataset.EElemTest.HEX20)
-moose_modifier = InputModifier(moose_input,'#','')
 
-config = {'main_path': Path.home()/ 'moose',
-        'app_path': Path.home() / 'proteus',
-        'app_name': 'proteus-opt'}
-moose_config = MooseConfig(config)
+    #%%
+    # The first part of this example is the same as our previous example called:
+    # 'Using multiple calls to run parallel sweeps'. For a detailed explanation of
+    # the code below head to that example. For now we use this to generate multiple
+    # sets of outputs and then use a sweep reader to read this all in below.
 
-moose_runner = MooseRunner(moose_config)
-moose_runner.set_run_opts(n_tasks = 1,
-                          n_threads = 2,
-                          redirect_out = True)
+    moose_input = dataset.element_case_input_path(dataset.EElemTest.HEX20)
+    moose_modifier = InputModifier(moose_input,'#','')
 
-num_para_sims: int = 4
-dir_manager = DirectoryManager(n_dirs=num_para_sims)
-herd = MooseHerd([moose_runner],[moose_modifier],dir_manager)
-herd.set_num_para_sims(n_para=num_para_sims)
+    config = {'main_path': Path.home()/ 'moose',
+            'app_path': Path.home() / 'proteus',
+            'app_name': 'proteus-opt'}
+    moose_config = MooseConfig(config)
 
-output_path = Path.cwd() / "pyvale-output"
-if not output_path.is_dir():
-    output_path.mkdir(parents=True, exist_ok=True)
+    moose_runner = MooseRunner(moose_config)
+    moose_runner.set_run_opts(n_tasks = 1,
+                              n_threads = 2,
+                              redirect_out = True)
 
-dir_manager.set_base_dir(output_path)
-dir_manager.reset_dirs()
+    num_para_sims: int = 4
+    dir_manager = DirectoryManager(n_dirs=num_para_sims)
+    herd = MooseHerd([moose_runner],[moose_modifier],dir_manager)
+    herd.set_num_para_sims(n_para=num_para_sims)
 
-moose_params = {"nElemX": (2,3),
-                "lengX": np.array([10e-3,15e-3]),
-                "PRatio":(0.3,)}
-params = [moose_params,]
-sweep_params = sweep_param_grid(params)
+    output_path = Path.cwd() / "pyvale-output"
+    if not output_path.is_dir():
+        output_path.mkdir(parents=True, exist_ok=True)
 
-print("\nParameter sweep variables by simulation:")
-for ii,pp in enumerate(sweep_params):
-    print(f"Sim: {ii}, Params [moose,]: {pp}")
+    dir_manager.set_base_dir(output_path)
+    dir_manager.reset_dirs()
 
-num_para_runs: int = 3
-if __name__ == '__main__':
-    sweep_times = np.zeros((num_para_runs,),dtype=np.float64)
-    for rr in range(num_para_runs):
-        herd.run_para(sweep_params)
-        sweep_times[rr] = herd.get_sweep_time()
+    moose_params = {"nElemX": (2,3),
+                    "lengX": np.array([10e-3,15e-3]),
+                    "PRatio":(0.3,)}
+    params = [moose_params,]
+    sweep_params = sweep_param_grid(params)
 
-print()
-for ii,ss in enumerate(sweep_times):
-    print(f"Sweep {ii} took: {ss:.3f}seconds")
-print()
+    print("\nParameter sweep variables by simulation:")
+    for ii,pp in enumerate(sweep_params):
+        print(f"Sim: {ii}, Params [moose,]: {pp}")
 
-#%%
-# Here we will just read all the results sequentially and verify that we have
-# the number of simulation results we expect for the multiple calls above.
-# Looking at our parameter sweep we have 4 unique combination of variables and
-# we ran this 3 times so we expect to have a total of 12 simulation results in
-# our outer list which we print below. Note that our inner list still has a
-# single ``SimData`` object as we only have a single moose simulation in our
-# simulation chain.
-sweep_reader = SweepLoader(dir_manager)
-start_time = time.perf_counter()
-sweep_results_seq = sweep_reader.read_sequential()
-read_time_seq = time.perf_counter() - start_time
+    num_para_runs: int = 3
+    if __name__ == '__main__':
+        sweep_times = np.zeros((num_para_runs,),dtype=np.float64)
+        for rr in range(num_para_runs):
+            herd.run_para(sweep_params)
+            sweep_times[rr] = herd.get_sweep_time()
 
-print("Outer list = unique simulation chain:")
-print(f"    {len(sweep_results_seq)=}")
-print("Inner list = particular simulation tool in the chain:")
-print(f"    {len(sweep_results_seq[0])=}")
-print("'SimData' object for the particular simulation tool:")
-print(f"    {type(sweep_results_seq[0][0])=}")
-print()
+    print()
+    for ii,ss in enumerate(sweep_times):
+        print(f"Sweep {ii} took: {ss:.3f}seconds")
+    print()
 
-print(f'Read time (sequential) = {read_time_seq:.6f} seconds')
+    #%%
+    # Here we will just read all the results sequentially and verify that we have
+    # the number of simulation results we expect for the multiple calls above.
+    # Looking at our parameter sweep we have 4 unique combination of variables and
+    # we ran this 3 times so we expect to have a total of 12 simulation results in
+    # our outer list which we print below. Note that our inner list still has a
+    # single ``SimData`` object as we only have a single moose simulation in our
+    # simulation chain.
+    sweep_reader = SweepLoader(dir_manager)
+    start_time = time.perf_counter()
+    sweep_results_seq = sweep_reader.read_sequential()
+    read_time_seq = time.perf_counter() - start_time
 
+    print("Outer list = unique simulation chain:")
+    print(f"    {len(sweep_results_seq)=}")
+    print("Inner list = particular simulation tool in the chain:")
+    print(f"    {len(sweep_results_seq[0])=}")
+    print("'SimData' object for the particular simulation tool:")
+    print(f"    {type(sweep_results_seq[0][0])=}")
+    print()
+
+    print(f'Read time (sequential) = {read_time_seq:.6f} seconds')
+
+
+from pyvale.mooseherder import moose_availability
+
+if not moose_availability({
+        "app_path": Path.home() / "proteus",
+        "app_name": "proteus-opt"}).available:
+    print("MOOSE is unavailable: skipping this example.")
+    print("This example requires the proteus MOOSE application "
+          "in ~/proteus.")
+else:
+    main()

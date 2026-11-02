@@ -18,6 +18,12 @@
 
 namespace smooth {
 
+    // Coordinates are relative to the evaluation centre; false means an invalid fit.
+    bool fit_displacements(const std::vector<double> &x, const std::vector<double> &y,
+                           const std::vector<double> &u, const std::vector<double> &v,
+                           const std::vector<double> &w, int q, Eigen::MatrixXd &coefficients);
+
+
     /**
      * @brief 
      * 

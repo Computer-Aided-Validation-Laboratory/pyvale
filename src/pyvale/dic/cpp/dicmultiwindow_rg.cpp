@@ -16,10 +16,10 @@
 #include <optional>
 #include <chrono>
 
-// common_cpp headers
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/progressbar.hpp"
-#include "../../common_cpp/dicsignalhandler.hpp"
+// commoncpp headers
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
 
 
 // Program Header files
@@ -62,6 +62,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
                                                     lvl, multiwindow.size(),
                                                     conf.basenames,
                                                     conf.fft_precision);
+        raise_on_interrupt();
     }
 
 
@@ -301,9 +302,16 @@ void multiwindow_rg(const Interpolator &interp_ref,
             queue.push(tid, temp_neigh);
         }
     }
+    if (!stop_request && !error_flag.load()) {
+        rg::retry_bad_points(interp_ref, interp_def, ss_grid, conf, results_ref,
+                             results_def, computed_mask);
+    }
+
     if (g_debug_level>0){
         pbar.finish();
     }
+
+    raise_on_interrupt();
 
     if (error_flag.load()) {
         throw std::runtime_error(error_message);

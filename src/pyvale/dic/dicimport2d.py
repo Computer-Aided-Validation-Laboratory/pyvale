@@ -11,22 +11,36 @@ import glob
 import os
 from pathlib import Path
 from typing import Literal
+from numpy.typing import NDArray
 
 # Pyvale modules
 from pyvale.dic.dicresults import Results
-import pyvale.common_py.util as common_py_util
+import pyvale.common.util as common_util
 
 """
 Module responsible for handling importing of DIC results from completed
 calculations.
 """
 
+_Dic2DData = tuple[
+    NDArray[np.int32],
+    NDArray[np.int32],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.bool_],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.int32],
+]
+
 
 def import_2d(data: str | Path | list[Path],
               delimiter: str,
               binary: bool = False,
               layout: Literal["column", "matrix"] = "matrix",
-              debug_level: int=1) -> Results:
+              print_level: int=1) -> Results:
 
     """
     Import DIC result data from human readable text or binary files.
@@ -66,8 +80,8 @@ def import_2d(data: str | Path | list[Path],
         If no matching data files are found.
     """
 
-    if (debug_level>0):
-        common_py_util.print_title("Importing DIC Results")
+    if (print_level>0):
+        common_util.print_title("Importing DIC Results")
 
     # convert to str 
     if isinstance(data, Path):
@@ -80,15 +94,15 @@ def import_2d(data: str | Path | list[Path],
         if not files:
             raise FileNotFoundError(f"No results found in: {data}")
     
-    if debug_level>0:
-        common_py_util.info_out(f"Found {len(files)} files containing DIC results:", "")
+    if print_level>0:
+        common_util.info_out(f"Found {len(files)} files containing DIC results:", "")
         for file in files:
-            common_py_util.info_out(f"{file}", "")
+            common_util.info_out(f"{file}", "")
 
 
     # Read first file to define reference coordinates
-    read_data = read_binary if binary else read_text
-    ss_x_ref, ss_y_ref, *fields = read_data(files[0], delimiter=delimiter, debug_level=debug_level)
+    read_data = _read_binary if binary else _read_text
+    ss_x_ref, ss_y_ref, *fields = read_data(files[0], delimiter=delimiter, print_level=print_level)
     frames = [list(fields)]
 
     for file in files[1:]:
@@ -100,8 +114,8 @@ def import_2d(data: str | Path | list[Path],
     # Stack results (except ss_x and ss_y) into arrays
     arrays = [np.stack([frame[i] for frame in frames]) for i in range(len(fields))]
 
-    if debug_level>0:
-        common_py_util.info_out(f"Imported {len(files)} frames of DIC data.", "")
+    if print_level>0:
+        common_util.info_out(f"Imported {len(files)} frames of DIC data.", "")
 
     if layout == "matrix":
 
@@ -111,7 +125,9 @@ def import_2d(data: str | Path | list[Path],
         X, Y = np.meshgrid(x_unique, y_unique)
         shape = (len(files), len(y_unique), len(x_unique))
 
-        arrays = [to_grid(a,shape,ss_x_ref, ss_y_ref, x_unique,y_unique) for a in arrays]
+        x_indices = np.searchsorted(x_unique, ss_x_ref)
+        y_indices = np.searchsorted(y_unique, ss_y_ref)
+        arrays = [to_grid(a, shape, x_indices, y_indices) for a in arrays]
 
         return Results(ss_x=X,
                        ss_y=Y,
@@ -141,7 +157,7 @@ def import_2d(data: str | Path | list[Path],
                        filenames=files)
 
 
-def read_binary(file: str, delimiter: str, debug_level: int=1):
+def _read_binary(file: str, delimiter: str, print_level: int=1) -> _Dic2DData:
     """
     Read a binary 2D DIC result file and extract DIC fields.
 
@@ -152,8 +168,8 @@ def read_binary(file: str, delimiter: str, debug_level: int=1):
 
     del delimiter
 
-    if debug_level>0:
-        common_py_util.info(f"Reading binary DIC result file: {file}")
+    if print_level>0:
+        common_util.info(f"Reading binary DIC result file: {file}")
 
     with open(file, "rb") as f:
         raw = f.read()
@@ -191,7 +207,7 @@ def read_binary(file: str, delimiter: str, debug_level: int=1):
 
 
 
-def read_text(file: str, delimiter: str, debug_level: int=1):
+def _read_text(file: str, delimiter: str, print_level: int=1) -> _Dic2DData:
     """
     Read a human-readable text DIC result file and extract DIC fields.
 
@@ -218,8 +234,8 @@ def read_text(file: str, delimiter: str, debug_level: int=1):
     ValueError
         If the text file has fewer than 9 columns.
     """
-    if debug_level>0:
-        common_py_util.info(f"Reading text DIC result file: {file}")
+    if print_level>0:
+        common_util.info(f"Reading text DIC result file: {file}")
 
     check_delimiter(file, delimiter)
     data = np.loadtxt(file, delimiter=delimiter, skiprows=1)
@@ -239,12 +255,14 @@ def read_text(file: str, delimiter: str, debug_level: int=1):
 
 
 
-def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
+def to_grid(data, shape, x_indices, y_indices):
     """
     Reshape a 2D DIC field from flat (column) format into grid (matrix) format.
 
     This is used when output layout is specified as "matrix".
-    Maps values using reference subset coordinates (ss_x_ref, ss_y_ref).
+    Maps values using precomputed grid indices. Using NumPy advanced indexing
+    avoids a Python loop over every point and lets callers reuse the same
+    coordinate mapping for every field.
 
     Parameters
     ----------
@@ -254,17 +272,11 @@ def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
     shape : tuple
         Target shape of output array: (n_frames, height, width).
 
-    ss_x_ref : np.ndarray
-        X coordinates of subset centers.
+    x_indices : np.ndarray
+        Column index for each point in ``data``.
 
-    ss_y_ref : np.ndarray
-        Y coordinates of subset centers.
-
-    x_unique : np.ndarray
-        Sorted unique X coordinates in the grid.
-
-    y_unique : np.ndarray
-        Sorted unique Y coordinates in the grid.
+    y_indices : np.ndarray
+        Row index for each point in ``data``.
 
     Returns
     -------
@@ -273,10 +285,7 @@ def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
     """
 
     grid = np.full(shape, np.nan)
-    for i, (x, y) in enumerate(zip(ss_x_ref, ss_y_ref)):
-        x_idx = np.where(x_unique == x)[0][0]
-        y_idx = np.where(y_unique == y)[0][0]
-        grid[:, y_idx, x_idx] = data[:, i]
+    grid[:, y_indices, x_indices] = data
     return grid
 
 def check_delimiter(fname: str, delimiter: str | None) -> None:

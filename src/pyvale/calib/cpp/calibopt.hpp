@@ -14,7 +14,7 @@
 #include <omp.h>
 #include <vector>
 
-// common_cpp header filesfiles
+// commoncpp header filesfiles
 #include <Eigen/Dense>
 
 

@@ -19,7 +19,7 @@ from scipy.spatial.transform import Rotation
 # Pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.mooseherder as mh
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 
 #%%

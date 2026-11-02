@@ -6,7 +6,15 @@
 
 from dataclasses import dataclass
 from collections.abc import Iterable
+from enum import Enum
 import numpy as np
+
+
+class EMeshType(Enum):
+    """Topological class of a finite-element mesh."""
+
+    VOL = "volume"
+    SURF = "surface"
 
 
 @dataclass(slots=True)
@@ -18,6 +26,15 @@ class SimData:
     """ Number of spatial dimensions in the simulation, required to determine
     element types given that all coords are padded to [x,y,z]. Allows for 2D and
     1D simulations using any combination of the [x,y,z] axes.
+    """
+
+    mesh_type: EMeshType | None = None
+    """Whether connectivity describes volume cells or surface elements.
+
+    ``None`` is retained for point clouds and partially populated objects.
+    When coordinates and connectivity are supplied to the constructor, this is
+    inferred geometrically. Call :meth:`refresh_mesh_type` after assigning
+    either field later.
     """
 
     time: np.ndarray | None = None
@@ -75,6 +92,29 @@ class SimData:
         steps in the simulation.
         Defaults to None.
     """
+
+    def __post_init__(self) -> None:
+        if self.mesh_type is None and self.coords is not None:
+            if self.connect is not None:
+                self.refresh_mesh_type()
+
+    def refresh_mesh_type(self) -> None:
+        """Infer and store the mesh type from the current mesh geometry."""
+        if self.coords is None or self.connect is None:
+            self.mesh_type = None
+            return
+
+        # Deferred import avoids a module cycle: meshconv operates on SimData.
+        from pyvale.dataio.meshconv import is_volume_mesh
+
+        try:
+            self.mesh_type = (
+                EMeshType.VOL if is_volume_mesh(self) else EMeshType.SURF
+            )
+        except (NotImplementedError, ValueError):
+            # Preserve construction of malformed or unsupported meshes so the
+            # convention tools can provide their targeted diagnostic later.
+            self.mesh_type = None
 
 @dataclass(slots=True)
 class SimLoadConfig:

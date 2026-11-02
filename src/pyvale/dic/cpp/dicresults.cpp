@@ -8,11 +8,12 @@
 // STD library Header files
 #include <sstream>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <vector>
 
-// common_cpp header files
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/util.hpp"
 
 // DIC Header files
 #include "./dicresults.hpp"
@@ -23,7 +24,7 @@ ResultArrays::ResultArrays(int num_ss,
                            int num_params,
                            bool stereo){
 
-    common_util::Timer timer("to resize result arrays:", 2);
+    common_util::Timer timer("to resize result arrays:", 3);
 
     this->num_ss = num_ss;
     this->num_params = num_params;
@@ -49,12 +50,14 @@ ResultArrays::ResultArrays(int num_ss,
     // has_good_history.resize(num_ss, 0);
 
     if (stereo){
-        x_world.resize(num_ss,0.0);
-        y_world.resize(num_ss,0.0);
-        z_world.resize(num_ss,0.0);
-        u_world.resize(num_ss,0.0);
-        v_world.resize(num_ss,0.0);
-        w_world.resize(num_ss,0.0);
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        x_world.resize(num_ss, nan);
+        y_world.resize(num_ss, nan);
+        z_world.resize(num_ss, nan);
+        u_world.resize(num_ss, nan);
+        v_world.resize(num_ss, nan);
+        w_world.resize(num_ss, nan);
+        epi_dist_px.resize(num_ss, nan);
     }
 }
 
@@ -86,12 +89,14 @@ void ResultArrays::append(OptResult &res, const int i) {
     std::fill(above_thresh.begin(), above_thresh.end(), false);
 
     if (stereo) {
-        std::fill(x_world.begin(), x_world.end(), 0.0);
-        std::fill(y_world.begin(), y_world.end(), 0.0);
-        std::fill(z_world.begin(), z_world.end(), 0.0);
-        std::fill(u_world.begin(), u_world.end(), 0.0);
-        std::fill(v_world.begin(), v_world.end(), 0.0);
-        std::fill(w_world.begin(), w_world.end(), 0.0);
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        std::fill(x_world.begin(), x_world.end(), nan);
+        std::fill(y_world.begin(), y_world.end(), nan);
+        std::fill(z_world.begin(), z_world.end(), nan);
+        std::fill(u_world.begin(), u_world.end(), nan);
+        std::fill(v_world.begin(), v_world.end(), nan);
+        std::fill(w_world.begin(), w_world.end(), nan);
+        std::fill(epi_dist_px.begin(), epi_dist_px.end(), nan);
     }
   }
 
@@ -173,7 +178,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
                                     const std::string &filename){
 
 
-    common_util::Timer timer("to write DIC results to disk:", 2);
+    common_util::Timer timer("to write DIC results to disk:", 3);
 
     const std::string delimiter = saveconf.delimiter;
 
@@ -206,20 +211,15 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
 
         for (int i = 0; i < ss_grid.num; ++i) {
 
-            // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !above_thresh[i]) {
-                u[i] = NAN;
-                v[i] = NAN;
-                for (int pp = 0; pp < num_params; pp++){
-                    p[num_params*i+pp] = NAN;
-                }
-                cost[i] = NAN;
-                ftol[i] = NAN;
-                xtol[i] = NAN;
-            }
+            const bool valid = saveconf.output_below_threshold || above_thresh[i];
+            const double out_u = valid ? u[i] : NAN;
+            const double out_v = valid ? v[i] : NAN;
+            const double out_cost = valid ? cost[i] : NAN;
+            const double out_ftol = valid ? ftol[i] : NAN;
+            const double out_xtol = valid ? xtol[i] : NAN;
 
             // displacement magnitude
-            double mag = std::sqrt(u[i]*u[i]+v[i]*v[i]);
+            double mag = std::sqrt(out_u*out_u+out_v*out_v);
 
             // convert from corner to centre subset coords
             double ss_x = ss_grid.coords[2*i  ];
@@ -227,18 +227,18 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
 
             common_util::write_int(outfile, ss_x);
             common_util::write_int(outfile, ss_y);
-            common_util::write_dbl(outfile, u[i]);
-            common_util::write_dbl(outfile, v[i]);
+            common_util::write_dbl(outfile, out_u);
+            common_util::write_dbl(outfile, out_v);
             common_util::write_dbl(outfile, mag);
             common_util::write_uint8t(outfile, conv[i]);
-            common_util::write_dbl(outfile, cost[i]);
-            common_util::write_dbl(outfile, ftol[i]);
-            common_util::write_dbl(outfile, xtol[i]);
+            common_util::write_dbl(outfile, out_cost);
+            common_util::write_dbl(outfile, out_ftol);
+            common_util::write_dbl(outfile, out_xtol);
             common_util::write_int(outfile, niter[i]);
 
             if (saveconf.shape_params) {
                 for (int pp = 0; pp < num_params; pp++){
-                    common_util::write_dbl(outfile, p[num_params*i+pp]);
+                    common_util::write_dbl(outfile, valid ? p[num_params*i+pp] : NAN);
                 }
             }
 
@@ -279,30 +279,25 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             double ss_x = ss_grid.coords[2*i  ];
             double ss_y = ss_grid.coords[2*i+1];
 
-            // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !above_thresh[i]) {
-                u[i] = NAN;
-                v[i] = NAN;
-                for (int pi = 0; pi < num_params; pi++){
-                    p[num_params*i+pi] = NAN;
-                }
-                cost[i] = NAN;
-                ftol[i] = NAN;
-                xtol[i] = NAN;
-            }
+            const bool valid = saveconf.output_below_threshold || above_thresh[i];
+            const double out_u = valid ? u[i] : NAN;
+            const double out_v = valid ? v[i] : NAN;
+            const double out_cost = valid ? cost[i] : NAN;
+            const double out_ftol = valid ? ftol[i] : NAN;
+            const double out_xtol = valid ? xtol[i] : NAN;
 
             // displacement magnitude
-            double mag = std::sqrt(u[i]*u[i]+v[i]*v[i]);
+            double mag = std::sqrt(out_u*out_u+out_v*out_v);
 
             outfile << ss_x << delimiter;
             outfile << ss_y << delimiter;
-            outfile << u[i] << delimiter;
-            outfile << v[i] << delimiter;
+            outfile << out_u << delimiter;
+            outfile << out_v << delimiter;
             outfile << mag << delimiter;
             outfile << static_cast<int>(conv[i]) << delimiter;
-            outfile << cost[i] << delimiter;
-            outfile << ftol[i] << delimiter;
-            outfile << xtol[i] << delimiter;
+            outfile << out_cost << delimiter;
+            outfile << out_ftol << delimiter;
+            outfile << out_xtol << delimiter;
             outfile << niter[i];
 
             // write shape parameters if requested
@@ -324,7 +319,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
 
 
 
-void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
+void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
                                         const common_util::SaveConfig &saveconf,
                                         const subset::Grid &ss_grid,
                                         const std::string &filename){
@@ -360,35 +355,24 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
 
         for (int i = 0; i < ss_grid.num; ++i) {
 
-            // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !above_thresh[i]) {
-
-                u[i] = NAN;
-                v[i] = NAN;
-                stereo.u[i] = NAN;
-                stereo.v[i] = NAN;
-
-                for (int pp = 0; pp < num_params; pp++){
-                    p[num_params*i+pp] = NAN;
-                      stereo.p[  stereo.num_params*i+pp] = NAN;
-                }
-
-                cost[i] = NAN;
-                ftol[i] = NAN;
-                xtol[i] = NAN;
-            }
-
-            if (!saveconf.output_below_threshold && !stereo.above_thresh[i]) {
-                stereo.cost[i] = NAN;
-                stereo.ftol[i] = NAN;
-                stereo.xtol[i] = NAN;
-                stereo.x_world[i] = NAN;
-                stereo.y_world[i] = NAN;
-                stereo.z_world[i] = NAN;
-                stereo.u_world[i] = NAN;
-                stereo.v_world[i] = NAN;
-                stereo.w_world[i] = NAN;
-            }
+            const bool temporal_valid = saveconf.output_below_threshold || above_thresh[i];
+            const bool stereo_valid = saveconf.output_below_threshold || stereo.above_thresh[i];
+            const double out_u = temporal_valid ? u[i] : NAN;
+            const double out_v = temporal_valid ? v[i] : NAN;
+            const double out_cost = temporal_valid ? cost[i] : NAN;
+            const double out_ftol = temporal_valid ? ftol[i] : NAN;
+            const double out_xtol = temporal_valid ? xtol[i] : NAN;
+            const double out_stereo_u = temporal_valid ? stereo.u[i] : NAN;
+            const double out_stereo_v = temporal_valid ? stereo.v[i] : NAN;
+            const double out_stereo_cost = stereo_valid ? stereo.cost[i] : NAN;
+            const double out_stereo_ftol = stereo_valid ? stereo.ftol[i] : NAN;
+            const double out_stereo_xtol = stereo_valid ? stereo.xtol[i] : NAN;
+            const double out_x_world = stereo_valid ? stereo.x_world[i] : NAN;
+            const double out_y_world = stereo_valid ? stereo.y_world[i] : NAN;
+            const double out_z_world = stereo_valid ? stereo.z_world[i] : NAN;
+            const double out_u_world = stereo_valid ? stereo.u_world[i] : NAN;
+            const double out_v_world = stereo_valid ? stereo.v_world[i] : NAN;
+            const double out_w_world = stereo_valid ? stereo.w_world[i] : NAN;
 
 
             // convert from corner to centre subset coords
@@ -396,33 +380,34 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
             double ss_y = ss_grid.coords[2*i+1];
 
             // displacement magnitude
-            double mag_temporal = std::sqrt(u[i]*u[i]+v[i]*v[i]);
-            double mag_stereo = std::sqrt(stereo.u[i]*stereo.u[i]+stereo.v[i]*stereo.v[i]);
+            double mag_temporal = std::sqrt(out_u*out_u+out_v*out_v);
+            double mag_stereo = std::sqrt(out_stereo_u*out_stereo_u+out_stereo_v*out_stereo_v);
 
             common_util::write_int(outfile, ss_x);
             common_util::write_int(outfile, ss_y);
-            common_util::write_dbl(outfile, u[i]);
-            common_util::write_dbl(outfile, v[i]);
+            common_util::write_dbl(outfile, out_u);
+            common_util::write_dbl(outfile, out_v);
             common_util::write_dbl(outfile, mag_temporal);
             common_util::write_uint8t(outfile, conv[i]);
-            common_util::write_dbl(outfile, cost[i]);
-            common_util::write_dbl(outfile, ftol[i]);
-            common_util::write_dbl(outfile, xtol[i]);
+            common_util::write_dbl(outfile, out_cost);
+            common_util::write_dbl(outfile, out_ftol);
+            common_util::write_dbl(outfile, out_xtol);
             common_util::write_int(outfile, niter[i]);
-            common_util::write_dbl(outfile, stereo.u[i]);
-            common_util::write_dbl(outfile, stereo.v[i]);
+            common_util::write_dbl(outfile, out_stereo_u);
+            common_util::write_dbl(outfile, out_stereo_v);
             common_util::write_dbl(outfile, mag_stereo);
-            common_util::write_dbl(outfile, stereo.u_world[i]);
-            common_util::write_dbl(outfile, stereo.v_world[i]);
-            common_util::write_dbl(outfile, stereo.w_world[i]);
-            common_util::write_dbl(outfile, stereo.x_world[i]);
-            common_util::write_dbl(outfile, stereo.y_world[i]);
-            common_util::write_dbl(outfile, stereo.z_world[i]);
+            common_util::write_dbl(outfile, out_u_world);
+            common_util::write_dbl(outfile, out_v_world);
+            common_util::write_dbl(outfile, out_w_world);
+            common_util::write_dbl(outfile, out_x_world);
+            common_util::write_dbl(outfile, out_y_world);
+            common_util::write_dbl(outfile, out_z_world);
             common_util::write_uint8t(outfile, stereo.conv[i]);
-            common_util::write_dbl(outfile, stereo.cost[i]);
-            common_util::write_dbl(outfile, stereo.ftol[i]);
-            common_util::write_dbl(outfile, stereo.xtol[i]);
+            common_util::write_dbl(outfile, out_stereo_cost);
+            common_util::write_dbl(outfile, out_stereo_ftol);
+            common_util::write_dbl(outfile, out_stereo_xtol);
             common_util::write_int(outfile, stereo.niter[i]);
+            common_util::write_dbl(outfile, stereo.epi_dist_px[i]);
 
             // if (saveconf.shape_params) {
             //     for (int pp = 0; pp < num_params; pp++){
@@ -464,6 +449,7 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
         outfile << "\"stereo_ftol\"" <<  delimiter;
         outfile << "\"stereo_xtol\"" <<  delimiter;
         outfile << "\"stereo_num_iter\"" << delimiter;
+        outfile << "\"epi_dist_px\"";
         // column headers for shape parameters
         // if (saveconf.shape_params) {
         //     for (int p = 0; p < num_params; p++){
@@ -490,65 +476,55 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
             double ss_y = ss_grid.coords[2*i+1];
 
             // if the subset has not met threshold, set values to nan
-                        // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !above_thresh[i]) {
-
-                u[i] = NAN;
-                v[i] = NAN;
-                stereo.u[i] = NAN;
-                stereo.v[i] = NAN;
-
-                for (int pp = 0; pp < num_params; pp++){
-                    p[num_params*i+pp] = NAN;
-                      stereo.p[  stereo.num_params*i+pp] = NAN;
-                }
-
-                cost[i] = NAN;
-                ftol[i] = NAN;
-                xtol[i] = NAN;
-            }
-
-            if (!saveconf.output_below_threshold && !stereo.above_thresh[i]) {
-                stereo.cost[i] = NAN;
-                stereo.ftol[i] = NAN;
-                stereo.xtol[i] = NAN;
-                stereo.x_world[i] = NAN;
-                stereo.y_world[i] = NAN;
-                stereo.z_world[i] = NAN;
-                stereo.u_world[i] = NAN;
-                stereo.v_world[i] = NAN;
-                stereo.w_world[i] = NAN;
-            }
+                        const bool temporal_valid = saveconf.output_below_threshold || above_thresh[i];
+            const bool stereo_valid = saveconf.output_below_threshold || stereo.above_thresh[i];
+            const double out_u = temporal_valid ? u[i] : NAN;
+            const double out_v = temporal_valid ? v[i] : NAN;
+            const double out_cost = temporal_valid ? cost[i] : NAN;
+            const double out_ftol = temporal_valid ? ftol[i] : NAN;
+            const double out_xtol = temporal_valid ? xtol[i] : NAN;
+            const double out_stereo_u = temporal_valid ? stereo.u[i] : NAN;
+            const double out_stereo_v = temporal_valid ? stereo.v[i] : NAN;
+            const double out_stereo_cost = stereo_valid ? stereo.cost[i] : NAN;
+            const double out_stereo_ftol = stereo_valid ? stereo.ftol[i] : NAN;
+            const double out_stereo_xtol = stereo_valid ? stereo.xtol[i] : NAN;
+            const double out_x_world = stereo_valid ? stereo.x_world[i] : NAN;
+            const double out_y_world = stereo_valid ? stereo.y_world[i] : NAN;
+            const double out_z_world = stereo_valid ? stereo.z_world[i] : NAN;
+            const double out_u_world = stereo_valid ? stereo.u_world[i] : NAN;
+            const double out_v_world = stereo_valid ? stereo.v_world[i] : NAN;
+            const double out_w_world = stereo_valid ? stereo.w_world[i] : NAN;
 
             // displacement magnitude
-            double mag_= std::sqrt(u[i]*u[i]+v[i]*v[i]);
-            double mag_stereo = std::sqrt(stereo.u[i]*stereo.u[i]+stereo.v[i]*stereo.v[i]);
+            double mag_= std::sqrt(out_u*out_u+out_v*out_v);
+            double mag_stereo = std::sqrt(out_stereo_u*out_stereo_u+out_stereo_v*out_stereo_v);
 
 
             outfile << ss_x << delimiter;
             outfile << ss_y << delimiter;
-            outfile << u[i] << delimiter;
-            outfile << v[i] << delimiter;
+            outfile << out_u << delimiter;
+            outfile << out_v << delimiter;
             outfile << mag_<< delimiter;
             outfile << static_cast<int>(conv[i]) << delimiter;
-            outfile << cost[i] << delimiter;
-            outfile << ftol[i] << delimiter;
-            outfile << xtol[i] << delimiter;
+            outfile << out_cost << delimiter;
+            outfile << out_ftol << delimiter;
+            outfile << out_xtol << delimiter;
             outfile << niter[i] << delimiter;
-            outfile << stereo.u[i] << delimiter;
-            outfile << stereo.v[i] << delimiter;
+            outfile << out_stereo_u << delimiter;
+            outfile << out_stereo_v << delimiter;
             outfile << mag_stereo << delimiter;
-            outfile << stereo.u_world[i] << delimiter;
-            outfile << stereo.v_world[i] << delimiter;
-            outfile << stereo.w_world[i] << delimiter;
-            outfile << stereo.x_world[i] << delimiter;
-            outfile << stereo.y_world[i] << delimiter;
-            outfile << stereo.z_world[i] << delimiter;
+            outfile << out_u_world << delimiter;
+            outfile << out_v_world << delimiter;
+            outfile << out_w_world << delimiter;
+            outfile << out_x_world << delimiter;
+            outfile << out_y_world << delimiter;
+            outfile << out_z_world << delimiter;
             outfile << static_cast<int>(stereo.conv[i]) << delimiter;
-            outfile << stereo.cost[i] << delimiter;
-            outfile << stereo.ftol[i] << delimiter;
-            outfile << stereo.xtol[i] << delimiter;
-            outfile << stereo.niter[i];
+            outfile << out_stereo_cost << delimiter;
+            outfile << out_stereo_ftol << delimiter;
+            outfile << out_stereo_xtol << delimiter;
+            outfile << stereo.niter[i] << delimiter;
+            outfile << stereo.epi_dist_px[i];
 
             // write shape parameters if requested
             // if (saveconf.shape_params) {
@@ -566,6 +542,3 @@ void ResultArrays::write_to_disk_stereo(ResultArrays &stereo,
         outfile.close();
     }
 }
-
-
-

@@ -10,7 +10,7 @@ import pytest
 from pyvale.mooseherder.mooseconfig import MooseConfig, MooseConfigError
 import tests.mooseherder.herdchecker as hc
 
-MOOSE_CONFIG_PATH = Path.cwd()/"tests"/"mooseherder"/"config"
+MOOSE_CONFIG_PATH = Path(__file__).resolve().parent / "config"
 
 @pytest.fixture
 def config_dict() -> dict[str, Path | str]:
@@ -114,11 +114,10 @@ def test_convert_str_to_path_blank() -> None:
 
 
 @pytest.mark.skipif(not hc.moose_present, reason="MOOSE not installed")
-def test_save_config(config: MooseConfig) -> None:
-    save_path = MOOSE_CONFIG_PATH/"moose-config.json"
+def test_save_config(config: MooseConfig, tmp_path: Path) -> None:
+    save_path = tmp_path / "moose-config.json"
     config.save_config(save_path)
     assert save_path.is_file()
-    os.remove(save_path)
 
 
 @pytest.mark.skipif(not hc.moose_present, reason="MOOSE not installed")

@@ -11,7 +11,7 @@
 #include <optional>
 #include <string>
 
-// common_cpp headers
+// commoncpp headers
 
 // Eigen Header files
 #include <Eigen/Dense>

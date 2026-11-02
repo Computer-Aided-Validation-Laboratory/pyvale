@@ -9,22 +9,25 @@ import shutil
 import pytest
 import pyvale.mooseherder as mh
 import pyvale.dataio as io
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 import pyvale.verif.matchsimdata as verif
 
 TXT_GOLD_PATH: Path = Path(__file__).resolve().parent / "txt_gold"
-TEMP_OUTPUT_PATH: Path = Path(__file__).resolve().parent / "temp" 
+TEMP_OUTPUT_PATH: Path = Path(__file__).resolve().parent / "temp"
+
+
+def _clean_dir(path: Path) -> None:
+    if path.is_dir():
+        shutil.rmtree(path, ignore_errors=True)
+
 
 @pytest.fixture(autouse=True)
 def setup_teardown():
-
     output_path = TEMP_OUTPUT_PATH
-    if not output_path.is_dir():
-        output_path.mkdir(parents=True, exist_ok=True)
-
+    _clean_dir(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
     yield
-
-    shutil.rmtree(output_path)
+    _clean_dir(output_path)
 
 
 @pytest.fixture()

@@ -4,13 +4,16 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-from pathlib import Path
 from multiprocessing.pool import Pool
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pyvale.dataio.simdata import SimData
-from pyvale.dataio.loadopts import SimLoadOpts
+
 from pyvale.dataio.exceptions import SimLoadErr
+from pyvale.dataio.loadopts import SimLoadOpts
+from pyvale.dataio.simdata import SimData
+
 
 def str_to_path(default_path: Path, file: str | Path) -> Path:
     """Appends a string filename to a path or just returns a path to the file.
@@ -310,9 +313,9 @@ def load_connectivity(connect_dir: Path,
     """
     connect = {}
 
-    connect_files= []
+    connect_files = []
     if isinstance(connect_pattern,str):
-        connect_files = list(connect_dir.glob(connect_pattern))
+        connect_files = sorted(connect_dir.glob(connect_pattern))
     elif isinstance(connect_pattern,list):
         for ff in connect_pattern:
             connect_files.append(connect_dir / ff)
@@ -320,13 +323,27 @@ def load_connectivity(connect_dir: Path,
         raise SimLoadErr("Connectivity file pattern must be a string" +
                             " or a  list.")
 
+    if not connect_files:
+        raise FileNotFoundError(
+            "No connectivity files matched the supplied pattern or list."
+        )
+
     for ff in connect_files:
         file_key = ff.stem
-        connect[file_key] = load_array(
+        connect_array = load_array(
             ff,
             load_opts.connect_header,
             load_opts.delimiter
         )
+        if not np.all(np.isfinite(connect_array)):
+            raise SimLoadErr(
+                f"Connectivity file '{ff}' contains non-finite values."
+            )
+        if not np.all(connect_array == np.floor(connect_array)):
+            raise SimLoadErr(
+                f"Connectivity file '{ff}' contains non-integer values."
+            )
+        connect[file_key] = np.ascontiguousarray(connect_array, dtype=np.int64)
 
     return connect
 
@@ -461,5 +478,3 @@ def inv_group_dict(dict_com: dict[str,str]) -> dict[str, str]:
         dict_com_inv[vv_new].append(kk_new)
 
     return dict_com_inv
-
-

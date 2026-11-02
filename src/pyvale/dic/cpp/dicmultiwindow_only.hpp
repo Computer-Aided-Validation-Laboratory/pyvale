@@ -4,7 +4,7 @@
 // STD library Header files
 #include <vector>
 
-// common_cpp headers
+// commoncpp headers
 
 // Eigen Header files
 #include <Eigen/Dense>

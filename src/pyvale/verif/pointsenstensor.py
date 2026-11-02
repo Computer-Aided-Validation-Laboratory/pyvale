@@ -7,6 +7,7 @@ import copy
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.dataio as io
+import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensmech as pointsensmech
 import pyvale.verif.analyticsimdatafactory as asd
 
@@ -30,6 +31,7 @@ def simdata_tens_2d_analytic() -> io.SimData:
 def simdata_tens_2d_analytic_nomesh() -> io.SimData:
     sim_data = simdata_tens_2d_analytic()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 def sens_array_2d_noerrs(sim_data: io.SimData,
@@ -57,7 +59,7 @@ def sens_array_3d_noerrs(sim_data: io.SimData,
     descriptor = sens.DescriptorFactory.strain()
     field_name = "strain"
     norm_comps = ("strain_xx","strain_yy","strain_zz")
-    dev_comps = ("strain_xy","strain_yz","strain_xz")
+    dev_comps = ("strain_xy", "strain_xz", "strain_yz")
     field = sens.FieldTensor(sim_data,
                             norm_comp_keys=norm_comps,
                             dev_comp_keys=dev_comps,

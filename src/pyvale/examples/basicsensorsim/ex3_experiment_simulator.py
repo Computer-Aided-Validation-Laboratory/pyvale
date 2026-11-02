@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import pyvale.sensorsim as sens
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 #%%
 # 1. Load physics simulation data
@@ -123,7 +123,7 @@ strain_sens: sens.SensorsPoint = sens.SensorFactory.tensor_point(
     sim_data,
     strain_sens_data,
     norm_comp_keys=("strain_xx","strain_yy","strain_zz"),
-    dev_comp_keys=("strain_xy","strain_yz","strain_xz"),
+    dev_comp_keys=("strain_xy", "strain_xz", "strain_yz"),
     spatial_dims=sens.EDim.THREED,
     descriptor=sens.DescriptorFactory.strain(sens.EDim.THREED),
 )

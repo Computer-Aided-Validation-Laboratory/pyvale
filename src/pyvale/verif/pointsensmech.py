@@ -9,7 +9,7 @@ import pyvale.sensorsim as sens
 import pyvale.dataio as io
 import pyvale.verif.pointsens as pointsens
 import pyvale.verif.pointsensconst as pointsensconst
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 """
 DEVELOPER VERIFICATION MODULE
@@ -24,15 +24,12 @@ field point sensors.
 
 def simdata_mech_2d() -> io.SimData:
     data_path = dataset.mechanical_2d_path()
-    sim_data = mh.ExodusLoader(data_path).load_all_sim_data()
-    sim_data = sens.scale_length_units(scale=1000.0,
-                                      sim_data=sim_data,
-                                      disp_keys=("disp_x","disp_y"))
-    return sim_data
+    return mh.ExodusLoader(data_path).load_all_sim_data()
 
 def simdata_mesh_2d_nomesh() -> io.SimData:
     sim_data = simdata_mech_2d()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 def simdata_mech_3d() -> io.SimData:
@@ -47,6 +44,7 @@ def simdata_mech_3d() -> io.SimData:
 def simdata_mech_3d_nomesh() -> io.SimData:
     sim_data = simdata_mech_3d()
     sim_data.connect = None
+    sim_data.coords = pointsens.joggle_meshfree_coords(sim_data.coords)
     return sim_data
 
 
@@ -95,7 +93,8 @@ def sens_pos_3d(sim_data: io.SimData) -> dict[str,np.ndarray]:
     #                 (0.0,5.0,5.0),    # yz
     #                 (10.0,5.0,5.0),)) # yz
 
-    # assert np.allclose(check,sens_pos["cent-cube"]), "Cube coords wrong in mech.sens_pos_3d"
+    # assert np.allclose(check,sens_pos["cent-cube"]), \
+    #     "Cube coords wrong in mech.sens_pos_3d"
 
     return sens_pos
 

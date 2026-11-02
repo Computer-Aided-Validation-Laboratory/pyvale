@@ -274,9 +274,13 @@ by stereo matching and 3D reconstruction columns. The additional stereo columns 
 
 - ``stereo_disp_u_px``:
   Horizontal pixel displacement from the left image subset to the corresponding right image subset.
+  When imported with :code:`dic.import_3d`, this is available as
+  :code:`dic_data.stereo.disparity_u_px`.
 
 - ``stereo_disp_v_px``:
   Vertical pixel displacement from the left image subset to the corresponding right image subset.
+  When imported with :code:`dic.import_3d`, this is available as
+  :code:`dic_data.stereo.disparity_v_px`.
 
 - ``stereo_disp_mag_px``:
   Magnitude of the left-to-right stereo pixel displacement.
@@ -346,6 +350,11 @@ filname prefix. If you have changed :code:`output_delimiter` prior to the
 correlation you will also need to specify the same delimiter when importing the data.
 To read binary files (with ``.dic2d`` or ``.dic3d`` extension), pass :code:`binary=True`
 to the import function.
+
+For stereo imports, the left-to-right pixel matching offsets are stored as
+:code:`dic_data.stereo.disparity_u_px` and
+:code:`dic_data.stereo.disparity_v_px`. These correspond to the
+``stereo_disp_u_px`` and ``stereo_disp_v_px`` output file columns.
 
 Strain Calculation
 ^^^^^^^^^^^^^^^^^^^
@@ -463,13 +472,12 @@ Incremental DIC changes the reference image during a sequence:
 
    dic.calculate_2d(
         ...,
-        incremental=True,
-        incremental_update_condition="IMAGE",
+        incremental_update="IMAGE",
         incremental_update_value=1,
         ...,
    )
 
-When ``incremental=True``, Pyvale may replace the active reference image with
+When ``incremental_update`` is not ``"OFF"``, Pyvale may replace the active reference image with
 the previous deformed image before processing the next frame. This reduces the
 image-to-image deformation that the optimizer has to solve. The displacement
 values written to disk are still accumulated relative to the first reference
@@ -478,8 +486,9 @@ than only frame-to-frame increments. The correlation quality fields, such as
 ``cost_zncc``, ``ftol``, ``xtol`` and ``num_iter``, describe the match against
 the active, possibly updated reference image.
 
-The update rule is controlled with ``incremental_update_condition`` and
-``incremental_update_value``:
+The update rule is controlled with ``incremental_update`` and
+``incremental_update_value``. Use ``incremental_update="OFF"`` to disable
+incremental reference updates:
 
 - ``"IMAGE"``:
   Update after every ``N`` deformed images, where ``N`` is
@@ -528,7 +537,7 @@ The key differences from 2D DIC are:
 
 - ``reference`` and ``deformed`` are lists of image pairs ``[left_image, right_image]``.
 - A ``calibration`` parameter (of type ``Calib``) must be provided with camera intrinsics and stereo geometry.
-- An additional ``epi_distance`` parameter controls the search distance along epipolar lines (default: 300 pixels).
+- ``epi_search_distance`` controls the search distance along epipolar lines (default: 100 pixels), while ``epi_distance_threshold`` controls the perpendicular epipolar tolerance in pixels.
 
 Stereo DIC output includes all standard 2D columns for the left camera temporal correlation,
 plus stereo-specific columns for the left-to-right matching and 3D reconstruction. 
@@ -613,19 +622,17 @@ with high resolution images (100s MBs.). To get around this we'd recommend
 **placing the DIC engine call in a loop over the images**. An example of which can be found
 below:
 
-.. code-block:: Python
+.. code-block:: python
 
     ref_img = "ref_00.tiff"
-    def_imgs = ["def_00.tiff", "def_01.tiff", "def_02.tiff", ...]
+    def_imgs = ["def_00.tiff", "def_01.tiff", "def_02.tiff"]
 
     for def_img in def_imgs:
-    
         dic.calculate_2d(
-            ...,
+            roi,
             reference=ref_img,
             deformed=def_img,
-            ...,
-         )
+        )
 
 There are plans to change this in later pyvale versions so that images
 are read sequentially and thus avoiding the need for any loops. Please keep an
@@ -640,14 +647,15 @@ Users can select the number of threads used in the DIC calculation with the
 :code:`num_threads` argument in :code:`dic.calculate_2d`:
 
 
-.. code-block:: Python
+.. code-block:: python
    :emphasize-lines: 3
 
    dic.calculate_2d(
-       ...,
-       num_threads=<int>,
-       ...,
-    )
+       roi,
+       reference="ref.tiff",
+       deformed="def.tiff",
+       num_threads=4,
+   )
 
 Alternatively, those on UNIX operating systems (MacoS, Linux) can set the number
 of threads using the :code:`OMP_NUM_THREADS` environment variable.

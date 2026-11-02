@@ -8,7 +8,7 @@ import numpy as np
 import pyvista as pv
 from scipy.spatial.transform import Rotation
 from pyvale.dataio.simdata import SimData
-from pyvale.dataio.meshtools import enforce_mesh_convention
+from pyvale.dataio.meshconv import enforce_mesh_convention
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_vis
 from pyvale.sensorsim.fieldinterpmesh import FieldInterpMesh

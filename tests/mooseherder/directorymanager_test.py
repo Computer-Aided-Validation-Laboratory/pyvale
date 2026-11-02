@@ -16,7 +16,8 @@ def dir_manager() -> DirectoryManager:
 
 
 @pytest.fixture(autouse=True)
-def setup_teardown(dir_manager):
+def setup_teardown(dir_manager: DirectoryManager):
+    dir_manager.clear_dirs()
     yield
     dir_manager.clear_dirs()
 

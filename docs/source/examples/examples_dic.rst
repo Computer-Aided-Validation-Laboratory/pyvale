@@ -1,20 +1,18 @@
 .. _examples_dic:
 
-DIC & Strain Calculations
-================================
+DIC
+===
 
 .. toctree::
    :maxdepth: 1
 
-   dic/ex01_region_of_interest.rst
-   dic/ex02_plate_with_hole.rst
-   dic/ex03_plate_with_hole_strain.rst
-   dic/ex04_dic_blender.rst
-   dic/ex05_dic_challenge.rst
-   dic/ex06_hrdic.rst
-   dic/ex07_incremental.rst
-   dic/ex08_calibration.rst
-   dic/ex09_stereo.rst
-   dic/ex10_stereo_platehole.rst
-   dic/ex11_dic_chal.rst
-
+   dic/ex01_region_of_interest
+   dic/ex02_plate_with_hole
+   dic/ex03_plate_with_hole_strain
+   dic/ex04_dic_challenge
+   dic/ex05_hrdic
+   dic/ex06_incremental
+   dic/ex07_calibration
+   dic/ex08_stereo
+   dic/ex09_stereo_platehole
+   dic/ex10_dic_chal

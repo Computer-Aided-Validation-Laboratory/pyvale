@@ -12,13 +12,13 @@
 
 #include "./dicinterpBspline.hpp"
 
-#include "../../common_cpp/util.hpp"
+#include "../../commoncpp/util.hpp"
 
 
 
 Bspline::Bspline(const Image &img) {
 
-    common_util::Timer time("to init " + img.filename + " interp:", 2);
+    common_util::Timer time("to init " + img.filename + " interp:", 3);
 
     this->px_hori = img.width;
     this->px_vert = img.height;
