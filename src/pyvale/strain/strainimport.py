@@ -11,7 +11,8 @@ from typing import Literal
 import numpy as np
 
 from pyvale.strain.strainresults import StrainResults
-from pyvale.dic.dicimport2d import check_delimiter, to_grid
+from pyvale.dic.dicenum import ELayout
+from pyvale.dic.dicimport2d import check_delimiter
 
 
 def import_2d(data: str | Path | list[Path],
@@ -72,18 +73,45 @@ def _import(data: str | Path | list[Path],
             return read_binary(file, delimiter=delimiter, require_coords=require_coords)
         return read_text(file, delimiter=delimiter)
 
-    first = read_file(files[0])
-    window_x_ref, window_y_ref = first[:2]
-    frames = [first[2:]]
+    # A failed/non-converged subset is omitted from some output files.  Do not
+    # stack rows before aligning them: the number and order of rows can differ
+    # between frames.  Align all fields by the (x, y) subset coordinate and
+    # leave missing values as NaN.
+    read_frames = [read_file(file) for file in files]
+    coordinate_frames = [(frame[0], frame[1]) for frame in read_frames]
+    nfields = len(read_frames[0]) - 2
+    if any(len(frame) - 2 != nfields for frame in read_frames):
+        raise ValueError("Strain result files contain different numbers of columns.")
 
-    for file in files[1:]:
-        current = read_file(file)
-        window_x, window_y = current[:2]
-        if not (np.array_equal(window_x_ref, window_x) and np.array_equal(window_y_ref, window_y)):
-            raise ValueError("Mismatch in coordinates across frames.")
-        frames.append(current[2:])
+    coordinates = np.unique(
+        np.concatenate(
+            [np.column_stack((x, y)) for x, y in coordinate_frames],
+            axis=0,
+        ),
+        axis=0,
+    )
+    window_x_ref = coordinates[:, 0].astype(np.int32)
+    window_y_ref = coordinates[:, 1].astype(np.int32)
 
-    arrays = [np.stack([frame[i] for frame in frames]) for i in range(len(frames[0]))]
+    coordinate_index = {
+        (int(x), int(y)): index
+        for index, (x, y) in enumerate(coordinates)
+    }
+    arrays = [
+        np.full((len(files), len(coordinates)), np.nan, dtype=np.float64)
+        for _ in range(nfields)
+    ]
+    for frame_index, frame in enumerate(read_frames):
+        row_indices = [
+            coordinate_index[(int(x), int(y))]
+            for x, y in zip(frame[0], frame[1])
+        ]
+        if len(set(row_indices)) != len(row_indices):
+            raise ValueError(
+                f"Duplicate subset coordinates in strain result file: {files[frame_index]}"
+            )
+        for field_index, values in enumerate(frame[2:]):
+            arrays[field_index][frame_index, row_indices] = values
 
     has_coords = len(arrays) == 13
     if require_coords and not has_coords:
@@ -107,15 +135,17 @@ def _import(data: str | Path | list[Path],
         x_indices = np.searchsorted(x_unique, window_x_ref)
         y_indices = np.searchsorted(y_unique, window_y_ref)
 
-        tensor_arrays = [
-            to_grid(a, shape, x_indices, y_indices)
-            for a in tensor_arrays
-        ]
+        def grid_per_frame(values):
+            output = np.full(shape, np.nan, dtype=np.float64)
+            for frame_index in range(len(files)):
+                output[frame_index, y_indices, x_indices] = values[frame_index]
+            return output
 
+        tensor_arrays = [grid_per_frame(a) for a in tensor_arrays]
         if has_coords:
-            x_mm = to_grid(x_mm, shape, x_indices, y_indices)
-            y_mm = to_grid(y_mm, shape, x_indices, y_indices)
-            z_mm = to_grid(z_mm, shape, x_indices, y_indices)
+            x_mm = grid_per_frame(x_mm)
+            y_mm = grid_per_frame(y_mm)
+            z_mm = grid_per_frame(z_mm)
     else:
         window_x_out = window_x_ref
         window_y_out = window_y_ref

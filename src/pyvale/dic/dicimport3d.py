@@ -11,8 +11,12 @@ from typing import Literal
 from numpy.typing import NDArray
 
 # Pyvale modules
-from pyvale.dic.dicresults import Results, StereoResults
-from pyvale.dic.dicimport2d import to_grid, check_delimiter
+from pyvale.dic.dicenum import ELayout
+from pyvale.dic.dicimport2d import (
+    to_grid,
+    check_delimiter,
+    align_frames_by_coordinates,
+)
 import pyvale.common.util as common_util
 
 
@@ -96,36 +100,29 @@ def import_3d(data: str | Path | list[Path],
 
     read_data = _read_binary_3d if binary else _read_text_3d
 
-    ss_x_ref, ss_y_ref, *fields = read_data(
+    first = read_data(
         files[0],
         delimiter=delimiter,
         print_level=print_level
     )
 
-    frames = [list(fields)]
+    coordinate_frames = [(first[0], first[1])]
+    frames = [list(first[2:])]
 
     for file in files[1:]:
 
-        ss_x, ss_y, *f = read_data(
+        current = read_data(
             file,
             delimiter=delimiter,
             print_level=print_level
         )
 
-        if not (
-            np.array_equal(ss_x_ref, ss_x)
-            and np.array_equal(ss_y_ref, ss_y)
-        ):
-            raise ValueError(
-                "Mismatch in coordinates across frames."
-            )
+        coordinate_frames.append((current[0], current[1]))
+        frames.append(list(current[2:]))
 
-        frames.append(f)
-
-    arrays = [
-        np.stack([frame[i] for frame in frames])
-        for i in range(len(fields))
-    ]
+    ss_x_ref, ss_y_ref, arrays = align_frames_by_coordinates(
+        coordinate_frames, frames
+    )
 
     if print_level>0:
         common_util.info_out(f"Imported {len(files)} frames of stereo DIC data.", "")
