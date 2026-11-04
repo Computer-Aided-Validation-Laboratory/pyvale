@@ -349,3 +349,42 @@ def test_strain_3d(window_element: int, tmp_path: Path):
             equal_nan=True,
             err_msg=f"Gold check failed for {field}, Q{window_element}",
         )
+
+
+@pytest.mark.parametrize("importer", [strain.import_2d, strain.import_3d])
+@pytest.mark.parametrize("layout", ["COLUMN", "MATRIX"])
+def test_strain_import_aligns_frames_with_missing_subsets(tmp_path, importer, layout):
+    """Missing/non-converged subsets are represented by NaN, not a stack error."""
+    header = ",".join(f"field_{i}" for i in range(17))
+    rows = [
+        np.array([[0, 0], [1, 0], [0, 1]], dtype=float),
+        np.array([[0, 1], [0, 0]], dtype=float),
+    ]
+
+    for frame, coordinates in enumerate(rows):
+        values = np.zeros((len(coordinates), 17), dtype=float)
+        values[:, :2] = coordinates
+        # Give each row a distinct value in the first imported field (x_mm).
+        values[:, 2] = frame * 10 + np.arange(len(coordinates))
+        values[:, 3:] = values[:, 2, None]
+        np.savetxt(
+            tmp_path / f"strain_{frame}.csv",
+            values,
+            delimiter=",",
+            header=header,
+            comments="",
+        )
+
+    result = importer(tmp_path / "strain_*.csv", layout=layout)
+
+    if layout == "COLUMN":
+        assert result.window_x.tolist() == [0, 0, 1]
+        assert result.window_y.tolist() == [0, 1, 0]
+        assert np.isnan(result.x_mm[1, 2])
+        np.testing.assert_allclose(result.x_mm[1, :2], [11, 10])
+    else:
+        assert result.window_x.shape == (2, 2)
+        assert result.window_y.shape == (2, 2)
+        assert np.isnan(result.x_mm[1, 0, 1])
+        np.testing.assert_allclose(result.x_mm[1, 0, 0], 11)
+        np.testing.assert_allclose(result.x_mm[1, 1, 0], 10)
