@@ -33,12 +33,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--verif-root",
         type=pathlib.Path,
-        default=repo_root() / "verification" / "verif" / "verif_2",
+        default=repo_root() / "verif_bench" / "verif" / "verif_2",
     )
     parser.add_argument(
         "--out-csv",
         type=pathlib.Path,
-        default=repo_root() / "verification" / "verif" / "verif_2" / "verif_2_summary.csv",
+        default=repo_root() / "verif_bench" / "verif" / "verif_2" / "verif_2_summary.csv",
     )
     parser.add_argument(
         "--subset",
@@ -357,9 +357,9 @@ def build_reference_mask(
             row_winding[inside_mask] = winding_prefix[event_idx[inside_mask]]
             row_mask = row_winding != 0
 
-        # Treat pixel centers that lie exactly on the discretized boundary
-        # as inside so the reference mask matches the rasterizer's boundary
-        # inclusion convention on sensor-aligned cases.
+        # Treat pixel centers that lie exactly on the discretized boundary as
+        # inside, matching the renderer's boundary-inclusion convention for
+        # sensor-aligned cases.
         horizontal_on_row_mask = (
             (np.abs(seg_y0 - yy) <= eps) &
             (np.abs(seg_y1 - yy) <= eps)

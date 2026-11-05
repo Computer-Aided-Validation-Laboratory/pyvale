@@ -25,7 +25,7 @@ from pathlib import Path as _Path
 PAPER_DIR = _Path("/home/wiera/Documents/paper-feebee-raytracer/figures/verif_2").expanduser()
 
 
-VERIF_DIR = pathlib.Path("verification/verif/verif_2")
+VERIF_DIR = pathlib.Path("verif_bench/verif/verif_2")
 SUMMARY_PATH = VERIF_DIR / "verif_2_summary.csv"
 OUT_TABS_TEX_PATH = VERIF_DIR / "tabs_verif_2.tex"
 OUT_FIGS_TEX_PATH = VERIF_DIR / "figs_verif_2.tex"
@@ -71,7 +71,7 @@ def ensure_summary_rows() -> list[dict[str, str]]:
             "scripts/paper_verif_2_helper.py..."
         )
         subprocess.run(
-            ["python3", "verification/paper_verif_2_helper.py"],
+            ["python3", "verif_bench/paper_verif_2_helper.py"],
             cwd=repo_root(),
             check=True,
         )
@@ -98,7 +98,7 @@ def ensure_summary_rows() -> list[dict[str, str]]:
         subprocess.run(
             [
                 "python3",
-                "verification/paper_verif_2_helper.py",
+                "verif_bench/paper_verif_2_helper.py",
                 "--subset",
                 "all",
             ],

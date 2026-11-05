@@ -32,7 +32,7 @@ from paper_const import (
 )
 
 
-VERIF_DIR = pathlib.Path("verification/verif/verif_1")
+VERIF_DIR = pathlib.Path("verif_bench/verif/verif_1")
 OUT_TABS_TEX_PATH = VERIF_DIR / "tabs_verif_1.tex"
 OUT_FIGS_TEX_PATH = VERIF_DIR / "figs_verif_1.tex"
 SCI_THRESHOLD = 1.0e-12
