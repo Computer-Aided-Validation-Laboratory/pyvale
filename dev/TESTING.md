@@ -93,6 +93,14 @@ The vector, tensor, and combined sensor-simulation generators are
 is committed under `tests/mooseherder/output_gold/`; no dedicated generator is
 currently provided, so update it only from an independently reviewed run.
 
+## Riley integration
+
+The current Riley API, local checkout requirement and memory image layout are
+specified in [RILEY.md](RILEY.md). Run native demo parity separately with
+`python -m pytest tests/riley`; it compares images and calibration output files
+byte for byte. The render tests include RGB and multifield channel order,
+multiple cameras and frames, camera output settings and all save strategies.
+
 ## Module-specific conditions and skips
 
 ### Blender

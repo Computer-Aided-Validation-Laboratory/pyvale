@@ -40,7 +40,7 @@ mesh = render.meshes3d_from_simdata(
         riley.EElemType.TRI6, riley.EConnectAxis.ROW, 0,
         riley.ENodeOrder.RILEY,
     )},
-    shaders={"connect": shader},
+    shaders={"connect": riley.MeshShaderSet(mono=shader)},
 )["connect"]
 
 # %%

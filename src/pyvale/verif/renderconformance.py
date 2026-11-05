@@ -216,20 +216,21 @@ def _render_riley(
             case.displacements,
             ((0, 0), (0, 0), (0, 1)),
         ),
-        shader=riley.FunctionShader(
+        shader=riley.MeshShaderSet(mono=riley.FunctionShader(
             builtin=riley.FuncShaderBuiltin.linear,
             coord_mode=riley.FuncCoordMode.world_reference,
             params=params,
             scaling_type=riley.ScaleStrategy.none,
-        ),
+        )),
     )
     config = riley.RasterConfig(
         parallel=1,
         save_strategy=riley.SaveStrategy.memory,
     )
-    config.background_value = 0.15
+    camera = _camera_3d()
+    camera.background_value = 0.15
     result = render.Riley(config).render(
-        render.Scene3D([mesh], [_camera_3d()]),
+        render.Scene3D([mesh], [camera]),
     )
     assert result.images is not None
     return result.images

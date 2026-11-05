@@ -110,10 +110,10 @@ for variant_name, uvs in (
         element_type=oriented_mesh.element_type,
         coords=oriented_mesh.coords,
         connectivity=oriented_mesh.connectivity,
-        shader=riley.TextureShader(
+        shader=riley.MeshShaderSet(mono=riley.TextureShader(
             uvs=uvs,
             texture=texture,
-        ),
+        )),
     )
     render_uv_example(textured_mesh, camera, output_dir / variant_name)
 

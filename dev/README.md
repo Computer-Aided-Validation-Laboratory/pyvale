@@ -19,3 +19,8 @@ GPU compute programming must be AMD compatible due to the clusters we are target
 ## Style Guides
 This project follows the Computer Aided Validation Lab style guides which can be found [here](https://github.com/Computer-Aided-Validation-Laboratory/styleguides).
 
+
+## Riley rendering
+
+See [Riley integration](RILEY.md) for the current API, local dependency setup,
+array conventions and verification commands.
