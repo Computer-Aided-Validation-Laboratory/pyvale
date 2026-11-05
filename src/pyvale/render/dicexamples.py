@@ -162,7 +162,7 @@ def _render_case(
         0.5 * (texture_shape[1] + px_w),
         0.5 * (texture_shape[0] + px_h),
     )
-    mesh.shader = riley.TextureShader(
+    mesh.shader = riley.MeshShaderSet(mono=riley.TextureShader(
         uvs=uv_project_planar_pixels(
             mesh.coords,
             texture_shape,
@@ -173,7 +173,7 @@ def _render_case(
             ),
         ),
         texture=texture,
-    )
+    ))
 
     roi_centre = np.asarray(mesh_center(mesh))
     z_dist = focal_length / (pixels_size[0] / leng_per_px)
@@ -205,10 +205,13 @@ def _render_case(
         parallel=8,
         save_strategy=riley.SaveStrategy.disk,
     )
-    config.background_value = 128.0
+    for camera in cameras:
+        camera.background_value = 128.0
+        camera.output_files = (riley.ImageSaveOpts(
+            format=riley.ImageFormat.tiff,
+            scaling=riley.ScaleStrategy.none,
+        ),)
     config.tile_size_max = 128
-    config.save_scaling = riley.ScaleStrategy.none
-    config.save_format = riley.ImageFormat.tiff
 
     output_dir.mkdir(parents=True, exist_ok=True)
     Riley(config, output_dir).render(Scene3D(meshes=[mesh], cameras=cameras))

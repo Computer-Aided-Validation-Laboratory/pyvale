@@ -24,8 +24,9 @@ class Riley(IRenderer3D):
     """Render native Riley meshes through pyvale's common scene container.
 
     Riley owns its complete mesh and shader representation. Construct meshes
-    with :class:`riley.Mesh`, including its texture, nodal field, or analytic
-    function shader settings, then place them in :class:`Scene3D`.
+    with :class:`riley.Mesh`, including a :class:`riley.MeshShaderSet` of
+    direct shaders or pipelines, then place them in :class:`Scene3D`.
+    Common :class:`Mesh3D` objects also require a Riley shader set.
 
     Parameters
     ----------
@@ -127,13 +128,13 @@ class Riley(IRenderer3D):
                 continue
 
             if isinstance(mesh, Mesh3D) and not isinstance(
-                mesh.shader, riley.RileyShader
+                mesh.shader, riley.MeshShaderSet
             ):
                 issues.append(
                     ValidationIssue(
                         f"scene.meshes[{mesh_index}].shader",
                         "TYPE",
-                        "Expected a Riley shader description.",
+                        "Expected riley.MeshShaderSet.",
                     )
                 )
 
@@ -281,6 +282,20 @@ def to_riley_camera(camera: Camera | riley.Camera) -> riley.Camera:
         distort_k6=camera.distortion_k6,
         distort_p1=camera.distortion_p1,
         distort_p2=camera.distortion_p2,
+        distort_s1=camera.distortion_s1,
+        distort_s2=camera.distortion_s2,
+        distort_s3=camera.distortion_s3,
+        distort_s4=camera.distortion_s4,
+        distort_tau_x=camera.distortion_tau_x,
+        distort_tau_y=camera.distortion_tau_y,
+        distort_poly=camera.distortion_poly,
+        coord_sys=camera.coord_sys,
+        subpixel_center_map=camera.subpixel_center_map,
+        psf_separable=camera.psf_separable,
+        background_value=camera.background_value,
+        render_format=camera.render_format,
+        render_channels=camera.render_channels,
+        output_files=camera.output_files,
         psf_type=int(camera.psf_type),
         psf_sigma_x=camera.psf_sigma_x,
         psf_sigma_y=camera.psf_sigma_y,
@@ -323,8 +338,8 @@ def to_riley_mesh(mesh: Mesh3D | riley.Mesh) -> riley.Mesh:
     if isinstance(mesh, riley.Mesh):
         return mesh
 
-    if not isinstance(mesh.shader, riley.RileyShader):
-        raise TypeError("Mesh3D.shader must be a Riley shader object.")
+    if not isinstance(mesh.shader, riley.MeshShaderSet):
+        raise TypeError("Mesh3D.shader must be a riley.MeshShaderSet.")
     disp = None
     if mesh.displacements is not None:
         disp = tuple(mesh.displacements[:, :, ii].T for ii in range(3))
@@ -339,8 +354,9 @@ def to_riley_mesh(mesh: Mesh3D | riley.Mesh) -> riley.Mesh:
         mesh_type=_RILEY_MESH_TYPES[mesh.element_type],
         coords=mesh.coords,
         connect=mesh.connectivity,
-        shader=mesh.shader,
+        shaders=mesh.shader,
         disp=disp,
+        normal_type=mesh.normal_type,
     )
 
 

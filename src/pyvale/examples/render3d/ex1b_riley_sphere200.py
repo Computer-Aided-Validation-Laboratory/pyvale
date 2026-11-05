@@ -58,7 +58,7 @@ mesh = render.meshes3d_from_simdata(
         riley.EElemType.TRI6, riley.EConnectAxis.ROW, 0,
         riley.ENodeOrder.RILEY,
     )},
-    shaders={"connect": shader},
+    shaders={"connect": riley.MeshShaderSet(mono=shader)},
 )["connect"]
 
 # %%
@@ -86,11 +86,15 @@ camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
 # 3. Configure and build the renderer
 # ------------------------------------------------------------
 
+for cam in (camera,):
+    cam.output_files = (riley.ImageSaveOpts(
+        format=riley.ImageFormat.bmp, file_bits=8,
+        scaling=riley.ScaleStrategy.auto,
+    ),)
+
 config = riley.RasterConfig(
     parallel=4,
     save_strategy=riley.SaveStrategy.disk,
-    image_save_mode=riley.ImageSaveMode.grey,
-    save_scaling=riley.ScaleStrategy.auto,
 )
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1b_riley_sphere200"
 

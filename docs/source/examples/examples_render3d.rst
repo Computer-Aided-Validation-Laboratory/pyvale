@@ -14,6 +14,7 @@ Render 3D
    render3d/ex1f_riley_stereocal
    render3d/ex1g_riley_psf
    render3d/ex1h_riley_feature_zoo
+   render3d/ex1i_riley_shader_pipeline
    render3d/ex2a_blender_scene
    render3d/ex2b_blender_deformation
    render3d/ex2c_blender_stereo

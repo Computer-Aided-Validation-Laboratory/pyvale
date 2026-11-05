@@ -53,7 +53,7 @@ mesh = render.meshes3d_from_simdata(
         riley.EElemType.QUAD8, riley.EConnectAxis.ROW, 0,
         riley.ENodeOrder.RILEY,
     )},
-    shaders={"connect": riley.TextureShader(uvs=uvs, texture=texture)},
+    shaders={"connect": riley.MeshShaderSet(mono=riley.TextureShader(uvs=uvs, texture=texture))},
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )["connect"]
 
@@ -123,8 +123,8 @@ config = riley.RasterConfig(
     parallel=4,
     save_strategy=riley.SaveStrategy.disk,
 )
-config.background_value = 128.0
-config.save_scaling = riley.ScaleStrategy.none
+for cam in (camera_0, camera_1):
+    cam.background_value = 128.0
 
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1d_riley_dicuq"
 

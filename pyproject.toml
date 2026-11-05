@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyvale"
-version = "2026.10.2"
+version = "2026.11.0"
 description = "Your virtual engineering lab: An all-in-one package for simulation-driven experimental design."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
@@ -29,7 +29,7 @@ dependencies = [
   "pyqtgraph>=0.13.7",
   "opencv-python>=4.13.0.92",
   "pandas>=2.3.1",
-  "riley-raster==2026.10.1",
+  "riley-raster==2026.11.0",
 ]
 
 [project.optional-dependencies]
@@ -122,3 +122,7 @@ exclude = [
 [tool.uv]
 required-version = ">=0.9.17"
 #exclude-newer = "P30D"
+
+# Riley 2026.11.0 is developed alongside PyVale until its package release.
+[tool.uv.sources]
+riley-raster = { path = "../riley-raster", editable = true }

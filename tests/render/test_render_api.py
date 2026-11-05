@@ -119,7 +119,7 @@ def test_riley_rejects_meshes_outside_the_shared_convention() -> None:
         np.array(((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))),
         np.array(((0, 2, 1),)),
         None,
-        riley.FunctionShader(riley.FuncShaderBuiltin.constant),
+        riley.MeshShaderSet(mono=riley.FunctionShader(riley.FuncShaderBuiltin.constant)),
     )
 
     with pytest.raises(render.RenderInputError, match="CONVENTION"):
