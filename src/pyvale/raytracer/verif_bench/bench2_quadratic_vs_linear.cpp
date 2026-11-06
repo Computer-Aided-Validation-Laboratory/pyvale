@@ -47,6 +47,39 @@
 //
 //   ./bench2_quadratic_vs_linear
 // ================================================================================
+//
+// Geometry generation
+//
+// Gmsh 4.12.1 (`/usr/bin/gmsh`).
+//
+// Sphere (`sph.geo`)
+//
+// Sphere primitive, centre at the origin, radius 0.5. 
+//
+// gmsh -nopopup sph.geo -2 -order 2 -setnumber Mesh.MeshSizeFactor 1.0 \
+//      -o curved_sph_tri_coarse.vtk -format vtk
+// gmsh -nopopup sph.geo -2 -order 2 -setnumber Mesh.MeshSizeFactor 0.5 \
+//      -o curved_sph_tri_fine.vtk -format vtk
+// gmsh -nopopup sph.geo -2 -order 2 -setnumber Mesh.MeshSizeFactor 0.5 \
+//      -setnumber Mesh.RecombineAll 1 -o curved_sph_quad_fine.vtk -format vtk
+// gmsh -nopopup sph.geo -2 -order 1 -setnumber Mesh.MeshSizeFactor 0.5 \
+//      -o curved_sph_lin.vtk -format vtk
+//
+// Cylinder (`cyl.geo`)
+//
+// Cylinder, axis y, radius 0.5, y in [0, 1], full circular cross-section. Only the
+// boundary is meshed.
+//
+// gmsh -nopopup cyl.geo -2 -order 2 -setnumber Mesh.MeshSizeMax 0.28 \
+//      -setnumber Mesh.RecombineAll 1 -o curved_cyl_quad_coarse.vtk -format vtk
+// gmsh -nopopup cyl.geo -2 -order 2 -setnumber Mesh.MeshSizeMax 0.16 \
+//      -setnumber Mesh.RecombineAll 1 -o curved_cyl_quad_fine.vtk -format vtk
+// gmsh -nopopup cyl.geo -2 -order 2 -setnumber Mesh.MeshSizeMax 0.16 \
+//      -o curved_cyl_tri.vtk -format vtk
+// gmsh -nopopup cyl.geo -2 -order 1 -setnumber Mesh.MeshSizeMax 0.16 \
+//      -o curved_cyl_lin.vtk -format vtk
+// 
+// ================================================================================
 
 #include <algorithm>
 #include <array>

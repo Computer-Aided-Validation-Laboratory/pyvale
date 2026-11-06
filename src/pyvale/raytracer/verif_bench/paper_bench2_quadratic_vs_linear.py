@@ -85,29 +85,13 @@ CAMERA_FIG_CAPTION = (
     "corner rays that bound the $96\\times96$ camera bundle (the grey rectangle is "
     "the screen plane). Bottom row: the "
     "same camera rendered by tracing its rays through the fine quadratic mesh "
-    "with the Newton solver (\\texttt{TRI6} for the sphere, \\texttt{QUAD9} for "
+    "with the Newton solver (\\texttt{tri6} for the sphere, \\texttt{quad9} for "
     "the cylinder). "
     "Position, orientation and field of view are exactly those of the timed "
     "camera bundle, only the sampling density is higher for the displayed image. "
-    "The camera aims at the geometry centroid and the "
-    "screen spans $\\pm1.4r$. The cylinder sits high in its frame because the "
+    "The cylinder sits high in its frame because the "
     "camera is level with its lower cap and tilts upwards to aim at the centroid."
 )
-
-# TABLE_CAPTION = (
-#     "Cost-accuracy comparison in benchmark case 2. For each geometry the quadratic "
-#     "arm is compared with the best linear sub-tessellation available on the ladder. "
-#     "``Quad RMS err'' is the radial RMS error at the hit for the quadratic Newton "
-#     "solve and ``Quad nrm err'' the RMS surface-normal error in degrees. "
-#     "``Lin err / quad'' and ``Lin nrm / quad'' are the ratios of the linear model's "
-#     "RMS errors to the quadratic arm's, so a value above one means the linear model "
-#     "did not reach the quadratic accuracy even at the finest sub-tessellation "
-#     "($k=8$, i.e. $64$ flat triangles per \\texttt{TRI6} element and $128$ per "
-#     "\\texttt{QUAD9} element). ``Prim ratio'' is "
-#     "linear-to-quadratic primitive count and ``Speed ratio'' is quadratic-to-linear "
-#     "throughput; values above one favour the quadratic arm. Throughput is single "
-#     "threaded."
-# )
 
 TABLE_CAPTION = (
     "Cost--accuracy comparison in benchmark case 2. "
