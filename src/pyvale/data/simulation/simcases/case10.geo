@@ -20,9 +20,10 @@ file_name = "case10.msh";
 
 // Geometric variables
 block_width = 37e-3;
-block_height = 35e-3; // Must be greater than plate width
 block_depth= 49.5e-3;
 block_armour = 8e-3;
+// Derive selection bounds from the actual rectangles; geometry is unchanged.
+block_height = block_width + block_armour;
 
 hole_rad = 6e-3;
 hole_loc_x = 0.0;
@@ -201,4 +202,3 @@ Mesh 3;
 //------------------------------------------------------------------------------
 // Save and exit
 Save Str(file_name);
-Exit;

@@ -20,7 +20,7 @@ listed below.
 | Dataset helpers | `python -m pytest tests/data` |
 | Data I/O | `python -m pytest tests/dataio` |
 | DIC | `python -m pytest tests/dic` |
-| MOOSE and Gmsh integration | `python -m pytest tests/mooseherder` |
+| Rabbit/MOOSE and Gmsh integration | `python -m pytest tests/mooseherder` |
 | Rendering | `python -m pytest tests/render` |
 | Sensor simulation | `python -m pytest tests/sensorsim` |
 | Strain | `python -m pytest tests/strain` |
@@ -48,6 +48,7 @@ python -m pytest tests/examples --example-module=render2d
 python -m pytest tests/examples --example-module=dic
 python -m pytest tests/examples --example-module=basicsensorsim
 python -m pytest tests/examples --example-module=extsensorsim
+python -m pytest tests/mooseherder tests/examples --example-module=mooseherder
 ```
 
 Run render implementation tests and its examples together with:
@@ -109,11 +110,27 @@ Blender scene path.
 
 ### MOOSE and Gmsh
 
-Tests that execute MOOSE skip unless the configured MOOSE checkout and Proteus
-application exist. The current test helper expects `~/moose`, `~/proteus`, and
-the `proteus-opt` executable. Gmsh-runner tests skip when `gmsh` is not on
-`PATH`. Tests that require both tools skip if either is unavailable. Availability
-tests remain runnable and verify the missing-tool diagnostics.
+Rabbit FEM and Python Gmsh are core dependencies. The mooseherder suite runs real
+SMP solves, both mesh input methods, nested/ordered decks, analytic mechanics,
+parallel chains and every tutorial in CI; no local MOOSE/Proteus checkout is
+needed. Install the system GLU library on Linux (`libglu1-mesa` on Ubuntu).
+
+MPI command assembly and rejection of a serial build are tested without MPI.
+Actual multi-rank runs need an MPI-capable Rabbit/custom app and compatible
+launcher; examples default to SMP even in the MPI tutorial. Select MPI inputs
+explicitly. Custom executable behaviour is tested independently of user installs.
+
+Run and build only the mooseherder gallery with:
+
+```bash
+python -m pytest tests/mooseherder tests/examples --example-module=mooseherder
+PYVALE_DOCS_RUN_EXAMPLES=1 PYVALE_DOCS_EXAMPLE_MODULE=mooseherder python -m sphinx -b html docs/source docs/build/html
+```
+
+All 36 historical simulation cases have matching `_mpi.i` entries. Tests mesh
+all historical geometries and parse both entry variants. Representative SMP
+cases are solved in full. Existing Exodus baselines remain unchanged; regenerate
+only deliberately reviewed results with `scripts/run_example_simcases.py`.
 
 ### Examples
 

@@ -63,6 +63,11 @@ class ExodusLoader(IOutputLoader):
         self._enforce_convention = enforce_convention
 
 
+    def close(self) -> None:
+        """Release the Exodus file after loading arrays into memory."""
+        self._data.close()
+
+
     def get_names(self, key: str | None) -> np.ndarray | None:
         """get_names: Extract a list of variable names from the dataset. Useful
         for getting node/element/sideset/global variables names.

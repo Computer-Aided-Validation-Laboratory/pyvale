@@ -3,21 +3,24 @@
 Mooseherder
 ===========
 
+Packaged Rabbit FEM and Python Gmsh provide the default runners. Start with a
+single SMP solve, then explore CLI parameters, included decks, meshing and sweeps.
+All examples run headlessly with packaged defaults. The MPI example requires an
+explicit opt-in before launching multiple ranks; custom executables are optional.
+
 .. toctree::
    :maxdepth: 1
 
-   mooseherder/ex0_create_moose_config
-   mooseherder/ex1a_modify_moose_input
-   mooseherder/ex1b_modify_gmsh_input
-   mooseherder/ex2a_run_moose_once
-   mooseherder/ex2b_run_gmsh_once
-   mooseherder/ex2c_run_both_once
-   mooseherder/ex3_run_moose_seq_para
-   mooseherder/ex4_run_gmsh-moose_seq_para
-   mooseherder/ex5_run_moose_paramulti
-   mooseherder/ex6_read_moose_exodus
-   mooseherder/ex7a_read_moose_herd_results
-   mooseherder/ex7b_read_multi_herd_results
-   mooseherder/ex7c_read_multi_gmshmoose_results
-   mooseherder/ex7d_readconfig_multi_gmshmoose_results
-   mooseherder/ex8_read_existing_sweep_output
+   mooseherder/ex01_rabbit_quickstart
+   mooseherder/ex02_moose_cli_parameters
+   mooseherder/ex03_moose_included_inputs
+   mooseherder/ex04_moose_multiple_inputs
+   mooseherder/ex05_gmsh_geo
+   mooseherder/ex06_gmsh_python
+   mooseherder/ex07_mesh_and_solve
+   mooseherder/ex08_sequential_sweep
+   mooseherder/ex09_parallel_sweep
+   mooseherder/ex10_mpi_solve
+   mooseherder/ex11_custom_installations
+   mooseherder/ex12_read_sweep_results
+   mooseherder/ex13_modify_input_text
