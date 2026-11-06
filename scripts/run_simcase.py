@@ -1,61 +1,71 @@
+"""Run a packaged case with Rabbit/Gmsh in an isolated output directory."""
 
-# ==============================================================================
-# pyvale: the python computer aided validation engine
-# License: MIT
-# Copyright (C) 2025 The Computer Aided Validation Team
-# ==============================================================================
-
-import time
-from pathlib import Path
+import argparse
 from importlib.resources import files
-from pyvale.mooseherder import (MooseConfig,
-                         MooseRunner,
-                         GmshRunner)
+from pathlib import Path
 
-#===============================================================================
-# Change this to run a different case
-CASE_STR = 'case26'
-#===============================================================================
+from pyvale.mooseherder import GmshRunner, MooseRunner, RunResult
 
-CASE_FILES = (CASE_STR+'.geo',CASE_STR+'.i')
-CASE_DIR = Path(
-    files("pyvale.data").joinpath("simulation", "simcases", CASE_FILES[1]),
-).parent
+SIMCASES_DIR = Path(files("pyvale.data").joinpath("simulation", "simcases"))
 
-USER_DIR = Path.home()
+
+def run_case(
+    case_name: str,
+    output_dir: Path,
+    *,
+    moose_executable: Path | None = None,
+    gmsh_executable: Path | None = None,
+    mpi: bool = False,
+    n_tasks: int = 1,
+    n_threads: int = 1,
+) -> RunResult:
+    """Generate a case mesh if needed, then run the matching SMP/MPI deck."""
+    base_name = case_name.removesuffix("_mpi")
+    deck = SIMCASES_DIR / f"{base_name}{'_mpi' if mpi else ''}.i"
+    if not deck.is_file():
+        raise FileNotFoundError(deck)
+    geometry = SIMCASES_DIR / f"{base_name}.geo"
+    if not geometry.is_file() and base_name.endswith(("_d", "_u")):
+        geometry = SIMCASES_DIR / f"{base_name[:-2]}.geo"
+    parameters = {}
+    if geometry.is_file():
+        mesh = GmshRunner(executable=gmsh_executable).run(
+            geometry,
+            output_dir=output_dir / "mesh",
+        )
+        text = (SIMCASES_DIR / f"{base_name}.i").read_text(encoding="utf-8")
+        mesh_key = "mesh_file" if "mesh_file =" in text else "Mesh/file"
+        parameters[mesh_key] = str(mesh.output)
+    return MooseRunner(
+        executable=moose_executable,
+        mpi=mpi,
+        n_tasks=n_tasks,
+        n_threads=n_threads,
+    ).run(deck, parameters=parameters, output_dir=output_dir / "solve")
+
 
 def main() -> None:
-    gmsh_run_time = 0.0
-    if (CASE_DIR / CASE_FILES[0]).is_file():
-        gmsh_runner = GmshRunner(USER_DIR / 'gmsh/bin/gmsh')
+    """Run one case without changing its packaged source files."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("case", help="For example case18 or case00_HEX8")
+    parser.add_argument("--output-dir", type=Path, default=Path.cwd() / "pyvale-output")
+    parser.add_argument("--moose-executable", type=Path)
+    parser.add_argument("--gmsh-executable", type=Path)
+    parser.add_argument("--mpi", action="store_true")
+    parser.add_argument("--tasks", type=int, default=1)
+    parser.add_argument("--threads", type=int, default=1)
+    args = parser.parse_args()
+    result = run_case(
+        args.case,
+        args.output_dir / args.case,
+        moose_executable=args.moose_executable,
+        gmsh_executable=args.gmsh_executable,
+        mpi=args.mpi,
+        n_tasks=args.tasks,
+        n_threads=args.threads,
+    )
+    print(result.output)
 
-        gmsh_start = time.perf_counter()
-        gmsh_runner.run(CASE_DIR / CASE_FILES[0],parse_only=False)
-        gmsh_run_time = time.perf_counter()-gmsh_start
-    
-    config = {'main_path': USER_DIR / 'moose',
-              'app_path': USER_DIR / 'proteus',
-              'app_name': 'proteus-opt'}
 
-    print(config['main_path'])
-
-    moose_config = MooseConfig(config)
-    moose_runner = MooseRunner(moose_config)
-
-    moose_runner.set_run_opts(n_tasks = 1,
-                              n_threads = 8,
-                              redirect_out = False)
-
-    moose_start_time = time.perf_counter()
-    moose_runner.run(CASE_DIR / CASE_FILES[1])
-    moose_run_time = time.perf_counter() - moose_start_time
-
-    print()
-    print("="*80)
-    print(f'Gmsh run time = {gmsh_run_time:.2f} seconds')
-    print(f'MOOSE run time = {moose_run_time:.3f} seconds')
-    print("="*80)
-    print()
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

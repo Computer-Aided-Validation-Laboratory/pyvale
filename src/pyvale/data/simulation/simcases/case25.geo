@@ -23,12 +23,12 @@ plate_height = 15e-3;
 plate_width = 10e-3;
 plate_thick = 5e-3;
 
-mesh_size = 5e-3/mesh_ref;
 
 // Must be an integer
 plate_thick_layers = 1;
 elem_order = 1;
 mesh_ref = 1;
+mesh_size = 5e-3/mesh_ref;
 num_threads = 4;
 //** MOOSEHERDER VARIABLES - END
 //------------------------------------------------------------------------------
@@ -79,4 +79,3 @@ Mesh 3;
 //------------------------------------------------------------------------------
 // Save and exit
 Save Str(file_name);
-Exit;

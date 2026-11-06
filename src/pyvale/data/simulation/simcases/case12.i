@@ -73,7 +73,7 @@ mesh_file = 'case12.msh'
   []
 []
 
-[Modules/TensorMechanics/Master]
+[Physics/SolidMechanics/QuasiStatic]
   [all]
       strain = SMALL                      # SMALL or FINITE
       incremental = true
@@ -279,10 +279,11 @@ mesh_file = 'case12.msh'
 []
 
 [Executioner]
+    scaling_group_variables = 'disp_x disp_y disp_z'
   type = Steady
-  solve_type = 'PJFNK'
-  petsc_options_iname = '-pc_type -pc_hypre_type'
-  petsc_options_value = 'hypre    boomeramg'
+
+
+
 []
 
 
@@ -327,3 +328,6 @@ mesh_file = 'case12.msh'
 [Outputs]
   exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i

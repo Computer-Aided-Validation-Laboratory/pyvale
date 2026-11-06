@@ -1,69 +1,63 @@
-# ==============================================================================
-# pyvale: the python validation engine
-# License: MIT
-# Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
-# ==============================================================================
-"""Availability checks for optional MOOSE and Gmsh executables."""
+"""Availability diagnostics for packaged defaults and explicit executables."""
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 from pathlib import Path
-import shutil
 
 
 @dataclass(frozen=True, slots=True)
 class BackendAvailability:
-    """Availability state and actionable diagnostic for one external backend.
-
-    Parameters
-    ----------
-    available : bool
-        Whether the executable is available and executable.
-    executable : pathlib.Path or None
-        Resolved executable path when one was found.
-    reason : str or None
-        Explanation supplied when ``available`` is ``False``.
-    """
+    """Whether the selected backend can run, with an actionable diagnostic."""
 
     available: bool
     executable: Path | None
     reason: str | None = None
 
 
-def moose_availability(config: dict[str, Path | str]) -> BackendAvailability:
-    """Check that the MOOSE application configured for a runner is executable."""
-    app_path = Path(config["app_path"])
-    app_name = Path(str(config["app_name"]))
-    executable = app_name if app_name.is_absolute() else app_path / app_name
-    return _availability_for_path("MOOSE", executable)
-
-
-def gmsh_availability(gmsh_path: Path | None = None) -> BackendAvailability:
-    """Find an explicit Gmsh executable or resolve ``gmsh`` from ``PATH``."""
-    if gmsh_path is not None:
-        return _availability_for_path("Gmsh", gmsh_path)
-    resolved = shutil.which("gmsh")
-    if resolved is None:
-        return BackendAvailability(
-            False,
-            None,
-            "Gmsh was not found on PATH. Install Gmsh or configure its path.",
-        )
-    return _availability_for_path("Gmsh", Path(resolved))
-
-
 def _availability_for_path(name: str, executable: Path) -> BackendAvailability:
-    """Return availability for one explicit executable path."""
     if not executable.is_file():
         return BackendAvailability(
-            False,
-            None,
-            f"{name} executable was not found: {executable}",
+            False, None, f"{name} executable not found: {executable}"
         )
     if not os.access(executable, os.X_OK):
         return BackendAvailability(
-            False,
-            executable,
-            f"{name} executable is not executable: {executable}",
+            False, executable, f"{name} is not executable: {executable}"
         )
     return BackendAvailability(True, executable)
+
+
+def moose_availability(
+    executable: Path | None = None,
+    *,
+    mpi: bool = False,
+) -> BackendAvailability:
+    """Resolve Rabbit by default; never fall back from an explicit app path."""
+    if executable is not None:
+        return _availability_for_path("MOOSE", executable)
+    try:
+        from rabbit import get_binary_path
+        from rabbit.cli import is_mpi_binary
+
+        path = get_binary_path()
+        if mpi and not is_mpi_binary():
+            return BackendAvailability(
+                False,
+                path,
+                "MPI requires an MPI-capable Rabbit installation; "
+                "the installed rabbit-fem build is serial/SMP.",
+            )
+        return _availability_for_path("Rabbit", path)
+    except (ImportError, OSError) as err:
+        return BackendAvailability(False, None, f"Rabbit is unavailable: {err}")
+
+
+def gmsh_availability(executable: Path | None = None) -> BackendAvailability:
+    """Check the Python Gmsh library by default, or a custom executable."""
+    if executable is not None:
+        return _availability_for_path("Gmsh", executable)
+    try:
+        import gmsh
+
+        return BackendAvailability(True, Path(gmsh.__file__).resolve())
+    except (ImportError, OSError) as err:
+        return BackendAvailability(False, None, f"Python Gmsh is unavailable: {err}")

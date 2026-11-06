@@ -60,7 +60,7 @@ elem_order = 'SECOND'
     []
 []
 
-[Modules/TensorMechanics/Master]
+[Physics/SolidMechanics/QuasiStatic]
     [all]
         strain = SMALL                      # SMALL or FINITE
         incremental = true
@@ -179,18 +179,19 @@ elem_order = 'SECOND'
 # Steady, Precon=OFF, NEWTON, pctype=lu,  solve time with 4 mpi tasks = 458s
 
 [Executioner]
+    scaling_group_variables = 'disp_x disp_y disp_z'
     type = Steady
     #---------------------------------------------------------------------------
-    solve_type = PJFNK   # PJNFK or NEWTON
-    l_max_its = 100       # default = 1000
-    nl_max_its = 100
-    l_tol = 1e-5          # default = 1e-5
-    nl_abs_tol = 1e-6     # default = 1e-50, set 1e-6
-    nl_rel_tol = 1e-6     # default = 1e-8, set 1e-6
+
+
+
+
+
+
 
     line_search = none
-    petsc_options_iname = '-pc_type -pc_hypre_type'
-    petsc_options_value = 'hypre boomeramg'
+
+
 
     #---------------------------------------------------------------------------
     # solve_type = 'NEWTON' # NEWTON or PJNFK
@@ -248,3 +249,6 @@ elem_order = 'SECOND'
 [Outputs]
     exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i

@@ -11,7 +11,6 @@ import numpy as np
 import numpy.typing as npt
 from pyvale.mooseherder.exodusloader import ExodusLoader
 from pyvale.dataio.simdata import SimData
-import tests.mooseherder.herdchecker as hc
 
 NUM_TIME_STEPS = 4
 NUM_NODES = 441
@@ -59,7 +58,7 @@ GLO_VAR_NAMES = ('avg_yy_stress',
 
 @pytest.fixture
 def exodus_path() -> Path:
-    return hc.OUTPUT_GOLD_PATH / 'moose-mech-outtest_out.e'
+    return (Path(__file__).resolve().parent / "output_gold") / 'moose-mech-outtest_out.e'
 
 @pytest.fixture
 def reader(exodus_path: Path) -> ExodusLoader:

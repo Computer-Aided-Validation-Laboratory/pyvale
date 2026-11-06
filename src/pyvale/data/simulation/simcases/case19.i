@@ -97,3 +97,6 @@ mesh_file = 'case19.msh'
 [Outputs]
     exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i

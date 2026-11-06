@@ -23,7 +23,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install libegl1
-          sudo apt install libgl1 libxext6 libx11-6
+          sudo apt install libgl1 libglu1-mesa libxext6 libx11-6
           sudo apt install libtiff-dev libtiff-tools
           python -m pip install --upgrade pip
           pip install pylint
