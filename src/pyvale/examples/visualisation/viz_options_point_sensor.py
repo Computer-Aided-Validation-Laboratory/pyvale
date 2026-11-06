@@ -4,37 +4,83 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""
-Vector and tensor field sensors
-================================================================================
-
-In this example we will show how `pyvale` can be used to simulate vector and
-tensor field sensors demonstrated by displacement and strain sensors. We show
-some of the additional sensor array setup parameters such  as the sensor
-orientation for vector and tensor sensors. We also introduce a new type of
-simulated error called a 'field error' which can be used to simulate uncertainty
-in sensor positions, sampling time, orientation and sensor averaging area.
-
-"""
-
 from pathlib import Path
 import numpy as np
-from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation
 
 # pyvale imports
 import pyvale.sensorsim as sens
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
-#%%
-# 1. Load physics simulation data
-# -------------------------------
-# As we did in the last example we load a finite element simulation dataset that
-# comes packaged with `pyvale` in exodus (*.e) format. We also convert the
-# length units of our simulation from meters to milli-meters as our
-# visualisation tools are based on unit scaling by default.
+
+
+data_path: Path = dataset.thermal_3d_path()
+sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+
+sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
+                                               sim_data=sim_data,
+                                               disp_keys=None)
+                                               
+
+sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
+                                                x_lims=(12.5,12.5),
+                                                y_lims=(0.0,33.0),
+                                                z_lims=(0.0,12.0))
+
+sample_times: np.ndarray = np.linspace(0.0,np.max(sim_data.time),50)
+
+sens_data = sens.SensorData(positions=sens_pos,
+                            sample_times=sample_times)
+
+
+sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+    sim_data,
+    sens_data,
+    comp_key="temperature",
+    spatial_dims=sens.EDim.THREED,
+    descriptor=sens.DescriptorFactory.temperature(),
+)
+
+
+err_chain: list[sens.IErrSimulator] = [
+    sens.ErrSysGen(sens.GenUniform(low=-10.0,high=10.0)),
+    sens.ErrRandGen(sens.GenNormal(std=5.0)),
+]
+
+sens_array.set_error_chain(err_chain)
+
+
+measurements: np.ndarray = sens_array.sim_measurements()
+
+truth: np.ndarray = sens_array.get_truth()
+sys_errs: np.ndarray = sens_array.get_errors_systematic()
+rand_errs: np.ndarray = sens_array.get_errors_random()
+
+print(80*"-")
+print("pyvale sensor simulation model:")
+print("    measurement = truth + sysematic error + random error\n")
+
+print(f"measurements.shape = {measurements.shape} = "
+        + "(n_sensors,n_field_components,n_timesteps)\n")
+print(f"truth.shape     = {truth.shape}")
+print(f"sys_errs.shape  = {sys_errs.shape}")
+print(f"rand_errs.shape = {rand_errs.shape}")
+
+sens_print: int = 0
+comp_print: int = 0
+time_last: int = 5
+time_print = slice(measurements.shape[2]-time_last,measurements.shape[2])
+
+print(f"\nThese are the last {time_last} virtual measurements of sensor "
+        + f"{sens_print}:\n")
+
+sens.print_measurements(sens_array,sens_print,comp_print,time_print)
+print("\n"+80*"-")
+
+#################################################################################
 
 data_path: Path = dataset.mechanical_2d_path()
 sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
@@ -42,10 +88,6 @@ sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 disp_keys = ("disp_x","disp_y")
 strain_norm_keys = ("strain_xx","strain_yy",)
 strain_dev_keys = ("strain_xy",)
-
-sim_data: io.SimData  = sens.scale_length_units(scale=1000.0,
-                                                sim_data=sim_data,
-                                                disp_keys=disp_keys)
 
 #%%
 # 2. Build virtual sensor arrays
@@ -191,71 +233,21 @@ print(f"The last {time_last} virtual measurements of sensor "
 sens.print_measurements(strain_sens,sens_print,comp_print,time_print)
 print("\n"+80*"-")
 
-# %%
-# Example terminal output:
-#
-# .. image:: ../../../../_static/basics_ex2_term_out.png
-#    :alt: Terminal output showing simulated measurements and error array shapes
-#    :width: 700px
-#    :align: center
-
-#%%
-# 4. Analyse & visualise the results
-# ----------------------------------
-# Now we visualise the sensor locations on the mesh and save these images to
-# disk. As we have used sensor positioning errors in our error chain the
-# perturbed sensor locations are shown on the sensor location visualisation as
-# different coloured spheres without labels.
-
-output_path = Path.cwd() / "pyvale-output"
-if not output_path.is_dir():
-    output_path.mkdir(parents=True, exist_ok=True)
-
-
-# pv_plot = sens.plot_point_sensors_on_sim(disp_sens,"disp_y")
-# pv_plot.camera_position = "xy"
-
-# save_render = output_path / "basics_ex2_disp_locs.png"
-
-# # Set to False to show an interactive plot instead of saving the figure
-# pv_plot.off_screen = True
-# if pv_plot.off_screen:
-#     pv_plot.screenshot(save_render)
-# else:
-#     pv_plot.show()
-
-# # %%
-# # .. image:: ../../../../_static/basics_ex2_disp_locs.png
-# #    :alt: Location of virtual strain sensors
-# #    :width: 800px
-# #    :align: center
-
-# pv_plot = sens.plot_point_sensors_on_sim(strain_sens,"strain_yy")
-# pv_plot.camera_position = "xy"
-
-# # Set to False to show an interactive plot instead of saving the figure
-# pv_plot.off_screen = True
-# if pv_plot.off_screen:
-#     pv_plot.screenshot(output_path / "basics_ex2_strain_locs.png")
-# else:
-#     pv_plot.show()
+######################################################
 
 field_key = "temperature"
 
-pv_plot = sens.plot_point_sensors_on_sim(strain_sens, field_key)
+# pv_plot = sens.plot_point_sensors_on_sim(strain_sens, field_key)
+# pv_plot.show()
+pv_plot = sens.plot_point_sensors_on_sim(sens_array, field_key)
 pv_plot.show()
 
 pv_plot = sens.plot_point_sensors_on_sim(disp_sens, "disp_x")
 pv_plot.show()
 
-
-# using two sensor arrays, each with a different component key
-pv_plot = sens.plot_point_sensors_on_sim([strain_sens, disp_sens], [field_key, "disp_x"])
+pv_plot = sens.plot_point_sensors_on_sim([sens_array, disp_sens], [field_key, "disp_x"])
 pv_plot.show()
 
-
-pv_plot = sens.plot_point_sensors_on_sim(disp_sens, "disp_x")
-pv_plot.show()
 
 #%%
 # We determined manually by moving camera in interative mode and then
