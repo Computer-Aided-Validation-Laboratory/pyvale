@@ -247,7 +247,7 @@ def calibrate_stereo(dots_cam0: list[np.ndarray] | np.ndarray,
                             calib_cpp.cam1.cx, calib_cpp.cam1.cy,
                             np.asarray(calib_cpp.cam1.distortion, dtype=np.float64)),
         translation=np.asarray(calib_cpp.translation, dtype=np.float64),
-        rotation=np.asarray(np.rad2deg(calib_cpp.rotation), dtype=np.float64),
+        rotation=np.asarray(calib_cpp.rotation, dtype=np.float64),
     )
 
     errors0 = np.asarray(result_cpp.errors_cam0, dtype=np.float64)

@@ -104,16 +104,18 @@ def _import(data: str | Path | list[Path],
         y_unique = np.unique(window_y_ref)
         window_x_out, window_y_out = np.meshgrid(x_unique, y_unique)
         shape = (len(files), len(y_unique), len(x_unique))
+        x_indices = np.searchsorted(x_unique, window_x_ref)
+        y_indices = np.searchsorted(y_unique, window_y_ref)
 
         tensor_arrays = [
-            to_grid(a, shape, window_x_ref, window_y_ref, x_unique, y_unique)
+            to_grid(a, shape, x_indices, y_indices)
             for a in tensor_arrays
         ]
 
         if has_coords:
-            x_mm = to_grid(x_mm, shape, window_x_ref, window_y_ref, x_unique, y_unique)
-            y_mm = to_grid(y_mm, shape, window_x_ref, window_y_ref, x_unique, y_unique)
-            z_mm = to_grid(z_mm, shape, window_x_ref, window_y_ref, x_unique, y_unique)
+            x_mm = to_grid(x_mm, shape, x_indices, y_indices)
+            y_mm = to_grid(y_mm, shape, x_indices, y_indices)
+            z_mm = to_grid(z_mm, shape, x_indices, y_indices)
     else:
         window_x_out = window_x_ref
         window_y_out = window_y_ref

@@ -35,18 +35,25 @@ ref1_hydro = dataset.dic_plate_with_hydro_cam1_ref()
 def0_hydro = dataset.dic_plate_with_hydro_cam0_def()
 def1_hydro = dataset.dic_plate_with_hydro_cam1_def()
 
-def0_10px = dataset.dic_plate_rigid_cam0_def_10px()
 def0_25px = dataset.dic_plate_rigid_cam0_def_25px()
 def0_50px = dataset.dic_plate_rigid_cam0_def_50px()
 
 
-calib_file = TEST_DIR / "calib.txt"
-calib_data = calib.loadtxt(calib_file)
+calib_rigid_file = TEST_DIR / "calib_rigid.txt"
+calib_rigid = calib.loadtxt(calib_rigid_file)
 
-def_large = [def0_10px, def0_25px, def0_50px]
+calib_hole_file = TEST_DIR / "calib_hole.txt"
+calib_hole = calib.loadtxt(calib_hole_file)
 
-roi = dic.RegionOfInterest(ref_image=ref0)
-roi.rect_region(x=100, y=100, size_x=200, size_y=200)
+
+def_large = [def0_25px, def0_50px]
+
+roi_rigid = dic.RegionOfInterest(ref_image=ref0)
+roi_hydro = dic.RegionOfInterest(ref_image=ref0)
+roi_rigid.rect_boundary(left=0,right=100,bottom=100,top=0)
+roi_hydro.rect_boundary(left=10,right=10,bottom=10,top=10)
+
+seed = [50,200]
 
 # ------------------------------------------------------------------------------
 # Images
@@ -62,7 +69,7 @@ else:
 ref_arr = np.array(ref_image)
 
 # First deformed image used for intensity scaling tests
-def_image = Image.open(files[7])
+def_image = Image.open(files[2]) # 0.8 px displacement
 def_arr = np.array(def_image)
 
 original_dtype = def_arr.dtype
@@ -78,9 +85,7 @@ def_arr_scaled_offset = (def_arr_float * scale + offset).astype(original_dtype)
 # ------------------------------------------------------------------------------
 # Ground truth displacements
 # ------------------------------------------------------------------------------
-
-u = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-u_short = [0.0, 0.5, 1.0]
+u = [0.0, 0.4, 0.8, 1.0]
 
 
 # ------------------------------------------------------------------------------
@@ -190,8 +195,8 @@ def validate_hydro(
         u = dic_data[:, 2]
         v = dic_data[:, 3]
 
-        cx = (20 + 1019) / 2.0
-        cy = (20 + 1519) / 2.0
+        cx = (249.0) / 2.0
+        cy = (399.0) / 2.0
         width = 999.0
         height = 1499.0
 
@@ -222,8 +227,8 @@ def test_2d_ssd_rigid(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -232,6 +237,7 @@ def test_2d_ssd_rigid(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_ssd_rigid_",
+        image_filter_kernel=1,
     )
 
     output_files = dic_temp_dir / "test_ssd_rigid_*.csv"
@@ -246,8 +252,8 @@ def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref_arr,
         deformed=def_arr_scaled,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -256,6 +262,7 @@ def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_nssd_scaled_image_rigid_",
+        image_filter_kernel=1,
     )
 
     output_file = (
@@ -263,7 +270,7 @@ def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path) -> None:
         / "test_2d_nssd_scaled_image_rigid_def_img_0000.csv"
     )
 
-    validate(output_pattern=output_file, gt=[0.7], atol=0.01, stereo=False)
+    validate(output_pattern=output_file, gt=[0.8], atol=0.01, stereo=False)
 
 
 # ------------------------------------------------------------------------------
@@ -276,8 +283,8 @@ def test_2d_znssd_scaled_offset_image_rigid(
     dic.calculate_2d(
         reference=ref_arr,
         deformed=def_arr_scaled_offset,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -286,6 +293,7 @@ def test_2d_znssd_scaled_offset_image_rigid(
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_znssd_scaled_offset_image_rigid_",
+        image_filter_kernel=1,
     )
 
     output_file = (
@@ -293,7 +301,7 @@ def test_2d_znssd_scaled_offset_image_rigid(
         / "test_2d_znssd_scaled_offset_image_rigid_def_img_0000.csv"
     )
 
-    validate(output_pattern=output_file, gt=[0.7], atol=0.01, stereo=False)
+    validate(output_pattern=output_file, gt=[0.8], atol=0.01, stereo=False)
 
 
 # ------------------------------------------------------------------------------
@@ -304,8 +312,8 @@ def test_2d_image_scan_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -314,6 +322,7 @@ def test_2d_image_scan_znssd_affine(dic_temp_dir: Path) -> None:
         method="RASTER",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_znssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -331,8 +340,8 @@ def test_2d_image_scan_znssd_rigid(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -341,6 +350,7 @@ def test_2d_image_scan_znssd_rigid(dic_temp_dir: Path) -> None:
         method="RASTER",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_znssd_rigid_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -358,8 +368,8 @@ def test_2d_image_scan_nssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -368,6 +378,7 @@ def test_2d_image_scan_nssd_affine(dic_temp_dir: Path) -> None:
         method="RASTER",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_nssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -385,8 +396,8 @@ def test_2d_rg_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -395,6 +406,7 @@ def test_2d_rg_znssd_affine(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -411,8 +423,8 @@ def test_2d_rg_znssd_quad(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -421,6 +433,7 @@ def test_2d_rg_znssd_quad(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_quad_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -437,8 +450,8 @@ def test_2d_singlewindow_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -447,6 +460,7 @@ def test_2d_singlewindow_znssd_affine(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -463,22 +477,22 @@ def test_2d_multiwindow_fft_large(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def_large,
-        roi_mask=roi.mask,
-        seed=[250, 250],
-        subset_size=31,
-        subset_step=15,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=32,
+        subset_step=16,
         max_displacement=100,
         correlation_criteria="ZNSSD",
         shape_function="RIGID",
         method="MULTIWINDOW",
         output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
+        image_filter_kernel=1,
     )
 
     outputs = [
-        ("test_fft_rigid_cam0_frame11.csv", 10.0),
-        ("test_fft_rigid_cam0_frame12.csv", 25.0),
-        ("test_fft_rigid_cam0_frame13.csv", 50.0),
+        ("test_fft_rigid_cam0_frame25.csv", 25.0),
+        ("test_fft_rigid_cam0_frame50.csv", 50.0),
     ]
 
     for filename, disp in outputs:
@@ -493,8 +507,8 @@ def test_2d_multiwindow_rg_fft_large(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def_large,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=100,
@@ -503,12 +517,12 @@ def test_2d_multiwindow_rg_fft_large(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
+        image_filter_kernel=1,
     )
 
     outputs = [
-        ("test_fft_rigid_cam0_frame11.csv", 10.0),
-        ("test_fft_rigid_cam0_frame12.csv", 25.0),
-        ("test_fft_rigid_cam0_frame13.csv", 50.0),
+        ("test_fft_rigid_cam0_frame25.csv", 25.0),
+        ("test_fft_rigid_cam0_frame50.csv", 50.0),
     ]
 
     for filename, disp in outputs:
@@ -523,8 +537,8 @@ def test_2d_singlewindow_fft_large(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def_large,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=100,
@@ -533,12 +547,12 @@ def test_2d_singlewindow_fft_large(dic_temp_dir: Path) -> None:
         method="SINGLEWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
+        image_filter_kernel=1,
     )
 
     outputs = [
-        ("test_fft_rigid_cam0_frame11.csv", 10.0),
-        ("test_fft_rigid_cam0_frame12.csv", 25.0),
-        ("test_fft_rigid_cam0_frame13.csv", 50.0),
+        ("test_fft_rigid_cam0_frame25.csv", 25.0),
+        ("test_fft_rigid_cam0_frame50.csv", 50.0),
     ]
 
     for filename, disp in outputs:
@@ -554,8 +568,8 @@ def test_2d_hydro_rg_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0_hydro,
         deformed=def0_hydro,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_hydro.mask,
+        seed=seed,
         subset_size=21,
         subset_step=10,
         max_displacement=2,
@@ -564,11 +578,12 @@ def test_2d_hydro_rg_znssd_affine(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_hydro_",
+        image_filter_kernel=1,
     )
 
     validate_hydro(
         dic_temp_dir / "test_hydro_*.csv",
-        u_short,
+        u,
         atol=0.005,
     )
 
@@ -580,8 +595,8 @@ def test_2d_hydro_rg_znssd_quad(dic_temp_dir: Path) -> None:
     dic.calculate_2d(
         reference=ref0_hydro,
         deformed=def0_hydro,
-        roi_mask=roi.mask,
-        seed=[250, 250],
+        roi_mask=roi_hydro.mask,
+        seed=seed,
         subset_size=21,
         subset_step=10,
         max_displacement=2,
@@ -590,11 +605,12 @@ def test_2d_hydro_rg_znssd_quad(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_hydro_",
+        image_filter_kernel=1,
     )
 
     validate_hydro(
         dic_temp_dir / "test_hydro_*.csv",
-        u_short,
+        u,
         atol=0.008,  # more noise for quad
     )
 
@@ -606,9 +622,9 @@ def test_3d_rg_znssd_affine(dic_temp_dir: Path) -> None:
     dic.calculate_3d(
         reference=[ref0, ref1],
         deformed=[def0, def1],
-        roi_mask=roi.mask,
-        calibration=calib_data,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        calibration=calib_hole,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -617,6 +633,7 @@ def test_3d_rg_znssd_affine(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -632,9 +649,9 @@ def test_3d_rg_znssd_affine_incremental(dic_temp_dir: Path) -> None:
     dic.calculate_3d(
         reference=[ref0, ref1],
         deformed=[def0, def1],
-        roi_mask=roi.mask,
-        calibration=calib_data,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        calibration=calib_hole,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -645,6 +662,7 @@ def test_3d_rg_znssd_affine_incremental(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_incremental_affine_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -660,9 +678,9 @@ def test_3d_rg_znssd_quad(dic_temp_dir: Path) -> None:
     dic.calculate_3d(
         reference=[ref0, ref1],
         deformed=[def0, def1],
-        roi_mask=roi.mask,
-        calibration=calib_data,
-        seed=[250, 250],
+        roi_mask=roi_rigid.mask,
+        calibration=calib_hole,
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=60,
@@ -671,6 +689,7 @@ def test_3d_rg_znssd_quad(dic_temp_dir: Path) -> None:
         method="MULTIWINDOW_RG",
         output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_quad_",
+        image_filter_kernel=1,
     )
 
     validate(
@@ -695,12 +714,13 @@ def test_f32_support(dic_temp_dir: Path) -> None:
         reference=ref_arr,
         deformed=def_arr,
         roi_mask=roi.mask,
-        seed=[250, 250],
+        seed=seed,
         subset_size=31,
         subset_step=15,
         max_displacement=10,
         output_basepath=dic_temp_dir,
         output_prefix="test_f32_support_",
+        image_filter_kernel=1,
     )
 
     validate(

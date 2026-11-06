@@ -18,7 +18,6 @@ import numpy as np
 import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 from pyvale.examples.renderuvs.tools import render_uv_example
@@ -29,7 +28,7 @@ from pyvale.examples.renderuvs.tools import render_uv_example
 # The asymmetric rabbit makes UV rotations and translations easier to recognise
 # than a rectangular plate, so it remains the best mesh for this comparison.
 
-data_dir = dataset.riley_rabbit_case_path("riley", render.EElemType.QUAD4)
+data_dir = riley.data.rabbit_case_path("riley", render.EElemType.QUAD4.value)
 
 simulation = io.MeshLoader(
     load_dir=data_dir,
@@ -52,7 +51,7 @@ oriented_mesh = render.mesh_rotate(
     pivot=render.mesh_center(base_mesh),
 )
 
-texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.cal_target_texture_path())
 
 camera = render.Camera(
     pixels_num=np.array((1792, 1120)),

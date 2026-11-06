@@ -32,9 +32,9 @@ import pyvale.data as dataset
 # 1. Load physics simulation data
 # -------------------------------
 # As we did in the last example we load a finite element simulation dataset that
-# comes packaged with `pyvale` in exodus (``*.e``) format. We also convert the
-# length units of our simulation from meters to milli-meters as our
-# visualisation tools are based on unit scaling by default.
+# comes packaged with `pyvale` in exodus (``*.e``) format. Case 17 is expressed
+# directly in millimetres and newtons, so displacements are already in mm and
+# stresses are in MPa.
 
 data_path: Path = dataset.mechanical_2d_path()
 sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
@@ -42,10 +42,6 @@ sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 disp_keys = ("disp_x","disp_y")
 strain_norm_keys = ("strain_xx","strain_yy",)
 strain_dev_keys = ("strain_xy",)
-
-sim_data: io.SimData  = sens.scale_length_units(scale=1000.0,
-                                                sim_data=sim_data,
-                                                disp_keys=disp_keys)
 
 #%%
 # 2. Build virtual sensor arrays
@@ -278,4 +274,3 @@ for kk in (strain_norm_keys+strain_dev_keys):
 #    :alt: Simulated strain sensor traces
 #    :width: 500px
 #    :align: center
-

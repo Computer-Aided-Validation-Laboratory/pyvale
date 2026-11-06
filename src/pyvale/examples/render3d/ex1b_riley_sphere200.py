@@ -31,14 +31,13 @@ import numpy as np
 import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 
 # %%
 # 1. Load the mesh and assign a texture shader
 # ------------------------------------------------------------
-data_dir: Path = dataset.riley_sphere200_case_path()
+data_dir: Path = riley.data.sphere200_case_path()
 
 simulation = io.MeshLoader(
     load_dir=data_dir,
@@ -49,7 +48,7 @@ simulation = io.MeshLoader(
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
 
-texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.speckle_texture_path())
 
 shader = riley.TextureShader(uvs=uvs, texture=texture)
 
@@ -78,7 +77,7 @@ camera = render.Camera(
     rot_world=rotation,
     roi_cent_world=np.zeros(3),
     focal_length=focal_length,
-    subsample=2,
+    subsample=4,
 )
 
 camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
@@ -87,10 +86,11 @@ camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
 # 3. Configure and build the renderer
 # ------------------------------------------------------------
 
-config = riley.create_raster_config(
-    num_frames=1,
-    total_threads=4,
+config = riley.RasterConfig(
+    parallel=4,
     save_strategy=riley.SaveStrategy.disk,
+    image_save_mode=riley.ImageSaveMode.grey,
+    save_scaling=riley.ScaleStrategy.auto,
 )
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1b_riley_sphere200"
 

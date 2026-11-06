@@ -37,8 +37,8 @@ class Optimizer {
 
     public:
         // Constructor
-        Optimizer(util::ShapeFunc shape_func, 
-                 util::CorrCrit cost_func,
+        Optimizer(util::EShapeFunc shape_func, 
+                 util::ECorrCrit cost_func,
                  int max_iter,
                  double precision,
                  double threshold,
@@ -75,11 +75,15 @@ class Optimizer {
                                     const std::vector<int> &neigh,
                                     const int fallback_idx);
 
-        void reset_params();
+        int average_params_from_neigh(const std::vector<double> &results_p,
+                              const std::vector<uint8_t> &successful,
+                              const std::vector<int> &neigh);
+
+void reset_params();
 
     private:
 
-        util::CorrCrit criteria;
+        util::ECorrCrit criteria;
         double costp;
         double costpdp;
         std::vector<double> g;          // Gradient
@@ -106,19 +110,19 @@ class Optimizer {
         void (*get_displacement)(double&, double&, const double, const double, const std::vector<double>&);
         
         // Helper functions
-        static int get_num_params(util::ShapeFunc shape_func);
+        static int get_num_params(util::EShapeFunc shape_func);
 
 
 
 
-        void set_shape(util::ShapeFunc shape_func);
+        void set_shape(util::EShapeFunc shape_func);
     
         /**
         * @brief This function gets called before the corrolation optimization starts. Sets the function pointer for the user specified shape function.
         * 
         * @param[in] corr_crit correlation criteria enum.
         */
-        void set_cost_function(util::CorrCrit corr_crit);
+        void set_cost_function(util::ECorrCrit corr_crit);
 
         /**
         * @brief 
@@ -185,7 +189,7 @@ class Optimizer {
         * @return true Matrix inversion was successful
         * @return false Matrix inversion failed
         */
-        bool invertMatrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params);
+        bool invert_matrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params);
 
         /**
         * @brief Updates the shape function parameters based on the current and updated parameters.

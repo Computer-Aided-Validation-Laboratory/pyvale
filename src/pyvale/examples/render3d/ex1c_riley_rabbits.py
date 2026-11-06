@@ -20,7 +20,6 @@ import riley
 from riley import sceneops
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 
@@ -30,7 +29,7 @@ def load_rabbit(
     topology: render.EElemType,
 ) -> tuple[io.SimData, np.ndarray]:
     """Load one static rabbit mesh and its UV coordinates."""
-    data_dir = dataset.riley_rabbit_case_path(rabbit, topology)
+    data_dir = riley.data.rabbit_case_path(rabbit, topology.value)
 
     simulation = io.MeshLoader(
         load_dir=data_dir,
@@ -56,7 +55,7 @@ topologies = (
     render.EElemType.QUAD9,
 )
 
-texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.speckle_texture_path())
 
 meshes: list[render.Mesh3D] = []
 mesh_groups: list[sceneops.SceneMeshGroup] = []
@@ -138,7 +137,7 @@ camera = render.Camera(
     rot_world=Rotation.identity(),
     roi_cent_world=np.zeros(3),
     focal_length=focal_length,
-    subsample=2,
+    subsample=4,
 )
 
 camera = render.cam_frame_scene(camera, meshes, fov_scale=1.01)
@@ -147,9 +146,8 @@ camera = render.cam_frame_scene(camera, meshes, fov_scale=1.01)
 # 3. Configure and build the renderer
 # ------------------------------------------------------------
 
-config = riley.create_raster_config(
-    num_frames=1,
-    total_threads=4,
+config = riley.RasterConfig(
+    parallel=4,
     save_strategy=riley.SaveStrategy.disk,
 )
 config.background_value = 127.5

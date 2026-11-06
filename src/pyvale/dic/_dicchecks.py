@@ -87,8 +87,16 @@ def _multiwindow_init(subset_size: int,
                              f"{multiwindow_search_area[i]} at index {i}")
 
     overlap = [x * (1.0-multiwindow_overlap) for x in multiwindow_subset_size]
+    configured_overlap = list(map(int, overlap))
     overlap.append(subset_step)
     overlap  = list(map(int,overlap))
+
+    # Avoid running the same final FFT level twice when size and overlap are identical
+    if (multiwindow_subset_size and
+            multiwindow_subset_size[-1] == subset_size and
+            multiwindow_search_area[-1] == subset_size and
+            configured_overlap[-1] == subset_step):
+        return configured_overlap, multiwindow_subset_size, multiwindow_search_area
 
     multiwindow_subset_size.append(subset_size)
     multiwindow_search_area.append(subset_size)
@@ -210,6 +218,14 @@ def _check_method(method: str) -> None:
 
 
 
+def _check_partial_subsets(partial_subset: float,
+                           partial_subset_multiwindow: float) -> None:
+    for name, value in (("partial_subset", partial_subset),
+                        ("partial_subset_multiwindow", partial_subset_multiwindow)):
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be a fractional value between 0 and 1. Got {value}")
+
+
 def _check_thresholds(threshold: float,
                      precision: float) -> None:
     """
@@ -237,7 +253,31 @@ def _check_thresholds(threshold: float,
         raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
 
-def _check_subsets(subset_size: int, subset_step: int) -> None:
+
+def _check_incremental_update_value(
+    incremental_update: str,
+    incremental_update_value: float | int,
+) -> None:
+    """Validate the value associated with an incremental update condition."""
+    try:
+        value = float(incremental_update_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "incremental_update_value must be a finite number."
+        ) from exc
+
+    if not np.isfinite(value):
+        raise ValueError("incremental_update_value must be finite.")
+
+    if incremental_update == "IMAGE" and (value <= 0 or not value.is_integer()):
+        raise ValueError(
+            "incremental_update_value must be a positive integer when "
+            "incremental_update='IMAGE'."
+        )
+
+def _check_subsets(subset_size: int,
+                   subset_step: int,
+                   method: str | None = None) -> None:
     """
 
     Parameters
@@ -246,6 +286,9 @@ def _check_subsets(subset_size: int, subset_step: int) -> None:
         Threshold for the Levenberg optimization method.
     subset_step : int
         Threshold for the brute-force optimization method.
+    method : str, optional
+        Scan method. Even subset sizes are supported by the FFT-only
+        ``MULTIWINDOW`` method, but remain disallowed for the other methods.
 
     Raises
     ------
@@ -254,8 +297,8 @@ def _check_subsets(subset_size: int, subset_step: int) -> None:
     """
 
 
-    # Enforce scalar types for non-FFT methods
-    if subset_size % 2 == 0:
+    # The FFT-only multiwindow path handles even-sized subsets explicitly.
+    if subset_size % 2 == 0 and method != "MULTIWINDOW":
         raise ValueError("subset_size must be an odd number.")
 
     # check if subset_step is larger than the subset_size
@@ -600,6 +643,17 @@ def _check_array_image_dtype(image: np.ndarray) -> np.ndarray:
 
 
 
+def _check_image_filter(kernel_size: int, sigma: float) -> None:
+    """Validate the optional Gaussian image prefilter configuration."""
+    if not isinstance(kernel_size, (int, np.integer)):
+        raise TypeError("image_filter_kernel must be an integer")
+    if kernel_size not in (0, 1) and (kernel_size < 3 or kernel_size % 2 == 0):
+        raise ValueError("image_filter_kernel must be 0, 1, or an odd integer >= 3")
+    if not np.isfinite(sigma) or sigma <= 0.0:
+        raise ValueError("image_filter_sigma must be finite and positive")
+
+
+
 def _print_config_summary(image_width: int,
                          image_height: int,
                          num_def_img: int,
@@ -620,7 +674,8 @@ def _print_config_summary(image_width: int,
                          num_threads: int | None,
                          print_level: int,
                          updated_seeds: list[int] | None = None,
-                         epi_distance: int | None = None) -> None:
+                         epi_search_distance: int | None = None,
+                         epi_distance_threshold: int | None = None) -> None:
     if print_level <= 0:
         return
 
@@ -640,8 +695,10 @@ def _print_config_summary(image_width: int,
     common_util.info_out("Optimization Precision:", precision)
     common_util.info_out("Correlation Cutoff Threshold:", threshold)
     common_util.info_out("Estimate for Max Displacement:", f"{max_displacement} [px]")
-    if epi_distance is not None:
-        common_util.info_out("Estimate for Epipolar Distance:", f"{epi_distance} [px]")
+    if epi_search_distance is not None:
+        common_util.info_out("Epipolar search distance:", f"{epi_search_distance} [px]")
+    if epi_distance_threshold is not None:
+        common_util.info_out("Epipolar distance threshold:", f"{epi_distance_threshold} [px]")
     common_util.info_out("Subset Size:", f"{subset_size} [px]")
     common_util.info_out("Subset Step:", f"{subset_step} [px]")
     if num_threads is None:
@@ -653,5 +710,4 @@ def _print_config_summary(image_width: int,
         for i in range(0, len(updated_seeds), 2):
             x, y = updated_seeds[i], updated_seeds[i + 1]
             common_util.info_out(f"Reliability Guided Seed {i//2}:", f"({x}, {y})")
-
 

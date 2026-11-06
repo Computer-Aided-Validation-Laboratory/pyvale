@@ -29,7 +29,8 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
               output_delimiter: str=",",
               num_threads: int | None = None,
               strain_formulation: Literal["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"] = "HENCKY",
-              print_level: int=1):
+              print_level: int=1,
+              partial_window: float=0.0):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
@@ -38,7 +39,7 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
 
     Parameters
     ----------
-    data : dic.Results, pathlib.Path, list[pathlib.Path] str
+    data : dic.Results, pathlib.Path, list[pathlib.Path] or str
         input data can either be a dic.Results object or pathlib.Path / str if importing data 
         straight from a file
     input_delimiter: str
@@ -66,6 +67,11 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
         changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional
         Delimiter used in text output files (default: ",").
+    partial_window : float, optional
+        Minimum occupied fraction of the full window, in [0, 1] (default: 0).
+        Missing and out-of-grid points count as unoccupied. Q4/Q9 still require 4/9
+        suitably arranged finite points. Strain is evaluated at the original centre.
+        3D requires a finite centre position. Failed fits remain invalid.
 
     Raises
     ------
@@ -73,6 +79,9 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
         If any of the input parameters are invalid (e.g., unsupported strain formulation,
         even window size, or invalid element type).
     """
+
+    if not 0.0 <= partial_window <= 1.0:
+        raise ValueError("partial_window must be between 0 and 1 inclusive.")
 
     allowed_formulations = ["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"]
     if strain_formulation not in allowed_formulations:
@@ -84,8 +93,8 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
         raise ValueError(f"Invalid strain window element type: Q{window_element}. "
                          f"Allowed values are: {', '.join(map(str, allowed_elements))}.")
 
-    if window_size % 2 == 0:
-        raise ValueError(f"Invalid strain window size: '{window_size}'. Must be an odd number.")
+    if window_size <= 0 or window_size % 2 == 0:
+        raise ValueError(f"Invalid strain window size: '{window_size}'. Must be a positive odd number.")
 
 
     if isinstance(data, (str, Path, list)):
@@ -137,6 +146,17 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
         y_mm = dicresults.stereo.y_mm
         z_mm = dicresults.stereo.z_mm
 
+    # The C++ backend uses raw-pointer indexing and therefore requires dense,
+    # C-contiguous arrays rather than arbitrary NumPy views.
+    ss_x = np.ascontiguousarray(dicresults.ss_x, dtype=np.int32)
+    ss_y = np.ascontiguousarray(dicresults.ss_y, dtype=np.int32)
+    x_mm = np.ascontiguousarray(x_mm, dtype=np.float64)
+    y_mm = np.ascontiguousarray(y_mm, dtype=np.float64)
+    z_mm = np.ascontiguousarray(z_mm, dtype=np.float64)
+    u_px = np.ascontiguousarray(dicresults.u_px, dtype=np.float64)
+    v_px = np.ascontiguousarray(dicresults.v_px, dtype=np.float64)
+    w_dummy = np.ascontiguousarray(w_dummy, dtype=np.float64)
+
     #set the number of OMP threads
     if num_threads is not None:
         commoncpp.set_num_threads(num_threads)
@@ -156,15 +176,14 @@ def calculate_2d(data: dicResults | str | Path | list[Path],
 
     # Call to C++ backend
     with strain_cpp.ostream_redirect(stdout=True, stderr=True):
-        strain_cpp.strain_engine_2d(dicresults.ss_x, dicresults.ss_y,
+        strain_cpp.strain_engine_2d(ss_x, ss_y,
                             x_mm, y_mm, z_mm,
-                            dicresults.u_px, dicresults.v_px, w_dummy,
+                            u_px, v_px, w_dummy,
                             nss_x, nss_y, nimg,
                             window_size, window_element, 
                             strain_formulation, filenames,
                             strain_save_conf,
-                            print_level)
-
+                            print_level, partial_window)
 
 
 

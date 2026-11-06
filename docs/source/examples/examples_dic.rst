@@ -9,11 +9,10 @@ DIC
    dic/ex01_region_of_interest
    dic/ex02_plate_with_hole
    dic/ex03_plate_with_hole_strain
-   dic/ex04_render_to_dic
-   dic/ex05_dic_challenge
-   dic/ex06_hrdic
-   dic/ex07_incremental
-   dic/ex08_calibration
-   dic/ex09_stereo
-   dic/ex10_stereo_platehole
-   dic/ex11_dic_chal
+   dic/ex04_dic_challenge
+   dic/ex05_hrdic
+   dic/ex06_incremental
+   dic/ex07_calibration
+   dic/ex08_stereo
+   dic/ex09_stereo_platehole
+   dic/ex10_dic_chal

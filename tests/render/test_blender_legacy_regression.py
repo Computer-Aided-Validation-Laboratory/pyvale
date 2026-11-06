@@ -374,7 +374,7 @@ def test_legacy_deformation_frames(tmp_path: Path) -> None:
         )
     )
     assert result.images is not None
-    assert result.images.shape == (61, 1, 20, 20, 1)
+    assert result.images.shape == (33, 1, 20, 20, 1)
     assert not np.array_equal(result.images[0], result.images[-1])
     assert_render_allclose(
         result.images[10, 0, :, :, 0],

@@ -16,6 +16,41 @@
 
 namespace smooth {
 
+    bool fit_displacements(const std::vector<double> &x, const std::vector<double> &y,
+                           const std::vector<double> &u, const std::vector<double> &v,
+                           const std::vector<double> &w, int q, Eigen::MatrixXd &coefficients) {
+        if (x.size() < static_cast<size_t>(q)) return false;
+        Eigen::MatrixXd design(x.size(), q);
+        Eigen::MatrixXd displacement(x.size(), 3);
+        for (size_t i = 0; i < x.size(); ++i) {
+            const double xx = x[i];
+            const double yy = y[i];
+            design(i, 0) = 1.0;
+            design(i, 1) = xx;
+            design(i, 2) = yy;
+            design(i, 3) = xx * yy;
+            if (q == 9) {
+                design(i, 4) = xx * xx;
+                design(i, 5) = yy * yy;
+                design(i, 6) = xx * xx * yy;
+                design(i, 7) = xx * yy * yy;
+                design(i, 8) = xx * xx * yy * yy;
+            }
+            displacement.row(i) << u[i], v[i], w[i];
+        }
+        if (!design.allFinite()) return false;
+        // Scale columns so coordinate units do not dominate the rank decision.
+        const Eigen::VectorXd scales = design.colwise().norm();
+        if ((scales.array() == 0.0).any() || !scales.allFinite()) return false;
+        design.array().rowwise() /= scales.transpose().array();
+        Eigen::ColPivHouseholderQR<Eigen::MatrixXd> fit(design);
+        if (fit.rank() != q) return false;
+        coefficients = fit.solve(displacement);
+        coefficients.array().colwise() /= scales.array();
+        return coefficients.allFinite();
+    }
+
+
     // bilinear lagrange polynomials
     Eigen::VectorXd q4(const std::vector<double> &x, const std::vector<double> &y, 
                        const std::vector<double>& disp_vals){

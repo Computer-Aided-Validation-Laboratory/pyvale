@@ -117,18 +117,18 @@ namespace subset {
                                      const double cx, const double cy,
                                      const std::vector<double>& p,
                                      const Interpolator &interp,
-                                     util::ShapeFunc shape_func){
+                                     util::EShapeFunc shape_func){
 
         // Get the right shape function
         void (*get_pixel)(double&, double&, const double, const double, const std::vector<double>&);
         switch (shape_func) {
-            case util::ShapeFunc::AFFINE:
+            case util::EShapeFunc::AFFINE:
                 get_pixel = &Affine::get_pixel;
                 break;
-            case util::ShapeFunc::RIGID:
+            case util::EShapeFunc::RIGID:
                 get_pixel = &Rigid::get_pixel;
                 break;
-            case util::ShapeFunc::QUAD:
+            case util::EShapeFunc::QUAD:
                 get_pixel = &Quad::get_pixel;
                 break;
         }
@@ -189,7 +189,7 @@ namespace subset {
     subset::Grid create_grid(const bool *img_roi, const int ss_step,
                              const int ss_size_x, const int ss_size_y,
                              const int px_hori, const int px_vert,
-                             const bool partial) {
+                             const double partial_subset) {
         
         //Timer timer("subset grid generation for subset size " + std::to_string(ss_size) + " [px] with step " + std::to_string(ss_step) + " [px]:" );
 
@@ -239,7 +239,7 @@ namespace subset {
                 for (int px_y = ymin; px_y <= ymax && valid; px_y++) {
                     for (int px_x = xmin; px_x <= xmax && valid; px_x++) {
 
-                        if (!partial) {
+                        if (partial_subset == 1.0) {
                             if (!px_in_img_dims(px_x, px_y, px_hori, px_vert) ||
                                 !px_in_roi(px_x, px_y, px_hori, px_vert, img_roi)) {
                                 valid = false;
@@ -256,8 +256,8 @@ namespace subset {
                     }
                 }
 
-                if (partial && valid) {
-                    valid = (valid_count >= (ss_size_x * ss_size_y) * 0.70);
+                if (partial_subset < 1.0 && valid) {
+                    valid = (valid_count >= (ss_size_x * ss_size_y) * partial_subset);
                 }
 
                 valid_grid[j * num_ss_x + i] = static_cast<unsigned char>(valid);

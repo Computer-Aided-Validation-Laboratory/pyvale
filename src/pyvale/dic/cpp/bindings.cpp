@@ -15,6 +15,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <type_traits>
+#include <algorithm>
 
 // commoncpp Header Files
 #include "../../commoncpp/util.hpp"
@@ -91,44 +92,47 @@ PYBIND11_MODULE(diccpp, m) {
 
     py::add_ostream_redirect(m, "ostream_redirect");
 
-    py::enum_<util::CorrCrit>(m, "CorrCrit")
-        .value("SSD", util::CorrCrit::SSD)
-        .value("NSSD", util::CorrCrit::NSSD)
-        .value("ZNSSD", util::CorrCrit::ZNSSD);
+    py::enum_<util::ECorrCrit>(m, "CorrCrit")
+        .value("SSD", util::ECorrCrit::SSD)
+        .value("NSSD", util::ECorrCrit::NSSD)
+        .value("ZNSSD", util::ECorrCrit::ZNSSD);
 
-    py::enum_<util::ShapeFunc>(m, "ShapeFunc")
-        .value("RIGID", util::ShapeFunc::RIGID)
-        .value("AFFINE", util::ShapeFunc::AFFINE)
-        .value("QUAD", util::ShapeFunc::QUAD);
+    py::enum_<util::EShapeFunc>(m, "ShapeFunc")
+        .value("RIGID", util::EShapeFunc::RIGID)
+        .value("AFFINE", util::EShapeFunc::AFFINE)
+        .value("QUAD", util::EShapeFunc::QUAD);
 
-    py::enum_<util::InterpRoutine>(m, "InterpRoutine")
-        .value("BSPLINE", util::InterpRoutine::BSPLINE)
-        .value("HERMITE", util::InterpRoutine::HERMITE);
+    py::enum_<util::EInterpRoutine>(m, "InterpRoutine")
+        .value("BSPLINE", util::EInterpRoutine::BSPLINE)
+        .value("HERMITE", util::EInterpRoutine::HERMITE);
 
-    py::enum_<util::ScanMethod>(m, "ScanMethod")
-        .value("MULTIWINDOW_RG", util::ScanMethod::MULTIWINDOW_RG)
-        .value("SINGLEWINDOW_RG", util::ScanMethod::SINGLEWINDOW_RG)
-        .value("MULTIWINDOW", util::ScanMethod::MULTIWINDOW)
-        .value("RASTER", util::ScanMethod::RASTER);
+    py::enum_<util::EScanMethod>(m, "ScanMethod")
+        .value("MULTIWINDOW_RG", util::EScanMethod::MULTIWINDOW_RG)
+        .value("SINGLEWINDOW_RG", util::EScanMethod::SINGLEWINDOW_RG)
+        .value("MULTIWINDOW", util::EScanMethod::MULTIWINDOW)
+        .value("RASTER", util::EScanMethod::RASTER);
 
-    py::enum_<util::IncrementalCond>(m, "IncrementalCond")
-        .value("IMAGE", util::IncrementalCond::IMAGE)
-        .value("ITER", util::IncrementalCond::ITER)
-        .value("COST", util::IncrementalCond::COST);
+    py::enum_<util::EIncrementalCond>(m, "IncrementalCond")
+        .value("IMAGE", util::EIncrementalCond::IMAGE)
+        .value("ITER", util::EIncrementalCond::ITER)
+        .value("COST", util::EIncrementalCond::COST);
 
-    py::enum_<util::FFTPrecision>(m, "FFTPrecision")
-        .value("FLOAT32", util::FFTPrecision::FLOAT32)
-        .value("FLOAT64", util::FFTPrecision::FLOAT64);
+    py::enum_<util::EFFTPrecision>(m, "FFTPrecision")
+        .value("FLOAT32", util::EFFTPrecision::FLOAT32)
+        .value("FLOAT64", util::EFFTPrecision::FLOAT64);
 
     py::class_<util::Config>(m, "Config")
         .def(py::init<>())
         .def_readwrite("ss_step", &util::Config::ss_step)
         .def_readwrite("ss_size", &util::Config::ss_size)
+        .def_readwrite("partial_subset", &util::Config::partial_subset)
+        .def_readwrite("partial_subset_multiwindow", &util::Config::partial_subset_multiwindow)
         .def_readwrite("max_iter", &util::Config::max_iter)
         .def_readwrite("precision", &util::Config::precision)
         .def_readwrite("threshold", &util::Config::threshold)
         .def_readwrite("max_disp", &util::Config::max_disp)
-        .def_readwrite("epi_distance", &util::Config::epi_distance)
+        .def_readwrite("epi_search_distance", &util::Config::epi_search_distance)
+        .def_readwrite("epi_distance_threshold", &util::Config::epi_distance_threshold)
         .def_readwrite("corr_crit", &util::Config::corr_crit)
         .def_readwrite("shape_func", &util::Config::shape_func)
         .def_readwrite("interp_routine", &util::Config::interp_routine)
@@ -150,6 +154,8 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("stereo", &util::Config::stereo)
         .def_readwrite("incremental", &util::Config::incremental)
         .def_readwrite("incremental_update_cond", &util::Config::incremental_update_cond)
+        .def_readwrite("image_filter_kernel", &util::Config::image_filter_kernel)
+        .def_readwrite("image_filter_sigma", &util::Config::image_filter_sigma)
         .def_readwrite("incremental_update_val",  &util::Config::incremental_update_val);
 
     py::class_<MultiwindowConfig>(m, "MultiwindowConfig")
@@ -168,6 +174,22 @@ PYBIND11_MODULE(diccpp, m) {
                               const common_util::SaveConfig& saveconf) {
         engine_images(images_from_sequence(image_arrays, conf), img_roi_arr, calib, conf, multiwindowconf, saveconf);
     }, "Run DIC analysis on in-memory image arrays with config");
+
+    m.def("_should_update_ref", [](int image_number,
+                                    const std::vector<int>& iterations,
+                                    const std::vector<double>& costs,
+                                    util::EIncrementalCond condition,
+                                    double threshold) {
+        const int num_results = static_cast<int>(std::max(iterations.size(), costs.size()));
+        ResultArrays results(num_results, 0, false);
+        results.niter = iterations;
+        results.cost = costs;
+
+        util::Config config{};
+        config.incremental_update_cond = condition;
+        config.incremental_update_val = threshold;
+        return should_update_ref(image_number, results, config);
+    }, "Evaluate an incremental-reference update condition");
 
     // interpolator bindings
     py::class_<InterpVals>(m, "InterpVals")

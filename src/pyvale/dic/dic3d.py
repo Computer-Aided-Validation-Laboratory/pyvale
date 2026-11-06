@@ -19,6 +19,56 @@ from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncreme
 import pyvale.commoncpp.commoncpp as commoncpp
 
 
+def _reference_pair_index(
+    basenames0: list[str],
+    fullpaths0: list[str],
+    image_arrays0: list[np.ndarray] | None,
+    basenames1: list[str],
+    fullpaths1: list[str],
+    image_arrays1: list[np.ndarray] | None,
+) -> int | None:
+    """Find the first deformed pair which is identical to the reference pair."""
+    def _same_entry(
+        ref_path: str,
+        candidate_path: str,
+        ref_array: np.ndarray | None,
+        candidate_array: np.ndarray | None,
+    ) -> bool:
+        if ref_array is not None and candidate_array is not None:
+            return np.array_equal(ref_array, candidate_array)
+        if ref_path and candidate_path:
+            return Path(ref_path).resolve() == Path(candidate_path).resolve()
+        return False
+
+    match0 = None
+    match1 = None
+    for i in range(1, len(basenames0)):
+        ref_array0 = image_arrays0[0] if image_arrays0 is not None else None
+        candidate_array0 = image_arrays0[i] if image_arrays0 is not None else None
+        if _same_entry(fullpaths0[0], fullpaths0[i], ref_array0, candidate_array0):
+            match0 = i
+            break
+
+    for i in range(1, len(basenames1)):
+        ref_array1 = image_arrays1[0] if image_arrays1 is not None else None
+        candidate_array1 = image_arrays1[i] if image_arrays1 is not None else None
+        if _same_entry(fullpaths1[0], fullpaths1[i], ref_array1, candidate_array1):
+            match1 = i
+            break
+
+    if (match0 is None) != (match1 is None):
+        raise ValueError(
+            "The reference image must either be present in both stereo "
+            "deformed sequences or in neither sequence."
+        )
+    if match0 is not None and match0 != match1:
+        raise ValueError(
+            "The reference image pair occurs at different positions in the "
+            "two stereo deformed sequences."
+        )
+    return match0
+
+
 def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  deformed:  list[np.ndarray] | list[str] | list[Path],
                  roi_mask: np.ndarray,
@@ -34,7 +84,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  threshold: float=0.9,
                  num_threads: int | None = None,
                  max_displacement: int=128,
-                 epi_distance: int=300,
+                 epi_search_distance: int=100,
+                 epi_distance_threshold: int=2,
                  method: Literal["MULTIWINDOW_RG", "SINGLEWINDOW_RG", "MULTIWINDOW", "RASTER"] | EScanMethod = EScanMethod.MULTIWINDOW_RG,
                  incremental_update: Literal["OFF", "IMAGE", "COST", "ITER"] | EIncrementalMethod = EIncrementalMethod.OFF,
                  incremental_update_value: float | int=1,
@@ -53,6 +104,10 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  output_delimiter: str=",",
                  output_below_threshold: bool=False,
                  output_shape_params: bool=False,
+                 partial_subset: float=1.0,
+                 partial_subset_multiwindow: float=0.7,
+                 image_filter_kernel: int=5,
+                 image_filter_sigma: float=1.0,
                  print_level: int=2) -> None:
 
     """
@@ -75,7 +130,9 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         the existing flat format ``[x0, y0, x1, y1, ...]`` or tuple format
         ``[(x0, y0), (x1, y1), ...]``. If the method is not RG, this will be ignored.
     subset_size : int, optional
-        Size of the square subset window in pixels (default: 21).
+        Size of the square subset window in pixels (default: 21). Must be odd
+        except for the FFT-only ``"MULTIWINDOW"`` method, which also supports
+        even sizes.
     subset_step : int, optional
         Step size between subset centers in pixels (default: 10).
     correlation_criteria : str, optional
@@ -96,9 +153,12 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     max_displacement : int, optional
         Estimate for the Maximum displacement for images from the same camera in any 
         direction (in pixels) (default: 128).
-    epi_distance : int, optional
-        Estimate for the maximum distance along the epipolar line (in pixels) between a identical point in 
-        the left and right image (default: 300).
+    epi_search_distance : int, optional
+        Estimate for the maximum distance along the epipolar line (in pixels) between an identical point in
+        the left and right image (default: 100).
+    epi_distance_threshold : int, optional
+        Perpendicular tolerance around the epipolar line in pixels for the stereo FFT search. The FFT
+        search height is ``2 * epi_distance_threshold + subset_size`` (default: 2).
     method : str, optional
         The core algorithmic method used to perform the DIC.
 
@@ -169,6 +229,18 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         will still be present in output (default: ``False``).
     output_shape_params : bool, optional
         If True, all shape parameters will be saved in the output files (default: ``False``).
+    partial_subset : float, optional
+        Minimum fraction of subset pixels inside the ROI for the final window,
+        between 0 and 1 inclusive (default: 1.0). Subsets must still fit entirely
+        inside the image. Smaller values allow partial ROI coverage.
+    partial_subset_multiwindow : float, optional
+        Minimum ROI filling fraction for intermediate multiwindow levels,
+        between 0 and 1 inclusive (default: 0.7).
+    image_filter_kernel : int, optional
+        Image Gaussian prefilter kernel size. Use 1 to disable filtering,
+        or an odd value >= 3 to enable it (default: 5).
+    image_filter_sigma : float, optional
+        Standard deviation of the Gaussian image prefilter (default: 1.0).
     print_level:
 
     Returns
@@ -186,6 +258,10 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
 
 
+    dicchecks._check_partial_subsets(partial_subset, partial_subset_multiwindow)
+
+    dicchecks._check_image_filter(image_filter_kernel, image_filter_sigma)
+
     if (print_level>0):
         common_util.print_pyvale_banner()
         common_util.print_title("Initial Checks")
@@ -201,6 +277,25 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     assert(h0 == h1)
     assert(len(basenames0) == len(basenames1))
     assert(len(fullpaths0) == len(fullpaths1))
+
+    # The reference stereo pair is reconstructed once by the C++ engine and
+    # written as the zero-displacement output frame. If it is also supplied as
+    # the first member of the deformed sequence, remove that pair after the
+    # normal image checks so it is not correlated a second time.
+    reference_pair_idx = _reference_pair_index(
+        basenames0, fullpaths0, image_arrays0,
+        basenames1, fullpaths1, image_arrays1,
+    )
+    if reference_pair_idx is not None:
+        del basenames0[reference_pair_idx]
+        del fullpaths0[reference_pair_idx]
+        del basenames1[reference_pair_idx]
+        del fullpaths1[reference_pair_idx]
+        if image_arrays0 is not None:
+            del image_arrays0[reference_pair_idx]
+        if image_arrays1 is not None:
+            del image_arrays1[reference_pair_idx]
+
     basenames = basenames0 + basenames1
     fullpaths = fullpaths0 + fullpaths1
     image_arrays = None
@@ -216,6 +311,12 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     interpolation_routine_enum = EInterp(interpolation_routine)
     incremental_update_enum = EIncrementalMethod(incremental_update)
 
+    if incremental_update_enum != EIncrementalMethod.OFF:
+        dicchecks._check_incremental_update_value(
+            incremental_update_enum.value,
+            incremental_update_value,
+        )
+
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks._multiwindow_init(subset_size,
                                                                  subset_step,
@@ -230,7 +331,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     # checks on the config
     dicchecks._check_thresholds(threshold, precision)
     common_util.check_output_directory(str(output_basepath), output_prefix, print_level)
-    dicchecks._check_subsets(subset_size, subset_step)
+    dicchecks._check_subsets(subset_size, subset_step, method_enum.value)
     updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method_enum.value, w0, h0, subset_size, subset_step)
     num_params = dicchecks._check_shape_function(shape_function_enum)
 
@@ -238,6 +339,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config = diccpp.Config()
     config.ss_step = subset_step
     config.ss_size = subset_size
+    config.partial_subset = partial_subset
+    config.partial_subset_multiwindow = partial_subset_multiwindow
     config.max_iter = max_iterations
     config.precision = precision
     config.threshold = threshold
@@ -266,7 +369,10 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.fft_filter_corr_power = fft_filter_corr_power
     config.fft_save = fft_save
     config.debug_level = print_level
-    config.epi_distance = epi_distance
+    config.image_filter_kernel = image_filter_kernel
+    config.image_filter_sigma = image_filter_sigma
+    config.epi_search_distance = epi_search_distance
+    config.epi_distance_threshold = epi_distance_threshold
     config.max_disp = max_displacement
 
     # sort precision to use for FFT windowing
@@ -329,7 +435,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         shape_function, interpolation_routine, fft_filter,
         fft_filter_threshold, fft_filter_radius, fft_filter_corr_power, method_enum.value,
         precision, threshold, max_displacement, subset_size, subset_step,
-        num_threads, print_level, updated_seeds, epi_distance
+        num_threads, print_level, updated_seeds, epi_search_distance,
+        config.epi_distance_threshold
     )
 
     # calling the c++ dic engine

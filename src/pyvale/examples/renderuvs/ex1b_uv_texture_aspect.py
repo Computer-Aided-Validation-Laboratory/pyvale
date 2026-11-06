@@ -19,7 +19,6 @@ import numpy as np
 import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 from pyvale.examples.renderuvs.tools import render_uv_example
@@ -28,7 +27,7 @@ from pyvale.examples.renderuvs.tools import render_uv_example
 # 1. Load the packaged three dimensional calibration plate
 # ------------------------------------------------------------
 
-data_dir = dataset.riley_stereocal_case_path()
+data_dir = riley.data.stereocal_case_path()
 simulation = io.MeshLoader(
     load_dir=data_dir,
     coords_file="coords.csv",
@@ -44,7 +43,7 @@ base_mesh = render.meshes3d_from_simdata(
     )},
 )["connect"]
 
-texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.cal_target_texture_path())
 
 # %%
 # 2. Define the three aspect preserving fit modes

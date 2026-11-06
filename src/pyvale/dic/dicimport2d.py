@@ -125,7 +125,9 @@ def import_2d(data: str | Path | list[Path],
         X, Y = np.meshgrid(x_unique, y_unique)
         shape = (len(files), len(y_unique), len(x_unique))
 
-        arrays = [to_grid(a,shape,ss_x_ref, ss_y_ref, x_unique,y_unique) for a in arrays]
+        x_indices = np.searchsorted(x_unique, ss_x_ref)
+        y_indices = np.searchsorted(y_unique, ss_y_ref)
+        arrays = [to_grid(a, shape, x_indices, y_indices) for a in arrays]
 
         return Results(ss_x=X,
                        ss_y=Y,
@@ -253,12 +255,14 @@ def _read_text(file: str, delimiter: str, print_level: int=1) -> _Dic2DData:
 
 
 
-def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
+def to_grid(data, shape, x_indices, y_indices):
     """
     Reshape a 2D DIC field from flat (column) format into grid (matrix) format.
 
     This is used when output layout is specified as "matrix".
-    Maps values using reference subset coordinates (ss_x_ref, ss_y_ref).
+    Maps values using precomputed grid indices. Using NumPy advanced indexing
+    avoids a Python loop over every point and lets callers reuse the same
+    coordinate mapping for every field.
 
     Parameters
     ----------
@@ -268,17 +272,11 @@ def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
     shape : tuple
         Target shape of output array: (n_frames, height, width).
 
-    ss_x_ref : np.ndarray
-        X coordinates of subset centers.
+    x_indices : np.ndarray
+        Column index for each point in ``data``.
 
-    ss_y_ref : np.ndarray
-        Y coordinates of subset centers.
-
-    x_unique : np.ndarray
-        Sorted unique X coordinates in the grid.
-
-    y_unique : np.ndarray
-        Sorted unique Y coordinates in the grid.
+    y_indices : np.ndarray
+        Row index for each point in ``data``.
 
     Returns
     -------
@@ -287,10 +285,7 @@ def to_grid(data, shape, ss_x_ref, ss_y_ref, x_unique, y_unique):
     """
 
     grid = np.full(shape, np.nan)
-    for i, (x, y) in enumerate(zip(ss_x_ref, ss_y_ref)):
-        x_idx = np.where(x_unique == x)[0][0]
-        y_idx = np.where(y_unique == y)[0][0]
-        grid[:, y_idx, x_idx] = data[:, i]
+    grid[:, y_indices, x_indices] = data
     return grid
 
 def check_delimiter(fname: str, delimiter: str | None) -> None:

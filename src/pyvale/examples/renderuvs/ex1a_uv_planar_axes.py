@@ -37,7 +37,6 @@ import numpy as np
 import riley
 from scipy.spatial.transform import Rotation
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 from pyvale.examples.renderuvs.tools import render_uv_example
@@ -48,7 +47,7 @@ from pyvale.examples.renderuvs.tools import render_uv_example
 # The calibration plate is a TRI3 surface mesh with front, back, and side
 # faces.
 
-data_dir = dataset.riley_stereocal_case_path()
+data_dir = riley.data.stereocal_case_path()
 simulation = io.MeshLoader(
     load_dir=data_dir,
     coords_file="coords.csv",
@@ -63,7 +62,7 @@ base_mesh = render.meshes3d_from_simdata(
         riley.ENodeOrder.RILEY,
     )},
 )["connect"]
-cal_texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
+cal_texture = riley.load_texture_mono_u8(riley.data.cal_target_texture_path())
 
 mesh_center = render.mesh_center(base_mesh)
 
@@ -188,7 +187,7 @@ for variant_name, projection_plane, mesh_rotation, camera_rotation in variants:
 # pixels. We also request five image pixels per feature in the rendered image.
 # The camera scale at the ROI connects these two pixel spaces through physical
 # simulation length.
-speckle_texture = riley.load_texture_mono_u8(dataset.riley_speckle_texture_path())
+speckle_texture = riley.load_texture_mono_u8(riley.data.speckle_texture_path())
 
 speckle_mesh = base_mesh
 

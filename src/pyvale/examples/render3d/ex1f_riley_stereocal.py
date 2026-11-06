@@ -18,7 +18,6 @@ from pathlib import Path
 import numpy as np
 import riley
 
-import pyvale.data as dataset
 import pyvale.dataio as io
 from pyvale import render
 
@@ -35,7 +34,7 @@ MATCHED_CAM1_POS = (0.067348011198, 0.0175, 0.151193672270)
 # %%
 # 1. Load the moving calibration target and its texture
 # ------------------------------------------------------------
-data_dir = dataset.riley_stereocal_case_path()
+data_dir = riley.data.stereocal_case_path()
 
 simulation = io.SimLoaderByField(
     load_dir=data_dir,
@@ -54,7 +53,7 @@ simulation = io.SimLoaderByField(
 ).load_all_sim_data()
 
 uvs = io.load_array(data_dir / "uvs.csv", header=None, delimiter=",")
-texture = riley.load_texture_mono_u8(dataset.riley_cal_target_texture_path())
+texture = riley.load_texture_mono_u8(riley.data.cal_target_texture_path())
 
 shader = riley.TextureShader(uvs=uvs, texture=texture)
 mesh = render.meshes3d_from_simdata(
@@ -99,13 +98,13 @@ camera_0 = riley.Camera(
     rot_world=rot_world_0,
     roi_cent_world=roi_cent,
     focal_length=focal_length,
-    sub_sample=2,
-    distortion_model=distortion_model,
-    distortion_k1=-0.2,
-    distortion_k2=0.1,
-    distortion_k3=0.0,
-    distortion_p1=0.0001,
-    distortion_p2=-0.0001,
+    sub_sample=4,
+    distort_model=distortion_model,
+    distort_k1=-0.2,
+    distort_k2=0.1,
+    distort_k3=0.0,
+    distort_p1=0.0001,
+    distort_p2=-0.0001,
 )
 
 camera_1 = copy.deepcopy(camera_0)
@@ -127,10 +126,10 @@ camera_0, camera_1 = riley.load_stereo_pair(str(output_dir), stereo_file_name)
 # 5. Configure and build the renderer
 # ------------------------------------------------------------
 
-config = riley.create_raster_config(
-    num_frames=mesh.displacements.shape[0],
-    total_threads=4,
+config = riley.RasterConfig(
+    parallel=4,
     save_strategy=riley.SaveStrategy.disk,
+    save_scaling=riley.ScaleStrategy.auto,
 )
 config.background_value = 128.0
 

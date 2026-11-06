@@ -59,11 +59,11 @@ namespace strain {
         std::vector<int> x;
         std::vector<int> y;
         std::vector<double> x_mm;
-        std::vector<double> y_mm;        
+        std::vector<double> y_mm;
         std::vector<double> z_mm;
         std::vector<double> F;
         std::vector<double> strain;
-        std::vector<bool> valid_window;
+        std::vector<unsigned char> valid_window;
 
         Results(int nwindows) 
             : x(nwindows, 0),
@@ -92,7 +92,7 @@ namespace strain {
                    const int q, const std::string &form,
                    const std::vector<std::string> &filenames,
                    const common_util::SaveConfig &strain_save_conf,
-                   const int debug_level);
+                   const int debug_level, const double partial_window = 1.0);
 
     void engine_3d(const py::array_t<int> &ss_x_arr,
                    const py::array_t<int> &ss_y_arr,
@@ -107,7 +107,7 @@ namespace strain {
                    const int q, const std::string &form,
                    const std::vector<std::string> &filenames,
                    const common_util::SaveConfig &strain_save_conf,
-                   const int debug_level);
+                   const int debug_level, const double partial_window = 1.0);
 
     void engine(const py::array_t<int> &ss_x_arr,
                 const py::array_t<int> &ss_y_arr,
@@ -122,7 +122,7 @@ namespace strain {
                 const int q, const std::string &form,
                 const std::vector<std::string> &filenames,
                 const common_util::SaveConfig &strain_save_conf,
-                const int debug_level);
+                const int debug_level, const double partial_window = 1.0);
 
     /**
      * @brief Fills the strain window with the subset coordinates 
@@ -144,12 +144,12 @@ namespace strain {
      */
     bool fill_window_2d(int *ss_x, int *ss_y, double *u, double *v, double *w,
                         int img, int sw, Window &window,
-                        int nss_x, int nss_y, int sw_size);
+                        int nss_x, int nss_y, int sw_size, double partial_window);
 
     bool fill_window_3d(int *ss_x, int *ss_y, double *x_mm, double *y_mm, double *z_mm,
                         double *u, double *v, double *w,
                         int img, int sw, Window &window,
-                        int nss_x, int nss_y, int sw_size);
+                        int nss_x, int nss_y, int sw_size, double partial_window);
 
 
 
@@ -161,10 +161,10 @@ namespace strain {
                                         const double y0);
 
     Eigen::Matrix3d compute_surface_F_3d(const int q,
-                                                const Eigen::VectorXd &uc,
-                                                const Eigen::VectorXd &vc,
-                                                const Eigen::VectorXd &wc,
-                                                const Eigen::Matrix3d &tangent_basis);
+                                          const Eigen::VectorXd &uc,
+                                          const Eigen::VectorXd &vc,
+                                          const Eigen::VectorXd &wc,
+                                          const Eigen::Matrix3d &tangent_basis);
 
 
     Eigen::Matrix3d compute_strain(const std::string& form, 
