@@ -267,8 +267,8 @@ src/pyvale/raytracer/verif_bench/verif
 src/pyvale/raytracer/verif_bench/bench
 
 
-# Keep these as they are used for the raytracer verification cases
-# !src/pyvale/raytracer/verif_bench/data/rabbits/*/*.csv
-# !src/pyvale/raytracer/verif_bench/data/texture/*.tiff
-src/pyvale/raytracer/verif_bench/data/rabbits
-src/pyvale/raytracer/verif_bench/data/texture
+#Keep these as they are used for the raytracer verification cases
+!src/pyvale/raytracer/verif_bench/data/rabbits/*/*.csv
+!src/pyvale/raytracer/verif_bench/data/texture/*.tiff
+# src/pyvale/raytracer/verif_bench/data/rabbits
+# src/pyvale/raytracer/verif_bench/data/texture
