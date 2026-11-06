@@ -34,6 +34,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path as _Path
+from matplotlib.ticker import ScalarFormatter
 
 from paper_const import repo_root
 
@@ -233,6 +234,8 @@ def build_figure(totals) -> str:
     ax_runs.set_xticklabels(labels)
     ax_runs.set_ylabel("Newton solver runs")
     ax_runs.set_title("(a) Solver runs (coverage bundle)")
+    ax_runs.yaxis.set_major_formatter(ScalarFormatter(useMathText=True))
+    ax_runs.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     ax_runs.legend(fontsize=8.0)
 
     width = 0.26

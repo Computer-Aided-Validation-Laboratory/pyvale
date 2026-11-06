@@ -403,6 +403,11 @@ static ModeRow measure_bundle(const std::vector<Ray>& rays,
 // This is to answer the question:
 // Does the hull fan test ever reject a ray that the centre seed resolves? If
 // so the hull would be producing false negatives.
+// Variables:
+// hull_hits	|H|	rays the AdaptiveHull mode resolves to a valid root
+// center_hits	|C|	rays the CentreSeed mode resolves (no hull, so Newton runs on every ray)
+// hull_miss_center_hit	|C \ H|	hull false negatives — the hull rejected a ray that the centre seed resolves
+// hull_hit_center_miss	|H \ C|	hull rescues — the hull resolves a ray the centre seed does not
 template<ElementNodeCount E>
 static void measure_conservativeness(const std::vector<Ray>& rays,
                                      const NodeArray<E>& nodes,
