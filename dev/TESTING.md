@@ -48,6 +48,7 @@ python -m pytest tests/examples --example-module=render2d
 python -m pytest tests/examples --example-module=dic
 python -m pytest tests/examples --example-module=basicsensorsim
 python -m pytest tests/examples --example-module=extsensorsim
+python -m pytest tests/examples --example-module=valid
 ```
 
 Run render implementation tests and its examples together with:
@@ -121,5 +122,6 @@ The example suite skips Blender-backed examples when Blender is unavailable.
 It intentionally does not include DIC examples requiring interaction or
 unbundled local files: `ex01_region_of_interest.py`, `ex06_hrdic.py`,
 `ex08_calibration.py`, `ex09_stereo.py`, `ex10_stereo_platehole.py`, and
-`ex11_dic_chal.py`. The `valid` example module is also excluded while it is
-under active development.
+`ex11_dic_chal.py`. Validation examples run headlessly; their plotting examples
+save PNGs under `pyvale-output`. Set `SHOW_FIGURES = True` in those scripts to
+also display interactive figures.
