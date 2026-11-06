@@ -7,9 +7,10 @@
 """Ordered MOOSE entry decks
 =========================
 
-MOOSE merges multiple entry decks in their supplied order. Later decks override
-earlier ones, then CLI parameters take precedence. This is distinct from an
-entry deck resolving its own !include dependencies.
+Run case00_HEX8 with its shared solver_smp.i supplied as a second entry deck.
+MOOSE merges decks in order, so the final solver entry replaces the cube's
+stricter nonlinear tolerances with standard defaults. CLI overrides take final
+precedence. This uses existing packaged decks, rather than generating a model.
 """
 
 from pathlib import Path
@@ -18,21 +19,23 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 
 # %%
-# Every example is independent and writes below the standard output directory.
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
-data_path: Path = dataset.mooseherder_data_dir()
+
+# Case00_HEX8: 3D thermo-mechanical cube; m, Pa, seconds and degrees Celsius.
+# This accessor points to pyvale/data/simulation/simcases/case00_HEX8.i.
+input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
+print(f"Packaged MOOSE input: {input_path}")
 
 # %%
-inputs: tuple[Path, ...] = (
-    data_path / "model.i",
-    data_path / "case_overlay.i",
-)
+inputs: tuple[Path, ...] = (input_path, input_path.with_name("solver_smp.i"))
+for entry in inputs:
+    print(f"Entry deck: {entry}")
 result: mh.RunResult = mh.MooseRunner().run(
     inputs,
-    input_root=data_path,
-    parameters={"topDisp": 2e-4},
+    input_root=input_path.parent,
+    parameters={"EMod": 110e9, "Executioner/nl_max_its": 25},
     output_dir=mh.next_run_path(output_path / "ex04_solve"),
 )
 print(result.command)

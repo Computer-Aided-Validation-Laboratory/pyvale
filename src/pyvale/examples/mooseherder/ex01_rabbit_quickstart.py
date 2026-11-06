@@ -7,34 +7,40 @@
 """Rabbit FEM quickstart
 =====================
 
-Run a small plane-strain tensile specimen with the installed serial/SMP Rabbit
-package. The model uses SI units: metres, seconds and pascals. No MOOSE source
-checkout or executable configuration is needed.
+Run PyVale's existing case00_HEX8 thermo-mechanical cube with installed Rabbit.
+The cube uses metres, pascals, seconds and degrees Celsius, and generates its
+mesh internally. The example prints the packaged .i path so you can inspect
+its loads, materials, fields and included solver settings.
 """
 
 from pathlib import Path
 
 import pyvale.data as dataset
-import pyvale.dataio as io
 import pyvale.mooseherder as mh
 
 # %%
-# Every example is independent and writes below the standard output directory.
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
-data_path: Path = dataset.mooseherder_data_dir()
+
+# Case00_HEX8: 3D thermo-mechanical cube; m, Pa, seconds and degrees Celsius.
+# This accessor points to pyvale/data/simulation/simcases/case00_HEX8.i.
+input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
+print(f"Packaged MOOSE input: {input_path}")
 
 # %%
-# Run the default input deck and inspect its nodal displacements.
-runner: mh.MooseRunner = mh.MooseRunner()
-result: mh.RunResult = runner.run(
-    data_path / "model.i",
+# Read all fields into a typed SimData container after the solve completes.
+import pyvale.dataio as io
+
+result: mh.RunResult = mh.MooseRunner().run(
+    input_path,
     output_dir=mh.next_run_path(output_path / "ex01_solve"),
 )
 reader: mh.ExodusLoader = mh.ExodusLoader(result.output)
-sim_data: io.SimData = reader.load_all_sim_data()
-reader.close()
+try:
+    sim_data: io.SimData = reader.load_all_sim_data()
+finally:
+    reader.close()
 print(f"Output: {result.output}")
 print(f"Times: {sim_data.time}")
 print(f"Nodal fields: {tuple(sim_data.node_vars)}")

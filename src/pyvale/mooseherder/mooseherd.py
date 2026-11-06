@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
+from .directorymanager import DirectoryManager, EDirectoryMode
 from .simrunner import InputFiles, MooseValue, RunResult, SimRunner
 
 
@@ -33,13 +34,15 @@ class MooseHerd:
     threads orchestrating isolated subprocesses; no Gmsh state is shared and
     notebook users do not need a multiprocessing main guard. Results and a
     sweep.json manifest are written under sweep-NNNN/run-NNNN/<step>.
+    A REUSE DirectoryManager instead replaces stable evaluation-ID directories.
     """
 
     def __init__(
         self,
         steps: list[SimulationStep],
         *,
-        output_dir: Path,
+        output_dir: Path | None = None,
+        directory_manager: DirectoryManager | None = None,
         num_parallel: int = 1,
     ) -> None:
         if not steps:
@@ -56,8 +59,28 @@ class MooseHerd:
             if step.mesh_from is not None and step.mesh_from not in names:
                 raise ValueError("mesh_from must name an earlier step.")
             names.add(step.name)
+        if directory_manager is not None and output_dir is not None:
+            raise ValueError("Specify output_dir or directory_manager, not both.")
+        if directory_manager is None:
+            if output_dir is None:
+                raise ValueError("Specify output_dir or directory_manager.")
+            directory_manager = DirectoryManager(output_dir)
+        for step in steps:
+            paths = (
+                (step.inputs,) if isinstance(step.inputs, Path) else tuple(step.inputs)
+            )
+            if not paths:
+                raise ValueError("Each step requires at least one input file.")
+            root = (step.input_root or paths[0].parent).resolve()
+            if directory_manager.output_dir.is_relative_to(root) or (
+                directory_manager.mode is EDirectoryMode.REUSE
+                and root.is_relative_to(directory_manager.output_dir)
+            ):
+                raise ValueError(
+                    "Input trees must be outside managed output directories."
+                )
+        self.directory_manager = directory_manager
         self.steps = tuple(steps)
-        self.output_dir = output_dir.resolve()
         self.num_parallel = num_parallel
 
     def _run_case(
@@ -78,17 +101,31 @@ class MooseHerd:
                 parameters=parameters,
                 input_root=step.input_root,
             )
-        return list(outputs.values())
+        results = list(outputs.values())
+        if self.directory_manager.mode is EDirectoryMode.REUSE:
+            manifest = {
+                "steps": [s.name for s in self.steps],
+                "cases": [case],
+                "evaluation_ids": [directory.name],
+                "outputs": [[str(r.output.relative_to(directory)) for r in results]],
+            }
+            temporary = directory / ".evaluation.json.tmp"
+            temporary.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+            temporary.replace(directory / "evaluation.json")
+        return results
 
     def run(
         self,
         cases: list[dict[str, dict[str, MooseValue]]],
+        *,
+        evaluation_ids: list[str] | None = None,
     ) -> list[list[RunResult]]:
         """Execute cases in input order and write a portable result manifest.
 
-        An incomplete sweep has no sweep.json; subprocess errors propagate and
-        prevent later steps in the failing chain from executing. Existing
-        sweeps are preserved, including incomplete runs, on subsequent calls.
+        ARCHIVE preserves each batch, including incomplete runs. REUSE requires
+        stable evaluation_ids and replaces their previous outputs. Errors stop
+        the failing chain; no completion manifest is written for that chain.
+        Read reusable results before submitting the same IDs again.
         """
         if not cases:
             raise ValueError("At least one sweep case is required.")
@@ -101,29 +138,25 @@ class MooseHerd:
                     step.name, {}
                 ):
                     raise ValueError(f"The chain manages {step.mesh_parameter}.")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        number = 1
-        while True:
-            sweep_dir = self.output_dir / f"sweep-{number:04d}"
-            try:
-                sweep_dir.mkdir()
-                break
-            except FileExistsError:
-                number += 1
-        jobs = [(sweep_dir / f"run-{i:04d}", case) for i, case in enumerate(cases, 1)]
-        if self.num_parallel == 1:
-            results = [self._run_case(job) for job in jobs]
-        else:
-            with ThreadPoolExecutor(max_workers=self.num_parallel) as executor:
-                results = list(executor.map(self._run_case, jobs))
-        manifest = {
-            "steps": [s.name for s in self.steps],
-            "cases": cases,
-            "outputs": [
-                [str(r.output.relative_to(sweep_dir)) for r in row] for row in results
-            ],
-        }
-        (sweep_dir / "sweep.json").write_text(
-            json.dumps(manifest, indent=2), encoding="utf-8"
-        )
-        return results
+        with self.directory_manager.reserve(len(cases), evaluation_ids) as allocation:
+            sweep_dir, directories = allocation
+            jobs = list(zip(directories, cases))
+            if self.num_parallel == 1:
+                results = [self._run_case(job) for job in jobs]
+            else:
+                with ThreadPoolExecutor(max_workers=self.num_parallel) as executor:
+                    results = list(executor.map(self._run_case, jobs))
+            if sweep_dir is not None:
+                manifest = {
+                    "steps": [s.name for s in self.steps],
+                    "cases": cases,
+                    "evaluation_ids": evaluation_ids,
+                    "outputs": [
+                        [str(r.output.relative_to(sweep_dir)) for r in row]
+                        for row in results
+                    ],
+                }
+                temporary = sweep_dir / ".sweep.json.tmp"
+                temporary.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+                temporary.replace(sweep_dir / "sweep.json")
+            return results

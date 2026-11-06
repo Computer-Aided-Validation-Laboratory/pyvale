@@ -834,8 +834,3 @@ def valid_data_dir() -> Path:
 def valid_data_csvs() -> list[Path]:
     data_dir = files("pyvale.data").joinpath("valid")
     return [Path(str(ff)) for ff in data_dir.glob("*.csv")]
-
-
-def mooseherder_data_dir() -> Path:
-    """Input tree for the runnable mesh/solve/sweep tutorials (SI units)."""
-    return _data_path("simulation", "mooseherder")

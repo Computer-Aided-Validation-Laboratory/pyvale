@@ -36,7 +36,7 @@ unbundled local input: `ex01_region_of_interest.py`, `ex06_hrdic.py`,
 are not included.
 
 The mooseherder examples use core Rabbit/Gmsh dependencies and run in CI without
-local installations. All thirteen examples execute with serial/SMP defaults;
+local installations. All fifteen examples execute with serial/SMP defaults;
 MPI and custom installation paths are explicit opt-ins. Run them with:
 
 ```bash

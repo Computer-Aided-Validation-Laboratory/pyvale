@@ -7,9 +7,9 @@
 """Parallel independent SMP solves
 ===============================
 
-Run independent Rabbit simulations concurrently, each with one thread and one
-process. This does not require MPI. The orchestrator uses threads to launch
-isolated subprocesses, so notebook users do not need a multiprocessing guard.
+Run independent case00_HEX8 thermo-mechanical cubes concurrently, each with
+one process and one thread. This requires no MPI. Cube modulus values are Pa;
+the rest of the packaged loading and 20-second history are retained.
 """
 
 from pathlib import Path
@@ -18,23 +18,23 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 
 # %%
-# Every example is independent and writes below the standard output directory.
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
-data_path: Path = dataset.mooseherder_data_dir()
+
+# Case00_HEX8: 3D thermo-mechanical cube; m, Pa, seconds and degrees Celsius.
+# This accessor points to pyvale/data/simulation/simcases/case00_HEX8.i.
+input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
+print(f"Packaged MOOSE input: {input_path}")
 
 # %%
-steps: list[mh.SimulationStep] = [
-    mh.SimulationStep("solve", mh.MooseRunner(), data_path / "model.i"),
-]
 herd: mh.MooseHerd = mh.MooseHerd(
-    steps,
+    [mh.SimulationStep("solve", mh.MooseRunner(), input_path)],
     output_dir=output_path / "ex09_sweep",
     num_parallel=2,
 )
 cases: list[dict[str, dict[str, mh.MooseValue]]] = [
-    {"solve": {"EMod": modulus}} for modulus in (1e9, 2e9, 3e9)
+    {"solve": {"EMod": modulus}} for modulus in (90e9, 100e9, 110e9)
 ]
 results: list[list[mh.RunResult]] = herd.run(cases)
 for case, row in zip(cases, results):

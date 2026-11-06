@@ -5,8 +5,9 @@
 # ============================================================================
 """Tests for the consolidated packaged-data namespace."""
 
-import pyvale.data as dataset
 import riley
+
+import pyvale.data as dataset
 
 
 def test_dataset_accessors_resolve_consolidated_resources() -> None:
@@ -15,6 +16,7 @@ def test_dataset_accessors_resolve_consolidated_resources() -> None:
         dataset.mechanical_2d_path(),
         dataset.sim_case_input_file_path(17),
         dataset.sim_case_gmsh_file_path(17),
+        dataset.sim_case_input_file_path(17).with_name("case17_mesh.py"),
         dataset.dic_plate_with_hole_cam0_ref(),
         dataset.dic_pattern_5mpx_path(),
         dataset.cal_target(),

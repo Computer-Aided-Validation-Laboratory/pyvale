@@ -7,9 +7,10 @@
 """Select custom MOOSE and Gmsh installations
 ==========================================
 
-Explicit executable paths take precedence over packaged defaults. A custom app
-may supply additional environment variables without changing the parent Python
-process. Leave the paths as None to run this example using installed defaults.
+Select explicit MOOSE and Gmsh executables for the existing case17 plate
+with a hole. Leave the paths as None to use the installed defaults. The deck
+uses mm, MPa, weak plane stress and a prescribed 1 mm displacement. The example
+uses one time step; custom executable paths never fall back silently.
 """
 
 from pathlib import Path
@@ -18,25 +19,28 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 
 # %%
-# Every example is independent and writes below the standard output directory.
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
-data_path: Path = dataset.mooseherder_data_dir()
+
+# Case17: 2D plate with a hole, weak plane stress; mm, MPa and seconds.
+# These paths point to pyvale/data/simulation/simcases/case17.i and case17.geo.
+input_path: Path = dataset.sim_case_input_file_path(17)
+geometry_path: Path | None = dataset.sim_case_gmsh_file_path(17)
+assert geometry_path is not None
+print(f"Packaged MOOSE input: {input_path}")
+print(f"Packaged Gmsh geometry: {geometry_path}")
 
 # %%
-# Replace None with Path("/absolute/path/to/custom-opt") or your Gmsh binary.
 moose_executable: Path | None = None
 gmsh_executable: Path | None = None
-mesh_runner: mh.GmshRunner = mh.GmshRunner(executable=gmsh_executable)
-mesh: mh.RunResult = mesh_runner.run(
-    data_path / "specimen.geo",
+mesh: mh.RunResult = mh.GmshRunner(executable=gmsh_executable).run(
+    geometry_path,
     output_dir=mh.next_run_path(output_path / "ex11_mesh"),
 )
-runner: mh.MooseRunner = mh.MooseRunner(executable=moose_executable, env={})
-result: mh.RunResult = runner.run(
-    data_path / "mesh_model.i",
-    parameters={"Mesh/file": str(mesh.output)},
+result: mh.RunResult = mh.MooseRunner(executable=moose_executable, env={}).run(
+    input_path,
+    parameters={"Mesh/file": str(mesh.output), "endTime": 1, "timeStep": 1},
     output_dir=mh.next_run_path(output_path / "ex11_solve"),
 )
 print(result.output)

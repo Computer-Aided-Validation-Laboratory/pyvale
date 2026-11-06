@@ -5,6 +5,7 @@
 # ===============================================================================
 
 from .availability import BackendAvailability, gmsh_availability, moose_availability
+from .directorymanager import DirectoryManager, EDirectoryMode
 from .exodusloader import ExodusLoader
 from .gmshrunner import GmshRunner
 from .inputmodifier import InputModifier
@@ -23,6 +24,8 @@ from .sweeptools import sweep_param_grid
 
 __all__ = [
     "BackendAvailability",
+    "DirectoryManager",
+    "EDirectoryMode",
     "ExodusLoader",
     "GmshRunner",
     "InputFiles",

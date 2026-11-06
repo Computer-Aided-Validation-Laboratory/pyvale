@@ -7,9 +7,10 @@
 """Nested MOOSE includes
 =====================
 
-The entry deck includes parameters.i and physics.i; physics.i includes
-materials/elastic.i. Staging preserves the whole input tree. MOOSE resolves
-includes and CLI overrides; PyVale does not rewrite or flatten the deck.
+Use case00_HEX8's existing include hierarchy: case00_HEX8.i includes
+solver_cube_smp.i, which includes solver_smp.i. The run snapshots the packaged
+simcases tree and preserves relative paths. MOOSE resolves the includes and
+CLI overrides; PyVale does not rewrite or flatten the deck.
 """
 
 from pathlib import Path
@@ -18,19 +19,25 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 
 # %%
-# Every example is independent and writes below the standard output directory.
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
-data_path: Path = dataset.mooseherder_data_dir()
+
+# Case00_HEX8: 3D thermo-mechanical cube; m, Pa, seconds and degrees Celsius.
+# This accessor points to pyvale/data/simulation/simcases/case00_HEX8.i.
+input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
+print(f"Packaged MOOSE input: {input_path}")
 
 # %%
-# EMod is defined in parameters.i and referenced in materials/elastic.i.
+input_root: Path = input_path.parent
+print(f"Cube solver include: {input_root / 'solver_cube_smp.i'}")
+print(f"Base solver include: {input_root / 'solver_smp.i'}")
 result: mh.RunResult = mh.MooseRunner().run(
-    data_path / "model.i",
-    input_root=data_path,
-    parameters={"EMod": 2e9},
+    input_path,
+    input_root=input_root,
+    parameters={"EMod": 110e9},
     output_dir=mh.next_run_path(output_path / "ex03_solve"),
 )
-assert (result.directory / "inputs/materials/elastic.i").is_file()
+assert (result.directory / "inputs/solver_cube_smp.i").is_file()
+assert (result.directory / "inputs/solver_smp.i").is_file()
 print(result.directory / "parameters.json")

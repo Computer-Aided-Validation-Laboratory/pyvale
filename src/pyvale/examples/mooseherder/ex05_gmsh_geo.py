@@ -7,9 +7,10 @@
 """Mesh a Gmsh geometry file
 =========================
 
-Generate a transfinite quadrilateral mesh from a .geo file with named physical
-boundaries. Gmsh DefineConstant parameters accept CLI overrides. The Python API
-runs in an isolated worker and never opens a graphical window.
+Mesh the existing case17.geo plate with a hole in mm. Its named bc-base and
+bc-top boundaries match case17.i's weak-plane-stress model. Gmsh DefineConstant
+entries let CLI parameters change the mesh resolution; the geometry is unchanged.
+The Python API runs in an isolated worker without opening a graphical window.
 """
 
 from pathlib import Path
@@ -18,16 +19,22 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 
 # %%
-# Every example is independent and writes below the standard output directory.
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
-data_path: Path = dataset.mooseherder_data_dir()
+
+# Case17: 2D plate with a hole, weak plane stress; mm, MPa and seconds.
+# These paths point to pyvale/data/simulation/simcases/case17.i and case17.geo.
+input_path: Path = dataset.sim_case_input_file_path(17)
+geometry_path: Path | None = dataset.sim_case_gmsh_file_path(17)
+assert geometry_path is not None
+print(f"Packaged MOOSE input: {input_path}")
+print(f"Packaged Gmsh geometry: {geometry_path}")
 
 # %%
-runner: mh.GmshRunner = mh.GmshRunner(geometry=data_path / "specimen.geo")
+runner: mh.GmshRunner = mh.GmshRunner(geometry=geometry_path)
 result: mh.RunResult = runner.run(
-    parameters={"n": 5},
+    parameters={"hole_sect_nodes": 7, "plate_rad_nodes": 7},
     output_dir=mh.next_run_path(output_path / "ex05_mesh"),
 )
 print(f"Mesh: {result.output}")

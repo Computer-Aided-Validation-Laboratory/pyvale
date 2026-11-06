@@ -112,7 +112,7 @@ Blender scene path.
 
 Rabbit FEM and Python Gmsh are core dependencies. The mooseherder suite runs real
 SMP solves, both mesh input methods, nested/ordered decks, analytic mechanics,
-parallel chains and every tutorial in CI; no local MOOSE/Proteus checkout is
+parallel chains, archive/reuse policies, and every tutorial in CI; no local MOOSE/Proteus checkout is
 needed. Install the system GLU library on Linux (`libglu1-mesa` on Ubuntu).
 
 MPI command assembly and rejection of a serial build are tested without MPI.
@@ -140,3 +140,12 @@ unbundled local files: `ex01_region_of_interest.py`, `ex06_hrdic.py`,
 `ex08_calibration.py`, `ex09_stereo.py`, `ex10_stereo_platehole.py`, and
 `ex11_dic_chal.py`. The `valid` example module is also excluded while it is
 under active development.
+
+The final pymoo FEMU tutorial verifies recovery of the case17 elastic modulus
+and Poisson's ratio, noise-normalised force/strain costs and bounded particle-directory storage.
+
+The mooseherder gallery reuses packaged simcases: case00_HEX8 for generated-mesh
+cube workflows and case17 for plate-with-hole workflows. The minimal analytic
+models used to isolate runner behaviour live in `tests/mooseherder/fixtures`,
+not in installed package data. Tests also exercise the alternative case17 Python
+mesh through a real weak-plane-stress solve.

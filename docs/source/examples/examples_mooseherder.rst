@@ -24,3 +24,5 @@ explicit opt-in before launching multiple ranks; custom executables are optional
    mooseherder/ex11_custom_installations
    mooseherder/ex12_read_sweep_results
    mooseherder/ex13_modify_input_text
+   mooseherder/ex14_reuse_particle_directories
+   mooseherder/ex15_pymoo_femu

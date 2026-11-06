@@ -7,9 +7,10 @@
 """MOOSE command-line parameters
 =============================
 
-Override named variables without modifying a deck. Parameters may also use
-native slash-separated MOOSE block paths. A vector is represented by a Python
-list or tuple; users do not supply shell quotes.
+Override case00_HEX8's named variables without modifying its source deck.
+This 3D thermo-mechanical cube uses m, Pa, seconds and degrees Celsius. Native
+MOOSE block paths also work. Here the thermal/mechanical history runs for five
+seconds with one-second steps; endTime also sets the prescribed loading rate.
 """
 
 from pathlib import Path
@@ -18,22 +19,25 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 
 # %%
-# Every example is independent and writes below the standard output directory.
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
-data_path: Path = dataset.mooseherder_data_dir()
+
+# Case00_HEX8: 3D thermo-mechanical cube; m, Pa, seconds and degrees Celsius.
+# This accessor points to pyvale/data/simulation/simcases/case00_HEX8.i.
+input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
+print(f"Packaged MOOSE input: {input_path}")
 
 # %%
-# Root variables remain referenced by the included physics and solver blocks.
 parameters: dict[str, mh.MooseValue] = {
     "EMod": 110e9,
-    "topDisp": 2e-4,
-    "nElemX": 4,
+    "nElemX": 3,
+    "endTime": 5,
+    "timeStep": 1,
     "Executioner/nl_max_its": 25,
 }
 result: mh.RunResult = mh.MooseRunner().run(
-    data_path / "model.i",
+    input_path,
     parameters=parameters,
     output_dir=mh.next_run_path(output_path / "ex02_solve"),
 )
