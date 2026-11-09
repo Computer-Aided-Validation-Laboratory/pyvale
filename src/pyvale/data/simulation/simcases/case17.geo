@@ -31,14 +31,14 @@ hole_loc_y = plate_height/2;
 hole_circ = 2*Pi*hole_rad;
 
 // Mesh variables
-hole_sect_nodes = 9; // Must be odd
-plate_rad_nodes = 9;
+DefineConstant[hole_sect_nodes = {9, Min 3, Name "Mesh/hole_sect_nodes"}]; // Must be odd
+DefineConstant[plate_rad_nodes = {9, Min 2, Name "Mesh/plate_rad_nodes"}];
 plate_diff_nodes = 5; // numbers of nodes along the rectangular extension
 plate_edge_nodes = Floor((hole_sect_nodes-1)/2)+1;
 elem_size = hole_circ/(4*(hole_sect_nodes-1));
 tol = elem_size; // Used for bounding box selection tolerance
 bias_factor = 1.1;
-//** MOOSEHERDER VARIABLES - START
+//** MOOSEHERDER VARIABLES - END
 
 //------------------------------------------------------------------------------
 // Geometry Definition
@@ -137,4 +137,3 @@ Mesh 2;
 //------------------------------------------------------------------------------
 // Save and exit
 Save Str(file_name);
-Exit;

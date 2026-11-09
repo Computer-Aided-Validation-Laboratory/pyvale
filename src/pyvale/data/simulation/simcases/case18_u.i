@@ -115,7 +115,7 @@ sTol = ${fparse lengX/(nElemX*4)}
     []
 []
 
-[Modules/TensorMechanics/Master]
+[Physics/SolidMechanics/QuasiStatic]
     [all]
         strain = SMALL                      # SMALL or FINITE
         incremental = true
@@ -205,17 +205,17 @@ sTol = ${fparse lengX/(nElemX*4)}
 []
 
 [Executioner]
+    scaling_group_variables = 'disp_x disp_y'
     type = Transient
 
-    solve_type = PJFNK   # PJNFK or NEWTON
-    l_max_its = 100       # default = 1000
-    l_tol = 1e-6          # default = 1e-5
-    nl_abs_tol = 1e-6     # default = 1e-50
-    nl_rel_tol = 1e-6     # default = 1e-8
+
+
+
+
 
     line_search = none
-    petsc_options_iname = '-pc_type -pc_hypre_type'
-    petsc_options_value = 'hypre boomeramg'
+
+
 
     start_time = 0.0
     end_time = ${endTime}
@@ -269,3 +269,6 @@ sTol = ${fparse lengX/(nElemX*4)}
 [Outputs]
     exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i

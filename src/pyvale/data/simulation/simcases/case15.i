@@ -127,9 +127,9 @@ mesh_file = 'case15.msh'
 
 [Executioner]
   type = Transient
-  solve_type = 'PJFNK'
-  petsc_options_iname = '-pc_type -pc_hypre_type'
-  petsc_options_value = 'hypre    boomeramg'
+
+
+
   end_time = ${endTime}
   dt = ${timeStep}
 []
@@ -148,3 +148,6 @@ mesh_file = 'case15.msh'
 [Outputs]
   exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i

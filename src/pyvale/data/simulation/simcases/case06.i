@@ -139,7 +139,7 @@ sTol = ${fparse lengX/(nElemX*4)}
   []
 []
 
-[Modules/TensorMechanics/Master]
+[Physics/SolidMechanics/QuasiStatic]
   [all]
       strain = SMALL                      # SMALL or FINITE
       incremental = true
@@ -253,10 +253,11 @@ sTol = ${fparse lengX/(nElemX*4)}
 []
 
 [Executioner]
+    scaling_group_variables = 'disp_x disp_y'
   type = Steady
-  solve_type = 'PJFNK'
-  petsc_options_iname = '-pc_type -pc_hypre_type'
-  petsc_options_value = 'hypre    boomeramg'
+
+
+
   #end_time= ${endTime}
   #dt = ${timeStep}
 []
@@ -303,3 +304,6 @@ sTol = ${fparse lengX/(nElemX*4)}
 [Outputs]
   exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i

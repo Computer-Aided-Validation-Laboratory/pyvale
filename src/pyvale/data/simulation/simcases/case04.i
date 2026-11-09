@@ -61,7 +61,7 @@ wPRatio = 0.29  # -
   []
 []
 
-[Modules/TensorMechanics/Master]
+[Physics/SolidMechanics/QuasiStatic]
   [all]
       strain = SMALL
       incremental = true
@@ -126,9 +126,9 @@ wPRatio = 0.29  # -
 
 [Executioner]
   type = Steady
-  solve_type = 'PJFNK'
-  petsc_options_iname = '-pc_type -pc_hypre_type'
-  petsc_options_value = 'hypre boomeramg'
+
+
+
   #end_time= ${endTime}
   #dt = ${timeStep}
 []
@@ -179,3 +179,6 @@ wPRatio = 0.29  # -
 [Outputs]
   exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_mechanics_smp.i

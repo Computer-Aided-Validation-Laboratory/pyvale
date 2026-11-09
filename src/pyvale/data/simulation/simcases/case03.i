@@ -134,3 +134,6 @@ wSpecHeat = 147.0  # J.kg^-1.K^-1
 [Outputs]
   exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i

@@ -69,7 +69,7 @@ def _data_path(*parts: str) -> Path:
     return Path(files("pyvale.data").joinpath(*parts))
 
 
-def sim_case_input_file_path(case_num: int) -> Path:
+def sim_case_input_file_path(case_num: int, *, mpi: bool = False) -> Path:
     """Gets the path to MOOSE input file (``*.i``) for a particular simulation
     case.
 
@@ -78,6 +78,8 @@ def sim_case_input_file_path(case_num: int) -> Path:
     case_num : int
         Integer defining the case number to be retrieved. Must be greater
         than 0 and less than the number of simulation cases.
+    mpi : bool, optional
+        Select the MPI solver entry deck. Defaults to False (serial/SMP).
 
     Returns
     -------
@@ -96,7 +98,7 @@ def sim_case_input_file_path(case_num: int) -> Path:
                             + f"{SIM_CASE_COUNT}")
 
     case_num_str = str(case_num).zfill(2)
-    case_file = f"case{case_num_str}.i"
+    case_file = f"case{case_num_str}{'_mpi' if mpi else ''}.i"
     return _data_path("simulation", "simcases", case_file)
 
 
@@ -326,7 +328,7 @@ def render_mechanical_3d_path() -> Path:
     return _data_path("simulation", "exodus", "case26_out.e")
     
 
-def element_case_input_path(elem_type: EElemTest) -> Path:
+def element_case_input_path(elem_type: EElemTest, *, mpi: bool = False) -> Path:
     """Path to a MOOSE simulation input file (.i) for a simple test
     case. This case is a 10mm cube undergoing thermo-mechanical loading
     solved for the temperature, displacement and strain fields. This case is
@@ -339,12 +341,15 @@ def element_case_input_path(elem_type: EElemTest) -> Path:
     elem_type : EElemTest
         Enumeration specifying the element type for this test case.
 
+    mpi : bool, optional
+        Select the MPI solver entry deck. Defaults to False (serial/SMP).
+
     Returns
     -------
     Path
         Path to the moose input file (.i) for this simulation case.
     """
-    return _data_path("simulation", "simcases", f"case00_{elem_type.value}.i")
+    return _data_path("simulation", "simcases", f"case00_{elem_type.value}{'_mpi' if mpi else ''}.i")
 
 
 
