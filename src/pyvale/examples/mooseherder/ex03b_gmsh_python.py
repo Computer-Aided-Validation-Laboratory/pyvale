@@ -4,8 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Mesh with a supplied Python script
-==================================
+"""Gmsh: Mesh with a Python script
+===============================
 
 Use case17_mesh.py, packaged beside case17.i, as a Python Gmsh alternative to
 case17.geo. It builds the same 100 x 150 mm plate and 12.5 mm-radius central
@@ -22,6 +22,8 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 
 # %%
+# Create the standard output directory so generated files stay together
+# under pyvale-output rather than alongside the packaged input files.
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
@@ -31,17 +33,23 @@ if not output_path.is_dir():
 # These paths point to pyvale/data/simulation/simcases/case17.i and case17.geo.
 input_path: Path = dataset.sim_case_input_file_path(17)
 geo_file: Path | None = dataset.sim_case_gmsh_file_path(17)
+
 assert geo_file is not None
 print(f"Packaged MOOSE input: {input_path}")
 print(f"Packaged Gmsh geometry: {geo_file}")
 
 # %%
+# Use the Python mesh script packaged beside the input deck. Supply a
+# target mesh size in mm through the runner configuration; the script
+# creates the geometry and writes the requested mesh without opening a GUI.
 py_script_file: Path = input_path.with_name("case17_mesh.py")
 print(f"Packaged Python mesh script: {py_script_file}")
+
 runner: mh.GmshRunner = mh.GmshRunner(py_script_file=py_script_file)
 result: mh.RunResult = runner.run(
     input_params={"mesh_size_mm": 15.0},
-    output_dir=mh.get_next_run_path(output_path / "ex03b_mesh"),
+    output_dir=mh.get_next_run_path(output_path / "mooseherder_ex03b_mesh"),
 )
+
 print((result.output_dir / "mesh_config.json").read_text(encoding="utf-8"))
 print(result.output_file)

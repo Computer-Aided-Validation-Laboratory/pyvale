@@ -9,6 +9,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -122,3 +123,105 @@ def test_existing_plate_with_python_mesh(tmp_path: Path) -> None:
     np.testing.assert_allclose(simulation.glob_vars["disp_y_max"][-1], 1)
     assert "strain_xx" in simulation.node_vars
     assert "strain_yy" in simulation.node_vars
+
+
+def test_femu_objective_submits_candidates_as_one_parallel_batch(
+    input_tree: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The example adapter runs two cases concurrently and preserves cost order."""
+    import ast
+    import json
+    import time
+    from collections.abc import Callable, Iterator
+    from contextlib import contextmanager
+    from functools import partial
+    from threading import Barrier
+    from types import SimpleNamespace
+
+    from pymoo.core.algorithm import Algorithm
+    from pymoo.core.problem import Problem
+
+    barrier = Barrier(2)
+
+    class ReferenceRunner(mh.SimRunner):
+        def run(
+            self,
+            input_files: mh.InputFiles,
+            *,
+            output_dir: Path,
+            input_params: dict[str, mh.InputValues] | None = None,
+            input_root: Path | None = None,
+        ) -> mh.RunResult:
+            # A sequential call cannot reach the second barrier participant.
+            barrier.wait(timeout=5)
+            output_dir.mkdir(parents=True)
+            output_file = output_dir / "prediction.json"
+            output_file.write_text(json.dumps(input_params))
+            return mh.RunResult(output_file, output_dir, (), output_dir / "run.log")
+
+    @contextmanager
+    def load_prediction(output_file: Path) -> Iterator[SimpleNamespace]:
+        input_params = json.loads(output_file.read_text())
+        poisson_ratio = input_params["PRatio"]
+        simulation = io.SimData(
+            coords=np.zeros((1, 3)),
+            glob_vars={"react_y_top": np.array([input_params["EMod"] * 1e-3])},
+            node_vars={
+                "strain_xx": np.array([[poisson_ratio]]),
+                "strain_yy": np.array([[2 * poisson_ratio]]),
+            },
+        )
+        yield SimpleNamespace(load_all_sim_data=lambda: simulation)
+
+    monkeypatch.setattr(mh, "ExodusLoader", load_prediction)
+    example = (
+        Path(__file__).resolve().parents[2]
+        / "src/pyvale/examples"
+        / "mooseherder/ex05a_femu.py"
+    )
+    definitions = [
+        node
+        for node in ast.parse(example.read_text()).body
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef))
+    ]
+    namespace = {
+        "np": np,
+        "time": time,
+        "mh": mh,
+        "io": io,
+        "Callable": Callable,
+        "Problem": Problem,
+        "Algorithm": Algorithm,
+        "N_GENERATIONS": 24,
+        "FORCE_NOISE_N": 100.0,
+        "STRAIN_NOISE": 1.0,
+        "THICKNESS_MM": 1.0,
+    }
+    exec(  # noqa: S102 - compile trusted example definitions without running FEM solves.
+        compile(ast.Module(body=definitions, type_ignores=[]), str(example), "exec"),
+        namespace,
+    )
+    herd = mh.MooseHerd(
+        [mh.SimStep("solve", ReferenceRunner(), input_tree / "model.i")],
+        dir_manager=mh.DirectoryManager(tmp_path / "fits", mode=mh.EDirMode.REUSE),
+        parallel_runners=2,
+    )
+    objective = partial(
+        namespace["calc_cost"],
+        herd=herd,
+        base_input_params={},
+        observed_force_n=0.0,
+        observed_strain=np.zeros((1, 2)),
+        observed_coords=np.zeros((1, 3)),
+    )
+    problem = namespace["FemuProblem"](objective)
+    costs = problem.evaluate(
+        np.array([[100.0, 0.2], [120.0, 0.4]]), algorithm=SimpleNamespace(n_gen=3)
+    )
+    assert "Generation 3/24 with 2 particles took " in capsys.readouterr().out
+    np.testing.assert_allclose(costs, [[0.55], [0.92]])
+    assert (tmp_path / "fits/fit_0/solve/prediction.json").is_file()
+    assert (tmp_path / "fits/fit_1/solve/prediction.json").is_file()

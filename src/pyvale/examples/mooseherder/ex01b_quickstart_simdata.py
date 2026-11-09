@@ -4,8 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Inspect and manipulate SimData
-===============================
+"""Quick start: Inspect and manipulate SimData
+===========================================
 
 Read a simulation into :class:`pyvale.dataio.SimData`, inspect every field and
 select arrays for analysis. This example follows the quickstart and runs
@@ -37,7 +37,7 @@ input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
 print(f"Packaged MOOSE input: {input_path}")
 result: mh.RunResult = mh.MooseRunner().run(
     input_path,
-    output_dir=mh.get_next_run_path(output_path / "ex01b_simdata"),
+    output_dir=mh.get_next_run_path(output_path / "mooseherder_ex01b_simdata"),
 )
 
 output_file: Path = result.output_file
@@ -49,7 +49,7 @@ with mh.ExodusLoader(output_file) as loader:
     sim_data: io.SimData = loader.load_all_sim_data()
 
 # %%
-# SimData is a dataclass inspect its declared fields and types, then use 
+# SimData is a dataclass inspect its declared fields and types, then use
 # attributes such as sim_data.coords to access each field.
 for field in fields(sim_data):
     print(f"{field.name}: {field.type}")

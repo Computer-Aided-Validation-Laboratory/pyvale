@@ -95,7 +95,7 @@ The interface provides ``__enter__`` and ``__exit__`` once for all subclasses;
        sim_data: io.SimData = loader.load_all_sim_data()
 
 For a field-by-field walkthrough, see
-:doc:`../examples/mooseherder/ex01b_inspect_simdata`. It prints all dataclass
+:doc:`../examples/mooseherder/ex01b_quickstart_simdata`. It prints all dataclass
 fields and available dictionary keys/shapes, extracts boundary histories and
 uses ``SimLoadConfig`` to load selected variables and time samples. Default
 connectivity uses zero-based indices; side-set node numbers retain one-based
@@ -197,7 +197,7 @@ are the user's responsibility.
 
 The former modifier/runner positional sweep API is replaced by named steps and
 native parameters. ``InputModifier`` remains available for deliberate editing
-of one marked text block; it does not parse included dependencies. Example :doc:`../examples/mooseherder/ex02d_modify_input_text`
+of one marked text block; it does not parse included dependencies. Example :doc:`../examples/mooseherder/ex02d_moose_modify_input_text`
 demonstrates this workflow explicitly.
 
 Historical geometry corrections
@@ -245,7 +245,9 @@ remove it manually only after verifying that its evaluation is no longer active.
 FEMU with pymoo
 ^^^^^^^^^^^^^^^
 
-Example :doc:`../examples/mooseherder/ex05b_pymoo_femu` uses pymoo's fixed-population PSO ask/tell interface and the embedded
+Example :doc:`../examples/mooseherder/ex05a_femu` defines a normal cost function and connects it to pymoo's
+a small vectorised ``Problem`` adapter and ``minimize()`` using
+``functools.partial``. It uses the embedded
 ``case17`` 2D plate with a hole. It meshes once, then runs a Rabbit solve per
 candidate. The reaction force is read from ``SimData.glob_vars["react_y_top"]``;
 the transverse and axial strain fields are ``SimData.node_vars["strain_xx"]``
@@ -282,8 +284,13 @@ are essential to recover the modulus. The search bounds are 60--150 GPa and
 0.15--0.45; the latter stay inside the stable isotropic elastic domain. A seeded
 12-particle, 24-generation search performs 288 real candidate solves.
 
-The final best parameter pair is explicitly rerun because the last particle
-directories do not necessarily hold the best historical positions. Outputs
-include measurements with strain columns ordered xx/yy, evaluation history,
-identification.json with both fitted parameters and recovery errors, and a
-headless convergence/parameter/strain-field comparison figure.
+The cost function submits the whole candidate batch to MooseHerd, which runs
+up to ``PARALLEL_RUNNERS`` (default 2) solves concurrently. Each candidate row
+gets a distinct reusable directory, ``fit_0``, ``fit_1``, and so on, preventing
+concurrent writes to the same directory. A small pymoo Problem adapter forwards
+each population batch to the cost function; no manual ask/tell loop is needed.
+pymoo records the optimisation history. The best parameter pair is rerun as a
+one-row batch so ``fit_0`` holds the final best fit.
+Outputs include a simple headless convergence figure, ``identification.npz``
+with the fitted parameters, cost and observations, and the final Exodus output
+at ``evaluations/fit_0/solve/results.e``. No example-specific helper files are used.

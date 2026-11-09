@@ -12,26 +12,28 @@ from pathlib import Path
 import pytest
 
 EXAMPLES = (
-    ("ex01a_rabbit_quickstart", "mooseherder_ex01a_solve/results.e"),
-    ("ex01b_inspect_simdata", "ex01b_simdata/simdata_inspection.npz"),
+    ("ex01a_quickstart_rabbitfem", "mooseherder_ex01a_solve/results.e"),
+    ("ex01b_quickstart_simdata", "mooseherder_ex01b_simdata/simdata_inspection.npz"),
     ("ex02a_moose_cli_parameters", "mooseherder_ex02a_solve/cube_parameters.e"),
-    ("ex02b_moose_included_inputs", "ex02b_solve/results.e"),
-    ("ex02c_moose_multiple_inputs", "ex02c_solve/results.e"),
-    ("ex02d_modify_input_text", "ex02d_solve/results.e"),
-    ("ex02e_mpi_solve", "ex02e_solve/results.e"),
-    ("ex02f_custom_moose_installation", "ex02f_solve/results.e"),
-    ("ex03a_gmsh_geo", "ex03a_mesh/mesh.msh"),
-    ("ex03b_gmsh_python", "ex03b_mesh/mesh.msh"),
-    ("ex03c_custom_gmsh_installation", "ex03c_mesh/plate.inp"),
-    ("ex04a_mesh_and_solve", "ex04a_case17/sweep_0001/sweep.json"),
-    ("ex04b_sequential_sweep", "ex04b_sweep/sweep_0001/sweep.json"),
-    ("ex04c_parallel_sweep", "ex04c_sweep/sweep_0001/sweep.json"),
-    ("ex04d_read_sweep_results", "ex04d_sweep/sweep_0001/sweep.json"),
+    ("ex02b_moose_included_inputs", "mooseherder_ex02b_solve/results.e"),
+    ("ex02c_moose_multiple_inputs", "mooseherder_ex02c_solve/results.e"),
+    ("ex02d_moose_modify_input_text", "mooseherder_ex02d_solve/results.e"),
+    ("ex02e_moose_mpi_solve", "mooseherder_ex02e_solve/results.e"),
+    ("ex02f_moose_custom_installation", "mooseherder_ex02f_solve/results.e"),
+    ("ex03a_gmsh_geo", "mooseherder_ex03a_mesh/mesh.msh"),
+    ("ex03b_gmsh_python", "mooseherder_ex03b_mesh/mesh.msh"),
+    ("ex03c_gmsh_custom_installation", "mooseherder_ex03c_mesh/plate.inp"),
+    ("ex04a_simsweep_mesh_and_solve", "mooseherder_ex04a_case17/sweep_0001/sweep.json"),
     (
-        "ex05a_reuse_particle_directories",
-        "ex05a_particles/particle_0007/evaluation.json",
+        "ex04b_simsweep_sequential_sweep",
+        "mooseherder_ex04b_sweep/sweep_0001/sweep.json",
     ),
-    ("ex05b_pymoo_femu", "ex05b_femu/identification.json"),
+    ("ex04c_simsweep_parallel_sweep", "mooseherder_ex04c_sweep/sweep_0001/sweep.json"),
+    (
+        "ex04d_simsweep_read_sweep_results",
+        "mooseherder_ex04d_sweep/sweep_0001/sweep.json",
+    ),
+    ("ex05a_femu", "mooseherder_ex05a_femu/identification.npz"),
 )
 
 
@@ -48,8 +50,12 @@ def test_mooseherder_example(
     """Every example runs unattended, including MPI/custom demos' defaults."""
     directory = run_example(example, (f"pyvale-output/{output}",))
     assert (directory / "pyvale-output" / output).stat().st_size > 0
+    assert all(
+        path.is_dir() and path.name.startswith("mooseherder_")
+        for path in (directory / "pyvale-output").iterdir()
+    )
 
-    if example.endswith("ex01b_inspect_simdata.py"):
+    if example.endswith("ex01b_quickstart_simdata.py"):
         import numpy as np
 
         with np.load(directory / "pyvale-output" / output) as arrays:
@@ -65,44 +71,48 @@ def test_mooseherder_example(
             )
             assert arrays["reaction_y_n"].shape == arrays["time_s"].shape
 
-    if example.endswith("ex05b_pymoo_femu.py"):
-        import json
-
+    if example.endswith("ex05a_femu.py"):
         import numpy as np
 
-        root = directory / "pyvale-output/ex05b_femu"
-        summary = json.loads((root / "identification.json").read_text())
-        assert summary["case"] == "case17"
-        assert summary["reaction_global"] == "react_y_top"
-        assert summary["modulus_relative_error"] < 0.02
-        assert summary["poisson_absolute_error"] < 0.005
-        assert summary["strain_components"] == ["strain_xx", "strain_yy"]
-        assert summary["n_evaluations"] == 288
-        assert summary["cost"] < summary["initial_best_cost"]
-        history = np.loadtxt(root / "evaluations.csv", delimiter=",", skiprows=1)
-        np.testing.assert_allclose(history[:, 7], 0.5 * (history[:, 5] + history[:, 6]))
-        with (
-            np.load(root / "measurements.npz") as observed,
-            np.load(root / "best_fit.npz") as fitted,
-        ):
-            assert observed["strain"].ndim == 2
-            assert observed["strain"].shape[1] == 2
-            assert fitted["strain"].shape == observed["strain"].shape
-            np.testing.assert_array_equal(
-                fitted["positions_mm"], observed["positions_mm"]
+        import pyvale.mooseherder as mh
+
+        root = directory / "pyvale-output/mooseherder_ex05a_femu"
+        with mh.ExodusLoader(root / "evaluations/fit_0/solve/results.e") as loader:
+            fitted = loader.load_all_sim_data()
+        with np.load(root / "identification.npz") as saved:
+            material_params = saved["material_params"]
+            assert material_params.shape == (2,)
+            assert abs(material_params[0] / 108.0 - 1) < 0.02
+            assert abs(material_params[1] - 0.33) < 0.005
+            assert saved["convergence"].shape == (24,)
+            assert float(saved["cost"]) < saved["convergence"][0]
+            assert np.all(np.diff(saved["convergence"]) <= 0)
+            predicted_force_n = float(fitted.glob_vars["react_y_top"][-1]) * float(
+                saved["thickness_mm"]
             )
+            predicted_strain = np.column_stack(
+                (
+                    fitted.node_vars["strain_xx"][:, -1],
+                    fitted.node_vars["strain_yy"][:, -1],
+                )
+            )
+            assert predicted_strain.shape == saved["observed_strain"].shape
+            assert predicted_strain.shape[1] == 2
             force_cost = (
-                (float(fitted["force_n"]) - float(observed["force_n"]))
-                / summary["sigma_force_n"]
+                (predicted_force_n - float(saved["observed_force_n"]))
+                / float(saved["force_noise_n"])
             ) ** 2
             strain_cost = np.mean(
-                ((fitted["strain"] - observed["strain"]) / summary["sigma_strain"]) ** 2
+                (predicted_strain - saved["observed_strain"]) ** 2
+                / float(saved["strain_noise"]) ** 2
             )
             np.testing.assert_allclose(
-                summary["cost"], 0.5 * (force_cost + strain_cost), rtol=1e-8
+                float(saved["cost"]), 0.5 * (force_cost + strain_cost), rtol=1e-8
             )
-        assert (root / "femu_fit.png").stat().st_size > 0
-        particles = list((root / "particles").glob("particle_*"))
-        assert len(particles) == summary["population_size"]
-        assert len(list((root / "particles").glob("*/solve/results.e"))) == 13
-        assert not list((root / "particles").glob("sweep_*"))
+        assert (root / "convergence.png").stat().st_size > 0
+        assert {
+            path.name
+            for path in (root / "evaluations").iterdir()
+            if path.is_dir() and not path.name.startswith(".")
+        } == {f"fit_{index}" for index in range(12)}
+        assert len(list((root / "evaluations").glob("*/solve/results.e"))) == 12

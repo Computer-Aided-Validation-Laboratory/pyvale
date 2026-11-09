@@ -5,8 +5,8 @@
 # ==============================================================================
 
 """
-Rabbit FEM quickstart
-=====================
+Quick start: Rabbit FEM
+=======================
 
 Run PyVale's existing case00_HEX8 thermo-mechanical cube with installed Rabbit.
 The cube uses metres, pascals, seconds and degrees Celsius, and generates its

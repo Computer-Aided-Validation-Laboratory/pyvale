@@ -5,8 +5,8 @@
 # ==============================================================================
 
 """
-MOOSE command line input_params
-=============================
+MOOSE: CLI input parameters
+===========================
 
 Override case00_HEX8's named variables without modifying its source deck.
 This 3D thermo-mechanical cube uses m, Pa, seconds and degrees Celsius. Native

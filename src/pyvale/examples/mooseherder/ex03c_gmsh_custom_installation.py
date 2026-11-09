@@ -4,8 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Select a custom Gmsh installation
-==================================
+"""Gmsh: Custom installation
+=========================
 
 Mesh the packaged case17 plate with a hole using an explicit Gmsh executable.
 Leave the executable as None to use the installed Python Gmsh package. The
@@ -19,6 +19,9 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 
 # %%
+# Create the standard output directory so generated files stay together
+# under pyvale-output rather than alongside the packaged input files.
+# Locate the packaged plate geometry to test the selected Gmsh executable.
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
@@ -38,6 +41,6 @@ result: mh.RunResult = mh.GmshRunner(
     gmsh_exe_file=gmsh_exe_file, output_file_name="plate.inp"
 ).run(
     geo_file,
-    output_dir=mh.get_next_run_path(output_path / "ex03c_mesh"),
+    output_dir=mh.get_next_run_path(output_path / "mooseherder_ex03c_mesh"),
 )
 print(result.output_file)

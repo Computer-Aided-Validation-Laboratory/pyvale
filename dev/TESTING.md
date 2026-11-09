@@ -142,7 +142,7 @@ unbundled local files: `ex01_region_of_interest.py`, `ex06_hrdic.py`,
 under active development.
 
 The final pymoo FEMU tutorial verifies recovery of the case17 elastic modulus
-and Poisson's ratio, noise-normalised force/strain costs and bounded particle-directory storage.
+and Poisson's ratio, noise-normalised force/strain costs and parallel batch evaluation with bounded reuse of candidate directories.
 
 The mooseherder gallery reuses packaged simcases: case00_HEX8 for generated-mesh
 cube workflows and case17 for plate-with-hole workflows. The minimal analytic
