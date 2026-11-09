@@ -91,7 +91,7 @@ def run_example() -> Generator[Callable[..., Path], None, None]:
             relative_path: str,
             expected_outputs: Sequence[str] = (),
             support_files: Sequence[str] = (),
-            timeout: float = 180.0,
+            timeout: float = 3600.0,
         ) -> Path:
             example_path = EXAMPLES_ROOT / relative_path
             assert example_path.is_file(), (

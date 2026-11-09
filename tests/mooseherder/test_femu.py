@@ -1,3 +1,9 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
 """Case17 reaction units and modulus sensitivity used by the FEMU tutorial."""
 
 from pathlib import Path
@@ -18,19 +24,16 @@ def test_plate_hole_modulus_sensitivity(tmp_path: Path) -> None:
     for modulus_mpa in (80e3, 120e3):
         result = mh.MooseRunner().run(
             dataset.sim_case_input_file_path(17),
-            parameters={
-                "Mesh/file": str(mesh.output),
+            input_params={
+                "Mesh/file": str(mesh.output_file),
                 "EMod": modulus_mpa,
                 "endTime": 1,
                 "timeStep": 1,
             },
             output_dir=tmp_path / f"E-{modulus_mpa}",
         )
-        reader = mh.ExodusLoader(result.output)
-        try:
+        with mh.ExodusLoader(result.output_file) as reader:
             fields.append(reader.load_all_sim_data())
-        finally:
-            reader.close()
     for field in fields:
         assert field.glob_vars["react_y_top"][-1] > 0
         assert field.glob_vars["react_y_bot"][-1] < 0
@@ -68,8 +71,8 @@ def test_plate_hole_strains_identify_poisson_ratio(tmp_path: Path) -> None:
     for poisson_ratio in (0.25, 0.4):
         result = mh.MooseRunner().run(
             dataset.sim_case_input_file_path(17),
-            parameters={
-                "Mesh/file": str(mesh.output),
+            input_params={
+                "Mesh/file": str(mesh.output_file),
                 "EMod": 108e3,
                 "PRatio": poisson_ratio,
                 "endTime": 1,
@@ -77,11 +80,8 @@ def test_plate_hole_strains_identify_poisson_ratio(tmp_path: Path) -> None:
             },
             output_dir=tmp_path / f"nu-{poisson_ratio}",
         )
-        reader = mh.ExodusLoader(result.output)
-        try:
+        with mh.ExodusLoader(result.output_file) as reader:
             data = reader.load_all_sim_data()
-        finally:
-            reader.close()
         strains.append(
             np.column_stack(
                 (
@@ -103,19 +103,16 @@ def test_existing_plate_with_python_mesh(tmp_path: Path) -> None:
     input_path = dataset.sim_case_input_file_path(17)
     mesh = mh.GmshRunner().run(
         input_path.with_name("case17_mesh.py"),
-        parameters={"mesh_size_mm": 20.0},
+        input_params={"mesh_size_mm": 20.0},
         output_dir=tmp_path / "mesh",
     )
     result = mh.MooseRunner().run(
         input_path,
         output_dir=tmp_path / "solve",
-        parameters={"Mesh/file": str(mesh.output), "endTime": 1, "timeStep": 1},
+        input_params={"Mesh/file": str(mesh.output_file), "endTime": 1, "timeStep": 1},
     )
-    reader = mh.ExodusLoader(result.output)
-    try:
+    with mh.ExodusLoader(result.output_file) as reader:
         simulation = reader.load_all_sim_data()
-    finally:
-        reader.close()
     np.testing.assert_allclose(simulation.coords[:, :2].max(axis=0), [100, 150])
     np.testing.assert_allclose(simulation.coords[:, :2].min(axis=0), [0, 0])
     radii = np.linalg.norm(simulation.coords[:, :2] - np.array([50, 75]), axis=1)

@@ -23,18 +23,19 @@ output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
+# %%
 # Case17: 2D plate with a hole, weak plane stress; mm, MPa and seconds.
 # These paths point to pyvale/data/simulation/simcases/case17.i and case17.geo.
 input_path: Path = dataset.sim_case_input_file_path(17)
-geometry_path: Path | None = dataset.sim_case_gmsh_file_path(17)
-assert geometry_path is not None
+geo_file: Path | None = dataset.sim_case_gmsh_file_path(17)
+assert geo_file is not None
 print(f"Packaged MOOSE input: {input_path}")
-print(f"Packaged Gmsh geometry: {geometry_path}")
+print(f"Packaged Gmsh geometry: {geo_file}")
 
 # %%
-runner: mh.GmshRunner = mh.GmshRunner(geometry=geometry_path)
+runner: mh.GmshRunner = mh.GmshRunner(geo_file=geo_file)
 result: mh.RunResult = runner.run(
-    parameters={"hole_sect_nodes": 7, "plate_rad_nodes": 7},
-    output_dir=mh.next_run_path(output_path / "ex05_mesh"),
+    input_params={"hole_sect_nodes": 7, "plate_rad_nodes": 7},
+    output_dir=mh.get_next_run_path(output_path / "ex03a_mesh"),
 )
-print(f"Mesh: {result.output}")
+print(f"Mesh: {result.output_file}")

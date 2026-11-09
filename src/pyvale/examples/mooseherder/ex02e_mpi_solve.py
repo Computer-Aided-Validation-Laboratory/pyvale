@@ -8,7 +8,7 @@
 ============
 
 Select the existing case00_HEX8.i or case00_HEX8_mpi.i cube with the dataset
-accessor's mpi flag. The default remains serial/SMP. Set USE_MPI only with an
+accessor's mpi flag. The default remains serial/SMP. Set N_TASKS above 1 with an
 MPI-capable Rabbit installation and a compatible launcher; the MPI solver
 uses Hypre. Both entries share the same physics, units and loading history.
 """
@@ -24,14 +24,16 @@ if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-USE_MPI = False
-input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8, mpi=USE_MPI)
+N_TASKS: int | None = None
+input_path: Path = dataset.element_case_input_path(
+    dataset.EElemTest.HEX8, mpi=N_TASKS is not None and N_TASKS > 1
+)
 print(f"Packaged MOOSE input: {input_path}")
 
 # %%
-runner: mh.MooseRunner = mh.MooseRunner(mpi=USE_MPI, n_tasks=2 if USE_MPI else 1)
+runner: mh.MooseRunner = mh.MooseRunner(n_tasks=N_TASKS)
 result: mh.RunResult = runner.run(
     input_path,
-    output_dir=mh.next_run_path(output_path / "ex10_solve"),
+    output_dir=mh.get_next_run_path(output_path / "ex02e_solve"),
 )
-print(result.output)
+print(result.output_file)

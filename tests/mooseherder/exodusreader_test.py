@@ -4,13 +4,16 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
-from pathlib import Path
+from collections.abc import Iterator
 from dataclasses import fields
-import pytest
+from pathlib import Path
+
 import numpy as np
 import numpy.typing as npt
-from pyvale.mooseherder.exodusloader import ExodusLoader
+import pytest
+
 from pyvale.dataio.simdata import SimData
+from pyvale.mooseherder.exodusloader import ExodusLoader
 
 NUM_TIME_STEPS = 4
 NUM_NODES = 441
@@ -61,8 +64,9 @@ def exodus_path() -> Path:
     return (Path(__file__).resolve().parent / "output_gold") / 'moose-mech-outtest_out.e'
 
 @pytest.fixture
-def reader(exodus_path: Path) -> ExodusLoader:
-    return ExodusLoader(exodus_path)
+def reader(exodus_path: Path) -> Iterator[ExodusLoader]:
+    with ExodusLoader(exodus_path) as loader:
+        yield loader
 
 
 def test_init_reader(reader: ExodusLoader,

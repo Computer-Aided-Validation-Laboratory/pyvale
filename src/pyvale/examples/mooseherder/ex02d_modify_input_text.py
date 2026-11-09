@@ -23,6 +23,7 @@ output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
+# %%
 # Case00_HEX8: 3D thermo-mechanical cube; m, Pa, seconds and degrees Celsius.
 # This accessor points to pyvale/data/simulation/simcases/case00_HEX8.i.
 input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
@@ -31,7 +32,7 @@ print(f"Packaged MOOSE input: {input_path}")
 # %%
 import shutil
 
-input_tree: Path = mh.next_run_path(output_path / "ex13_inputs")
+input_tree: Path = mh.get_next_run_path(output_path / "ex02d_inputs")
 shutil.copytree(input_path.parent, input_tree)
 edited_input: Path = input_tree / input_path.name
 modifier: mh.InputModifier = mh.InputModifier(edited_input, "#", "")
@@ -39,7 +40,7 @@ modifier.update_vars({"EMod": 110e9})
 modifier.write_file(edited_input)
 result: mh.RunResult = mh.MooseRunner().run(
     edited_input,
-    output_dir=mh.next_run_path(output_path / "ex13_solve"),
+    output_dir=mh.get_next_run_path(output_path / "ex02d_solve"),
 )
 print(f"Edited copy: {edited_input}")
-print(result.output)
+print(result.output_file)

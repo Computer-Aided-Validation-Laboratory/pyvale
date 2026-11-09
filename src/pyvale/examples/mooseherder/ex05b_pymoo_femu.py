@@ -1,3 +1,9 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
 """FEMU: identify elastic modulus and Poisson's ratio
 ==================================================
 
@@ -48,7 +54,7 @@ if not SHOW_FIGURES:
 output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
-example_path: Path = mh.next_run_path(output_path / "ex15_femu")
+example_path: Path = mh.get_next_run_path(output_path / "ex05b_femu")
 example_path.mkdir()
 input_path: Path = dataset.sim_case_input_file_path(17)
 print(f"Packaged MOOSE input: {input_path}")
@@ -56,8 +62,8 @@ mesh: mh.RunResult = mh.GmshRunner().run(
     dataset.sim_case_gmsh_file_path(17),
     output_dir=example_path / "mesh",
 )
-base_parameters: dict[str, mh.MooseValue] = {
-    "Mesh/file": str(mesh.output),
+base_input_params: dict[str, mh.InputValues] = {
+    "Mesh/file": str(mesh.output_file),
     "endTime": 1,
     "timeStep": 1,
 }
@@ -69,12 +75,31 @@ sigma_strain = 50e-6
 
 
 def load_measurements(result: mh.RunResult) -> tuple[float, np.ndarray, np.ndarray]:
-    """Return tensile force (N), strain (N, 2) ordered xx/yy and positions (N, 3), mm."""
-    reader: mh.ExodusLoader = mh.ExodusLoader(result.output)
-    try:
-        simulation: io.SimData = reader.load_all_sim_data()
-    finally:
-        reader.close()
+    """Read the final tensile reaction, strain components and nodal positions.
+
+    Parameters
+    ----------
+    result : mh.RunResult
+        Successful case17 solve with an Exodus output file.
+
+    Returns
+    -------
+    force_n : float
+        Final positive top reaction in N, from react_y_top (N/mm) multiplied by
+        the known measurement_depth_mm.
+    strain : np.ndarray
+        Dimensionless nodal strains with shape (N, 2), ordered strain_xx, strain_yy.
+    positions_mm : np.ndarray
+        Matching reference-mesh nodal coordinates with shape (N, 3), in mm.
+
+    Notes
+    -----
+    The loader context closes the NetCDF resource before return. All returned
+    arrays are independent in-memory data. Native benchmark reaction and coordinate
+    conventions are retained.
+    """
+    with mh.ExodusLoader(result.output_file) as loader:
+        simulation: io.SimData = loader.load_all_sim_data()
     # The top reaction is positive in tension. Keep the benchmark's original
     # reaction convention and integrate through the known measurement thickness.
     force_n = float(simulation.glob_vars["react_y_top"][-1]) * measurement_depth_mm
@@ -95,12 +120,44 @@ def calc_cost_components(
     force_noise_n: float,
     strain_noise: float,
 ) -> tuple[float, float]:
-    """Dimensionless mean-square residuals, scaled by noise standard deviations.
+    """Compute noise-normalised force and full-field strain discrepancies.
 
-    The mean over both strain components and nodes gives the force and field modalities equal total weight,
-    independent of node count. This is a balanced discrepancy, rather than
-    the sum defining an independent-Gaussian observation likelihood. A real
-    experiment should account for spatial correlation and measurement mapping.
+    Parameters
+    ----------
+    force_n : float
+        Simulated tensile reaction in N.
+    strain : np.ndarray
+        Simulated dimensionless strains, shape (N, 2), ordered xx/yy.
+    observed_force_n : float
+        Measured tensile reaction in N.
+    observed_strain : np.ndarray
+        Measured dimensionless strains on the same nodes and in the same order,
+        shape (N, 2).
+    force_noise_n : float
+        Positive finite force noise standard deviation in N.
+    strain_noise : float
+        Positive finite dimensionless strain noise standard deviation, used for
+        both components.
+
+    Returns
+    -------
+    force_cost : float
+        Squared force residual divided by its noise variance.
+    strain_cost : float
+        Mean squared noise-normalised residual over all nodes and both components.
+
+    Raises
+    ------
+    ValueError
+        A noise floor is not finite/positive, or strain shapes do not match the
+        nonempty (N, 2) field contract.
+
+    Notes
+    -----
+    The caller combines these terms with equal modality weights. The strain mean
+    keeps its total weight independent of sample count; this is a balanced
+    discrepancy, not an unaveraged independent-Gaussian likelihood. Real fields
+    require coordinate mapping and appropriate treatment of correlated noise.
     """
     if not (np.isfinite(force_noise_n) and force_noise_n > 0):
         raise ValueError("The force noise floor must be finite and positive.")
@@ -124,8 +181,8 @@ def calc_cost_components(
 # Generate noisy synthetic observations once; do not redraw noise per candidate.
 reference: mh.RunResult = mh.MooseRunner().run(
     input_path,
-    parameters={
-        **base_parameters,
+    input_params={
+        **base_input_params,
         "EMod": true_modulus_pa / 1e6,
         "PRatio": true_poisson_ratio,
     },
@@ -154,16 +211,18 @@ np.savez(
 # evaluation.json; failures propagate rather than returning a stale objective.
 manager: mh.DirectoryManager = mh.DirectoryManager(
     example_path / "particles",
-    mode=mh.EDirectoryMode.REUSE,
+    mode=mh.EDirMode.REUSE,
 )
 herd: mh.MooseHerd = mh.MooseHerd(
-    [mh.SimulationStep("solve", mh.MooseRunner(), input_path)],
-    directory_manager=manager,
-    num_parallel=2,
+    [mh.SimStep("solve", mh.MooseRunner(), input_path)],
+    dir_manager=manager,
+    parallel_runners=2,
 )
 population_size = 12
 n_generations = 24
-particle_ids: list[str] = [f"particle-{i:04d}" for i in range(1, population_size + 1)]
+particle_ids: list[str] = [f"particle_{i:04d}" for i in range(1, population_size + 1)]
+
+# %%
 # Search in GPa for convenient numerical scaling; pass EMod to MOOSE in MPa.
 # Both bounds are inside the stable isotropic elastic domain, E > 0 and nu < 0.5.
 problem: Problem = Problem(
@@ -188,17 +247,19 @@ while algorithm.has_next():
     candidates: np.ndarray = population.get("X")
     if len(candidates) != len(particle_ids):
         raise RuntimeError("The optimiser changed the fixed particle population.")
-    cases: list[dict[str, dict[str, mh.MooseValue]]] = [
+    case_input_params: list[dict[str, dict[str, mh.InputValues]]] = [
         {
             "solve": {
-                **base_parameters,
+                **base_input_params,
                 "EMod": float(modulus) * 1e3,
                 "PRatio": float(poisson),
             }
         }
         for modulus, poisson in candidates
     ]
-    evaluations: list[list[mh.RunResult]] = herd.run(cases, evaluation_ids=particle_ids)
+    evaluations: list[list[mh.RunResult]] = herd.run(
+        case_input_params, reuse_ids=particle_ids
+    )
     objectives: np.ndarray = np.empty((len(candidates), 1))
     for i, row in enumerate(evaluations):
         predicted_force_n, predicted_strain, predicted_positions = load_measurements(
@@ -247,13 +308,13 @@ best_result: mh.RunResult = herd.run(
     [
         {
             "solve": {
-                **base_parameters,
+                **base_input_params,
                 "EMod": identified_modulus_pa / 1e6,
                 "PRatio": identified_poisson_ratio,
             }
         }
     ],
-    evaluation_ids=["best-fit"],
+    reuse_ids=["best_fit"],
 )[0][0]
 fitted_force_n, fitted_strain, fitted_positions = load_measurements(best_result)
 np.savez(

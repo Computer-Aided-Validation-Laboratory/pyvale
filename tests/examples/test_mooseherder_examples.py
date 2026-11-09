@@ -1,3 +1,9 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
 """Run every mooseherder tutorial using packaged dependencies."""
 
 from collections.abc import Callable
@@ -6,21 +12,26 @@ from pathlib import Path
 import pytest
 
 EXAMPLES = (
-    ("ex01_rabbit_quickstart", "ex01_solve/results.e"),
-    ("ex02_moose_cli_parameters", "ex02_solve/results.e"),
-    ("ex03_moose_included_inputs", "ex03_solve/results.e"),
-    ("ex04_moose_multiple_inputs", "ex04_solve/results.e"),
-    ("ex05_gmsh_geo", "ex05_mesh/mesh.msh"),
-    ("ex06_gmsh_python", "ex06_mesh/mesh.msh"),
-    ("ex07_mesh_and_solve", "ex07_case17/sweep-0001/sweep.json"),
-    ("ex08_sequential_sweep", "ex08_sweep/sweep-0001/sweep.json"),
-    ("ex09_parallel_sweep", "ex09_sweep/sweep-0001/sweep.json"),
-    ("ex10_mpi_solve", "ex10_solve/results.e"),
-    ("ex11_custom_installations", "ex11_solve/results.e"),
-    ("ex12_read_sweep_results", "ex12_sweep/sweep-0001/sweep.json"),
-    ("ex13_modify_input_text", "ex13_solve/results.e"),
-    ("ex14_reuse_particle_directories", "ex14_particles/particle-0007/evaluation.json"),
-    ("ex15_pymoo_femu", "ex15_femu/identification.json"),
+    ("ex01a_rabbit_quickstart", "mooseherder_ex01a_solve/results.e"),
+    ("ex01b_inspect_simdata", "ex01b_simdata/simdata_inspection.npz"),
+    ("ex02a_moose_cli_parameters", "mooseherder_ex02a_solve/cube_parameters.e"),
+    ("ex02b_moose_included_inputs", "ex02b_solve/results.e"),
+    ("ex02c_moose_multiple_inputs", "ex02c_solve/results.e"),
+    ("ex02d_modify_input_text", "ex02d_solve/results.e"),
+    ("ex02e_mpi_solve", "ex02e_solve/results.e"),
+    ("ex02f_custom_moose_installation", "ex02f_solve/results.e"),
+    ("ex03a_gmsh_geo", "ex03a_mesh/mesh.msh"),
+    ("ex03b_gmsh_python", "ex03b_mesh/mesh.msh"),
+    ("ex03c_custom_gmsh_installation", "ex03c_mesh/plate.inp"),
+    ("ex04a_mesh_and_solve", "ex04a_case17/sweep_0001/sweep.json"),
+    ("ex04b_sequential_sweep", "ex04b_sweep/sweep_0001/sweep.json"),
+    ("ex04c_parallel_sweep", "ex04c_sweep/sweep_0001/sweep.json"),
+    ("ex04d_read_sweep_results", "ex04d_sweep/sweep_0001/sweep.json"),
+    (
+        "ex05a_reuse_particle_directories",
+        "ex05a_particles/particle_0007/evaluation.json",
+    ),
+    ("ex05b_pymoo_femu", "ex05b_femu/identification.json"),
 )
 
 
@@ -38,12 +49,28 @@ def test_mooseherder_example(
     directory = run_example(example, (f"pyvale-output/{output}",))
     assert (directory / "pyvale-output" / output).stat().st_size > 0
 
-    if example.endswith("ex15_pymoo_femu.py"):
+    if example.endswith("ex01b_inspect_simdata.py"):
+        import numpy as np
+
+        with np.load(directory / "pyvale-output" / output) as arrays:
+            np.testing.assert_allclose(
+                arrays["final_disp_y_mm"], 1000 * arrays["final_disp_y_m"]
+            )
+            np.testing.assert_allclose(
+                arrays["selected_disp_y_m"][:, 0], arrays["final_disp_y_m"]
+            )
+            np.testing.assert_allclose(
+                arrays["top_disp_y_m"],
+                arrays["final_disp_y_m"][arrays["top_node_indices"]],
+            )
+            assert arrays["reaction_y_n"].shape == arrays["time_s"].shape
+
+    if example.endswith("ex05b_pymoo_femu.py"):
         import json
 
         import numpy as np
 
-        root = directory / "pyvale-output/ex15_femu"
+        root = directory / "pyvale-output/ex05b_femu"
         summary = json.loads((root / "identification.json").read_text())
         assert summary["case"] == "case17"
         assert summary["reaction_global"] == "react_y_top"
@@ -75,7 +102,7 @@ def test_mooseherder_example(
                 summary["cost"], 0.5 * (force_cost + strain_cost), rtol=1e-8
             )
         assert (root / "femu_fit.png").stat().st_size > 0
-        particles = list((root / "particles").glob("particle-*"))
+        particles = list((root / "particles").glob("particle_*"))
         assert len(particles) == summary["population_size"]
         assert len(list((root / "particles").glob("*/solve/results.e"))) == 13
-        assert not list((root / "particles").glob("sweep-*"))
+        assert not list((root / "particles").glob("sweep_*"))

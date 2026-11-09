@@ -1,3 +1,9 @@
+# ===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ===============================================================================
+
 """CLI, staging, errors and analytic mechanics with the installed Rabbit build."""
 
 import json
@@ -11,11 +17,11 @@ import pytest
 from netCDF4 import Dataset
 
 import pyvale.mooseherder as mh
-from pyvale.mooseherder.simrunner import parameter_args
+from pyvale.mooseherder.simrunner import conv_args_dict_to_list
 
 
 def test_parameter_serialization() -> None:
-    assert parameter_args(
+    assert conv_args_dict_to_list(
         {
             "EMod": 1e9,
             "Mesh/nx": 4,
@@ -33,11 +39,11 @@ def test_parameter_serialization() -> None:
 
 
 @pytest.mark.parametrize(
-    "parameters",
+    "input_params",
     [
         {"-bad": 1},
         {"a b": 1},
-        {"a//b": 1},
+        {"a=b": 1},
         {"a": float("nan")},
         {"a": float("inf")},
         {"a": []},
@@ -45,9 +51,9 @@ def test_parameter_serialization() -> None:
         {"a": [[1]]},
     ],
 )
-def test_invalid_parameters(parameters: dict) -> None:
+def test_invalid_parameters(input_params: dict) -> None:
     with pytest.raises((ValueError, TypeError)):
-        parameter_args(parameters)
+        conv_args_dict_to_list(input_params)
 
 
 def test_cli_nested_includes_and_analytic_solution(
@@ -57,22 +63,19 @@ def test_cli_nested_includes_and_analytic_solution(
     result = mh.MooseRunner().run(
         input_tree / "model.i",
         output_dir=tmp_path / "run with spaces",
-        parameters={
+        input_params={
             "EMod": 2e9,
             "topDisp": 2e-4,
             "nElemX": 3,
             "GlobalParams/displacements": ("disp_x", "disp_y"),
         },
     )
-    assert (result.directory / "inputs/materials/elastic.i").is_file()
+    assert (result.output_dir / "input_files/materials/elastic.i").is_file()
     assert (input_tree / "parameters.i").read_bytes() == original
-    with Dataset(result.output) as nc:
+    with Dataset(result.output_file) as nc:
         assert len(nc.dimensions["num_elem"]) == 6
-    reader = mh.ExodusLoader(result.output)
-    try:
+    with mh.ExodusLoader(result.output_file) as reader:
         data = reader.load_all_sim_data()
-    finally:
-        reader.close()
     # Unit-square plane-strain solution with free lateral contraction.
     eps = 2e-4
     np.testing.assert_allclose(
@@ -85,27 +88,24 @@ def test_cli_nested_includes_and_analytic_solution(
     )
     stress = data.elem_vars[("stress_yy", 1)][:, -1]
     np.testing.assert_allclose(stress, 2e9 / (1 - 0.3**2) * eps, rtol=1e-8)
-    assert json.loads((result.directory / "command.json").read_text()) == list(
+    assert json.loads((result.output_dir / "command.json").read_text()) == list(
         result.command
     )
     with pytest.raises(FileExistsError):
-        mh.MooseRunner().run(input_tree / "model.i", output_dir=result.directory)
+        mh.MooseRunner().run(input_tree / "model.i", output_dir=result.output_dir)
 
 
 @pytest.mark.parametrize("sequence", [list, tuple])
 def test_multiple_entry_decks(sequence, input_tree: Path, tmp_path: Path) -> None:
-    inputs = sequence((input_tree / "model.i", input_tree / "case_overlay.i"))
+    input_files = sequence((input_tree / "model.i", input_tree / "case_overlay.i"))
     result = mh.MooseRunner().run(
-        inputs,
+        input_files,
         input_root=input_tree,
         output_dir=tmp_path / "merge",
-        parameters={"EMod": 3e9},
+        input_params={"EMod": 3e9},
     )
-    reader = mh.ExodusLoader(result.output)
-    try:
+    with mh.ExodusLoader(result.output_file) as reader:
         data = reader.load_all_sim_data()
-    finally:
-        reader.close()
     np.testing.assert_allclose(
         data.elem_vars[("stress_yy", 1)][:, -1], 3e9 / 0.91 * 1e-4, rtol=1e-8
     )
@@ -115,11 +115,11 @@ def test_failed_solve_keeps_log(input_tree: Path, tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="run.log"):
         mh.MooseRunner().run(
             input_tree / "model.i",
-            parameters={"nonexistent": 3},
+            input_params={"nonexistent": 3},
             output_dir=tmp_path / "failed",
         )
     assert "unused parameter" in (tmp_path / "failed/run.log").read_text()
-    assert (tmp_path / "failed/parameters.json").is_file()
+    assert (tmp_path / "failed/input_params.json").is_file()
 
 
 def test_missing_include(tmp_path: Path) -> None:
@@ -130,18 +130,18 @@ def test_missing_include(tmp_path: Path) -> None:
         mh.MooseRunner().run(tree / "bad.i", output_dir=tmp_path / "failed")
 
 
-def test_custom_executable_does_not_modify_environment(
+def test_custom_executable_does_not_modify_os_environment_variables(
     input_tree: Path, tmp_path: Path
 ) -> None:
     from rabbit import get_binary_path, get_library_dir
 
-    before = dict(os.environ)
+    original_env_vars = dict(os.environ)
     result = mh.MooseRunner(
-        executable=get_binary_path(),
-        env={"LD_LIBRARY_PATH": str(get_library_dir())},
+        moose_exe_file=get_binary_path(),
+        env_vars={"LD_LIBRARY_PATH": str(get_library_dir())},
     ).run(input_tree / "model.i", output_dir=tmp_path / "custom")
-    assert result.output.is_file()
-    assert dict(os.environ) == before
+    assert result.output_file.is_file()
+    assert dict(os.environ) == original_env_vars
     assert str(get_binary_path()) == result.command[0]
 
 
@@ -150,7 +150,7 @@ def test_custom_executable_does_not_modify_environment(
     [
         {"n_tasks": 0},
         {"n_threads": 0},
-        {"n_tasks": 2},
+        {"n_tasks": True},
         {"timeout": 0},
     ],
 )
@@ -164,7 +164,7 @@ def test_serial_rabbit_rejects_mpi(
 ) -> None:
     monkeypatch.setattr("rabbit.cli.is_mpi_binary", lambda: False)
     with pytest.raises(RuntimeError, match="serial/SMP"):
-        mh.MooseRunner(mpi=True, n_tasks=2).run(
+        mh.MooseRunner(n_tasks=2).run(
             input_tree / "model_mpi.i",
             output_dir=tmp_path / "mpi",
         )
@@ -188,8 +188,7 @@ def test_mpi_command_uses_explicit_launcher(
     )
     monkeypatch.setattr("pyvale.mooseherder.simrunner.subprocess.run", fake_run)
     mh.MooseRunner(
-        executable=get_binary_path(),
-        mpi=True,
+        moose_exe_file=get_binary_path(),
         n_tasks=2,
         launcher=("my-launcher", "-n"),
     ).run(input_tree / "model_mpi.i", output_dir=tmp_path / "mpi")
@@ -213,17 +212,97 @@ def test_rabbit_named_output_parameter(tmp_path: Path) -> None:
 
     result = mh.MooseRunner(output_parameter="simName").run(
         cube_thermomech_input_path(EElemType.HEX8),
-        parameters={"endTime": 1},
+        input_params={"endTime": 1},
         output_dir=tmp_path / "rabbit-cube",
     )
-    assert result.output.is_file()
+    assert result.output_file.is_file()
 
 
 def test_next_run_path_preserves_results(tmp_path: Path) -> None:
     output = tmp_path / "run"
-    assert mh.next_run_path(output) == output
+    assert mh.get_next_run_path(output) == output
     output.mkdir()
     (output / "keep.txt").write_text("previous result")
-    (tmp_path / "run-2").mkdir()
-    assert mh.next_run_path(output) == tmp_path / "run-3"
+    assert mh.get_next_run_path(output) == tmp_path / "run_1"
+    (tmp_path / "run_1").mkdir()
+    (tmp_path / "run_2").mkdir()
+    assert mh.get_next_run_path(output) == tmp_path / "run_3"
     assert (output / "keep.txt").read_text() == "previous result"
+
+
+@pytest.mark.parametrize("n_tasks", [None, 1])
+def test_serial_task_count_and_timeout_defaults(
+    input_tree: Path, tmp_path: Path, monkeypatch, n_tasks: int | None
+) -> None:
+    """Both serial task settings bypass MPI and retain the one-hour timeout."""
+
+    def fake_run(command, **kwargs):
+        assert command[0] == sys.executable
+        assert kwargs["timeout"] == 3600.0
+        (Path(kwargs["cwd"]) / "results.e").write_bytes(b"test output")
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr("pyvale.mooseherder.simrunner.subprocess.run", fake_run)
+    runner = mh.MooseRunner(n_tasks=n_tasks)
+    result = runner.run(input_tree / "model.i", output_dir=tmp_path / "serial")
+    assert result.output_file == result.output_dir / "results.e"
+    assert result.log_file == result.output_dir / "run.log"
+    assert mh.GmshRunner().timeout == 3600.0
+
+
+def test_moose_input_files_required(tmp_path: Path) -> None:
+    with pytest.raises(TypeError, match="input_files"):
+        mh.MooseRunner().run(output_dir=tmp_path / "missing")
+
+
+def test_parameter_name_grammar_is_owned_by_backend() -> None:
+    assert conv_args_dict_to_list({"a//b": 2}) == ["a//b=2"]
+
+
+@pytest.mark.parametrize("name", ["", "-flag", "x=y", "a\tb", "a\0b", 1])
+def test_output_parameter_validation(name) -> None:
+    with pytest.raises((ValueError, TypeError)):
+        mh.MooseRunner(output_parameter=name)
+
+
+def test_env_vars_are_copied_and_merged_for_child(
+    input_tree: Path, tmp_path: Path, monkeypatch
+) -> None:
+    """Solver OS environment variable overrides leave Python process values intact."""
+    monkeypatch.setenv("PYVALE_TEST_INHERITED", "parent")
+    monkeypatch.setenv("PYVALE_TEST_OVERRIDE", "parent")
+    env_vars = {"PYVALE_TEST_OVERRIDE": "child"}
+    runner = mh.MooseRunner(env_vars=env_vars)
+    env_vars["PYVALE_TEST_OVERRIDE"] = "changed after construction"
+
+    def fake_run(command, **kwargs):
+        assert kwargs["env"]["PYVALE_TEST_INHERITED"] == "parent"
+        assert kwargs["env"]["PYVALE_TEST_OVERRIDE"] == "child"
+        (Path(kwargs["cwd"]) / "results.e").write_bytes(b"test output")
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr("pyvale.mooseherder.simrunner.subprocess.run", fake_run)
+    runner.run(input_tree / "model.i", output_dir=tmp_path / "env_vars")
+    assert os.environ["PYVALE_TEST_OVERRIDE"] == "parent"
+    assert env_vars == {"PYVALE_TEST_OVERRIDE": "changed after construction"}
+
+
+def test_configurable_output_file_base(input_tree: Path, tmp_path: Path) -> None:
+    input_params: dict[str, mh.InputValues] = {"EMod": 2e9}
+    result = mh.MooseRunner(output_file_base="custom_results").run(
+        input_tree / "model.i",
+        input_params=input_params,
+        output_dir=tmp_path / "custom",
+    )
+    assert result.output_file.name == "custom_results.e"
+    assert result.output_file.is_file()
+    assert "Outputs/file_base=custom_results" in result.command
+    assert input_params == {"EMod": 2e9}
+
+
+@pytest.mark.parametrize(
+    "output_file_base", ["", "../escape", "subdir/name", "subdir\\name", ".", ".."]
+)
+def test_output_file_base_stays_in_run_directory(output_file_base: str) -> None:
+    with pytest.raises(ValueError):
+        mh.MooseRunner(output_file_base=output_file_base)

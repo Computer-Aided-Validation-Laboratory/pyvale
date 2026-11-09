@@ -1,9 +1,15 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
 """Python Gmsh mesh for case17: a 100 x 150 mm plate with a 12.5 mm-radius hole.
 
 This is an alternative mesh for the existing case17.i weak-plane-stress model.
 It preserves the plate geometry, mm units, and bc-base/bc-top boundary names;
 the .geo version uses mapped quadrilaterals, whereas this script uses triangles.
-GmshRunner supplies --config with parameters and the requested output_path.
+GmshRunner supplies --config with input_params and the requested output_path.
 """
 
 import argparse
@@ -15,17 +21,34 @@ import gmsh
 
 
 def main() -> None:
-    """Generate a headless mesh compatible with the packaged case17.i deck."""
+    """Generate a headless triangular mesh for the existing case17.i model.
+
+    Raises
+    ------
+    ValueError
+        mesh_size_mm is nonpositive/nonfinite, or the requested dimension is not 2.
+    RuntimeError
+        A required bc-base or bc-top boundary cannot be located.
+
+    Notes
+    -----
+    The command accepts --config followed by the GmshRunner JSON configuration.
+    The geometry is the packaged case17 plate: 100 by 150 mm, with a 12.5 mm-radius
+    central hole. Parameters may specify mesh_size_mm (default 15); mesh_order
+    defaults to 2. The output_path extension selects the mesh export format;
+    msh_version selects the version for .msh output. Physical boundary
+    names match case17.i; Gmsh is finalised on normal exit and Python exceptions.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
     args = parser.parse_args()
     config = json.loads(args.config.read_text(encoding="utf-8"))
-    mesh_size = float(config["parameters"].get("mesh_size_mm", 15.0))
+    mesh_size = float(config["input_params"].get("mesh_size_mm", 15.0))
     if not math.isfinite(mesh_size) or mesh_size <= 0:
         raise ValueError("mesh_size_mm must be finite and positive.")
-    if config["dimension"] != 2:
+    if config["mesh_dims"] != 2:
         raise ValueError("case17 is a 2D plate.")
-    order = config["order"] if config["order"] is not None else 2
+    order = config["mesh_order"] if config["mesh_order"] is not None else 2
     gmsh.initialize(readConfigFiles=False)
     try:
         gmsh.model.add("case17")
@@ -51,7 +74,7 @@ def main() -> None:
         gmsh.model.addPhysicalGroup(2, [surface[1] for surface in surfaces], 3, "plate")
         gmsh.model.mesh.generate(2)
         gmsh.model.mesh.setOrder(order)
-        gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+        gmsh.option.setNumber("Mesh.MshFileVersion", config["msh_version"])
         gmsh.write(config["output_path"])
     finally:
         gmsh.finalize()

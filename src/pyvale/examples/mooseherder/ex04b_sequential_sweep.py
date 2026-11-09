@@ -23,25 +23,26 @@ output_path: Path = Path.cwd() / "pyvale-output"
 if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
+# %%
 # Case17: 2D plate with a hole, weak plane stress; mm, MPa and seconds.
 # These paths point to pyvale/data/simulation/simcases/case17.i and case17.geo.
 input_path: Path = dataset.sim_case_input_file_path(17)
-geometry_path: Path | None = dataset.sim_case_gmsh_file_path(17)
-assert geometry_path is not None
+geo_file: Path | None = dataset.sim_case_gmsh_file_path(17)
+assert geo_file is not None
 print(f"Packaged MOOSE input: {input_path}")
-print(f"Packaged Gmsh geometry: {geometry_path}")
+print(f"Packaged Gmsh geometry: {geo_file}")
 
 # %%
-steps: list[mh.SimulationStep] = [
-    mh.SimulationStep("mesh", mh.GmshRunner(), geometry_path),
-    mh.SimulationStep("solve", mh.MooseRunner(), input_path, mesh_from="mesh"),
+steps: list[mh.SimStep] = [
+    mh.SimStep("mesh", mh.GmshRunner(), geo_file),
+    mh.SimStep("solve", mh.MooseRunner(), input_path, mesh_from="mesh"),
 ]
-cases: list[dict[str, dict[str, mh.MooseValue]]] = mh.sweep_param_grid(
+case_input_params: list[dict[str, dict[str, mh.InputValues]]] = mh.sweep_param_grid(
     {
         "mesh": {"hole_sect_nodes": [5, 7], "plate_rad_nodes": [5]},
         "solve": {"EMod": [90e3, 110e3], "endTime": [1], "timeStep": [1]},
     }
 )
-herd: mh.MooseHerd = mh.MooseHerd(steps, output_dir=output_path / "ex08_sweep")
-results: list[list[mh.RunResult]] = herd.run(cases)
-print(f"Completed {len(results)} cases")
+herd: mh.MooseHerd = mh.MooseHerd(steps, output_dir=output_path / "ex04b_sweep")
+results: list[list[mh.RunResult]] = herd.run(case_input_params)
+print(f"Completed {len(results)} case_input_params")

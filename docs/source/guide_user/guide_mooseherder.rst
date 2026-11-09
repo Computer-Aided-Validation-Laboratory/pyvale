@@ -20,8 +20,8 @@ Run inputs and CLI parameters
    print(f"Packaged MOOSE input: {input_path}")
    result = mh.MooseRunner().run(
        input_path,
-       parameters={"EMod": 110e9, "nElemX": 4},
-       output_dir=Path.cwd() / "pyvale-output" / "single-run",
+       input_params={"EMod": 110e9, "nElemX": 4},
+       output_dir=Path.cwd() / "pyvale-output" / "single_run",
    )
 
 The tutorials reuse the existing ``pyvale/data/simulation/simcases`` inputs:
@@ -57,47 +57,97 @@ those values. Python callers supply values without shell quoting. An override
 that leaves a previously referenced variable unused can cause a MOOSE input
 error: prefer a model's exposed root variables over replacing downstream uses.
 
+``InputScalar`` describes a string, boolean, integer or float. ``InputValues``
+also accepts a flat list or tuple of these scalars. The shared
+``conv_args_dict_to_list(input_params)`` helper converts a dictionary to native
+``name=value`` arguments. It validates assignment boundaries and scalar values;
+the backend validates parameter-name grammar. ``stage_input_files(input_files,
+work_dir, input_root)`` snapshots entry files and their dependencies.
+
 Each output directory must be new and outside the input tree. This prevents
-recursive copying and stale output reuse. Use ``next_run_path(path)`` to select
-an unused suffixed path when rerunning a notebook or tutorial. The primary output is ``results.e``;
+recursive copying and stale output reuse. Use ``get_next_run_path(path)`` to select
+the preferred path if unused, then suffixes ``_1``, ``_2``, and so on when
+rerunning a notebook or tutorial. The primary output defaults to ``results.e``. Configure its basename with
+``MooseRunner(output_file_base="my_results")`` to produce ``my_results.e``;
+basenames cannot contain directories.
 ``Outputs/file_base`` and ``Outputs/exodus`` are managed by the runner. Inputs
 with their own named output objects may also write additional files. Run
-metadata comprises ``parameters.json``, ``command.json`` and ``run.log``.
+metadata comprises ``input_params.json``, ``command.json`` and ``run.log``.
 For a deck exposing a root output variable such as Rabbit's ``simName``, use
 ``MooseRunner(output_parameter="simName")`` so that the variable remains used.
-Failures raise an exception identifying the log. The runner has a configurable
-timeout. Relative external assets should live inside the declared input tree;
+``RunResult`` exposes ``output_file``, ``output_dir``, ``command`` and
+``log_file``. Failures raise an exception identifying the log. The runner has a configurable
+timeout of 3600 seconds (one hour) by default. Relative external assets should live inside the declared input tree;
 absolute external dependencies are the user's responsibility.
+
+Output-loader contexts
+^^^^^^^^^^^^^^^^^^^^^^
+
+All ``IOutputLoader`` implementations must provide an idempotent ``close()``.
+The interface provides ``__enter__`` and ``__exit__`` once for all subclasses;
+``Self`` keeps the concrete loader type when using ``with``:
+
+.. code-block:: python
+
+   import pyvale.dataio as io
+
+   with mh.ExodusLoader(result.output_file) as loader:
+       sim_data: io.SimData = loader.load_all_sim_data()
+
+For a field-by-field walkthrough, see
+:doc:`../examples/mooseherder/ex01b_inspect_simdata`. It prints all dataclass
+fields and available dictionary keys/shapes, extracts boundary histories and
+uses ``SimLoadConfig`` to load selected variables and time samples. Default
+connectivity uses zero-based indices; side-set node numbers retain one-based
+Exodus numbering and must be converted before NumPy indexing.
+
+The NetCDF resource is closed when the block exits normally or raises an
+exception. Exceptions are not suppressed. The loaded SimData arrays are owned
+in memory and remain usable afterward. Direct callers can still close a loader
+explicitly; repeated closure, including inside a with block, is safe. This
+lifetime management is separate from directory reuse: load data before replacing
+a reusable evaluation directory.
 
 Mesh generation and chaining
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``GmshRunner`` accepts a ``geometry=Path("model.geo")`` or
-``script=Path("mesh.py")``. Geometry parameters follow Gmsh's ``-setnumber`` and
+``GmshRunner`` accepts a ``geo_file=Path("model.geo")`` or
+``py_script_file=Path("mesh.py")``. Geometry parameters follow Gmsh's ``-setnumber`` and
 ``-setstring`` convention; use ``DefineConstant`` for overridable geometry
 variables. Geometry-only files are meshed by the worker. Existing ``Mesh`` and
 ``Save`` commands are supported, but remove ``Exit;`` so execution can complete.
-The default mesh format is MSH 2.2 for MOOSE compatibility.
+The defaults ``output_file_name="mesh.msh"`` and ``msh_version=2.2`` provide
+MSH 2.2 for MOOSE compatibility. Set ``msh_version=4.1`` for newer MSH output,
+or choose another export format through the extension, for example
+``GmshRunner(output_file_name="mesh.inp")``. ``msh_version`` only controls MSH
+files. ``mesh_dims`` selects the meshing dimension and ``mesh_order`` sets the
+optional element order.
 
 Python scripts receive ``--config <path>``. The JSON object contains
-``parameters`` and an absolute ``output_path``; the script must write that mesh
+``input_params``, ``mesh_dims``, ``mesh_order``, ``msh_version`` and an absolute
+``output_path``; the script must write that mesh
 and return successfully. A complete implementation is packaged as
 ``dataset.sim_case_input_file_path(17).with_name("case17_mesh.py")``. It meshes
 the same plate geometry and boundary names as case17.geo, using quadratic
 triangles instead of the .geo script's mapped quadrilaterals. User scripts own
 their Gmsh initialization and meshing options. Neither path opens a graphical window.
 
-``SimulationStep`` names a runner and its inputs. A solver step can specify
+``SimStep.name_subdir`` names both a step subdirectory and the key used in
+each case's input-parameter dictionary. ``SimStep`` supplies a runner and its
+input files. A solver step can specify
 ``mesh_from="mesh"`` to receive the earlier mesh step's output through
 ``Mesh/file``. For a deck using a named mesh variable, set ``mesh_parameter`` to
 that variable instead, avoiding an unused variable error.
 
-``MooseHerd.run`` accepts cases keyed by step name. Independent chains can run
-concurrently with ``num_parallel``; this is available with serial Rabbit. Each
-call creates a new ``sweep-NNNN`` directory containing isolated case/step
+``MooseHerd.run(case_input_params)`` accepts a list of dictionaries keyed by
+``SimStep.name_subdir``. ``SweepLoader.case_input_params`` exposes the same
+submitted parameter dictionaries after loading a manifest. Independent chains can run
+concurrently with ``parallel_runners``; this is available with serial Rabbit. Each
+call creates a new ``sweep_NNNN`` directory containing isolated case/step
 folders. Only a completed sweep receives ``sweep.json``. ``SweepLoader`` reads
 this manifest and loads a named step's Exodus files in original case order.
-Manifest output paths are relative, allowing completed sweeps to be relocated.
+Manifest output paths are relative and use forward slashes on every OS,
+allowing completed sweeps to be relocated to another computer.
 
 MPI and custom installations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -118,25 +168,36 @@ MPI execution requires both a suitable deck and an MPI-capable executable:
 
 .. code-block:: python
 
-   runner = mh.MooseRunner(mpi=True, n_tasks=4, n_threads=1)
+   runner = mh.MooseRunner(n_tasks=4, n_threads=1)
    mpi_input = dataset.element_case_input_path(dataset.EElemTest.HEX8, mpi=True)
    result = runner.run(mpi_input, output_dir=output_dir)
 
-A serial Rabbit installation is rejected before launch. ``launcher`` defaults
+Omitting ``n_tasks`` or setting it to ``None`` or ``1`` runs without MPI.
+Counts greater than 1 select MPI; a serial Rabbit installation is rejected
+at runner construction and again before launch. ``launcher`` defaults
 to ``("mpirun", "-np")``; configure the prefix for another MPI launcher. Install
-an MPI-capable Rabbit distribution in the environment used for MPI; simply
-setting a flag does not add MPI support to a serial executable.
+an MPI-capable Rabbit distribution in the Python installation used for MPI;
+simply
+setting a rank count does not add MPI support to a serial executable.
 
-``MooseRunner(executable=...)`` and ``GmshRunner(executable=...)`` select custom
-executables explicitly. Invalid paths never fall back to packaged defaults.
-MOOSE runtime environment overrides can be passed through ``env`` without
-changing the parent process. A MOOSE checkout and the former ``MooseConfig``
+``MooseRunner(moose_exe_file=...)`` and ``GmshRunner(gmsh_exe_file=...)`` select custom
+executables explicitly. Both runners check their backends at construction and before every run.
+``runner.get_backend()`` returns a ``RunnerBackend`` containing the resolved
+``backend_file`` path: an executable for MOOSE/custom Gmsh, or the gmsh.py
+module for Python Gmsh. Missing/non-executable files and unavailable packages
+raise immediately. Invalid paths never fall back to packaged defaults.
+OS environment variable overrides can be passed through ``env_vars`` (for
+example, ``env_vars={"OMP_NUM_THREADS": "4"}``). These overrides are merged with
+the calling Python process's OS environment variables for the solver process.
+The calling Python process's OS environment variables are not modified. This
+setting does not select or create a Python virtual environment.
+A MOOSE checkout and the former ``MooseConfig``
 configuration are no longer required. MPI capabilities of custom executables
 are the user's responsibility.
 
 The former modifier/runner positional sweep API is replaced by named steps and
 native parameters. ``InputModifier`` remains available for deliberate editing
-of one marked text block; it does not parse included dependencies. Tutorial 13
+of one marked text block; it does not parse included dependencies. Example :doc:`../examples/mooseherder/ex02d_modify_input_text`
 demonstrates this workflow explicitly.
 
 Historical geometry corrections
@@ -148,22 +209,24 @@ and case25 defines mesh_ref before using it. The former corrects which surfaces
 are selected for extrusion and boundary conditions; the constructed rectangle
 dimensions are unchanged. Neither case has a stored Exodus baseline to refresh.
 
-Reusable particle directories
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Reusable evaluation directories
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``DirectoryManager`` separates allocation policy from execution parallelism.
-``EDirectoryMode.ARCHIVE`` is the default: it preserves each sweep in numbered
-folders. ``EDirectoryMode.REUSE`` replaces one evaluation directory per explicit,
-stable particle identity:
+``EDirMode.ARCHIVE`` is the default: it preserves each sweep in numbered
+folders. ``EDirMode.REUSE`` replaces one evaluation directory per explicit,
+stable reuse ID:
 
 .. code-block:: python
 
    manager = mh.DirectoryManager(
-       output_path / "particles", mode=mh.EDirectoryMode.REUSE,
+       output_path / "reused", mode=mh.EDirMode.REUSE,
    )
-   herd = mh.MooseHerd(steps, directory_manager=manager, num_parallel=4)
-   results = herd.run(cases, evaluation_ids=["particle-0001", "particle-0007"])
+   herd = mh.MooseHerd(steps, dir_manager=manager, parallel_runners=4)
+   results = herd.run(case_input_params, reuse_ids=["reuse_0001", "reuse_0007"])
 
+Step subdirectory names and reuse IDs use snake_case (lowercase letters, digits and
+underscores, starting with a letter). ``reuse_ids`` are required in REUSE mode and rejected in ARCHIVE mode.
 IDs are independent of worker number and batch order. A subset can be submitted
 on the next iteration. Every requested ID is reserved before any old output is
 removed; overlapping batches using the same ID are rejected, while disjoint
@@ -176,13 +239,13 @@ but it describes only the latest evaluation for that ID. There is no historical
 sweep manifest in REUSE mode. Old results and completion markers are removed
 before launching replacements, so a failure cannot return a stale result.
 Read numerical results before submitting the same IDs again: returned paths
-will be reused. A crashed orchestrator may leave a reservation in ``.locks``;
+will be reused. A crashed orchestrator may leave a reservation in ``.reuse_locks``;
 remove it manually only after verifying that its evaluation is no longer active.
 
 FEMU with pymoo
 ^^^^^^^^^^^^^^^
 
-Tutorial 15 uses pymoo's fixed-population PSO ask/tell interface and the embedded
+Example :doc:`../examples/mooseherder/ex05b_pymoo_femu` uses pymoo's fixed-population PSO ask/tell interface and the embedded
 ``case17`` 2D plate with a hole. It meshes once, then runs a Rabbit solve per
 candidate. The reaction force is read from ``SimData.glob_vars["react_y_top"]``;
 the transverse and axial strain fields are ``SimData.node_vars["strain_xx"]``
