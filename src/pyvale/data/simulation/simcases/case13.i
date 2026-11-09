@@ -104,15 +104,14 @@ cuSpecHeat = 406.0  # J.kg^-1.K^-1
 [Executioner]
     type = Transient
 
-    solve_type = PJFNK   # PJNFK or NEWTON
-    l_max_its = 100       # default = 1000
-    l_tol = 1e-6          # default = 1e-5
-    nl_abs_tol = 1e-6     # default = 1e-50
-    nl_rel_tol = 1e-6     # default = 1e-8
+
+
+
+
 
     line_search = none # TODO: check this helps
-    petsc_options_iname = '-pc_type -pc_hypre_type'
-    petsc_options_value = 'hypre boomeramg'
+
+
 
     start_time = 0.0
     end_time = ${endTime}
@@ -138,3 +137,6 @@ cuSpecHeat = 406.0  # J.kg^-1.K^-1
 [Outputs]
     exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i

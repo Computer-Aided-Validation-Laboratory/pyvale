@@ -20,7 +20,7 @@ listed below.
 | Dataset helpers | `python -m pytest tests/data` |
 | Data I/O | `python -m pytest tests/dataio` |
 | DIC | `python -m pytest tests/dic` |
-| MOOSE and Gmsh integration | `python -m pytest tests/mooseherder` |
+| Rabbit/MOOSE and Gmsh integration | `python -m pytest tests/mooseherder` |
 | Rendering | `python -m pytest tests/render` |
 | Sensor simulation | `python -m pytest tests/sensorsim` |
 | Strain | `python -m pytest tests/strain` |
@@ -44,11 +44,12 @@ the directory below `src/pyvale/examples`, for example:
 
 ```bash
 python -m pytest tests/examples --example-module=render3d
-python -m pytest tests/examples --example-module=render2d
+python -m pytest tests/examples --example-module=renderuvs
 python -m pytest tests/examples --example-module=dic
 python -m pytest tests/examples --example-module=basicsensorsim
 python -m pytest tests/examples --example-module=extsensorsim
 python -m pytest tests/examples --example-module=valid
+python -m pytest tests/mooseherder tests/examples --example-module=mooseherder
 ```
 
 Run render implementation tests and its examples together with:
@@ -110,11 +111,27 @@ Blender scene path.
 
 ### MOOSE and Gmsh
 
-Tests that execute MOOSE skip unless the configured MOOSE checkout and Proteus
-application exist. The current test helper expects `~/moose`, `~/proteus`, and
-the `proteus-opt` executable. Gmsh-runner tests skip when `gmsh` is not on
-`PATH`. Tests that require both tools skip if either is unavailable. Availability
-tests remain runnable and verify the missing-tool diagnostics.
+Rabbit FEM and Python Gmsh are core dependencies. The mooseherder suite runs real
+SMP solves, both mesh input methods, nested/ordered decks, analytic mechanics,
+parallel chains, archive/reuse policies, and every tutorial in CI; no local MOOSE/Proteus checkout is
+needed. Install the system GLU library on Linux (`libglu1-mesa` on Ubuntu).
+
+MPI command assembly and rejection of a serial build are tested without MPI.
+Actual multi-rank runs need an MPI-capable Rabbit/custom app and compatible
+launcher; examples default to SMP even in the MPI tutorial. Select MPI inputs
+explicitly. Custom executable behaviour is tested independently of user installs.
+
+Run and build only the mooseherder gallery with:
+
+```bash
+python -m pytest tests/mooseherder tests/examples --example-module=mooseherder
+PYVALE_DOCS_RUN_EXAMPLES=1 PYVALE_DOCS_EXAMPLE_MODULE=mooseherder python -m sphinx -b html docs/source docs/build/html
+```
+
+All 36 historical simulation cases have matching `_mpi.i` entries. Tests mesh
+all historical geometries and parse both entry variants. Representative SMP
+cases are solved in full. Existing Exodus baselines remain unchanged; regenerate
+only deliberately reviewed results with `scripts/run_example_simcases.py`.
 
 ### Examples
 
@@ -125,3 +142,13 @@ unbundled local files: `ex01_region_of_interest.py`, `ex06_hrdic.py`,
 `ex11_dic_chal.py`. Validation examples run headlessly; their plotting examples
 save PNGs under `pyvale-output`. Set `SHOW_FIGURES = True` in those scripts to
 also display interactive figures.
+
+The final pymoo FEMU tutorial verifies recovery of the case17 elastic modulus
+and Poisson's ratio, noise-normalised force/strain costs and parallel batch
+evaluation with bounded reuse of candidate directories.
+
+The mooseherder gallery reuses packaged simcases: case00_HEX8 for generated-mesh
+cube workflows and case17 for plate-with-hole workflows. The minimal analytic
+models used to isolate runner behaviour live in `tests/mooseherder/fixtures`,
+not in installed package data. Tests also exercise the alternative case17 Python
+mesh through a real weak-plane-stress solve.

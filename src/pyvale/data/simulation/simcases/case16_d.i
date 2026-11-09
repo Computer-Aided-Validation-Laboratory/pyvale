@@ -84,7 +84,7 @@ mesh_file = 'case16.msh'
   []
 []
 
-[Modules/TensorMechanics/Master]
+[Physics/SolidMechanics/QuasiStatic]
   [all]
       strain = SMALL                      # SMALL or FINITE
       incremental = true
@@ -291,20 +291,18 @@ mesh_file = 'case16.msh'
 []
 
 [Executioner]
+    scaling_group_variables = 'disp_x disp_y disp_z'
   type = Transient
 
-  solve_type = 'NEWTON'   # PJNFK or NEWTON
   petsc_options = '-snes_converged_reason'
-  petsc_options_iname = '-pc_type -pc_hypre_type'
-  petsc_options_value = 'hypre boomeramg'
+
+
   line_search = 'none'
 
-  l_max_its = 1000
-  l_tol = 1e-6
 
-  nl_max_its = 50
-  nl_rel_tol = 1e-6
-  nl_abs_tol = 1e-6
+
+
+
 
   start_time=0.0
   end_time = ${endTime}
@@ -358,3 +356,6 @@ mesh_file = 'case16.msh'
 [Outputs]
   exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i

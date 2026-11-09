@@ -183,19 +183,17 @@ ThermExp = 17.8e-6 # 1/degC
 []
 
 [Executioner]
+    scaling_group_variables = 'disp_x disp_y disp_z'
     type = Transient
 
-    solve_type = 'NEWTON'
     petsc_options = '-snes_converged_reason'
-    petsc_options_iname = '-pc_type -pc_hypre_type'
-    petsc_options_value = 'hypre boomeramg'
 
-    l_max_its = 1000
-    l_tol = 1e-6
 
-    nl_max_its = 50
-    nl_rel_tol = 1e-6
-    nl_abs_tol = 1e-6
+
+
+
+
+
 
     start_time=0.0
     end_time = ${endTime}
@@ -240,3 +238,6 @@ ThermExp = 17.8e-6 # 1/degC
 [Outputs]
     exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_cube_smp.i

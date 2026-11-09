@@ -52,7 +52,7 @@ cuThermExp = 17.8e-6 # 1/degC
     []
 []
 
-[Modules/TensorMechanics/Master]
+[Physics/SolidMechanics/QuasiStatic]
     [all]
         strain = SMALL                      # SMALL or FINITE
         incremental = true
@@ -198,10 +198,11 @@ cuThermExp = 17.8e-6 # 1/degC
 []
 
 [Executioner]
+    scaling_group_variables = 'disp_x disp_y disp_z'
     type = Steady
-    solve_type = 'PJFNK'
-    petsc_options_iname = '-pc_type -pc_hypre_type'
-    petsc_options_value = 'hypre    boomeramg'
+
+
+
     #end_time= ${endTime}
     #dt = ${timeStep}
 []
@@ -255,3 +256,6 @@ cuThermExp = 17.8e-6 # 1/degC
 [Outputs]
     exodus = true
 []
+
+# Shared Rabbit-compatible serial/SMP solver.
+!include solver_smp.i
