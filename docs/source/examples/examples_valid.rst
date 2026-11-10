@@ -1,24 +1,23 @@
 Validation examples
 ===================
 
-All validation examples save diagnostic figures in ``pyvale-output``. They use
-prepared data and do not run MOOSE. ``ex6`` loads a packaged Exodus file to
-show actual ``IField`` extraction and the SensorSim-to-``ExpData`` bridge.
+Follow the validation workflow from explicit NumPy observations to registered
+sensor data, epistemic scenarios and three-dimensional simulation overlays.
+Examples save figures under their own ``pyvale-output/valid_ex*`` directories
+and disable interactive plotting by default.
 
-.. list-table::
-   :header-rows: 1
+The plate examples and ``ex7`` use packaged data. ``ex8`` runs a MOOSE cube sweep
+with the packaged Rabbit application, perturbing heat flux and thermal expansion
+by 10%.
 
-   * - Script
-     - Diagnostic
-   * - ``ex1_val_metric.py``
-     - Standalone metrics and empirical CDFs
-   * - ``ex2_val_steady.py``
-     - Plate thermocouple CDFs and AVM map
-   * - ``ex3_val_epistemic.py``
-     - Sampled epistemic CDF envelope and metric distribution
-   * - ``ex4_val_bounds.py``
-     - Offset CDF envelope and directional MAVM map
-   * - ``ex5_val_transient.py``
-     - Metric versus time and selected CDFs
-   * - ``ex6_val_field.py``
-     - Strain gauge grid map and temperature time series
+.. toctree::
+   :maxdepth: 1
+
+   valid/ex1_val_metric
+   valid/ex2_val_steady
+   valid/ex3_val_epistemic
+   valid/ex4_val_bounds
+   valid/ex5_val_transient
+   valid/ex6_val_field
+   valid/ex7_val_cube_tensor
+   valid/ex8_val_cube_sweep

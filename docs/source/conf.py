@@ -155,6 +155,7 @@ sphinx_gallery_conf = {
         '../../src/pyvale/examples/renderuvs',
         '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/mooseherder',
+        '../../src/pyvale/examples/valid',
     ],
     # Path to where to save gallery generated output.
     'gallery_dirs': [
@@ -164,6 +165,7 @@ sphinx_gallery_conf = {
         'examples/renderuvs',
         'examples/extsensorsim',
         'examples/mooseherder',
+        'examples/valid',
     ],
     # Generate every example page, but only execute unattended examples.
     'filename_pattern': safe_example_pattern,

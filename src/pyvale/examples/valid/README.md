@@ -1,0 +1,10 @@
+Validation examples
+===================
+
+Build comparisons with explicit physical, aleatory and epistemic axes, then
+inspect empirical distributions, metric histories and PyVista spatial overlays.
+Each example writes to its own directory beneath ``pyvale-output`` and keeps
+interactive plotting disabled unless requested.
+
+Examples 1–6 cover scalar and plate workflows. Example 7 uses packaged 3D tensor
+fields; example 8 runs the packaged Rabbit MOOSE solver for a 10% parameter sweep.

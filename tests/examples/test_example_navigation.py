@@ -10,7 +10,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES_ROOT = REPO_ROOT / "src" / "pyvale" / "examples"
 DOCS_EXAMPLES_ROOT = REPO_ROOT / "docs" / "source" / "examples"
@@ -22,6 +21,7 @@ GROUPS = (
     ("examples_renderuvs", "renderuvs"),
     ("examples_ext_sensorsim", "extsensorsim"),
     ("examples_mooseherder", "mooseherder"),
+    ("examples_valid", "valid"),
 )
 
 
@@ -61,7 +61,7 @@ def test_development_example_families_are_not_public() -> None:
         path.read_text(encoding="utf-8")
         for path in DOCS_EXAMPLES_ROOT.glob("examples*.rst")
     )
-    for source_name in ("genanalyticdata", "valid", "visualisation"):
+    for source_name in ("genanalyticdata", "visualisation"):
         assert source_name not in navigation
 
 
