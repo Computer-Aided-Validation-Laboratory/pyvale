@@ -1,36 +1,18 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
 """Validation of common physical observables and uncertainty scenarios."""
 
-from pyvale.valid.conversion import (
+from pyvale.valid.converttovaldata import (
     combine_val_cases,
     conv_exp_sim_to_data,
     val_from_exp,
     val_from_sim,
 )
-from pyvale.valid.core import (
-    EpistemicOffsets,
-    EValAxis,
-    EValGeometry,
-    EValOperator,
-    EValSource,
-    ValArray,
-    ValCase,
-    ValData,
-    ValDomain,
-    ValGeometry,
-    ValObservable,
-    ValSampleInputs,
-    assemble_val_case,
-    val_from_arrays,
-)
 from pyvale.valid.cython import cyth_calc_mavm_1d, cyth_calc_mavm_pbox_1d
-from pyvale.valid.engine import (
-    EEpisOffset,
-    EResultAxis,
-    ValidationEngine,
-    ValMetricField,
-    ValResult,
-    select_aleatory,
-)
 from pyvale.valid.metrics import (
     EMAVMDuplicates,
     MAVMResult,
@@ -42,32 +24,71 @@ from pyvale.valid.metrics import (
     calc_mavm_pbox_1d,
     calc_u_pooling_1d,
 )
-from pyvale.valid.plotting import (
-    calc_ecdf_envelope,
-    plot_val_cdf_envelope,
-    plot_val_cdfs,
-    plot_val_metric_distribution,
-    plot_val_metric_map,
-    plot_val_metric_time,
-)
-from pyvale.valid.strategy import (
+from pyvale.valid.metricstrategy import (
     EMetricType,
     IValMetric,
     MetricAVM,
     MetricCVM,
     MetricKS,
     MetricMAVM,
-    MetricRelativeError,
+    MetricRelErr,
     MetricResult,
     MetricRMSE,
     ScalarMetricResult,
 )
+from pyvale.valid.valengine import (
+    EValResAxis,
+    ValidationEngine,
+    ValMetricField,
+    ValResult,
+)
+from pyvale.valid.valplot import (
+    ValPlotLabels,
+    plot_val_cdf_envelope,
+    plot_val_cdfs,
+    plot_val_cdfs_points,
+    plot_val_metric_distribution,
+    plot_val_metric_map,
+    plot_val_metric_time,
+    plot_val_metric_time_points,
+)
+from pyvale.valid.valtools import (
+    calc_ecdf,
+    calc_ecdf_envelope,
+    extract_ecdf,
+    extract_ecdf_envelope,
+)
+from pyvale.valid.valtypes import (
+    EEpisOffset,
+    EpistemicOffsets,
+    EValAxis,
+    EValGeometry,
+    EValOperator,
+    EValSource,
+    ValArray,
+    ValCase,
+    ValData,
+    ValDomain,
+    ValECDF,
+    ValGeometry,
+    ValObservable,
+    ValSampleInputs,
+    assemble_val_case,
+    val_from_arrays,
+)
 
 __all__ = [
+    "ValECDF",
+    "calc_ecdf",
+    "extract_ecdf",
+    "extract_ecdf_envelope",
+    "ValPlotLabels",
+    "plot_val_cdfs_points",
+    "plot_val_metric_time_points",
     "EMAVMDuplicates",
     "EMetricType",
     "EEpisOffset",
-    "EResultAxis",
+    "EValResAxis",
     "EValAxis",
     "EValGeometry",
     "EValOperator",
@@ -80,7 +101,7 @@ __all__ = [
     "MetricKS",
     "MetricMAVM",
     "MetricRMSE",
-    "MetricRelativeError",
+    "MetricRelErr",
     "MetricResult",
     "ScalarMetricResult",
     "ValArray",
@@ -111,7 +132,6 @@ __all__ = [
     "plot_val_metric_distribution",
     "plot_val_metric_map",
     "plot_val_metric_time",
-    "select_aleatory",
     "val_from_arrays",
     "val_from_exp",
     "val_from_sim",

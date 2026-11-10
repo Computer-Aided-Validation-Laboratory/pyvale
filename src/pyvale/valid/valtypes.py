@@ -1,9 +1,21 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
 """Named physical and uncertainty axes for validation data."""
 
 from dataclasses import dataclass
-from enum import Enum, StrEnum, auto
+from enum import Enum, IntEnum, StrEnum, auto
 
 import numpy as np
+
+
+class EEpisOffset(IntEnum):
+    NOMINAL = 0
+    LOWER = 1
+    UPPER = 2
 
 
 class EValAxis(Enum):
@@ -128,6 +140,55 @@ class ValArray:
         if any(size == 0 for size in self.data.shape):
             raise ValueError("Validation axes cannot be empty.")
 
+    def select_aleatory(
+        self,
+        point: int,
+        component: int,
+        time: int,
+        epis_trans: int = 0,
+        epis_nuis: int = 0,
+        offset: EEpisOffset | int = EEpisOffset.NOMINAL,
+    ) -> np.ndarray:
+        """Select one conditional 1D sample, applying a coherent value shift."""
+        indices = {
+            EValAxis.POINT: point,
+            EValAxis.COMPONENT: component,
+            EValAxis.TIME: time,
+            EValAxis.EPISTEMIC_TRANS: epis_trans,
+            EValAxis.EPISTEMIC_NUIS: epis_nuis,
+            EValAxis.ALEATORY: slice(None),
+        }
+        for axis, index in indices.items():
+            if axis is EValAxis.ALEATORY:
+                continue
+            size = self.data.shape[self.axes.index(axis)] if axis in self.axes else 1
+            if isinstance(index, (bool, np.bool_)) or not isinstance(
+                index, (int, np.integer)
+            ):
+                raise TypeError(f"{axis.name} index must be an integer.")
+            if not 0 <= index < size:
+                raise IndexError(f"{axis.name} index {index} is outside [0, {size}).")
+        selected = self.data[tuple(indices[axis] for axis in self.axes)]
+        values = np.atleast_1d(selected)
+        if np.any(np.isinf(values)):
+            raise ValueError("Validation observations cannot contain infinity.")
+        if isinstance(offset, bool) or offset not in (0, 1, 2):
+            raise ValueError("Offset scenario must be nominal, lower, or upper.")
+        if offset != EEpisOffset.NOMINAL and self.offsets is None:
+            raise ValueError("Quantity has no offset scenarios.")
+        if offset == EEpisOffset.NOMINAL:
+            return values
+        offsets = self.offsets
+        physical = {
+            EValAxis.POINT: point,
+            EValAxis.COMPONENT: component,
+            EValAxis.TIME: time,
+        }
+        bound = offsets.lower if offset == EEpisOffset.LOWER else offsets.upper
+        magnitude = np.asarray(bound)[tuple(physical[axis] for axis in offsets.axes)]
+        sign = -1.0 if offset == EEpisOffset.LOWER else 1.0
+        return values + sign * magnitude
+
 
 @dataclass(slots=True)
 class ValSampleInputs:
@@ -221,3 +282,58 @@ def val_from_arrays(
 def assemble_val_case(domain: ValDomain, sim: ValData, exp: ValData) -> ValCase:
     """Validate common observable metadata and assemble a comparison."""
     return ValCase(domain=domain, sim=sim, exp=exp)
+
+
+class EMAVMDuplicates(Enum):
+    """Selects the MAVM empirical-CDF integration algorithm."""
+
+    REJECT = "reject"
+    """Full field compatible loop for unique floating point observations."""
+
+    INCLUDE = "include"
+    """Probability weighted loop that supports repeated observations."""
+
+
+@dataclass(slots=True)
+class MAVMResult:
+    """Container for Modified Area Validation Metric (MAVM) calculation
+    results.
+    """
+
+    d_plus: float
+    """Positive support-shift mismatch area, matching fullfieldvalmetrics."""
+
+    d_minus: float
+    """Negative support-shift mismatch area, matching fullfieldvalmetrics."""
+
+    d_total: float
+    """Total mismatch distance (d_plus + d_minus)."""
+
+    model_quantiles: np.ndarray
+    """Quantiles (support values) of the model empirical CDF."""
+
+    model_probs: np.ndarray
+    """Cumulative probabilities corresponding to model quantiles."""
+
+    exp_quantiles: np.ndarray
+    """Quantiles (support values) of the experimental empirical CDF."""
+
+    exp_probs: np.ndarray
+    """Cumulative probabilities corresponding to experimental quantiles."""
+
+    exp_conf_lower: np.ndarray
+    """Lower confidence bound quantiles for the experimental CDF."""
+
+    exp_conf_upper: np.ndarray
+    """Upper confidence bound quantiles for the experimental CDF."""
+
+    alpha: float
+    """Significance level used for the confidence interval (e.g. 0.05)."""
+
+
+@dataclass(slots=True)
+class ValECDF:
+    """Sorted unique support and cumulative probability, each shaped (n_support,)."""
+
+    quantiles: np.ndarray
+    probabilities: np.ndarray

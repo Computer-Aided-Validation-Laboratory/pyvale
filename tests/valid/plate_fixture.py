@@ -1,22 +1,13 @@
-"""Small prepared 2D plate datasets shared by validation examples."""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
 
-from pathlib import Path
-
-import matplotlib.pyplot as plt
 import numpy as np
 
 import pyvale.data as dataset
 import pyvale.valid as val
-
-
-def save_diagnostic(fig: plt.Figure, name: str) -> Path:
-    """Save and close a diagnostic figure in the normal example directory."""
-    output_dir = Path.cwd() / "pyvale-output"
-    output_dir.mkdir(exist_ok=True)
-    path = output_dir / name
-    fig.savefig(path, dpi=160, bbox_inches="tight")
-    plt.close(fig)
-    return path
 
 
 def load_plate_case(

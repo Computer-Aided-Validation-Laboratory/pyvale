@@ -1,17 +1,23 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
 """Run standalone metrics over shared physical and uncertainty axes."""
 
 from dataclasses import dataclass
-from enum import IntEnum, StrEnum
+from enum import StrEnum
 from itertools import product
 
 import numpy as np
 
-from pyvale.valid.core import EValAxis, ValArray, ValCase, ValDomain
 from pyvale.valid.metrics import MAVMResult
-from pyvale.valid.strategy import EMetricType, IValMetric
+from pyvale.valid.metricstrategy import EMetricType, IValMetric
+from pyvale.valid.valtypes import EEpisOffset, EValAxis, ValArray, ValCase, ValDomain
 
 
-class EResultAxis(StrEnum):
+class EValResAxis(StrEnum):
     POINT = "point"
     COMPONENT = "component"
     TIME = "time"
@@ -23,22 +29,26 @@ class EResultAxis(StrEnum):
     EXP_OFFSET = "exp_offset"
 
 
-class EEpisOffset(IntEnum):
-    NOMINAL = 0
-    LOWER = 1
-    UPPER = 2
-
-
-RESULT_AXES = tuple(EResultAxis)
+VAL_RES_AXES = tuple(EValResAxis)
 
 
 @dataclass(slots=True)
 class ValMetricField:
-    axes: tuple[EResultAxis, ...]
-    value: np.ndarray
+    """Metric arrays in canonical result-axis order.
+
+    Axes are point, component, time, simulation transferable/nuisance epistemic,
+    experiment transferable/nuisance epistemic, simulation offset, experiment
+    offset. Physical axes are always present; singleton uncertainty axes are
+    omitted. ``metric``, ``d_plus`` and ``d_minus`` share the same shape.
+    A steady scalar observable commonly has shape (n_points, 1, 1); a transient
+    vector has shape (n_points, n_components, n_times) before scenario axes.
+    """
+
+    axes: tuple[EValResAxis, ...]
+    metric: np.ndarray
     d_plus: np.ndarray | None = None
     d_minus: np.ndarray | None = None
-    scenarios: dict[EResultAxis, tuple[EEpisOffset, ...]] | None = None
+    scenarios: dict[EValResAxis, tuple[EEpisOffset, ...]] | None = None
 
 
 @dataclass(slots=True)
@@ -57,57 +67,17 @@ class ValResult:
         metric: EMetricType,
         *,
         maximum: bool = True,
-    ) -> tuple[float, dict[EResultAxis, int]]:
+    ) -> tuple[float, dict[EValResAxis, int]]:
         """Locate a finite extreme without reducing the stored result field."""
         field = self.get(observable, metric)
-        if not np.any(np.isfinite(field.value)):
+        if not np.any(np.isfinite(field.metric)):
             raise ValueError("Metric field contains no finite results.")
         selectable = np.where(
-            np.isfinite(field.value), field.value, -np.inf if maximum else np.inf
+            np.isfinite(field.metric), field.metric, -np.inf if maximum else np.inf
         )
         flat = np.argmax(selectable) if maximum else np.argmin(selectable)
-        index = np.unravel_index(flat, field.value.shape)
-        return float(field.value[index]), dict(zip(field.axes, index, strict=True))
-
-
-def select_aleatory(
-    quantity: ValArray,
-    point: int,
-    component: int,
-    time: int,
-    trans: int = 0,
-    nuis: int = 0,
-    offset: EEpisOffset | int = EEpisOffset.NOMINAL,
-) -> np.ndarray:
-    """Select one conditional 1D sample, applying a coherent value shift."""
-    indices = {
-        EValAxis.POINT: point,
-        EValAxis.COMPONENT: component,
-        EValAxis.TIME: time,
-        EValAxis.EPISTEMIC_TRANS: trans,
-        EValAxis.EPISTEMIC_NUIS: nuis,
-        EValAxis.ALEATORY: slice(None),
-    }
-    selected = quantity.data[tuple(indices[axis] for axis in quantity.axes)]
-    values = np.atleast_1d(selected)
-    if np.any(np.isinf(values)):
-        raise ValueError("Validation observations cannot contain infinity.")
-    if isinstance(offset, bool) or offset not in (0, 1, 2):
-        raise ValueError("Offset scenario must be nominal, lower, or upper.")
-    if offset != EEpisOffset.NOMINAL and quantity.offsets is None:
-        raise ValueError("Quantity has no offset scenarios.")
-    if offset == EEpisOffset.NOMINAL:
-        return values
-    offsets = quantity.offsets
-    physical = {
-        EValAxis.POINT: point,
-        EValAxis.COMPONENT: component,
-        EValAxis.TIME: time,
-    }
-    bound = offsets.lower if offset == EEpisOffset.LOWER else offsets.upper
-    magnitude = np.asarray(bound)[tuple(physical[axis] for axis in offsets.axes)]
-    sign = -1.0 if offset == EEpisOffset.LOWER else 1.0
-    return values + sign * magnitude
+        index = np.unravel_index(flat, field.metric.shape)
+        return float(field.metric[index]), dict(zip(field.axes, index, strict=True))
 
 
 class ValidationEngine:
@@ -123,37 +93,37 @@ class ValidationEngine:
             raise ValueError("Metric types must be unique in one engine.")
         self.metrics = metrics
 
-    def run(self, case: ValCase) -> ValResult:
+    def run(self, val_case: ValCase) -> ValResult:
         """Return all physical, sampled epistemic, and offset scenarios."""
         results: dict[str, dict[EMetricType, ValMetricField]] = {}
-        for name, observable in case.domain.observables.items():
-            sim = case.sim.quantities[name]
-            exp = case.exp.quantities[name]
+        for name, observable in val_case.domain.observables.items():
+            sim = val_case.sim.quantities[name]
+            exp = val_case.exp.quantities[name]
             axis_sizes = {
-                EResultAxis.POINT: (
+                EValResAxis.POINT: (
                     1
                     if observable.geometry.coords is None
                     else len(observable.geometry.coords)
                 ),
-                EResultAxis.COMPONENT: len(observable.components),
-                EResultAxis.TIME: 1
+                EValResAxis.COMPONENT: len(observable.components),
+                EValResAxis.TIME: 1
                 if observable.times is None
                 else len(observable.times),
-                EResultAxis.SIM_TRANS: _axis_size(sim, EValAxis.EPISTEMIC_TRANS),
-                EResultAxis.SIM_NUIS: _axis_size(sim, EValAxis.EPISTEMIC_NUIS),
-                EResultAxis.EXP_TRANS: _axis_size(exp, EValAxis.EPISTEMIC_TRANS),
-                EResultAxis.EXP_NUIS: _axis_size(exp, EValAxis.EPISTEMIC_NUIS),
-                EResultAxis.SIM_OFFSET: 3 if sim.offsets is not None else 1,
-                EResultAxis.EXP_OFFSET: 3 if exp.offsets is not None else 1,
+                EValResAxis.SIM_TRANS: _axis_size(sim, EValAxis.EPISTEMIC_TRANS),
+                EValResAxis.SIM_NUIS: _axis_size(sim, EValAxis.EPISTEMIC_NUIS),
+                EValResAxis.EXP_TRANS: _axis_size(exp, EValAxis.EPISTEMIC_TRANS),
+                EValResAxis.EXP_NUIS: _axis_size(exp, EValAxis.EPISTEMIC_NUIS),
+                EValResAxis.SIM_OFFSET: 3 if sim.offsets is not None else 1,
+                EValResAxis.EXP_OFFSET: 3 if exp.offsets is not None else 1,
             }
             axes = tuple(
                 axis
-                for axis in RESULT_AXES
-                if axis in RESULT_AXES[:3] or axis_sizes[axis] > 1
+                for axis in VAL_RES_AXES
+                if axis in VAL_RES_AXES[:3] or axis_sizes[axis] > 1
             )
             shape = tuple(axis_sizes[axis] for axis in axes)
             scenarios = {}
-            for axis in (EResultAxis.SIM_OFFSET, EResultAxis.EXP_OFFSET):
+            for axis in (EValResAxis.SIM_OFFSET, EValResAxis.EXP_OFFSET):
                 if axis in axes:
                     scenarios[axis] = tuple(EEpisOffset)
             fields = {}
@@ -161,15 +131,14 @@ class ValidationEngine:
                 directional = metric.get_kind() is EMetricType.MAVM
                 fields[metric.get_kind()] = ValMetricField(
                     axes=axes,
-                    value=np.full(shape, np.nan),
+                    metric=np.full(shape, np.nan),
                     d_plus=np.full(shape, np.nan) if directional else None,
                     d_minus=np.full(shape, np.nan) if directional else None,
                     scenarios=scenarios or None,
                 )
-            for full_index in product(*(range(axis_sizes[a]) for a in RESULT_AXES)):
-                selected = dict(zip(RESULT_AXES, full_index, strict=True))
-                sim_samples = select_aleatory(
-                    sim,
+            for full_index in product(*(range(axis_sizes[a]) for a in VAL_RES_AXES)):
+                selected = dict(zip(VAL_RES_AXES, full_index, strict=True))
+                sim_samples = sim.select_aleatory(
                     selected["point"],
                     selected["component"],
                     selected["time"],
@@ -177,8 +146,7 @@ class ValidationEngine:
                     selected["sim_nuis"],
                     selected["sim_offset"],
                 )
-                exp_samples = select_aleatory(
-                    exp,
+                exp_samples = exp.select_aleatory(
                     selected["point"],
                     selected["component"],
                     selected["time"],
@@ -195,16 +163,16 @@ class ValidationEngine:
                     field = fields[metric.get_kind()]
                     metric_result = metric.calc(sim_samples, exp_samples)
                     if isinstance(metric_result, MAVMResult):
-                        field.value[out_index] = metric_result.d_total
+                        field.metric[out_index] = metric_result.d_total
                         assert field.d_plus is not None
                         assert field.d_minus is not None
                         field.d_plus[out_index] = metric_result.d_plus
                         field.d_minus[out_index] = metric_result.d_minus
                     else:
-                        field.value[out_index] = metric_result.value
+                        field.metric[out_index] = metric_result.value
             results[name] = fields
         configs = {metric.get_kind(): metric for metric in self.metrics}
-        return ValResult(domain=case.domain, fields=results, metric_configs=configs)
+        return ValResult(domain=val_case.domain, fields=results, metric_configs=configs)
 
 
 def _axis_size(quantity: ValArray, axis: EValAxis) -> int:

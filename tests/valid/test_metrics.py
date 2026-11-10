@@ -17,12 +17,12 @@ from pyvale.valid.metrics import (
     calc_ks_1d,
     calc_u_pooling_1d,
 )
-from pyvale.valid.strategy import (
+from pyvale.valid.metricstrategy import (
     MetricAVM,
     MetricCVM,
     MetricKS,
     MetricMAVM,
-    MetricRelativeError,
+    MetricRelErr,
     MetricRMSE,
 )
 
@@ -104,5 +104,5 @@ def test_strategy_pattern_metrics() -> None:
     rmse_strat = MetricRMSE()
     assert rmse_strat.calc(sim, exp).value == pytest.approx(1.0)
 
-    rel_strat = MetricRelativeError()
+    rel_strat = MetricRelErr()
     assert rel_strat.calc(sim, exp).value > 0.0

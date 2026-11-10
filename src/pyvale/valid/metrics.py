@@ -11,93 +11,19 @@ Metric (AVM / 1-Wasserstein), Kolmogorov-Smirnov distance, Cramér-von Mises,
 U-pooling, and deterministic error metrics.
 """
 
-from dataclasses import dataclass
-from enum import Enum
-
 import numpy as np
 from scipy import stats
 
 from pyvale.valid.constants import (
     MAVM_AREA_TOLERANCE,
-    MAVM_DUPLICATE_TOLERANCE,
     METRIC_ZERO_TOLERANCE,
 )
-
-
-class EMAVMDuplicates(Enum):
-    """Selects the MAVM empirical-CDF integration algorithm."""
-
-    REJECT = "reject"
-    """Full field compatible loop for unique floating point observations."""
-
-    INCLUDE = "include"
-    """Probability weighted loop that supports repeated observations."""
-
-
-@dataclass(slots=True)
-class MAVMResult:
-    """Container for Modified Area Validation Metric (MAVM) calculation
-    results.
-    """
-
-    d_plus: float
-    """Positive support-shift mismatch area, matching fullfieldvalmetrics."""
-
-    d_minus: float
-    """Negative support-shift mismatch area, matching fullfieldvalmetrics."""
-
-    d_total: float
-    """Total mismatch distance (d_plus + d_minus)."""
-
-    model_quantiles: np.ndarray
-    """Quantiles (support values) of the model empirical CDF."""
-
-    model_probs: np.ndarray
-    """Cumulative probabilities corresponding to model quantiles."""
-
-    exp_quantiles: np.ndarray
-    """Quantiles (support values) of the experimental empirical CDF."""
-
-    exp_probs: np.ndarray
-    """Cumulative probabilities corresponding to experimental quantiles."""
-
-    exp_conf_lower: np.ndarray
-    """Lower confidence bound quantiles for the experimental CDF."""
-
-    exp_conf_upper: np.ndarray
-    """Upper confidence bound quantiles for the experimental CDF."""
-
-    alpha: float
-    """Significance level used for the confidence interval (e.g. 0.05)."""
-
-
-def _finite_1d(values: np.ndarray, name: str) -> np.ndarray:
-    """Validate a distribution sample without losing uncertainty axes."""
-    array = np.asarray(values, dtype=np.float64)
-    if array.ndim != 1:
-        raise ValueError(f"{name} must be one-dimensional; select axes explicitly.")
-    if np.any(np.isinf(array)):
-        raise ValueError(f"{name} cannot contain infinite values.")
-    finite = array[~np.isnan(array)]
-    if not len(finite):
-        raise ValueError(f"{name} needs at least one finite observation.")
-    return finite
-
-
-def _raise_for_near_duplicates(values: np.ndarray, data_label: str) -> None:
-    """Raise when default MAVM input contains near-duplicate observations."""
-    sorted_values = np.sort(values)
-    has_near_duplicates: bool = bool(
-        np.any(np.diff(sorted_values) <= MAVM_DUPLICATE_TOLERANCE)
-    )
-    if not has_near_duplicates:
-        return
-
-    raise ValueError(
-        f"REJECT MAVM duplicates requires unique {data_label} observations within "
-        f"MAVM_DUPLICATE_TOLERANCE={MAVM_DUPLICATE_TOLERANCE}. "
-        "Use duplicates=EMAVMDuplicates.INCLUDE for repeated observations."
-    )
+from pyvale.valid.cython.mavm import (
+    _finite_1d,
+    cyth_calc_mavm_1d,
+    cyth_calc_mavm_pbox_1d,
+)
+from pyvale.valid.valtypes import EMAVMDuplicates, MAVMResult
 
 
 def calc_mavm_1d(
@@ -134,8 +60,6 @@ def calc_mavm_1d(
     MAVMResult
         Complete result dataclass with d+, d-, d_total, and CDF data.
     """
-    from pyvale.valid.cython.mavm import cyth_calc_mavm_1d
-
     return cyth_calc_mavm_1d(model_data, exp_data, alpha, duplicates, tol)
 
 
@@ -170,8 +94,6 @@ def calc_mavm_pbox_1d(
     MAVMResult
         MAVM result comparing the p-box against experimental confidence bounds.
     """
-    from pyvale.valid.cython.mavm import cyth_calc_mavm_pbox_1d
-
     return cyth_calc_mavm_pbox_1d(
         model_pbox_min, model_pbox_max, exp_data, alpha, duplicates, tol
     )

@@ -62,26 +62,26 @@ def test_engine_retains_sampled_epistemic_scenarios_and_offsets() -> None:
         upper=np.array([1.5, 2.0]),
         axes=(val.EValAxis.POINT,),
     )
-    case = val.ValCase(
+    val_case = val.ValCase(
         _domain(),
         val.ValData({"temperature": val.ValArray(simulation, sim_axes)}),
         val.ValData({"temperature": val.ValArray(experiment, exp_axes, offsets)}),
     )
-    result = val.ValidationEngine([val.MetricAVM(), val.MetricKS()]).run(case)
+    result = val.ValidationEngine([val.MetricAVM(), val.MetricKS()]).run(val_case)
     field = result.get("temperature", val.EMetricType.AVM)
     assert field.axes == ("point", "component", "time", "sim_trans", "exp_offset")
-    assert field.value.shape == (2, 1, 1, 2, 3)
+    assert field.metric.shape == (2, 1, 1, 2, 3)
     maximum, where = result.find_extreme("temperature", val.EMetricType.AVM)
-    assert maximum == pytest.approx(np.max(field.value))
-    assert field.value[tuple(where[axis] for axis in field.axes)] == maximum
+    assert maximum == pytest.approx(np.max(field.metric))
+    assert field.metric[tuple(where[axis] for axis in field.axes)] == maximum
     for point in range(2):
         for trans in range(2):
             for offset in range(3):
-                selected = val.select_aleatory(
-                    case.exp.quantities["temperature"], point, 0, 0, offset=offset
+                selected = val_case.exp.quantities["temperature"].select_aleatory(
+                    point, 0, 0, offset=offset
                 )
                 expected = val.calc_avm_1d(simulation[point, 0, trans], selected)
-                assert field.value[point, 0, 0, trans, offset] == pytest.approx(
+                assert field.metric[point, 0, 0, trans, offset] == pytest.approx(
                     expected
                 )
 
@@ -195,14 +195,14 @@ def test_invalid_points_remain_masked_without_affecting_other_points() -> None:
     experiment = val.ValData(
         {"temperature": val.ValArray(np.array([[[2.0, 3.0]], [[4.0, 5.0]]]), axes)}
     )
-    case = val.ValCase(_domain(), simulation, experiment)
+    val_case = val.ValCase(_domain(), simulation, experiment)
     field = (
         val.ValidationEngine([val.MetricAVM()])
-        .run(case)
+        .run(val_case)
         .get("temperature", val.EMetricType.AVM)
     )
-    assert field.value[0, 0, 0] == pytest.approx(1.0)
-    assert np.isnan(field.value[1, 0, 0])
+    assert field.metric[0, 0, 0] == pytest.approx(1.0)
+    assert np.isnan(field.metric[1, 0, 0])
 
 
 def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
@@ -227,14 +227,14 @@ def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
         ),
         val.EpistemicOffsets(0.25, 0.75),
     )
-    case = val.ValCase(
+    val_case = val.ValCase(
         domain,
         val.ValData({"temperature": sim}),
         val.ValData({"temperature": exp}),
     )
     field = (
         val.ValidationEngine([val.MetricAVM()])
-        .run(case)
+        .run(val_case)
         .get("temperature", val.EMetricType.AVM)
     )
     assert field.axes == (
@@ -246,13 +246,13 @@ def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
         "sim_offset",
         "exp_offset",
     )
-    assert field.value.shape == (1, 1, 1, 2, 3, 3, 3)
+    assert field.metric.shape == (1, 1, 1, 2, 3, 3, 3)
     for st in range(2):
         for en in range(3):
             for so in range(3):
                 for eo in range(3):
-                    left = val.select_aleatory(sim, 0, 0, 0, trans=st, offset=so)
-                    right = val.select_aleatory(exp, 0, 0, 0, nuis=en, offset=eo)
-                    assert field.value[0, 0, 0, st, en, so, eo] == pytest.approx(
+                    left = sim.select_aleatory(0, 0, 0, epis_trans=st, offset=so)
+                    right = exp.select_aleatory(0, 0, 0, epis_nuis=en, offset=eo)
+                    assert field.metric[0, 0, 0, st, en, so, eo] == pytest.approx(
                         val.calc_avm_1d(left, right)
                     )

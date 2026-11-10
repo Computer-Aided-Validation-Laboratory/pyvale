@@ -52,7 +52,7 @@ def main() -> None:
             samples = rng.normal(size=args.samples)
             sim_file[point, 0] = samples
             exp_file[point, 0] = samples + 0.1
-        case = val.ValCase(
+        val_case = val.ValCase(
             domain,
             val.val_from_arrays({"strain": val.ValArray(sim_file, axes)}),
             val.val_from_arrays({"strain": val.ValArray(exp_file, axes)}),
@@ -60,15 +60,15 @@ def main() -> None:
         start = perf_counter()
         field = (
             val.ValidationEngine([val.MetricAVM()])
-            .run(case)
+            .run(val_case)
             .get("strain", val.EMetricType.AVM)
         )
         elapsed = perf_counter() - start
-        if not np.allclose(field.value, 0.1, atol=1.0e-12):
+        if not np.allclose(field.metric, 0.1, atol=1.0e-12):
             raise AssertionError("AVM shift sanity check failed.")
         print(f"points={points}, samples={args.samples}, seconds={elapsed:.3f}")
         print(f"input_bytes={sim_file.nbytes + exp_file.nbytes}")
-        print(f"output_bytes={field.value.nbytes}")
+        print(f"output_bytes={field.metric.nbytes}")
 
 
 if __name__ == "__main__":

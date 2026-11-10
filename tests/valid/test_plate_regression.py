@@ -7,28 +7,28 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from plate_fixture import load_plate_case
 
 import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.valid as val
-from pyvale.examples.valid.tools import load_plate_case
 
 
 def test_prepared_plate_gold_metrics() -> None:
     """Track the saved SensorSim fixture and selected metric diagnostics."""
-    case = load_plate_case()
-    result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(case)
-    assert result.get("temperature", val.EMetricType.AVM).value[5, 0, 0] == (
+    val_case = load_plate_case()
+    result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(val_case)
+    assert result.get("temperature", val.EMetricType.AVM).metric[5, 0, 0] == (
         pytest.approx(0.26243433506330643, abs=1e-10)
     )
-    assert result.get("temperature", val.EMetricType.MAVM).value[5, 0, 0] == (
+    assert result.get("temperature", val.EMetricType.MAVM).metric[5, 0, 0] == (
         pytest.approx(0.4891546824953229, abs=1e-10)
     )
-    assert result.get("strain", val.EMetricType.AVM).value[5, 0, 0] == (
+    assert result.get("strain", val.EMetricType.AVM).metric[5, 0, 0] == (
         pytest.approx(1.2018068336589567e-6, abs=1e-12)
     )
-    assert result.get("strain", val.EMetricType.MAVM).value[5, 2, 0] == (
+    assert result.get("strain", val.EMetricType.MAVM).metric[5, 2, 0] == (
         pytest.approx(3.368761032966909e-6, abs=1e-12)
     )
 
@@ -102,8 +102,8 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
     direct_result = engine.run(direct)
     for metric in (val.EMetricType.AVM, val.EMetricType.MAVM):
         np.testing.assert_allclose(
-            converted_result.get("temperature", metric).value,
-            direct_result.get("temperature", metric).value,
+            converted_result.get("temperature", metric).metric,
+            direct_result.get("temperature", metric).metric,
             rtol=0.0,
             atol=1e-12,
         )
@@ -159,10 +159,10 @@ def test_global_and_spatial_average_simulation_extraction() -> None:
 
 
 def test_diagnostic_plots_show_units_and_registered_axes() -> None:
-    case = load_plate_case(transient=True)
-    result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(case)
+    val_case = load_plate_case(transient=True)
+    result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(val_case)
     fig_cdf, ax_cdf = val.plot_val_cdfs(
-        case,
+        val_case,
         result,
         "temperature",
         point=5,
@@ -186,7 +186,7 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
         selectors={"point": 5},
     )
     np.testing.assert_array_equal(
-        ax_time.lines[0].get_xdata(), case.domain.observables["temperature"].times
+        ax_time.lines[0].get_xdata(), val_case.domain.observables["temperature"].times
     )
     assert ax_time.get_xlabel() == "Time [s]"
     plt.close(fig_cdf)
@@ -195,17 +195,13 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
 
 
 def test_spatial_temporal_offset_is_applied_per_conditional_cdf() -> None:
-    case = load_plate_case(transient=True, epistemic=True, offsets=True)
-    quantity = case.exp.quantities["temperature"]
+    val_case = load_plate_case(transient=True, epistemic=True, offsets=True)
+    quantity = val_case.exp.quantities["temperature"]
     assert quantity.offsets.axes == (val.EValAxis.POINT, val.EValAxis.TIME)
-    nominal = val.select_aleatory(quantity, 5, 0, 0)
-    lower_early = val.select_aleatory(
-        quantity, 5, 0, 0, offset=val.EEpisOffset.LOWER
-    )
-    lower_late = val.select_aleatory(
-        quantity, 5, 0, 4, offset=val.EEpisOffset.LOWER
-    )
-    late_nominal = val.select_aleatory(quantity, 5, 0, 4)
+    nominal = quantity.select_aleatory(5, 0, 0)
+    lower_early = quantity.select_aleatory(5, 0, 0, offset=val.EEpisOffset.LOWER)
+    lower_late = quantity.select_aleatory(5, 0, 4, offset=val.EEpisOffset.LOWER)
+    late_nominal = quantity.select_aleatory(5, 0, 4)
     assert np.allclose(nominal - lower_early, quantity.offsets.lower[5, 0])
     assert np.allclose(late_nominal - lower_late, quantity.offsets.lower[5, 4])
     assert quantity.offsets.lower[5, 4] > quantity.offsets.lower[5, 0]

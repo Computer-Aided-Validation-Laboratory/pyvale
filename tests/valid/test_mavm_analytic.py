@@ -165,7 +165,9 @@ def test_mavm_default_matches_unique_fullfield_analytic_cases(
     assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-10)
 
 
-@pytest.mark.parametrize("duplicates", [EMAVMDuplicates.REJECT, EMAVMDuplicates.INCLUDE])
+@pytest.mark.parametrize(
+    "duplicates", [EMAVMDuplicates.REJECT, EMAVMDuplicates.INCLUDE]
+)
 @pytest.mark.parametrize("calculator", MAVM_PBOX_CALCULATORS)
 def test_mavm_pbox(duplicates: EMAVMDuplicates, calculator: MAVMCalculator) -> None:
     """Both MAVM modes evaluate outer epistemic p-box bounds."""
@@ -323,7 +325,10 @@ def test_mavm_default_rejects_near_duplicate_experimental_data(
 
     with pytest.raises(
         ValueError,
-        match=r"REJECT MAVM duplicates requires unique experimental observations.*INCLUDE",
+        match=(
+            r"REJECT MAVM duplicates requires unique "
+            r"experimental observations.*INCLUDE"
+        ),
     ):
         calculator(model_data, exp_data, duplicates=EMAVMDuplicates.REJECT)
 
@@ -382,9 +387,7 @@ def test_mavm_rejects_invalid_samples(
 
 @pytest.mark.parametrize("calculator", MAVM_CALCULATORS)
 @pytest.mark.parametrize("alpha", [0.0, 1.0, np.nan])
-def test_mavm_rejects_invalid_alpha(
-    calculator: MAVMCalculator, alpha: float
-) -> None:
+def test_mavm_rejects_invalid_alpha(calculator: MAVMCalculator, alpha: float) -> None:
     with pytest.raises(ValueError, match="alpha"):
         calculator(np.array([0.0, 1.0]), np.array([0.0, 1.0]), alpha=alpha)
 

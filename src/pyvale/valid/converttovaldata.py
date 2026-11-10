@@ -1,3 +1,9 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
 """Explicit conversion from simulation and acquisition data to ValData."""
 
 from collections.abc import Iterable
@@ -9,7 +15,7 @@ from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
 from pyvale.sensorsim.sensordata import SensorData
-from pyvale.valid.core import (
+from pyvale.valid.valtypes import (
     EValAxis,
     EValGeometry,
     EValOperator,
@@ -295,22 +301,22 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
     each complete trace becomes a joint aleatory realization at every time.
     """
     if not cases:
-        raise ValueError("At least one case is required.")
+        raise ValueError("At least one val_case is required.")
     first = cases[0]
     combined = {}
     run_ids = []
-    for case_index, case in enumerate(cases):
-        if set(case.domain.observables) != set(first.domain.observables):
+    for case_index, val_case in enumerate(cases):
+        if set(val_case.domain.observables) != set(first.domain.observables):
             raise ValueError("Cases have different observable keys.")
-        if not _same_sample_inputs(case.sim.sample_inputs, first.sim.sample_inputs):
+        if not _same_sample_inputs(val_case.sim.sample_inputs, first.sim.sample_inputs):
             raise ValueError("Simulation sample provenance differs across cases.")
-        first_quantity = next(iter(case.exp.quantities.values()))
+        first_quantity = next(iter(val_case.exp.quantities.values()))
         sample_count = (
             first_quantity.data.shape[first_quantity.axes.index(EValAxis.ALEATORY)]
             if EValAxis.ALEATORY in first_quantity.axes
             else 1
         )
-        provenance = case.exp.sample_inputs
+        provenance = val_case.exp.sample_inputs
         if provenance is not None and provenance.run_ids is not None:
             identifiers = provenance.run_ids
             if identifiers.axes != (EValAxis.ALEATORY,):
@@ -326,8 +332,8 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
             axis for axis in reference.axes if axis is not EValAxis.ALEATORY
         )
         pieces = []
-        for case_index, case in enumerate(cases):
-            other = case.domain.observables.get(name)
+        for case_index, val_case in enumerate(cases):
+            other = val_case.domain.observables.get(name)
             if other is None or other.operator is not observable.operator:
                 raise ValueError(f"{name}: incompatible observable.")
             if (
@@ -359,14 +365,14 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
                 if a is not None and not np.array_equal(a, b):
                     raise ValueError(f"{name}: incompatible domain coordinates.")
             sim_a = first.sim.quantities[name]
-            sim_b = case.sim.quantities[name]
+            sim_b = val_case.sim.quantities[name]
             if sim_a.axes != sim_b.axes or not np.array_equal(
                 sim_a.data, sim_b.data, equal_nan=True
             ):
                 raise ValueError(f"{name}: simulation data differs across cases.")
             if not _same_offsets(sim_a, sim_b):
                 raise ValueError(f"{name}: simulation offsets differ across cases.")
-            quantity = case.exp.quantities[name]
+            quantity = val_case.exp.quantities[name]
             quantity_count = (
                 quantity.data.shape[quantity.axes.index(EValAxis.ALEATORY)]
                 if EValAxis.ALEATORY in quantity.axes
@@ -394,8 +400,8 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
         else {}
     )
     parameters = {}
-    for case in cases:
-        inputs = case.exp.sample_inputs
+    for val_case in cases:
+        inputs = val_case.exp.sample_inputs
         if (
             set((inputs.parameters or {}) if inputs is not None else {})
             != parameter_keys
@@ -407,8 +413,8 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
             axis for axis in reference_parameter.axes if axis is not EValAxis.ALEATORY
         )
         pieces = []
-        for case_index, case in enumerate(cases):
-            parameter = case.exp.sample_inputs.parameters[key]
+        for case_index, val_case in enumerate(cases):
+            parameter = val_case.exp.sample_inputs.parameters[key]
             if EValAxis.ALEATORY in parameter.axes:
                 if parameter.axes != (*base_axes, EValAxis.ALEATORY):
                     raise ValueError(f"{key}: parameter axes differ.")

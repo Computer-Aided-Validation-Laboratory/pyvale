@@ -7,14 +7,24 @@
 """Cython-accelerated Modified Area Validation Metric calculations.
 
 This is Cython pure-Python syntax: it is executable without compilation and is
-compiled into an extension module in packaged builds.  The reference Python
-implementation remains in :mod:`pyvale.valid.metrics`.
+compiled into an extension module in packaged builds. Public metric functions
+in :mod:`pyvale.valid.metrics` forward to this implementation.
 """
 
 from __future__ import annotations
 
 import numpy as np
 from scipy import stats
+
+from pyvale.valid.constants import (
+    MAVM_AREA_TOLERANCE,
+    MAVM_DUPLICATE_TOLERANCE,
+    MAVM_PROBABILITY_TOLERANCE,
+)
+from pyvale.valid.valtypes import (
+    EMAVMDuplicates,
+    MAVMResult,
+)
 
 try:
     import cython
@@ -49,16 +59,34 @@ except ModuleNotFoundError:
 
     cython = _CythonFallback()
 
-from pyvale.valid.constants import (
-    MAVM_AREA_TOLERANCE,
-    MAVM_PROBABILITY_TOLERANCE,
-)
-from pyvale.valid.metrics import (
-    EMAVMDuplicates,
-    MAVMResult,
-    _finite_1d,
-    _raise_for_near_duplicates,
-)
+
+def _finite_1d(values: np.ndarray, name: str) -> np.ndarray:
+    """Validate a distribution sample without losing uncertainty axes."""
+    array = np.asarray(values, dtype=np.float64)
+    if array.ndim != 1:
+        raise ValueError(f"{name} must be one-dimensional; select axes explicitly.")
+    if np.any(np.isinf(array)):
+        raise ValueError(f"{name} cannot contain infinite values.")
+    finite = array[~np.isnan(array)]
+    if not len(finite):
+        raise ValueError(f"{name} needs at least one finite observation.")
+    return finite
+
+
+def _raise_for_near_duplicates(values: np.ndarray, data_label: str) -> None:
+    """Raise when default MAVM input contains near-duplicate observations."""
+    sorted_values = np.sort(values)
+    has_near_duplicates: bool = bool(
+        np.any(np.diff(sorted_values) <= MAVM_DUPLICATE_TOLERANCE)
+    )
+    if not has_near_duplicates:
+        return
+
+    raise ValueError(
+        f"REJECT MAVM duplicates requires unique {data_label} observations within "
+        f"MAVM_DUPLICATE_TOLERANCE={MAVM_DUPLICATE_TOLERANCE}. "
+        "Use duplicates=EMAVMDuplicates.INCLUDE for repeated observations."
+    )
 
 
 @cython.cfunc

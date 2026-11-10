@@ -1,3 +1,9 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
 """Metric strategies and compact tagged metric results."""
 
 from abc import ABC, abstractmethod
@@ -6,7 +12,7 @@ from enum import Enum, auto
 
 import numpy as np
 
-from pyvale.valid.constants import MAVM_AREA_TOLERANCE
+from pyvale.valid.constants import MAVM_AREA_TOLERANCE, METRIC_ZERO_TOLERANCE
 from pyvale.valid.metrics import (
     EMAVMDuplicates,
     MAVMResult,
@@ -129,7 +135,7 @@ class MetricRMSE(IValMetric):
         )
 
 
-class MetricRelativeError(IValMetric):
+class MetricRelErr(IValMetric):
     __slots__ = ()
 
     def get_kind(self) -> EMetricType:
@@ -145,6 +151,6 @@ class MetricRelativeError(IValMetric):
         valid = np.isfinite(sim_values) & np.isfinite(exp_values)
         if not np.any(valid):
             raise ValueError("Relative error requires at least one valid pair.")
-        denominator = np.maximum(np.abs(exp_values[valid]), 1.0e-12)
+        denominator = np.maximum(np.abs(exp_values[valid]), METRIC_ZERO_TOLERANCE)
         value = np.mean(np.abs(sim_values[valid] - exp_values[valid]) / denominator)
         return ScalarMetricResult(EMetricType.RELATIVE_ERROR, float(value))

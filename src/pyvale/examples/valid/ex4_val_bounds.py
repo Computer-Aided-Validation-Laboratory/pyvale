@@ -1,42 +1,202 @@
-"""Asymmetric coherent measurement offsets on temperature and strain."""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
+"""Coherent epistemic measurement offsets
+================================================================================
+
+Follow preprocessing, validation, post-processing and visualisation explicitly.
+The measurements are synthetic SensorSim experiments, not laboratory data.
+"""
+
+from pathlib import Path
 
 import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+
+import pyvale.data as dataset
+import pyvale.sensorsim as sens
+import pyvale.valid as val
 
 matplotlib.use("Agg")
 
-import pyvale.valid as val
-from pyvale.examples.valid.tools import load_plate_case, save_diagnostic
+# %%
+# Interactive windows and console inspection are opt-in. Change the backend to
+# a GUI backend when enabling SHOW_PLOTS outside a notebook.
+SHOW_PLOTS = False
+VERBOSE = False
+if SHOW_PLOTS:
+    plt.switch_backend("QtAgg")
+output_path = Path.cwd() / "pyvale-output" / "valid_ex4_bounds"
+output_path.mkdir(parents=True, exist_ok=True)
 
-case = load_plate_case(offsets=True, epistemic=True, transient=True)
-result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(case)
+# %%
+# 1. Load and transform data (pre-processing)
+# -----------------------------------------
+# The plate has 12 sensor locations on a 4 by 3 grid: x=10..90 mm,
+# y=10..40 mm, z=0. Each site has a thermocouple (one temperature component)
+# and an in-plane strain rosette (xx, yy, xy). Six virtual repeat experiments
+# supply aleatory samples at five common physical times.
+# The second simulation has conductivity and thermal expansion reduced by 10%.
+# We treat its noisy measurements as the experiment to expose model discrepancy.
+with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
+    coords = saved["coords"].copy()  # (12 points, 3 Cartesian coordinates), mm
+    times = saved["times"].copy()  # (5 times,), s
+    nominal_temp = saved["nominal_temperature"].copy()  # (6, 12, 1, 5)
+    measured_temp = saved["perturbed_temperature"].copy()
+    nominal_strain = saved["nominal_strain"].copy()  # (6, 12, 3, 5)
+    measured_strain = saved["perturbed_strain"].copy()
 
-fig, _ = val.plot_val_cdf_envelope(
-    case, "temperature", source=val.EValSource.EXP, point=5, time=4
+# %%
+# A shared domain registers units, component order and physical coordinates.
+# Validation compares corresponding cells; it never flattens points or times
+# into the repeat-experiment axis.
+geometry = val.ValGeometry(
+    val.EValGeometry.POINT, coords, coordinate_units="mm", frame="plate"
 )
-save_diagnostic(fig, "ex4_val_bounds_envelope.png")
+domain = val.ValDomain(
+    {
+        "temperature": val.ValObservable(
+            geometry,
+            val.EValOperator.SAMPLE,
+            ("temperature",),
+            times,
+            "degC",
+            time_units="s",
+        ),
+        "strain": val.ValObservable(
+            geometry,
+            val.EValOperator.SAMPLE,
+            ("strain_xx", "strain_yy", "strain_xy"),
+            times,
+            "1",
+            time_units="s",
+        ),
+    }
+)
 
-fig, _ = val.plot_val_metric_map(
+sim_arrays: dict[str, val.ValArray] = {}
+exp_arrays: dict[str, val.ValArray] = {}
+for observable, nominal, measured in (
+    ("temperature", nominal_temp, measured_temp),
+    ("strain", nominal_strain, measured_strain),
+):
+    # Move repeats from axis 0 to the final aleatory axis:
+    # (point, component, time, aleatory) = (12, 1 or 3, 5, 6).
+    sim_values = np.moveaxis(nominal, 0, -1)
+    exp_values = np.moveaxis(measured, 0, -1)
+    exp_axes = (
+        val.EValAxis.POINT,
+        val.EValAxis.COMPONENT,
+        val.EValAxis.TIME,
+        val.EValAxis.ALEATORY,
+    )
+    sim_axes = exp_axes
+    # Stack two whole parameter scenarios before the aleatory axis. These
+    # remain separate epistemic alternatives, not extra repeat experiments.
+    sim_values = np.stack((sim_values, exp_values), axis=-2)
+    sim_axes = (*exp_axes[:-1], val.EValAxis.EPISTEMIC_TRANS, val.EValAxis.ALEATORY)
+    # Calibration bounds shift every repeat coherently. They are magnitudes
+    # in observable units, not confidence intervals or independent random noise.
+    magnitude = 0.5 if observable == "temperature" else 4.0e-6
+    if observable == "temperature":
+        spatial = coords[:, 0, None] / 100.0  # (point, singleton time)
+        temporal = times[None, :] / times[-1]  # (singleton point, time)
+        bound = val.EpistemicOffsets(
+            lower=magnitude * (1.0 + 0.2 * spatial + 0.2 * temporal),
+            upper=1.5 * magnitude * (1.0 + 0.1 * spatial + 0.3 * temporal),
+            axes=(val.EValAxis.POINT, val.EValAxis.TIME),
+        )
+    else:
+        bound = val.EpistemicOffsets(lower=magnitude, upper=1.5 * magnitude)
+    sim_arrays[observable] = val.ValArray(sim_values, sim_axes)
+    exp_arrays[observable] = val.ValArray(exp_values, exp_axes, offsets=bound)
+
+val_case = val.ValCase(domain, val.ValData(sim_arrays), val.ValData(exp_arrays))
+
+# %%
+# 2. Run validation analysis
+# --------------------------
+# AVM gives a distance in the observable's units. MAVM additionally separates
+# positive and negative support mismatch; INCLUDE retains repeated observations.
+mavm = val.MetricMAVM(duplicates=val.EMAVMDuplicates.INCLUDE)
+result = val.ValidationEngine([val.MetricAVM(), mavm]).run(val_case)
+
+# %%
+# 3. Post-processing and inspect data structures
+# ----------------------------------------------
+# field.axes names each array dimension. The first three axes are always
+# (point, component, time), including singleton time for steady comparisons.
+# Non-singleton epistemic/offset axes follow in the engine's canonical order.
+field = result.get("temperature", val.EMetricType.MAVM)
+metric_shape = field.metric.shape
+metric_axes = field.axes
+if VERBOSE:
+    print("Simulation axes:", sim_arrays["temperature"].axes)
+    print("Simulation shape:", sim_arrays["temperature"].data.shape)
+    print("Result axes:", metric_axes, "shape:", metric_shape)
+
+# %%
+# 4. Analysis and visualisation
+# ------------------------------
+# Use the SensorSim appearance options so fonts, resolution and line styles
+# agree with sensor figures. Each CDF panel overlays simulation and experiment;
+# dashed curves are the experimental MAVM confidence bounds, not model bounds.
+plot_opts = sens.PlotOptsGeneral(single_fig_scale=0.65)
+points = tuple(range(len(coords)))
+fig, axes = val.plot_val_cdfs_points(
+    val_case,
+    result,
+    "temperature",
+    points=points,
+    time=4,
+    metric=mavm,
+    plot_opts=plot_opts,
+    labels=val.ValPlotLabels(x_label="Temperature [degC]"),
+)
+fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
+
+# %%
+# Envelopes describe all retained scenarios at a site. They are pointwise ECDF
+# bounds, not a new pooled probability distribution. Show every plate sensor.
+fig, axes = plt.subplots(4, 3, figsize=(12, 12), layout="constrained")
+for point, ax in enumerate(axes.flat):
+    val.plot_val_cdf_envelope(
+        val_case,
+        "temperature",
+        point=point,
+        source=val.EValSource.EXP,
+        time=4,
+        plot_opts=plot_opts,
+        labels=val.ValPlotLabels(title=f"Point {point}: temperature envelope"),
+        ax=ax,
+    )
+fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
+
+# %%
+# Each panel follows one physical sensor through time. Explicit selectors fix
+# any remaining epistemic scenario; d+ identifies the directional MAVM quantity.
+fig, axes = val.plot_val_metric_time_points(
     result,
     "temperature",
     val.EMetricType.MAVM,
+    points=points,
     selectors={
-        val.EResultAxis.TIME: 4,
-        val.EResultAxis.SIM_TRANS: 0,
-        val.EResultAxis.EXP_OFFSET: val.EEpisOffset.UPPER,
+        val.EValResAxis.SIM_TRANS: 0,
+        val.EValResAxis.EXP_OFFSET: val.EEpisOffset.UPPER,
     },
     direction="d_plus",
+    plot_opts=plot_opts,
 )
-save_diagnostic(fig, "ex4_val_bounds_directional_map.png")
+fig.savefig(output_path / "temperature_d_plus_time.png", bbox_inches="tight")
 
-fig, _ = val.plot_val_metric_time(
-    result,
-    "temperature",
-    val.EMetricType.MAVM,
-    selectors={
-        val.EResultAxis.POINT: 5,
-        val.EResultAxis.SIM_TRANS: 0,
-        val.EResultAxis.EXP_OFFSET: val.EEpisOffset.UPPER,
-    },
-    direction="d_plus",
-)
-save_diagnostic(fig, "ex4_val_bounds_time.png")
+# %%
+# Figures are saved even when interactive plotting is disabled. Keeping the
+# complete analysis in its own directory prevents clashes with other examples.
+if SHOW_PLOTS:
+    plt.show()
+else:
+    plt.close("all")
