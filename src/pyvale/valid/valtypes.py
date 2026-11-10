@@ -12,6 +12,13 @@ from enum import Enum, IntEnum, StrEnum, auto
 import numpy as np
 
 
+class EValMetricPart(Enum):
+    TOTAL = auto()
+    D_PLUS = auto()
+    D_MINUS = auto()
+    BALANCE = auto()
+
+
 class EEpisOffset(IntEnum):
     NOMINAL = 0
     LOWER = 1

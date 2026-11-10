@@ -139,15 +139,48 @@ if VERBOSE:
 # AVM strain has dimensionless strain units. Show all thermocouple histories
 # and CDFs so spatial differences are visible without editing a point index.
 plot_opts = sens.PlotOptsGeneral()
-fig, ax = val.plot_val_metric_map(
+# %%
+# Overlay validation points on the nominal model in its original xyz geometry.
+# The model mesh and sensor positions must share mm coordinates and the plate
+# frame. Background nodal scalars (n_nodes,) use their own physical colourbar.
+background_step = len(sim_data.time) - 1
+background_field = val.ValSimField(
+    sim_data.node_vars["strain_xx"][:, background_step],
+    background_step,
+    sens.SensorDescriptor(
+        name="Axial strain xx", symbol=r"\varepsilon_{xx}", units="1"
+    ),
+)
+scene_opts = sens.VisOptsSimSensors(
+    interactive=SHOW_PLOTS,
+    camera_position="xy",
+    sens_point_size=18,
+    sens_label_font_size=14,
+    colour_bar_vertical=False,
+    colour_bar_font_size=13,
+)
+point_labels = tuple(sens.SensorDescriptor(tag="SG").create_sensor_tags(len(coords)))
+# Total AVM is a nonnegative magnitude, so its point scale starts at zero.
+pv_plot = val.plot_val_metric_on_sim(
     result,
     "strain_xx",
     val.EMetricType.AVM,
-    selectors={val.EValResAxis.TIME: 4},
-    plot_opts=plot_opts,
-    labels=val.ValPlotLabels(title="Axial strain AVM at the final time"),
+    selectors={
+        val.EValResAxis.TIME: 4,
+    },
+    part=val.EValMetricPart.TOTAL,
+    sim_data=sim_data,
+    sim_field=background_field,
+    sim_coordinate_units="mm",
+    sim_frame="plate",
+    vis_opts=scene_opts,
+    metric_opts=val.ValVisOpts(point_labels=point_labels, labels_always_visible=True),
 )
-fig.savefig(output_path / "strain_xx_avm_map.png", bbox_inches="tight")
+pv_plot.screenshot(output_path / "strain_xx_avm_on_sim.png")
+if SHOW_PLOTS:
+    pv_plot.show()
+pv_plot.close()
+
 
 points = tuple(range(len(coords)))
 fig, axes = val.plot_val_metric_time_points(

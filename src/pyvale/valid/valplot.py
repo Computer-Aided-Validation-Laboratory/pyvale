@@ -17,11 +17,16 @@ from pyvale.valid.metrics import calc_mavm_1d
 from pyvale.valid.metricstrategy import EMetricType, MetricMAVM
 from pyvale.valid.valengine import (
     EValResAxis,
-    ValMetricField,
     ValResult,
 )
-from pyvale.valid.valtools import calc_ecdf, extract_ecdf_envelope
-from pyvale.valid.valtypes import EEpisOffset, EValSource, ValCase
+from pyvale.valid.valtools import (
+    calc_ecdf,
+    create_metric_label,
+    extract_ecdf_envelope,
+    extract_metric_values,
+    select_metric_part,
+)
+from pyvale.valid.valtypes import EEpisOffset, EValMetricPart, EValSource, ValCase
 
 
 @dataclass(slots=True)
@@ -81,14 +86,6 @@ def _create_axes(
         return ax.figure, ax
     options = PlotOptsGeneral() if plot_opts is None else plot_opts
     return plt.subplots(figsize=options.single_fig_size_landscape, layout="constrained")
-
-
-def _metric_label(metric: EMetricType, direction: str) -> str:
-    if metric is EMetricType.MAVM:
-        return {"metric": "MAVM d+ + d−", "d_plus": "MAVM d+", "d_minus": "MAVM d−"}[
-            direction
-        ]
-    return metric.name
 
 
 def _metric_units(result: ValResult, observable: str, metric: EMetricType) -> str:
@@ -243,102 +240,25 @@ def plot_val_cdf_envelope(
     return fig, ax
 
 
-def _select_field(
-    field: ValMetricField,
-    selectors: dict[EValResAxis, int],
-    keep: EValResAxis,
-    values: np.ndarray | None = None,
-) -> np.ndarray:
-    if keep not in field.axes:
-        raise ValueError(f"Result has no {keep} axis.")
-    array = field.metric if values is None else values
-    indices: list[int | slice] = []
-    for axis, size in zip(field.axes, array.shape, strict=True):
-        if axis == keep:
-            indices.append(slice(None))
-        elif axis in selectors:
-            indices.append(selectors[axis])
-        elif size == 1:
-            indices.append(0)
-        else:
-            raise ValueError(f"Select a {axis} index before plotting.")
-    return array[tuple(indices)]
-
-
-def plot_val_metric_map(
-    result: ValResult,
-    observable: str,
-    metric: EMetricType,
-    *,
-    selectors: dict[EValResAxis, int] | None = None,
-    direction: str = "metric",
-    plot_opts: PlotOptsGeneral | None = None,
-    labels: ValPlotLabels | None = None,
-    ax: plt.Axes | None = None,
-) -> tuple[plt.Figure, plt.Axes]:
-    """Scatter a metric field over its registered 2D point coordinates."""
-    field = result.get(observable, metric)
-    values = getattr(field, direction)
-    if values is None:
-        raise ValueError(f"Metric has no {direction} field.")
-    selected = _select_field(field, selectors or {}, EValResAxis.POINT, values)
-    coords = result.domain.observables[observable].geometry.coords
-    if coords is None:
-        raise ValueError("Metric map needs spatial point coordinates.")
-    fig, ax = _create_axes(ax, plot_opts)
-    plot = ax.scatter(
-        coords[:, 0],
-        coords[:, 1],
-        c=selected,
-        cmap=(plot_opts or PlotOptsGeneral()).cmap_seq,
-        s=65,
-    )
-    ax.set_aspect("equal")
-    coordinate_units = result.domain.observables[observable].geometry.coordinate_units
-    suffix = f" [{coordinate_units}]" if coordinate_units else ""
-    ax.set_xlabel(f"x{suffix}")
-    ax.set_ylabel(f"y{suffix}")
-    ax.set_title(f"{observable}: {_metric_label(metric, direction)}")
-    colorbar = fig.colorbar(
-        plot,
-        ax=ax,
-        label=(
-            labels.colorbar_label
-            if labels is not None and labels.colorbar_label is not None
-            else (
-                f"{_metric_label(metric, direction)} "
-                f"[{_metric_units(result, observable, metric)}]"
-            )
-        ),
-    )
-    options = PlotOptsGeneral() if plot_opts is None else plot_opts
-    colorbar.ax.tick_params(labelsize=options.font_tick_size)
-    colorbar.set_label(
-        colorbar.ax.get_ylabel(),
-        fontsize=options.font_ax_size,
-        fontname=options.font_name,
-    )
-    _apply_plot_options(fig, ax, plot_opts, labels)
-    return fig, ax
-
-
 def plot_val_metric_time(
     result: ValResult,
     observable: str,
     metric: EMetricType,
     *,
     selectors: dict[EValResAxis, int] | None = None,
-    direction: str = "metric",
+    part: EValMetricPart = EValMetricPart.TOTAL,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
     ax: plt.Axes | None = None,
 ) -> tuple[plt.Figure, plt.Axes]:
     """Plot one selected metric scenario against physical time."""
     field = result.get(observable, metric)
-    values = getattr(field, direction)
-    if values is None:
-        raise ValueError(f"Metric has no {direction} field.")
-    selected = _select_field(field, selectors or {}, EValResAxis.TIME, values)
+    selected = extract_metric_values(
+        field,
+        keep=EValResAxis.TIME,
+        selectors=selectors,
+        part=part,
+    )
     times = result.domain.observables[observable].times
     if times is None:
         raise ValueError("Time plot requires physical time coordinates.")
@@ -347,7 +267,7 @@ def plot_val_metric_time(
     time_units = result.domain.observables[observable].time_units
     ax.set_xlabel(f"Time [{time_units}]" if time_units else "Time")
     ax.set_ylabel(
-        f"{_metric_label(metric, direction)} "
+        f"{create_metric_label(metric, part)} "
         f"[{_metric_units(result, observable, metric)}]"
     )
     ax.set_title(observable)
@@ -361,7 +281,7 @@ def plot_val_metric_distribution(
     observable: str,
     metric: EMetricType,
     *,
-    direction: str = "metric",
+    part: EValMetricPart = EValMetricPart.TOTAL,
     selectors: dict[EValResAxis, int] | None = None,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
@@ -370,17 +290,15 @@ def plot_val_metric_distribution(
     """Histogram finite metric values over selected physical/scenario cells."""
     field = result.get(observable, metric)
     index = tuple((selectors or {}).get(axis, slice(None)) for axis in field.axes)
-    selected_field = getattr(field, direction)
-    if selected_field is None:
-        raise ValueError(f"Metric has no {direction} field.")
-    values = selected_field[index].ravel()
+    selected_field = select_metric_part(field, part, index=index)
+    values = selected_field.ravel()
     values = values[np.isfinite(values)]
     if not len(values):
         raise ValueError("No finite metric values selected.")
     fig, ax = _create_axes(ax, plot_opts)
     ax.hist(values, bins=min(20, len(values)))
     ax.set_xlabel(
-        f"{_metric_label(metric, direction)} "
+        f"{create_metric_label(metric, part)} "
         f"[{_metric_units(result, observable, metric)}]"
     )
     ax.set_ylabel("Cell count")
@@ -478,7 +396,7 @@ def plot_val_metric_time_points(
     *,
     points: tuple[int, ...],
     selectors: dict[EValResAxis, int] | None = None,
-    direction: str = "metric",
+    part: EValMetricPart = EValMetricPart.TOTAL,
     columns: int = 3,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
@@ -493,7 +411,7 @@ def plot_val_metric_time_points(
             observable,
             metric,
             selectors=selected,
-            direction=direction,
+            part=part,
             plot_opts=plot_opts,
             labels=labels,
             ax=ax,

@@ -4,10 +4,11 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Hand-checkable validation distances
+"""Analytic validation metrics
 ================================================================================
 
-Begin with three observations so each distribution can be checked by hand.
+A simple validation example with with three observations so each distribution can be
+checked by hand.
 """
 
 from pathlib import Path

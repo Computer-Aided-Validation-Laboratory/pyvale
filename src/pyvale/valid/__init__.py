@@ -48,7 +48,6 @@ from pyvale.valid.valplot import (
     plot_val_cdfs,
     plot_val_cdfs_points,
     plot_val_metric_distribution,
-    plot_val_metric_map,
     plot_val_metric_time,
     plot_val_metric_time_points,
 )
@@ -57,12 +56,15 @@ from pyvale.valid.valtools import (
     calc_ecdf_envelope,
     extract_ecdf,
     extract_ecdf_envelope,
+    extract_metric_values,
+    select_metric_part,
 )
 from pyvale.valid.valtypes import (
     EEpisOffset,
     EpistemicOffsets,
     EValAxis,
     EValGeometry,
+    EValMetricPart,
     EValOperator,
     EValSource,
     ValArray,
@@ -76,8 +78,15 @@ from pyvale.valid.valtypes import (
     assemble_val_case,
     val_from_arrays,
 )
+from pyvale.valid.valvis import ValSimField, ValVisOpts, plot_val_metric_on_sim
 
 __all__ = [
+    "EValMetricPart",
+    "ValSimField",
+    "ValVisOpts",
+    "plot_val_metric_on_sim",
+    "extract_metric_values",
+    "select_metric_part",
     "ValECDF",
     "calc_ecdf",
     "extract_ecdf",
@@ -130,7 +139,6 @@ __all__ = [
     "plot_val_cdf_envelope",
     "plot_val_cdfs",
     "plot_val_metric_distribution",
-    "plot_val_metric_map",
     "plot_val_metric_time",
     "val_from_arrays",
     "val_from_exp",

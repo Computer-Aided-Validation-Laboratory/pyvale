@@ -8,6 +8,7 @@
 This module contains utility functions used for creating pyvale visualisations.
 """
 
+from copy import deepcopy
 from pathlib import Path
 import numpy as np
 import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
@@ -34,9 +35,14 @@ def create_pv_plotter(vis_opts: VisOptsSimSensors) -> pv.Plotter:
     pv.Plotter
         Blank pyvista plotter object with the given settings.
     """
-    pv_plot = pv.Plotter(window_size=vis_opts.window_size_px)
+    theme = deepcopy(pv.global_theme)
+    theme.font.color = vis_opts.font_colour
+    pv_plot = pv.Plotter(
+        window_size=vis_opts.window_size_px,
+        off_screen=not vis_opts.interactive,
+        theme=theme,
+    )
     pv_plot.set_background(vis_opts.background_colour)
-    pv.global_theme.font.color = vis_opts.font_colour
     pv_plot.add_axes_at_origin(labels_off=True)
     return pv_plot
 

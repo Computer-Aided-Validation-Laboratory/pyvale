@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import pyvale.data as dataset
+import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.valid as val
 
@@ -165,15 +166,50 @@ fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 # %%
 # Compare spatial mismatch at the same final physical time. AVM retains degC
 # units; a small value means the two empirical temperature distributions agree.
-fig, ax = val.plot_val_metric_map(
+#
+# Overlay validation points on the nominal model in its original xyz geometry.
+# The model mesh and sensor positions must share mm coordinates and the plate
+# frame. Background nodal scalars (n_nodes,) use their own physical colourbar.
+sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
+sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
+sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
+background_step = len(sim_data.time) - 1
+background_field = val.ValSimField(
+    sim_data.node_vars["temperature"][:, background_step],
+    background_step,
+    sens.SensorDescriptor(name="Temperature", symbol=r"T", units="degC"),
+)
+scene_opts = sens.VisOptsSimSensors(
+    interactive=SHOW_PLOTS,
+    camera_position="xy",
+    sens_point_size=18,
+    sens_label_font_size=14,
+    colour_bar_vertical=False,
+    colour_bar_font_size=13,
+)
+point_labels = tuple(sens.SensorDescriptor(tag="TC").create_sensor_tags(len(coords)))
+# Blue/red encode negative/positive MAVM directional balance. A white point
+# can have nonzero total mismatch because d+ and d- can cancel in this display.
+pv_plot = val.plot_val_metric_on_sim(
     result,
     "temperature",
-    val.EMetricType.AVM,
-    selectors={val.EValResAxis.SIM_TRANS: 0},
-    plot_opts=plot_opts,
-    labels=val.ValPlotLabels(title="Temperature AVM at the final time"),
+    val.EMetricType.MAVM,
+    selectors={
+        val.EValResAxis.SIM_TRANS: 0,
+    },
+    part=val.EValMetricPart.BALANCE,
+    sim_data=sim_data,
+    sim_field=background_field,
+    sim_coordinate_units="mm",
+    sim_frame="plate",
+    vis_opts=scene_opts,
+    metric_opts=val.ValVisOpts(point_labels=point_labels, labels_always_visible=True),
 )
-fig.savefig(output_path / "temperature_avm_map.png", bbox_inches="tight")
+pv_plot.screenshot(output_path / "temperature_mavm_balance_on_sim.png")
+if SHOW_PLOTS:
+    pv_plot.show()
+pv_plot.close()
+
 
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the

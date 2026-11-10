@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import pyvale.data as dataset
+import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.valid as val
@@ -172,13 +173,94 @@ for component, component_key in enumerate(component_keys):
         val.EMetricType.MAVM,
         points=points,
         selectors={val.EValResAxis.COMPONENT: component},
-        direction="d_minus",
+        part=val.EValMetricPart.D_MINUS,
         plot_opts=plot_opts,
         labels=val.ValPlotLabels(title=component_key),
     )
     fig.savefig(output_path / f"{component_key}_d_minus_time.png", bbox_inches="tight")
     if not SHOW_PLOTS:
         plt.close("all")
+# %%
+# Overlay the selected strain_xx metric on several independent background fields.
+# The two colourbars deliberately identify different quantities: model field
+# values on the mesh, and validation discrepancy at the six original face sites.
+# Every field is evaluated at the final simulation step, matching validation t.
+background_step = len(nominal_sim.time) - 1
+normal = np.stack(
+    [nominal_sim.node_vars[key][:, background_step] for key in norm_keys], axis=-1
+)  # (n_nodes, 3), normal components xx, yy, zz
+shear = np.stack(
+    [nominal_sim.node_vars[key][:, background_step] for key in dev_keys], axis=-1
+)  # (n_nodes, 3), tensor shear components xy, xz, yz
+strain_tensors = io.assemble_strain_tensor(
+    normal,
+    shear,
+    shear_convention=io.EStrainShear.TENSOR,
+)  # (n_nodes, 3, 3), symmetric small-strain tensor in global Cartesian axes
+# Equivalent strain is sqrt(2/3 epsilon_dev:epsilon_dev): volumetric strain is
+# excluded. Principal strains are descending; index zero is the first principal.
+equivalent_strain = io.calc_equivalent_strain(strain_tensors)
+first_principal = io.calc_principal_strains(strain_tensors)[:, 0]
+background_fields = {
+    "temperature": val.ValSimField(
+        nominal_sim.node_vars["temperature"][:, background_step],
+        background_step,
+        sens.SensorDescriptor(name="Temperature", symbol="T", units="degC"),
+    ),
+    "strain_xx": val.ValSimField(
+        normal[:, 0],
+        background_step,
+        sens.SensorDescriptor(name="Strain xx", symbol=r"\varepsilon_{xx}", units="1"),
+    ),
+    "equivalent_strain": val.ValSimField(
+        equivalent_strain,
+        background_step,
+        sens.SensorDescriptor(
+            name="Equivalent strain", symbol=r"\varepsilon_{eq}", units="1"
+        ),
+    ),
+    "first_principal_strain": val.ValSimField(
+        first_principal,
+        background_step,
+        sens.SensorDescriptor(
+            name="First principal strain", symbol=r"\varepsilon_1", units="1"
+        ),
+    ),
+}
+scene_opts = sens.VisOptsSimSensors(
+    interactive=SHOW_PLOTS,
+    camera_position="iso",
+    sens_point_size=24,
+    sens_label_font_size=16,
+    colour_bar_vertical=False,
+    colour_bar_font_size=13,
+)
+# Show all face tags through the translucent mesh, including the far faces.
+point_labels = tuple(strain_sensors.get_descriptor().create_sensor_tags(len(coords)))
+for background_name, background_field in background_fields.items():
+    pv_plot = val.plot_val_metric_on_sim(
+        result,
+        "strain",
+        val.EMetricType.MAVM,
+        selectors={
+            val.EValResAxis.COMPONENT: 0,
+            val.EValResAxis.TIME: 4,
+        },
+        part=val.EValMetricPart.BALANCE,
+        sim_data=nominal_sim,
+        sim_field=background_field,
+        sim_coordinate_units="mm",
+        sim_frame="cube",
+        vis_opts=scene_opts,
+        metric_opts=val.ValVisOpts(
+            mesh_opacity=0.4, point_labels=point_labels, labels_always_visible=True
+        ),
+    )
+    pv_plot.screenshot(output_path / f"strain_xx_balance_on_{background_name}.png")
+    if SHOW_PLOTS:
+        pv_plot.show()
+    pv_plot.close()
+
 if SHOW_PLOTS:
     plt.show()
 else:

@@ -72,7 +72,7 @@ def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
         val.EMetricType.MAVM,
         points=(0, 5),
         selectors=selectors,
-        direction="d_minus",
+        part=val.EValMetricPart.D_MINUS,
     )
     field = result.get("temperature", val.EMetricType.MAVM)
     for point, ax in zip((0, 5), axes.flat, strict=True):
@@ -84,18 +84,8 @@ def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
     plt.close(fig)
 
 
-def test_plot_labels_override_map_colorbar_and_envelope_source() -> None:
+def test_envelope_identifies_experiment_source() -> None:
     val_case = load_plate_case()
-    result = val.ValidationEngine([val.MetricAVM()]).run(val_case)
-    fig, ax = val.plot_val_metric_map(
-        result,
-        "temperature",
-        val.EMetricType.AVM,
-        labels=val.ValPlotLabels(title="Thermal mismatch", colorbar_label="AVM [degC]"),
-    )
-    assert ax.get_title() == "Thermal mismatch"
-    assert fig.axes[1].get_ylabel() == "AVM [degC]"
-    plt.close(fig)
     fig, ax = val.plot_val_cdf_envelope(
         val_case,
         "temperature",

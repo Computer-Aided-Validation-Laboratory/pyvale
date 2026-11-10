@@ -171,14 +171,14 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
     )
     assert "degC" in ax_cdf.get_xlabel()
     assert len(ax_cdf.lines) == 4
-    fig_map, ax_map = val.plot_val_metric_map(
+    pv_plot = val.plot_val_metric_on_sim(
         result,
         "temperature",
         val.EMetricType.AVM,
-        selectors={"time": 4},
+        selectors={val.EValResAxis.TIME: 4},
     )
-    assert "mm" in ax_map.get_xlabel()
-    assert len(ax_map.collections[0].get_offsets()) == 12
+    assert pv_plot.actors["validation-points"].mapper.dataset.n_points == 12
+    pv_plot.close()
     fig_time, ax_time = val.plot_val_metric_time(
         result,
         "temperature",
@@ -190,7 +190,6 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
     )
     assert ax_time.get_xlabel() == "Time [s]"
     plt.close(fig_cdf)
-    plt.close(fig_map)
     plt.close(fig_time)
 
 
