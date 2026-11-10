@@ -11,18 +11,18 @@ import pytest
 
 from pyvale.valid.metrics import (
     calc_avm_1d,
-    calc_ks_1d,
     calc_cvm_1d,
-    calc_u_pooling_1d,
     calc_deterministic_metrics_1d,
+    calc_ks_1d,
+    calc_u_pooling_1d,
 )
 from pyvale.valid.strategy import (
-    MetricMAVM,
     MetricAVM,
-    MetricKS,
     MetricCVM,
-    MetricRMSE,
+    MetricKS,
+    MetricMAVM,
     MetricRelativeError,
+    MetricRMSE,
 )
 
 
@@ -49,6 +49,13 @@ def test_cvm_1d() -> None:
     """Cramér-von Mises distance is 0 for identical distributions."""
     x = np.linspace(0.0, 5.0, 50)
     assert calc_cvm_1d(x, x) == pytest.approx(0.0, abs=1e-10)
+
+
+def test_cvm_separated_small_samples() -> None:
+    """Two-sample rank statistic: 1 - 15/24 = 3/8."""
+    assert calc_cvm_1d(np.array([0.0, 1.0]), np.array([2.0, 3.0])) == (
+        pytest.approx(3.0 / 8.0)
+    )
 
 
 def test_u_pooling_1d() -> None:
@@ -80,19 +87,20 @@ def test_strategy_pattern_metrics() -> None:
 
     mavm_strat = MetricMAVM(alpha=0.05)
     res_mavm = mavm_strat.calc(sim, exp)
-    assert res_mavm.d_total >= 0.0
+    assert res_mavm.value >= 0.0
+    assert res_mavm.value == res_mavm.d_plus + res_mavm.d_minus
 
     avm_strat = MetricAVM()
-    assert avm_strat.calc(sim, exp) == pytest.approx(1.0, rel=1e-3)
+    assert avm_strat.calc(sim, exp).value == pytest.approx(1.0, rel=1e-3)
 
     ks_strat = MetricKS()
-    assert 0.0 <= ks_strat.calc(sim, exp) <= 1.0
+    assert 0.0 <= ks_strat.calc(sim, exp).value <= 1.0
 
     cvm_strat = MetricCVM()
-    assert cvm_strat.calc(sim, exp) >= 0.0
+    assert cvm_strat.calc(sim, exp).value >= 0.0
 
     rmse_strat = MetricRMSE()
-    assert rmse_strat.calc(sim, exp) == pytest.approx(1.0)
+    assert rmse_strat.calc(sim, exp).value == pytest.approx(1.0)
 
     rel_strat = MetricRelativeError()
-    assert rel_strat.calc(sim, exp) > 0.0
+    assert rel_strat.calc(sim, exp).value > 0.0

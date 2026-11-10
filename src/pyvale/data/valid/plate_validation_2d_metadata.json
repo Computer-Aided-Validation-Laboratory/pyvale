@@ -1,0 +1,40 @@
+{
+  "fixture": "plate_validation_2d.npz",
+  "source_files": [
+    "case18_out.e",
+    "case18_d_out.e"
+  ],
+  "source_inputs": [
+    "case18.i",
+    "case18_d.i"
+  ],
+  "conductivity_factors": [
+    1.0,
+    0.9
+  ],
+  "thermal_expansion_factors": [
+    1.0,
+    0.9
+  ],
+  "sensor_grid": [
+    4,
+    3
+  ],
+  "experiments_per_simulation": 6,
+  "evaluation_times": [
+    0.0,
+    50.0,
+    100.0,
+    150.0,
+    200.0
+  ],
+  "measurement_noise_seed": 2871,
+  "temperature_noise_std_degC": 0.3,
+  "strain_noise_std": 2e-06,
+  "numpy_version": "2.5.3",
+  "scipy_version": "1.18.1",
+  "regression_absolute_tolerance": {
+    "temperature": 1e-10,
+    "strain": 1e-12
+  }
+}

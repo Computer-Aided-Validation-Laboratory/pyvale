@@ -10,17 +10,43 @@ import pytest
 @pytest.mark.parametrize(
     ("example", "outputs"),
     (
-        ("valid/ex1_load_exp_data.py", ()),
-        ("valid/ex2_load_prob_sim_data.py", ()),
-        ("valid/ex3_cdfs.py", ("pyvale-output/ex3_cdfs_output.png",)),
+        ("valid/ex1_val_metric.py", ("pyvale-output/ex1_val_metric_cdfs.png",)),
         (
-            "valid/ex4_mavm_tc_analysis.py",
+            "valid/ex2_val_steady.py",
             (
-                "pyvale-output/ex4_mavm_tc3_cdf.png",
-                "pyvale-output/ex4_mavm_summary_bars.png",
+                "pyvale-output/ex2_val_steady_cdfs.png",
+                "pyvale-output/ex2_val_steady_map.png",
             ),
         ),
-        ("valid/ex5_validation_metrics_comparison.py", ()),
+        (
+            "valid/ex3_val_epistemic.py",
+            (
+                "pyvale-output/ex3_val_epistemic_envelope.png",
+                "pyvale-output/ex3_val_epistemic_distribution.png",
+            ),
+        ),
+        (
+            "valid/ex4_val_bounds.py",
+            (
+                "pyvale-output/ex4_val_bounds_envelope.png",
+                "pyvale-output/ex4_val_bounds_directional_map.png",
+                "pyvale-output/ex4_val_bounds_time.png",
+            ),
+        ),
+        (
+            "valid/ex5_val_transient.py",
+            (
+                "pyvale-output/ex5_val_transient_time.png",
+                "pyvale-output/ex5_val_transient_cdfs.png",
+            ),
+        ),
+        (
+            "valid/ex6_val_field.py",
+            (
+                "pyvale-output/ex6_val_field_strain_map.png",
+                "pyvale-output/ex6_val_field_temperature_time.png",
+            ),
+        ),
     ),
 )
 def test_valid_example(

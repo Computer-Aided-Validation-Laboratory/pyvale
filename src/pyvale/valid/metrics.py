@@ -72,6 +72,19 @@ class MAVMResult:
     """Significance level used for the confidence interval (e.g. 0.05)."""
 
 
+def _finite_1d(values: np.ndarray, name: str) -> np.ndarray:
+    """Validate a distribution sample without losing uncertainty axes."""
+    array = np.asarray(values, dtype=np.float64)
+    if array.ndim != 1:
+        raise ValueError(f"{name} must be one-dimensional; select axes explicitly.")
+    if np.any(np.isinf(array)):
+        raise ValueError(f"{name} cannot contain infinite values.")
+    finite = array[~np.isnan(array)]
+    if not len(finite):
+        raise ValueError(f"{name} needs at least one finite observation.")
+    return finite
+
+
 def _integrate_mavm_bound_default(
     f_mod: np.ndarray,
     sn_exp: np.ndarray,
@@ -241,13 +254,10 @@ def calc_mavm_1d(
     MAVMResult
         Complete result dataclass with d+, d-, d_total, and CDF data.
     """
-    m_clean = np.asarray(model_data, dtype=np.float64).ravel()
-    m_clean = m_clean[~np.isnan(m_clean)]
-    e_clean = np.asarray(exp_data, dtype=np.float64).ravel()
-    e_clean = e_clean[~np.isnan(e_clean)]
-
-    if len(m_clean) == 0 or len(e_clean) == 0:
-        raise ValueError("Cannot calculate MAVM on empty or all-NaN data.")
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("MAVM alpha must be between zero and one.")
+    m_clean = _finite_1d(model_data, "model_data")
+    e_clean = _finite_1d(exp_data, "exp_data")
 
     if mode is EMAVMMode.DEFAULT:
         _raise_for_near_duplicates(m_clean, "model")
@@ -405,10 +415,8 @@ def calc_avm_1d(
     float
         1-Wasserstein / AVM distance between model and experiment.
     """
-    u_vals = np.asarray(model_data, dtype=np.float64).ravel()
-    u_vals = u_vals[~np.isnan(u_vals)]
-    v_vals = np.asarray(exp_data, dtype=np.float64).ravel()
-    v_vals = v_vals[~np.isnan(v_vals)]
+    u_vals = _finite_1d(model_data, "model_data")
+    v_vals = _finite_1d(exp_data, "exp_data")
     return float(stats.wasserstein_distance(u_vals, v_vals))
 
 
@@ -430,10 +438,8 @@ def calc_ks_1d(
     float
         Two-sample Kolmogorov-Smirnov test statistic.
     """
-    u_vals = np.asarray(model_data, dtype=np.float64).ravel()
-    u_vals = u_vals[~np.isnan(u_vals)]
-    v_vals = np.asarray(exp_data, dtype=np.float64).ravel()
-    v_vals = v_vals[~np.isnan(v_vals)]
+    u_vals = _finite_1d(model_data, "model_data")
+    v_vals = _finite_1d(exp_data, "exp_data")
     res = stats.ks_2samp(u_vals, v_vals)
     return float(res.statistic)
 
@@ -456,10 +462,8 @@ def calc_cvm_1d(
     float
         Two-sample Cramér-von Mises test statistic.
     """
-    u_vals = np.asarray(model_data, dtype=np.float64).ravel()
-    u_vals = u_vals[~np.isnan(u_vals)]
-    v_vals = np.asarray(exp_data, dtype=np.float64).ravel()
-    v_vals = v_vals[~np.isnan(v_vals)]
+    u_vals = _finite_1d(model_data, "model_data")
+    v_vals = _finite_1d(exp_data, "exp_data")
     res = stats.cramervonmises_2samp(u_vals, v_vals)
     return float(res.statistic)
 
@@ -485,8 +489,13 @@ def calc_u_pooling_1d(
     float
         Wasserstein distance between the pooled u-values and Uniform(0, 1).
     """
+    observations = np.asarray(exp_obs, dtype=np.float64)
+    if observations.ndim != 1 or not np.all(np.isfinite(observations)):
+        raise ValueError("U-pooling needs finite paired 1D observations.")
+    if len(model_cdfs) != len(observations):
+        raise ValueError("One model CDF is required per observation.")
     u_samples = []
-    for (probs, quants), obs in zip(model_cdfs, exp_obs, strict=False):
+    for (probs, quants), obs in zip(model_cdfs, observations, strict=True):
         # Interpolate empirical CDF probability at observed value
         u_val = float(np.interp(obs, quants, probs, left=0.0, right=1.0))
         u_samples.append(u_val)
@@ -508,32 +517,17 @@ def calc_deterministic_metrics_1d(
     dict[str, float]
         Dictionary with absolute_error, relative_error, rmse, and nmse.
     """
-    sim_arr = np.asarray(sim_val, dtype=np.float64).ravel()
-    sim_arr = sim_arr[~np.isnan(sim_arr)]
-    exp_arr = np.asarray(exp_val, dtype=np.float64).ravel()
-    exp_arr = exp_arr[~np.isnan(exp_arr)]
-
-    if len(sim_arr) == 0 or len(exp_arr) == 0:
-        raise ValueError("Cannot calculate metrics on empty data.")
-
-    if sim_arr.shape != exp_arr.shape:
-        sim_mean = float(np.mean(sim_arr))
-        exp_mean = float(np.mean(exp_arr))
-        abs_err = abs(sim_mean - exp_mean)
-        denom = abs(exp_mean) if abs(exp_mean) > METRIC_ZERO_TOLERANCE else 1.0
-        rel_err = abs_err / denom
-        var_exp = float(np.var(exp_arr))
-        nmse = (
-            float((abs_err**2) / var_exp)
-            if var_exp > METRIC_ZERO_TOLERANCE
-            else float(abs_err**2)
-        )
-        return {
-            "absolute_error": abs_err,
-            "relative_error": rel_err,
-            "rmse": abs_err,
-            "nmse": nmse,
-        }
+    sim_arr = np.atleast_1d(np.asarray(sim_val, dtype=np.float64))
+    exp_arr = np.atleast_1d(np.asarray(exp_val, dtype=np.float64))
+    if sim_arr.ndim != 1 or exp_arr.ndim != 1 or sim_arr.shape != exp_arr.shape:
+        raise ValueError("Deterministic metrics require paired 1D observations.")
+    if np.any(np.isinf(sim_arr)) or np.any(np.isinf(exp_arr)):
+        raise ValueError("Deterministic observations cannot contain infinity.")
+    valid = np.isfinite(sim_arr) & np.isfinite(exp_arr)
+    if not np.any(valid):
+        raise ValueError("Deterministic metrics need a finite observation pair.")
+    sim_arr = sim_arr[valid]
+    exp_arr = exp_arr[valid]
 
     abs_err = np.abs(sim_arr - exp_arr)
     denom = np.where(

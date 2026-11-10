@@ -1,50 +1,120 @@
-# ==============================================================================
-# pyvale: the python validation engine
-# License: MIT
-# Copyright (C) 2025 The Computer Aided Validation Team
-# ==============================================================================
+"""Validation of common physical observables and uncertainty scenarios."""
 
-"""Pyvale model validation metrics and analysis module."""
-
+from pyvale.valid.conversion import (
+    combine_val_cases,
+    conv_exp_sim_to_data,
+    val_from_exp,
+    val_from_sim,
+)
+from pyvale.valid.core import (
+    EpistemicOffsets,
+    EValAxis,
+    EValGeometry,
+    EValOperator,
+    EValSource,
+    ValArray,
+    ValCase,
+    ValData,
+    ValDomain,
+    ValGeometry,
+    ValObservable,
+    ValSampleInputs,
+    assemble_val_case,
+    val_from_arrays,
+)
+from pyvale.valid.cython import cyth_calc_mavm_1d, cyth_calc_mavm_pbox_1d
+from pyvale.valid.engine import (
+    EOffsetScenario,
+    EResultAxis,
+    ValidationEngine,
+    ValMetricField,
+    ValResult,
+    select_aleatory,
+)
 from pyvale.valid.metrics import (
     EMAVMMode,
     MAVMResult,
+    calc_avm_1d,
+    calc_cvm_1d,
+    calc_deterministic_metrics_1d,
+    calc_ks_1d,
     calc_mavm_1d,
     calc_mavm_pbox_1d,
-    calc_avm_1d,
-    calc_ks_1d,
-    calc_cvm_1d,
     calc_u_pooling_1d,
-    calc_deterministic_metrics_1d,
 )
-from pyvale.valid.cython import (
-    cyth_calc_mavm_1d,
-    cyth_calc_mavm_pbox_1d,
-)
-from pyvale.valid.constants import (
-    MAVM_AREA_TOLERANCE,
-    MAVM_DUPLICATE_TOLERANCE,
-    MAVM_PROBABILITY_TOLERANCE,
-    METRIC_ZERO_TOLERANCE,
+from pyvale.valid.plotting import (
+    calc_ecdf_envelope,
+    plot_val_cdf_envelope,
+    plot_val_cdfs,
+    plot_val_metric_distribution,
+    plot_val_metric_map,
+    plot_val_metric_time,
 )
 from pyvale.valid.strategy import (
+    EMetricType,
     IValMetric,
-    MetricMAVM,
+    MAVMMetricResult,
     MetricAVM,
-    MetricKS,
     MetricCVM,
+    MetricKS,
+    MetricMAVM,
     MetricRelativeError,
+    MetricResult,
     MetricRMSE,
+    ScalarMetricResult,
 )
-from pyvale.valid.validation import (
-    PointValData,
-    extract_val_data_by_key,
-    load_prob_sim_csv,
-    calc_limit_cdfs_point,
-    calc_mavm_point,
-    calc_metric_point,
-)
-from pyvale.valid.plotval import (
-    plot_mavm_cdf_1d,
-    plot_mavm_summary_bars,
-)
+
+__all__ = [
+    "EMAVMMode",
+    "EMetricType",
+    "EOffsetScenario",
+    "EResultAxis",
+    "EValAxis",
+    "EValGeometry",
+    "EValOperator",
+    "EValSource",
+    "EpistemicOffsets",
+    "IValMetric",
+    "MAVMMetricResult",
+    "MAVMResult",
+    "MetricAVM",
+    "MetricCVM",
+    "MetricKS",
+    "MetricMAVM",
+    "MetricRMSE",
+    "MetricRelativeError",
+    "MetricResult",
+    "ScalarMetricResult",
+    "ValArray",
+    "ValCase",
+    "ValData",
+    "ValDomain",
+    "ValGeometry",
+    "ValMetricField",
+    "ValObservable",
+    "ValResult",
+    "ValSampleInputs",
+    "ValidationEngine",
+    "assemble_val_case",
+    "calc_avm_1d",
+    "calc_cvm_1d",
+    "calc_deterministic_metrics_1d",
+    "calc_ecdf_envelope",
+    "calc_ks_1d",
+    "calc_mavm_1d",
+    "calc_mavm_pbox_1d",
+    "calc_u_pooling_1d",
+    "combine_val_cases",
+    "conv_exp_sim_to_data",
+    "cyth_calc_mavm_1d",
+    "cyth_calc_mavm_pbox_1d",
+    "plot_val_cdf_envelope",
+    "plot_val_cdfs",
+    "plot_val_metric_distribution",
+    "plot_val_metric_map",
+    "plot_val_metric_time",
+    "select_aleatory",
+    "val_from_arrays",
+    "val_from_exp",
+    "val_from_sim",
+]

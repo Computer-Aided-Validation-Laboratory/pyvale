@@ -1,13 +1,8 @@
-# ==============================================================================
-# pyvale: the python validation engine
-# License: MIT
-# Copyright (C) 2025 The Computer Aided Validation Team
-# ==============================================================================
-
-"""Strategy pattern interfaces for validation metrics."""
+"""Metric strategies and compact tagged metric results."""
 
 from abc import ABC, abstractmethod
-from typing import Any
+from dataclasses import dataclass, field
+from enum import Enum, auto
 
 import numpy as np
 
@@ -17,118 +12,156 @@ from pyvale.valid.metrics import (
     MAVMResult,
     calc_avm_1d,
     calc_cvm_1d,
-    calc_deterministic_metrics_1d,
     calc_ks_1d,
     calc_mavm_1d,
 )
 
 
+class EMetricType(Enum):
+    MAVM = auto()
+    AVM = auto()
+    KS = auto()
+    CVM = auto()
+    RMSE = auto()
+    RELATIVE_ERROR = auto()
+
+
+@dataclass(slots=True)
+class ScalarMetricResult:
+    kind: EMetricType
+    value: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.kind, EMetricType):
+            raise TypeError("Metric kind must be an EMetricType.")
+        if self.kind is EMetricType.MAVM:
+            raise ValueError("MAVM requires directional result fields.")
+
+
+@dataclass(slots=True)
+class MAVMMetricResult:
+    value: float
+    d_plus: float
+    d_minus: float
+    diagnostics: MAVMResult | None = None
+    kind: EMetricType = field(default=EMetricType.MAVM, init=False)
+
+
+MetricResult = ScalarMetricResult | MAVMMetricResult
+
+
 class IValMetric(ABC):
-    """Abstract base class for all validation metric calculators."""
+    """Calculate a metric from one-dimensional NumPy observations."""
 
     @abstractmethod
-    def calc(
-        self,
-        model_data: np.ndarray,
-        exp_data: np.ndarray,
-    ) -> Any:
-        """Calculate the validation metric between model and experimental data.
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> MetricResult:
+        """Return a tagged metric result."""
 
-        Parameters
-        ----------
-        model_data : np.ndarray
-            Model realizations array.
-        exp_data : np.ndarray
-            Experimental observations array.
-
-        Returns
-        -------
-        Any
-            Metric result (e.g. float or MAVMResult dataclass).
-        """
+    @abstractmethod
+    def get_kind(self) -> EMetricType:
+        """Return the metric tag without calculating a result."""
 
 
 class MetricMAVM(IValMetric):
-    """Modified Area Validation Metric (MAVM) strategy."""
-
-    __slots__ = ("_alpha", "_mode", "_tol")
+    __slots__ = ("alpha", "diagnostics", "mode", "tol")
 
     def __init__(
         self,
+        *,
         alpha: float = 0.05,
-        mode: EMAVMMode = EMAVMMode.DEFAULT,
+        mode: EMAVMMode = EMAVMMode.ROBUST,
         tol: float = MAVM_AREA_TOLERANCE,
+        diagnostics: bool = False,
     ) -> None:
-        self._alpha = alpha
-        self._mode = mode
-        self._tol = tol
+        if not 0.0 < alpha < 1.0:
+            raise ValueError("MAVM alpha must be between zero and one.")
+        self.alpha = alpha
+        self.mode = mode
+        self.tol = tol
+        self.diagnostics = diagnostics
 
-    def calc(
-        self,
-        model_data: np.ndarray,
-        exp_data: np.ndarray,
-    ) -> MAVMResult:
-        return calc_mavm_1d(
-            model_data=model_data,
-            exp_data=exp_data,
-            alpha=self._alpha,
-            mode=self._mode,
-            tol=self._tol,
+    def get_kind(self) -> EMetricType:
+        return EMetricType.MAVM
+
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> MAVMMetricResult:
+        result = calc_mavm_1d(sim, exp, self.alpha, self.mode, self.tol)
+        return MAVMMetricResult(
+            value=result.d_total,
+            d_plus=result.d_plus,
+            d_minus=result.d_minus,
+            diagnostics=result if self.diagnostics else None,
         )
 
 
 class MetricAVM(IValMetric):
-    """Classical Area Validation Metric (1-Wasserstein) strategy."""
+    __slots__ = ()
 
-    def calc(
-        self,
-        model_data: np.ndarray,
-        exp_data: np.ndarray,
-    ) -> float:
-        return calc_avm_1d(model_data, exp_data)
+    def get_kind(self) -> EMetricType:
+        return EMetricType.AVM
+
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        return ScalarMetricResult(EMetricType.AVM, calc_avm_1d(sim, exp))
 
 
 class MetricKS(IValMetric):
-    """Kolmogorov-Smirnov distance strategy (L-infinity norm on CDFs)."""
+    __slots__ = ()
 
-    def calc(
-        self,
-        model_data: np.ndarray,
-        exp_data: np.ndarray,
-    ) -> float:
-        return calc_ks_1d(model_data, exp_data)
+    def get_kind(self) -> EMetricType:
+        return EMetricType.KS
+
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        return ScalarMetricResult(EMetricType.KS, calc_ks_1d(sim, exp))
 
 
 class MetricCVM(IValMetric):
-    """Cramér-von Mises distance strategy (L2 norm on CDFs)."""
+    __slots__ = ()
 
-    def calc(
-        self,
-        model_data: np.ndarray,
-        exp_data: np.ndarray,
-    ) -> float:
-        return calc_cvm_1d(model_data, exp_data)
+    def get_kind(self) -> EMetricType:
+        return EMetricType.CVM
+
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        return ScalarMetricResult(EMetricType.CVM, calc_cvm_1d(sim, exp))
 
 
 class MetricRMSE(IValMetric):
-    """Root Mean Square Error strategy."""
+    __slots__ = ()
 
-    def calc(
-        self,
-        model_data: np.ndarray,
-        exp_data: np.ndarray,
-    ) -> float:
-        res = calc_deterministic_metrics_1d(model_data, exp_data)
-        return res["rmse"]
+    def get_kind(self) -> EMetricType:
+        return EMetricType.RMSE
+
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        sim_values = np.asarray(sim, dtype=np.float64)
+        exp_values = np.asarray(exp, dtype=np.float64)
+        if sim_values.ndim != 1 or sim_values.shape != exp_values.shape:
+            raise ValueError("RMSE requires equal-length paired 1D observations.")
+        if np.any(np.isinf(sim_values)) or np.any(np.isinf(exp_values)):
+            raise ValueError("RMSE observations cannot contain infinity.")
+        valid = np.isfinite(sim_values) & np.isfinite(exp_values)
+        if not np.any(valid):
+            raise ValueError("RMSE requires at least one valid pair.")
+        residual = sim_values[valid] - exp_values[valid]
+        return ScalarMetricResult(
+            EMetricType.RMSE,
+            float(np.sqrt(np.mean(residual * residual))),
+        )
 
 
 class MetricRelativeError(IValMetric):
-    """Relative error strategy."""
+    __slots__ = ()
 
-    def calc(
-        self,
-        model_data: np.ndarray,
-        exp_data: np.ndarray,
-    ) -> float:
-        res = calc_deterministic_metrics_1d(model_data, exp_data)
-        return res["relative_error"]
+    def get_kind(self) -> EMetricType:
+        return EMetricType.RELATIVE_ERROR
+
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        sim_values = np.asarray(sim, dtype=np.float64)
+        exp_values = np.asarray(exp, dtype=np.float64)
+        if sim_values.ndim != 1 or sim_values.shape != exp_values.shape:
+            raise ValueError("Relative error requires paired 1D observations.")
+        if np.any(np.isinf(sim_values)) or np.any(np.isinf(exp_values)):
+            raise ValueError("Relative error observations cannot contain infinity.")
+        valid = np.isfinite(sim_values) & np.isfinite(exp_values)
+        if not np.any(valid):
+            raise ValueError("Relative error requires at least one valid pair.")
+        denominator = np.maximum(np.abs(exp_values[valid]), 1.0e-12)
+        value = np.mean(np.abs(sim_values[valid] - exp_values[valid]) / denominator)
+        return ScalarMetricResult(EMetricType.RELATIVE_ERROR, float(value))
