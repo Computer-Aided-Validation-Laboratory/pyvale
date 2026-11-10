@@ -113,4 +113,5 @@ def load_plate_case(
         exp_axes = (*exp_axes, val.EValAxis.ALEATORY)
         sim_arrays[name] = val.ValArray(sim_values, axes)
         exp_arrays[name] = val.ValArray(exp_values, exp_axes, bound)
+
     return val.ValCase(domain, val.ValData(sim_arrays), val.ValData(exp_arrays))

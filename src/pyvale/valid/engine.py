@@ -7,7 +7,8 @@ from itertools import product
 import numpy as np
 
 from pyvale.valid.core import EValAxis, ValArray, ValCase, ValDomain
-from pyvale.valid.strategy import EMetricType, IValMetric, MAVMMetricResult
+from pyvale.valid.metrics import MAVMResult
+from pyvale.valid.strategy import EMetricType, IValMetric
 
 
 class EResultAxis(StrEnum):
@@ -22,7 +23,7 @@ class EResultAxis(StrEnum):
     EXP_OFFSET = "exp_offset"
 
 
-class EOffsetScenario(IntEnum):
+class EEpisOffset(IntEnum):
     NOMINAL = 0
     LOWER = 1
     UPPER = 2
@@ -37,7 +38,7 @@ class ValMetricField:
     value: np.ndarray
     d_plus: np.ndarray | None = None
     d_minus: np.ndarray | None = None
-    scenarios: dict[EResultAxis, tuple[EOffsetScenario, ...]] | None = None
+    scenarios: dict[EResultAxis, tuple[EEpisOffset, ...]] | None = None
 
 
 @dataclass(slots=True)
@@ -76,7 +77,7 @@ def select_aleatory(
     time: int,
     trans: int = 0,
     nuis: int = 0,
-    offset: EOffsetScenario | int = EOffsetScenario.NOMINAL,
+    offset: EEpisOffset | int = EEpisOffset.NOMINAL,
 ) -> np.ndarray:
     """Select one conditional 1D sample, applying a coherent value shift."""
     indices = {
@@ -93,9 +94,9 @@ def select_aleatory(
         raise ValueError("Validation observations cannot contain infinity.")
     if isinstance(offset, bool) or offset not in (0, 1, 2):
         raise ValueError("Offset scenario must be nominal, lower, or upper.")
-    if offset != EOffsetScenario.NOMINAL and quantity.offsets is None:
+    if offset != EEpisOffset.NOMINAL and quantity.offsets is None:
         raise ValueError("Quantity has no offset scenarios.")
-    if offset == EOffsetScenario.NOMINAL:
+    if offset == EEpisOffset.NOMINAL:
         return values
     offsets = quantity.offsets
     physical = {
@@ -103,9 +104,9 @@ def select_aleatory(
         EValAxis.COMPONENT: component,
         EValAxis.TIME: time,
     }
-    bound = offsets.lower if offset == EOffsetScenario.LOWER else offsets.upper
+    bound = offsets.lower if offset == EEpisOffset.LOWER else offsets.upper
     magnitude = np.asarray(bound)[tuple(physical[axis] for axis in offsets.axes)]
-    sign = -1.0 if offset == EOffsetScenario.LOWER else 1.0
+    sign = -1.0 if offset == EEpisOffset.LOWER else 1.0
     return values + sign * magnitude
 
 
@@ -154,7 +155,7 @@ class ValidationEngine:
             scenarios = {}
             for axis in (EResultAxis.SIM_OFFSET, EResultAxis.EXP_OFFSET):
                 if axis in axes:
-                    scenarios[axis] = tuple(EOffsetScenario)
+                    scenarios[axis] = tuple(EEpisOffset)
             fields = {}
             for metric in self.metrics:
                 directional = metric.get_kind() is EMetricType.MAVM
@@ -193,12 +194,14 @@ class ValidationEngine:
                 for metric in self.metrics:
                     field = fields[metric.get_kind()]
                     metric_result = metric.calc(sim_samples, exp_samples)
-                    field.value[out_index] = metric_result.value
-                    if isinstance(metric_result, MAVMMetricResult):
+                    if isinstance(metric_result, MAVMResult):
+                        field.value[out_index] = metric_result.d_total
                         assert field.d_plus is not None
                         assert field.d_minus is not None
                         field.d_plus[out_index] = metric_result.d_plus
                         field.d_minus[out_index] = metric_result.d_minus
+                    else:
+                        field.value[out_index] = metric_result.value
             results[name] = fields
         configs = {metric.get_kind(): metric for metric in self.metrics}
         return ValResult(domain=case.domain, fields=results, metric_configs=configs)

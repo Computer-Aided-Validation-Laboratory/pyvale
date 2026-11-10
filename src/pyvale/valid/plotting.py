@@ -8,7 +8,7 @@ from scipy import stats
 
 from pyvale.valid.core import EValAxis, EValSource, ValCase
 from pyvale.valid.engine import (
-    EOffsetScenario,
+    EEpisOffset,
     EResultAxis,
     ValMetricField,
     ValResult,
@@ -36,8 +36,8 @@ def plot_val_cdfs(
     sim_nuis: int = 0,
     exp_trans: int = 0,
     exp_nuis: int = 0,
-    sim_offset: EOffsetScenario = EOffsetScenario.NOMINAL,
-    exp_offset: EOffsetScenario = EOffsetScenario.NOMINAL,
+    sim_offset: EEpisOffset = EEpisOffset.NOMINAL,
+    exp_offset: EEpisOffset = EEpisOffset.NOMINAL,
     metric: MetricMAVM | None = None,
     ax: plt.Axes | None = None,
 ) -> tuple[plt.Figure, plt.Axes]:
@@ -70,7 +70,7 @@ def plot_val_cdfs(
     support_min = min(np.min(sim), np.min(exp))
     support_max = max(np.max(sim), np.max(exp))
     if metric is not None:
-        raw = calc_mavm_1d(sim, exp, metric.alpha, metric.mode, metric.tol)
+        raw = calc_mavm_1d(sim, exp, metric.alpha, metric.duplicates, metric.tol)
         support_min = min(support_min, np.min(raw.exp_conf_lower))
         support_max = max(support_max, np.max(raw.exp_conf_upper))
     margin = max((support_max - support_min) * 0.02, 1.0e-12)

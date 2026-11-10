@@ -1,14 +1,14 @@
 """Metric strategies and compact tagged metric results."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 
 import numpy as np
 
 from pyvale.valid.constants import MAVM_AREA_TOLERANCE
 from pyvale.valid.metrics import (
-    EMAVMMode,
+    EMAVMDuplicates,
     MAVMResult,
     calc_avm_1d,
     calc_cvm_1d,
@@ -38,16 +38,7 @@ class ScalarMetricResult:
             raise ValueError("MAVM requires directional result fields.")
 
 
-@dataclass(slots=True)
-class MAVMMetricResult:
-    value: float
-    d_plus: float
-    d_minus: float
-    diagnostics: MAVMResult | None = None
-    kind: EMetricType = field(default=EMetricType.MAVM, init=False)
-
-
-MetricResult = ScalarMetricResult | MAVMMetricResult
+MetricResult = ScalarMetricResult | MAVMResult
 
 
 class IValMetric(ABC):
@@ -63,34 +54,26 @@ class IValMetric(ABC):
 
 
 class MetricMAVM(IValMetric):
-    __slots__ = ("alpha", "diagnostics", "mode", "tol")
+    __slots__ = ("alpha", "duplicates", "tol")
 
     def __init__(
         self,
         *,
         alpha: float = 0.05,
-        mode: EMAVMMode = EMAVMMode.ROBUST,
+        duplicates: EMAVMDuplicates = EMAVMDuplicates.INCLUDE,
         tol: float = MAVM_AREA_TOLERANCE,
-        diagnostics: bool = False,
     ) -> None:
         if not 0.0 < alpha < 1.0:
             raise ValueError("MAVM alpha must be between zero and one.")
         self.alpha = alpha
-        self.mode = mode
+        self.duplicates = duplicates
         self.tol = tol
-        self.diagnostics = diagnostics
 
     def get_kind(self) -> EMetricType:
         return EMetricType.MAVM
 
-    def calc(self, sim: np.ndarray, exp: np.ndarray) -> MAVMMetricResult:
-        result = calc_mavm_1d(sim, exp, self.alpha, self.mode, self.tol)
-        return MAVMMetricResult(
-            value=result.d_total,
-            d_plus=result.d_plus,
-            d_minus=result.d_minus,
-            diagnostics=result if self.diagnostics else None,
-        )
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> MAVMResult:
+        return calc_mavm_1d(sim, exp, self.alpha, self.duplicates, self.tol)
 
 
 class MetricAVM(IValMetric):

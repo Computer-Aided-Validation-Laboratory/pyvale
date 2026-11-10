@@ -54,8 +54,9 @@ from pyvale.valid.constants import (
     MAVM_PROBABILITY_TOLERANCE,
 )
 from pyvale.valid.metrics import (
-    EMAVMMode,
+    EMAVMDuplicates,
     MAVMResult,
+    _finite_1d,
     _raise_for_near_duplicates,
 )
 
@@ -221,7 +222,7 @@ def cyth_calc_mavm_1d(
     model_data: np.ndarray,
     exp_data: np.ndarray,
     alpha: float = 0.05,
-    mode: EMAVMMode = EMAVMMode.DEFAULT,
+    duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMResult:
     """Calculate MAVM using compiled loops when this module is compiled.
@@ -229,15 +230,12 @@ def cyth_calc_mavm_1d(
     This has the same input contract and return type as
     :func:`pyvale.valid.metrics.calc_mavm_1d`.
     """
-    model_clean = np.asarray(model_data, dtype=np.float64).ravel()
-    model_clean = model_clean[~np.isnan(model_clean)]
-    exp_clean = np.asarray(exp_data, dtype=np.float64).ravel()
-    exp_clean = exp_clean[~np.isnan(exp_clean)]
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("MAVM alpha must be between zero and one.")
+    model_clean = _finite_1d(model_data, "model_data")
+    exp_clean = _finite_1d(exp_data, "exp_data")
 
-    if len(model_clean) == 0 or len(exp_clean) == 0:
-        raise ValueError("Cannot calculate MAVM on empty or all-NaN data.")
-
-    if mode is EMAVMMode.DEFAULT:
+    if duplicates is EMAVMDuplicates.REJECT:
         _raise_for_near_duplicates(model_clean, "model")
         _raise_for_near_duplicates(exp_clean, "experimental")
 
@@ -255,7 +253,7 @@ def cyth_calc_mavm_1d(
     exp_conf_lower = _as_contiguous_float64(exp_quantiles - t_value * standard_error)
     exp_conf_upper = _as_contiguous_float64(exp_quantiles + t_value * standard_error)
 
-    if mode is EMAVMMode.DEFAULT:
+    if duplicates is EMAVMDuplicates.REJECT:
         model_probability_step = 1.0 / len(model_quantiles)
         exp_probability_step = 1.0 / exp_count
         lower_plus, lower_minus = _integrate_mavm_bound_default(
@@ -272,7 +270,7 @@ def cyth_calc_mavm_1d(
             exp_probability_step,
             tol,
         )
-    elif mode is EMAVMMode.ROBUST:
+    elif duplicates is EMAVMDuplicates.INCLUDE:
         lower_plus, lower_minus = _integrate_mavm_bound_robust(
             model_quantiles,
             exp_conf_lower,
@@ -288,7 +286,7 @@ def cyth_calc_mavm_1d(
             tol,
         )
     else:
-        raise ValueError(f"Unsupported MAVM mode: {mode!r}.")
+        raise ValueError(f"Unsupported MAVM duplicates: {duplicates!r}.")
 
     d_plus = float(max(abs(lower_plus), abs(upper_plus)))
     d_minus = float(max(abs(lower_minus), abs(upper_minus)))
@@ -313,7 +311,7 @@ def cyth_calc_mavm_pbox_1d(
     model_pbox_max: np.ndarray,
     exp_data: np.ndarray,
     alpha: float = 0.05,
-    mode: EMAVMMode = EMAVMMode.DEFAULT,
+    duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMResult:
     """Calculate p-box MAVM using :func:`cyth_calc_mavm_1d` for each bound."""
@@ -321,14 +319,14 @@ def cyth_calc_mavm_pbox_1d(
         model_pbox_min,
         exp_data,
         alpha=alpha,
-        mode=mode,
+        duplicates=duplicates,
         tol=tol,
     )
     result_max = cyth_calc_mavm_1d(
         model_pbox_max,
         exp_data,
         alpha=alpha,
-        mode=mode,
+        duplicates=duplicates,
         tol=tol,
     )
 

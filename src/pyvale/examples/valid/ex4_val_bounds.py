@@ -22,7 +22,7 @@ fig, _ = val.plot_val_metric_map(
     selectors={
         val.EResultAxis.TIME: 4,
         val.EResultAxis.SIM_TRANS: 0,
-        val.EResultAxis.EXP_OFFSET: val.EOffsetScenario.UPPER,
+        val.EResultAxis.EXP_OFFSET: val.EEpisOffset.UPPER,
     },
     direction="d_plus",
 )
@@ -35,7 +35,7 @@ fig, _ = val.plot_val_metric_time(
     selectors={
         val.EResultAxis.POINT: 5,
         val.EResultAxis.SIM_TRANS: 0,
-        val.EResultAxis.EXP_OFFSET: val.EOffsetScenario.UPPER,
+        val.EResultAxis.EXP_OFFSET: val.EEpisOffset.UPPER,
     },
     direction="d_plus",
 )

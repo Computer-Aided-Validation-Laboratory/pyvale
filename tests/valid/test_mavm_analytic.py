@@ -20,7 +20,7 @@ import pytest
 from pyvale.valid import cyth_calc_mavm_1d, cyth_calc_mavm_pbox_1d
 from pyvale.valid.constants import MAVM_DUPLICATE_TOLERANCE
 from pyvale.valid.metrics import (
-    EMAVMMode,
+    EMAVMDuplicates,
     MAVMResult,
     calc_mavm_1d,
     calc_mavm_pbox_1d,
@@ -29,12 +29,12 @@ from pyvale.valid.metrics import (
 MAVMCalculator = Callable[..., MAVMResult]
 
 MAVM_CALCULATORS = [
-    pytest.param(calc_mavm_1d, id="python"),
+    pytest.param(calc_mavm_1d, id="public"),
     pytest.param(cyth_calc_mavm_1d, id="cython"),
 ]
 
 MAVM_PBOX_CALCULATORS = [
-    pytest.param(calc_mavm_pbox_1d, id="python"),
+    pytest.param(calc_mavm_pbox_1d, id="public"),
     pytest.param(cyth_calc_mavm_pbox_1d, id="cython"),
 ]
 
@@ -122,7 +122,7 @@ def test_mavm_matches_fullfield_analytic_cases(
     result = calculator(
         model_data,
         exp_data,
-        mode=EMAVMMode.ROBUST,
+        duplicates=EMAVMDuplicates.INCLUDE,
     )
 
     assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-10)
@@ -152,22 +152,22 @@ def test_mavm_default_matches_unique_fullfield_analytic_cases(
     expected_d_minus: float,
     calculator: MAVMCalculator,
 ) -> None:
-    """DEFAULT matches the fullfield loop for every unique-value case."""
+    """REJECT matches the fullfield loop for every unique-value case."""
     model_data, exp_data = _reference_cases()[case_name]
 
     result = calculator(
         model_data,
         exp_data,
-        mode=EMAVMMode.DEFAULT,
+        duplicates=EMAVMDuplicates.REJECT,
     )
 
     assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-10)
     assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-10)
 
 
-@pytest.mark.parametrize("mode", [EMAVMMode.DEFAULT, EMAVMMode.ROBUST])
+@pytest.mark.parametrize("duplicates", [EMAVMDuplicates.REJECT, EMAVMDuplicates.INCLUDE])
 @pytest.mark.parametrize("calculator", MAVM_PBOX_CALCULATORS)
-def test_mavm_pbox(mode: EMAVMMode, calculator: MAVMCalculator) -> None:
+def test_mavm_pbox(duplicates: EMAVMDuplicates, calculator: MAVMCalculator) -> None:
     """Both MAVM modes evaluate outer epistemic p-box bounds."""
     rng = np.random.default_rng(123)
     exp_data = rng.normal(loc=50.0, scale=2.0, size=100)
@@ -179,7 +179,7 @@ def test_mavm_pbox(mode: EMAVMMode, calculator: MAVMCalculator) -> None:
         sim_max,
         exp_data,
         alpha=0.05,
-        mode=mode,
+        duplicates=duplicates,
     )
 
     assert result.d_plus > 0.0
@@ -285,7 +285,7 @@ def test_mavm_matches_independent_rectangle_integration(
     result = calculator(
         model_data,
         exp_data,
-        mode=EMAVMMode.ROBUST,
+        duplicates=EMAVMDuplicates.INCLUDE,
     )
 
     assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-12)
@@ -296,7 +296,7 @@ def test_mavm_matches_independent_rectangle_integration(
 def test_mavm_default_rejects_near_duplicate_model_data(
     calculator: MAVMCalculator,
 ) -> None:
-    """DEFAULT directs near-duplicate input to the robust implementation."""
+    """REJECT directs near-duplicate input to the robust implementation."""
     model_data = np.array(
         [0.0, MAVM_DUPLICATE_TOLERANCE / 2.0, 2.0],
         dtype=np.float64,
@@ -305,16 +305,16 @@ def test_mavm_default_rejects_near_duplicate_model_data(
 
     with pytest.raises(
         ValueError,
-        match=r"DEFAULT MAVM mode requires unique model observations.*ROBUST",
+        match=r"REJECT MAVM duplicates requires unique model observations.*INCLUDE",
     ):
-        calculator(model_data, exp_data, mode=EMAVMMode.DEFAULT)
+        calculator(model_data, exp_data, duplicates=EMAVMDuplicates.REJECT)
 
 
 @pytest.mark.parametrize("calculator", MAVM_CALCULATORS)
 def test_mavm_default_rejects_near_duplicate_experimental_data(
     calculator: MAVMCalculator,
 ) -> None:
-    """DEFAULT names experimental data when it contains near duplicates."""
+    """REJECT names experimental data when it contains near duplicates."""
     model_data = np.array([0.0, 1.0, 2.0], dtype=np.float64)
     exp_data = np.array(
         [0.5, 0.5 + MAVM_DUPLICATE_TOLERANCE / 2.0, 2.5],
@@ -323,9 +323,9 @@ def test_mavm_default_rejects_near_duplicate_experimental_data(
 
     with pytest.raises(
         ValueError,
-        match=r"DEFAULT MAVM mode requires unique experimental observations.*ROBUST",
+        match=r"REJECT MAVM duplicates requires unique experimental observations.*INCLUDE",
     ):
-        calculator(model_data, exp_data, mode=EMAVMMode.DEFAULT)
+        calculator(model_data, exp_data, duplicates=EMAVMDuplicates.REJECT)
 
 
 @pytest.mark.parametrize(
@@ -354,3 +354,49 @@ def test_avm_matches_hand_calculated_ecdf_rectangles(
         expected_area,
         abs=1e-12,
     )
+
+
+@pytest.mark.parametrize("calculator", MAVM_CALCULATORS)
+@pytest.mark.parametrize(
+    "observations, message",
+    [
+        (np.ones((2, 2)), "one-dimensional"),
+        (np.array([0.0, np.inf]), "infinite"),
+        (np.array([np.nan]), "finite observation"),
+        (np.array([]), "finite observation"),
+    ],
+)
+@pytest.mark.parametrize("invalid_model", [True, False])
+def test_mavm_rejects_invalid_samples(
+    calculator: MAVMCalculator,
+    observations: np.ndarray,
+    message: str,
+    invalid_model: bool,
+) -> None:
+    valid_observations = np.array([0.0, 1.0])
+    model = observations if invalid_model else valid_observations
+    experimental = valid_observations if invalid_model else observations
+    with pytest.raises(ValueError, match=message):
+        calculator(model, experimental)
+
+
+@pytest.mark.parametrize("calculator", MAVM_CALCULATORS)
+@pytest.mark.parametrize("alpha", [0.0, 1.0, np.nan])
+def test_mavm_rejects_invalid_alpha(
+    calculator: MAVMCalculator, alpha: float
+) -> None:
+    with pytest.raises(ValueError, match="alpha"):
+        calculator(np.array([0.0, 1.0]), np.array([0.0, 1.0]), alpha=alpha)
+
+
+@pytest.mark.parametrize("calculator", MAVM_CALCULATORS)
+def test_mavm_accepts_strided_samples_and_filters_nan(
+    calculator: MAVMCalculator,
+) -> None:
+    model = np.array([0.0, 99.0, np.nan, 99.0, 2.0, 99.0])[::2]
+    experimental = np.array([1.0, 99.0, 3.0, 99.0])[::2]
+    calculated = calculator(model, experimental)
+    expected = calculator(np.array([0.0, 2.0]), np.array([1.0, 3.0]))
+    assert calculated.d_plus == pytest.approx(expected.d_plus)
+    assert calculated.d_minus == pytest.approx(expected.d_minus)
+    np.testing.assert_array_equal(calculated.model_quantiles, [0.0, 2.0])

@@ -200,10 +200,10 @@ def test_spatial_temporal_offset_is_applied_per_conditional_cdf() -> None:
     assert quantity.offsets.axes == (val.EValAxis.POINT, val.EValAxis.TIME)
     nominal = val.select_aleatory(quantity, 5, 0, 0)
     lower_early = val.select_aleatory(
-        quantity, 5, 0, 0, offset=val.EOffsetScenario.LOWER
+        quantity, 5, 0, 0, offset=val.EEpisOffset.LOWER
     )
     lower_late = val.select_aleatory(
-        quantity, 5, 0, 4, offset=val.EOffsetScenario.LOWER
+        quantity, 5, 0, 4, offset=val.EEpisOffset.LOWER
     )
     late_nominal = val.select_aleatory(quantity, 5, 0, 4)
     assert np.allclose(nominal - lower_early, quantity.offsets.lower[5, 0])

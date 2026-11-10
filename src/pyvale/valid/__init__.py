@@ -24,7 +24,7 @@ from pyvale.valid.core import (
 )
 from pyvale.valid.cython import cyth_calc_mavm_1d, cyth_calc_mavm_pbox_1d
 from pyvale.valid.engine import (
-    EOffsetScenario,
+    EEpisOffset,
     EResultAxis,
     ValidationEngine,
     ValMetricField,
@@ -32,7 +32,7 @@ from pyvale.valid.engine import (
     select_aleatory,
 )
 from pyvale.valid.metrics import (
-    EMAVMMode,
+    EMAVMDuplicates,
     MAVMResult,
     calc_avm_1d,
     calc_cvm_1d,
@@ -53,7 +53,6 @@ from pyvale.valid.plotting import (
 from pyvale.valid.strategy import (
     EMetricType,
     IValMetric,
-    MAVMMetricResult,
     MetricAVM,
     MetricCVM,
     MetricKS,
@@ -65,9 +64,9 @@ from pyvale.valid.strategy import (
 )
 
 __all__ = [
-    "EMAVMMode",
+    "EMAVMDuplicates",
     "EMetricType",
-    "EOffsetScenario",
+    "EEpisOffset",
     "EResultAxis",
     "EValAxis",
     "EValGeometry",
@@ -75,7 +74,6 @@ __all__ = [
     "EValSource",
     "EpistemicOffsets",
     "IValMetric",
-    "MAVMMetricResult",
     "MAVMResult",
     "MetricAVM",
     "MetricCVM",

@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 from pyvale.valid.metrics import (
+    MAVMResult,
     calc_avm_1d,
     calc_cvm_1d,
     calc_deterministic_metrics_1d,
@@ -87,8 +88,9 @@ def test_strategy_pattern_metrics() -> None:
 
     mavm_strat = MetricMAVM(alpha=0.05)
     res_mavm = mavm_strat.calc(sim, exp)
-    assert res_mavm.value >= 0.0
-    assert res_mavm.value == res_mavm.d_plus + res_mavm.d_minus
+    assert isinstance(res_mavm, MAVMResult)
+    assert res_mavm.d_total >= 0.0
+    assert res_mavm.d_total == res_mavm.d_plus + res_mavm.d_minus
 
     avm_strat = MetricAVM()
     assert avm_strat.calc(sim, exp).value == pytest.approx(1.0, rel=1e-3)

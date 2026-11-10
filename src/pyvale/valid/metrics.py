@@ -20,19 +20,18 @@ from scipy import stats
 from pyvale.valid.constants import (
     MAVM_AREA_TOLERANCE,
     MAVM_DUPLICATE_TOLERANCE,
-    MAVM_PROBABILITY_TOLERANCE,
     METRIC_ZERO_TOLERANCE,
 )
 
 
-class EMAVMMode(Enum):
+class EMAVMDuplicates(Enum):
     """Selects the MAVM empirical-CDF integration algorithm."""
 
-    DEFAULT = "default"
-    """Fullfield-compatible loop for unique floating-point observations."""
+    REJECT = "reject"
+    """Full field compatible loop for unique floating point observations."""
 
-    ROBUST = "robust"
-    """Probability-weighted loop that supports repeated observations."""
+    INCLUDE = "include"
+    """Probability weighted loop that supports repeated observations."""
 
 
 @dataclass(slots=True)
@@ -85,125 +84,6 @@ def _finite_1d(values: np.ndarray, name: str) -> np.ndarray:
     return finite
 
 
-def _integrate_mavm_bound_default(
-    f_mod: np.ndarray,
-    sn_exp: np.ndarray,
-    p_f: float,
-    p_sn: float,
-    tol: float = MAVM_AREA_TOLERANCE,
-) -> tuple[float, float]:
-    """Integrate a MAVM bound using the fullfield-compatible loop."""
-    n_exp = len(sn_exp)
-    n_mod = len(f_mod)
-
-    d_plus = 0.0
-    d_minus = 0.0
-    d_rem = 0.0
-    exp_index = 0
-    model_index = 0
-
-    if n_exp > n_mod:
-        for model_index in range(n_mod):
-            if abs(d_rem) > tol:
-                d_area = (sn_exp[exp_index] - f_mod[model_index]) * (
-                    p_sn * (exp_index + 1) - p_f * model_index
-                )
-                if d_area > 0.0:
-                    d_plus += d_area
-                else:
-                    d_minus += d_area
-                exp_index += 1
-
-            while (model_index + 1) * p_f > (exp_index + 1) * p_sn:
-                # Corrected from the probability term in the published pseudocode.
-                d_area = (sn_exp[exp_index] - f_mod[model_index]) * p_sn
-                if d_area > tol:
-                    d_plus += d_area
-                else:
-                    d_minus += d_area
-                exp_index += 1
-
-            if exp_index < n_exp:
-                d_rem = (sn_exp[exp_index] - f_mod[model_index]) * (
-                    p_f * (model_index + 1) - p_sn * exp_index
-                )
-                if d_rem > 0.0:
-                    d_plus += d_rem
-                else:
-                    d_minus += d_rem
-    else:
-        for exp_index in range(n_exp):
-            if abs(d_rem) > tol:
-                d_area = (sn_exp[exp_index] - f_mod[model_index]) * (
-                    p_f * (model_index + 1) - p_sn * exp_index
-                )
-                if d_area > tol:
-                    d_plus += d_area
-                else:
-                    d_minus += d_area
-                model_index += 1
-
-            while (model_index + 1) * p_f < (exp_index + 1) * p_sn:
-                d_area = (sn_exp[exp_index] - f_mod[model_index]) * p_f
-                if d_area > tol:
-                    d_plus += d_area
-                else:
-                    d_minus += d_area
-                model_index += 1
-
-            d_rem = (sn_exp[exp_index] - f_mod[model_index]) * (
-                p_sn * (exp_index + 1) - p_f * model_index
-            )
-            if d_rem > tol:
-                d_plus += d_rem
-            else:
-                d_minus += d_rem
-
-    return d_plus, d_minus
-
-
-def _integrate_mavm_bound_robust(
-    f_mod: np.ndarray,
-    sn_exp: np.ndarray,
-    model_probs: np.ndarray,
-    exp_probs: np.ndarray,
-    tol: float = MAVM_AREA_TOLERANCE,
-) -> tuple[float, float]:
-    """Integrate a MAVM bound using weighted empirical-CDF steps."""
-    model_index = 0
-    exp_index = 0
-    probability = 0.0
-    d_plus = 0.0
-    d_minus = 0.0
-
-    while model_index < len(f_mod) and exp_index < len(sn_exp):
-        next_probability = min(
-            model_probs[model_index],
-            exp_probs[exp_index],
-        )
-        d_area = (sn_exp[exp_index] - f_mod[model_index]) * (
-            next_probability - probability
-        )
-        if d_area > tol:
-            d_plus += d_area
-        elif d_area < -tol:
-            d_minus -= d_area
-
-        probability = next_probability
-        model_at_next: bool = (
-            abs(probability - model_probs[model_index]) <= MAVM_PROBABILITY_TOLERANCE
-        )
-        exp_at_next: bool = (
-            abs(probability - exp_probs[exp_index]) <= MAVM_PROBABILITY_TOLERANCE
-        )
-        if model_at_next:
-            model_index += 1
-        if exp_at_next:
-            exp_index += 1
-
-    return d_plus, d_minus
-
-
 def _raise_for_near_duplicates(values: np.ndarray, data_label: str) -> None:
     """Raise when default MAVM input contains near-duplicate observations."""
     sorted_values = np.sort(values)
@@ -214,9 +94,9 @@ def _raise_for_near_duplicates(values: np.ndarray, data_label: str) -> None:
         return
 
     raise ValueError(
-        f"DEFAULT MAVM mode requires unique {data_label} observations within "
+        f"REJECT MAVM duplicates requires unique {data_label} observations within "
         f"MAVM_DUPLICATE_TOLERANCE={MAVM_DUPLICATE_TOLERANCE}. "
-        "Use mode=EMAVMMode.ROBUST for repeated observations."
+        "Use duplicates=EMAVMDuplicates.INCLUDE for repeated observations."
     )
 
 
@@ -224,7 +104,7 @@ def calc_mavm_1d(
     model_data: np.ndarray,
     exp_data: np.ndarray,
     alpha: float = 0.05,
-    mode: EMAVMMode = EMAVMMode.DEFAULT,
+    duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMResult:
     """Calculates the Modified Area Validation Metric (MAVM) between 1D arrays.
@@ -242,9 +122,9 @@ def calc_mavm_1d(
     alpha : float, optional
         Significance level for the Student's t confidence interval (default 0.05
         corresponding to a 95% confidence band).
-    mode : EMAVMMode, optional
-        DEFAULT preserves fullfieldvalmetrics behaviour and requires unique
-        observations. ROBUST supports repeated observations using weighted ECDF
+    duplicates : EMAVMDuplicates, optional
+        REJECT preserves fullfieldvalmetrics behaviour and requires unique
+        observations. INCLUDE supports repeated observations using weighted ECDF
         probability steps.
     tol : float, optional
         Floating-point comparison tolerance for interval boundaries.
@@ -254,84 +134,9 @@ def calc_mavm_1d(
     MAVMResult
         Complete result dataclass with d+, d-, d_total, and CDF data.
     """
-    if not 0.0 < alpha < 1.0:
-        raise ValueError("MAVM alpha must be between zero and one.")
-    m_clean = _finite_1d(model_data, "model_data")
-    e_clean = _finite_1d(exp_data, "exp_data")
+    from pyvale.valid.cython.mavm import cyth_calc_mavm_1d
 
-    if mode is EMAVMMode.DEFAULT:
-        _raise_for_near_duplicates(m_clean, "model")
-        _raise_for_near_duplicates(e_clean, "experimental")
-
-    model_cdf = stats.ecdf(m_clean).cdf
-    exp_cdf = stats.ecdf(e_clean).cdf
-
-    f_mod_vec = np.array(model_cdf.quantiles, dtype=np.float64)
-    sn_exp_vec = np.array(exp_cdf.quantiles, dtype=np.float64)
-
-    n_num_exp = len(sn_exp_vec)
-
-    df = n_num_exp - 1
-    t_val = stats.t.ppf(1.0 - alpha, df) if df >= 1 else 0.0
-    se = np.nanstd(sn_exp_vec) / np.sqrt(n_num_exp)
-
-    sn_conf_lower = sn_exp_vec - t_val * se
-    sn_conf_upper = sn_exp_vec + t_val * se
-
-    model_probs = np.array(model_cdf.probabilities, dtype=np.float64)
-    exp_probs = np.array(exp_cdf.probabilities, dtype=np.float64)
-
-    if mode is EMAVMMode.DEFAULT:
-        p_f_mod = 1.0 / len(f_mod_vec)
-        p_sn_exp = 1.0 / n_num_exp
-        lower_plus, lower_minus = _integrate_mavm_bound_default(
-            f_mod_vec,
-            sn_conf_lower,
-            p_f_mod,
-            p_sn_exp,
-            tol,
-        )
-        upper_plus, upper_minus = _integrate_mavm_bound_default(
-            f_mod_vec,
-            sn_conf_upper,
-            p_f_mod,
-            p_sn_exp,
-            tol,
-        )
-    elif mode is EMAVMMode.ROBUST:
-        lower_plus, lower_minus = _integrate_mavm_bound_robust(
-            f_mod_vec,
-            sn_conf_lower,
-            model_probs,
-            exp_probs,
-            tol,
-        )
-        upper_plus, upper_minus = _integrate_mavm_bound_robust(
-            f_mod_vec,
-            sn_conf_upper,
-            model_probs,
-            exp_probs,
-            tol,
-        )
-    else:
-        raise ValueError(f"Unsupported MAVM mode: {mode!r}.")
-
-    d_plus = float(max(abs(lower_plus), abs(upper_plus)))
-    d_minus = float(max(abs(lower_minus), abs(upper_minus)))
-    d_total = d_plus + d_minus
-
-    return MAVMResult(
-        d_plus=d_plus,
-        d_minus=d_minus,
-        d_total=d_total,
-        model_quantiles=f_mod_vec,
-        model_probs=model_probs,
-        exp_quantiles=sn_exp_vec,
-        exp_probs=exp_probs,
-        exp_conf_lower=sn_conf_lower,
-        exp_conf_upper=sn_conf_upper,
-        alpha=alpha,
-    )
+    return cyth_calc_mavm_1d(model_data, exp_data, alpha, duplicates, tol)
 
 
 def calc_mavm_pbox_1d(
@@ -339,7 +144,7 @@ def calc_mavm_pbox_1d(
     model_pbox_max: np.ndarray,
     exp_data: np.ndarray,
     alpha: float = 0.05,
-    mode: EMAVMMode = EMAVMMode.DEFAULT,
+    duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMResult:
     """Calculates MAVM between an epistemic simulation p-box and experimental
@@ -355,7 +160,7 @@ def calc_mavm_pbox_1d(
         1D experimental observation samples.
     alpha : float, optional
         Confidence level significance (default 0.05 for 95% CI).
-    mode : EMAVMMode, optional
+    duplicates : EMAVMDuplicates, optional
         MAVM empirical-CDF integration algorithm.
     tol : float, optional
         Tolerance.
@@ -365,35 +170,10 @@ def calc_mavm_pbox_1d(
     MAVMResult
         MAVM result comparing the p-box against experimental confidence bounds.
     """
-    res_min = calc_mavm_1d(
-        model_pbox_min,
-        exp_data,
-        alpha=alpha,
-        mode=mode,
-        tol=tol,
-    )
-    res_max = calc_mavm_1d(
-        model_pbox_max,
-        exp_data,
-        alpha=alpha,
-        mode=mode,
-        tol=tol,
-    )
+    from pyvale.valid.cython.mavm import cyth_calc_mavm_pbox_1d
 
-    d_plus = res_min.d_plus
-    d_minus = res_max.d_minus
-
-    return MAVMResult(
-        d_plus=d_plus,
-        d_minus=d_minus,
-        d_total=d_plus + d_minus,
-        model_quantiles=res_min.model_quantiles,
-        model_probs=res_min.model_probs,
-        exp_quantiles=res_min.exp_quantiles,
-        exp_probs=res_min.exp_probs,
-        exp_conf_lower=res_min.exp_conf_lower,
-        exp_conf_upper=res_min.exp_conf_upper,
-        alpha=alpha,
+    return cyth_calc_mavm_pbox_1d(
+        model_pbox_min, model_pbox_max, exp_data, alpha, duplicates, tol
     )
 
 
