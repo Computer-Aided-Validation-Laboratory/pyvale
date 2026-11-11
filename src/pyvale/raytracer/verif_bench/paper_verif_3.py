@@ -34,7 +34,8 @@ OUT_FIGS_TEX_PATH = VERIF_DIR / "figs_verif_3.tex"
 LOWRES_TAG = "lowres"
 HIGHRES_TAG = "highres"
 LOWRES_MESH = "tri6"
-FIG_TILE_WIDTH = "0.27\\textwidth"
+FIG_TILE_WIDTH = "0.25\\textwidth"
+RENDER_TILE_WIDTH = "0.20\\textwidth"
 LINE_PLOT_WIDTH = "0.48\\textwidth"
 PLOT_SIZE = (3.35, 2.55)
 PLOT_DPI = 300.0
@@ -47,19 +48,18 @@ DIFF_CBAR_TICK_SIZE = 18.0
 
 LOWRES_FIG_CAPTION = (
     "Anti-aliasing convergence for the \\texttt{tri6} "
-    "rabbit mesh with at low resolution for "
-    "verification case 3. $SS$ denotes pixel sub-sampling. The converged render "
-    "is shown at the top, followed by the difference maps between each render and "
-    "the previous (half the sub-samples) render in descending $SS$ order, and the "
-    "lowest-SS render at the bottom. The difference images are plotted in 8-bit "
-    "GL."
+    "rabbit mesh at low resolution in verification case 3. $SS$ is the number of "
+    "sub-samples per pixel. The terminal render (top left) and single-sample "
+    "render (top right) bracket the ladder; the other rows show the differences "
+    "between successive renders in descending $SS$, each on its own symmetric "
+    "colour scale in 8-bit grey levels (GL)."
 )
 
 RMSE_FIG_CAPTION = (
     "Convergence of the root mean square error (RMSE) between consecutive "
     "anti-aliasing refinement steps for the low-resolution (a) and high-resolution "
-    "(b) renders for verification case 3. $SS$ denotes pixel sub-sample and GL "
-    "denotes 8-bit grey levels."
+    "(b) renders for verification case 3. $SS$ denotes the number of sub-samples "
+    "per pixel and GL denotes 8-bit grey levels."
 )
 
 
@@ -229,30 +229,25 @@ def save_rmse_plot(
     PAPER_DIR.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=PLOT_SIZE, constrained_layout=False)
 
-    x_ticks = sorted(
-        {ssaa for entries in rmse_data.values() for ssaa, _ in entries},
-    )
-    x_pos_map = {ssaa: ii for ii, ssaa in enumerate(x_ticks)}
-
     for mesh_name in ["tri3", "tri6", "quad4", "quad8", "quad9"]:
         entries = rmse_data[mesh_name]
-        x_vals = [x_pos_map[ssaa] for ssaa, _ in entries]
+        x_vals = [ssaa for ssaa, _ in entries]
         y_vals = [rmse for _, rmse in entries]
-        ax.plot(
+        ax.semilogx(
             x_vals,
             y_vals,
             marker="o",
             linewidth=1.8,
             markersize=4.5,
             label=mesh_name,
+            base=2
         )
 
-    x_tick_pos = list(range(len(x_ticks)))
-    ax.set_xticks(x_tick_pos, [str(ssaa) for ssaa in x_ticks])
-    ax.set_xlabel("Sub-sample [px]", fontsize=FONT_LABEL)
+    ax.set_xlabel("Number of sub-samples", fontsize=FONT_LABEL)
     ax.set_ylabel("RMSE [GL]", fontsize=FONT_LABEL)
     ax.tick_params(labelsize=FONT_TICK)
-    ax.grid(True, which="both", alpha=0.3)
+    ax.grid()
+    ax.grid(which="minor", alpha=0.3)
     ax.legend(fontsize=FONT_LEGEND, frameon=True)
     fig.subplots_adjust(
         left=0.18,
@@ -275,71 +270,56 @@ def save_rmse_plot(
     plt.close(fig)
 
 
-def subfigure_block(file_name: str, width_str: str, label: str) -> str:
-    return (
-        f"\\begin{{subfigure}}[c]{{{width_str}}}\n"
-        "\\centering\n"
-        f"\\includegraphics[width=\\linewidth]{{{file_name}}}\n"
-        "\\caption{}\n"
-        f"\\label{{{label}}}\n"
-        "\\end{subfigure}"
-    )
-
-
-def render_subfigure_block(file_name: str, width_str: str, label: str) -> str:
-    return (
-        f"\\begin{{subfigure}}[c]{{{width_str}}}\n"
-        "\\centering\n"
-        f"\\includegraphics[width=0.8\\linewidth]{{{file_name}}}\n"
-        "\\caption{}\n"
-        f"\\label{{{label}}}\n"
-        "\\end{subfigure}"
-    )
-
-
 def build_lowres_figure_tex(ssaa_levels: list[int]) -> str:
     highest_ssaa = ssaa_levels[0]
     lowest_ssaa = ssaa_levels[-1]
+
+    def tile(label: str, file_name: str, width: str) -> tuple[str, str]:
+        label_tex = "\\makecell[c]{" + label + "}"
+        image_tex = "\\makecell[c]{\\includegraphics[width=" + width + "]{" + file_name + "}}"
+        return label_tex, image_tex
+
+    def row(tiles: list[tuple[str, str]]) -> str:
+        while len(tiles) < 2:
+            tiles.append(("", ""))
+        cells = tiles[0] + tiles[1]
+        return " & ".join(cells) + " \\\\[0.2ex]"
+
     row_lines = [
-        "\\makecell[c]{Ref.\\\\SS " +
-        f"{highest_ssaa}" + "} & " +
-        render_subfigure_block(
-            "fig_verifc_ssaa_high.png",
-            FIG_TILE_WIDTH,
-            "fig:verifc_ssaa_high",
-        ) +
-        " \\\\",
+        row([
+            tile(
+                "Ref.\\\\SS " + f"{highest_ssaa}",
+                "fig_verifc_ssaa_high.png",
+                RENDER_TILE_WIDTH,
+            ),
+            tile(
+                "Render.\\\\SS " + f"{lowest_ssaa}",
+                "fig_verifc_ssaa_low.png",
+                RENDER_TILE_WIDTH,
+            ),
+        ]),
     ]
 
-    # A difference map exists for every level except the lowest
-    for ssaa in ssaa_levels[:-1]:
+    # A difference map exists for every level except the lowest. They are
+    # placed two per row, in descending SS order.
+    diff_levels = ssaa_levels[:-1]
+    for idx in range(0, len(diff_levels), 2):
         row_lines.append(
-            "\\makecell[c]{Diff.\\\\SS " +
-            f"{ssaa}" + "} & " +
-            subfigure_block(
-                f"fig_verifc_ssaa{ssaa}_diff.png",
-                FIG_TILE_WIDTH,
-                f"fig:verifc_ssaa{ssaa}_diff",
-            ) +
-            " \\\\",
+            row([
+                tile(
+                    "Diff.\\\\SS " + f"{ssaa}",
+                    f"fig_verifc_ssaa{ssaa}_diff.png",
+                    FIG_TILE_WIDTH,
+                )
+                for ssaa in diff_levels[idx:idx + 2]
+            ]),
         )
-
-    row_lines.append(
-        "\\makecell[c]{Render.\\\\SS " +
-        f"{lowest_ssaa}" + "} & " +
-        render_subfigure_block(
-            "fig_verifc_ssaa_low.png",
-            FIG_TILE_WIDTH,
-            "fig:verifc_ssaa_low",
-        ) +
-        " \\\\",
-    )
 
     rows_tex = "\n".join(row_lines)
     return (
         "\\begin{figure}[htbp]\n"
         "\\centering\n"
-        "\\begin{tabular}{cc}\n"
+        "\\begin{tabular}{cc@{\\hspace{1.2em}}cc}\n"
         f"{rows_tex}\n"
         "\\end{tabular}\n"
         f"\\caption{{{LOWRES_FIG_CAPTION}}}\n"
