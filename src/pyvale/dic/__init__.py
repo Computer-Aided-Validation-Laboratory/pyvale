@@ -10,7 +10,7 @@ from .dicimport2d import import_2d
 from .dicimport3d import import_3d
 from .dicregionofinterest import RegionOfInterest
 from .dicresults import Results
-from .dicenum import EScanMethod, EShape, ECorrCrit, EInterp, EIncrementalMethod, EOptimizer, ELayout
+from .dicenum import EScanMethod, EShape, ECorrCrit, EInterp, EIncrementalMethod, EOptimizer, ELayout, EResidualMode
 from .diccpp import Bspline, Interpolator
 
 
@@ -29,6 +29,7 @@ __all__ = ["calculate_2d",
            "EIncrementalMethod",
            "EOptimizer",
            "ELayout",
+           "EResidualMode",
            "DICParameterSet",
            "DICParameterResult",
            "DICOptimizationResult",

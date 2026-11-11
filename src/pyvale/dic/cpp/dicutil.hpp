@@ -61,6 +61,12 @@ namespace util {
         FLOAT64
     };
 
+    enum class EResidualMode {
+        NONE,
+        ABSOLUTE,
+        NORMALIZED
+    };
+
     // Custom hash from above
     struct PairHash {
         std::size_t operator()(const std::pair<int, int>& p) const {
@@ -104,6 +110,7 @@ namespace util {
         std::vector<int> multiwindow_search_area;
         int image_filter_kernel = 0;
         double image_filter_sigma = 1.0;
+        EResidualMode residual_mode = EResidualMode::NONE;
     };
 
 

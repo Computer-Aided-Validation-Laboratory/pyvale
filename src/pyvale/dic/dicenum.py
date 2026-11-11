@@ -52,3 +52,17 @@ class ELayout(str, Enum):
                 if member.value == value.upper():
                     return member
         return None
+
+
+class EResidualMode(str, Enum):
+    NONE = "NONE"
+    ABSOLUTE = "ABSOLUTE"
+    NORMALIZED = "NORMALIZED"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if member.value == value.upper():
+                    return member
+        return None

@@ -47,6 +47,8 @@ namespace common_util {
         bool binary;
         bool output_below_threshold;
         bool shape_params;
+        bool output_residual = false;
+        bool output_results = true;
         int precision = 8;
     };
 

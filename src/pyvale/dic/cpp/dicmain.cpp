@@ -40,6 +40,7 @@
 #include "./dicsinglewindow_rg.hpp"
 #include "./dicrasterscan.hpp"
 #include "./dicfilter.hpp"
+#include "./dicresidual.hpp"
 
 // stereo header files
 #include "./stereoutil.hpp"
@@ -111,7 +112,7 @@ std::shared_ptr<InMemoryResults> engine_results(
         if (conf.image_filter_kernel > 1)
             apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
         return make_interp(conf.interp_routine, image);
-    }, &results, false);
+    }, &results, saveconf.output_results);
     return results;
 }
 
@@ -139,7 +140,7 @@ std::shared_ptr<InMemoryResults> engine_images_results(
         if (conf.image_filter_kernel > 1)
             apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
         return make_interp(conf.interp_routine, image);
-    }, &results, false);
+    }, &results, saveconf.output_results);
     return results;
 }
 
@@ -559,6 +560,20 @@ void engine_impl(const py::array_t<bool>& img_roi_arr,
                     results_def_r, saveconf, ss_grid_l, basenames_l[img_num]);
             }
         }
+
+        write_residual_maps(*interp_ref_l,
+                            *interp_def_l,
+                            conf.stereo ? interp_ref_r.get() : nullptr,
+                            conf.stereo ? interp_def_r.get() : nullptr,
+                            ss_grid_l,
+                            results_def_l,
+                            conf.stereo ? &results_def_r : nullptr,
+                            conf.stereo ? &results_ref_r : nullptr,
+                            img_roi,
+                            conf,
+                            saveconf,
+                            basenames_l[img_num],
+                            conf.stereo ? basenames_r[img_num] : std::string{});
 
         if (stop_request) break;
     }

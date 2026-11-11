@@ -15,7 +15,7 @@ import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic._dicchecks as dicchecks
 import pyvale.common.util as common_util
 from pyvale.calib.calibdataclass import Calib
-from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod, EOptimizer, ELayout
+from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod, EOptimizer, ELayout, EResidualMode
 import pyvale.commoncpp.commoncpp as commoncpp
 from pyvale.dic.dicresults import from_in_memory
 
@@ -47,6 +47,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  fft_save: bool=False,
                  fft_precision: Literal["F64","F32"]="F32",
                  output_results: bool = True,
+                 output_residual: Literal["NONE", "ABSOLUTE", "NORMALIZED"] | EResidualMode = EResidualMode.NONE,
                  layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
@@ -196,10 +197,15 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     Returns
     -------
-    Results | None
-        When ``output_results`` is False, outputs are written to files and
-        ``None`` is returned. When True, the in-memory ``Results`` dataclass
-        is returned.
+    Results
+        The in-memory ``Results`` dataclass. When ``output_results`` is True,
+        the normal DIC result files are also written to ``output_basepath``.
+
+    output_residual : {"NONE", "ABSOLUTE", "NORMALIZED"}, optional
+        ``"NONE"`` disables residual output. ``"ABSOLUTE"`` writes the
+        absolute Eq. (7) residual ``|f - g|``. ``"NORMALIZED"`` writes the
+        illumination-corrected Eq. (8) residual using interpolated local
+        brightness and contrast fields (default: ``"NONE"``).
 
     Raises
     ------
@@ -230,6 +236,12 @@ def calculate_2d(reference: np.ndarray | str | Path,
     correlation_criteria_enum = ECorrCrit(correlation_criteria)
     interpolation_routine_enum = EInterp(interpolation_routine)
     incremental_update_enum = EIncrementalMethod(incremental_update)
+    if isinstance(output_residual, bool):
+        # Keep compatibility with the earlier boolean switch: True selects
+        # the uncorrected absolute residual, False disables residual output.
+        residual_mode_enum = EResidualMode.ABSOLUTE if output_residual else EResidualMode.NONE
+    else:
+        residual_mode_enum = EResidualMode(output_residual)
 
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks._multiwindow_init(subset_size,
@@ -282,6 +294,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.debug_level = print_level
     config.image_filter_kernel = image_filter_kernel
     config.image_filter_sigma = image_filter_sigma
+    config.residual_mode = getattr(diccpp.ResidualMode, residual_mode_enum.name)
 
     # sort precision to use for FFT windowing
     if fft_precision=="F32":
@@ -309,6 +322,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
     saveconf.delimiter = output_delimiter
     saveconf.output_below_threshold = output_below_threshold
     saveconf.shape_params = output_shape_params
+    saveconf.output_residual = residual_mode_enum != EResidualMode.NONE
+    saveconf.output_results = output_results
     saveconf.precision = output_precision
 
 
@@ -356,19 +371,12 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
-        if output_results:
-            if image_arrays is None:
-                results = diccpp.engine_results(roi_c, calib, config, multiwindowconf, saveconf)
-            else:
-                results = diccpp.engine_images_results(
-                    image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
+        if image_arrays is None:
+            results = diccpp.engine_results(roi_c, calib, config, multiwindowconf, saveconf)
         else:
-            if image_arrays is None:
-                diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
-            else:
-                diccpp.engine_images(image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
+            results = diccpp.engine_images_results(
+                image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
 
-    if output_results:
-        # The C++ result contains one frame per deformed image; the reference
-        # image is used for correlation but is not included in the results.
-        return from_in_memory(results, layout=layout, filenames=basenames[1:])
+    # The C++ result contains one frame per deformed image; the reference
+    # image is used for correlation but is not included in the results.
+    return from_in_memory(results, layout=layout, filenames=basenames[1:])

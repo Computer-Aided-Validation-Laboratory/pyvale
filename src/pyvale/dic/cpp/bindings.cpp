@@ -146,6 +146,11 @@ PYBIND11_MODULE(diccpp, m) {
         .value("FLOAT32", util::EFFTPrecision::FLOAT32)
         .value("FLOAT64", util::EFFTPrecision::FLOAT64);
 
+    py::enum_<util::EResidualMode>(m, "ResidualMode")
+        .value("NONE", util::EResidualMode::NONE)
+        .value("ABSOLUTE", util::EResidualMode::ABSOLUTE)
+        .value("NORMALIZED", util::EResidualMode::NORMALIZED);
+
     py::class_<util::Config>(m, "Config")
         .def(py::init<>())
         .def_readwrite("ss_step", &util::Config::ss_step)
@@ -177,6 +182,7 @@ PYBIND11_MODULE(diccpp, m) {
         .def_readwrite("incremental_update_cond", &util::Config::incremental_update_cond)
         .def_readwrite("image_filter_kernel", &util::Config::image_filter_kernel)
         .def_readwrite("image_filter_sigma", &util::Config::image_filter_sigma)
+        .def_readwrite("residual_mode", &util::Config::residual_mode)
         .def_readwrite("incremental_update_val",  &util::Config::incremental_update_val);
 
     py::class_<MultiwindowConfig>(m, "MultiwindowConfig")
