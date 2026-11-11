@@ -16,6 +16,7 @@ import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 # NOTE: causes output to console to be suppressed unfortunately
 # NOTE: May2025 still needs include but does not suppress console output
 import pyvista as pv
+from pyvale.sensorsim.visualbackend import _configure_windows_headless_backend
 from pyvale.sensorsim.visualopts import (VisOptsSimSensors,
                                     VisOptsImageSave,
                                     EImageType,
@@ -37,11 +38,12 @@ def create_pv_plotter(vis_opts: VisOptsSimSensors) -> pv.Plotter:
     """
     theme = deepcopy(pv.global_theme)
     theme.font.color = vis_opts.font_colour
-    pv_plot = pv.Plotter(
-        window_size=vis_opts.window_size_px,
-        off_screen=not vis_opts.interactive,
-        theme=theme,
-    )
+    with _configure_windows_headless_backend(off_screen=not vis_opts.interactive):
+        pv_plot = pv.Plotter(
+            window_size=vis_opts.window_size_px,
+            off_screen=not vis_opts.interactive,
+            theme=theme,
+        )
     pv_plot.set_background(vis_opts.background_colour)
     pv_plot.add_axes_at_origin(labels_off=True)
     return pv_plot

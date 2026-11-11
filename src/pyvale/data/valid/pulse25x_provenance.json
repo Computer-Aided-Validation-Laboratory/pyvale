@@ -1,0 +1,168 @@
+{
+  "paper": "https://arxiv.org/abs/2605.11886",
+  "reference_script": "scripts/main_thermocouples_pulses25X.py",
+  "reference_script_sha256": "2c95fce9fc654f571185fa99050de0fd145c6cc891c94f53352c675d996cf949",
+  "reference_metrics_sha256": "dc7de5d49714ba5e3b336caa24225b4150b3f3e4eb9997dd926f0af111bc8486",
+  "simulation_sha256": "3e18d41603f97cb4209c609879c4f37a8bc14656d70b55529c82ab513791cae4",
+  "simulation_shape": [
+    11,
+    250,
+    400
+  ],
+  "sensor_tags": [
+    "TC1",
+    "TC2",
+    "TC3",
+    "TC4",
+    "TC5",
+    "TC6",
+    "TC7",
+    "TC8",
+    "TC9",
+    "TC10",
+    "CV"
+  ],
+  "experimental_pulse": "Pulse255",
+  "experimental_iteration_order": [
+    "TC1",
+    "TC3",
+    "TC4",
+    "TC5",
+    "TC6",
+    "TC7",
+    "TC8",
+    "TC9",
+    "TC10",
+    "TC2",
+    "CV"
+  ],
+  "experimental_offset_rule": "Assign reordered TC1..TC10,CV summary magnitudes by experimental dictionary insertion order, exactly as reference script.",
+  "model_bound_rule": "Select whole epistemic scenarios by minimum/maximum sum of unique ECDF support values, not pointwise envelopes.",
+  "nominal_rule": "Arithmetic mean of sorted model observations over epistemic scenarios; not an unconditional mixture.",
+  "t_quantile": 0.95,
+  "alpha": 0.05,
+  "numpy_version": "2.5.3",
+  "scipy_version": "1.18.1",
+  "reference_environment": "fullfieldvalmetrics/.venv; inherits pyvale project dependencies via site.addsitedir",
+  "bounds": {
+    "TC1": {
+      "lower": 173,
+      "upper": 182,
+      "offset_source": "TC1"
+    },
+    "TC3": {
+      "lower": 173,
+      "upper": 182,
+      "offset_source": "TC2"
+    },
+    "TC4": {
+      "lower": 219,
+      "upper": 86,
+      "offset_source": "TC3"
+    },
+    "TC5": {
+      "lower": 36,
+      "upper": 179,
+      "offset_source": "TC4"
+    },
+    "TC6": {
+      "lower": 173,
+      "upper": 182,
+      "offset_source": "TC5"
+    },
+    "TC7": {
+      "lower": 173,
+      "upper": 182,
+      "offset_source": "TC6"
+    },
+    "TC8": {
+      "lower": 36,
+      "upper": 86,
+      "offset_source": "TC7"
+    },
+    "TC9": {
+      "lower": 173,
+      "upper": 182,
+      "offset_source": "TC8"
+    },
+    "TC10": {
+      "lower": 36,
+      "upper": 86,
+      "offset_source": "TC9"
+    },
+    "TC2": {
+      "lower": 219,
+      "upper": 182,
+      "offset_source": "TC10"
+    },
+    "CV": {
+      "lower": 38,
+      "upper": 13,
+      "offset_source": "CV"
+    }
+  },
+  "compared_directional_values": 64,
+  "maximum_absolute_mavm_difference": 0.0,
+  "experimental_weighting_rule": "Unique support values are equally weighted by the reference integration; pass np.unique observations explicitly to PyVale REJECT mode. TC2 and CV contain duplicates.",
+  "reference_selected_corrections": {
+    "TC3": {
+      "d_minus": 0.0,
+      "d_plus": 8.612552159833175,
+      "upper_case": "sim-max_exp-max",
+      "lower_case": "sim-min_exp-min"
+    },
+    "TC5": {
+      "d_minus": 0.0015510011619135522,
+      "d_plus": 0.0,
+      "upper_case": "sim-max_exp-min",
+      "lower_case": "sim-min_exp-min"
+    },
+    "TC6": {
+      "d_minus": 9.533452395765957e-05,
+      "d_plus": 0.0,
+      "upper_case": "sim-max_exp-min",
+      "lower_case": "sim-min_exp-min"
+    },
+    "TC8": {
+      "d_minus": 0.0,
+      "d_plus": 0.554172884717874,
+      "upper_case": "sim-max_exp-max",
+      "lower_case": "sim-min_exp-min"
+    },
+    "TC9": {
+      "d_minus": 0.0,
+      "d_plus": 0.025849199824452655,
+      "upper_case": "sim-max_exp-max",
+      "lower_case": "sim-min_exp-min"
+    },
+    "TC10": {
+      "d_minus": 7.761439970564537,
+      "d_plus": 0.0,
+      "upper_case": "sim-max_exp-min",
+      "lower_case": "sim-min_exp-min"
+    },
+    "TC2": {
+      "d_minus": 0.0009413310363124551,
+      "d_plus": 0.0,
+      "upper_case": "sim-max_exp-min",
+      "lower_case": "sim-min_exp-min"
+    },
+    "CV": {
+      "d_minus": 0.0,
+      "d_plus": 0.5605909644362221,
+      "upper_case": "sim-max_exp-max",
+      "lower_case": "sim-min_exp-min"
+    }
+  },
+  "source_repository_commit": "ad3603896fed430309522985bac051e94eab9a33",
+  "source_license": "MIT; Copyright (c) 2025 scepticalrabbit (fullfieldvalmetrics)",
+  "experimental_files_sha256": {
+    "STC_Exp_TCs_25X/Pulse255_SteadyDICData.csv": "7474eb3f6e60e8fc95adf1e7083f9c63f81ad37678d03a92653f83c064c40fcb",
+    "STC_Exp_TCs_25X/Pulse255_SteadyHIVEData.csv": "deed66f63c092779201a29930adc30deaec13ab62548ded04bff16d04d88951c",
+    "STC_Exp_TCs_25X/Pulse255_SteadyPICOData.csv": "69175e23d003ea5253d5ffe5308ca46dfdda47251b7892d572332ac6e4661f91"
+  },
+  "uncertainty_summary_sha256": "3e60fe03a0f202255f3f25e08a4be8b45266d498eef5cfcd1fda790446102f6c",
+  "source_license_file": "pulse25x_LICENSE.txt",
+  "python_version": "3.13.9",
+  "pandas_version": "3.0.6"
+}

@@ -11,14 +11,20 @@ from itertools import product
 import numpy as np
 from scipy import stats
 
+from pyvale.valid.constants import MAVM_AREA_TOLERANCE
+from pyvale.valid.metrics import calc_mavm_1d
 from pyvale.valid.metricstrategy import EMetricType
 from pyvale.valid.valengine import EValResAxis, ValMetricField
 from pyvale.valid.valtypes import (
     EEpisOffset,
+    EMAVMDuplicates,
     EValAxis,
+    EValECDFBounds,
     EValMetricPart,
+    MAVMCorrection,
     ValArray,
     ValECDF,
+    ValECDFSummary,
 )
 
 
@@ -92,6 +98,33 @@ def extract_ecdf_envelope(
     offset=None includes nominal/lower/upper when offsets exist, otherwise only
     nominal. Returns (support, lower_probability, upper_probability), each (n,).
     """
+    samples = extract_aleatory_scenarios(
+        quantity,
+        point=point,
+        component=component,
+        time=time,
+        epis_trans=epis_trans,
+        epis_nuis=epis_nuis,
+        offset=offset,
+    )
+    return calc_ecdf_envelope(samples)
+
+
+def extract_aleatory_scenarios(
+    quantity: ValArray,
+    *,
+    point: int = 0,
+    component: int = 0,
+    time: int = 0,
+    epis_trans: int | None = None,
+    epis_nuis: int | None = None,
+    offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+) -> list[np.ndarray]:
+    """Select complete conditional samples in trans/nuis/offset product order.
+
+    None spans an epistemic axis; offset=None includes all available offsets.
+    The returned arrays can share the input's memory for nominal selections.
+    """
     selections = []
     for axis, selection in (
         (EValAxis.EPISTEMIC_TRANS, epis_trans),
@@ -119,7 +152,7 @@ def extract_ecdf_envelope(
         )
         for trans, nuis, selected_offset in product(*selections, offsets)
     ]
-    return calc_ecdf_envelope(samples)
+    return samples
 
 
 def select_metric_part(
@@ -185,3 +218,93 @@ def create_metric_label(metric: EMetricType, part: EValMetricPart) -> str:
             EValMetricPart.BALANCE: "MAVM directional balance (d+ − d−)",
         }[part]
     return metric.name
+
+
+def evaluate_ecdf_quantiles(cdf: ValECDF, probabilities: np.ndarray) -> np.ndarray:
+    """Evaluate the inverse ECDF using the first support reaching each probability."""
+    probabilities = np.asarray(probabilities, dtype=np.float64)
+    if probabilities.ndim != 1 or not np.all(np.isfinite(probabilities)):
+        raise ValueError("Probabilities must be a finite one-dimensional array.")
+    if np.any(probabilities < 0.0) or np.any(probabilities > 1.0):
+        raise ValueError("Probabilities must lie in [0, 1].")
+    return cdf.quantiles[np.searchsorted(cdf.probabilities, probabilities, side="left")]
+
+
+def calc_ecdf_summary(
+    samples: list[np.ndarray],
+    *,
+    bounds: EValECDFBounds = EValECDFBounds.POINTWISE,
+) -> ValECDFSummary:
+    """Summarise conditional distributions without mixing epistemic scenarios.
+
+    SUPPORT_SUM reproduces the paper script's complete-scenario selection by
+    sums of unique support values. It differs from pointwise probability boxes.
+    """
+    if not samples:
+        raise ValueError("Supply at least one conditional sample.")
+    if not isinstance(bounds, EValECDFBounds):
+        raise TypeError("Bounds must be EValECDFBounds.")
+    cdfs = [calc_ecdf(sample) for sample in samples]
+    probabilities = np.unique(np.concatenate([cdf.probabilities for cdf in cdfs]))
+    nominal = np.zeros_like(probabilities)
+    lower = np.full_like(probabilities, np.inf)
+    upper = np.full_like(probabilities, -np.inf)
+    lower_index = None
+    upper_index = None
+    if bounds is EValECDFBounds.SUPPORT_SUM:
+        support_sums = np.array([np.sum(cdf.quantiles) for cdf in cdfs])
+        lower_index = int(np.argmin(support_sums))
+        upper_index = int(np.argmax(support_sums))
+    for index, cdf in enumerate(cdfs):
+        quantiles = evaluate_ecdf_quantiles(cdf, probabilities)
+        nominal += quantiles
+        if bounds is EValECDFBounds.POINTWISE:
+            np.minimum(lower, quantiles, out=lower)
+            np.maximum(upper, quantiles, out=upper)
+        else:
+            if index == lower_index:
+                lower[:] = quantiles
+            if index == upper_index:
+                upper[:] = quantiles
+    nominal /= len(cdfs)
+    return ValECDFSummary(
+        probabilities,
+        lower,
+        upper,
+        nominal,
+        bounds,
+        lower_index,
+        upper_index,
+    )
+
+
+def calc_mavm_correction(
+    model_lower: np.ndarray,
+    model_upper: np.ndarray,
+    exp_lower: np.ndarray,
+    exp_upper: np.ndarray,
+    *,
+    alpha: float = 0.05,
+    duplicates: EMAVMDuplicates = EMAVMDuplicates.INCLUDE,
+    tol: float = MAVM_AREA_TOLERANCE,
+) -> MAVMCorrection:
+    """Compare four endpoint pairs and anchor corrections to the supplied model limits.
+
+    The largest d_minus on model_lower selects the lower correction; the largest
+    d_plus on model_upper selects the upper correction. These are support-shift
+    diagnostics, not a reduction to the largest MAVM across every model scenario.
+    """
+    comparisons = tuple(
+        calc_mavm_1d(model, experiment, alpha, duplicates, tol)
+        for experiment in (exp_lower, exp_upper)
+        for model in (model_lower, model_upper)
+    )
+    lower_exp_index = int(np.argmax([comparisons[0].d_minus, comparisons[2].d_minus]))
+    upper_exp_index = int(np.argmax([comparisons[1].d_plus, comparisons[3].d_plus]))
+    return MAVMCorrection(
+        comparisons[2 * lower_exp_index],
+        comparisons[2 * upper_exp_index + 1],
+        (comparisons[0], comparisons[1], comparisons[2], comparisons[3]),
+        lower_exp_index,
+        upper_exp_index,
+    )

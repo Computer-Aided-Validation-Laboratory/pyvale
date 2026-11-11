@@ -190,6 +190,66 @@ pv_plot.close()
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the
 # complete analysis in its own directory prevents clashes with other examples.
+# %%
+# Additional distribution diagnostics
+# ------------------------------------
+# Inspect every sensor at the same physical time. Whole model scenarios are
+# selected by support sum for the endpoint correction; this is distinct from
+# the pointwise envelope and from the largest MAVM over all scenarios.
+# Calibration offsets, when present, shift an entire conditional sample coherently.
+model_quantity = val_case.sim.quantities["temperature"]
+experiment_quantity = val_case.exp.quantities["temperature"]
+panel_opts = sens.PlotOptsGeneral(font_leg_size=6)
+diagnostic_views = (
+    val.EValMAVMDiagnostic.DISTRIBUTIONS,
+    val.EValMAVMDiagnostic.MODEL_CORRECTION,
+)
+for view in diagnostic_views:
+    fig, axes = plt.subplots(4, 3, figsize=(12, 16), layout="constrained")
+    for point, ax in enumerate(axes.flat):
+        model_scenarios = val.extract_aleatory_scenarios(
+            model_quantity,
+            point=point,
+            component=0,
+            time=0,
+        )
+        experimental_scenarios = val.extract_aleatory_scenarios(
+            experiment_quantity,
+            point=point,
+            component=0,
+            time=0,
+            offset=None,
+        )
+        model_summary = val.calc_ecdf_summary(
+            model_scenarios,
+            bounds=val.EValECDFBounds.SUPPORT_SUM,
+        )
+        experiment_summary = val.calc_ecdf_summary(
+            experimental_scenarios,
+            bounds=val.EValECDFBounds.SUPPORT_SUM,
+        )
+        correction = val.calc_mavm_correction(
+            model_scenarios[model_summary.lower_index],
+            model_scenarios[model_summary.upper_index],
+            experimental_scenarios[experiment_summary.lower_index],
+            experimental_scenarios[experiment_summary.upper_index],
+        )
+        val.plot_val_mavm_diagnostic(
+            model_summary,
+            experiment_summary,
+            correction=correction,
+            view=view,
+            plot_opts=panel_opts,
+            ax=ax,
+            labels=val.ValPlotLabels(
+                title=f"Point {point}: MAVM support shifts",
+                x_label="Temperature [degC]",
+            ),
+        )
+    fig.savefig(output_path / f"mavm_{view.name.lower()}.png", bbox_inches="tight")
+    if not SHOW_PLOTS:
+        plt.close(fig)
+
 if SHOW_PLOTS:
     plt.show()
 else:

@@ -21,12 +21,26 @@ from pyvale.valid.valengine import (
 )
 from pyvale.valid.valtools import (
     calc_ecdf,
+    calc_ecdf_summary,
     create_metric_label,
+    evaluate_ecdf_quantiles,
+    extract_aleatory_scenarios,
     extract_ecdf_envelope,
     extract_metric_values,
     select_metric_part,
 )
-from pyvale.valid.valtypes import EEpisOffset, EValMetricPart, EValSource, ValCase
+from pyvale.valid.valtypes import (
+    EEpisOffset,
+    EValECDFBounds,
+    EValMAVMDiagnostic,
+    EValMetricPart,
+    EValSource,
+    MAVMCorrection,
+    ValArray,
+    ValCase,
+    ValECDF,
+    ValECDFSummary,
+)
 
 
 @dataclass(slots=True)
@@ -421,3 +435,208 @@ def plot_val_metric_time_points(
             fontsize=(plot_opts or PlotOptsGeneral()).font_head_size,
         )
     return fig, axes
+
+
+def _plot_quantile_curve(
+    ax: plt.Axes,
+    quantiles: np.ndarray,
+    probabilities: np.ndarray,
+    *,
+    color: str,
+    label: str | None = None,
+    linestyle: str = "-",
+    alpha: float = 1.0,
+) -> None:
+    ax.step(
+        np.r_[quantiles[0], quantiles],
+        np.r_[0.0, probabilities],
+        where="post",
+        color=color,
+        label=label,
+        linestyle=linestyle,
+        alpha=alpha,
+    )
+
+
+def _plot_distribution_summary(
+    ax: plt.Axes,
+    summary: ValECDFSummary,
+    *,
+    color: str,
+    label: str,
+) -> None:
+    _plot_quantile_curve(
+        ax,
+        summary.nominal,
+        summary.probabilities,
+        color=color,
+        label=f"{label}: mean quantile",
+    )
+    limit_label = (
+        "pointwise bounds"
+        if summary.bounds is EValECDFBounds.POINTWISE
+        else "selected scenarios"
+    )
+    _plot_quantile_curve(
+        ax,
+        summary.lower,
+        summary.probabilities,
+        color=color,
+        linestyle=":",
+        label=f"{label}: {limit_label}",
+    )
+    _plot_quantile_curve(
+        ax, summary.upper, summary.probabilities, color=color, linestyle=":"
+    )
+    ax.fill_betweenx(
+        np.r_[0.0, summary.probabilities],
+        np.r_[summary.lower[0], summary.lower],
+        np.r_[summary.upper[0], summary.upper],
+        step="pre",
+        color=color,
+        alpha=0.15,
+    )
+
+
+def plot_val_ecdf_family(
+    quantity: ValArray,
+    *,
+    point: int = 0,
+    component: int = 0,
+    time: int = 0,
+    epis_trans: int | None = None,
+    epis_nuis: int | None = None,
+    offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+    bounds: EValECDFBounds = EValECDFBounds.POINTWISE,
+    plot_opts: PlotOptsGeneral | None = None,
+    labels: ValPlotLabels | None = None,
+    ax: plt.Axes | None = None,
+) -> tuple[plt.Figure, plt.Axes]:
+    """Show all conditional ECDFs, their mean quantile curve and selected bounds."""
+    samples = extract_aleatory_scenarios(
+        quantity,
+        point=point,
+        component=component,
+        time=time,
+        epis_trans=epis_trans,
+        epis_nuis=epis_nuis,
+        offset=offset,
+    )
+    summary = calc_ecdf_summary(samples, bounds=bounds)
+    fig, ax = _create_axes(ax, plot_opts)
+    color = (plot_opts or PlotOptsGeneral()).colors[0]
+    for index, sample in enumerate(samples):
+        cdf = calc_ecdf(sample)
+        _plot_quantile_curve(
+            ax,
+            cdf.quantiles,
+            cdf.probabilities,
+            color=color,
+            alpha=0.25,
+            label="Conditional ECDFs" if index == 0 else None,
+        )
+    _plot_distribution_summary(ax, summary, color="black", label="Scenario summary")
+    ax.set_ylabel("Cumulative probability")
+    ax.set_ylim(0.0, 1.02)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
+    _apply_plot_options(fig, ax, plot_opts, labels)
+    return fig, ax
+
+
+def plot_val_mavm_diagnostic(
+    simulation: ValECDFSummary,
+    experiment: ValECDFSummary | None = None,
+    *,
+    correction: MAVMCorrection | None = None,
+    view: EValMAVMDiagnostic = EValMAVMDiagnostic.DISTRIBUTIONS,
+    plot_opts: PlotOptsGeneral | None = None,
+    labels: ValPlotLabels | None = None,
+    ax: plt.Axes | None = None,
+) -> tuple[plt.Figure, plt.Axes]:
+    """Compare uncertainty bands, endpoint corrections or the outer MAVM support band.
+
+    Correction views shift model support by scalar MAVM distances. The filled
+    correction is not an experimental confidence interval or a pooled CDF.
+    """
+    if not isinstance(view, EValMAVMDiagnostic):
+        raise TypeError("Diagnostic view must be EValMAVMDiagnostic.")
+    if view is not EValMAVMDiagnostic.DISTRIBUTIONS and correction is None:
+        raise ValueError("Selected diagnostic needs a MAVM correction.")
+    fig, ax = _create_axes(ax, plot_opts)
+    options = PlotOptsGeneral() if plot_opts is None else plot_opts
+    source_labels = ValPlotLabels() if labels is None else labels
+    _plot_distribution_summary(
+        ax, simulation, color=options.colors[0], label=source_labels.simulation
+    )
+    if experiment is not None and view is not EValMAVMDiagnostic.MODEL_CORRECTION:
+        _plot_distribution_summary(
+            ax, experiment, color=options.colors[1], label=source_labels.experiment
+        )
+    if correction is not None and view is EValMAVMDiagnostic.COMPARISONS:
+        for comparison, color, label in (
+            (correction.upper, "tab:green", "Upper-support case"),
+            (correction.lower, "tab:red", "Lower-support case"),
+        ):
+            _plot_quantile_curve(
+                ax,
+                comparison.model_quantiles + comparison.d_plus,
+                comparison.model_probs,
+                color=color,
+                linestyle="--",
+                label=f"{label}: +d+",
+            )
+            _plot_quantile_curve(
+                ax,
+                comparison.model_quantiles - comparison.d_minus,
+                comparison.model_probs,
+                color=color,
+                linestyle=":",
+                label=f"{label}: −d−",
+            )
+    if correction is not None and view in (
+        EValMAVMDiagnostic.CORRECTION,
+        EValMAVMDiagnostic.MODEL_CORRECTION,
+    ):
+        lower_cdf = ValECDF(
+            correction.lower.model_quantiles - correction.lower.d_minus,
+            correction.lower.model_probs,
+        )
+        upper_cdf = ValECDF(
+            correction.upper.model_quantiles + correction.upper.d_plus,
+            correction.upper.model_probs,
+        )
+        probabilities = np.unique(
+            np.r_[lower_cdf.probabilities, upper_cdf.probabilities]
+        )
+        lower = evaluate_ecdf_quantiles(lower_cdf, probabilities)
+        upper = evaluate_ecdf_quantiles(upper_cdf, probabilities)
+        ax.fill_betweenx(
+            np.r_[0.0, probabilities],
+            np.r_[lower[0], lower],
+            np.r_[upper[0], upper],
+            step="pre",
+            color="grey",
+            alpha=0.25,
+            label="Outer MAVM support-shift band",
+        )
+        _plot_quantile_curve(
+            ax,
+            lower,
+            probabilities,
+            color="black",
+            linestyle="--",
+            label=f"Model lower − d− ({correction.lower.d_minus:.4g})",
+        )
+        _plot_quantile_curve(
+            ax,
+            upper,
+            probabilities,
+            color="black",
+            linestyle=":",
+            label=f"Model upper + d+ ({correction.upper.d_plus:.4g})",
+        )
+    ax.set_ylabel("Cumulative probability")
+    ax.set_ylim(0.0, 1.02)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
+    _apply_plot_options(fig, ax, plot_opts, labels)
+    return fig, ax

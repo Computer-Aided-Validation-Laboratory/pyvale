@@ -344,3 +344,49 @@ class ValECDF:
 
     quantiles: np.ndarray
     probabilities: np.ndarray
+
+
+class EValECDFBounds(Enum):
+    POINTWISE = auto()
+    SUPPORT_SUM = auto()
+
+
+class EValMAVMDiagnostic(Enum):
+    DISTRIBUTIONS = auto()
+    COMPARISONS = auto()
+    CORRECTION = auto()
+    MODEL_CORRECTION = auto()
+
+
+@dataclass(slots=True)
+class ValECDFSummary:
+    """Conditional quantile curves on a shared probability grid, each shaped (n,).
+
+    nominal is the arithmetic mean of conditional quantiles, not a pooled CDF.
+    SUPPORT_SUM selects whole scenarios and does not guarantee pointwise bounds.
+    Indices refer to input scenario order; pointwise bounds have no single index.
+    """
+
+    probabilities: np.ndarray
+    lower: np.ndarray
+    upper: np.ndarray
+    nominal: np.ndarray
+    bounds: EValECDFBounds
+    lower_index: int | None
+    upper_index: int | None
+
+
+@dataclass(slots=True)
+class MAVMCorrection:
+    """Results defining the lower/upper support shifts and four endpoint comparisons.
+
+    Comparison order is model-lower/exp-lower, model-upper/exp-lower,
+    model-lower/exp-upper, model-upper/exp-upper. lower/upper retain the selected
+    MAVMResult objects. Lower is anchored to model-lower; upper to model-upper.
+    """
+
+    lower: MAVMResult
+    upper: MAVMResult
+    comparisons: tuple[MAVMResult, MAVMResult, MAVMResult, MAVMResult]
+    lower_exp_index: int
+    upper_exp_index: int

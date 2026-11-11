@@ -33,7 +33,7 @@ output_path = Path.cwd() / "pyvale-output" / "valid_ex1_metric"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-# 1. Load and transform data (pre-processing)
+# 1. Load and transform data 
 # -----------------------------------------
 # Each (3,) array is one scalar observable at one point and physical time.
 # Entries are repeat observations, not sensor coordinates or time samples.
@@ -97,6 +97,25 @@ fig, ax = val.plot_val_cdfs(
     labels=val.ValPlotLabels(x_label="Observable [unit]"),
 )
 fig.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")
+
+# %%
+# A support-shift band is a different diagnostic from the experimental confidence
+# bounds above. With a single model scenario, lower and upper start from the
+# same ECDF; d+ and d- shift that support in opposite directions.
+model_summary = val.calc_ecdf_summary([simulation])
+experiment_summary = val.calc_ecdf_summary([experiment])
+correction = val.calc_mavm_correction(simulation, simulation, experiment, experiment)
+fig, ax = val.plot_val_mavm_diagnostic(
+    model_summary,
+    experiment_summary,
+    correction=correction,
+    view=val.EValMAVMDiagnostic.CORRECTION,
+    plot_opts=sens.PlotOptsGeneral(),
+    labels=val.ValPlotLabels(
+        title="Analytic MAVM support shifts", x_label="Observable [unit]"
+    ),
+)
+fig.savefig(output_path / "mavm_correction.png", bbox_inches="tight")
 
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the
