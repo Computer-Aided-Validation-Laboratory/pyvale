@@ -15,14 +15,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15, macos-26]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15]
         include:
           - os: macos-15
             llvm: llvm@15
             macos_deployment_target: "15.0"
-          - os: macos-26
-            llvm: llvm@20
-            macos_deployment_target: "26.0"
     steps:
       - uses: actions/checkout@v4
 
@@ -46,7 +43,7 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
         env:
-          CIBW_SKIP: "*-win32 pp* *musllinux*"
+          CIBW_SKIP: "*-win32 pp* *musllinux* cp*t-*"
 
           CIBW_ENVIRONMENT_WINDOWS: >
             PATH="C:/vcpkg/installed/x64-windows/bin;$PATH"
