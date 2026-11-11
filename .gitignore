@@ -272,3 +272,6 @@ src/pyvale/raytracer/verif_bench/bench
 !src/pyvale/raytracer/verif_bench/data/texture/*.tiff
 # src/pyvale/raytracer/verif_bench/data/rabbits
 # src/pyvale/raytracer/verif_bench/data/texture
+
+
+!tests/raytracer/thesis-data/plate_hole/platehole3d_2mr_63f/*.csv
