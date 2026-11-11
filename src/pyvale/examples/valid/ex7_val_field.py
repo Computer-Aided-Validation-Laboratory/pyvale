@@ -8,8 +8,8 @@
 
 This example compares nominal plate fields with synthetic measurements from
 the packaged plate whose conductivity and thermal expansion are both 10% lower.
-It covers the direct SensorSim-to-ExpData bridge and IField sampling without
-running MOOSE or regenerating the SensorSim experiment.
+Use prepared SensorSim acquisitions and interpolate Exodus fields onto the
+shared comparison geometry through the IField interface.
 """
 
 from pathlib import Path
@@ -31,7 +31,7 @@ SHOW_PLOTS = False
 VERBOSE = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
-output_path = Path.cwd() / "pyvale-output" / "valid_ex6_field"
+output_path = Path.cwd() / "pyvale-output" / "valid_ex7_field"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
@@ -57,11 +57,19 @@ with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
 # A selection maps an observable to a sensor-array key, component index and
 # coordinates. ExpData retains acquisition identity; combine runs only after
 # registering the common comparison domain.
+# The dictionary key is our observable tag; the tuple names a SensorSim array
+# and its component index. The ValObservable component tuple below supplies
+# the simulation field key used when sampling IField. These three identifiers
+# have distinct roles, so we name the observable tags explicitly.
+temperature_tag = "plate_temperature"
+strain_xx_tag = "plate_strain_xx"
+strain_yy_tag = "plate_strain_yy"
+strain_xy_tag = "plate_strain_xy"
 selections = {
-    "temperature": ("temperature", 0, coords),
-    "strain_xx": ("strain", 0, coords),
-    "strain_yy": ("strain", 1, coords),
-    "strain_xy": ("strain", 2, coords),
+    temperature_tag: ("temperature", 0, coords),
+    strain_xx_tag: ("strain", 0, coords),
+    strain_yy_tag: ("strain", 1, coords),
+    strain_xy_tag: ("strain", 2, coords),
 }
 acquisitions = val.conv_exp_sim_to_data(
     output,
@@ -76,14 +84,20 @@ acquisitions = val.conv_exp_sim_to_data(
 geometry = val.ValGeometry(
     val.EValGeometry.POINT, coords, coordinate_units="mm", frame="plate"
 )
+observable_components = {
+    temperature_tag: "temperature",
+    strain_xx_tag: "strain_xx",
+    strain_yy_tag: "strain_yy",
+    strain_xy_tag: "strain_xy",
+}
 domain = val.ValDomain(
     {
         name: val.ValObservable(
             geometry,
             val.EValOperator.SAMPLE,
-            (name,),
+            (observable_components[name],),
             times,
-            "degC" if name == "temperature" else "1",
+            "degC" if name == temperature_tag else "1",
             time_units="s",
         )
         for name in selections
@@ -91,8 +105,8 @@ domain = val.ValDomain(
 )
 
 # %%
-# Sample actual Exodus fields at those sensor sites rather than comparing mesh
-# nodes directly. Convert metres to mm to match the acquisition coordinates.
+# Sample Exodus fields at the acquisition sensor sites. Convert metres to mm
+# to match the acquisition coordinates before sampling.
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
@@ -104,10 +118,10 @@ strain = sens.FieldTensor(
     sens.EDim.TWOD,
 )
 fields = {
-    "temperature": temperature,
-    "strain_xx": strain,
-    "strain_yy": strain,
-    "strain_xy": strain,
+    temperature_tag: temperature,
+    strain_xx_tag: strain,
+    strain_yy_tag: strain,
+    strain_xy_tag: strain,
 }
 simulation = val.val_from_sim(fields, domain, [((), sim_data)])
 cases = [
@@ -127,8 +141,8 @@ result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(val_case)
 # ----------------------------------------------
 # Field samples and converted acquisitions share (12, 1, 5) physical shape.
 # The experiment additionally has six aleatory observations per physical cell.
-model_quantity = val_case.sim.quantities["temperature"]
-experiment_quantity = val_case.exp.quantities["temperature"]
+model_quantity = val_case.sim.quantities[temperature_tag]
+experiment_quantity = val_case.exp.quantities[temperature_tag]
 if VERBOSE:
     print("Model:", model_quantity.axes, model_quantity.data.shape)
     print("Experiment:", experiment_quantity.axes, experiment_quantity.data.shape)
@@ -137,7 +151,7 @@ if VERBOSE:
 # 4. Analysis and visualisation
 # ------------------------------
 # AVM strain has dimensionless strain units. Show all thermocouple histories
-# and CDFs so spatial differences are visible without editing a point index.
+# and CDFs so every sensor location appears in its own panel.
 plot_opts = sens.PlotOptsGeneral()
 # %%
 # Overlay validation points on the nominal model in its original xyz geometry.
@@ -163,7 +177,7 @@ point_labels = tuple(sens.SensorDescriptor(tag="SG").create_sensor_tags(len(coor
 # Total AVM is a nonnegative magnitude, so its point scale starts at zero.
 pv_plot = val.plot_val_metric_on_sim(
     result,
-    "strain_xx",
+    strain_xx_tag,
     val.EMetricType.AVM,
     selectors={
         val.EValResAxis.TIME: 4,
@@ -185,7 +199,7 @@ pv_plot.close()
 points = tuple(range(len(coords)))
 fig, axes = val.plot_val_metric_time_points(
     result,
-    "temperature",
+    temperature_tag,
     val.EMetricType.AVM,
     points=points,
     plot_opts=plot_opts,
@@ -194,69 +208,13 @@ fig.savefig(output_path / "temperature_avm_time.png", bbox_inches="tight")
 fig, axes = val.plot_val_cdfs_points(
     val_case,
     result,
-    "temperature",
+    temperature_tag,
     points=points,
     time=4,
     metric=val.MetricMAVM(),
     plot_opts=plot_opts,
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
-# %%
-# Additional distribution diagnostics
-# ------------------------------------
-# Inspect every sensor at the same physical time. Whole model scenarios are
-# selected by support sum for the endpoint correction; this is distinct from
-# the pointwise envelope and from the largest MAVM over all scenarios.
-# Calibration offsets, when present, shift an entire conditional sample coherently.
-model_quantity = val_case.sim.quantities["strain_xx"]
-experiment_quantity = val_case.exp.quantities["strain_xx"]
-panel_opts = sens.PlotOptsGeneral(font_leg_size=6)
-diagnostic_views = (val.EValMAVMDiagnostic.CORRECTION,)
-for view in diagnostic_views:
-    fig, axes = plt.subplots(4, 3, figsize=(12, 16), layout="constrained")
-    for point, ax in enumerate(axes.flat):
-        model_scenarios = val.extract_aleatory_scenarios(
-            model_quantity,
-            point=point,
-            component=0,
-            time=4,
-        )
-        experimental_scenarios = val.extract_aleatory_scenarios(
-            experiment_quantity,
-            point=point,
-            component=0,
-            time=4,
-            offset=None,
-        )
-        model_summary = val.calc_ecdf_summary(
-            model_scenarios,
-            bounds=val.EValECDFBounds.SUPPORT_SUM,
-        )
-        experiment_summary = val.calc_ecdf_summary(
-            experimental_scenarios,
-            bounds=val.EValECDFBounds.SUPPORT_SUM,
-        )
-        correction = val.calc_mavm_correction(
-            model_scenarios[model_summary.lower_index],
-            model_scenarios[model_summary.upper_index],
-            experimental_scenarios[experiment_summary.lower_index],
-            experimental_scenarios[experiment_summary.upper_index],
-        )
-        val.plot_val_mavm_diagnostic(
-            model_summary,
-            experiment_summary,
-            correction=correction,
-            view=view,
-            plot_opts=panel_opts,
-            ax=ax,
-            labels=val.ValPlotLabels(
-                title=f"Point {point}: MAVM support shifts", x_label="Strain xx [1]"
-            ),
-        )
-    fig.savefig(output_path / f"mavm_{view.name.lower()}.png", bbox_inches="tight")
-    if not SHOW_PLOTS:
-        plt.close(fig)
-
 if SHOW_PLOTS:
     plt.show()
 else:

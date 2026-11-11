@@ -15,15 +15,15 @@ Demonstrating Probabilistic Model Validation on a High Heat Flux Component*,
 
 The full model contains 250 epistemic scenarios, each with 400 aleatory samples.
 TC1--TC10 measure temperature; CV measures coil RMS voltage. The supplied CSVs
-contain no sensor coordinates, so each channel is a separate scalar observable.
-No spatial positions or model mesh are invented for this statistical comparison.
+describe each channel as a scalar observation. GLOBAL geometry expresses this
+channel-level statistical comparison.
 
 This is a numerical reproduction of ``main_thermocouples_pulses25X.py`` as written.
 That script retains only Pulse255 after overwriting earlier pulse data, assigns
 uncertainty magnitudes by dictionary insertion order, and integrates unique
-support values with equal weights. These choices are explicit below; they should
-not be mistaken for pooling three pulses, sensor-tag uncertainty matching, or
-preserving duplicate observation frequencies. The packaged provenance records
+support values with equal weights. The example explicitly selects Pulse255,
+associates offsets by insertion order and assigns equal mass to unique supports.
+The packaged provenance records
 source hashes, environment versions and the exact channel/offset association.
 """
 
@@ -42,19 +42,18 @@ import pyvale.valid as val
 matplotlib.use("Agg")
 
 # %%
-# Save all diagnostics without interactive windows or console output by default.
+# Save all diagnostics by default; enable plotting and console inspection below.
 SHOW_PLOTS = False
 VERBOSE = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
-output_path = Path.cwd() / "pyvale-output" / "valid_ex9_pulse25x"
+output_path = Path.cwd() / "pyvale-output" / "valid_ex10_pulse25x"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
 # 1. Load and transform data (pre-processing)
 # -----------------------------------------
-# The archive losslessly stores the FULL point-sensor CSV, not the reduced
-# SamplingResultsOnlyPointSensors.csv also supplied for other workflows.
+# The archive losslessly stores the full point-sensor CSV used by the paper.
 # Axes: (11 channels, 250 transferable epistemic settings, 400 aleatory samples).
 data_path = dataset.valid_data_dir()
 with np.load(data_path / "pulse25x_full_simulation.npz") as saved:
@@ -67,7 +66,7 @@ with (data_path / "pulse25x_provenance.json").open() as stream:
 # The reference loads three pulses into the same dictionary: Pulse255 is the
 # last assignment for every channel. Select it explicitly to reproduce that run.
 # DIC-recorded thermocouples, HIVE TC2, and PICO voltage have different sample
-# counts. Preserve that separation instead of padding or flattening channels.
+# counts. Separate observables preserve each channel's own repeat count.
 measurements: dict[str, np.ndarray] = {}
 experimental_sources = (
     ("SteadyDICData", ("TC1", "TC3", "TC4", "TC5", "TC6", "TC7", "TC8", "TC9", "TC10")),
@@ -84,7 +83,7 @@ for source, channels in experimental_sources:
 # Reproduce the original positional uncertainty association, including its
 # mismatch with channel tags: TC3 receives TC2's magnitude, TC5 receives TC4's,
 # etc. The exported channel_status.csv makes every association reviewable.
-# These are coherent calibration shifts in degC or V, not independent noise.
+# These are coherent calibration shifts in degC or V, shared by every repeat.
 summary = pd.read_csv(data_path / "pulse25x_uncertainty_summary.csv")
 uncertainty_columns = (*sensor_tags[:-1], "Coil RMS Voltage")
 uncertainties = summary.loc[summary.index[-1], list(uncertainty_columns)].to_numpy(
@@ -142,7 +141,7 @@ pd.DataFrame(channel_status).to_csv(output_path / "channel_status.csv", index=Fa
 # For each scalar channel the result shape is (point=1, component=1, time=1,
 # sim_trans=250, exp_offset=3). Missing TC1, TC4 and TC7 retain NaN results.
 # The reference uses t.ppf(0.95, n_unique-1), matching alpha=0.05 here. Its
-# symmetric bounds are not a two-sided 95% confidence interval.
+# symmetric bounds use the 95th Student-t percentile for each support shift.
 mavm = val.MetricMAVM(alpha=0.05, duplicates=val.EMAVMDuplicates.REJECT)
 result = val.ValidationEngine([mavm]).run(val_case)
 if VERBOSE:
@@ -155,7 +154,7 @@ if VERBOSE:
 # ----------------------------------------------
 # The paper script picks WHOLE scenarios with the smallest/largest sum of ECDF
 # support values. This is different from pointwise envelope bounds when CDFs
-# cross. The nominal curve averages conditional quantiles; it is not a mixture.
+# cross. The nominal curve is the average of the conditional quantile functions.
 # Both bound rules are available in PyVale; use SUPPORT_SUM for literal parity.
 plot_opts = sens.PlotOptsGeneral(single_fig_scale=0.65)
 metric_rows = [
@@ -182,8 +181,8 @@ for channel in measurements:
     # %%
     # 4. Analysis and visualisation
     # ------------------------------
-    # Family plots retain the 250 conditional ECDFs, including channels with no
-    # experimental readings. Their uncertainty is not hidden by averaging first.
+    # Family plots retain the 250 conditional model ECDFs for every channel.
+    # Available experimental readings retain their individual measurement spread.
     labels = val.ValPlotLabels(title=channel, x_label=axis_label)
     fig, ax = val.plot_val_ecdf_family(
         sim_arrays[channel],
@@ -249,7 +248,7 @@ for channel in measurements:
     # The next four figures reproduce the diagnostic families in the reference:
     # source distributions; endpoint correction cases; the outer correction with
     # experiment visible; and model-only uncertainty/correction for a clean view.
-    # Gray fill is a MAVM support-shift diagnostic, not a confidence interval.
+    # Gray fill shows the MAVM-corrected model support envelope.
     diagnostic_views = (
         ("1_exp-sim-cdfs", val.EValMAVMDiagnostic.DISTRIBUTIONS),
         ("2_dextremes_wcdfs", val.EValMAVMDiagnostic.COMPARISONS),

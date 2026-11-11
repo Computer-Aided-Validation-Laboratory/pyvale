@@ -67,19 +67,20 @@ PULSE25X_OUTPUTS = (
 
 EXAMPLES = (
     (
-        "ex1_val_metric",
-        "valid_ex1_metric",
-        ("observable_cdfs.png", "mavm_correction.png"),
+        "ex0_val_quickstart",
+        "valid_ex0_quickstart",
+        (
+            "temperature_cdfs.png",
+            "temperature_envelopes.png",
+            "temperature_d_plus_time.png",
+            "temperature_mavm_balance_on_sim.png",
+        ),
     ),
+    ("ex1_val_metric", "valid_ex1_metric", ("observable_cdfs.png",)),
     (
         "ex2_val_steady",
         "valid_ex2_steady",
-        (
-            "temperature_cdfs.png",
-            "temperature_avm_on_sim.png",
-            "mavm_distributions.png",
-            "mavm_model_correction.png",
-        ),
+        ("temperature_cdfs.png", "temperature_avm_on_sim.png"),
     ),
     (
         "ex3_val_epistemic",
@@ -87,9 +88,6 @@ EXAMPLES = (
         (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
-            "conditional_cdf_families.png",
-            "mavm_distributions.png",
-            "directional_metric_distributions.png",
             "temperature_mavm_balance_on_sim.png",
         ),
     ),
@@ -99,10 +97,6 @@ EXAMPLES = (
         (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
-            "temperature_d_plus_time.png",
-            "mavm_comparisons.png",
-            "mavm_correction.png",
-            "mavm_model_correction.png",
             "temperature_mavm_balance_on_sim.png",
         ),
     ),
@@ -112,38 +106,46 @@ EXAMPLES = (
         (
             "temperature_cdfs.png",
             "temperature_d_plus_time.png",
-            "mavm_correction.png",
             "temperature_mavm_balance_on_sim.png",
         ),
     ),
     (
-        "ex6_val_field",
-        "valid_ex6_field",
+        "ex6_val_diagnostics",
+        "valid_ex6_diagnostics",
+        (
+            "temperature_cdfs.png",
+            "temperature_envelopes.png",
+            "temperature_d_plus_time.png",
+            "temperature_mavm_balance_on_sim.png",
+            "conditional_cdf_families.png",
+            "mavm_distributions.png",
+            "mavm_comparisons.png",
+            "mavm_correction.png",
+            "mavm_model_correction.png",
+            "directional_metric_distributions.png",
+        ),
+    ),
+    (
+        "ex7_val_field",
+        "valid_ex7_field",
         (
             "strain_xx_avm_on_sim.png",
-            "mavm_correction.png",
             "temperature_avm_time.png",
             "temperature_cdfs.png",
         ),
     ),
+    ("ex8_val_cube_tensor", "valid_ex8_cube_tensor", CUBE_OUTPUTS),
     (
-        "ex7_val_cube_tensor",
-        "valid_ex7_cube_tensor",
-        CUBE_OUTPUTS + ("mavm_correction.png",),
-    ),
-    (
-        "ex8_val_cube_sweep",
-        "valid_ex8_cube_sweep",
+        "ex9_val_cube_sweep",
+        "valid_ex9_cube_sweep",
         CUBE_OUTPUTS
         + (
             "nominal_avm_time.png",
-            "conditional_cdf_families.png",
-            "mavm_correction.png",
             "heat_flux_plus_10pct_avm_time.png",
             "thermal_expansion_plus_10pct_avm_time.png",
         ),
     ),
-    ("ex9_val_pulse25x", "valid_ex9_pulse25x", PULSE25X_OUTPUTS),
+    ("ex10_val_pulse25x", "valid_ex10_pulse25x", PULSE25X_OUTPUTS),
 )
 
 
@@ -170,7 +172,7 @@ def test_valid_example(
     for output in expected_outputs:
         assert (work_dir / output).stat().st_size > 0
 
-    if example == "valid/ex9_val_pulse25x.py":
+    if example == "valid/ex10_val_pulse25x.py":
         with (
             work_dir / "pyvale-output" / output_directory / "parity.json"
         ).open() as stream:

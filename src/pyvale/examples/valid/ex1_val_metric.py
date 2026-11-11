@@ -7,8 +7,8 @@
 """Analytic validation metrics
 ================================================================================
 
-A simple validation example with with three observations so each distribution can be
-checked by hand.
+Build a validation case from three scalar observations, then inspect its
+metrics and empirical distributions. Each data-model object is introduced below.
 """
 
 from pathlib import Path
@@ -33,29 +33,51 @@ output_path = Path.cwd() / "pyvale-output" / "valid_ex1_metric"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-# 1. Load and transform data 
+# 1. Load and transform data
 # -----------------------------------------
-# Each (3,) array is one scalar observable at one point and physical time.
-# Entries are repeat observations, not sensor coordinates or time samples.
+# The three entries represent three independent observations for a single
+# point in the domain. Their only varying axis is ALEATORY (repeat sampling).
 simulation = np.array([0.0, 1.0, 2.0])
 experiment = simulation + 2.0
+
+# %%
+# ValGeometry describes the physical support and coordinate frame. GLOBAL
+# represents a quantity associated with the whole system. A spatial sensor
+# array uses POINT geometry with coordinates shaped (n_points, 3), as in ex2.
 geometry = val.ValGeometry(val.EValGeometry.GLOBAL, None)
-domain = val.ValDomain(
-    {
-        "observable": val.ValObservable(
-            geometry,
-            val.EValOperator.SAMPLE,
-            ("scalar",),
-            None,
-            "unit",
-        )
-    }
+
+# ValObservable describes how a quantity is observed: geometry, measurement
+# operator, component order, physical times and units. SAMPLE denotes values
+# sampled on that geometry. Here we have one scalar component at one state.
+scalar_observable = val.ValObservable(
+    geometry, val.EValOperator.SAMPLE, ("scalar",), None, "unit"
 )
-val_case = val.ValCase(
-    domain,
-    val.ValData({"observable": val.ValArray(simulation, (val.EValAxis.ALEATORY,))}),
-    val.ValData({"observable": val.ValArray(experiment, (val.EValAxis.ALEATORY,))}),
-)
+
+# ValDomain collects the definitions shared by simulation and experiment.
+# The tag is a user-chosen identifier for this comparison. Component names
+# describe entries within an observable; the tag identifies the observable.
+observable_tag = "system_response"
+domain = val.ValDomain({observable_tag: scalar_observable})
+
+# %%
+# ValArray associates numerical samples with named axes. This separates the
+# physical comparison cells from the uncertainty samples within each cell.
+# Omitted physical axes have length one; the sample arrays here have shape (3,).
+sample_axes = (val.EValAxis.ALEATORY,)
+sim_response = val.ValArray(simulation, sample_axes)
+exp_response = val.ValArray(experiment, sample_axes)
+
+# ValData collects one source's quantities under their observable tags. Keeping
+# source samples separate from the shared domain lets each source have its own
+# repeat count and uncertainty scenarios while describing the same comparison.
+sim_val_data = val.ValData({observable_tag: sim_response})
+exp_val_data = val.ValData({observable_tag: exp_response})
+
+# ValCase joins the domain and both sources. It checks matching tag sets and
+# physical axis lengths. Prepare source values in the domain's component order,
+# physical locations, times and units. The engine uses this SAME tag to find
+# each observable in domain.observables, sim.quantities and exp.quantities.
+val_case = val.ValCase(domain, sim_val_data, exp_val_data)
 
 # %%
 # 2. Run validation analysis
@@ -77,9 +99,12 @@ result = val.ValidationEngine(
 # 3. Post-processing and inspect data structures
 # ----------------------------------------------
 # Engine arrays have shape (1 point, 1 component, 1 time). Select by metric
-# type; do not interpret the three observation entries as three physical points.
-metric_fields = result.fields["observable"]
+# type. The three input entries remain independent observations for one point.
+metric_fields = result.fields[observable_tag]
 if VERBOSE:
+    print("Observable tags:", tuple(domain.observables))
+    print("Simulation axes and shape:", sim_response.axes, sim_response.data.shape)
+    print("Experiment axes and shape:", exp_response.axes, exp_response.data.shape)
     for metric_type, field in metric_fields.items():
         print(metric_type.name, field.axes, field.metric)
 
@@ -87,35 +112,16 @@ if VERBOSE:
 # 4. Analysis and visualisation
 # ------------------------------
 # Both source distributions appear in the legend. The title identifies the two
-# directional distances rather than leaving "MAVM" ambiguous.
+# directional distances d+ and d- alongside the total MAVM.
 fig, ax = val.plot_val_cdfs(
     val_case,
     result,
-    "observable",
+    observable_tag,
     metric=mavm,
     plot_opts=sens.PlotOptsGeneral(),
     labels=val.ValPlotLabels(x_label="Observable [unit]"),
 )
 fig.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")
-
-# %%
-# A support-shift band is a different diagnostic from the experimental confidence
-# bounds above. With a single model scenario, lower and upper start from the
-# same ECDF; d+ and d- shift that support in opposite directions.
-model_summary = val.calc_ecdf_summary([simulation])
-experiment_summary = val.calc_ecdf_summary([experiment])
-correction = val.calc_mavm_correction(simulation, simulation, experiment, experiment)
-fig, ax = val.plot_val_mavm_diagnostic(
-    model_summary,
-    experiment_summary,
-    correction=correction,
-    view=val.EValMAVMDiagnostic.CORRECTION,
-    plot_opts=sens.PlotOptsGeneral(),
-    labels=val.ValPlotLabels(
-        title="Analytic MAVM support shifts", x_label="Observable [unit]"
-    ),
-)
-fig.savefig(output_path / "mavm_correction.png", bbox_inches="tight")
 
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the

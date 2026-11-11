@@ -7,8 +7,9 @@
 """Steady plate validation
 ================================================================================
 
-Follow preprocessing, validation, post-processing and visualisation explicitly.
-The measurements are synthetic SensorSim experiments, not laboratory data.
+Extend ex1 to 12 physical locations and two observables: temperature and
+three-component strain. Learn how shared geometry and observable tags organise
+different measurements in one ValCase. The observations come from SensorSim.
 """
 
 from pathlib import Path
@@ -53,14 +54,20 @@ with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
 
 # %%
 # A shared domain registers units, component order and physical coordinates.
-# Validation compares corresponding cells; it never flattens points or times
-# into the repeat-experiment axis.
+# Validation compares corresponding physical cells, retaining distinct point,
+# component, time and repeat-experiment axes.
+# ValGeometry stores the common sensor coordinates, shaped (12 points, 3).
+# A ValDomain can share this geometry across several observables. Each
+# ValObservable supplies its own component tuple and units. We choose distinct
+# tags below; the same tags key both ValData sources and the result fields.
 geometry = val.ValGeometry(
     val.EValGeometry.POINT, coords, coordinate_units="mm", frame="plate"
 )
+temperature_tag = "plate_temperature"
+strain_tag = "plate_strain"
 domain = val.ValDomain(
     {
-        "temperature": val.ValObservable(
+        temperature_tag: val.ValObservable(
             geometry,
             val.EValOperator.SAMPLE,
             ("temperature",),
@@ -68,7 +75,7 @@ domain = val.ValDomain(
             "degC",
             time_units="",
         ),
-        "strain": val.ValObservable(
+        strain_tag: val.ValObservable(
             geometry,
             val.EValOperator.SAMPLE,
             ("strain_xx", "strain_yy", "strain_xy"),
@@ -81,9 +88,9 @@ domain = val.ValDomain(
 
 sim_arrays: dict[str, val.ValArray] = {}
 exp_arrays: dict[str, val.ValArray] = {}
-for observable, nominal, measured in (
-    ("temperature", nominal_temp, measured_temp),
-    ("strain", nominal_strain, measured_strain),
+for observable_tag, nominal, measured in (
+    (temperature_tag, nominal_temp, measured_temp),
+    (strain_tag, nominal_strain, measured_strain),
 ):
     # Select the final physical time, then move repeats to the last axis.
     # (point, component, aleatory) = (12, 1 or 3, 6).
@@ -95,10 +102,12 @@ for observable, nominal, measured in (
         val.EValAxis.ALEATORY,
     )
     sim_axes = exp_axes
-    sim_arrays[observable] = val.ValArray(sim_values, sim_axes)
-    exp_arrays[observable] = val.ValArray(exp_values, exp_axes)
+    sim_arrays[observable_tag] = val.ValArray(sim_values, sim_axes)
+    exp_arrays[observable_tag] = val.ValArray(exp_values, exp_axes)
 
-val_case = val.ValCase(domain, val.ValData(sim_arrays), val.ValData(exp_arrays))
+sim_val_data = val.ValData(sim_arrays)
+exp_val_data = val.ValData(exp_arrays)
+val_case = val.ValCase(domain, sim_val_data, exp_val_data)
 
 # %%
 # 2. Run validation analysis
@@ -114,12 +123,12 @@ result = val.ValidationEngine([val.MetricAVM(), mavm]).run(val_case)
 # field.axes names each array dimension. The first three axes are always
 # (point, component, time), including singleton time for steady comparisons.
 # Non-singleton epistemic/offset axes follow in the engine's canonical order.
-field = result.get("temperature", val.EMetricType.MAVM)
+field = result.get(temperature_tag, val.EMetricType.MAVM)
 metric_shape = field.metric.shape
 metric_axes = field.axes
 if VERBOSE:
-    print("Simulation axes:", sim_arrays["temperature"].axes)
-    print("Simulation shape:", sim_arrays["temperature"].data.shape)
+    print("Simulation axes:", sim_arrays[temperature_tag].axes)
+    print("Simulation shape:", sim_arrays[temperature_tag].data.shape)
     print("Result axes:", metric_axes, "shape:", metric_shape)
 
 # %%
@@ -127,13 +136,13 @@ if VERBOSE:
 # ------------------------------
 # Use the SensorSim appearance options so fonts, resolution and line styles
 # agree with sensor figures. Each CDF panel overlays simulation and experiment;
-# dashed curves are the experimental MAVM confidence bounds, not model bounds.
+# dashed curves show the experimental MAVM confidence bounds.
 plot_opts = sens.PlotOptsGeneral(single_fig_scale=0.65)
 points = tuple(range(len(coords)))
 fig, axes = val.plot_val_cdfs_points(
     val_case,
     result,
-    "temperature",
+    temperature_tag,
     points=points,
     time=0,
     metric=mavm,
@@ -170,7 +179,7 @@ point_labels = tuple(sens.SensorDescriptor(tag="TC").create_sensor_tags(len(coor
 # Total AVM is a nonnegative magnitude, so its point scale starts at zero.
 pv_plot = val.plot_val_metric_on_sim(
     result,
-    "temperature",
+    temperature_tag,
     val.EMetricType.AVM,
     selectors={},
     part=val.EValMetricPart.TOTAL,
@@ -190,66 +199,6 @@ pv_plot.close()
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the
 # complete analysis in its own directory prevents clashes with other examples.
-# %%
-# Additional distribution diagnostics
-# ------------------------------------
-# Inspect every sensor at the same physical time. Whole model scenarios are
-# selected by support sum for the endpoint correction; this is distinct from
-# the pointwise envelope and from the largest MAVM over all scenarios.
-# Calibration offsets, when present, shift an entire conditional sample coherently.
-model_quantity = val_case.sim.quantities["temperature"]
-experiment_quantity = val_case.exp.quantities["temperature"]
-panel_opts = sens.PlotOptsGeneral(font_leg_size=6)
-diagnostic_views = (
-    val.EValMAVMDiagnostic.DISTRIBUTIONS,
-    val.EValMAVMDiagnostic.MODEL_CORRECTION,
-)
-for view in diagnostic_views:
-    fig, axes = plt.subplots(4, 3, figsize=(12, 16), layout="constrained")
-    for point, ax in enumerate(axes.flat):
-        model_scenarios = val.extract_aleatory_scenarios(
-            model_quantity,
-            point=point,
-            component=0,
-            time=0,
-        )
-        experimental_scenarios = val.extract_aleatory_scenarios(
-            experiment_quantity,
-            point=point,
-            component=0,
-            time=0,
-            offset=None,
-        )
-        model_summary = val.calc_ecdf_summary(
-            model_scenarios,
-            bounds=val.EValECDFBounds.SUPPORT_SUM,
-        )
-        experiment_summary = val.calc_ecdf_summary(
-            experimental_scenarios,
-            bounds=val.EValECDFBounds.SUPPORT_SUM,
-        )
-        correction = val.calc_mavm_correction(
-            model_scenarios[model_summary.lower_index],
-            model_scenarios[model_summary.upper_index],
-            experimental_scenarios[experiment_summary.lower_index],
-            experimental_scenarios[experiment_summary.upper_index],
-        )
-        val.plot_val_mavm_diagnostic(
-            model_summary,
-            experiment_summary,
-            correction=correction,
-            view=view,
-            plot_opts=panel_opts,
-            ax=ax,
-            labels=val.ValPlotLabels(
-                title=f"Point {point}: MAVM support shifts",
-                x_label="Temperature [degC]",
-            ),
-        )
-    fig.savefig(output_path / f"mavm_{view.name.lower()}.png", bbox_inches="tight")
-    if not SHOW_PLOTS:
-        plt.close(fig)
-
 if SHOW_PLOTS:
     plt.show()
 else:

@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -35,6 +36,18 @@ def get_toctree_entries(path: Path, prefix: str) -> tuple[str, ...]:
     return tuple(entries)
 
 
+def get_example_order(path: Path) -> str:
+    """Order validation tutorials numerically, retaining other gallery orders."""
+    if path.parent.name == "valid":
+        return re.sub(r"^ex(\d+)", format_example_number, path.name)
+    return path.name
+
+
+def format_example_number(match: re.Match[str]) -> str:
+    """Pad the tutorial number for stable lexical ordering."""
+    return f"ex{int(match.group(1)):03d}"
+
+
 def test_example_groups_are_complete_and_ordered() -> None:
     """Every public example appears in its explicit filename order."""
     for group_name, source_name in GROUPS:
@@ -42,7 +55,10 @@ def test_example_groups_are_complete_and_ordered() -> None:
         documented = get_toctree_entries(group_path, f"{source_name}/ex")
         source = tuple(
             f"{source_name}/{path.stem}"
-            for path in sorted((EXAMPLES_ROOT / source_name).glob("ex*.py"))
+            for path in sorted(
+                (EXAMPLES_ROOT / source_name).glob("ex*.py"),
+                key=get_example_order,
+            )
         )
         assert documented == source
 

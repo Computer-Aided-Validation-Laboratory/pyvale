@@ -1,6 +1,28 @@
 import os
-from sphinx_gallery.sorting import FileNameSortKey
+import re
+from collections.abc import Callable
 from importlib.metadata import version as get_version
+from pathlib import Path
+
+from sphinx_gallery.sorting import FileNameSortKey
+
+
+def format_example_number(match: re.Match[str]) -> str:
+    """Pad a validation tutorial number for sorting."""
+    return f"ex{int(match.group(1)):03d}"
+
+
+def get_validation_example_order(filename: str) -> str:
+    """Sort validation examples in their teaching sequence."""
+    return re.sub(r"^ex(\d+)", format_example_number, filename)
+
+
+def create_example_sort_key(source_dir: str) -> Callable[[str], str]:
+    """Retain standard gallery ordering outside the validation tutorials."""
+    if Path(source_dir).name == "valid":
+        return get_validation_example_order
+    return FileNameSortKey(source_dir)
+
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -174,7 +196,7 @@ sphinx_gallery_conf = {
         r'(?:^|/)(?:_blender_example_tools|_riley_demo_tools|tools)\.py$'
     ),
     # Specify that examples should be ordered according to filename
-    'within_subsection_order': FileNameSortKey,
+    'within_subsection_order': create_example_sort_key,
     # Directory where function granular galleries are stored
     'backreferences_dir': 'examples/gen_modules/backreferences',
     # Modules for which function level galleries are created
