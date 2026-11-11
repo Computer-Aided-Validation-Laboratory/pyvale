@@ -33,7 +33,7 @@ print(f"Packaged MOOSE input: {input_path}")
 # %%
 # Inpsect the input decks and the includes for the input deck before passing to the
 # runner to run the simulation.
-input_root: Path = input_path.parent
+input_root: Path = dataset.sim_case_directory_path()
 print(f"Cube solver include: {input_root / 'solver_cube_smp.i'}")
 print(f"Base solver include: {input_root / 'solver_smp.i'}")
 

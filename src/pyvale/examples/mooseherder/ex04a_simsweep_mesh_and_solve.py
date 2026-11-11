@@ -52,7 +52,7 @@ print(f"Packaged Gmsh geometry: {geo_file}")
 # The returned list is indexed as results[case_index][stage_index]. For this
 # one-case, two-stage chain, results[0][0] is the mesh RunResult and results[0][1]
 # (or results[0][-1]) is the solve RunResult.
-mesh_sources: tuple[Path, ...] = (geo_file, input_path.with_name("case17_mesh.py"))
+mesh_sources: tuple[Path, ...] = (geo_file, dataset.sim_case_support_file_path("case17_mesh.py"))
 for source in mesh_sources:
     print(f"Mesh input: {source}")
     steps: list[mh.SimStep] = [

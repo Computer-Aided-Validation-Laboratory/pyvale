@@ -5,24 +5,26 @@
 #===============================================================================
 
 """
-Accessors for data that comes pre-packaged with pyvale for demonstrating its
-functionality. This includes moose simulation outputs as exodus files, input
-files for moose and gmsh for additional simulation cases, and images required
-for testing the image deformation and digital image correlation modules.
+Accessors for PyVale's demonstration and regression data. Files are downloaded
+on demand and cached locally, unless ``PYVALE_DATA`` points to a local data
+directory. The collection includes MOOSE simulation outputs, MOOSE and Gmsh
+inputs, and images used by the digital image correlation examples and tests.
 """
 
 from enum import Enum
 from importlib.resources import files
+import os
 from pathlib import Path
+from zipfile import ZipFile
 
 import numpy as np
+import pooch
 import riley
 
 from pyvale.render.mesh import EElemType
 
 SIM_CASE_COUNT = 26
-"""Constant describing the number of simulation test case input files for moose
-and gmsh that come packaged with pyvale.
+"""Number of simulation test case input files available through PyVale.
 """
 
 class EElemTest(Enum):
@@ -64,12 +66,64 @@ class DataSetError(Exception):
     """
 
 
+_LOCAL_DATA_ENV = "PYVALE_DATA"
+"""Environment variable pointing to a local PyVale data directory."""
+
+
+_DATA = pooch.create(
+    path=pooch.os_cache("pyvale"),
+    base_url=(
+        "https://raw.githubusercontent.com/"
+        "Computer-Aided-Validation-Laboratory/pyvale-data/main/Data/"
+    ),
+    version=None,
+    registry={},
+)
+_DATA.load_registry(files("pyvale.data").joinpath("registry.txt"))
+
+
+def _local_data_path() -> Path | None:
+    """Return the user-specified local data directory, if configured."""
+    data_dir = os.environ.get(_LOCAL_DATA_ENV)
+    if data_dir is None:
+        return None
+    path = Path(data_dir).expanduser()
+    if not path.is_dir():
+        raise DataSetError(
+            f"{_LOCAL_DATA_ENV} does not point to a directory: {path}"
+        )
+    return path
+
+
 def _data_path(*parts: str) -> Path:
-    """Return an installed path below the :mod:`pyvale.data` package."""
-    return Path(files("pyvale.data").joinpath(*parts))
+    """Return a local or downloaded path below the PyVale data directory."""
+    relative_path = Path(*parts).as_posix()
+    local_data = _local_data_path()
+    if local_data is not None:
+        return local_data.joinpath(*parts)
+
+    if any(char in relative_path for char in "*?["):
+        parent, pattern = relative_path.rsplit("/", maxsplit=1)
+        _data_directory(*Path(parent).parts)
+        return _DATA.abspath.joinpath(parent, pattern)
+
+    return Path(_DATA.fetch(relative_path))
 
 
-def sim_case_input_file_path(case_num: int, *, mpi: bool = False) -> Path:
+def _data_directory(*parts: str) -> Path:
+    """Return a local data directory, fetching all registered files below it."""
+    local_data = _local_data_path()
+    if local_data is not None:
+        return local_data.joinpath(*parts)
+
+    prefix = Path(*parts).as_posix().rstrip("/") + "/"
+    for filename in _DATA.registry_files:
+        if filename.startswith(prefix):
+            _DATA.fetch(filename)
+    return _DATA.abspath.joinpath(*parts)
+
+
+def sim_case_input_file_path(case_num: int) -> Path:
     """Gets the path to MOOSE input file (``*.i``) for a particular simulation
     case.
 
@@ -78,8 +132,6 @@ def sim_case_input_file_path(case_num: int, *, mpi: bool = False) -> Path:
     case_num : int
         Integer defining the case number to be retrieved. Must be greater
         than 0 and less than the number of simulation cases.
-    mpi : bool, optional
-        Select the MPI solver entry deck. Defaults to False (serial/SMP).
 
     Returns
     -------
@@ -98,8 +150,27 @@ def sim_case_input_file_path(case_num: int, *, mpi: bool = False) -> Path:
                             + f"{SIM_CASE_COUNT}")
 
     case_num_str = str(case_num).zfill(2)
-    case_file = f"case{case_num_str}{'_mpi' if mpi else ''}.i"
+    case_file = f"case{case_num_str}.i"
     return _data_path("simulation", "simcases", case_file)
+
+
+def sim_case_directory_path() -> Path:
+    """Return the cached directory containing all MOOSE and Gmsh inputs.
+
+    Every registered file in the directory is downloaded first, which keeps
+    relative MOOSE include paths valid for examples that copy the input tree.
+    """
+    return _data_directory("simulation", "simcases")
+
+
+def sim_case_support_file_path(filename: str) -> Path:
+    """Return a registered auxiliary file from the simulation input directory."""
+    if Path(filename).name != filename:
+        raise DataSetError("Simulation support filename must be a basename")
+    path = _data_path("simulation", "simcases", filename)
+    if not path.is_file():
+        raise DataSetError(f"Unknown simulation support file: {filename}")
+    return path
 
 
 def sim_case_gmsh_file_path(case_num: int) -> Path | None:
@@ -133,7 +204,14 @@ def sim_case_gmsh_file_path(case_num: int) -> Path | None:
 
     case_num_str = str(case_num).zfill(2)
     case_file = f"case{case_num_str}.geo"
-    case_path = _data_path("simulation", "simcases", case_file)
+    relative_path = Path("simulation", "simcases", case_file).as_posix()
+    local_data = _local_data_path()
+    if local_data is not None:
+        case_path = local_data.joinpath(relative_path)
+    elif relative_path not in _DATA.registry:
+        return None
+    else:
+        case_path = _data_path("simulation", "simcases", case_file)
 
     if case_path.is_file():
         return case_path
@@ -341,15 +419,15 @@ def element_case_input_path(elem_type: EElemTest, *, mpi: bool = False) -> Path:
     elem_type : EElemTest
         Enumeration specifying the element type for this test case.
 
-    mpi : bool, optional
-        Select the MPI solver entry deck. Defaults to False (serial/SMP).
-
     Returns
     -------
     Path
         Path to the moose input file (.i) for this simulation case.
     """
-    return _data_path("simulation", "simcases", f"case00_{elem_type.value}{'_mpi' if mpi else ''}.i")
+    suffix = "_mpi" if mpi else ""
+    return _data_path(
+        "simulation", "simcases", f"case00_{elem_type.value}{suffix}.i"
+    )
 
 
 
@@ -604,7 +682,7 @@ def dic_plate_rigid_cam0_def_small() -> list[Path]:
     """
     Returns rigid_cam0_frame0000.tiff to rigid_cam1_frame0010.tiff.
     """
-    data_dir = files("pyvale.data").joinpath("dic", "plate_rigid")
+    data_dir = _data_directory("dic", "plate_rigid")
 
     return [
         Path(data_dir.joinpath(f"rigid_cam0_frame{i:02d}.tiff"))
@@ -615,7 +693,7 @@ def dic_plate_rigid_cam1_def_small() -> list[Path]:
     """
     Returns rigid_cam1_frame0000.tiff to rigid_cam1_frame0010.tiff.
     """
-    data_dir = files("pyvale.data").joinpath("dic", "plate_rigid")
+    data_dir = _data_directory("dic", "plate_rigid")
 
     return [
         Path(data_dir.joinpath(f"rigid_cam1_frame{i:02d}.tiff"))
@@ -783,8 +861,7 @@ def dic_ex08_stereo_calibration() -> Path:
     Path
         Path to the stereo calibration file (``.txt``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("dic_ex08_stereo_calibration.txt"))
+    return _data_path("dic", "dic_ex08_stereo_calibration.txt")
 
 
 def dic_ex02_roi() -> Path:
@@ -796,8 +873,7 @@ def dic_ex02_roi() -> Path:
     Path
         Path to the ROI definition file (``.yaml``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("dic_ex02_roi.yaml"))
+    return _data_path("dic", "dic_ex02_roi.yaml")
 
 
 def dic_ex10_dic_chal_calibration() -> Path:
@@ -809,8 +885,7 @@ def dic_ex10_dic_chal_calibration() -> Path:
     Path
         Path to the DIC Challenge calibration file (``.txt``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("dic_ex10_dic_chal_calibration.txt"))
+    return _data_path("dic", "dic_ex10_dic_chal_calibration.txt")
 
 
 def dic_ex10_dic_chal_roi() -> Path:
@@ -822,15 +897,48 @@ def dic_ex10_dic_chal_roi() -> Path:
     Path
         Path to the DIC Challenge ROI definition file (``.yaml``).
     """
-    return Path(files("pyvale.data")
-                .joinpath("dic_ex10_dic_chal_roi.yaml"))
+    return _data_path("dic", "dic_ex10_dic_chal_roi.yaml")
+
+
+def dic_calibration() -> Path:
+    """Return the extracted DIC calibration image directory.
+
+    The calibration images are distributed as a single Pooch-managed archive
+    because the uncompressed image set is large. The returned directory has
+    the same layout as the original data directory.
+    """
+    local_data = _local_data_path()
+    if local_data is not None:
+        data_dir = local_data / "dic" / "calibration"
+        if data_dir.is_dir():
+            return data_dir
+
+        archive = local_data / "dic" / "calibration.zip"
+        if archive.is_file():
+            data_dir = _DATA.abspath / "local" / "dic" / "calibration"
+            if not data_dir.is_dir():
+                with ZipFile(archive) as zip_file:
+                    data_dir.mkdir(parents=True, exist_ok=True)
+                    zip_file.extractall(data_dir)
+            return data_dir
+
+        raise DataSetError(
+            "Local PyVale data is missing dic/calibration or "
+            "dic/calibration.zip"
+        )
+
+    _DATA.fetch(
+        "dic/calibration.zip",
+        processor=pooch.Unzip(extract_dir="calibration"),
+    )
+    return _DATA.abspath / "dic" / "calibration"
 
 
 
 #TODO
 def valid_data_dir() -> Path:
-    return _data_path("valid")
+    return _data_directory("valid")
 
 def valid_data_csvs() -> list[Path]:
-    data_dir = files("pyvale.data").joinpath("valid")
-    return [Path(str(ff)) for ff in data_dir.glob("*.csv")]
+    data_dir = _data_directory("valid")
+    return sorted(data_dir.glob("*.csv"))
