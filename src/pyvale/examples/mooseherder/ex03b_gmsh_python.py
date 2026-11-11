@@ -42,7 +42,7 @@ print(f"Packaged Gmsh geometry: {geo_file}")
 # Use the Python mesh script packaged beside the input deck. Supply a
 # target mesh size in mm through the runner configuration; the script
 # creates the geometry and writes the requested mesh without opening a GUI.
-py_script_file: Path = input_path.with_name("case17_mesh.py")
+py_script_file: Path = dataset.sim_case_support_file_path("case17_mesh.py")
 print(f"Packaged Python mesh script: {py_script_file}")
 
 runner: mh.GmshRunner = mh.GmshRunner(py_script_file=py_script_file)

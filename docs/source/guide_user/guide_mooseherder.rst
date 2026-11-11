@@ -17,16 +17,16 @@ Run inputs and CLI parameters
    import pyvale.mooseherder as mh
 
    input_path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
-   print(f"Packaged MOOSE input: {input_path}")
+   print(f"Downloaded MOOSE input: {input_path}")
    result = mh.MooseRunner().run(
        input_path,
        input_params={"EMod": 110e9, "nElemX": 4},
        output_dir=Path.cwd() / "pyvale-output" / "single_run",
    )
 
-The tutorials reuse the existing ``pyvale/data/simulation/simcases`` inputs:
+The tutorials download their MOOSE and Gmsh inputs on demand from ``pyvale-data`` using Pooch:
 
-.. list-table:: Packaged cases used by the tutorials
+.. list-table:: Downloaded cases used by the tutorials
    :header-rows: 1
    :widths: 20 40 40
 
@@ -41,7 +41,7 @@ The tutorials reuse the existing ``pyvale/data/simulation/simcases`` inputs:
      - 2D plate with a hole, weak plane stress: mm, MPa, seconds
 
 Print the returned Path to locate an installed script, or inspect it with
-``input_path.read_text()``. Both cases live beside their shared solver includes.
+``input_path.read_text()``. The inputs and shared solver includes are cached together so relative paths remain valid.
 There is no separate tutorial model directory. The small analytic models used
 by isolated runner tests live only under ``tests/mooseherder/fixtures``.
 
