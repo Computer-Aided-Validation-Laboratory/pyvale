@@ -35,7 +35,7 @@ print(f"Packaged MOOSE input: {input_path}")
 # This tuple is an ordered sequence of decks for ONE simulation: later decks
 # override earlier ones. It is not a batch of independent simulation cases;
 # that outer case list is introduced in the Sim Sweep examples.
-input_files: tuple[Path, ...] = (input_path, input_path.with_name("solver_smp.i"))
+input_files: tuple[Path, ...] = (input_path, dataset.sim_case_support_file_path("solver_smp.i"))
 for entry in input_files:
     print(f"Entry deck: {entry}")
 

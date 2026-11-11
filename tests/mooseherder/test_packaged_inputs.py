@@ -7,15 +7,15 @@
 """Parse every packaged SMP/MPI entry and solve representative SMP case_input_params."""
 
 import shutil
-from importlib.resources import files
 from pathlib import Path
 
 import pytest
 import rabbit
 
+import pyvale.data as dataset
 import pyvale.mooseherder as mh
 
-CASE_ROOT = Path(files("pyvale.data").joinpath("simulation", "simcases"))
+CASE_ROOT = dataset.sim_case_directory_path()
 CASE_NAMES = tuple(p.name for p in sorted(CASE_ROOT.glob("case*.i")))
 
 

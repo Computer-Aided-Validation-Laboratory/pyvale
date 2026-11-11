@@ -38,7 +38,7 @@ print(f"Packaged MOOSE input: {input_path}")
 # material parameter, then solve it in a separate output directory.
 
 input_tree: Path = mh.get_next_run_path(output_path / "mooseherder_ex02d_inputs")
-shutil.copytree(input_path.parent, input_tree)
+shutil.copytree(dataset.sim_case_directory_path(), input_tree)
 
 edited_input: Path = input_tree / input_path.name
 modifier: mh.InputModifier = mh.InputModifier(edited_input, "#", "")
