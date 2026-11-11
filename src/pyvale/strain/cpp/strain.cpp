@@ -355,7 +355,7 @@ namespace strain {
         engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
                     u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
                     q, form, filenames, saveconf, debug_level, false,
-                    partial_window, &results, false);
+                    partial_window, &results, saveconf.output_results);
         return results;
     }
 
@@ -399,7 +399,7 @@ namespace strain {
         engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
                     u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
                     q, form, filenames, saveconf, debug_level, false,
-                    partial_window, &results, false, true);
+                    partial_window, &results, saveconf.output_results, true);
         return results;
     }
 
@@ -422,7 +422,7 @@ namespace strain {
         engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
                     u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
                     q, form, filenames, saveconf, debug_level, true,
-                    partial_window, &results, false);
+                    partial_window, &results, saveconf.output_results);
         return results;
     }
 
@@ -466,7 +466,7 @@ namespace strain {
         engine_impl(ss_x_arr, ss_y_arr, x_mm_arr, y_mm_arr, z_mm_arr,
                     u_arr, v_arr, w_arr, nss_x, nss_y, nimg, sw_size,
                     q, form, filenames, saveconf, debug_level, true,
-                    partial_window, &results, false, true);
+                    partial_window, &results, saveconf.output_results, true);
         return results;
     }
 

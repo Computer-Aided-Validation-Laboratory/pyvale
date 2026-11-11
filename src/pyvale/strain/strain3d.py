@@ -52,6 +52,9 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
     input_binary bool:
         whether input data is in human-readable or binary format if using
         pathlib.Path or str for data import (default: False).
+    output_results : bool, optional
+        If True, write strain result files. Results are returned in memory in
+        either case (default: True).
     window_size : int, optional
         The size of the local window over which to compute strain (must be odd,
         default: 5).
@@ -78,6 +81,12 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
         Missing and out-of-grid points count as unoccupied. Q4/Q9 still require 4/9
         suitably arranged finite points. Strain is evaluated at the original centre.
         3D requires a finite centre position. Failed fits remain invalid.
+
+    Returns
+    -------
+    StrainResults
+        The in-memory strain results. Files are also written when
+        ``output_results`` is True.
 
     Raises
     ------
@@ -146,6 +155,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
     strain_save_conf.prefix = output_prefix
     strain_save_conf.delimiter = output_delimiter
     strain_save_conf.precision = output_precision
+    strain_save_conf.output_results = output_results
 
     if dicresults.stereo is None:
         raise ValueError("3D strain calculation requires DIC Results with stereo data.")
@@ -182,29 +192,17 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
 
     # Call to C++ backend
     with strain_cpp.ostream_redirect(stdout=True, stderr=True):
-        if output_results:
-            result_function = (strain_cpp.strain_engine_3d_column_results
-                               if column_layout else strain_cpp.strain_engine_3d_results)
-            results = result_function(
-                ss_x, ss_y, x_mm, y_mm, z_mm,
-                u_mm, v_mm, w_mm,
-                nss_x, nss_y, nimg,
-                window_size, window_element,
-                strain_formulation, filenames,
-                strain_save_conf, print_level, partial_window)
-        else:
-            engine_function = (strain_cpp.strain_engine_3d_column
-                               if column_layout else strain_cpp.strain_engine_3d)
-            engine_function(
-                ss_x, ss_y, x_mm, y_mm, z_mm,
-                u_mm, v_mm, w_mm,
-                nss_x, nss_y, nimg,
-                window_size, window_element,
-                strain_formulation, filenames,
-                strain_save_conf, print_level, partial_window)
+        result_function = (strain_cpp.strain_engine_3d_column_results
+                           if column_layout else strain_cpp.strain_engine_3d_results)
+        results = result_function(
+            ss_x, ss_y, x_mm, y_mm, z_mm,
+            u_mm, v_mm, w_mm,
+            nss_x, nss_y, nimg,
+            window_size, window_element,
+            strain_formulation, filenames,
+            strain_save_conf, print_level, partial_window)
 
-    if output_results:
-        return from_in_memory(results, filenames=filenames)
+    return from_in_memory(results, filenames=filenames)
 
 
 
