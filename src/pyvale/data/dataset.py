@@ -74,7 +74,7 @@ _DATA = pooch.create(
     path=pooch.os_cache("pyvale"),
     base_url=(
         "https://raw.githubusercontent.com/"
-        "Computer-Aided-Validation-Laboratory/pyvale-data/dev/Data/"
+        "Computer-Aided-Validation-Laboratory/pyvale-data/main/Data/"
     ),
     version=None,
     registry={},
