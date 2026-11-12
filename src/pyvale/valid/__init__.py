@@ -39,6 +39,7 @@ from pyvale.valid.metricstrategy import (
 from pyvale.valid.valengine import (
     EValResAxis,
     ValidationEngine,
+    ValEngineOpts,
     ValMetricField,
     ValResult,
 )
@@ -147,6 +148,7 @@ __all__ = [
     "ValResult",
     "ValSampleInputs",
     "ValidationEngine",
+    "ValEngineOpts",
     "assemble_val_case",
     "calc_avm_1d",
     "calc_cvm_1d",
