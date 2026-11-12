@@ -140,6 +140,11 @@ unsafe_example_names = (
 )
 unsafe_example_pattern = "|".join(unsafe_example_names)
 safe_example_pattern = rf"/(?!({unsafe_example_pattern})\.py$)ex"
+# Scope execution while still generating all gallery pages.
+gallery_module = os.environ.get("PYVALE_DOCS_EXAMPLE_MODULE")
+if gallery_module:
+    import re
+    safe_example_pattern = rf"/{re.escape(gallery_module)}/(?!({unsafe_example_pattern})\.py$)ex"
 
 sphinx_gallery_conf = {
     # Path to your example scripts

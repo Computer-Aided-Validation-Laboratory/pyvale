@@ -243,6 +243,12 @@ def calculate_2d(reference: np.ndarray | str | Path,
     else:
         residual_mode_enum = EResidualMode(output_residual)
 
+    if incremental_update_enum != EIncrementalMethod.OFF:
+        dicchecks._check_incremental_update_value(
+            incremental_update_enum.value,
+            incremental_update_value,
+        )
+
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks._multiwindow_init(subset_size,
                                                                  subset_step,
@@ -254,7 +260,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     dicchecks._check_thresholds(threshold, precision)
     common_util.check_output_directory(str(output_basepath), output_prefix, print_level)
-    dicchecks._check_subsets(subset_size, subset_step)
+    dicchecks._check_subsets(subset_size, subset_step, method_enum.value)
     updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method_enum.value, w, h, subset_size, subset_step)
     num_params = dicchecks._check_shape_function(shape_function_enum)
 

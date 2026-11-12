@@ -92,8 +92,16 @@ def _multiwindow_init(subset_size: int,
                              f"{multiwindow_search_area[i]} at index {i}")
 
     overlap = [x * (1.0-multiwindow_overlap) for x in multiwindow_subset_size]
+    configured_overlap = list(map(int, overlap))
     overlap.append(subset_step)
     overlap  = list(map(int,overlap))
+
+    # Avoid running the same final FFT level twice when size and overlap are identical
+    if (multiwindow_subset_size and
+            multiwindow_subset_size[-1] == subset_size and
+            multiwindow_search_area[-1] == subset_size and
+            configured_overlap[-1] == subset_step):
+        return configured_overlap, multiwindow_subset_size, multiwindow_search_area
 
     multiwindow_subset_size.append(subset_size)
     multiwindow_search_area.append(subset_size)
@@ -250,7 +258,31 @@ def _check_thresholds(threshold: float,
         raise ValueError("Optimizer precision must be a float strictly "
                          "between 0 and 1.")
 
-def _check_subsets(subset_size: int, subset_step: int) -> None:
+
+def _check_incremental_update_value(
+    incremental_update: str,
+    incremental_update_value: float | int,
+) -> None:
+    """Validate the value associated with an incremental update condition."""
+    try:
+        value = float(incremental_update_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "incremental_update_value must be a finite number."
+        ) from exc
+
+    if not np.isfinite(value):
+        raise ValueError("incremental_update_value must be finite.")
+
+    if incremental_update == "IMAGE" and (value <= 0 or not value.is_integer()):
+        raise ValueError(
+            "incremental_update_value must be a positive integer when "
+            "incremental_update='IMAGE'."
+        )
+
+def _check_subsets(subset_size: int,
+                   subset_step: int,
+                   method: str | None = None) -> None:
     """
 
     Parameters
@@ -259,6 +291,9 @@ def _check_subsets(subset_size: int, subset_step: int) -> None:
         Threshold for the Levenberg optimization method.
     subset_step : int
         Threshold for the brute-force optimization method.
+    method : str, optional
+        Scan method. Even subset sizes are supported by the FFT-only
+        ``MULTIWINDOW`` method, but remain disallowed for the other methods.
 
     Raises
     ------
@@ -266,9 +301,11 @@ def _check_subsets(subset_size: int, subset_step: int) -> None:
         If any input value is not a float strictly between 0 and 1.
     """
 
-    if subset_size % 2 == 0:
+    # The FFT-only multiwindow path handles even-sized subsets explicitly.
+    if subset_size % 2 == 0 and method != "MULTIWINDOW":
         raise ValueError("subset_size must be an odd number.")
 
+    # check if subset_step is larger than the subset_size
     if subset_step > subset_size:
         raise ValueError("subset_step is larger than the subset_size.")
 

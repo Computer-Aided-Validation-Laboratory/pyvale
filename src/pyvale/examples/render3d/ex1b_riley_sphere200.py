@@ -77,7 +77,7 @@ camera = render.Camera(
     rot_world=rotation,
     roi_cent_world=np.zeros(3),
     focal_length=focal_length,
-    subsample=2,
+    subsample=4,
 )
 
 camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
@@ -86,10 +86,11 @@ camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
 # 3. Configure and build the renderer
 # ------------------------------------------------------------
 
-config = riley.create_raster_config(
-    num_frames=1,
-    total_threads=4,
+config = riley.RasterConfig(
+    parallel=4,
     save_strategy=riley.SaveStrategy.disk,
+    image_save_mode=riley.ImageSaveMode.grey,
+    save_scaling=riley.ScaleStrategy.auto,
 )
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1b_riley_sphere200"
 
