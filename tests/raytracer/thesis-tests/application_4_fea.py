@@ -383,22 +383,22 @@ def render_stereo_dic(scene: Scene,
     therefore written to a temporary directory and moved to rtimage_1_cam*.
     """
     reference_scene = deepcopy(scene)
-    # render_scene(render_height, render_width, reference_scene, anti_alias,
-    #              out_dir, RenderType.STATIC, frames_to_render=0,
-    #              texture_sampler=TextureSampler.CATMULL_ROM,
-    #              shading_type=ShadingType.FLAT,
-    #              image_format=image_format,
-    #              omp_thread_count=None)
+    render_scene(render_height, render_width, reference_scene, anti_alias,
+                 out_dir, RenderType.STATIC, frames_to_render=0,
+                 texture_sampler=TextureSampler.CATMULL_ROM,
+                 shading_type=ShadingType.FLAT,
+                 image_format=image_format,
+                 omp_thread_count=None)
 
     deformed_dir = test_dir(out_dir, "_deformed")
     deformed_scene = deepcopy(scene)
-    # render_scene(render_height, render_width, deformed_scene, anti_alias,
-    #              deformed_dir, RenderType.STATIC,
-    #              frames_to_render=displaced_frame_idx,
-    #              texture_sampler=TextureSampler.CATMULL_ROM,
-    #              shading_type=ShadingType.FLAT,
-    #              image_format=image_format,
-    #              omp_thread_count=None)
+    render_scene(render_height, render_width, deformed_scene, anti_alias,
+                 deformed_dir, RenderType.STATIC,
+                 frames_to_render=displaced_frame_idx,
+                 texture_sampler=TextureSampler.CATMULL_ROM,
+                 shading_type=ShadingType.FLAT,
+                 image_format=image_format,
+                 omp_thread_count=None)
 
     for cam_idx in range(2):
         source = deformed_dir / f"rtimage_0_cam{cam_idx}.bmp"
@@ -601,7 +601,7 @@ if __name__ == "__main__":
     # Edit this tuple to render only the cases you need. Rendering the water
     # case is the slowest because of the additional refractive interface.
     #cases = (TestCaseApp.AIR_DIFFUSE, TestCaseApp.PIPE, TestCaseApp.WATER)
-    cases = (TestCaseApp.WATER, TestCaseApp.PIPE)
+    cases = (TestCaseApp.AIR_DIFFUSE, TestCaseApp.PIPE)
     for case in cases:
         plate_stereo_test(
             case,
