@@ -22,5 +22,6 @@ This project follows the Computer Aided Validation Lab style guides which can be
 
 ## Riley rendering
 
-See [Riley integration](RILEY.md) for the current API, local dependency setup,
-array conventions and verification commands.
+Riley 2026.11.0 is supplied by the sibling checkout at `../riley-raster`
+while its release is pending. See the [render examples](../src/pyvale/examples/render3d/README.md)
+for the current API and [testing guide](TESTING.md#riley-integration) for checks.

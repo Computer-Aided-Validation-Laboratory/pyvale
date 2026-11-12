@@ -43,7 +43,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
-          sudo apt install -y libegl1 libgl1 libxext6 libx11-6
+          sudo apt install -y libegl1 libgl1 libglu1-mesa libxext6 libx11-6
 
       - name: Install libtiff (macOS)
         if: startsWith(matrix.os, 'macos')
@@ -81,3 +81,8 @@ jobs:
         if: ${{ !startsWith(matrix.os, 'macos') || contains(matrix.os, 'intel') }}
         shell: bash -el {0}
         run: pytest -v tests/render/.
+
+      - name: Run Rabbit and Gmsh integration tests and tutorials
+        env:
+          MPLBACKEND: Agg
+        run: python -m pytest -v tests/mooseherder tests/examples/test_mooseherder_examples.py tests/examples/test_example_navigation.py tests/docs

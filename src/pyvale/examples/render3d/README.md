@@ -11,4 +11,9 @@ selects memory, disk or both. `ex1i_riley_shader_pipeline.py` demonstrates
 shader composition and mono, RGB and multifield output.
 
 For this branch's unreleased Riley dependency, keep the Riley checkout beside
-PyVale at `../riley-raster`; see `dev/RILEY.md`.
+PyVale at `../riley-raster`. The root `pyproject.toml` configures it as an
+editable uv source. Run the integration checks with:
+
+```bash
+uv run --no-sync -- python scripts/test_agent.py tests/render tests/riley
+```
