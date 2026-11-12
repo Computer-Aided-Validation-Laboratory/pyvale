@@ -1,8 +1,8 @@
 # Documented example tests
 
-This directory smoke-tests the Sensorsim, 3D render, 2D render, DIC, and
-mooseherder galleries in isolated subprocesses. Each test uses a temporary working
-directory, so the examples write their normal `pyvale-output` directory
+This directory smoke-tests the Sensorsim, 3D render, Render UVs, DIC, validation,
+and mooseherder galleries in isolated subprocesses. Each test uses a temporary
+working directory, so the examples write their normal `pyvale-output` directory
 without modifying the repository.
 
 Run all documented example tests with:
@@ -12,11 +12,11 @@ python -m pytest tests/examples
 ```
 
 Run the examples belonging to one sub-module, such as `render3d` or
-`render2d`, with:
+`renderuvs`, with:
 
 ```bash
 python -m pytest tests/examples --example-module=render3d
-python -m pytest tests/examples --example-module=render2d
+python -m pytest tests/examples --example-module=renderuvs
 ```
 
 Run the render unit tests and only the matching examples together with:
@@ -32,12 +32,12 @@ test set and can be selected with `-m example_slow` when needed.
 The suite intentionally excludes DIC examples that need user interaction or
 unbundled local input: `ex01_region_of_interest.py`, `ex06_hrdic.py`,
 `ex08_calibration.py`, `ex09_stereo.py`, `ex10_stereo_platehole.py`, and
-`ex11_dic_chal.py`. Modules still under active development, including `valid`,
-are not included.
+`ex11_dic_chal.py`. Run validation examples with
+`python -m pytest tests/examples --example-module=valid`.
 
 The mooseherder examples use core Rabbit/Gmsh dependencies and run in CI without
-local installations. All fifteen examples execute with serial/SMP defaults;
-MPI and custom installation paths are explicit opt-ins. Run them with:
+local installations. The examples use serial/SMP solver defaults; MPI and custom
+installation paths are explicit opt-ins. Run them with:
 
 ```bash
 python -m pytest tests/mooseherder tests/examples --example-module=mooseherder

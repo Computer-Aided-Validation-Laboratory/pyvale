@@ -50,3 +50,11 @@ Mooseherder
    :maxdepth: 2
 
    examples_mooseherder
+
+Validation
+----------
+
+.. toctree::
+   :maxdepth: 2
+
+   examples_valid

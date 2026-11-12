@@ -46,3 +46,10 @@ from .simsaver import (
                            save_array,
                            save_sim_data_to_arrays,
 )
+
+from .tensortools import (
+    EStrainShear,
+    assemble_strain_tensor,
+    calc_equivalent_strain,
+    calc_principal_strains,
+)

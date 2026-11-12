@@ -14,6 +14,7 @@ Module Specific Guides
    guide_blender.rst
    guide_strain.rst
    guide_mooseherder.rst
+   guide_valid.rst
 
 
 What is pyvale?

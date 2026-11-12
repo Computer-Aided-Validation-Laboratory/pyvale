@@ -88,7 +88,7 @@ def calc_cost(
         predicted_force_n = (
             float(simulation.glob_vars["react_y_top"][-1]) * THICKNESS_MM
         )
-        
+
         # Each nodal field: [n_nodes, n_times]; [:, -1]: [n_nodes].
         # Stack the final xx/yy columns: shape=[n_nodes, n_strain_comps].
         predicted_strain = np.column_stack(
@@ -97,7 +97,7 @@ def calc_cost(
                 simulation.node_vars["strain_yy"][:, -1],
             )
         )
-        
+
         if not np.array_equal(simulation.coords, observed_coords):
             raise ValueError(
                 "Prediction nodes do not match the observation coordinates."
@@ -111,7 +111,7 @@ def calc_cost(
         strain_cost = np.mean(
             ((predicted_strain - observed_strain) / STRAIN_NOISE) ** 2
         )
-        
+
         costs[index] = 0.5 * (force_cost + strain_cost)
 
     return costs
@@ -210,7 +210,7 @@ observed_strain: np.ndarray = np.column_stack(  # shape=[n_nodes, n_strain_comps
     )
 )
 # Noise: [n_nodes, n_strain_comps].
-observed_strain += rng.normal(0.0, STRAIN_NOISE, size=observed_strain.shape)  
+observed_strain += rng.normal(0.0, STRAIN_NOISE, size=observed_strain.shape)
 
 # %%
 # Run up to PARALLEL_RUNNERS candidate solves concurrently. The batch cost

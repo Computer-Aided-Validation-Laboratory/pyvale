@@ -44,10 +44,11 @@ the directory below `src/pyvale/examples`, for example:
 
 ```bash
 python -m pytest tests/examples --example-module=render3d
-python -m pytest tests/examples --example-module=render2d
+python -m pytest tests/examples --example-module=renderuvs
 python -m pytest tests/examples --example-module=dic
 python -m pytest tests/examples --example-module=basicsensorsim
 python -m pytest tests/examples --example-module=extsensorsim
+python -m pytest tests/examples --example-module=valid
 python -m pytest tests/mooseherder tests/examples --example-module=mooseherder
 ```
 
@@ -138,11 +139,13 @@ The example suite skips Blender-backed examples when Blender is unavailable.
 It intentionally does not include DIC examples requiring interaction or
 unbundled local files: `ex01_region_of_interest.py`, `ex06_hrdic.py`,
 `ex08_calibration.py`, `ex09_stereo.py`, `ex10_stereo_platehole.py`, and
-`ex11_dic_chal.py`. The `valid` example module is also excluded while it is
-under active development.
+`ex11_dic_chal.py`. Validation examples run headlessly; their plotting examples
+save PNGs under `pyvale-output`. Set `SHOW_FIGURES = True` in those scripts to
+also display interactive figures.
 
 The final pymoo FEMU tutorial verifies recovery of the case17 elastic modulus
-and Poisson's ratio, noise-normalised force/strain costs and parallel batch evaluation with bounded reuse of candidate directories.
+and Poisson's ratio, noise-normalised force/strain costs and parallel batch
+evaluation with bounded reuse of candidate directories.
 
 The mooseherder gallery reuses packaged simcases: case00_HEX8 for generated-mesh
 cube workflows and case17 for plate-with-hole workflows. The minimal analytic
