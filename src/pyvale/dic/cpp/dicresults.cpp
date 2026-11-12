@@ -307,7 +307,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
 
         for (int i = 0; i < ss_grid.num; ++i) {
 
-            const bool valid = saveconf.output_below_threshold || above_thresh[i];
+            const bool valid = saveconf.output_below_threshold || valid_match[i];
             const double out_u = valid ? u[i] : NAN;
             const double out_v = valid ? v[i] : NAN;
             const double out_cost = valid ? cost[i] : NAN;
@@ -375,7 +375,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             double ss_x = ss_grid.coords[2*i  ];
             double ss_y = ss_grid.coords[2*i+1];
 
-            const bool valid = saveconf.output_below_threshold || above_thresh[i];
+            const bool valid = saveconf.output_below_threshold || valid_match[i];
             const double out_u = valid ? u[i] : NAN;
             const double out_v = valid ? v[i] : NAN;
             const double out_cost = valid ? cost[i] : NAN;
