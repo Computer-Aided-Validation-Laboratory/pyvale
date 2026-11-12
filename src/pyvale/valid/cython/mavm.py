@@ -13,6 +13,8 @@ in :mod:`pyvale.valid.metrics` forward to this implementation.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 from scipy import stats
 
@@ -247,23 +249,63 @@ def _calculate_mavm(
     duplicates: EMAVMDuplicates,
     tol: float,
 ) -> MAVMResult:
-    model_cdf = stats.ecdf(model_clean).cdf
-    exp_cdf = stats.ecdf(exp_clean).cdf
-    model_quantiles = convert_contiguous_float64(model_cdf.quantiles)
-    exp_quantiles = convert_contiguous_float64(exp_cdf.quantiles)
-    model_probabilities = convert_contiguous_float64(model_cdf.probabilities)
-    exp_probabilities = convert_contiguous_float64(exp_cdf.probabilities)
+    return _calculate_prepared_mavm(
+        _prepare_mavm_distribution(model_clean),
+        _prepare_mavm_experiment(exp_clean, alpha),
+        alpha, duplicates, tol,
+    )
 
-    exp_count = len(exp_quantiles)
-    degrees_freedom = exp_count - 1
+
+@dataclass(slots=True)
+class _PreparedECDF:
+    quantiles: np.ndarray
+    probabilities: np.ndarray
+
+
+@dataclass(slots=True)
+class _PreparedMAVMExperiment:
+    distribution: _PreparedECDF
+    lower: np.ndarray
+    upper: np.ndarray
+
+
+def _prepare_mavm_distribution(samples: np.ndarray) -> _PreparedECDF:
+    distribution = stats.ecdf(samples).cdf
+    return _PreparedECDF(
+        convert_contiguous_float64(distribution.quantiles),
+        convert_contiguous_float64(distribution.probabilities),
+    )
+
+
+def _prepare_mavm_experiment(
+    samples: np.ndarray, alpha: float
+) -> _PreparedMAVMExperiment:
+    distribution = _prepare_mavm_distribution(samples)
+    quantiles = distribution.quantiles
+    count = len(quantiles)
+    degrees_freedom = count - 1
     t_value = stats.t.ppf(1.0 - alpha, degrees_freedom) if degrees_freedom >= 1 else 0.0
-    standard_error = np.nanstd(exp_quantiles) / np.sqrt(exp_count)
-    exp_conf_lower = convert_contiguous_float64(
-        exp_quantiles - t_value * standard_error
+    standard_error = np.nanstd(quantiles) / np.sqrt(count)
+    return _PreparedMAVMExperiment(
+        distribution,
+        convert_contiguous_float64(quantiles - t_value * standard_error),
+        convert_contiguous_float64(quantiles + t_value * standard_error),
     )
-    exp_conf_upper = convert_contiguous_float64(
-        exp_quantiles + t_value * standard_error
-    )
+
+
+def _calculate_prepared_mavm(
+    model: _PreparedECDF,
+    experiment: _PreparedMAVMExperiment,
+    alpha: float,
+    duplicates: EMAVMDuplicates,
+    tol: float,
+) -> MAVMResult:
+    model_quantiles = model.quantiles
+    model_probabilities = model.probabilities
+    exp_quantiles = experiment.distribution.quantiles
+    exp_probabilities = experiment.distribution.probabilities
+    exp_conf_lower, exp_conf_upper = experiment.lower, experiment.upper
+    exp_count = len(exp_quantiles)
 
     if duplicates is EMAVMDuplicates.REJECT:
         model_probability_step = 1.0 / len(model_quantiles)

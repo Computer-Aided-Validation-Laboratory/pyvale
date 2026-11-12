@@ -9,7 +9,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import cast
 
 import numpy as np
 from scipy import stats
@@ -19,6 +18,8 @@ from pyvale.valid.cython.mavm import _calculate_mavm
 from pyvale.valid.inputvalidation import validate_mavm_config
 from pyvale.valid.metrics import (
     ERelativeErrorNormalization,
+    _calculate_cvm_statistic,
+    _calculate_ks_statistic,
     calc_avm_1d,
     calc_cvm_1d,
     calc_ks_1d,
@@ -193,10 +194,10 @@ def calculate_trusted_metric(
         )
     if type(metric) is MetricKS:
         return ScalarMetricResult(
-            kind, float(cast(float, stats.ks_2samp(simulation, experiment)[0]))
+            kind, _calculate_ks_statistic(simulation, experiment)
         )
     if type(metric) is MetricCVM:
         return ScalarMetricResult(
-            kind, float(stats.cramervonmises_2samp(simulation, experiment).statistic)
+            kind, _calculate_cvm_statistic(simulation, experiment)
         )
     return metric.calc(sim, exp)

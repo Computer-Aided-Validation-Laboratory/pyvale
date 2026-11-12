@@ -13,7 +13,6 @@ U-pooling, and deterministic error metrics.
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import cast
 
 import numpy as np
 from scipy import stats
@@ -149,8 +148,7 @@ def calc_ks_1d(
     """
     model_samples = validate_finite_sample(model_data, "model_data")
     experimental_samples = validate_finite_sample(exp_data, "exp_data")
-    statistic_result = stats.ks_2samp(model_samples, experimental_samples)
-    return float(cast(float, statistic_result[0]))
+    return _calculate_ks_statistic(model_samples, experimental_samples)
 
 
 def calc_cvm_1d(
@@ -173,8 +171,41 @@ def calc_cvm_1d(
     """
     model_samples = validate_finite_sample(model_data, "model_data")
     experimental_samples = validate_finite_sample(exp_data, "exp_data")
-    statistic_result = stats.cramervonmises_2samp(model_samples, experimental_samples)
-    return float(statistic_result.statistic)
+    return _calculate_cvm_statistic(model_samples, experimental_samples)
+
+
+def _calculate_ks_statistic(simulation: np.ndarray, experiment: np.ndarray) -> float:
+    simulation_sorted = np.sort(simulation)
+    experiment_sorted = np.sort(experiment)
+    support = np.concatenate((simulation_sorted, experiment_sorted))
+    simulation_cdf = np.searchsorted(
+        simulation_sorted, support, side="right"
+    ) / len(simulation)
+    experiment_cdf = np.searchsorted(
+        experiment_sorted, support, side="right"
+    ) / len(experiment)
+    return float(np.max(np.abs(simulation_cdf - experiment_cdf)))
+
+
+def _calculate_cvm_statistic(simulation: np.ndarray, experiment: np.ndarray) -> float:
+    sim_count, exp_count = len(simulation), len(experiment)
+    if min(sim_count, exp_count) < 2:
+        return float(stats.cramervonmises_2samp(simulation, experiment).statistic)
+    # Anderson's two-sample statistic with pooled average ranks for ties.
+    pooled = np.concatenate((np.sort(simulation), np.sort(experiment)))
+    ranks = stats.rankdata(pooled, method="average")
+    sim_rank_error = ranks[:sim_count] - np.arange(1, sim_count + 1)
+    exp_rank_error = ranks[sim_count:] - np.arange(1, exp_count + 1)
+    rank_sum = (
+        sim_count * np.sum(sim_rank_error * sim_rank_error)
+        + exp_count * np.sum(exp_rank_error * exp_rank_error)
+    )
+    pair_count = sim_count * exp_count
+    total_count = sim_count + exp_count
+    return float(
+        rank_sum / (pair_count * total_count)
+        - (4 * pair_count - 1) / (6 * total_count)
+    )
 
 
 class ERelativeErrorNormalization(Enum):

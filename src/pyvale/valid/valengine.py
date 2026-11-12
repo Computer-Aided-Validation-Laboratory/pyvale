@@ -17,6 +17,13 @@ from os import cpu_count
 
 import numpy as np
 
+from pyvale.valid.cython.mavm import (
+    _PreparedECDF,
+    _PreparedMAVMExperiment,
+    _calculate_prepared_mavm,
+    _prepare_mavm_distribution,
+    _prepare_mavm_experiment,
+)
 from pyvale.valid.inputvalidation import validate_mavm_config, validate_unique_sample
 from pyvale.valid.metrics import validate_relative_error_config
 from pyvale.valid.metricstrategy import (
@@ -37,6 +44,9 @@ from pyvale.valid.valtypes import (
     ValCase,
     ValDomain,
 )
+
+
+_SHARED_CHUNKS_PER_TASK = 4
 
 
 class EValResAxis(StrEnum):
@@ -199,11 +209,12 @@ class _SharedWorkload:
 
 
 @dataclass(slots=True)
-class _SharedTask:
+class _SharedBatch:
     workload: _SharedWorkload
     metrics: tuple[IValMetric, ...]
     start: int
     stop: int
+    chunk_size: int
 
 
 class ValidationEngine:
@@ -319,6 +330,16 @@ class ValidationEngine:
         workers = self.opts.workers
         if workers is None:
             workers = cpu_count() or 1
+        total = sum(prod(workload.shape) for workload in workloads)
+        chunk_size = self.opts.chunk_size
+        if chunk_size is None:
+            chunk_size = 1024 if workers == 1 else max(1, ceil(total / (4 * workers)))
+        # Bound retained results and avoid a pool when only one batch is useful.
+        batch_size = _SHARED_CHUNKS_PER_TASK * chunk_size
+        workers = min(
+            workers,
+            sum(ceil(prod(workload.shape) / batch_size) for workload in workloads),
+        )
         if workers == 1:
             for workload in workloads:
                 name, sim, exp, full_shape = (
@@ -327,7 +348,6 @@ class ValidationEngine:
                     workload.exp,
                     workload.shape,
                 )
-                chunk_size = self.opts.chunk_size or 1024
                 for start in range(0, prod(full_shape), chunk_size):
                     calculated = _calculate_chunk(
                         sim,
@@ -339,8 +359,6 @@ class ValidationEngine:
                     )
                     _store_chunk(results[name], self.metrics, start, calculated)
         else:
-            total = sum(prod(workload.shape) for workload in workloads)
-            chunk_size = self.opts.chunk_size or max(1, ceil(total / (4 * workers)))
             with ExitStack() as stack:
                 shared_workloads = []
                 for workload in workloads:
@@ -354,19 +372,21 @@ class ValidationEngine:
                     )
                 with get_context("spawn").Pool(workers) as pool:
                     tasks = (
-                        _SharedTask(
+                        _SharedBatch(
                             workload,
                             self.metrics,
                             start,
-                            min(start + chunk_size, prod(workload.shape)),
+                            min(start + batch_size, prod(workload.shape)),
+                            chunk_size,
                         )
                         for workload in shared_workloads
-                        for start in range(0, prod(workload.shape), chunk_size)
+                        for start in range(0, prod(workload.shape), batch_size)
                     )
-                    for name, start, calculated in pool.imap_unordered(
-                        _calculate_shared_chunk, tasks, chunksize=1
+                    for batch in pool.imap_unordered(
+                        _calculate_shared_batch, tasks, chunksize=1
                     ):
-                        _store_chunk(results[name], self.metrics, start, calculated)
+                        for name, start, calculated in batch:
+                            _store_chunk(results[name], self.metrics, start, calculated)
         configs = {metric.get_kind(): metric for metric in self.metrics}
         return ValResult(domain=val_case.domain, fields=results, metric_configs=configs)
 
@@ -418,20 +438,21 @@ def _attach_quantity(description: _SharedQuantity, stack: ExitStack) -> ValArray
     return ValArray(_attach_array(description.data, stack), description.axes, offsets)
 
 
-def _calculate_shared_chunk(
-    task: _SharedTask,
-) -> tuple[str, int, np.ndarray]:
+def _calculate_shared_batch(
+    task: _SharedBatch,
+) -> list[tuple[str, int, np.ndarray]]:
     workload = task.workload
+    calculated_chunks = []
     with ExitStack() as stack:
-        calculated = _calculate_chunk(
-            _attach_quantity(workload.sim, stack),
-            _attach_quantity(workload.exp, stack),
-            workload.shape,
-            task.metrics,
-            task.start,
-            task.stop,
-        )
-    return workload.name, task.start, calculated
+        simulation = _attach_quantity(workload.sim, stack)
+        experiment = _attach_quantity(workload.exp, stack)
+        for start in range(task.start, task.stop, task.chunk_size):
+            calculated = _calculate_chunk(
+                simulation, experiment, workload.shape, task.metrics,
+                start, min(start + task.chunk_size, task.stop),
+            )
+            calculated_chunks.append((workload.name, start, calculated))
+    return calculated_chunks
 
 
 def _calculate_chunk(
@@ -445,6 +466,8 @@ def _calculate_chunk(
     requires_pairs = any(
         type(metric) in (MetricRMSE, MetricRelErr) for metric in metrics
     )
+    model_distributions: dict[tuple[int, ...], _PreparedECDF] = {}
+    experimental_distributions: dict[tuple[int, ...], _PreparedMAVMExperiment] = {}
     calculated = np.full((len(metrics), 3, stop - start), np.nan)
     for local_idx, flat_idx in enumerate(range(start, stop)):
         indices = tuple(int(index) for index in np.unravel_index(flat_idx, shape))
@@ -477,7 +500,25 @@ def _calculate_chunk(
             paired_simulation = np.asarray(sim_samples[paired], dtype=np.float64)
             paired_experiment = np.asarray(exp_samples[paired], dtype=np.float64)
         for metric_idx, metric in enumerate(metrics):
-            if type(metric) in (MetricRMSE, MetricRelErr):
+            if type(metric) is MetricMAVM:
+                model_key = (point, component, time, sim_trans, sim_nuis, sim_off)
+                experimental_key = (
+                    point, component, time, exp_trans, exp_nuis, exp_off
+                )
+                if model_key not in model_distributions:
+                    model_distributions[model_key] = _prepare_mavm_distribution(
+                        simulation
+                    )
+                if experimental_key not in experimental_distributions:
+                    experimental_distributions[experimental_key] = (
+                        _prepare_mavm_experiment(experiment, metric.alpha)
+                    )
+                metric_result = _calculate_prepared_mavm(
+                    model_distributions[model_key],
+                    experimental_distributions[experimental_key],
+                    metric.alpha, metric.duplicates, metric.tol,
+                )
+            elif type(metric) in (MetricRMSE, MetricRelErr):
                 metric_result = calculate_trusted_metric(
                     metric, paired_simulation, paired_experiment
                 )
