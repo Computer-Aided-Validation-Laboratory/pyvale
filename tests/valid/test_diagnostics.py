@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 import pyvale.valid as val
+from pyvale.valid import valplot
 
 matplotlib.use("Agg")
 
@@ -73,12 +74,12 @@ def test_diagnostic_views_show_expected_sources_and_support_shifts(
     correction = val.calc_mavm_correction(
         np.array([0.0]), np.array([10.0]), np.array([-2.0]), np.array([13.0])
     )
-    fig, ax = val.plot_val_mavm_diagnostic(
+    fig, ax = valplot.plot_val_mavm_diagnostic(
         simulation,
         experiment,
         correction=correction,
         view=view,
-        labels=val.ValPlotLabels(x_label="Temperature [degC]"),
+        labels=valplot.ValPlotLabels(x_label="Temperature [degC]"),
     )
     try:
         assert ax.get_xlabel() == "Temperature [degC]"
@@ -103,7 +104,7 @@ def test_family_plot_preserves_conditional_ecdf_probability_mass() -> None:
         np.array([[0.0, 0.0, 2.0], [1.0, 3.0, 3.0]]),
         (val.EValAxis.EPISTEMIC_TRANS, val.EValAxis.ALEATORY),
     )
-    fig, ax = val.plot_val_ecdf_family(quantity)
+    fig, ax = valplot.plot_val_ecdf_family(quantity)
     np.testing.assert_allclose(ax.lines[0].get_ydata(), [0.0, 2.0 / 3.0, 1.0])
     np.testing.assert_allclose(ax.lines[1].get_ydata(), [0.0, 1.0 / 3.0, 1.0])
     plt.close(fig)
@@ -123,4 +124,6 @@ def test_missing_diagnostic_inputs_fail_before_plotting() -> None:
         val.calc_ecdf_summary([])
     summary = val.calc_ecdf_summary([np.array([1.0, 2.0])])
     with pytest.raises(ValueError, match="correction"):
-        val.plot_val_mavm_diagnostic(summary, view=val.EValMAVMDiagnostic.CORRECTION)
+        valplot.plot_val_mavm_diagnostic(
+            summary, view=val.EValMAVMDiagnostic.CORRECTION
+        )

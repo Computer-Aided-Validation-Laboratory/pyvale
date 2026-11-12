@@ -23,6 +23,8 @@ import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.valid as val
+import pyvale.valid.converttovaldata as valconvert
+from pyvale.valid import valplot, valvis
 
 matplotlib.use("Agg")
 
@@ -107,8 +109,15 @@ domain = val.ValDomain(
         )
     }
 )
-strain_field = sens.FieldTensor(nominal_sim, norm_keys, dev_keys, sens.EDim.THREED)
-model = val.val_from_sim({strain_tag: strain_field}, domain, [((), nominal_sim)])
+model = valconvert.convert_sim_to_val(
+    {
+        strain_tag: lambda simulation: sens.FieldTensor(
+            simulation, norm_keys, dev_keys, sens.EDim.THREED
+        )
+    },
+    domain,
+    [((), nominal_sim)],
+)
 experiment = {
     strain_tag: val.ValArray(
         measurements,
@@ -151,7 +160,7 @@ print("Result axes/shape:", metric_field.axes, metric_field.metric.shape)
 # selected explicitly in a parameter sweep, so these panels compare like cells.
 point_idxs = tuple(range(len(coords)))
 for component_idx, component_key in enumerate(component_keys):
-    fig, axes = val.plot_val_cdfs_points(
+    fig, axes = valplot.plot_val_cdfs_points(
         val_case,
         val_result,
         strain_tag,
@@ -159,17 +168,17 @@ for component_idx, component_key in enumerate(component_keys):
         component_idx=component_idx,
         time_idx=4,
         metric=mavm,
-        labels=val.ValPlotLabels(x_label=f"{component_key} [1]"),
+        labels=valplot.ValPlotLabels(x_label=f"{component_key} [1]"),
     )
     fig.savefig(output_path / f"{component_key}_cdfs.png", bbox_inches="tight")
-    fig, axes = val.plot_val_metric_time_points(
+    fig, axes = valplot.plot_val_metric_time_points(
         val_result,
         strain_tag,
         val.EMetricType.MAVM,
         point_idxs=point_idxs,
         selectors={val.EValResAxis.COMPONENT: component_idx},
         part=val.EValMetricPart.D_MINUS,
-        labels=val.ValPlotLabels(title=component_key),
+        labels=valplot.ValPlotLabels(title=component_key),
     )
     fig.savefig(output_path / f"{component_key}_d_minus_time.png", bbox_inches="tight")
     if not SHOW_PLOTS:
@@ -196,24 +205,24 @@ strain_tensors = io.assemble_strain_tensor(
 equivalent_strain = io.calc_equivalent_strain(strain_tensors)
 first_principal = io.calc_principal_strains(strain_tensors)[:, 0]
 background_fields = {
-    "temperature": val.ValSimField(
+    "temperature": valvis.ValSimField(
         nominal_sim.node_vars["temperature"][:, background_time_idx],
         background_time_idx,
         sens.SensorDescriptor(name="Temperature", symbol="T", units="degC"),
     ),
-    "strain_xx": val.ValSimField(
+    "strain_xx": valvis.ValSimField(
         normal[:, 0],
         background_time_idx,
         sens.SensorDescriptor(name="Strain xx", symbol=r"\varepsilon_{xx}", units="1"),
     ),
-    "equivalent_strain": val.ValSimField(
+    "equivalent_strain": valvis.ValSimField(
         equivalent_strain,
         background_time_idx,
         sens.SensorDescriptor(
             name="Equivalent strain", symbol=r"\varepsilon_{eq}", units="1"
         ),
     ),
-    "first_principal_strain": val.ValSimField(
+    "first_principal_strain": valvis.ValSimField(
         first_principal,
         background_time_idx,
         sens.SensorDescriptor(
@@ -224,7 +233,7 @@ background_fields = {
 # Show all face tags through the translucent mesh, including the far faces.
 point_labels = tuple(strain_sensors.get_descriptor().create_sensor_tags(len(coords)))
 for background_name, background_field in background_fields.items():
-    pv_plot = val.plot_val_metric_on_sim(
+    pv_plot = valvis.plot_val_metric_on_sim(
         val_result,
         strain_tag,
         val.EMetricType.MAVM,
@@ -237,8 +246,8 @@ for background_name, background_field in background_fields.items():
         sim_field=background_field,
         sim_coord_units="mm",
         sim_coord_frame="cube",
-        vis_opts=val.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
-        metric_opts=val.ValVisOpts(
+        vis_opts=valvis.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
+        metric_opts=valvis.ValVisOpts(
             mesh_opacity=0.4, point_labels=point_labels, labels_always_visible=True
         ),
     )

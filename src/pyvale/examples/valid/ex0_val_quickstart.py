@@ -21,6 +21,7 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.valid as val
+from pyvale.valid import valplot, valvis
 
 matplotlib.use("Agg")
 
@@ -128,29 +129,29 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 # ------------------------------------------------------------
 
 point_idxs = tuple(range(len(coords)))
-fig, axes = val.plot_val_cdfs_points(
+fig, axes = valplot.plot_val_cdfs_points(
     val_case,
     val_result,
     temperature_tag,
     point_idxs=point_idxs,
     time_idx=4,
     metric=mavm,
-    labels=val.ValPlotLabels(x_label="Temperature [degC]"),
+    labels=valplot.ValPlotLabels(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
 # %%
-fig, axes = val.plot_val_cdf_envelope_points(
+fig, axes = valplot.plot_val_cdf_envelope_points(
     val_case,
     temperature_tag,
     source=val.EValSource.EXP,
     time_idx=4,
-    labels=val.ValPlotLabels(x_label="Temperature [degC]"),
+    labels=valplot.ValPlotLabels(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 
 # %%
-fig, axes = val.plot_val_metric_time_points(
+fig, axes = valplot.plot_val_metric_time_points(
     val_result,
     temperature_tag,
     val.EMetricType.MAVM,
@@ -169,7 +170,7 @@ sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
 
 background_time_idx = len(sim_data.time) - 1
-background_field = val.ValSimField(
+background_field = valvis.ValSimField(
     sim_data.node_vars["temperature"][:, background_time_idx],
     background_time_idx,
     sens.SensorDescriptor(name="Temperature", symbol=r"T", units="degC"),
@@ -177,7 +178,7 @@ background_field = val.ValSimField(
 
 
 point_labels = tuple(sens.SensorDescriptor(tag="TC").create_sensor_tags(len(coords)))
-pv_plot = val.plot_val_metric_on_sim(
+pv_plot = valvis.plot_val_metric_on_sim(
     val_result,
     temperature_tag,
     val.EMetricType.MAVM,
@@ -191,8 +192,10 @@ pv_plot = val.plot_val_metric_on_sim(
     sim_field=background_field,
     sim_coord_units="mm",
     sim_coord_frame="plate",
-    vis_opts=val.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
-    metric_opts=val.ValVisOpts(point_labels=point_labels, labels_always_visible=True),
+    vis_opts=valvis.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
+    metric_opts=valvis.ValVisOpts(
+        point_labels=point_labels, labels_always_visible=True
+    ),
 )
 pv_plot.screenshot(output_path / "temperature_mavm_balance_on_sim.png")
 

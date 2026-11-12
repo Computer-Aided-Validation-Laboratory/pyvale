@@ -12,6 +12,7 @@ import numpy as np
 from scipy import stats
 
 from pyvale.valid.constants import MAVM_AREA_TOLERANCE
+from pyvale.valid.inputvalidation import validate_finite_sample, validate_real_array
 from pyvale.valid.metrics import calc_mavm_1d
 from pyvale.valid.metricstrategy import EMetricType
 from pyvale.valid.valengine import EValResAxis, ValMetricField
@@ -30,12 +31,7 @@ from pyvale.valid.valtypes import (
 
 def calc_ecdf(samples: np.ndarray) -> ValECDF:
     """Calculate a 1D ECDF, omitting NaNs and preserving duplicate mass."""
-    observations = np.asarray(samples, dtype=np.float64)
-    if observations.ndim != 1 or np.any(np.isinf(observations)):
-        raise ValueError("ECDF samples must be 1D and cannot contain infinity.")
-    observations = observations[~np.isnan(observations)]
-    if not len(observations):
-        raise ValueError("ECDF needs at least one finite observation.")
+    observations = validate_finite_sample(samples, "samples")
     cdf = stats.ecdf(observations).cdf
     return ValECDF(cdf.quantiles, cdf.probabilities)
 
@@ -72,9 +68,7 @@ def calc_ecdf_envelope(
     """Pointwise ECDF bounds over coherent, supplied sample scenarios."""
     if not samples:
         raise ValueError("At least one sample scenario is required.")
-    if any(sample.ndim != 1 or np.any(np.isinf(sample)) for sample in samples):
-        raise ValueError("ECDF scenarios need finite or NaN 1D samples.")
-    clean = [np.sort(s[np.isfinite(s)]) for s in samples]
+    clean = [np.sort(validate_finite_sample(sample, "sample")) for sample in samples]
     if any(len(s) == 0 for s in clean):
         raise ValueError("Each ECDF scenario needs a finite observation.")
     support = np.unique(np.concatenate(clean))
@@ -141,19 +135,18 @@ def extract_aleatory_scenarios(
         if offset is None
         else (offset,)
     )
-    samples = [
-        quantity.select_aleatory(
-            point_idx,
-            component_idx,
-            time_idx,
-            epis_trans_idx=epis_trans_idx,
-            epis_nuis_idx=epis_nuis_idx,
-            offset=selected_offset,
+    samples = []
+    for trans_index, nuisance_index, selected_offset in product(*selections, offsets):
+        samples.append(
+            quantity.select_aleatory(
+                point_idx,
+                component_idx,
+                time_idx,
+                epis_trans_idx=trans_index,
+                epis_nuis_idx=nuisance_index,
+                offset=selected_offset,
+            )
         )
-        for epis_trans_idx, epis_nuis_idx, selected_offset in product(
-            *selections, offsets
-        )
-    ]
     return samples
 
 
@@ -163,7 +156,7 @@ def select_metric_part(
     *,
     selection_idxs: tuple[int | slice, ...] = (),
 ) -> np.ndarray:
-    """Select a metric array; balance is d_plus - d_minus, not total mismatch."""
+    """Borrow total/directional selections; allocate d_plus - d_minus for balance."""
     if not isinstance(part, EValMetricPart):
         raise TypeError("Metric part must be EValMetricPart.")
     if part is EValMetricPart.TOTAL:
@@ -185,29 +178,41 @@ def extract_metric_values(
     part: EValMetricPart = EValMetricPart.TOTAL,
 ) -> np.ndarray:
     """Retain one axis and select every other non-singleton result axis."""
-    selected = selectors or {}
-    if keep not in field.axes:
+    if not isinstance(keep, EValResAxis) or keep not in field.axes:
         raise ValueError(f"Result has no {keep} axis.")
-    if any(axis not in field.axes or axis == keep for axis in selected):
-        raise ValueError(
-            "Selectors must name stored axes other than the retained axis."
-        )
-    selection_idxs: list[int | slice] = []
+    selected = selectors or {}
+    if keep in selected:
+        raise ValueError("Selectors cannot name the retained axis.")
+    selection_idxs = build_metric_selection(field, selectors, keep=keep)
+    return select_metric_part(field, part, selection_idxs=tuple(selection_idxs))
+
+
+def build_metric_selection(
+    field: ValMetricField,
+    selectors: dict[EValResAxis, int] | None,
+    *,
+    keep: EValResAxis | None = None,
+) -> tuple[int | slice, ...]:
+    selected = selectors or {}
+    for axis in selected:
+        if not isinstance(axis, EValResAxis) or axis not in field.axes:
+            raise ValueError("Selectors must name stored result axes.")
+    selection = []
     for axis, size in zip(field.axes, field.metric.shape, strict=True):
-        if axis == keep:
-            selection_idxs.append(slice(None))
+        if axis == keep or (keep is None and axis not in selected):
+            selection.append(slice(None))
             continue
         if axis not in selected and size != 1:
             raise ValueError(f"Select a {axis} index before plotting.")
-        selection_idx = selected.get(axis, 0)
-        if isinstance(selection_idx, (bool, np.bool_)) or not isinstance(
-            selection_idx, (int, np.integer)
+        index = selected.get(axis, 0)
+        if isinstance(index, (bool, np.bool_)) or not isinstance(
+            index, (int, np.integer)
         ):
             raise TypeError(f"{axis} index must be an integer.")
-        if not 0 <= selection_idx < size:
-            raise IndexError(f"{axis} index {selection_idx} is outside [0, {size}).")
-        selection_idxs.append(selection_idx)
-    return select_metric_part(field, part, selection_idxs=tuple(selection_idxs))
+        if not 0 <= index < size:
+            raise IndexError(f"{axis} index {index} is outside [0, {size}).")
+        selection.append(index)
+    return tuple(selection)
 
 
 def create_metric_label(metric: EMetricType, part: EValMetricPart) -> str:
@@ -224,7 +229,7 @@ def create_metric_label(metric: EMetricType, part: EValMetricPart) -> str:
 
 def evaluate_ecdf_quantiles(cdf: ValECDF, probabilities: np.ndarray) -> np.ndarray:
     """Evaluate the inverse ECDF using the first support reaching each probability."""
-    probabilities = np.asarray(probabilities, dtype=np.float64)
+    probabilities = validate_real_array(probabilities, "probabilities", allow_nan=False)
     if probabilities.ndim != 1 or not np.all(np.isfinite(probabilities)):
         raise ValueError("Probabilities must be a finite one-dimensional array.")
     if np.any(probabilities < 0.0) or np.any(probabilities > 1.0):
@@ -297,7 +302,7 @@ def calc_mavm_correction(
     diagnostics, not a reduction to the largest MAVM across every model scenario.
     """
     comparisons = tuple(
-        calc_mavm_1d(model, experiment, alpha, duplicates, tol)
+        calc_mavm_1d(model, experiment, alpha=alpha, duplicates=duplicates, tol=tol)
         for experiment in (exp_lower, exp_upper)
         for model in (model_lower, model_upper)
     )

@@ -15,6 +15,7 @@ import pyvista as pv
 import pyvale.dataio as io
 import pyvale.sensorsim as sens
 import pyvale.valid as val
+from pyvale.valid import valvis
 
 
 @pytest.fixture
@@ -78,7 +79,7 @@ def test_overlay_preserves_xyz_ids_and_independent_scalar_bars(
         camera_position="iso",
         font_colour="navy",
     )
-    plotter = val.plot_val_metric_on_sim(
+    plotter = valvis.plot_val_metric_on_sim(
         result,
         "temperature",
         val.EMetricType.MAVM,
@@ -86,13 +87,13 @@ def test_overlay_preserves_xyz_ids_and_independent_scalar_bars(
         part=val.EValMetricPart.BALANCE,
         point_idxs=(2, 0, 3),
         sim_data=simulation,
-        sim_field=val.ValSimField(
+        sim_field=valvis.ValSimField(
             scalars, 1, sens.SensorDescriptor(name="Temperature", units="degC")
         ),
         sim_coord_units="mm",
         sim_coord_frame="cube",
         vis_opts=opts,
-        metric_opts=val.ValVisOpts(point_labels=("P0", "P1", "P2", "P3")),
+        metric_opts=valvis.ValVisOpts(point_labels=("P0", "P1", "P2", "P3")),
     )
     try:
         assert plotter.off_screen
@@ -105,10 +106,10 @@ def test_overlay_preserves_xyz_ids_and_independent_scalar_bars(
         assert metric_actor.mapper.scalar_range == (-2.0, 2.0)
         assert background_actor.mapper.scalar_range == (100.0, 400.0)
         assert len(plotter.scalar_bars) == 2
-        assert any("MAVM d+ − d−" in title for title in plotter.scalar_bars.keys())
+        assert any("MAVM d+ − d−" in title for title in plotter.scalar_bars.keys())  # noqa: SIM118
         assert any(
             "Simulation:" in title and "degC" in title
-            for title in plotter.scalar_bars.keys()
+            for title in plotter.scalar_bars.keys()  # noqa: SIM118
         )
         assert any(name.startswith("validation-labels") for name in plotter.actors)
         screenshot = plotter.screenshot(tmp_path / "overlay.png")
@@ -127,12 +128,12 @@ def test_magnitude_and_zero_balance_have_valid_colour_limits(
 ) -> None:
     result, _ = scene
     selectors = {val.EValResAxis.TIME: 0, val.EValResAxis.SIM_TRANS: 0}
-    plotter = val.plot_val_metric_on_sim(
+    plotter = valvis.plot_val_metric_on_sim(
         result, "temperature", val.EMetricType.MAVM, selectors=selectors
     )
     assert plotter.actors["validation-points"].mapper.scalar_range == (0.0, 3.0)
     plotter.close()
-    plotter = val.plot_val_metric_on_sim(
+    plotter = valvis.plot_val_metric_on_sim(
         result,
         "temperature",
         val.EMetricType.MAVM,
@@ -183,13 +184,13 @@ def test_overlay_rejects_misaligned_background(
 ) -> None:
     result, simulation = scene
     with pytest.raises(ValueError, match=message):
-        val.plot_val_metric_on_sim(
+        valvis.plot_val_metric_on_sim(
             result,
             "temperature",
             val.EMetricType.MAVM,
             selectors={val.EValResAxis.TIME: 1, val.EValResAxis.SIM_TRANS: 0},
             sim_data=simulation,
-            sim_field=val.ValSimField(values, time_idx, sens.SensorDescriptor()),
+            sim_field=valvis.ValSimField(values, time_idx, sens.SensorDescriptor()),
             sim_coord_units=units,
             sim_coord_frame=coord_frame,
         )
@@ -200,13 +201,13 @@ def test_signed_limits_must_be_symmetric(
 ) -> None:
     result, _ = scene
     with pytest.raises(ValueError, match="symmetric"):
-        val.plot_val_metric_on_sim(
+        valvis.plot_val_metric_on_sim(
             result,
             "temperature",
             val.EMetricType.MAVM,
             selectors={val.EValResAxis.TIME: 0, val.EValResAxis.SIM_TRANS: 0},
             part=val.EValMetricPart.BALANCE,
-            metric_opts=val.ValVisOpts(metric_colour_lims=(-1.0, 2.0)),
+            metric_opts=valvis.ValVisOpts(metric_colour_lims=(-1.0, 2.0)),
         )
 
 
@@ -220,7 +221,7 @@ def test_composition_preserves_existing_plotter_camera(
         [plotter.camera.position, plotter.camera.focal_point, plotter.camera.up]
     )
     try:
-        returned = val.plot_val_metric_on_sim(
+        returned = valvis.plot_val_metric_on_sim(
             result,
             "temperature",
             val.EMetricType.MAVM,

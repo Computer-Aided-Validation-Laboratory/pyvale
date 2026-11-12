@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import pyvale.valid as val
+from pyvale.valid import valplot
 
 matplotlib.use("Agg")
 
@@ -113,12 +114,12 @@ for metric_type, metric_field in metric_fields.items():
 # ------------------------------
 # Both source distributions appear in the legend. The title identifies the two
 # directional distances d+ and d- alongside the total MAVM.
-fig, ax = val.plot_val_cdfs(
+fig, ax = valplot.plot_val_cdfs(
     val_case,
     val_result,
     observable_tag,
     metric=mavm,
-    labels=val.ValPlotLabels(x_label="Observable [unit]"),
+    labels=valplot.ValPlotLabels(x_label="Observable [unit]"),
 )
 fig.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")
 

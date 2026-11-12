@@ -9,18 +9,25 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import cast
 
 import numpy as np
+from scipy import stats
 
-from pyvale.valid.constants import MAVM_AREA_TOLERANCE, METRIC_ZERO_TOLERANCE
+from pyvale.valid.constants import MAVM_AREA_TOLERANCE
+from pyvale.valid.cython.mavm import _calculate_mavm
+from pyvale.valid.inputvalidation import validate_mavm_config
 from pyvale.valid.metrics import (
-    EMAVMDuplicates,
-    MAVMResult,
+    ERelativeErrorNormalization,
     calc_avm_1d,
     calc_cvm_1d,
     calc_ks_1d,
     calc_mavm_1d,
+    calculate_relative_error,
+    validate_paired_samples,
+    validate_relative_error_config,
 )
+from pyvale.valid.valtypes import EMAVMDuplicates, MAVMResult
 
 
 class EMetricType(Enum):
@@ -61,6 +68,9 @@ class IValMetric(ABC):
 
 class MetricMAVM(IValMetric):
     __slots__ = ("alpha", "duplicates", "tol")
+    alpha: float
+    duplicates: EMAVMDuplicates
+    tol: float
 
     def __init__(
         self,
@@ -69,8 +79,7 @@ class MetricMAVM(IValMetric):
         duplicates: EMAVMDuplicates = EMAVMDuplicates.INCLUDE,
         tol: float = MAVM_AREA_TOLERANCE,
     ) -> None:
-        if not 0.0 < alpha < 1.0:
-            raise ValueError("MAVM alpha must be between zero and one.")
+        validate_mavm_config(alpha, duplicates, tol)
         self.alpha = alpha
         self.duplicates = duplicates
         self.tol = tol
@@ -79,7 +88,9 @@ class MetricMAVM(IValMetric):
         return EMetricType.MAVM
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> MAVMResult:
-        return calc_mavm_1d(sim, exp, self.alpha, self.duplicates, self.tol)
+        return calc_mavm_1d(
+            sim, exp, alpha=self.alpha, duplicates=self.duplicates, tol=self.tol
+        )
 
 
 class MetricAVM(IValMetric):
@@ -119,16 +130,8 @@ class MetricRMSE(IValMetric):
         return EMetricType.RMSE
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
-        sim_values = np.asarray(sim, dtype=np.float64)
-        exp_values = np.asarray(exp, dtype=np.float64)
-        if sim_values.ndim != 1 or sim_values.shape != exp_values.shape:
-            raise ValueError("RMSE requires equal-length paired 1D observations.")
-        if np.any(np.isinf(sim_values)) or np.any(np.isinf(exp_values)):
-            raise ValueError("RMSE observations cannot contain infinity.")
-        valid = np.isfinite(sim_values) & np.isfinite(exp_values)
-        if not np.any(valid):
-            raise ValueError("RMSE requires at least one valid pair.")
-        residual = sim_values[valid] - exp_values[valid]
+        sim_values, exp_values = validate_paired_samples(sim, exp)
+        residual = sim_values - exp_values
         return ScalarMetricResult(
             EMetricType.RMSE,
             float(np.sqrt(np.mean(residual * residual))),
@@ -136,21 +139,64 @@ class MetricRMSE(IValMetric):
 
 
 class MetricRelErr(IValMetric):
-    __slots__ = ()
+    __slots__ = ("constant", "normalization")
+    normalization: ERelativeErrorNormalization
+    constant: float | None
+
+    def __init__(
+        self,
+        *,
+        normalization: ERelativeErrorNormalization = ERelativeErrorNormalization.EXPERIMENT_MAX,
+        constant: float | None = None,
+    ) -> None:
+        validate_relative_error_config(normalization, constant)
+        self.normalization = normalization
+        self.constant = constant
 
     def get_kind(self) -> EMetricType:
         return EMetricType.RELATIVE_ERROR
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
-        sim_values = np.asarray(sim, dtype=np.float64)
-        exp_values = np.asarray(exp, dtype=np.float64)
-        if sim_values.ndim != 1 or sim_values.shape != exp_values.shape:
-            raise ValueError("Relative error requires paired 1D observations.")
-        if np.any(np.isinf(sim_values)) or np.any(np.isinf(exp_values)):
-            raise ValueError("Relative error observations cannot contain infinity.")
-        valid = np.isfinite(sim_values) & np.isfinite(exp_values)
-        if not np.any(valid):
-            raise ValueError("Relative error requires at least one valid pair.")
-        denominator = np.maximum(np.abs(exp_values[valid]), METRIC_ZERO_TOLERANCE)
-        value = np.mean(np.abs(sim_values[valid] - exp_values[valid]) / denominator)
-        return ScalarMetricResult(EMetricType.RELATIVE_ERROR, float(value))
+        simulation, experiment = validate_paired_samples(sim, exp)
+        return ScalarMetricResult(
+            EMetricType.RELATIVE_ERROR,
+            calculate_relative_error(
+                simulation, experiment, self.normalization, self.constant
+            ),
+        )
+
+
+def calculate_trusted_metric(
+    metric: IValMetric, sim: np.ndarray, exp: np.ndarray
+) -> MetricResult:
+    """Calculate on validated engine arrays, omitting missing observations."""
+    kind = metric.get_kind()
+    simulation, experiment = sim, exp
+    if type(metric) in (MetricRMSE, MetricRelErr):
+        if not len(simulation):
+            return ScalarMetricResult(kind, float("nan"))
+        if isinstance(metric, MetricRelErr):
+            value = calculate_relative_error(
+                simulation, experiment, metric.normalization, metric.constant
+            )
+        else:
+            residual = simulation - experiment
+            value = float(np.sqrt(np.mean(residual * residual)))
+        return ScalarMetricResult(kind, value)
+    if type(metric) is MetricMAVM:
+        return _calculate_mavm(
+            simulation, experiment, metric.alpha, metric.duplicates, metric.tol
+        )
+    if type(metric) is MetricAVM:
+        return ScalarMetricResult(
+            kind, float(stats.wasserstein_distance(simulation, experiment))
+        )
+    if type(metric) is MetricKS:
+        return ScalarMetricResult(
+            kind, float(cast(float, stats.ks_2samp(simulation, experiment)[0]))
+        )
+    if type(metric) is MetricCVM:
+        return ScalarMetricResult(
+            kind, float(stats.cramervonmises_2samp(simulation, experiment).statistic)
+        )
+    return metric.calc(sim, exp)

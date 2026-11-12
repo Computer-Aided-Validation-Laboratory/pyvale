@@ -17,8 +17,8 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-from pyvale.valid import cyth_calc_mavm_1d, cyth_calc_mavm_pbox_1d
 from pyvale.valid.constants import MAVM_DUPLICATE_TOLERANCE
+from pyvale.valid.cython import cyth_calc_mavm_1d, cyth_calc_mavm_pbox_1d
 from pyvale.valid.metrics import (
     EMAVMDuplicates,
     MAVMResult,

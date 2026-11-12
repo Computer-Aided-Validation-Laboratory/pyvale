@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import pyvale.valid as val
+import pyvale.valid.converttovaldata as valconvert
 
 
 def _domain(points: int = 2) -> val.ValDomain:
@@ -79,7 +80,7 @@ def test_engine_retains_sampled_epistemic_scenarios_and_offsets() -> None:
         for trans in range(2):
             for offset in range(3):
                 selected = val_case.exp["temperature"].select_aleatory(
-                    point, 0, 0, offset=offset
+                    point, 0, 0, offset=val.EEpisOffset(offset)
                 )
                 expected = val.calc_avm_1d(simulation[point, 0, trans], selected)
                 assert field.metric[point, 0, 0, trans, offset] == pytest.approx(
@@ -140,7 +141,7 @@ def test_combine_cases_preserves_transient_run_pairing() -> None:
         )
         for i in (1.0, 2.0)
     ]
-    joined = val.combine_val_cases(*cases)
+    joined = valconvert.combine_val_cases(*cases)
     np.testing.assert_array_equal(
         joined.exp["temperature"].data, [[[[1.0, 2.0], [11.0, 12.0]]]]
     )
@@ -158,7 +159,7 @@ def test_combine_cases_preserves_parameter_provenance() -> None:
         )
         exp = {"temperature": val.ValArray(np.array([[parameter]]), axes)}
         cases.append(val.ValCase(domain, sim, exp, exp_inputs=inputs))
-    joined = val.combine_val_cases(*cases)
+    joined = valconvert.combine_val_cases(*cases)
     np.testing.assert_array_equal(
         joined.exp_inputs.parameters["loading"].data, [10.0, 20.0]
     )
@@ -171,8 +172,10 @@ def test_sensor_sim_bridge_retains_component_and_run_values() -> None:
         ("plate", "strain", "meas"): values,
         ("plate", "strain", "sens_times"): np.array([0.0, 1.0]),
     }
-    converted = val.conv_exp_sim_to_data(
-        output, sim_key="plate", selections={"strain_xy": ("strain", 1, coords)}
+    converted = valconvert.conv_exp_sim_to_data(
+        output,
+        sim_key="plate",
+        selections={"strain_xy": valconvert.ObservableSelection("strain", 1, coords)},
     )
     assert len(converted) == 2
     np.testing.assert_array_equal(converted[1]["strain_xy"].fields, values[1, :, 1, :])
@@ -242,8 +245,12 @@ def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
         for en in range(3):
             for so in range(3):
                 for eo in range(3):
-                    left = sim.select_aleatory(0, 0, 0, epis_trans_idx=st, offset=so)
-                    right = exp.select_aleatory(0, 0, 0, epis_nuis_idx=en, offset=eo)
+                    left = sim.select_aleatory(
+                        0, 0, 0, epis_trans_idx=st, offset=val.EEpisOffset(so)
+                    )
+                    right = exp.select_aleatory(
+                        0, 0, 0, epis_nuis_idx=en, offset=val.EEpisOffset(eo)
+                    )
                     assert field.metric[0, 0, 0, st, en, so, eo] == pytest.approx(
                         val.calc_avm_1d(left, right)
                     )
@@ -273,7 +280,7 @@ def test_combine_cases_preserves_simulation_provenance() -> None:
     val_case = val.ValCase(
         _domain(points=1), quantities, quantities, sim_inputs=sim_inputs
     )
-    combined = val.combine_val_cases(val_case, val_case)
+    combined = valconvert.combine_val_cases(val_case, val_case)
     assert combined.sim_inputs is sim_inputs
     np.testing.assert_array_equal(combined.sim_inputs.run_ids.data, ["sim_0", "sim_1"])
     assert combined.exp["temperature"].data.shape == (1, 1, 4)

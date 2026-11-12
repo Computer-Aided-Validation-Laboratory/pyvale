@@ -13,6 +13,8 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.valid as val
+import pyvale.valid.converttovaldata as valconvert
+from pyvale.valid import valplot, valvis
 
 
 def test_prepared_plate_gold_metrics() -> None:
@@ -54,22 +56,30 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
     nominal_path = dataset.thermomechanical_2d_experiment_paths()[0]
     sim_data = mh.ExodusLoader(nominal_path).load_all_sim_data()
     sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
-    field = sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD)
-    sim = val.val_from_sim({"temperature": field}, domain, [((), sim_data)])
+    sim = valconvert.convert_sim_to_val(
+        {
+            "temperature": lambda simulation: sens.FieldScalar(
+                simulation, "temperature", sens.EDim.TWOD
+            )
+        },
+        domain,
+        [((), sim_data)],
+    )
 
     output = {
         ("perturbed", "temp", "meas"): measured,
         ("perturbed", "temp", "sens_times"): times,
     }
-    acquisitions = val.conv_exp_sim_to_data(
+    acquisitions = valconvert.conv_exp_sim_to_data(
         output,
         sim_key="perturbed",
-        selections={"temperature": ("temp", 0, coords)},
+        selections={"temperature": valconvert.ObservableSelection("temp", 0, coords)},
     )
     cases = [
-        val.ValCase(domain, sim, val.val_from_exp(run, domain)) for run in acquisitions
+        val.ValCase(domain, sim, valconvert.convert_exp_to_val(run, domain))
+        for run in acquisitions
     ]
-    converted = val.combine_val_cases(*cases)
+    converted = valconvert.combine_val_cases(*cases)
 
     direct_sim = {
         "temperature": val.ValArray(
@@ -137,8 +147,13 @@ def test_global_and_spatial_average_simulation_extraction() -> None:
         }
     )
     field = sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD)
-    result = val.val_from_sim(
-        {"temperature_average": field, "global_temperature": None},
+    result = valconvert.convert_sim_to_val(
+        {
+            "temperature_average": lambda simulation: sens.FieldScalar(
+                simulation, "temperature", sens.EDim.TWOD
+            ),
+            "global_temperature": None,
+        },
         domain,
         [((), sim_data)],
         sensor_data={"temperature_average": average_sensor},
@@ -157,7 +172,7 @@ def test_global_and_spatial_average_simulation_extraction() -> None:
 def test_diagnostic_plots_show_units_and_registered_axes() -> None:
     val_case = load_plate_case(transient=True)
     result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(val_case)
-    fig_cdf, ax_cdf = val.plot_val_cdfs(
+    fig_cdf, ax_cdf = valplot.plot_val_cdfs(
         val_case,
         result,
         "temperature",
@@ -167,7 +182,7 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
     )
     assert "degC" in ax_cdf.get_xlabel()
     assert len(ax_cdf.lines) == 4
-    pv_plot = val.plot_val_metric_on_sim(
+    pv_plot = valvis.plot_val_metric_on_sim(
         result,
         "temperature",
         val.EMetricType.AVM,
@@ -175,11 +190,11 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
     )
     assert pv_plot.actors["validation-points"].mapper.dataset.n_points == 12
     pv_plot.close()
-    fig_time, ax_time = val.plot_val_metric_time(
+    fig_time, ax_time = valplot.plot_val_metric_time(
         result,
         "temperature",
         val.EMetricType.AVM,
-        selectors={"point": 5},
+        selectors={val.EValResAxis.POINT: 5},
     )
     np.testing.assert_array_equal(
         ax_time.lines[0].get_xdata(), val_case.domain.observables["temperature"].times

@@ -11,6 +11,10 @@ Metric (AVM / 1-Wasserstein), Kolmogorov-Smirnov distance, Cramér-von Mises,
 U-pooling, and deterministic error metrics.
 """
 
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import cast
+
 import numpy as np
 from scipy import stats
 
@@ -19,16 +23,17 @@ from pyvale.valid.constants import (
     METRIC_ZERO_TOLERANCE,
 )
 from pyvale.valid.cython.mavm import (
-    _finite_1d,
     cyth_calc_mavm_1d,
     cyth_calc_mavm_pbox_1d,
 )
-from pyvale.valid.valtypes import EMAVMDuplicates, MAVMResult
+from pyvale.valid.inputvalidation import validate_finite_sample, validate_real_array
+from pyvale.valid.valtypes import EMAVMDuplicates, MAVMResult, ValECDF
 
 
 def calc_mavm_1d(
     model_data: np.ndarray,
     exp_data: np.ndarray,
+    *,
     alpha: float = 0.05,
     duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
@@ -46,8 +51,9 @@ def calc_mavm_1d(
     exp_data : np.ndarray
         1D array of experimental observation values.
     alpha : float, optional
-        Significance level for the Student's t confidence interval (default 0.05
-        corresponding to a 95% confidence band).
+        Legacy Student's t quantile parameter: t.ppf(1-alpha, n_unique-1).
+        Confidence shifts use the population standard deviation of unique
+        experimental support divided by sqrt(n_unique), including with INCLUDE.
     duplicates : EMAVMDuplicates, optional
         REJECT preserves fullfieldvalmetrics behaviour and requires unique
         observations. INCLUDE supports repeated observations using weighted ECDF
@@ -67,6 +73,7 @@ def calc_mavm_pbox_1d(
     model_pbox_min: np.ndarray,
     model_pbox_max: np.ndarray,
     exp_data: np.ndarray,
+    *,
     alpha: float = 0.05,
     duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
@@ -83,7 +90,7 @@ def calc_mavm_pbox_1d(
     exp_data : np.ndarray
         1D experimental observation samples.
     alpha : float, optional
-        Confidence level significance (default 0.05 for 95% CI).
+        Legacy Student's t quantile parameter; see calc_mavm_1d.
     duplicates : EMAVMDuplicates, optional
         MAVM empirical-CDF integration algorithm.
     tol : float, optional
@@ -117,9 +124,9 @@ def calc_avm_1d(
     float
         1-Wasserstein / AVM distance between model and experiment.
     """
-    u_vals = _finite_1d(model_data, "model_data")
-    v_vals = _finite_1d(exp_data, "exp_data")
-    return float(stats.wasserstein_distance(u_vals, v_vals))
+    model_samples = validate_finite_sample(model_data, "model_data")
+    experimental_samples = validate_finite_sample(exp_data, "exp_data")
+    return float(stats.wasserstein_distance(model_samples, experimental_samples))
 
 
 def calc_ks_1d(
@@ -140,10 +147,10 @@ def calc_ks_1d(
     float
         Two-sample Kolmogorov-Smirnov test statistic.
     """
-    u_vals = _finite_1d(model_data, "model_data")
-    v_vals = _finite_1d(exp_data, "exp_data")
-    res = stats.ks_2samp(u_vals, v_vals)
-    return float(res.statistic)
+    model_samples = validate_finite_sample(model_data, "model_data")
+    experimental_samples = validate_finite_sample(exp_data, "exp_data")
+    statistic_result = stats.ks_2samp(model_samples, experimental_samples)
+    return float(cast(float, statistic_result[0]))
 
 
 def calc_cvm_1d(
@@ -164,89 +171,136 @@ def calc_cvm_1d(
     float
         Two-sample Cramér-von Mises test statistic.
     """
-    u_vals = _finite_1d(model_data, "model_data")
-    v_vals = _finite_1d(exp_data, "exp_data")
-    res = stats.cramervonmises_2samp(u_vals, v_vals)
-    return float(res.statistic)
+    model_samples = validate_finite_sample(model_data, "model_data")
+    experimental_samples = validate_finite_sample(exp_data, "exp_data")
+    statistic_result = stats.cramervonmises_2samp(model_samples, experimental_samples)
+    return float(statistic_result.statistic)
 
 
-def calc_u_pooling_1d(
-    model_cdfs: list[tuple[np.ndarray, np.ndarray]],
-    exp_obs: np.ndarray,
+class ERelativeErrorNormalization(Enum):
+    EXPERIMENT_MAX = auto()
+    SIMULATION_MAX = auto()
+    CONSTANT = auto()
+
+
+@dataclass(slots=True)
+class DeterministicMetricResult:
+    absolute_error: float
+    relative_error: float
+    rmse: float
+    nmse: float
+
+
+def validate_relative_error_config(
+    normalization: ERelativeErrorNormalization,
+    constant: float | None,
+) -> None:
+    if not isinstance(normalization, ERelativeErrorNormalization):
+        raise TypeError("Normalization must be ERelativeErrorNormalization.")
+    if normalization is ERelativeErrorNormalization.CONSTANT:
+        if (
+            constant is None
+            or not isinstance(constant, (int, float, np.integer, np.floating))
+            or isinstance(constant, (bool, np.bool_))
+            or not np.isfinite(constant)
+            or constant <= 0
+        ):
+            raise ValueError(
+                "Constant normalization requires a positive finite constant."
+            )
+    elif constant is not None:
+        raise ValueError("A normalization constant requires CONSTANT normalization.")
+
+
+def calculate_relative_error(
+    simulation: np.ndarray,
+    experiment: np.ndarray,
+    normalization: ERelativeErrorNormalization,
+    constant: float | None,
 ) -> float:
-    """Calculates Ferson U-pooling validation metric.
+    if normalization is ERelativeErrorNormalization.EXPERIMENT_MAX:
+        denominator = float(np.max(np.abs(experiment)))
+    elif normalization is ERelativeErrorNormalization.SIMULATION_MAX:
+        denominator = float(np.max(np.abs(simulation)))
+    else:
+        assert constant is not None
+        denominator = constant
+    if denominator == 0:
+        return float("nan")
+    return float(np.mean(np.abs(simulation - experiment)) / denominator)
 
-    Transforms experimental observations through corresponding model CDFs and
-    measures the distance of the transformed sample distribution from U(0, 1).
 
-    Parameters
-    ----------
-    model_cdfs : list[tuple[np.ndarray, np.ndarray]]
-        List of (probabilities, quantiles) pairs for each test condition.
-    exp_obs : np.ndarray
-        1D array of experimental observations corresponding to each model CDF.
-
-    Returns
-    -------
-    float
-        Wasserstein distance between the pooled u-values and Uniform(0, 1).
-    """
-    observations = np.asarray(exp_obs, dtype=np.float64)
-    if observations.ndim != 1 or not np.all(np.isfinite(observations)):
-        raise ValueError("U-pooling needs finite paired 1D observations.")
+def calc_u_pooling_1d(model_cdfs: list[ValECDF], exp_obs: np.ndarray) -> float:
+    """Evaluate right-continuous ECDFs and integrate distance to continuous U(0,1)."""
+    observations = validate_real_array(exp_obs, "exp_obs", allow_nan=False)
+    if observations.ndim != 1 or not len(observations):
+        raise ValueError("U-pooling needs nonempty paired 1D observations.")
     if len(model_cdfs) != len(observations):
         raise ValueError("One model CDF is required per observation.")
-    u_samples = []
-    for (probs, quants), obs in zip(model_cdfs, observations, strict=True):
-        # Interpolate empirical CDF probability at observed value
-        u_val = float(np.interp(obs, quants, probs, left=0.0, right=1.0))
-        u_samples.append(u_val)
+    if any(not isinstance(cdf, ValECDF) for cdf in model_cdfs):
+        raise TypeError("Model CDFs must be ValECDF records.")
+    transformed = np.empty(len(observations), dtype=np.float64)
+    for index, (cdf, observation) in enumerate(
+        zip(model_cdfs, observations, strict=True)
+    ):
+        support_index = np.searchsorted(cdf.quantiles, observation, side="right") - 1
+        transformed[index] = (
+            0.0 if support_index < 0 else cdf.probabilities[support_index]
+        )
+    transformed.sort()
+    count = len(transformed)
+    lower_probabilities = np.arange(count) / count
+    upper_probabilities = np.arange(1, count + 1) / count
+    # Antiderivative of |p - u| is (p - u)|p - u| / 2.
+    lower_distance = lower_probabilities - transformed
+    upper_distance = upper_probabilities - transformed
+    return float(
+        np.sum(
+            (
+                upper_distance * np.abs(upper_distance)
+                - lower_distance * np.abs(lower_distance)
+            )
+            / 2
+        )
+    )
 
-    u_arr = np.array(u_samples)
-    uniform_ref = np.linspace(0.0, 1.0, len(u_arr))
-    return float(stats.wasserstein_distance(u_arr, uniform_ref))
+
+def validate_paired_samples(
+    simulation: float | np.ndarray,
+    experiment: float | np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    simulation_array = np.atleast_1d(validate_real_array(simulation, "simulation"))
+    experiment_array = np.atleast_1d(validate_real_array(experiment, "experiment"))
+    if simulation_array.ndim != 1 or simulation_array.shape != experiment_array.shape:
+        raise ValueError("Deterministic metrics require paired 1D observations.")
+    paired = ~np.isnan(simulation_array) & ~np.isnan(experiment_array)
+    if not np.any(paired):
+        raise ValueError("Deterministic metrics need a finite observation pair.")
+    return simulation_array[paired].astype(np.float64), experiment_array[paired].astype(
+        np.float64
+    )
 
 
 def calc_deterministic_metrics_1d(
     sim_val: float | np.ndarray,
     exp_val: float | np.ndarray,
-) -> dict[str, float]:
-    """Calculates classical deterministic error metrics between arrays or
-    scalars.
-
-    Returns
-    -------
-    dict[str, float]
-        Dictionary with absolute_error, relative_error, rmse, and nmse.
-    """
-    sim_arr = np.atleast_1d(np.asarray(sim_val, dtype=np.float64))
-    exp_arr = np.atleast_1d(np.asarray(exp_val, dtype=np.float64))
-    if sim_arr.ndim != 1 or exp_arr.ndim != 1 or sim_arr.shape != exp_arr.shape:
-        raise ValueError("Deterministic metrics require paired 1D observations.")
-    if np.any(np.isinf(sim_arr)) or np.any(np.isinf(exp_arr)):
-        raise ValueError("Deterministic observations cannot contain infinity.")
-    valid = np.isfinite(sim_arr) & np.isfinite(exp_arr)
-    if not np.any(valid):
-        raise ValueError("Deterministic metrics need a finite observation pair.")
-    sim_arr = sim_arr[valid]
-    exp_arr = exp_arr[valid]
-
-    abs_err = np.abs(sim_arr - exp_arr)
-    denom = np.where(
-        np.abs(exp_arr) > METRIC_ZERO_TOLERANCE,
-        np.abs(exp_arr),
-        1.0,
+    *,
+    normalization: ERelativeErrorNormalization = ERelativeErrorNormalization.EXPERIMENT_MAX,
+    constant: float | None = None,
+) -> DeterministicMetricResult:
+    """Return paired errors; NMSE is NaN for variance at or below the zero tolerance."""
+    validate_relative_error_config(normalization, constant)
+    simulation, experiment = validate_paired_samples(sim_val, exp_val)
+    residual = simulation - experiment
+    mean_square_error = float(np.mean(residual * residual))
+    experimental_variance = float(np.var(experiment))
+    return DeterministicMetricResult(
+        absolute_error=float(np.mean(np.abs(residual))),
+        relative_error=calculate_relative_error(
+            simulation, experiment, normalization, constant
+        ),
+        rmse=float(np.sqrt(mean_square_error)),
+        nmse=mean_square_error / experimental_variance
+        if experimental_variance > METRIC_ZERO_TOLERANCE
+        else float("nan"),
     )
-    rel_err = abs_err / denom
-
-    mse = float(np.mean((sim_arr - exp_arr) ** 2))
-    rmse = float(np.sqrt(mse))
-    var_exp = float(np.var(exp_arr))
-    nmse = float(mse / var_exp) if var_exp > METRIC_ZERO_TOLERANCE else float(mse)
-
-    return {
-        "absolute_error": float(np.mean(abs_err)),
-        "relative_error": float(np.mean(rel_err)),
-        "rmse": rmse,
-        "nmse": nmse,
-    }

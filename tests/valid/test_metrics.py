@@ -25,6 +25,7 @@ from pyvale.valid.metricstrategy import (
     MetricRelErr,
     MetricRMSE,
 )
+from pyvale.valid.valtypes import ValECDF
 
 
 def test_avm_1d_shift() -> None:
@@ -61,9 +62,9 @@ def test_cvm_separated_small_samples() -> None:
 
 def test_u_pooling_1d() -> None:
     """U-pooling metric produces near zero for matching observations."""
-    probs = np.linspace(0.0, 1.0, 100)
+    probs = np.linspace(0.01, 1.0, 100)
     quants = np.linspace(0.0, 10.0, 100)
-    cdfs = [(probs, quants) for _ in range(50)]
+    cdfs = [ValECDF(quants, probs) for _ in range(50)]
     obs = np.linspace(0.0, 10.0, 50)
 
     u_metric = calc_u_pooling_1d(cdfs, obs)
@@ -77,8 +78,8 @@ def test_deterministic_metrics() -> None:
     exp = np.array([10.0, 22.0, 28.0])
 
     res = calc_deterministic_metrics_1d(sim, exp)
-    assert res["absolute_error"] == pytest.approx(4.0 / 3.0)
-    assert res["rmse"] == pytest.approx(np.sqrt(8.0 / 3.0))
+    assert res.absolute_error == pytest.approx(4.0 / 3.0)
+    assert res.rmse == pytest.approx(np.sqrt(8.0 / 3.0))
 
 
 def test_strategy_pattern_metrics() -> None:

@@ -11,6 +11,8 @@ from math import ceil, sqrt
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
 from pyvale.sensorsim.visualopts import PlotOptsGeneral
@@ -21,6 +23,7 @@ from pyvale.valid.valengine import (
     ValResult,
 )
 from pyvale.valid.valtools import (
+    build_metric_selection,
     calc_ecdf,
     calc_ecdf_summary,
     create_metric_label,
@@ -59,8 +62,8 @@ class ValPlotLabels:
 
 
 def _apply_plot_options(
-    fig: plt.Figure,
-    ax: plt.Axes,
+    fig: Figure,
+    ax: Axes,
     plot_opts: PlotOptsGeneral | None,
     labels: ValPlotLabels | None,
 ) -> None:
@@ -95,10 +98,12 @@ def _apply_plot_options(
 
 
 def _create_axes(
-    ax: plt.Axes | None, plot_opts: PlotOptsGeneral | None
-) -> tuple[plt.Figure, plt.Axes]:
+    ax: Axes | None, plot_opts: PlotOptsGeneral | None
+) -> tuple[Figure, Axes]:
     if ax is not None:
-        return ax.figure, ax
+        figure = ax.get_figure(root=True)
+        assert figure is not None
+        return figure, ax
     options = PlotOptsGeneral() if plot_opts is None else plot_opts
     return plt.subplots(figsize=options.single_fig_size_landscape, layout="constrained")
 
@@ -126,16 +131,26 @@ def plot_val_cdfs(
     metric: MetricMAVM | None = None,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
-    ax: plt.Axes | None = None,
-) -> tuple[plt.Figure, plt.Axes]:
+    ax: Axes | None = None,
+) -> tuple[Figure, Axes]:
     """Show the exact conditional samples compared at one physical cell."""
     if observable not in result.fields:
         raise KeyError(observable)
     sim = val_case.sim[observable].select_aleatory(
-        point_idx, component_idx, time_idx, sim_trans_idx, sim_nuis_idx, sim_offset
+        point_idx,
+        component_idx,
+        time_idx,
+        epis_trans_idx=sim_trans_idx,
+        epis_nuis_idx=sim_nuis_idx,
+        offset=sim_offset,
     )
     exp = val_case.exp[observable].select_aleatory(
-        point_idx, component_idx, time_idx, exp_trans_idx, exp_nuis_idx, exp_offset
+        point_idx,
+        component_idx,
+        time_idx,
+        epis_trans_idx=exp_trans_idx,
+        epis_nuis_idx=exp_nuis_idx,
+        offset=exp_offset,
     )
     sim = sim[np.isfinite(sim)]
     exp = exp[np.isfinite(exp)]
@@ -145,7 +160,9 @@ def plot_val_cdfs(
     support_min = min(np.min(sim), np.min(exp))
     support_max = max(np.max(sim), np.max(exp))
     if metric is not None:
-        raw = calc_mavm_1d(sim, exp, metric.alpha, metric.duplicates, metric.tol)
+        raw = calc_mavm_1d(
+            sim, exp, alpha=metric.alpha, duplicates=metric.duplicates, tol=metric.tol
+        )
         support_min = min(support_min, np.min(raw.exp_conf_lower))
         support_max = max(support_max, np.max(raw.exp_conf_upper))
     margin = max((support_max - support_min) * 0.02, 1.0e-12)
@@ -206,12 +223,12 @@ def plot_val_cdf_envelope(
     offset: EEpisOffset | None = None,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
-    ax: plt.Axes | None = None,
-) -> tuple[plt.Figure, plt.Axes]:
+    ax: Axes | None = None,
+) -> tuple[Figure, Axes]:
     """Plot pointwise envelope of complete conditional CDF scenarios."""
     if not isinstance(source, EValSource):
         raise TypeError("Source must be EValSource.SIM or EValSource.EXP.")
-    quantity = getattr(val_case, source)[observable]
+    quantity = (val_case.sim if source is EValSource.SIM else val_case.exp)[observable]
     support, lower, upper = extract_ecdf_envelope(
         quantity,
         point_idx=point_idx,
@@ -264,8 +281,8 @@ def plot_val_metric_time(
     part: EValMetricPart = EValMetricPart.TOTAL,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
-    ax: plt.Axes | None = None,
-) -> tuple[plt.Figure, plt.Axes]:
+    ax: Axes | None = None,
+) -> tuple[Figure, Axes]:
     """Plot one selected metric scenario against physical time."""
     field = result.get(observable, metric)
     selected = extract_metric_values(
@@ -300,13 +317,11 @@ def plot_val_metric_distribution(
     selectors: dict[EValResAxis, int] | None = None,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
-    ax: plt.Axes | None = None,
-) -> tuple[plt.Figure, plt.Axes]:
+    ax: Axes | None = None,
+) -> tuple[Figure, Axes]:
     """Histogram finite metric values over selected physical/scenario cells."""
     field = result.get(observable, metric)
-    selection_idx = tuple(
-        (selectors or {}).get(axis, slice(None)) for axis in field.axes
-    )
+    selection_idx = build_metric_selection(field, selectors)
     selected_field = select_metric_part(field, part, selection_idxs=selection_idx)
     values = selected_field.ravel()
     values = values[np.isfinite(values)]
@@ -330,16 +345,24 @@ def create_val_plot_grid(
     rows: int | None = None,
     columns: int | None = None,
     plot_opts: PlotOptsGeneral | None = None,
-) -> tuple[plt.Figure, np.ndarray]:
+) -> tuple[Figure, np.ndarray]:
     """Create landscape diagnostic panels using standard plot options.
 
     Returns a two-dimensional axes array, hiding spare panels. Supply a panel
     count and optionally rows, columns or both to control the grid.
     """
-    if not isinstance(point_count, int) or point_count < 1:
+    if (
+        isinstance(point_count, (bool, np.bool_))
+        or not isinstance(point_count, (int, np.integer))
+        or point_count < 1
+    ):
         raise ValueError("Supply a positive point count.")
     for count in (rows, columns):
-        if count is not None and (not isinstance(count, int) or count < 1):
+        if count is not None and (
+            isinstance(count, (bool, np.bool_))
+            or not isinstance(count, (int, np.integer))
+            or count < 1
+        ):
             raise ValueError(
                 "Supply positive integer rows and columns for the point grid."
             )
@@ -380,7 +403,7 @@ def plot_val_cdf_envelope_points(
     columns: int | None = None,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
-) -> tuple[plt.Figure, np.ndarray]:
+) -> tuple[Figure, np.ndarray]:
     """Plot conditional ECDF envelopes for selected physical observation points.
 
     ``point_idxs=None`` selects every point in domain order; an explicit tuple keeps
@@ -398,12 +421,26 @@ def plot_val_cdf_envelope_points(
         tuple(range(point_count)) if point_idxs is None else point_idxs
     )
     if any(
-        not isinstance(point_idx, (int, np.integer))
+        isinstance(point_idx, (bool, np.bool_))
+        or not isinstance(point_idx, (int, np.integer))
         or point_idx < 0
         or point_idx >= point_count
         for point_idx in selected_point_idxs
     ):
         raise ValueError("Point indices must identify points in the observable domain.")
+    quantity = (val_case.sim if source is EValSource.SIM else val_case.exp)[observable]
+    for point_idx in selected_point_idxs:
+        samples = extract_aleatory_scenarios(
+            quantity,
+            point_idx=point_idx,
+            component_idx=component_idx,
+            time_idx=time_idx,
+            epis_trans_idx=epis_trans_idx,
+            epis_nuis_idx=epis_nuis_idx,
+            offset=offset,
+        )
+        if any(not np.any(np.isfinite(sample)) for sample in samples):
+            raise ValueError("Each ECDF scenario needs a finite observation.")
     options = PlotOptsGeneral() if plot_opts is None else plot_opts
     fig, axes = create_val_plot_grid(
         len(selected_point_idxs), columns=columns, plot_opts=options, rows=rows
@@ -455,12 +492,27 @@ def plot_val_cdfs_points(
     columns: int = 3,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
-) -> tuple[plt.Figure, np.ndarray]:
+) -> tuple[Figure, np.ndarray]:
     """Compare simulation and experiment at each point in a subplot grid.
 
     The returned axes array always has shape (rows, columns). Unused panels are
     hidden. Each panel identifies its point, component and physical time.
     """
+    for point_idx in point_idxs:
+        for quantity, trans, nuisance, offset in (
+            (val_case.sim[observable], sim_trans_idx, sim_nuis_idx, sim_offset),
+            (val_case.exp[observable], exp_trans_idx, exp_nuis_idx, exp_offset),
+        ):
+            samples = quantity.select_aleatory(
+                point_idx,
+                component_idx,
+                time_idx,
+                epis_trans_idx=trans,
+                epis_nuis_idx=nuisance,
+                offset=offset,
+            )
+            if not np.any(np.isfinite(samples)):
+                raise ValueError("Selected cell has no finite observations.")
     fig, axes = create_val_plot_grid(
         len(point_idxs), columns=columns, plot_opts=plot_opts
     )
@@ -509,8 +561,19 @@ def plot_val_metric_time_points(
     columns: int = 3,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
-) -> tuple[plt.Figure, np.ndarray]:
+) -> tuple[Figure, np.ndarray]:
     """Plot the same selected scenario over time for multiple point panels."""
+    if result.domain.observables[observable].times is None:
+        raise ValueError("Time plot requires physical time coordinates.")
+    for point_idx in point_idxs:
+        selected = dict(selectors or {})
+        selected[EValResAxis.POINT] = point_idx
+        extract_metric_values(
+            result.get(observable, metric),
+            keep=EValResAxis.TIME,
+            selectors=selected,
+            part=part,
+        )
     fig, axes = create_val_plot_grid(
         len(point_idxs), columns=columns, plot_opts=plot_opts
     )
@@ -535,7 +598,7 @@ def plot_val_metric_time_points(
 
 
 def _plot_quantile_curve(
-    ax: plt.Axes,
+    ax: Axes,
     quantiles: np.ndarray,
     probabilities: np.ndarray,
     *,
@@ -556,7 +619,7 @@ def _plot_quantile_curve(
 
 
 def _plot_distribution_summary(
-    ax: plt.Axes,
+    ax: Axes,
     summary: ValECDFSummary,
     *,
     color: str,
@@ -607,8 +670,8 @@ def plot_val_ecdf_family(
     bounds: EValECDFBounds = EValECDFBounds.POINTWISE,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
-    ax: plt.Axes | None = None,
-) -> tuple[plt.Figure, plt.Axes]:
+    ax: Axes | None = None,
+) -> tuple[Figure, Axes]:
     """Show all conditional ECDFs, their mean quantile curve and selected bounds."""
     samples = extract_aleatory_scenarios(
         quantity,
@@ -648,8 +711,8 @@ def plot_val_mavm_diagnostic(
     view: EValMAVMDiagnostic = EValMAVMDiagnostic.DISTRIBUTIONS,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
-    ax: plt.Axes | None = None,
-) -> tuple[plt.Figure, plt.Axes]:
+    ax: Axes | None = None,
+) -> tuple[Figure, Axes]:
     """Compare uncertainty bands, endpoint corrections or the outer MAVM support band.
 
     Correction views shift model support by scalar MAVM distances. The filled

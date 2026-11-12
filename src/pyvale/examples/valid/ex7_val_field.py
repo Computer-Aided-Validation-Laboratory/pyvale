@@ -22,6 +22,8 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.valid as val
+import pyvale.valid.converttovaldata as valconvert
+from pyvale.valid import valplot, valvis
 
 matplotlib.use("Agg")
 
@@ -56,7 +58,7 @@ with np.load(dataset.valid_data_dir() / "plate_sensorsim_2d.npz") as saved:
 # A selection maps an observable to a sensor-array key, component index and
 # coordinates. ExpData retains acquisition identity; combine runs only after
 # registering the common comparison domain.
-# The dictionary key is our observable tag; the tuple names a SensorSim array
+# The dictionary key is our observable tag; the record names a SensorSim array
 # and its component index. The ValObservable component tuple below supplies
 # the simulation field key used when sampling IField. These three identifiers
 # have distinct roles, so we name the observable tags explicitly.
@@ -65,12 +67,12 @@ strain_xx_tag = "plate_strain_xx"
 strain_yy_tag = "plate_strain_yy"
 strain_xy_tag = "plate_strain_xy"
 selections = {
-    temperature_tag: ("temperature", 0, coords),
-    strain_xx_tag: ("strain", 0, coords),
-    strain_yy_tag: ("strain", 1, coords),
-    strain_xy_tag: ("strain", 2, coords),
+    temperature_tag: valconvert.ObservableSelection("temperature", 0, coords),
+    strain_xx_tag: valconvert.ObservableSelection("strain", 0, coords),
+    strain_yy_tag: valconvert.ObservableSelection("strain", 1, coords),
+    strain_xy_tag: valconvert.ObservableSelection("strain", 2, coords),
 }
-acquisitions = val.conv_exp_sim_to_data(
+acquisitions = valconvert.conv_exp_sim_to_data(
     output,
     sim_key="perturbed",
     selections=selections,
@@ -109,25 +111,26 @@ domain = val.ValDomain(
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
-temperature = sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD)
-strain = sens.FieldTensor(
-    sim_data,
-    ("strain_xx", "strain_yy"),
-    ("strain_xy",),
-    sens.EDim.TWOD,
-)
 fields = {
-    temperature_tag: temperature,
-    strain_xx_tag: strain,
-    strain_yy_tag: strain,
-    strain_xy_tag: strain,
+    temperature_tag: lambda simulation: sens.FieldScalar(
+        simulation, "temperature", sens.EDim.TWOD
+    ),
+    strain_xx_tag: lambda simulation: sens.FieldTensor(
+        simulation, ("strain_xx", "strain_yy"), ("strain_xy",), sens.EDim.TWOD
+    ),
+    strain_yy_tag: lambda simulation: sens.FieldTensor(
+        simulation, ("strain_xx", "strain_yy"), ("strain_xy",), sens.EDim.TWOD
+    ),
+    strain_xy_tag: lambda simulation: sens.FieldTensor(
+        simulation, ("strain_xx", "strain_yy"), ("strain_xy",), sens.EDim.TWOD
+    ),
 }
-simulation = val.val_from_sim(fields, domain, [((), sim_data)])
+simulation = valconvert.convert_sim_to_val(fields, domain, [((), sim_data)])
 cases = [
-    val.ValCase(domain, simulation, val.val_from_exp(run, domain))
+    val.ValCase(domain, simulation, valconvert.convert_exp_to_val(run, domain))
     for run in acquisitions
 ]
-val_case = val.combine_val_cases(*cases)
+val_case = valconvert.combine_val_cases(*cases)
 # %%
 # 2. Run validation analysis
 # --------------------------
@@ -155,7 +158,7 @@ print("Experiment:", experiment_quantity.axes, experiment_quantity.data.shape)
 # The model mesh and sensor positions must share mm coordinates and the plate
 # coordinate frame. Background nodal scalars (n_nodes,) have a physical colourbar.
 background_time_idx = len(sim_data.time) - 1
-background_field = val.ValSimField(
+background_field = valvis.ValSimField(
     sim_data.node_vars["strain_xx"][:, background_time_idx],
     background_time_idx,
     sens.SensorDescriptor(
@@ -164,7 +167,7 @@ background_field = val.ValSimField(
 )
 point_labels = tuple(sens.SensorDescriptor(tag="SG").create_sensor_tags(len(coords)))
 # Total AVM is a nonnegative magnitude, so its point scale starts at zero.
-pv_plot = val.plot_val_metric_on_sim(
+pv_plot = valvis.plot_val_metric_on_sim(
     val_result,
     strain_xx_tag,
     val.EMetricType.AVM,
@@ -176,8 +179,10 @@ pv_plot = val.plot_val_metric_on_sim(
     sim_field=background_field,
     sim_coord_units="mm",
     sim_coord_frame="plate",
-    vis_opts=val.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
-    metric_opts=val.ValVisOpts(point_labels=point_labels, labels_always_visible=True),
+    vis_opts=valvis.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
+    metric_opts=valvis.ValVisOpts(
+        point_labels=point_labels, labels_always_visible=True
+    ),
 )
 pv_plot.screenshot(output_path / "strain_xx_avm_on_sim.png")
 if SHOW_PLOTS:
@@ -186,14 +191,14 @@ pv_plot.close()
 
 
 point_idxs = tuple(range(len(coords)))
-fig, axes = val.plot_val_metric_time_points(
+fig, axes = valplot.plot_val_metric_time_points(
     val_result,
     temperature_tag,
     val.EMetricType.AVM,
     point_idxs=point_idxs,
 )
 fig.savefig(output_path / "temperature_avm_time.png", bbox_inches="tight")
-fig, axes = val.plot_val_cdfs_points(
+fig, axes = valplot.plot_val_cdfs_points(
     val_case,
     val_result,
     temperature_tag,

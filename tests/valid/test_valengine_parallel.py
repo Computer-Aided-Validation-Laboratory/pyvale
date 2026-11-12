@@ -14,23 +14,35 @@ def create_case() -> val.ValCase:
     for name, points in (("camera", 7), ("gauge", 1)):
         observables[name] = val.ValObservable(
             val.ValGeometry(val.EValGeometry.POINT, np.zeros((points, 3))),
-            val.EValOperator.SAMPLE, ("temperature",), np.array([0.0, 1.0]),
+            val.EValOperator.SAMPLE,
+            ("temperature",),
+            np.array([0.0, 1.0]),
         )
         # Strided input exercises the shared-memory copy's layout handling.
         samples = generator.normal(size=(points, 1, 2, 2, 20))[..., ::2]
         samples[0, 0, 0, 0] = np.nan
         simulations[name] = val.ValArray(
             samples,
-            (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.TIME,
-             val.EValAxis.EPISTEMIC_TRANS, val.EValAxis.ALEATORY),
+            (
+                val.EValAxis.POINT,
+                val.EValAxis.COMPONENT,
+                val.EValAxis.TIME,
+                val.EValAxis.EPISTEMIC_TRANS,
+                val.EValAxis.ALEATORY,
+            ),
             val.EpistemicOffsets(0.05, 0.1),
         )
         experiments[name] = val.ValArray(
             generator.normal(size=(points, 1, 2, 10)),
-            (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.TIME,
-             val.EValAxis.ALEATORY),
+            (
+                val.EValAxis.POINT,
+                val.EValAxis.COMPONENT,
+                val.EValAxis.TIME,
+                val.EValAxis.ALEATORY,
+            ),
             val.EpistemicOffsets(
-                np.full(points, 0.1), np.full(points, 0.2),
+                np.full(points, 0.1),
+                np.full(points, 0.2),
                 (val.EValAxis.POINT,),
             ),
         )
@@ -46,7 +58,17 @@ def test_spawned_metrics_match_serial(chunk_size: int | None) -> None:
         metrics, opts=val.ValEngineOpts(workers=2, chunk_size=chunk_size)
     ).run(case)
     assert parallel.domain is case.domain
-    assert parallel.metric_configs == serial.metric_configs
+    assert parallel.metric_configs.keys() == serial.metric_configs.keys()
+    serial_mavm = serial.metric_configs[val.EMetricType.MAVM]
+    parallel_mavm = parallel.metric_configs[val.EMetricType.MAVM]
+    assert isinstance(serial_mavm, val.MetricMAVM)
+    assert isinstance(parallel_mavm, val.MetricMAVM)
+    assert (parallel_mavm.alpha, parallel_mavm.duplicates, parallel_mavm.tol) == (
+        serial_mavm.alpha,
+        serial_mavm.duplicates,
+        serial_mavm.tol,
+    )
+    assert parallel_mavm is not serial_mavm
     for name in case.domain.observables:
         for metric in metrics:
             expected = serial.get(name, metric.get_kind())
@@ -65,18 +87,32 @@ def test_spawned_metrics_match_serial(chunk_size: int | None) -> None:
     assert np.isnan(case.sim["camera"].data[0, 0, 0, 0]).all()
 
 
+class FailingMetric(val.IValMetric):
+    def get_kind(self) -> val.EMetricType:
+        return val.EMetricType.AVM
+
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> val.MetricResult:
+        raise ValueError("Deliberate worker failure.")
+
+
 def test_spawned_failure_propagates_and_engine_can_run_again() -> None:
     case = create_case()
-    engine = val.ValidationEngine([val.MetricAVM()], opts=val.ValEngineOpts(workers=2))
-    case.sim["camera"].data[0, 0, 0, 0, 0] = np.inf
-    with pytest.raises(ValueError, match="infinity"):
+    engine = val.ValidationEngine([FailingMetric()], opts=val.ValEngineOpts(workers=2))
+    with pytest.raises(ValueError, match="Deliberate worker failure"):
         engine.run(case)
-    case.sim["camera"].data[0, 0, 0, 0, 0] = 0.0
+    engine.metrics = (val.MetricAVM(),)
     assert np.isfinite(engine.run(case).get("camera", val.EMetricType.AVM).metric).any()
+
+
+def test_invalid_observations_fail_when_case_is_initialized() -> None:
+    case = create_case()
+    case.sim["camera"].data[0, 0, 0, 0, 0] = np.inf
+    with pytest.raises(ValueError, match="infinite"):
+        val.ValCase(case.domain, case.sim, case.exp)
 
 
 @pytest.mark.parametrize("name", ["workers", "chunk_size"])
 @pytest.mark.parametrize("value", [0, -1, True, 1.5])
-def test_invalid_options(name: str, value: int | float) -> None:
+def test_invalid_options(name: str, value: float) -> None:
     with pytest.raises((TypeError, ValueError)):
         val.ValEngineOpts(**{name: value})

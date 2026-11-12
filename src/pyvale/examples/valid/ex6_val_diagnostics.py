@@ -22,6 +22,7 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.valid as val
+from pyvale.valid import valplot, valvis
 
 matplotlib.use("Agg")
 
@@ -151,33 +152,33 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 # agree with sensor figures. Each CDF panel overlays simulation and experiment;
 # dashed curves show the experimental MAVM confidence bounds.
 point_idxs = tuple(range(len(coords)))
-fig, axes = val.plot_val_cdfs_points(
+fig, axes = valplot.plot_val_cdfs_points(
     val_case,
     val_result,
     temperature_tag,
     point_idxs=point_idxs,
     time_idx=4,
     metric=mavm,
-    labels=val.ValPlotLabels(x_label="Temperature [degC]"),
+    labels=valplot.ValPlotLabels(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
 # %%
 # Envelopes describe all retained scenarios at a site. They are pointwise ECDF
 # bounds over the conditional distributions. Show every plate sensor.
-fig, axes = val.plot_val_cdf_envelope_points(
+fig, axes = valplot.plot_val_cdf_envelope_points(
     val_case,
     temperature_tag,
     source=val.EValSource.EXP,
     time_idx=4,
-    labels=val.ValPlotLabels(x_label="Temperature [degC]"),
+    labels=valplot.ValPlotLabels(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 
 # %%
 # Each panel follows one physical sensor through time. Explicit selectors fix
 # any remaining epistemic scenario; d+ identifies the directional MAVM quantity.
-fig, axes = val.plot_val_metric_time_points(
+fig, axes = valplot.plot_val_metric_time_points(
     val_result,
     temperature_tag,
     val.EMetricType.MAVM,
@@ -198,7 +199,7 @@ sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
 background_time_idx = len(sim_data.time) - 1
-background_field = val.ValSimField(
+background_field = valvis.ValSimField(
     sim_data.node_vars["temperature"][:, background_time_idx],
     background_time_idx,
     sens.SensorDescriptor(name="Temperature", symbol=r"T", units="degC"),
@@ -206,7 +207,7 @@ background_field = val.ValSimField(
 point_labels = tuple(sens.SensorDescriptor(tag="TC").create_sensor_tags(len(coords)))
 # Blue/red encode negative/positive MAVM directional balance. A white point
 # can have nonzero total mismatch because d+ and d- can cancel in this display.
-pv_plot = val.plot_val_metric_on_sim(
+pv_plot = valvis.plot_val_metric_on_sim(
     val_result,
     temperature_tag,
     val.EMetricType.MAVM,
@@ -220,8 +221,10 @@ pv_plot = val.plot_val_metric_on_sim(
     sim_field=background_field,
     sim_coord_units="mm",
     sim_coord_frame="plate",
-    vis_opts=val.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
-    metric_opts=val.ValVisOpts(point_labels=point_labels, labels_always_visible=True),
+    vis_opts=valvis.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
+    metric_opts=valvis.ValVisOpts(
+        point_labels=point_labels, labels_always_visible=True
+    ),
 )
 pv_plot.screenshot(output_path / "temperature_mavm_balance_on_sim.png")
 if SHOW_PLOTS:
@@ -247,15 +250,15 @@ experiment_quantity = val_case.exp[temperature_tag]
 # family spread. SUPPORT_SUM selects whole scenarios by the sum of their unique
 # support values; lower_idx and upper_idx identify those original samples.
 # Quantile averaging supplies a representative curve through the family.
-fig, axes = val.create_val_plot_grid(len(coords))
+fig, axes = valplot.create_val_plot_grid(len(coords))
 for point_idx, ax in enumerate(axes.flat):
-    val.plot_val_ecdf_family(
+    valplot.plot_val_ecdf_family(
         model_quantity,
         point_idx=point_idx,
         component_idx=0,
         time_idx=4,
         ax=ax,
-        labels=val.ValPlotLabels(
+        labels=valplot.ValPlotLabels(
             title=f"Point {point_idx}: conditional model CDFs",
             x_label="Temperature [degC]",
         ),
@@ -276,7 +279,7 @@ diagnostic_views = (
     val.EValMAVMDiagnostic.MODEL_CORRECTION,
 )
 for view in diagnostic_views:
-    fig, axes = val.create_val_plot_grid(len(coords))
+    fig, axes = valplot.create_val_plot_grid(len(coords))
     for point_idx, ax in enumerate(axes.flat):
         model_scenarios = val.extract_aleatory_scenarios(
             model_quantity,
@@ -305,13 +308,13 @@ for view in diagnostic_views:
             experimental_scenarios[experiment_summary.lower_idx],
             experimental_scenarios[experiment_summary.upper_idx],
         )
-        val.plot_val_mavm_diagnostic(
+        valplot.plot_val_mavm_diagnostic(
             model_summary,
             experiment_summary,
             correction=correction,
             view=view,
             ax=ax,
-            labels=val.ValPlotLabels(
+            labels=valplot.ValPlotLabels(
                 title=f"Point {point_idx}: MAVM support shifts",
                 x_label="Temperature [degC]",
             ),
@@ -323,17 +326,19 @@ for view in diagnostic_views:
 # %%
 # Histograms count physical/scenario cells within each distance bin. Separate
 # directional magnitudes expose asymmetry between d+ and d-.
-fig, axes = val.create_val_plot_grid(2)
+fig, axes = valplot.create_val_plot_grid(2)
 for part, ax in zip(
     (val.EValMetricPart.D_PLUS, val.EValMetricPart.D_MINUS), axes.flat, strict=True
 ):
-    val.plot_val_metric_distribution(
+    valplot.plot_val_metric_distribution(
         val_result,
         temperature_tag,
         val.EMetricType.MAVM,
         part=part,
         ax=ax,
-        labels=val.ValPlotLabels(title="Temperature: retained physical/scenario cells"),
+        labels=valplot.ValPlotLabels(
+            title="Temperature: retained physical/scenario cells"
+        ),
     )
 fig.savefig(output_path / "directional_metric_distributions.png", bbox_inches="tight")
 if not SHOW_PLOTS:

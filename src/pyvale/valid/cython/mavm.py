@@ -18,8 +18,12 @@ from scipy import stats
 
 from pyvale.valid.constants import (
     MAVM_AREA_TOLERANCE,
-    MAVM_DUPLICATE_TOLERANCE,
     MAVM_PROBABILITY_TOLERANCE,
+)
+from pyvale.valid.inputvalidation import (
+    validate_finite_sample,
+    validate_mavm_config,
+    validate_unique_sample,
 )
 from pyvale.valid.valtypes import (
     EMAVMDuplicates,
@@ -58,35 +62,6 @@ except ModuleNotFoundError:
             return lambda function: function
 
     cython = _CythonFallback()
-
-
-def _finite_1d(values: np.ndarray, name: str) -> np.ndarray:
-    """Validate a distribution sample without losing uncertainty axes."""
-    array = np.asarray(values, dtype=np.float64)
-    if array.ndim != 1:
-        raise ValueError(f"{name} must be one-dimensional; select axes explicitly.")
-    if np.any(np.isinf(array)):
-        raise ValueError(f"{name} cannot contain infinite values.")
-    finite = array[~np.isnan(array)]
-    if not len(finite):
-        raise ValueError(f"{name} needs at least one finite observation.")
-    return finite
-
-
-def _raise_for_near_duplicates(values: np.ndarray, data_label: str) -> None:
-    """Raise when default MAVM input contains near-duplicate observations."""
-    sorted_values = np.sort(values)
-    has_near_duplicates: bool = bool(
-        np.any(np.diff(sorted_values) <= MAVM_DUPLICATE_TOLERANCE)
-    )
-    if not has_near_duplicates:
-        return
-
-    raise ValueError(
-        f"REJECT MAVM duplicates requires unique {data_label} observations within "
-        f"MAVM_DUPLICATE_TOLERANCE={MAVM_DUPLICATE_TOLERANCE}. "
-        "Use duplicates=EMAVMDuplicates.INCLUDE for repeated observations."
-    )
 
 
 @cython.cfunc
@@ -236,7 +211,7 @@ def _integrate_mavm_bound_robust(
     return d_plus, d_minus
 
 
-def _as_contiguous_float64(values: np.ndarray) -> np.ndarray:
+def convert_contiguous_float64(values: np.ndarray) -> np.ndarray:
     """Return C-contiguous ``float64`` values for typed Cython memoryviews."""
     return np.ascontiguousarray(values, dtype=np.float64)
 
@@ -254,28 +229,41 @@ def cyth_calc_mavm_1d(
     This has the same input contract and return type as
     :func:`pyvale.valid.metrics.calc_mavm_1d`.
     """
-    if not 0.0 < alpha < 1.0:
-        raise ValueError("MAVM alpha must be between zero and one.")
-    model_clean = _finite_1d(model_data, "model_data")
-    exp_clean = _finite_1d(exp_data, "exp_data")
+    validate_mavm_config(alpha, duplicates, tol)
+    model_clean = validate_finite_sample(model_data, "model_data")
+    exp_clean = validate_finite_sample(exp_data, "exp_data")
 
     if duplicates is EMAVMDuplicates.REJECT:
-        _raise_for_near_duplicates(model_clean, "model")
-        _raise_for_near_duplicates(exp_clean, "experimental")
+        validate_unique_sample(model_clean, "model")
+        validate_unique_sample(exp_clean, "experimental")
 
+    return _calculate_mavm(model_clean, exp_clean, alpha, duplicates, tol)
+
+
+def _calculate_mavm(
+    model_clean: np.ndarray,
+    exp_clean: np.ndarray,
+    alpha: float,
+    duplicates: EMAVMDuplicates,
+    tol: float,
+) -> MAVMResult:
     model_cdf = stats.ecdf(model_clean).cdf
     exp_cdf = stats.ecdf(exp_clean).cdf
-    model_quantiles = _as_contiguous_float64(model_cdf.quantiles)
-    exp_quantiles = _as_contiguous_float64(exp_cdf.quantiles)
-    model_probabilities = _as_contiguous_float64(model_cdf.probabilities)
-    exp_probabilities = _as_contiguous_float64(exp_cdf.probabilities)
+    model_quantiles = convert_contiguous_float64(model_cdf.quantiles)
+    exp_quantiles = convert_contiguous_float64(exp_cdf.quantiles)
+    model_probabilities = convert_contiguous_float64(model_cdf.probabilities)
+    exp_probabilities = convert_contiguous_float64(exp_cdf.probabilities)
 
     exp_count = len(exp_quantiles)
     degrees_freedom = exp_count - 1
     t_value = stats.t.ppf(1.0 - alpha, degrees_freedom) if degrees_freedom >= 1 else 0.0
     standard_error = np.nanstd(exp_quantiles) / np.sqrt(exp_count)
-    exp_conf_lower = _as_contiguous_float64(exp_quantiles - t_value * standard_error)
-    exp_conf_upper = _as_contiguous_float64(exp_quantiles + t_value * standard_error)
+    exp_conf_lower = convert_contiguous_float64(
+        exp_quantiles - t_value * standard_error
+    )
+    exp_conf_upper = convert_contiguous_float64(
+        exp_quantiles + t_value * standard_error
+    )
 
     if duplicates is EMAVMDuplicates.REJECT:
         model_probability_step = 1.0 / len(model_quantiles)
@@ -339,19 +327,19 @@ def cyth_calc_mavm_pbox_1d(
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMResult:
     """Calculate p-box MAVM using :func:`cyth_calc_mavm_1d` for each bound."""
-    result_min = cyth_calc_mavm_1d(
-        model_pbox_min,
-        exp_data,
-        alpha=alpha,
-        duplicates=duplicates,
-        tol=tol,
+    validate_mavm_config(alpha, duplicates, tol)
+    lower_samples = validate_finite_sample(model_pbox_min, "model_pbox_min")
+    upper_samples = validate_finite_sample(model_pbox_max, "model_pbox_max")
+    experimental_samples = validate_finite_sample(exp_data, "exp_data")
+    if duplicates is EMAVMDuplicates.REJECT:
+        validate_unique_sample(lower_samples, "lower model")
+        validate_unique_sample(upper_samples, "upper model")
+        validate_unique_sample(experimental_samples, "experimental")
+    result_min = _calculate_mavm(
+        lower_samples, experimental_samples, alpha, duplicates, tol
     )
-    result_max = cyth_calc_mavm_1d(
-        model_pbox_max,
-        exp_data,
-        alpha=alpha,
-        duplicates=duplicates,
-        tol=tol,
+    result_max = _calculate_mavm(
+        upper_samples, experimental_samples, alpha, duplicates, tol
     )
 
     return MAVMResult(

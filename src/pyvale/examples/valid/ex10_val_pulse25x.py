@@ -37,6 +37,7 @@ import pandas as pd
 
 import pyvale.data as dataset
 import pyvale.valid as val
+from pyvale.valid import valplot
 
 matplotlib.use("Agg")
 
@@ -177,8 +178,8 @@ for channel in measurements:
     # ------------------------------
     # Family plots retain the 250 conditional model ECDFs for every channel.
     # Available experimental readings retain their individual measurement spread.
-    labels = val.ValPlotLabels(title=channel, x_label=axis_label)
-    fig, ax = val.plot_val_ecdf_family(
+    labels = valplot.ValPlotLabels(title=channel, x_label=axis_label)
+    fig, ax = valplot.plot_val_ecdf_family(
         sim_arrays[channel],
         bounds=val.EValECDFBounds.SUPPORT_SUM,
         labels=labels,
@@ -249,7 +250,7 @@ for channel in measurements:
         ("4_dextremes_simcdfsonly", val.EValMAVMDiagnostic.MODEL_CORRECTION),
     )
     for figure_prefix, view in diagnostic_views:
-        fig, ax = val.plot_val_mavm_diagnostic(
+        fig, ax = valplot.plot_val_mavm_diagnostic(
             model_summary,
             experiment_summary,
             correction=correction,
