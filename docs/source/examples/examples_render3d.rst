@@ -42,6 +42,7 @@ Explore point spread functions and the renderer feature collection.
 
    render3d/ex1g_riley_psf
    render3d/ex1h_riley_feature_zoo
+   render3d/ex1i_riley_shader_pipeline
 
 Blender: scenes and deformation
 -------------------------------

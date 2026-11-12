@@ -89,7 +89,7 @@ for topology_index, element_type in enumerate(topologies):
                 element_type, riley.EConnectAxis.ROW, 0,
                 riley.ENodeOrder.RILEY,
             )},
-            shaders={"connectivity": shader},
+            shaders={"connectivity": riley.MeshShaderSet(mono=shader)},
         )["connectivity"]
 
         if mesh.element_type is not element_type:
@@ -150,9 +150,7 @@ config = riley.RasterConfig(
     parallel=4,
     save_strategy=riley.SaveStrategy.disk,
 )
-config.background_value = 127.5
-config.image_save_mode = riley.ImageSaveMode.grey
-config.save_scaling = riley.ScaleStrategy.none
+camera.background_value = 127.5
 
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1c_riley_rabbits"
 

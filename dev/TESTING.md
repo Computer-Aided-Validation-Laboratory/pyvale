@@ -94,6 +94,15 @@ The vector, tensor, and combined sensor-simulation generators are
 is committed under `tests/mooseherder/output_gold/`; no dedicated generator is
 currently provided, so update it only from an independently reviewed run.
 
+## Riley integration
+
+The current Riley API is demonstrated in the
+[render examples](../src/pyvale/examples/render3d/README.md). Use the local sibling
+checkout at `../riley-raster` for the unreleased dependency. Run native demo parity with
+`python -m pytest tests/riley`; it compares images and calibration output files
+byte for byte. The render tests include RGB and multifield channel order,
+multiple cameras and frames, camera output settings and all save strategies.
+
 ## Module-specific conditions and skips
 
 ### Blender

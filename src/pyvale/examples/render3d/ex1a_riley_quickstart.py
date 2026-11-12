@@ -47,7 +47,7 @@ mesh = render.Mesh3D(
     element_type=render.EElemType.TRI3,
     coords=coords,
     connectivity=connect,
-    shader=shader,
+    shader=riley.MeshShaderSet(mono=shader),
 )
 
 # %%
@@ -73,10 +73,7 @@ camera = render.cam_frame_mesh(camera, mesh, fov_scale=1.0)
 config = riley.RasterConfig(
     parallel=1,
     save_strategy=riley.SaveStrategy.both,
-    image_save_mode=riley.ImageSaveMode.grey,
 )
-config.report = riley.ReportMode.bench
-config.save_scaling = riley.ScaleStrategy.none
 
 output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1a_riley_quickstart"
 

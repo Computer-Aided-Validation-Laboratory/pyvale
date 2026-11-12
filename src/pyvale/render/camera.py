@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 
 import numpy as np
+import riley
 from scipy.spatial.transform import Rotation
 
 
@@ -74,6 +75,27 @@ class Camera:
         in the image.
     fstop : float or None, optional
         Lens f number. ``None`` leaves depth of field disabled.
+    background_value : float, optional
+        Background intensity in the shader output units.
+    render_format : riley.RenderFormat, optional
+        Mono, RGB, IR or multifield channel selection.
+    render_channels : int, optional
+        Number of output channels for multifield rendering.
+    output_files : tuple[riley.ImageSaveOpts, ...] or None, optional
+        Riley file formats, bit depths, scaling and packing per camera.
+        None uses Riley's default image save settings.
+    distortion_s1, distortion_s2, distortion_s3, distortion_s4 : float, optional
+        Thin-prism distortion coefficients.
+    distortion_tau_x, distortion_tau_y : float, optional
+        Sensor tilt distortion angles in radians.
+    distortion_poly : riley.PolyMap or None, optional
+        Native polynomial distortion map.
+    coord_sys : riley.CameraCoordSys, optional
+        Riley camera coordinate convention; OpenGL by default.
+    subpixel_center_map : riley.SubPixelCenterMap, optional
+        Native subpixel centre mapping.
+    psf_separable : bool, optional
+        Whether Riley may use separable PSF convolution.
     psf_type : EPSFType, optional
         Point spread function model identifier.
     psf_sigma_x, psf_sigma_y : float, optional
@@ -103,6 +125,20 @@ class Camera:
     c0: float | None = None
     c1: float | None = None
     fstop: float | None = None
+    distortion_s1: float = 0.0
+    distortion_s2: float = 0.0
+    distortion_s3: float = 0.0
+    distortion_s4: float = 0.0
+    distortion_tau_x: float = 0.0
+    distortion_tau_y: float = 0.0
+    distortion_poly: riley.PolyMap | None = None
+    coord_sys: riley.CameraCoordSys = riley.CameraCoordSys.opengl
+    subpixel_center_map: riley.SubPixelCenterMap = riley.SubPixelCenterMap.per_tile
+    psf_separable: bool = True
+    background_value: float = 0.0
+    render_format: riley.RenderFormat = riley.RenderFormat.mono
+    render_channels: int = 1
+    output_files: tuple[riley.ImageSaveOpts, ...] | None = None
     psf_type: EPSFType = EPSFType.PIXEL_BOX
     psf_sigma_x: float = 0.0
     psf_sigma_y: float = 0.0

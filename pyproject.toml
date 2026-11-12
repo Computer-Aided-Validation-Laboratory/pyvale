@@ -30,7 +30,7 @@ dependencies = [
   "opencv-python>=4.13.0.92",
   "pandas>=2.3.1",
   "pooch>=1.8.2",
-  "riley-raster==2026.10.1",
+  "riley-raster==2026.11.0",
   "gmsh>=4.15.2",
   "rabbit-fem>=2026.11.0",
   "pymoo>=0.6.2",
@@ -127,3 +127,7 @@ exclude = [
 [tool.uv]
 required-version = ">=0.9.17"
 #exclude-newer = "P30D"
+
+# Riley 2026.11.0 is developed alongside PyVale until its package release.
+[tool.uv.sources]
+riley-raster = { path = "../riley-raster", editable = true }

@@ -848,7 +848,7 @@ def riley_rabbit_meshes() -> list[riley.Mesh]:
             riley.MeshType.tri3,
             coords,
             connect,
-            riley.TextureShader(uvs=uvs, texture=texture),
+            riley.MeshShaderSet(mono=riley.TextureShader(uvs=uvs, texture=texture)),
         ))
     return meshes
 
