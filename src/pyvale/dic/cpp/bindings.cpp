@@ -24,6 +24,7 @@
 // DIC Header files
 #include "./dicutil.hpp"
 #include "./dicmain.hpp"
+#include "./dicengine.hpp"
 #include "./dicinterp.hpp"
 #include "./dicmultiwindow_util.hpp"
 #include "./dicinterpBspline.hpp"
