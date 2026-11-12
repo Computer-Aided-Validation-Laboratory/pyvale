@@ -30,7 +30,7 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
               num_threads: int | None = None,
               strain_formulation: Literal["GREEN", "ALMANSI", "HENCKY", "BIOT_EULER", "BIOT_LAGRANGE"] = "HENCKY",
               print_level: int=1,
-              partial_window: float=1.0):
+              partial_window: float=0.0):
     """
     Compute strain fields from DIC displacement data using a finite element smoothing approach.
 
@@ -67,9 +67,8 @@ def calculate_3d(data: dicResults | str | Path | list[Path],
         changed to ".csv" or ".dic2d" depending on whether outputting as a binary.
     output_delimiter : str, optional
         Delimiter used in text output files (default: ",").
-
     partial_window : float, optional
-        Minimum occupied fraction of the full window, in [0, 1] (default: 1).
+        Minimum occupied fraction of the full window, in [0, 1] (default: 0).
         Missing and out-of-grid points count as unoccupied. Q4/Q9 still require 4/9
         suitably arranged finite points. Strain is evaluated at the original centre.
         3D requires a finite centre position. Failed fits remain invalid.

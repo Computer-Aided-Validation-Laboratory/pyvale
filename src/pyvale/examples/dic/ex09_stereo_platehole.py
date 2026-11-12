@@ -26,6 +26,7 @@ from pyvale import calib
 from pyvale import dic
 from pyvale import strain
 from pyvale import render
+from pyvale import data
 
 
 output_path = Path.cwd() / "pyvale-output" / "dic_ex09"
@@ -35,10 +36,11 @@ output_path.mkdir(parents=True, exist_ok=True)
 # Riley generates the example image sequence here. For a custom render, see the
 # Riley examples in the Render 3D section (:ref:`examples_render3d`) and the
 # implementation of :func:`pyvale.render.create_example_images_platehole`. We'll also use the 
-# groundtruth calibration parameters from the Riley render.
+# groundtruth calibration parameters from the Riley render. The calibration file
+# is the same as the one used in the previous example
 
 images = render.create_example_images_platehole()
-calib_params = calib.loadtxt(images.calibration, delimiter=",")
+calib_params = calib.loadtxt(data.dic_ex08_stereo_calibration())
 
 # image files can be passed directly instead:
 # ref0 = Path("/path/to/camera0_reference.tiff")
@@ -71,7 +73,7 @@ def1 = images.cam1_deformed
 
 # Build ROI using cam 0 reference image
 roi = dic.RegionOfInterest(ref0)
-roi.read_yaml(Path(__file__).resolve().parents[2] / "data" / "dic_ex02_roi.yaml")
+roi.read_yaml(data.dic_ex02_roi())
 # roi.interactive_selection()
 
 # %%
@@ -115,7 +117,7 @@ strain_results = strain.import_3d(data=strain_files, delimiter=",", binary=False
 
 import pyvista as pv
 
-frame = 2
+frame = 10
 
 
 points = np.column_stack((

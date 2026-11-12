@@ -52,6 +52,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
                  output_shape_params: bool=False,
                  partial_subset: float=1.0,
                  partial_subset_multiwindow: float=0.7,
+                 image_filter_kernel: int=5,
+                 image_filter_sigma: float=1.0,
                  print_level: int=2) -> None:
 
     """
@@ -178,6 +180,11 @@ def calculate_2d(reference: np.ndarray | str | Path,
     partial_subset_multiwindow : float, optional
         Minimum ROI filling fraction for intermediate multiwindow levels,
         between 0 and 1 inclusive (default: 0.7).
+    image_filter_kernel : int, optional
+        Image Gaussian prefilter kernel size. Use 1 to disable filtering,
+        or an odd value >= 3 to enable it (default: 5).
+    image_filter_sigma : float, optional
+        Standard deviation of the Gaussian image prefilter (default: 1.0).
     print_level:
 
     Returns
@@ -194,6 +201,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
     """
 
     dicchecks._check_partial_subsets(partial_subset, partial_subset_multiwindow)
+
+    dicchecks._check_image_filter(image_filter_kernel, image_filter_sigma)
 
     if (print_level>0):
         common_util.print_pyvale_banner()
@@ -212,6 +221,12 @@ def calculate_2d(reference: np.ndarray | str | Path,
     interpolation_routine_enum = EInterp(interpolation_routine)
     incremental_update_enum = EIncrementalMethod(incremental_update)
 
+    if incremental_update_enum != EIncrementalMethod.OFF:
+        dicchecks._check_incremental_update_value(
+            incremental_update_enum.value,
+            incremental_update_value,
+        )
+
     # checks on the config
     mw_overlap, mw_subset_size, mw_search_area  = dicchecks._multiwindow_init(subset_size,
                                                                  subset_step,
@@ -223,7 +238,7 @@ def calculate_2d(reference: np.ndarray | str | Path,
 
     dicchecks._check_thresholds(threshold, precision)
     common_util.check_output_directory(str(output_basepath), output_prefix, print_level)
-    dicchecks._check_subsets(subset_size, subset_step)
+    dicchecks._check_subsets(subset_size, subset_step, method_enum.value)
     updated_seeds = dicchecks._check_and_update_rg_seed(seed, roi_mask, method_enum.value, w, h, subset_size, subset_step)
     num_params = dicchecks._check_shape_function(shape_function_enum)
 
@@ -265,6 +280,8 @@ def calculate_2d(reference: np.ndarray | str | Path,
     config.fft_filter_corr_power = fft_filter_corr_power
     config.fft_save = fft_save
     config.debug_level = print_level
+    config.image_filter_kernel = image_filter_kernel
+    config.image_filter_sigma = image_filter_sigma
 
     # sort precision to use for FFT windowing
     if fft_precision=="F32":

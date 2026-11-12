@@ -9,9 +9,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-14, macos-26]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15, macos-26]
         include:
-        - os: macos-14
+        - os: macos-15
           llvm: llvm@15
         - os: macos-26
           llvm: llvm@20

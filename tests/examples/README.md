@@ -1,7 +1,7 @@
 # Documented example tests
 
-This directory smoke-tests the stable Sensorsim, 3D render, 2D render, and
-DIC galleries in isolated subprocesses. Each test uses a temporary working
+This directory smoke-tests the Sensorsim, 3D render, 2D render, DIC, and
+mooseherder galleries in isolated subprocesses. Each test uses a temporary working
 directory, so the examples write their normal `pyvale-output` directory
 without modifying the repository.
 
@@ -34,3 +34,11 @@ unbundled local input: `ex01_region_of_interest.py`, `ex06_hrdic.py`,
 `ex08_calibration.py`, `ex09_stereo.py`, `ex10_stereo_platehole.py`, and
 `ex11_dic_chal.py`. Modules still under active development, including `valid`,
 are not included.
+
+The mooseherder examples use core Rabbit/Gmsh dependencies and run in CI without
+local installations. All fifteen examples execute with serial/SMP defaults;
+MPI and custom installation paths are explicit opt-ins. Run them with:
+
+```bash
+python -m pytest tests/mooseherder tests/examples --example-module=mooseherder
+```

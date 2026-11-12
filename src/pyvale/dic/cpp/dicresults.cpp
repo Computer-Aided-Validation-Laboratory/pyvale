@@ -211,20 +211,15 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
 
         for (int i = 0; i < ss_grid.num; ++i) {
 
-            // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !above_thresh[i]) {
-                u[i] = NAN;
-                v[i] = NAN;
-                for (int pp = 0; pp < num_params; pp++){
-                    p[num_params*i+pp] = NAN;
-                }
-                cost[i] = NAN;
-                ftol[i] = NAN;
-                xtol[i] = NAN;
-            }
+            const bool valid = saveconf.output_below_threshold || above_thresh[i];
+            const double out_u = valid ? u[i] : NAN;
+            const double out_v = valid ? v[i] : NAN;
+            const double out_cost = valid ? cost[i] : NAN;
+            const double out_ftol = valid ? ftol[i] : NAN;
+            const double out_xtol = valid ? xtol[i] : NAN;
 
             // displacement magnitude
-            double mag = std::sqrt(u[i]*u[i]+v[i]*v[i]);
+            double mag = std::sqrt(out_u*out_u+out_v*out_v);
 
             // convert from corner to centre subset coords
             double ss_x = ss_grid.coords[2*i  ];
@@ -232,18 +227,18 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
 
             common_util::write_int(outfile, ss_x);
             common_util::write_int(outfile, ss_y);
-            common_util::write_dbl(outfile, u[i]);
-            common_util::write_dbl(outfile, v[i]);
+            common_util::write_dbl(outfile, out_u);
+            common_util::write_dbl(outfile, out_v);
             common_util::write_dbl(outfile, mag);
             common_util::write_uint8t(outfile, conv[i]);
-            common_util::write_dbl(outfile, cost[i]);
-            common_util::write_dbl(outfile, ftol[i]);
-            common_util::write_dbl(outfile, xtol[i]);
+            common_util::write_dbl(outfile, out_cost);
+            common_util::write_dbl(outfile, out_ftol);
+            common_util::write_dbl(outfile, out_xtol);
             common_util::write_int(outfile, niter[i]);
 
             if (saveconf.shape_params) {
                 for (int pp = 0; pp < num_params; pp++){
-                    common_util::write_dbl(outfile, p[num_params*i+pp]);
+                    common_util::write_dbl(outfile, valid ? p[num_params*i+pp] : NAN);
                 }
             }
 
@@ -284,30 +279,25 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             double ss_x = ss_grid.coords[2*i  ];
             double ss_y = ss_grid.coords[2*i+1];
 
-            // if the subset has not met threshold, set values to nan
-            if (!saveconf.output_below_threshold && !above_thresh[i]) {
-                u[i] = NAN;
-                v[i] = NAN;
-                for (int pi = 0; pi < num_params; pi++){
-                    p[num_params*i+pi] = NAN;
-                }
-                cost[i] = NAN;
-                ftol[i] = NAN;
-                xtol[i] = NAN;
-            }
+            const bool valid = saveconf.output_below_threshold || above_thresh[i];
+            const double out_u = valid ? u[i] : NAN;
+            const double out_v = valid ? v[i] : NAN;
+            const double out_cost = valid ? cost[i] : NAN;
+            const double out_ftol = valid ? ftol[i] : NAN;
+            const double out_xtol = valid ? xtol[i] : NAN;
 
             // displacement magnitude
-            double mag = std::sqrt(u[i]*u[i]+v[i]*v[i]);
+            double mag = std::sqrt(out_u*out_u+out_v*out_v);
 
             outfile << ss_x << delimiter;
             outfile << ss_y << delimiter;
-            outfile << u[i] << delimiter;
-            outfile << v[i] << delimiter;
+            outfile << out_u << delimiter;
+            outfile << out_v << delimiter;
             outfile << mag << delimiter;
             outfile << static_cast<int>(conv[i]) << delimiter;
-            outfile << cost[i] << delimiter;
-            outfile << ftol[i] << delimiter;
-            outfile << xtol[i] << delimiter;
+            outfile << out_cost << delimiter;
+            outfile << out_ftol << delimiter;
+            outfile << out_xtol << delimiter;
             outfile << niter[i];
 
             // write shape parameters if requested

@@ -189,8 +189,9 @@ namespace strain {
                     if (results.valid_window[sw]) {
                         Eigen::Matrix3d basis = Eigen::Matrix3d::Identity();
                         if (use_3d_coordinates) {
-                            const Eigen::Vector3d centre(x_mm[idx_3d_centre], y_mm[idx_3d_centre],
-                                                         z_mm[idx_3d_centre]);
+                            const Eigen::Vector3d centre(x_mm[idx_3d_centre] - u[idx_3d_centre],
+                                                         y_mm[idx_3d_centre] - v[idx_3d_centre],
+                                                         z_mm[idx_3d_centre] - w[idx_3d_centre]);
                             basis = compute_tangent_fit_coordinates(window, centre);
                         }
 
@@ -385,9 +386,9 @@ namespace strain {
                 if (!std::isfinite(x_mm[idx_3d]) || !std::isfinite(y_mm[idx_3d]) || !std::isfinite(z_mm[idx_3d]) ||
                     !std::isfinite(u[idx_3d]) || !std::isfinite(v[idx_3d]) || !std::isfinite(w[idx_3d])) continue;
 
-                window.x_mm[widx] = x_mm[idx_3d];
-                window.y_mm[widx] = y_mm[idx_3d];
-                window.z_mm[widx] = z_mm[idx_3d];
+                window.x_mm[widx] = x_mm[idx_3d] - u[idx_3d];
+                window.y_mm[widx] = y_mm[idx_3d] - v[idx_3d];
+                window.z_mm[widx] = z_mm[idx_3d] - w[idx_3d];
                 window.u[widx] = u[idx_3d];
                 window.v[widx] = v[idx_3d];
                 window.w[widx] = w[idx_3d];
@@ -439,8 +440,7 @@ namespace strain {
         F.block<1,2>(1,0) = eval_poly_gradient_at_centre(q, vc, 0.0, 0.0).transpose();
         F.block<1,2>(2,0) = eval_poly_gradient_at_centre(q, wc, 0.0, 0.0).transpose();
 
-
-        return I + F * tangent_basis.transpose();
+        return I + tangent_basis.transpose() * F;
     }
 
     Eigen::Matrix3d compute_strain(const std::string& form, const Eigen::Matrix3d& F) {
