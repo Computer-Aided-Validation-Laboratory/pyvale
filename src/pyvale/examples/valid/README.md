@@ -3,7 +3,8 @@ Validation examples
 
 Each example is an independent tutorial with explicit data preparation, analysis,
 post-processing and visualisation. Outputs are saved beneath its own directory
-in `pyvale-output`; interactive plotting and console inspection are opt-in.
+in `pyvale-output`. Data structures are printed to the console; interactive
+plotting is opt-in.
 
 0. Quickstart: transient temperature and strain, repeats, epistemic scenarios,
    calibration offsets, metric histories, CDFs and a PyVista simulation overlay.

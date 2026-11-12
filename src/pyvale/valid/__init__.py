@@ -44,7 +44,9 @@ from pyvale.valid.valengine import (
 )
 from pyvale.valid.valplot import (
     ValPlotLabels,
+    create_val_plot_grid,
     plot_val_cdf_envelope,
+    plot_val_cdf_envelope_points,
     plot_val_cdfs,
     plot_val_cdfs_points,
     plot_val_ecdf_family,
@@ -78,7 +80,6 @@ from pyvale.valid.valtypes import (
     MAVMCorrection,
     ValArray,
     ValCase,
-    ValData,
     ValDomain,
     ValECDF,
     ValECDFSummary,
@@ -86,9 +87,13 @@ from pyvale.valid.valtypes import (
     ValObservable,
     ValSampleInputs,
     assemble_val_case,
-    val_from_arrays,
 )
-from pyvale.valid.valvis import ValSimField, ValVisOpts, plot_val_metric_on_sim
+from pyvale.valid.valvis import (
+    ValSimField,
+    ValVisOpts,
+    create_val_vis_opts,
+    plot_val_metric_on_sim,
+)
 
 __all__ = [
     "EValECDFBounds",
@@ -135,7 +140,6 @@ __all__ = [
     "ScalarMetricResult",
     "ValArray",
     "ValCase",
-    "ValData",
     "ValDomain",
     "ValGeometry",
     "ValMetricField",
@@ -156,11 +160,13 @@ __all__ = [
     "conv_exp_sim_to_data",
     "cyth_calc_mavm_1d",
     "cyth_calc_mavm_pbox_1d",
+    "create_val_plot_grid",
+    "create_val_vis_opts",
     "plot_val_cdf_envelope",
+    "plot_val_cdf_envelope_points",
     "plot_val_cdfs",
     "plot_val_metric_distribution",
     "plot_val_metric_time",
-    "val_from_arrays",
     "val_from_exp",
     "val_from_sim",
 ]

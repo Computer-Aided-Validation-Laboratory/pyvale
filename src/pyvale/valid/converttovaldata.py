@@ -4,7 +4,7 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Explicit conversion from simulation and acquisition data to ValData."""
+"""Convert simulation and acquisition data to tagged validation arrays."""
 
 from collections.abc import Iterable
 
@@ -21,7 +21,6 @@ from pyvale.valid.valtypes import (
     EValOperator,
     ValArray,
     ValCase,
-    ValData,
     ValDomain,
     ValSampleInputs,
 )
@@ -34,9 +33,8 @@ def val_from_sim(
     *,
     sample_axes: tuple[EValAxis, ...] = (),
     sample_shape: tuple[int, ...] = (),
-    sample_inputs: ValSampleInputs | None = None,
     sensor_data: dict[str, SensorData] | None = None,
-) -> ValData:
+) -> dict[str, ValArray]:
     """Sample a stream of SimData runs into explicit rectangular sample axes.
 
     Each run key gives its index on ``sample_axes``. A run is processed and
@@ -97,14 +95,17 @@ def val_from_sim(
         )
 
     seen: set[tuple[int, ...]] = set()
-    for index, sim_data in runs:
-        if len(index) != len(sample_axes):
+    for selection_idx, sim_data in runs:
+        if len(selection_idx) != len(sample_axes):
             raise ValueError("Run index rank does not match sample axes.")
-        if any(i < 0 or i >= n for i, n in zip(index, sample_shape, strict=True)):
+        if any(
+            sample_idx < 0 or sample_idx >= size
+            for sample_idx, size in zip(selection_idx, sample_shape, strict=True)
+        ):
             raise ValueError("Run index is outside sample shape.")
-        if index in seen:
-            raise ValueError(f"Duplicate simulation run index: {index}.")
-        seen.add(index)
+        if selection_idx in seen:
+            raise ValueError(f"Duplicate simulation run index: {selection_idx}.")
+        seen.add(selection_idx)
         mesh_lower = (
             np.min(sim_data.coords, axis=0) if sim_data.coords is not None else None
         )
@@ -128,13 +129,13 @@ def val_from_sim(
                     (1, len(observable.components), len(observable.times)),
                     dtype=np.float64,
                 )
-                for component, key in enumerate(observable.components):
-                    sampled[0, component, :] = np.interp(
+                for component_idx, key in enumerate(observable.components):
+                    sampled[0, component_idx, :] = np.interp(
                         observable.times, sim_data.time, sim_data.glob_vars[key]
                     )
-                arrays[name].data[(slice(None), slice(None), slice(None), *index)] = (
-                    sampled
-                )
+                arrays[name].data[
+                    (slice(None), slice(None), slice(None), *selection_idx)
+                ] = sampled
                 continue
             if field is None:
                 raise ValueError(f"{name}: spatial observable needs IField.")
@@ -147,7 +148,7 @@ def val_from_sim(
                 raise ValueError(f"{name}: sample points leave simulation bounds.")
             field.set_sim_data(sim_data)
             all_components = field.get_all_components()
-            component_indices = [all_components.index(c) for c in observable.components]
+            component_idxs = [all_components.index(c) for c in observable.components]
             if observable.operator is EValOperator.MEAN:
                 assert sensor_data is not None
                 sampled = sample_field_with_sensor_data(field, sensor_data[name])
@@ -156,12 +157,12 @@ def val_from_sim(
                     observable.geometry.coords,
                     observable.times,
                 )
-            arrays[name].data[(slice(None), slice(None), slice(None), *index)] = (
-                sampled[:, component_indices, :]
-            )
+            arrays[name].data[
+                (slice(None), slice(None), slice(None), *selection_idx)
+            ] = sampled[:, component_idxs, :]
     if len(seen) != (int(np.prod(sample_shape)) if sample_shape else 1):
         raise ValueError("Simulation run tensor is incomplete.")
-    return ValData(arrays, sample_inputs)
+    return arrays
 
 
 def val_from_exp(
@@ -169,8 +170,7 @@ def val_from_exp(
     domain: ValDomain,
     *,
     steady_window: slice | None = None,
-    sample_inputs: ValSampleInputs | None = None,
-) -> ValData:
+) -> dict[str, ValArray]:
     """Select one acquisition per observable on a registered domain.
 
     A steady window treats trace values as aleatory observations. Transient
@@ -207,7 +207,7 @@ def val_from_exp(
                 exp_data.fields[:, None, :],
                 (EValAxis.POINT, EValAxis.COMPONENT, EValAxis.TIME),
             )
-    return ValData(arrays, sample_inputs)
+    return arrays
 
 
 def conv_exp_sim_to_data(
@@ -232,21 +232,27 @@ def conv_exp_sim_to_data(
         raise ValueError("Selected SensorSim arrays have unequal run counts.")
     count = counts.pop()
     converted: list[dict[str, ExpData]] = []
-    for run in range(count):
+    for run_idx in range(count):
         data = {}
-        for name, (sensor, component, coords) in selections.items():
+        for name, (sensor, component_idx, coords) in selections.items():
             values = output[(sim_key, sensor, measurement_key)]
-            if values.ndim != 4 or component < 0 or component >= values.shape[2]:
+            if (
+                values.ndim != 4
+                or component_idx < 0
+                or component_idx >= values.shape[2]
+            ):
                 raise ValueError(f"{name}: invalid SensorSim measurement shape.")
             times = np.asarray(output[(sim_key, sensor, time_key)])
             if times.ndim != 1 or len(times) != values.shape[3]:
                 raise ValueError(f"{name}: invalid SensorSim time coordinates.")
             if coords.shape != (values.shape[1], 3):
                 raise ValueError(f"{name}: invalid sensor coordinates.")
-            labels = {f"S{i}": i for i in range(values.shape[1])}
-            reverse = {i: label for label, i in labels.items()}
+            labels = {
+                f"S{point_idx}": point_idx for point_idx in range(values.shape[1])
+            }
+            reverse = {point_idx: label for label, point_idx in labels.items()}
             data[name] = ExpData(
-                fields=values[run, :, component, :],
+                fields=values[run_idx, :, component_idx, :],
                 sens_label_to_ind=labels,
                 ind_to_sens_label=reverse,
                 coords=coords,
@@ -305,18 +311,18 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
     first = cases[0]
     combined = {}
     run_ids = []
-    for case_index, val_case in enumerate(cases):
+    for case_idx, val_case in enumerate(cases):
         if set(val_case.domain.observables) != set(first.domain.observables):
             raise ValueError("Cases have different observable keys.")
-        if not _same_sample_inputs(val_case.sim.sample_inputs, first.sim.sample_inputs):
+        if not _same_sample_inputs(val_case.sim_inputs, first.sim_inputs):
             raise ValueError("Simulation sample provenance differs across cases.")
-        first_quantity = next(iter(val_case.exp.quantities.values()))
+        first_quantity = next(iter(val_case.exp.values()))
         sample_count = (
             first_quantity.data.shape[first_quantity.axes.index(EValAxis.ALEATORY)]
             if EValAxis.ALEATORY in first_quantity.axes
             else 1
         )
-        provenance = val_case.exp.sample_inputs
+        provenance = val_case.exp_inputs
         if provenance is not None and provenance.run_ids is not None:
             identifiers = provenance.run_ids
             if identifiers.axes != (EValAxis.ALEATORY,):
@@ -325,30 +331,29 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
                 raise ValueError("Run ID count does not match observations.")
             run_ids.append(identifiers.data.astype(str))
         else:
-            run_ids.append(np.full(sample_count, f"case_{case_index}"))
+            run_ids.append(np.full(sample_count, f"case_{case_idx}"))
     for name, observable in first.domain.observables.items():
-        reference = first.exp.quantities[name]
+        reference = first.exp[name]
         base_axes = tuple(
             axis for axis in reference.axes if axis is not EValAxis.ALEATORY
         )
         pieces = []
-        for case_index, val_case in enumerate(cases):
+        for case_idx, val_case in enumerate(cases):
             other = val_case.domain.observables.get(name)
             if other is None or other.operator is not observable.operator:
                 raise ValueError(f"{name}: incompatible observable.")
             if (
                 other.components != observable.components
-                or other.units != observable.units
+                or other.phys_units != observable.phys_units
                 or other.time_units != observable.time_units
             ):
                 raise ValueError(f"{name}: incompatible components or units.")
             if (
                 other.geometry.kind is not observable.geometry.kind
-                or other.geometry.coordinate_units
-                != observable.geometry.coordinate_units
-                or other.geometry.frame != observable.geometry.frame
+                or other.geometry.coord_units != observable.geometry.coord_units
+                or other.geometry.coord_frame != observable.geometry.coord_frame
             ):
-                raise ValueError(f"{name}: incompatible geometry or frame.")
+                raise ValueError(f"{name}: incompatible geometry or coord_frame.")
             left_connect = observable.geometry.connect or {}
             right_connect = other.geometry.connect or {}
             if set(left_connect) != set(right_connect) or any(
@@ -364,21 +369,21 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
                     raise ValueError(f"{name}: incompatible domain coordinates.")
                 if a is not None and not np.array_equal(a, b):
                     raise ValueError(f"{name}: incompatible domain coordinates.")
-            sim_a = first.sim.quantities[name]
-            sim_b = val_case.sim.quantities[name]
+            sim_a = first.sim[name]
+            sim_b = val_case.sim[name]
             if sim_a.axes != sim_b.axes or not np.array_equal(
                 sim_a.data, sim_b.data, equal_nan=True
             ):
                 raise ValueError(f"{name}: simulation data differs across cases.")
             if not _same_offsets(sim_a, sim_b):
                 raise ValueError(f"{name}: simulation offsets differ across cases.")
-            quantity = val_case.exp.quantities[name]
+            quantity = val_case.exp[name]
             quantity_count = (
                 quantity.data.shape[quantity.axes.index(EValAxis.ALEATORY)]
                 if EValAxis.ALEATORY in quantity.axes
                 else 1
             )
-            if quantity_count != len(run_ids[case_index]):
+            if quantity_count != len(run_ids[case_idx]):
                 raise ValueError("Observables have inconsistent run counts.")
             if not _same_offsets(quantity, reference):
                 raise ValueError(f"{name}: offsets differ across cases.")
@@ -395,26 +400,24 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
             np.concatenate(pieces, axis=-1), axes, reference.offsets
         )
     parameter_keys = set(
-        (first.exp.sample_inputs.parameters or {})
-        if first.exp.sample_inputs is not None
-        else {}
+        (first.exp_inputs.parameters or {}) if first.exp_inputs is not None else {}
     )
     parameters = {}
     for val_case in cases:
-        inputs = val_case.exp.sample_inputs
+        inputs = val_case.exp_inputs
         if (
             set((inputs.parameters or {}) if inputs is not None else {})
             != parameter_keys
         ):
             raise ValueError("Cases have different experimental parameter keys.")
     for key in parameter_keys:
-        reference_parameter = first.exp.sample_inputs.parameters[key]
+        reference_parameter = first.exp_inputs.parameters[key]
         base_axes = tuple(
             axis for axis in reference_parameter.axes if axis is not EValAxis.ALEATORY
         )
         pieces = []
-        for case_index, val_case in enumerate(cases):
-            parameter = val_case.exp.sample_inputs.parameters[key]
+        for case_idx, val_case in enumerate(cases):
+            parameter = val_case.exp_inputs.parameters[key]
             if EValAxis.ALEATORY in parameter.axes:
                 if parameter.axes != (*base_axes, EValAxis.ALEATORY):
                     raise ValueError(f"{key}: parameter axes differ.")
@@ -424,7 +427,7 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
                     raise ValueError(f"{key}: parameter axes differ.")
                 pieces.append(
                     np.repeat(
-                        parameter.data[..., None], len(run_ids[case_index]), axis=-1
+                        parameter.data[..., None], len(run_ids[case_idx]), axis=-1
                     )
                 )
         parameters[key] = ValArray(
@@ -434,4 +437,10 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
         parameters=parameters or None,
         run_ids=ValArray(np.concatenate(run_ids), (EValAxis.ALEATORY,)),
     )
-    return ValCase(first.domain, first.sim, ValData(combined, inputs))
+    return ValCase(
+        first.domain,
+        first.sim,
+        combined,
+        sim_inputs=first.sim_inputs,
+        exp_inputs=inputs,
+    )

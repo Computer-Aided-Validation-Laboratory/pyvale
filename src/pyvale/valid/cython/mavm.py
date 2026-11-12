@@ -106,79 +106,75 @@ def _integrate_mavm_bound_default(
     d_minus: cython.double = 0.0
     d_remainder: cython.double = 0.0
     d_area: cython.double = 0.0
-    exp_index: cython.Py_ssize_t = 0
-    model_index: cython.Py_ssize_t = 0
+    exp_idx: cython.Py_ssize_t = 0
+    model_idx: cython.Py_ssize_t = 0
 
     if exp_count > model_count:
-        for model_index in range(model_count):
+        for model_idx in range(model_count):
             if abs(d_remainder) > tolerance:
-                d_area = (
-                    exp_bound_quantiles[exp_index] - model_quantiles[model_index]
-                ) * (
-                    exp_probability_step * (exp_index + 1)
-                    - model_probability_step * model_index
+                d_area = (exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]) * (
+                    exp_probability_step * (exp_idx + 1)
+                    - model_probability_step * model_idx
                 )
                 if d_area > 0.0:
                     d_plus += d_area
                 else:
                     d_minus += d_area
-                exp_index += 1
+                exp_idx += 1
 
-            while (model_index + 1) * model_probability_step > (
-                exp_index + 1
+            while (model_idx + 1) * model_probability_step > (
+                exp_idx + 1
             ) * exp_probability_step:
                 d_area = (
-                    exp_bound_quantiles[exp_index] - model_quantiles[model_index]
+                    exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]
                 ) * exp_probability_step
                 if d_area > tolerance:
                     d_plus += d_area
                 else:
                     d_minus += d_area
-                exp_index += 1
+                exp_idx += 1
 
-            if exp_index < exp_count:
+            if exp_idx < exp_count:
                 d_remainder = (
-                    exp_bound_quantiles[exp_index] - model_quantiles[model_index]
+                    exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]
                 ) * (
-                    model_probability_step * (model_index + 1)
-                    - exp_probability_step * exp_index
+                    model_probability_step * (model_idx + 1)
+                    - exp_probability_step * exp_idx
                 )
                 if d_remainder > 0.0:
                     d_plus += d_remainder
                 else:
                     d_minus += d_remainder
     else:
-        for exp_index in range(exp_count):
+        for exp_idx in range(exp_count):
             if abs(d_remainder) > tolerance:
-                d_area = (
-                    exp_bound_quantiles[exp_index] - model_quantiles[model_index]
-                ) * (
-                    model_probability_step * (model_index + 1)
-                    - exp_probability_step * exp_index
+                d_area = (exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]) * (
+                    model_probability_step * (model_idx + 1)
+                    - exp_probability_step * exp_idx
                 )
                 if d_area > tolerance:
                     d_plus += d_area
                 else:
                     d_minus += d_area
-                model_index += 1
+                model_idx += 1
 
-            while (model_index + 1) * model_probability_step < (
-                exp_index + 1
+            while (model_idx + 1) * model_probability_step < (
+                exp_idx + 1
             ) * exp_probability_step:
                 d_area = (
-                    exp_bound_quantiles[exp_index] - model_quantiles[model_index]
+                    exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]
                 ) * model_probability_step
                 if d_area > tolerance:
                     d_plus += d_area
                 else:
                     d_minus += d_area
-                model_index += 1
+                model_idx += 1
 
             d_remainder = (
-                exp_bound_quantiles[exp_index] - model_quantiles[model_index]
+                exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]
             ) * (
-                exp_probability_step * (exp_index + 1)
-                - model_probability_step * model_index
+                exp_probability_step * (exp_idx + 1)
+                - model_probability_step * model_idx
             )
             if d_remainder > tolerance:
                 d_plus += d_remainder
@@ -201,8 +197,8 @@ def _integrate_mavm_bound_robust(
     """Integrate one MAVM bound over a merged empirical-CDF probability grid."""
     model_count: cython.Py_ssize_t = model_quantiles.shape[0]
     exp_count: cython.Py_ssize_t = exp_bound_quantiles.shape[0]
-    model_index: cython.Py_ssize_t = 0
-    exp_index: cython.Py_ssize_t = 0
+    model_idx: cython.Py_ssize_t = 0
+    exp_idx: cython.Py_ssize_t = 0
     probability: cython.double = 0.0
     next_probability: cython.double = 0.0
     d_area: cython.double = 0.0
@@ -212,12 +208,12 @@ def _integrate_mavm_bound_robust(
     exp_at_next: cython.bint = False
     probability_tolerance: cython.double = MAVM_PROBABILITY_TOLERANCE
 
-    while model_index < model_count and exp_index < exp_count:
+    while model_idx < model_count and exp_idx < exp_count:
         next_probability = min(
-            model_probabilities[model_index],
-            exp_probabilities[exp_index],
+            model_probabilities[model_idx],
+            exp_probabilities[exp_idx],
         )
-        d_area = (exp_bound_quantiles[exp_index] - model_quantiles[model_index]) * (
+        d_area = (exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]) * (
             next_probability - probability
         )
         if d_area > tolerance:
@@ -227,15 +223,15 @@ def _integrate_mavm_bound_robust(
 
         probability = next_probability
         model_at_next = (
-            abs(probability - model_probabilities[model_index]) <= probability_tolerance
+            abs(probability - model_probabilities[model_idx]) <= probability_tolerance
         )
         exp_at_next = (
-            abs(probability - exp_probabilities[exp_index]) <= probability_tolerance
+            abs(probability - exp_probabilities[exp_idx]) <= probability_tolerance
         )
         if model_at_next:
-            model_index += 1
+            model_idx += 1
         if exp_at_next:
-            exp_index += 1
+            exp_idx += 1
 
     return d_plus, d_minus
 

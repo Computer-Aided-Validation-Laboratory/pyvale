@@ -54,8 +54,8 @@ def main() -> None:
             exp_file[point, 0] = samples + 0.1
         val_case = val.ValCase(
             domain,
-            val.val_from_arrays({"strain": val.ValArray(sim_file, axes)}),
-            val.val_from_arrays({"strain": val.ValArray(exp_file, axes)}),
+            {"strain": val.ValArray(sim_file, axes)},
+            {"strain": val.ValArray(exp_file, axes)},
         )
         start = perf_counter()
         field = (

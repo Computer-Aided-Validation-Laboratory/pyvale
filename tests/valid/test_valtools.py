@@ -35,8 +35,8 @@ def test_extract_ecdf_selects_epistemic_cell_and_retains_duplicate_mass(
 ) -> None:
     cdf = val.extract_ecdf(
         quantity,
-        epis_trans=1,
-        epis_nuis=0,
+        epis_trans_idx=1,
+        epis_nuis_idx=0,
         offset=val.EEpisOffset.UPPER,
     )
     np.testing.assert_array_equal(cdf.quantiles, [12.0, 14.0])
@@ -49,7 +49,7 @@ def test_envelope_fixes_transferable_axis_and_spans_nuisance_axis(
 ) -> None:
     support, lower, upper = val.extract_ecdf_envelope(
         quantity,
-        epis_trans=1,
+        epis_trans_idx=1,
         offset=val.EEpisOffset.NOMINAL,
     )
     np.testing.assert_array_equal(support, [10.0, 12.0, 14.0])
@@ -62,8 +62,8 @@ def test_envelope_spans_coherent_offsets_of_one_epistemic_cell(
 ) -> None:
     support, lower, upper = val.extract_ecdf_envelope(
         quantity,
-        epis_trans=1,
-        epis_nuis=0,
+        epis_trans_idx=1,
+        epis_nuis_idx=0,
     )
     np.testing.assert_array_equal(support, [9.0, 10.0, 11.0, 12.0, 14.0])
     np.testing.assert_allclose(lower, [0.0, 0.0, 0.0, 2.0 / 3.0, 1.0])
@@ -90,12 +90,12 @@ def test_extraction_rejects_invalid_epistemic_indices(
     index: int,
 ) -> None:
     with pytest.raises(IndexError, match="EPISTEMIC_TRANS"):
-        val.extract_ecdf(quantity, epis_trans=index)
+        val.extract_ecdf(quantity, epis_trans_idx=index)
     with pytest.raises(IndexError, match="EPISTEMIC_TRANS"):
-        val.extract_ecdf_envelope(quantity, epis_trans=index)
+        val.extract_ecdf_envelope(quantity, epis_trans_idx=index)
 
 
 def test_extraction_rejects_nonzero_index_on_absent_axis() -> None:
     quantity = val.ValArray(np.array([0.0, 1.0]), (val.EValAxis.ALEATORY,))
     with pytest.raises(IndexError, match="EPISTEMIC_NUIS"):
-        val.extract_ecdf(quantity, epis_nuis=1)
+        val.extract_ecdf(quantity, epis_nuis_idx=1)

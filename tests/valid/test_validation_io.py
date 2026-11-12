@@ -33,8 +33,9 @@ def test_arrays_are_zero_copy_and_axis_order_is_checked() -> None:
         val.EValAxis.EPISTEMIC_TRANS,
         val.EValAxis.ALEATORY,
     )
-    wrapped = val.val_from_arrays({"temperature": val.ValArray(samples, axes)})
-    assert wrapped.quantities["temperature"].data is samples
+    wrapped = {"temperature": val.ValArray(samples, axes)}
+    val_case = val.ValCase(_domain(), wrapped, wrapped)
+    assert val_case.sim["temperature"].data is samples
     with pytest.raises(ValueError, match="canonical"):
         val.ValArray(samples, axes[::-1])
     with pytest.raises(ValueError, match="unique"):
@@ -64,8 +65,8 @@ def test_engine_retains_sampled_epistemic_scenarios_and_offsets() -> None:
     )
     val_case = val.ValCase(
         _domain(),
-        val.ValData({"temperature": val.ValArray(simulation, sim_axes)}),
-        val.ValData({"temperature": val.ValArray(experiment, exp_axes, offsets)}),
+        {"temperature": val.ValArray(simulation, sim_axes)},
+        {"temperature": val.ValArray(experiment, exp_axes, offsets)},
     )
     result = val.ValidationEngine([val.MetricAVM(), val.MetricKS()]).run(val_case)
     field = result.get("temperature", val.EMetricType.AVM)
@@ -77,7 +78,7 @@ def test_engine_retains_sampled_epistemic_scenarios_and_offsets() -> None:
     for point in range(2):
         for trans in range(2):
             for offset in range(3):
-                selected = val_case.exp.quantities["temperature"].select_aleatory(
+                selected = val_case.exp["temperature"].select_aleatory(
                     point, 0, 0, offset=offset
                 )
                 expected = val.calc_avm_1d(simulation[point, 0, trans], selected)
@@ -130,42 +131,36 @@ def test_combine_cases_preserves_transient_run_pairing() -> None:
         }
     )
     axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.TIME)
-    sim = val.ValData({"temperature": val.ValArray(np.zeros((1, 1, 2)), axes)})
+    sim = {"temperature": val.ValArray(np.zeros((1, 1, 2)), axes)}
     cases = [
         val.ValCase(
             domain,
             sim,
-            val.ValData(
-                {"temperature": val.ValArray(np.array([[[i, i + 10.0]]]), axes)}
-            ),
+            {"temperature": val.ValArray(np.array([[[i, i + 10.0]]]), axes)},
         )
         for i in (1.0, 2.0)
     ]
     joined = val.combine_val_cases(*cases)
     np.testing.assert_array_equal(
-        joined.exp.quantities["temperature"].data, [[[[1.0, 2.0], [11.0, 12.0]]]]
+        joined.exp["temperature"].data, [[[[1.0, 2.0], [11.0, 12.0]]]]
     )
-    np.testing.assert_array_equal(
-        joined.exp.sample_inputs.run_ids.data, ["case_0", "case_1"]
-    )
+    np.testing.assert_array_equal(joined.exp_inputs.run_ids.data, ["case_0", "case_1"])
 
 
 def test_combine_cases_preserves_parameter_provenance() -> None:
     domain = _domain(points=1)
     axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT)
-    sim = val.ValData({"temperature": val.ValArray(np.array([[0.0]]), axes)})
+    sim = {"temperature": val.ValArray(np.array([[0.0]]), axes)}
     cases = []
     for index, parameter in enumerate((10.0, 20.0)):
         inputs = val.ValSampleInputs(
             parameters={"loading": val.ValArray(np.array(parameter), ())}
         )
-        exp = val.ValData(
-            {"temperature": val.ValArray(np.array([[parameter]]), axes)}, inputs
-        )
-        cases.append(val.ValCase(domain, sim, exp))
+        exp = {"temperature": val.ValArray(np.array([[parameter]]), axes)}
+        cases.append(val.ValCase(domain, sim, exp, exp_inputs=inputs))
     joined = val.combine_val_cases(*cases)
     np.testing.assert_array_equal(
-        joined.exp.sample_inputs.parameters["loading"].data, [10.0, 20.0]
+        joined.exp_inputs.parameters["loading"].data, [10.0, 20.0]
     )
 
 
@@ -185,16 +180,12 @@ def test_sensor_sim_bridge_retains_component_and_run_values() -> None:
 
 def test_invalid_points_remain_masked_without_affecting_other_points() -> None:
     axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.ALEATORY)
-    simulation = val.ValData(
-        {
-            "temperature": val.ValArray(
-                np.array([[[1.0, 2.0]], [[np.nan, np.nan]]]), axes
-            )
-        }
-    )
-    experiment = val.ValData(
-        {"temperature": val.ValArray(np.array([[[2.0, 3.0]], [[4.0, 5.0]]]), axes)}
-    )
+    simulation = {
+        "temperature": val.ValArray(np.array([[[1.0, 2.0]], [[np.nan, np.nan]]]), axes)
+    }
+    experiment = {
+        "temperature": val.ValArray(np.array([[[2.0, 3.0]], [[4.0, 5.0]]]), axes)
+    }
     val_case = val.ValCase(_domain(), simulation, experiment)
     field = (
         val.ValidationEngine([val.MetricAVM()])
@@ -229,8 +220,8 @@ def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
     )
     val_case = val.ValCase(
         domain,
-        val.ValData({"temperature": sim}),
-        val.ValData({"temperature": exp}),
+        {"temperature": sim},
+        {"temperature": exp},
     )
     field = (
         val.ValidationEngine([val.MetricAVM()])
@@ -251,8 +242,38 @@ def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
         for en in range(3):
             for so in range(3):
                 for eo in range(3):
-                    left = sim.select_aleatory(0, 0, 0, epis_trans=st, offset=so)
-                    right = exp.select_aleatory(0, 0, 0, epis_nuis=en, offset=eo)
+                    left = sim.select_aleatory(0, 0, 0, epis_trans_idx=st, offset=so)
+                    right = exp.select_aleatory(0, 0, 0, epis_nuis_idx=en, offset=eo)
                     assert field.metric[0, 0, 0, st, en, so, eo] == pytest.approx(
                         val.calc_avm_1d(left, right)
                     )
+
+
+def test_case_validates_sample_input_dimensions_for_each_source() -> None:
+    """Both provenance fields must describe the source's uncertainty axes."""
+    domain = _domain(points=1)
+    axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.ALEATORY)
+    quantities = {"temperature": val.ValArray(np.ones((1, 1, 3)), axes)}
+    mismatched_inputs = val.ValSampleInputs(
+        run_ids=val.ValArray(np.array(["run_0", "run_1"]), (val.EValAxis.ALEATORY,))
+    )
+    with pytest.raises(ValueError, match="sample input ALEATORY mismatch"):
+        val.ValCase(domain, quantities, quantities, sim_inputs=mismatched_inputs)
+    with pytest.raises(ValueError, match="sample input ALEATORY mismatch"):
+        val.ValCase(domain, quantities, quantities, exp_inputs=mismatched_inputs)
+
+
+def test_combine_cases_preserves_simulation_provenance() -> None:
+    """Combining acquisitions retains the original model sample identifiers."""
+    axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.ALEATORY)
+    quantities = {"temperature": val.ValArray(np.ones((1, 1, 2)), axes)}
+    sim_inputs = val.ValSampleInputs(
+        run_ids=val.ValArray(np.array(["sim_0", "sim_1"]), (val.EValAxis.ALEATORY,))
+    )
+    val_case = val.ValCase(
+        _domain(points=1), quantities, quantities, sim_inputs=sim_inputs
+    )
+    combined = val.combine_val_cases(val_case, val_case)
+    assert combined.sim_inputs is sim_inputs
+    np.testing.assert_array_equal(combined.sim_inputs.run_ids.data, ["sim_0", "sim_1"])
+    assert combined.exp["temperature"].data.shape == (1, 1, 4)

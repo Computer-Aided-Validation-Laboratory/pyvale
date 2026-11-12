@@ -7,6 +7,7 @@
 """Diagnostic plots for validation samples and labelled metric fields."""
 
 from dataclasses import dataclass
+from math import ceil, sqrt
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -105,7 +106,7 @@ def _create_axes(
 def _metric_units(result: ValResult, observable: str, metric: EMetricType) -> str:
     if metric in (EMetricType.KS, EMetricType.CVM, EMetricType.RELATIVE_ERROR):
         return "1"
-    return result.domain.observables[observable].units
+    return result.domain.observables[observable].phys_units
 
 
 def plot_val_cdfs(
@@ -113,13 +114,13 @@ def plot_val_cdfs(
     result: ValResult,
     observable: str,
     *,
-    point: int = 0,
-    component: int = 0,
-    time: int = 0,
-    sim_trans: int = 0,
-    sim_nuis: int = 0,
-    exp_trans: int = 0,
-    exp_nuis: int = 0,
+    point_idx: int = 0,
+    component_idx: int = 0,
+    time_idx: int = 0,
+    sim_trans_idx: int = 0,
+    sim_nuis_idx: int = 0,
+    exp_trans_idx: int = 0,
+    exp_nuis_idx: int = 0,
     sim_offset: EEpisOffset = EEpisOffset.NOMINAL,
     exp_offset: EEpisOffset = EEpisOffset.NOMINAL,
     metric: MetricMAVM | None = None,
@@ -130,11 +131,11 @@ def plot_val_cdfs(
     """Show the exact conditional samples compared at one physical cell."""
     if observable not in result.fields:
         raise KeyError(observable)
-    sim = val_case.sim.quantities[observable].select_aleatory(
-        point, component, time, sim_trans, sim_nuis, sim_offset
+    sim = val_case.sim[observable].select_aleatory(
+        point_idx, component_idx, time_idx, sim_trans_idx, sim_nuis_idx, sim_offset
     )
-    exp = val_case.exp.quantities[observable].select_aleatory(
-        point, component, time, exp_trans, exp_nuis, exp_offset
+    exp = val_case.exp[observable].select_aleatory(
+        point_idx, component_idx, time_idx, exp_trans_idx, exp_nuis_idx, exp_offset
     )
     sim = sim[np.isfinite(sim)]
     exp = exp[np.isfinite(exp)]
@@ -182,7 +183,7 @@ def plot_val_cdfs(
             label=source_labels.exp_conf_upper,
         )
         ax.set_title(f"MAVM: d+={raw.d_plus:.4g}, d-={raw.d_minus:.4g}")
-    units = val_case.domain.observables[observable].units
+    units = val_case.domain.observables[observable].phys_units
     ax.set_xlabel(f"{observable} [{units}]")
     ax.set_ylabel("Cumulative probability")
     ax.set_ylim(0.0, 1.02)
@@ -197,11 +198,11 @@ def plot_val_cdf_envelope(
     observable: str,
     *,
     source: EValSource = EValSource.SIM,
-    point: int = 0,
-    component: int = 0,
-    time: int = 0,
-    epis_trans: int | None = None,
-    epis_nuis: int | None = None,
+    point_idx: int = 0,
+    component_idx: int = 0,
+    time_idx: int = 0,
+    epis_trans_idx: int | None = None,
+    epis_nuis_idx: int | None = None,
     offset: EEpisOffset | None = None,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
@@ -210,14 +211,14 @@ def plot_val_cdf_envelope(
     """Plot pointwise envelope of complete conditional CDF scenarios."""
     if not isinstance(source, EValSource):
         raise TypeError("Source must be EValSource.SIM or EValSource.EXP.")
-    quantity = getattr(val_case, source).quantities[observable]
+    quantity = getattr(val_case, source)[observable]
     support, lower, upper = extract_ecdf_envelope(
         quantity,
-        point=point,
-        component=component,
-        time=time,
-        epis_trans=epis_trans,
-        epis_nuis=epis_nuis,
+        point_idx=point_idx,
+        component_idx=component_idx,
+        time_idx=time_idx,
+        epis_trans_idx=epis_trans_idx,
+        epis_nuis_idx=epis_nuis_idx,
         offset=offset,
     )
     margin = max((support[-1] - support[0]) * 0.02, 1.0e-12)
@@ -244,7 +245,7 @@ def plot_val_cdf_envelope(
         label=f"{source_label}: pointwise upper",
     )
     ax.fill_between(support, lower, upper, step="post", alpha=0.2)
-    units = val_case.domain.observables[observable].units
+    units = val_case.domain.observables[observable].phys_units
     ax.set_xlabel(f"{observable} [{units}]")
     ax.set_ylabel("Cumulative probability")
     ax.set_ylim(0.0, 1.02)
@@ -303,8 +304,10 @@ def plot_val_metric_distribution(
 ) -> tuple[plt.Figure, plt.Axes]:
     """Histogram finite metric values over selected physical/scenario cells."""
     field = result.get(observable, metric)
-    index = tuple((selectors or {}).get(axis, slice(None)) for axis in field.axes)
-    selected_field = select_metric_part(field, part, index=index)
+    selection_idx = tuple(
+        (selectors or {}).get(axis, slice(None)) for axis in field.axes
+    )
+    selected_field = select_metric_part(field, part, selection_idxs=selection_idx)
     values = selected_field.ravel()
     values = values[np.isfinite(values)]
     if not len(values):
@@ -321,26 +324,116 @@ def plot_val_metric_distribution(
     return fig, ax
 
 
-def _create_point_axes(
-    points: tuple[int, ...],
-    columns: int,
-    plot_opts: PlotOptsGeneral | None,
+def create_val_plot_grid(
+    point_count: int,
+    *,
+    rows: int | None = None,
+    columns: int | None = None,
+    plot_opts: PlotOptsGeneral | None = None,
 ) -> tuple[plt.Figure, np.ndarray]:
-    if not points or columns < 1:
-        raise ValueError("Supply at least one point and a positive column count.")
+    """Create landscape diagnostic panels using standard plot options.
+
+    Returns a two-dimensional axes array, hiding spare panels. Supply a panel
+    count and optionally rows, columns or both to control the grid.
+    """
+    if not isinstance(point_count, int) or point_count < 1:
+        raise ValueError("Supply a positive point count.")
+    for count in (rows, columns):
+        if count is not None and (not isinstance(count, int) or count < 1):
+            raise ValueError(
+                "Supply positive integer rows and columns for the point grid."
+            )
     options = PlotOptsGeneral() if plot_opts is None else plot_opts
-    columns = min(columns, len(points))
-    rows = (len(points) + columns - 1) // columns
+    if columns is None:
+        columns = ceil(sqrt(point_count)) if rows is None else ceil(point_count / rows)
+    if rows is None:
+        columns = min(columns, point_count)
+        rows = ceil(point_count / columns)
+    if rows * columns < point_count:
+        raise ValueError("Point grid has fewer panels than selected points.")
     width, height = options.single_fig_size_landscape
     fig, axes = plt.subplots(
         rows,
         columns,
         squeeze=False,
         figsize=(width * columns, height * rows),
+        dpi=options.resolution,
         layout="constrained",
     )
-    for ax in axes.flat[len(points) :]:
+    for ax in axes.flat[point_count:]:
         ax.set_visible(False)
+    return fig, axes
+
+
+def plot_val_cdf_envelope_points(
+    val_case: ValCase,
+    observable: str,
+    *,
+    point_idxs: tuple[int, ...] | None = None,
+    source: EValSource = EValSource.SIM,
+    component_idx: int = 0,
+    time_idx: int = 0,
+    epis_trans_idx: int | None = None,
+    epis_nuis_idx: int | None = None,
+    offset: EEpisOffset | None = None,
+    rows: int | None = None,
+    columns: int | None = None,
+    plot_opts: PlotOptsGeneral | None = None,
+    labels: ValPlotLabels | None = None,
+) -> tuple[plt.Figure, np.ndarray]:
+    """Plot conditional ECDF envelopes for selected physical observation points.
+
+    ``point_idxs=None`` selects every point in domain order; an explicit tuple keeps
+    its supplied order. Automatic layout uses a nearly square panel grid with
+    landscape panels sized by PlotOptsGeneral. Specify rows, columns or both
+    to control the layout. Axes always have shape (rows, columns), with spare
+    panels hidden. Scenario selectors apply independently at every point.
+    """
+    if not isinstance(source, EValSource):
+        raise TypeError("Source must be EValSource.SIM or EValSource.EXP.")
+    observable_data = val_case.domain.observables[observable]
+    coords = observable_data.geometry.coords
+    point_count = 1 if coords is None else len(coords)
+    selected_point_idxs = (
+        tuple(range(point_count)) if point_idxs is None else point_idxs
+    )
+    if any(
+        not isinstance(point_idx, (int, np.integer))
+        or point_idx < 0
+        or point_idx >= point_count
+        for point_idx in selected_point_idxs
+    ):
+        raise ValueError("Point indices must identify points in the observable domain.")
+    options = PlotOptsGeneral() if plot_opts is None else plot_opts
+    fig, axes = create_val_plot_grid(
+        len(selected_point_idxs), columns=columns, plot_opts=options, rows=rows
+    )
+    time_label = (
+        "steady"
+        if observable_data.times is None
+        else f"t={observable_data.times[time_idx]:g} {observable_data.time_units}"
+    )
+    for point_idx, ax in zip(selected_point_idxs, axes.flat, strict=False):
+        plot_val_cdf_envelope(
+            val_case,
+            observable,
+            point_idx=point_idx,
+            source=source,
+            component_idx=component_idx,
+            time_idx=time_idx,
+            epis_trans_idx=epis_trans_idx,
+            epis_nuis_idx=epis_nuis_idx,
+            offset=offset,
+            plot_opts=options,
+            labels=labels,
+            ax=ax,
+        )
+        heading = ax.get_title()
+        ax.set_title(
+            f"Point {point_idx}: {observable_data.components[component_idx]}, "
+            f"{time_label}" + (f"\n{heading}" if heading else ""),
+            fontsize=options.font_head_size,
+        )
     return fig, axes
 
 
@@ -349,13 +442,13 @@ def plot_val_cdfs_points(
     result: ValResult,
     observable: str,
     *,
-    points: tuple[int, ...],
-    component: int = 0,
-    time: int = 0,
-    sim_trans: int = 0,
-    sim_nuis: int = 0,
-    exp_trans: int = 0,
-    exp_nuis: int = 0,
+    point_idxs: tuple[int, ...],
+    component_idx: int = 0,
+    time_idx: int = 0,
+    sim_trans_idx: int = 0,
+    sim_nuis_idx: int = 0,
+    exp_trans_idx: int = 0,
+    exp_nuis_idx: int = 0,
     sim_offset: EEpisOffset = EEpisOffset.NOMINAL,
     exp_offset: EEpisOffset = EEpisOffset.NOMINAL,
     metric: MetricMAVM | None = None,
@@ -368,25 +461,27 @@ def plot_val_cdfs_points(
     The returned axes array always has shape (rows, columns). Unused panels are
     hidden. Each panel identifies its point, component and physical time.
     """
-    fig, axes = _create_point_axes(points, columns, plot_opts)
+    fig, axes = create_val_plot_grid(
+        len(point_idxs), columns=columns, plot_opts=plot_opts
+    )
     observable_data = val_case.domain.observables[observable]
     time_label = (
         "steady"
         if observable_data.times is None
-        else (f"t={observable_data.times[time]:g} {observable_data.time_units}")
+        else (f"t={observable_data.times[time_idx]:g} {observable_data.time_units}")
     )
-    for point, ax in zip(points, axes.flat, strict=False):
+    for point_idx, ax in zip(point_idxs, axes.flat, strict=False):
         plot_val_cdfs(
             val_case,
             result,
             observable,
-            point=point,
-            component=component,
-            time=time,
-            sim_trans=sim_trans,
-            sim_nuis=sim_nuis,
-            exp_trans=exp_trans,
-            exp_nuis=exp_nuis,
+            point_idx=point_idx,
+            component_idx=component_idx,
+            time_idx=time_idx,
+            sim_trans_idx=sim_trans_idx,
+            sim_nuis_idx=sim_nuis_idx,
+            exp_trans_idx=exp_trans_idx,
+            exp_nuis_idx=exp_nuis_idx,
             sim_offset=sim_offset,
             exp_offset=exp_offset,
             metric=metric,
@@ -396,8 +491,8 @@ def plot_val_cdfs_points(
         )
         heading = ax.get_title()
         ax.set_title(
-            f"Point {point}: {observable_data.components[component]}, {time_label}"
-            + (f"\n{heading}" if heading else ""),
+            f"Point {point_idx}: {observable_data.components[component_idx]}, "
+            f"{time_label}" + (f"\n{heading}" if heading else ""),
             fontsize=(plot_opts or PlotOptsGeneral()).font_head_size,
         )
     return fig, axes
@@ -408,7 +503,7 @@ def plot_val_metric_time_points(
     observable: str,
     metric: EMetricType,
     *,
-    points: tuple[int, ...],
+    point_idxs: tuple[int, ...],
     selectors: dict[EValResAxis, int] | None = None,
     part: EValMetricPart = EValMetricPart.TOTAL,
     columns: int = 3,
@@ -416,10 +511,12 @@ def plot_val_metric_time_points(
     labels: ValPlotLabels | None = None,
 ) -> tuple[plt.Figure, np.ndarray]:
     """Plot the same selected scenario over time for multiple point panels."""
-    fig, axes = _create_point_axes(points, columns, plot_opts)
-    for point, ax in zip(points, axes.flat, strict=False):
+    fig, axes = create_val_plot_grid(
+        len(point_idxs), columns=columns, plot_opts=plot_opts
+    )
+    for point_idx, ax in zip(point_idxs, axes.flat, strict=False):
         selected = dict(selectors or {})
-        selected[EValResAxis.POINT] = point
+        selected[EValResAxis.POINT] = point_idx
         plot_val_metric_time(
             result,
             observable,
@@ -431,7 +528,7 @@ def plot_val_metric_time_points(
             ax=ax,
         )
         ax.set_title(
-            f"Point {point}: {ax.get_title()}",
+            f"Point {point_idx}: {ax.get_title()}",
             fontsize=(plot_opts or PlotOptsGeneral()).font_head_size,
         )
     return fig, axes
@@ -501,11 +598,11 @@ def _plot_distribution_summary(
 def plot_val_ecdf_family(
     quantity: ValArray,
     *,
-    point: int = 0,
-    component: int = 0,
-    time: int = 0,
-    epis_trans: int | None = None,
-    epis_nuis: int | None = None,
+    point_idx: int = 0,
+    component_idx: int = 0,
+    time_idx: int = 0,
+    epis_trans_idx: int | None = None,
+    epis_nuis_idx: int | None = None,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     bounds: EValECDFBounds = EValECDFBounds.POINTWISE,
     plot_opts: PlotOptsGeneral | None = None,
@@ -515,17 +612,17 @@ def plot_val_ecdf_family(
     """Show all conditional ECDFs, their mean quantile curve and selected bounds."""
     samples = extract_aleatory_scenarios(
         quantity,
-        point=point,
-        component=component,
-        time=time,
-        epis_trans=epis_trans,
-        epis_nuis=epis_nuis,
+        point_idx=point_idx,
+        component_idx=component_idx,
+        time_idx=time_idx,
+        epis_trans_idx=epis_trans_idx,
+        epis_nuis_idx=epis_nuis_idx,
         offset=offset,
     )
     summary = calc_ecdf_summary(samples, bounds=bounds)
     fig, ax = _create_axes(ax, plot_opts)
     color = (plot_opts or PlotOptsGeneral()).colors[0]
-    for index, sample in enumerate(samples):
+    for selection_idx, sample in enumerate(samples):
         cdf = calc_ecdf(sample)
         _plot_quantile_curve(
             ax,
@@ -533,7 +630,7 @@ def plot_val_ecdf_family(
             cdf.probabilities,
             color=color,
             alpha=0.25,
-            label="Conditional ECDFs" if index == 0 else None,
+            label="Conditional ECDFs" if selection_idx == 0 else None,
         )
     _plot_distribution_summary(ax, summary, color="black", label="Scenario summary")
     ax.set_ylabel("Cumulative probability")

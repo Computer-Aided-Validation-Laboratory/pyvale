@@ -35,10 +35,10 @@ def test_prepared_plate_gold_metrics() -> None:
 
 def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
     """The field and acquisition converters match an explicit NumPy case."""
-    with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
+    with np.load(dataset.valid_data_dir() / "plate_sensorsim_2d.npz") as saved:
         coords = saved["coords"].copy()
         times = saved["times"].copy()
-        measured = saved["perturbed_temperature"].copy()
+        measured = saved["exp_temp"].copy()
 
     domain = val.ValDomain(
         {
@@ -71,31 +71,27 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
     ]
     converted = val.combine_val_cases(*cases)
 
-    direct_sim = val.val_from_arrays(
-        {
-            "temperature": val.ValArray(
-                sim.quantities["temperature"].data,
-                sim.quantities["temperature"].axes,
-            )
-        }
-    )
-    direct_exp = val.val_from_arrays(
-        {
-            "temperature": val.ValArray(
-                np.moveaxis(measured, 0, -1),
-                (
-                    val.EValAxis.POINT,
-                    val.EValAxis.COMPONENT,
-                    val.EValAxis.TIME,
-                    val.EValAxis.ALEATORY,
-                ),
-            )
-        }
-    )
+    direct_sim = {
+        "temperature": val.ValArray(
+            sim["temperature"].data,
+            sim["temperature"].axes,
+        )
+    }
+    direct_exp = {
+        "temperature": val.ValArray(
+            np.moveaxis(measured, 0, -1),
+            (
+                val.EValAxis.POINT,
+                val.EValAxis.COMPONENT,
+                val.EValAxis.TIME,
+                val.EValAxis.ALEATORY,
+            ),
+        )
+    }
     direct = val.ValCase(domain, direct_sim, direct_exp)
     np.testing.assert_array_equal(
-        converted.exp.quantities["temperature"].data,
-        direct.exp.quantities["temperature"].data,
+        converted.exp["temperature"].data,
+        direct.exp["temperature"].data,
     )
     engine = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()])
     converted_result = engine.run(converted)
@@ -149,11 +145,11 @@ def test_global_and_spatial_average_simulation_extraction() -> None:
     )
     expected_average = sens.sample_field_with_sensor_data(field, average_sensor)
     np.testing.assert_allclose(
-        result.quantities["temperature_average"].data,
+        result["temperature_average"].data,
         expected_average,
     )
     np.testing.assert_allclose(
-        result.quantities["global_temperature"].data[0, 0],
+        result["global_temperature"].data[0, 0],
         np.interp(times, sim_data.time, sim_data.glob_vars["temp_avg"]),
     )
 
@@ -165,8 +161,8 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
         val_case,
         result,
         "temperature",
-        point=5,
-        time=4,
+        point_idx=5,
+        time_idx=4,
         metric=val.MetricMAVM(),
     )
     assert "degC" in ax_cdf.get_xlabel()
@@ -195,7 +191,7 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
 
 def test_spatial_temporal_offset_is_applied_per_conditional_cdf() -> None:
     val_case = load_plate_case(transient=True, epistemic=True, offsets=True)
-    quantity = val_case.exp.quantities["temperature"]
+    quantity = val_case.exp["temperature"]
     assert quantity.offsets.axes == (val.EValAxis.POINT, val.EValAxis.TIME)
     nominal = quantity.select_aleatory(5, 0, 0)
     lower_early = quantity.select_aleatory(5, 0, 0, offset=val.EEpisOffset.LOWER)
@@ -204,3 +200,60 @@ def test_spatial_temporal_offset_is_applied_per_conditional_cdf() -> None:
     assert np.allclose(nominal - lower_early, quantity.offsets.lower[5, 0])
     assert np.allclose(late_nominal - lower_late, quantity.offsets.lower[5, 4])
     assert quantity.offsets.lower[5, 4] > quantity.offsets.lower[5, 0]
+
+
+@pytest.mark.parametrize(
+    ("filename", "transient", "epistemic"),
+    (
+        ("plate_validation_2d.npz", True, True),
+        ("plate_validation_2d_nominal.npz", True, False),
+        ("plate_validation_2d_steady.npz", False, True),
+        ("plate_validation_2d_steady_nominal.npz", False, False),
+    ),
+)
+def test_prepared_plate_arrays_preserve_sensor_observations(
+    filename: str, transient: bool, epistemic: bool
+) -> None:
+    """Prepared axes and model scenarios preserve each original repeat exactly."""
+    data_path = dataset.valid_data_dir()
+    with (
+        np.load(data_path / "plate_sensorsim_2d.npz") as raw,
+        np.load(data_path / filename) as prepared,
+    ):
+        assert set(prepared.files) == {
+            "coords",
+            "sim_temp",
+            "exp_temp",
+            "sim_strain",
+            "exp_strain",
+        } | ({"times"} if transient else set())
+        np.testing.assert_array_equal(prepared["coords"], raw["coords"])
+        if transient:
+            np.testing.assert_array_equal(prepared["times"], raw["times"])
+        for quantity, components in (("temp", 1), ("strain", 3)):
+            physical_shape = (12, components, 5) if transient else (12, components)
+            expected_sim_shape = (
+                (*physical_shape, 2, 6) if epistemic else (*physical_shape, 6)
+            )
+            assert prepared[f"sim_{quantity}"].shape == expected_sim_shape
+            assert prepared[f"exp_{quantity}"].shape == (*physical_shape, 6)
+            for repeat in range(6):
+                nominal = raw[f"sim_{quantity}"][repeat]
+                perturbed = raw[f"exp_{quantity}"][repeat]
+                if not transient:
+                    nominal = nominal[..., -1]
+                    perturbed = perturbed[..., -1]
+                np.testing.assert_array_equal(
+                    prepared[f"exp_{quantity}"][..., repeat], perturbed
+                )
+                if epistemic:
+                    np.testing.assert_array_equal(
+                        prepared[f"sim_{quantity}"][..., 0, repeat], nominal
+                    )
+                    np.testing.assert_array_equal(
+                        prepared[f"sim_{quantity}"][..., 1, repeat], perturbed
+                    )
+                else:
+                    np.testing.assert_array_equal(
+                        prepared[f"sim_{quantity}"][..., repeat], nominal
+                    )

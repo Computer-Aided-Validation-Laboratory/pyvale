@@ -75,9 +75,11 @@ class ValResult:
         selectable = np.where(
             np.isfinite(field.metric), field.metric, -np.inf if maximum else np.inf
         )
-        flat = np.argmax(selectable) if maximum else np.argmin(selectable)
-        index = np.unravel_index(flat, field.metric.shape)
-        return float(field.metric[index]), dict(zip(field.axes, index, strict=True))
+        flat_idx = np.argmax(selectable) if maximum else np.argmin(selectable)
+        selection_idx = np.unravel_index(flat_idx, field.metric.shape)
+        return float(field.metric[selection_idx]), dict(
+            zip(field.axes, selection_idx, strict=True)
+        )
 
 
 class ValidationEngine:
@@ -97,8 +99,8 @@ class ValidationEngine:
         """Return all physical, sampled epistemic, and offset scenarios."""
         results: dict[str, dict[EMetricType, ValMetricField]] = {}
         for name, observable in val_case.domain.observables.items():
-            sim = val_case.sim.quantities[name]
-            exp = val_case.exp.quantities[name]
+            sim = val_case.sim[name]
+            exp = val_case.exp[name]
             axis_sizes = {
                 EValResAxis.POINT: (
                     1
@@ -136,8 +138,8 @@ class ValidationEngine:
                     d_minus=np.full(shape, np.nan) if directional else None,
                     scenarios=scenarios or None,
                 )
-            for full_index in product(*(range(axis_sizes[a]) for a in VAL_RES_AXES)):
-                selected = dict(zip(VAL_RES_AXES, full_index, strict=True))
+            for full_idx in product(*(range(axis_sizes[a]) for a in VAL_RES_AXES)):
+                selected = dict(zip(VAL_RES_AXES, full_idx, strict=True))
                 sim_samples = sim.select_aleatory(
                     selected["point"],
                     selected["component"],
@@ -158,18 +160,18 @@ class ValidationEngine:
                     continue
                 if not np.any(np.isfinite(exp_samples)):
                     continue
-                out_index = tuple(selected[axis] for axis in axes)
+                out_idx = tuple(selected[axis] for axis in axes)
                 for metric in self.metrics:
                     field = fields[metric.get_kind()]
                     metric_result = metric.calc(sim_samples, exp_samples)
                     if isinstance(metric_result, MAVMResult):
-                        field.metric[out_index] = metric_result.d_total
+                        field.metric[out_idx] = metric_result.d_total
                         assert field.d_plus is not None
                         assert field.d_minus is not None
-                        field.d_plus[out_index] = metric_result.d_plus
-                        field.d_minus[out_index] = metric_result.d_minus
+                        field.d_plus[out_idx] = metric_result.d_plus
+                        field.d_minus[out_idx] = metric_result.d_minus
                     else:
-                        field.metric[out_index] = metric_result.value
+                        field.metric[out_idx] = metric_result.value
             results[name] = fields
         configs = {metric.get_kind(): metric for metric in self.metrics}
         return ValResult(domain=val_case.domain, fields=results, metric_configs=configs)

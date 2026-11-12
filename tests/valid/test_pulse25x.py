@@ -62,12 +62,12 @@ def test_all_paper_endpoint_distances_match_independent_reference(
 ) -> None:
     scenarios = reference.simulation[reference.sensor_tags.index(channel)]
     support_sums = np.sum(np.sort(scenarios, axis=1), axis=1)
-    lower_index = int(np.argmin(support_sums))
-    upper_index = int(np.argmax(support_sums))
+    lower_idx = int(np.argmin(support_sums))
+    upper_idx = int(np.argmax(support_sums))
     experimental_support = np.unique(reference.experiment[channel])
     for exp_name, sign in (("min", -1.0), ("max", 1.0)):
         experiment = experimental_support + sign * reference.offsets[channel]
-        for sim_name, index in (("min", lower_index), ("max", upper_index)):
+        for sim_name, index in (("min", lower_idx), ("max", upper_idx)):
             calculated = val.calc_mavm_1d(
                 scenarios[index], experiment, duplicates=val.EMAVMDuplicates.REJECT
             )
@@ -80,8 +80,8 @@ def test_all_paper_endpoint_distances_match_independent_reference(
                     reference.expected.loc[row, channel], rel=1e-12, abs=1e-12
                 )
     correction = val.calc_mavm_correction(
-        scenarios[lower_index],
-        scenarios[upper_index],
+        scenarios[lower_idx],
+        scenarios[upper_idx],
         experimental_support - reference.offsets[channel],
         experimental_support + reference.offsets[channel],
         duplicates=val.EMAVMDuplicates.REJECT,

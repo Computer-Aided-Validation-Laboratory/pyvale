@@ -19,18 +19,30 @@ def load_plate_case(
     """Load prepared SensorSim thermocouple and strain-gauge arrays.
 
     The packaged 2D plate simulations differ in conductivity and thermal
-    expansion by a factor of 0.9. Data are (run, point, component, time).
+    expansion by a factor of 0.9. Saved validation arrays have repeats last.
     """
-    with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as data:
+    if transient:
+        filename = (
+            "plate_validation_2d.npz"
+            if epistemic
+            else "plate_validation_2d_nominal.npz"
+        )
+    else:
+        filename = (
+            "plate_validation_2d_steady.npz"
+            if epistemic
+            else "plate_validation_2d_steady_nominal.npz"
+        )
+    with np.load(dataset.valid_data_dir() / filename) as data:
         coords = data["coords"].copy()
-        times = data["times"].copy()
-        nominal_temp = data["nominal_temperature"].copy()
-        perturbed_temp = data["perturbed_temperature"].copy()
-        nominal_strain = data["nominal_strain"].copy()
-        perturbed_strain = data["perturbed_strain"].copy()
+        times = data["times"].copy() if transient else None
+        sim_temp = data["sim_temp"].copy()
+        exp_temp = data["exp_temp"].copy()
+        sim_strain = data["sim_strain"].copy()
+        exp_strain = data["exp_strain"].copy()
 
     geometry = val.ValGeometry(
-        val.EValGeometry.POINT, coords, coordinate_units="mm", frame="plate"
+        val.EValGeometry.POINT, coords, coord_units="mm", coord_frame="plate"
     )
     evaluation_times = times if transient else None
     domain = val.ValDomain(
@@ -55,33 +67,16 @@ def load_plate_case(
     )
     sim_arrays = {}
     exp_arrays = {}
-    for name, nominal, changed in (
-        ("temperature", nominal_temp, perturbed_temp),
-        ("strain", nominal_strain, perturbed_strain),
+    for name, sim_values, exp_values in (
+        ("temperature", sim_temp, exp_temp),
+        ("strain", sim_strain, exp_strain),
     ):
+        axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT)
         if transient:
-            # (point, component, time, aleatory)
-            exp_values = np.moveaxis(changed, 0, -1)
-            sim_values = np.moveaxis(nominal, 0, -1)
-            axes = (
-                val.EValAxis.POINT,
-                val.EValAxis.COMPONENT,
-                val.EValAxis.TIME,
-                val.EValAxis.ALEATORY,
-            )
-        else:
-            # Final physical time, with repeated virtual experiments as samples.
-            exp_values = np.moveaxis(changed[:, :, :, -1], 0, -1)
-            sim_values = np.moveaxis(nominal[:, :, :, -1], 0, -1)
-            axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.ALEATORY)
+            axes = (*axes, val.EValAxis.TIME)
         if epistemic:
-            changed_values = (
-                np.moveaxis(changed, 0, -1)
-                if transient
-                else np.moveaxis(changed[:, :, :, -1], 0, -1)
-            )
-            sim_values = np.stack((sim_values, changed_values), axis=-2)
-            axes = (*axes[:-1], val.EValAxis.EPISTEMIC_TRANS, val.EValAxis.ALEATORY)
+            axes = (*axes, val.EValAxis.EPISTEMIC_TRANS)
+        axes = (*axes, val.EValAxis.ALEATORY)
         bound = None
         if offsets:
             magnitude = 0.5 if name == "temperature" else 4.0e-6
@@ -105,4 +100,4 @@ def load_plate_case(
         sim_arrays[name] = val.ValArray(sim_values, axes)
         exp_arrays[name] = val.ValArray(exp_values, exp_axes, bound)
 
-    return val.ValCase(domain, val.ValData(sim_arrays), val.ValData(exp_arrays))
+    return val.ValCase(domain, sim_arrays, exp_arrays)

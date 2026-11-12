@@ -27,16 +27,15 @@ import pyvale.valid as val
 matplotlib.use("Agg")
 
 # %%
-# Save figures by default; enable windows and console inspection below.
+# Save figures and print data structures; enable interactive windows below.
 SHOW_PLOTS = False
-VERBOSE = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
 output_path = Path.cwd() / "pyvale-output" / "valid_ex8_cube_tensor"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-# 1. Load and transform data (pre-processing)
+# 1. Load and transform data
 # -----------------------------------------
 # The packaged HEX20 data describe a 10 mm cube. Exodus stores coordinates
 # in metres and tensor strains as dimensionless components. Scale lengths only;
@@ -97,32 +96,30 @@ strain_tag = "cube_strain"
 domain = val.ValDomain(
     {
         strain_tag: val.ValObservable(
-            val.ValGeometry(
-                val.EValGeometry.POINT, coords, coordinate_units="mm", frame="cube"
+            geometry=val.ValGeometry(
+                val.EValGeometry.POINT, coords, coord_units="mm", coord_frame="cube"
             ),
-            val.EValOperator.SAMPLE,
-            component_keys,
-            times,
-            "1",
+            operator=val.EValOperator.SAMPLE,
+            components=component_keys,
+            times=times,
+            phys_units="1",
             time_units="s",
         )
     }
 )
 strain_field = sens.FieldTensor(nominal_sim, norm_keys, dev_keys, sens.EDim.THREED)
 model = val.val_from_sim({strain_tag: strain_field}, domain, [((), nominal_sim)])
-experiment = val.ValData(
-    {
-        strain_tag: val.ValArray(
-            measurements,
-            (
-                val.EValAxis.POINT,
-                val.EValAxis.COMPONENT,
-                val.EValAxis.TIME,
-                val.EValAxis.ALEATORY,
-            ),
-        )
-    }
-)
+experiment = {
+    strain_tag: val.ValArray(
+        measurements,
+        (
+            val.EValAxis.POINT,
+            val.EValAxis.COMPONENT,
+            val.EValAxis.TIME,
+            val.EValAxis.ALEATORY,
+        ),
+    )
+}
 val_case = val.ValCase(domain, model, experiment)
 
 # %%
@@ -131,51 +128,47 @@ val_case = val.ValCase(domain, model, experiment)
 # The model is deterministic within each selected parameter scenario, while
 # the experiment has six repeat observations. INCLUDE handles repeated supports.
 mavm = val.MetricMAVM(duplicates=val.EMAVMDuplicates.INCLUDE)
-result = val.ValidationEngine([val.MetricAVM(), mavm]).run(val_case)
+val_result = val.ValidationEngine([val.MetricAVM(), mavm]).run(val_case)
 
 # %%
 # 3. Post-processing and inspect data structures
 # ----------------------------------------------
 # No tensor component is flattened into the observation axis. Result axes start
 # (6 points, 6 components, 5 times), followed by retained parameter scenarios.
-field = result.get(strain_tag, val.EMetricType.MAVM)
-if VERBOSE:
-    print(
-        "Model axes/shape:",
-        model.quantities[strain_tag].axes,
-        model.quantities[strain_tag].data.shape,
-    )
-    print("Experiment shape:", measurements.shape)
-    print("Result axes/shape:", field.axes, field.metric.shape)
+metric_field = val_result.get(strain_tag, val.EMetricType.MAVM)
+print(
+    "Model axes/shape:",
+    model[strain_tag].axes,
+    model[strain_tag].data.shape,
+)
+print("Experiment shape:", measurements.shape)
+print("Result axes/shape:", metric_field.axes, metric_field.metric.shape)
 
 # %%
 # 4. Analysis and visualisation
 # ------------------------------
 # Show all six face sites for every tensor component. The nominal model is
 # selected explicitly in a parameter sweep, so these panels compare like cells.
-plot_opts = sens.PlotOptsGeneral()
-points = tuple(range(len(coords)))
-for component, component_key in enumerate(component_keys):
+point_idxs = tuple(range(len(coords)))
+for component_idx, component_key in enumerate(component_keys):
     fig, axes = val.plot_val_cdfs_points(
         val_case,
-        result,
+        val_result,
         strain_tag,
-        points=points,
-        component=component,
-        time=4,
+        point_idxs=point_idxs,
+        component_idx=component_idx,
+        time_idx=4,
         metric=mavm,
-        plot_opts=plot_opts,
         labels=val.ValPlotLabels(x_label=f"{component_key} [1]"),
     )
     fig.savefig(output_path / f"{component_key}_cdfs.png", bbox_inches="tight")
     fig, axes = val.plot_val_metric_time_points(
-        result,
+        val_result,
         strain_tag,
         val.EMetricType.MAVM,
-        points=points,
-        selectors={val.EValResAxis.COMPONENT: component},
+        point_idxs=point_idxs,
+        selectors={val.EValResAxis.COMPONENT: component_idx},
         part=val.EValMetricPart.D_MINUS,
-        plot_opts=plot_opts,
         labels=val.ValPlotLabels(title=component_key),
     )
     fig.savefig(output_path / f"{component_key}_d_minus_time.png", bbox_inches="tight")
@@ -186,12 +179,12 @@ for component, component_key in enumerate(component_keys):
 # The two colourbars deliberately identify different quantities: model field
 # values on the mesh, and validation discrepancy at the six original face sites.
 # Every field is evaluated at the final simulation step, matching validation t.
-background_step = len(nominal_sim.time) - 1
+background_time_idx = len(nominal_sim.time) - 1
 normal = np.stack(
-    [nominal_sim.node_vars[key][:, background_step] for key in norm_keys], axis=-1
+    [nominal_sim.node_vars[key][:, background_time_idx] for key in norm_keys], axis=-1
 )  # (n_nodes, 3), normal components xx, yy, zz
 shear = np.stack(
-    [nominal_sim.node_vars[key][:, background_step] for key in dev_keys], axis=-1
+    [nominal_sim.node_vars[key][:, background_time_idx] for key in dev_keys], axis=-1
 )  # (n_nodes, 3), tensor shear components xy, xz, yz
 strain_tensors = io.assemble_strain_tensor(
     normal,
@@ -204,43 +197,35 @@ equivalent_strain = io.calc_equivalent_strain(strain_tensors)
 first_principal = io.calc_principal_strains(strain_tensors)[:, 0]
 background_fields = {
     "temperature": val.ValSimField(
-        nominal_sim.node_vars["temperature"][:, background_step],
-        background_step,
+        nominal_sim.node_vars["temperature"][:, background_time_idx],
+        background_time_idx,
         sens.SensorDescriptor(name="Temperature", symbol="T", units="degC"),
     ),
     "strain_xx": val.ValSimField(
         normal[:, 0],
-        background_step,
+        background_time_idx,
         sens.SensorDescriptor(name="Strain xx", symbol=r"\varepsilon_{xx}", units="1"),
     ),
     "equivalent_strain": val.ValSimField(
         equivalent_strain,
-        background_step,
+        background_time_idx,
         sens.SensorDescriptor(
             name="Equivalent strain", symbol=r"\varepsilon_{eq}", units="1"
         ),
     ),
     "first_principal_strain": val.ValSimField(
         first_principal,
-        background_step,
+        background_time_idx,
         sens.SensorDescriptor(
             name="First principal strain", symbol=r"\varepsilon_1", units="1"
         ),
     ),
 }
-scene_opts = sens.VisOptsSimSensors(
-    interactive=SHOW_PLOTS,
-    camera_position="iso",
-    sens_point_size=24,
-    sens_label_font_size=16,
-    colour_bar_vertical=False,
-    colour_bar_font_size=13,
-)
 # Show all face tags through the translucent mesh, including the far faces.
 point_labels = tuple(strain_sensors.get_descriptor().create_sensor_tags(len(coords)))
 for background_name, background_field in background_fields.items():
     pv_plot = val.plot_val_metric_on_sim(
-        result,
+        val_result,
         strain_tag,
         val.EMetricType.MAVM,
         selectors={
@@ -250,9 +235,9 @@ for background_name, background_field in background_fields.items():
         part=val.EValMetricPart.BALANCE,
         sim_data=nominal_sim,
         sim_field=background_field,
-        sim_coordinate_units="mm",
-        sim_frame="cube",
-        vis_opts=scene_opts,
+        sim_coord_units="mm",
+        sim_coord_frame="cube",
+        vis_opts=val.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
         metric_opts=val.ValVisOpts(
             mesh_opacity=0.4, point_labels=point_labels, labels_always_visible=True
         ),

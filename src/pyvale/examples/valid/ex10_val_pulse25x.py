@@ -36,22 +36,20 @@ import numpy as np
 import pandas as pd
 
 import pyvale.data as dataset
-import pyvale.sensorsim as sens
 import pyvale.valid as val
 
 matplotlib.use("Agg")
 
 # %%
-# Save all diagnostics by default; enable plotting and console inspection below.
+# Save diagnostics and print data structures; enable interactive windows below.
 SHOW_PLOTS = False
-VERBOSE = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
 output_path = Path.cwd() / "pyvale-output" / "valid_ex10_pulse25x"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-# 1. Load and transform data (pre-processing)
+# 1. Load and transform data
 # -----------------------------------------
 # The archive losslessly stores the full point-sensor CSV used by the paper.
 # Axes: (11 channels, 250 transferable epistemic settings, 400 aleatory samples).
@@ -74,10 +72,10 @@ experimental_sources = (
     ("SteadyPICOData", ("CV",)),
 )
 for source, channels in experimental_sources:
-    frame = pd.read_csv(data_path / f"Pulse255_{source}.csv")
+    measurement_table = pd.read_csv(data_path / f"Pulse255_{source}.csv")
     for channel in channels:
         column = "Coil RMS Voltage" if channel == "CV" else channel
-        measurements[channel] = frame[column].to_numpy(dtype=np.float64)
+        measurements[channel] = measurement_table[column].to_numpy(dtype=np.float64)
 
 # %%
 # Reproduce the original positional uncertainty association, including its
@@ -97,11 +95,11 @@ channel_status = []
 for index, (channel, observations) in enumerate(measurements.items()):
     units = "V" if channel == "CV" else "degC"
     observables[channel] = val.ValObservable(
-        geometry,
-        val.EValOperator.SAMPLE,
-        (channel,),
-        None,
-        units,
+        geometry=geometry,
+        operator=val.EValOperator.SAMPLE,
+        components=(channel,),
+        times=None,
+        phys_units=units,
     )
     sim_arrays[channel] = val.ValArray(
         simulation[sensor_tags.index(channel)],
@@ -129,9 +127,7 @@ for index, (channel, observations) in enumerate(measurements.items()):
             "offset_magnitude": magnitude,
         }
     )
-val_case = val.ValCase(
-    val.ValDomain(observables), val.ValData(sim_arrays), val.ValData(exp_arrays)
-)
+val_case = val.ValCase(val.ValDomain(observables), sim_arrays, exp_arrays)
 pd.DataFrame(channel_status).to_csv(output_path / "channel_status.csv", index=False)
 
 # %%
@@ -143,11 +139,10 @@ pd.DataFrame(channel_status).to_csv(output_path / "channel_status.csv", index=Fa
 # The reference uses t.ppf(0.95, n_unique-1), matching alpha=0.05 here. Its
 # symmetric bounds use the 95th Student-t percentile for each support shift.
 mavm = val.MetricMAVM(alpha=0.05, duplicates=val.EMAVMDuplicates.REJECT)
-result = val.ValidationEngine([mavm]).run(val_case)
-if VERBOSE:
-    print("Simulation:", simulation.shape, "(channel, epis_trans, aleatory)")
-    print(pd.DataFrame(channel_status))
-    print("TC3 result axes:", result.get("TC3", val.EMetricType.MAVM).axes)
+val_result = val.ValidationEngine([mavm]).run(val_case)
+print("Simulation:", simulation.shape, "(channel, epis_trans, aleatory)")
+print(pd.DataFrame(channel_status))
+print("TC3 result axes:", val_result.get("TC3", val.EMetricType.MAVM).axes)
 
 # %%
 # 3. Post-processing and inspect data structures
@@ -156,7 +151,6 @@ if VERBOSE:
 # support values. This is different from pointwise envelope bounds when CDFs
 # cross. The nominal curve is the average of the conditional quantile functions.
 # Both bound rules are available in PyVale; use SUPPORT_SUM for literal parity.
-plot_opts = sens.PlotOptsGeneral(single_fig_scale=0.65)
 metric_rows = [
     f"sim-{sim_name}_exp-{exp_name}-{direction}"
     for exp_name in ("min", "max")
@@ -167,15 +161,15 @@ metric_table: dict[str, list[float]] = {}
 selected_scenarios: dict[str, dict[str, int]] = {}
 axis_limits: dict[str, tuple[float, float]] = {}
 for channel in measurements:
-    units = observables[channel].units
+    units = observables[channel].phys_units
     axis_label = "Coil RMS voltage [V]" if channel == "CV" else "Temperature [degC]"
     model_scenarios = val.extract_aleatory_scenarios(sim_arrays[channel])
     model_summary = val.calc_ecdf_summary(
         model_scenarios, bounds=val.EValECDFBounds.SUPPORT_SUM
     )
     selected_scenarios[channel] = {
-        "lower": model_summary.lower_index,
-        "upper": model_summary.upper_index,
+        "lower": model_summary.lower_idx,
+        "upper": model_summary.upper_idx,
     }
 
     # %%
@@ -187,7 +181,6 @@ for channel in measurements:
     fig, ax = val.plot_val_ecdf_family(
         sim_arrays[channel],
         bounds=val.EValECDFBounds.SUPPORT_SUM,
-        plot_opts=plot_opts,
         labels=labels,
     )
     figure_name = f"0_sim_allcdfs_{channel}.png"
@@ -205,8 +198,8 @@ for channel in measurements:
         experimental_scenarios,
         bounds=val.EValECDFBounds.SUPPORT_SUM,
     )
-    model_lower = model_scenarios[model_summary.lower_index]
-    model_upper = model_scenarios[model_summary.upper_index]
+    model_lower = model_scenarios[model_summary.lower_idx]
+    model_upper = model_scenarios[model_summary.upper_idx]
     exp_lower = exp_arrays[channel].select_aleatory(
         0, 0, 0, offset=val.EEpisOffset.LOWER
     )
@@ -232,14 +225,14 @@ for channel in measurements:
     # %%
     # Export the original four endpoint comparisons using the engine arrays.
     # These are distinct from the worst MAVM over every retained scenario.
-    field = result.get(channel, val.EMetricType.MAVM)
+    metric_field = val_result.get(channel, val.EMetricType.MAVM)
     distances = []
     for offset in (val.EEpisOffset.LOWER, val.EEpisOffset.UPPER):
-        for model_index in (model_summary.lower_index, model_summary.upper_index):
+        for model_idx in (model_summary.lower_idx, model_summary.upper_idx):
             distances.extend(
                 [
-                    float(field.d_plus[0, 0, 0, model_index, offset]),
-                    float(field.d_minus[0, 0, 0, model_index, offset]),
+                    float(metric_field.d_plus[0, 0, 0, model_idx, offset]),
+                    float(metric_field.d_minus[0, 0, 0, model_idx, offset]),
                 ]
             )
     metric_table[channel] = distances
@@ -261,7 +254,6 @@ for channel in measurements:
             experiment_summary,
             correction=correction,
             view=view,
-            plot_opts=plot_opts,
             labels=labels,
         )
         figure_name = f"{figure_prefix}_{channel}.png"
@@ -291,9 +283,8 @@ with (output_path / "parity.json").open("w") as stream:
     json.dump(parity, stream, indent=2)
 with (output_path / "axis_limits.json").open("w") as stream:
     json.dump(axis_limits, stream, indent=2)
-if VERBOSE:
-    print(calculated)
-    print(parity)
+print(calculated)
+print(parity)
 if SHOW_PLOTS:
     plt.show()
 else:

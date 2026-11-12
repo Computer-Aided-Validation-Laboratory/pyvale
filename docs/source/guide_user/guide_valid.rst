@@ -3,9 +3,10 @@ Validation
 
 ``pyvale.valid`` compares simulation and experimental observables on a shared
 physical domain. Import it as ``import pyvale.valid as val``. A ``ValCase`` has
-one ``ValDomain`` and separate simulation and experimental ``ValData`` objects.
+one ``ValDomain`` and separate simulation and experimental dictionaries mapping
+observable tags to ``ValArray`` objects.
 The domain records point coordinates, component order, evaluation times,
-measurement operator, field units, optional time and coordinate units, and frame.
+measurement operator, field units, optional time and coordinate units, and a spatial ``coord_frame`` identifier.
 Arrays supplied directly must already use that physical support and those
 units. Assembly validates shapes and names; it does not register coordinates,
 convert units, interpolate, or pool runs.
@@ -17,8 +18,8 @@ Named axes
 ``POINT, COMPONENT, TIME, EPISTEMIC_TRANS, EPISTEMIC_NUIS, ALEATORY``. An absent
 physical axis has length one. Simulation and experiment may have different
 uncertainty axis lengths. The final aleatory axis is contiguous for ordinary
-C-order arrays, so one conditional sample is a cheap slice. ``val_from_arrays``
-preserves the original array or memory map; the caller controls its lifetime.
+C-order arrays, so one conditional sample is a cheap slice. ``ValArray`` preserves
+the original array or memory map; the caller controls its lifetime.
 
 ``EpistemicOffsets`` gives nonnegative ``lower`` and ``upper`` magnitudes in
 observable units. For each conditional aleatory sample, the lower scenario

@@ -24,10 +24,10 @@ def test_crossing_cdfs_distinguish_pointwise_from_support_sum_bounds() -> None:
     np.testing.assert_allclose(pointwise.lower, [0.0, 5.0])
     np.testing.assert_allclose(pointwise.upper, [4.0, 10.0])
     np.testing.assert_allclose(pointwise.nominal, [2.0, 7.5])
-    assert pointwise.lower_index is None
-    assert pointwise.upper_index is None
-    assert selected.lower_index == 1
-    assert selected.upper_index == 0
+    assert pointwise.lower_idx is None
+    assert pointwise.upper_idx is None
+    assert selected.lower_idx == 1
+    assert selected.upper_idx == 0
     np.testing.assert_allclose(selected.lower, [4.0, 5.0])
     np.testing.assert_allclose(selected.upper, [0.0, 10.0])
 
@@ -52,8 +52,8 @@ def test_endpoint_corrections_are_anchored_to_model_limits() -> None:
     )
     assert correction.lower.d_minus == pytest.approx(2.0)
     assert correction.upper.d_plus == pytest.approx(3.0)
-    assert correction.lower_exp_index == 0
-    assert correction.upper_exp_index == 1
+    assert correction.lower_exp_idx == 0
+    assert correction.upper_exp_idx == 1
     # The largest endpoint distance is 13, but that is not the upper-bound shift.
     assert correction.comparisons[2].d_plus == pytest.approx(13.0)
     np.testing.assert_allclose(

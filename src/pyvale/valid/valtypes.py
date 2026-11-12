@@ -6,7 +6,7 @@
 
 """Named physical and uncertainty axes for validation data."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, IntEnum, StrEnum, auto
 
 import numpy as np
@@ -63,8 +63,9 @@ class ValGeometry:
     kind: EValGeometry
     coords: np.ndarray | None
     connect: dict[str, np.ndarray] | None = None
-    coordinate_units: str = ""
-    frame: str = ""
+    coord_units: str = ""
+    coord_frame: str = ""
+    """Spatial coordinate reference frame for mesh and observation locations."""
 
     def __post_init__(self) -> None:
         if self.kind is EValGeometry.GLOBAL:
@@ -72,6 +73,7 @@ class ValGeometry:
                 raise ValueError("GLOBAL geometry cannot have point coordinates.")
         elif self.coords is None or self.coords.ndim != 2:
             raise ValueError("Spatial geometry requires coordinates (point, xyz).")
+
         if self.coords is not None and self.coords.shape[1] != 3:
             raise ValueError("Coordinates must have x, y, z columns.")
 
@@ -81,8 +83,8 @@ class ValObservable:
     geometry: ValGeometry
     operator: EValOperator
     components: tuple[str, ...]
-    times: np.ndarray | None
-    units: str
+    times: np.ndarray | None = None
+    phys_units: str = ""
     time_units: str = ""
 
     def __post_init__(self) -> None:
@@ -117,10 +119,13 @@ class EpistemicOffsets:
     def __post_init__(self) -> None:
         if any(axis not in PHYSICAL_AXES for axis in self.axes):
             raise ValueError("Offset axes must be physical axes.")
+
         if len(set(self.axes)) != len(self.axes):
             raise ValueError("Offset axes must be unique.")
+
         if tuple(sorted(self.axes, key=AXIS_ORDER.index)) != self.axes:
             raise ValueError("Offset axes must be in canonical order.")
+
         for name, value in (("lower", self.lower), ("upper", self.upper)):
             array = np.asarray(value)
             if array.ndim != len(self.axes):
@@ -140,42 +145,47 @@ class ValArray:
     def __post_init__(self) -> None:
         if self.data.ndim != len(self.axes):
             raise ValueError("Array rank does not match named axes.")
+
         if len(set(self.axes)) != len(self.axes):
             raise ValueError("Array axes must be unique.")
+
         if tuple(sorted(self.axes, key=AXIS_ORDER.index)) != self.axes:
             raise ValueError("Array axes must be in canonical order.")
+
         if any(size == 0 for size in self.data.shape):
             raise ValueError("Validation axes cannot be empty.")
 
     def select_aleatory(
         self,
-        point: int,
-        component: int,
-        time: int,
-        epis_trans: int = 0,
-        epis_nuis: int = 0,
+        point_idx: int,
+        component_idx: int,
+        time_idx: int,
+        epis_trans_idx: int = 0,
+        epis_nuis_idx: int = 0,
         offset: EEpisOffset | int = EEpisOffset.NOMINAL,
     ) -> np.ndarray:
         """Select one conditional 1D sample, applying a coherent value shift."""
-        indices = {
-            EValAxis.POINT: point,
-            EValAxis.COMPONENT: component,
-            EValAxis.TIME: time,
-            EValAxis.EPISTEMIC_TRANS: epis_trans,
-            EValAxis.EPISTEMIC_NUIS: epis_nuis,
+        selection_idxs = {
+            EValAxis.POINT: point_idx,
+            EValAxis.COMPONENT: component_idx,
+            EValAxis.TIME: time_idx,
+            EValAxis.EPISTEMIC_TRANS: epis_trans_idx,
+            EValAxis.EPISTEMIC_NUIS: epis_nuis_idx,
             EValAxis.ALEATORY: slice(None),
         }
-        for axis, index in indices.items():
+        for axis, selection_idx in selection_idxs.items():
             if axis is EValAxis.ALEATORY:
                 continue
             size = self.data.shape[self.axes.index(axis)] if axis in self.axes else 1
-            if isinstance(index, (bool, np.bool_)) or not isinstance(
-                index, (int, np.integer)
+            if isinstance(selection_idx, (bool, np.bool_)) or not isinstance(
+                selection_idx, (int, np.integer)
             ):
                 raise TypeError(f"{axis.name} index must be an integer.")
-            if not 0 <= index < size:
-                raise IndexError(f"{axis.name} index {index} is outside [0, {size}).")
-        selected = self.data[tuple(indices[axis] for axis in self.axes)]
+            if not 0 <= selection_idx < size:
+                raise IndexError(
+                    f"{axis.name} index {selection_idx} is outside [0, {size})."
+                )
+        selected = self.data[tuple(selection_idxs[axis] for axis in self.axes)]
         values = np.atleast_1d(selected)
         if np.any(np.isinf(values)):
             raise ValueError("Validation observations cannot contain infinity.")
@@ -187,9 +197,9 @@ class ValArray:
             return values
         offsets = self.offsets
         physical = {
-            EValAxis.POINT: point,
-            EValAxis.COMPONENT: component,
-            EValAxis.TIME: time,
+            EValAxis.POINT: point_idx,
+            EValAxis.COMPONENT: component_idx,
+            EValAxis.TIME: time_idx,
         }
         bound = offsets.lower if offset == EEpisOffset.LOWER else offsets.upper
         magnitude = np.asarray(bound)[tuple(physical[axis] for axis in offsets.axes)]
@@ -204,24 +214,23 @@ class ValSampleInputs:
 
 
 @dataclass(slots=True)
-class ValData:
-    quantities: dict[str, ValArray]
-    sample_inputs: ValSampleInputs | None = None
-
-
-@dataclass(slots=True)
 class ValCase:
     domain: ValDomain
-    sim: ValData
-    exp: ValData
+    sim: dict[str, ValArray]
+    exp: dict[str, ValArray]
+    sim_inputs: ValSampleInputs | None = field(default=None, kw_only=True)
+    exp_inputs: ValSampleInputs | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         expected = set(self.domain.observables)
-        if set(self.sim.quantities) != expected or set(self.exp.quantities) != expected:
+        if set(self.sim) != expected or set(self.exp) != expected:
             raise ValueError("Simulation and experiment must match domain keys.")
         for name, observable in self.domain.observables.items():
-            for source in (self.sim, self.exp):
-                quantity = source.quantities[name]
+            for source, provenance in (
+                (self.sim, self.sim_inputs),
+                (self.exp, self.exp_inputs),
+            ):
+                quantity = source[name]
                 if not np.issubdtype(quantity.data.dtype, np.number):
                     raise TypeError(f"{name}: validation quantity must be numeric.")
                 lengths = {
@@ -253,7 +262,6 @@ class ValCase:
                                 raise ValueError(
                                     f"{name}: offset {axis.name} mismatch."
                                 )
-                provenance = source.sample_inputs
                 if provenance is not None:
                     trace_arrays = list((provenance.parameters or {}).values())
                     if provenance.run_ids is not None:
@@ -277,16 +285,9 @@ class ValCase:
                                 )
 
 
-def val_from_arrays(
-    quantities: dict[str, ValArray],
-    *,
-    sample_inputs: ValSampleInputs | None = None,
-) -> ValData:
-    """Wrap prepared arrays without copying them."""
-    return ValData(quantities=quantities, sample_inputs=sample_inputs)
-
-
-def assemble_val_case(domain: ValDomain, sim: ValData, exp: ValData) -> ValCase:
+def assemble_val_case(
+    domain: ValDomain, sim: dict[str, ValArray], exp: dict[str, ValArray]
+) -> ValCase:
     """Validate common observable metadata and assemble a comparison."""
     return ValCase(domain=domain, sim=sim, exp=exp)
 
@@ -372,8 +373,8 @@ class ValECDFSummary:
     upper: np.ndarray
     nominal: np.ndarray
     bounds: EValECDFBounds
-    lower_index: int | None
-    upper_index: int | None
+    lower_idx: int | None
+    upper_idx: int | None
 
 
 @dataclass(slots=True)
@@ -388,5 +389,5 @@ class MAVMCorrection:
     lower: MAVMResult
     upper: MAVMResult
     comparisons: tuple[MAVMResult, MAVMResult, MAVMResult, MAVMResult]
-    lower_exp_index: int
-    upper_exp_index: int
+    lower_exp_idx: int
+    upper_exp_idx: int

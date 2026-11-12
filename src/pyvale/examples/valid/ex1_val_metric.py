@@ -17,16 +17,13 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-import pyvale.sensorsim as sens
 import pyvale.valid as val
 
 matplotlib.use("Agg")
 
 # %%
-# Interactive windows and console inspection are opt-in. Change the backend to
-# a GUI backend when enabling SHOW_PLOTS outside a notebook.
+# Console inspection is printed below. Enable interactive windows with SHOW_PLOTS.
 SHOW_PLOTS = False
-VERBOSE = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
 output_path = Path.cwd() / "pyvale-output" / "valid_ex1_metric"
@@ -50,7 +47,11 @@ geometry = val.ValGeometry(val.EValGeometry.GLOBAL, None)
 # operator, component order, physical times and units. SAMPLE denotes values
 # sampled on that geometry. Here we have one scalar component at one state.
 scalar_observable = val.ValObservable(
-    geometry, val.EValOperator.SAMPLE, ("scalar",), None, "unit"
+    geometry=geometry,
+    operator=val.EValOperator.SAMPLE,
+    components=("scalar",),
+    times=None,
+    phys_units="unit",
 )
 
 # ValDomain collects the definitions shared by simulation and experiment.
@@ -67,17 +68,17 @@ sample_axes = (val.EValAxis.ALEATORY,)
 sim_response = val.ValArray(simulation, sample_axes)
 exp_response = val.ValArray(experiment, sample_axes)
 
-# ValData collects one source's quantities under their observable tags. Keeping
+# Dictionaries collect each source's ValArray quantities by observable tag. Keeping
 # source samples separate from the shared domain lets each source have its own
 # repeat count and uncertainty scenarios while describing the same comparison.
-sim_val_data = val.ValData({observable_tag: sim_response})
-exp_val_data = val.ValData({observable_tag: exp_response})
+sim_arrays = {observable_tag: sim_response}
+exp_arrays = {observable_tag: exp_response}
 
 # ValCase joins the domain and both sources. It checks matching tag sets and
 # physical axis lengths. Prepare source values in the domain's component order,
 # physical locations, times and units. The engine uses this SAME tag to find
-# each observable in domain.observables, sim.quantities and exp.quantities.
-val_case = val.ValCase(domain, sim_val_data, exp_val_data)
+# each observable in domain.observables, sim and exp.
+val_case = val.ValCase(domain, sim_arrays, exp_arrays)
 
 # %%
 # 2. Run validation analysis
@@ -85,7 +86,7 @@ val_case = val.ValCase(domain, sim_val_data, exp_val_data)
 # AVM is 2 units, KS is 2/3 (one support value overlaps), and paired RMSE is 2.
 # MAVM also accounts for experimental confidence bounds and reports d+ and d−.
 mavm = val.MetricMAVM()
-result = val.ValidationEngine(
+val_result = val.ValidationEngine(
     [
         val.MetricAVM(),
         val.MetricKS(),
@@ -100,13 +101,12 @@ result = val.ValidationEngine(
 # ----------------------------------------------
 # Engine arrays have shape (1 point, 1 component, 1 time). Select by metric
 # type. The three input entries remain independent observations for one point.
-metric_fields = result.fields[observable_tag]
-if VERBOSE:
-    print("Observable tags:", tuple(domain.observables))
-    print("Simulation axes and shape:", sim_response.axes, sim_response.data.shape)
-    print("Experiment axes and shape:", exp_response.axes, exp_response.data.shape)
-    for metric_type, field in metric_fields.items():
-        print(metric_type.name, field.axes, field.metric)
+metric_fields = val_result.fields[observable_tag]
+print("Observable tags:", tuple(domain.observables))
+print("Simulation axes and shape:", sim_response.axes, sim_response.data.shape)
+print("Experiment axes and shape:", exp_response.axes, exp_response.data.shape)
+for metric_type, metric_field in metric_fields.items():
+    print(metric_type.name, metric_field.axes, metric_field.metric)
 
 # %%
 # 4. Analysis and visualisation
@@ -115,10 +115,9 @@ if VERBOSE:
 # directional distances d+ and d- alongside the total MAVM.
 fig, ax = val.plot_val_cdfs(
     val_case,
-    result,
+    val_result,
     observable_tag,
     metric=mavm,
-    plot_opts=sens.PlotOptsGeneral(),
     labels=val.ValPlotLabels(x_label="Observable [unit]"),
 )
 fig.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")

@@ -26,7 +26,7 @@ def scene() -> tuple[val.ValResult, io.SimData]:
         {
             "temperature": val.ValObservable(
                 val.ValGeometry(
-                    val.EValGeometry.POINT, coords, coordinate_units="mm", frame="cube"
+                    val.EValGeometry.POINT, coords, coord_units="mm", coord_frame="cube"
                 ),
                 val.EValOperator.SAMPLE,
                 ("temperature",),
@@ -84,13 +84,13 @@ def test_overlay_preserves_xyz_ids_and_independent_scalar_bars(
         val.EMetricType.MAVM,
         selectors={val.EValResAxis.TIME: 1, val.EValResAxis.SIM_TRANS: 0},
         part=val.EValMetricPart.BALANCE,
-        points=(2, 0, 3),
+        point_idxs=(2, 0, 3),
         sim_data=simulation,
         sim_field=val.ValSimField(
             scalars, 1, sens.SensorDescriptor(name="Temperature", units="degC")
         ),
-        sim_coordinate_units="mm",
-        sim_frame="cube",
+        sim_coord_units="mm",
+        sim_coord_frame="cube",
         vis_opts=opts,
         metric_opts=val.ValVisOpts(point_labels=("P0", "P1", "P2", "P3")),
     )
@@ -137,7 +137,7 @@ def test_magnitude_and_zero_balance_have_valid_colour_limits(
         "temperature",
         val.EMetricType.MAVM,
         selectors=selectors,
-        points=(2,),
+        point_idxs=(2,),
         part=val.EValMetricPart.BALANCE,
     )
     assert plotter.actors["validation-points"].mapper.scalar_range == (-1.0, 1.0)
@@ -165,19 +165,19 @@ def test_selection_requires_all_scenarios_and_balance_preserves_cancellation(
 
 
 @pytest.mark.parametrize(
-    "time_index, units, frame, values, message",
+    "time_idx, units, coord_frame, values, message",
     [
         (0, "mm", "cube", np.ones(4), "times must match"),
-        (1, "m", "cube", np.ones(4), "units/frame"),
-        (1, "mm", "other", np.ones(4), "units/frame"),
+        (1, "m", "cube", np.ones(4), "units/coord_frame"),
+        (1, "mm", "other", np.ones(4), "units/coord_frame"),
         (1, "mm", "cube", np.ones(3), "n_nodes"),
     ],
 )
 def test_overlay_rejects_misaligned_background(
     scene: tuple[val.ValResult, io.SimData],
-    time_index: int,
+    time_idx: int,
     units: str,
-    frame: str,
+    coord_frame: str,
     values: np.ndarray,
     message: str,
 ) -> None:
@@ -189,9 +189,9 @@ def test_overlay_rejects_misaligned_background(
             val.EMetricType.MAVM,
             selectors={val.EValResAxis.TIME: 1, val.EValResAxis.SIM_TRANS: 0},
             sim_data=simulation,
-            sim_field=val.ValSimField(values, time_index, sens.SensorDescriptor()),
-            sim_coordinate_units=units,
-            sim_frame=frame,
+            sim_field=val.ValSimField(values, time_idx, sens.SensorDescriptor()),
+            sim_coord_units=units,
+            sim_coord_frame=coord_frame,
         )
 
 

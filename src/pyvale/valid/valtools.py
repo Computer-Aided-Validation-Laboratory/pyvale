@@ -43,11 +43,11 @@ def calc_ecdf(samples: np.ndarray) -> ValECDF:
 def extract_ecdf(
     quantity: ValArray,
     *,
-    point: int = 0,
-    component: int = 0,
-    time: int = 0,
-    epis_trans: int = 0,
-    epis_nuis: int = 0,
+    point_idx: int = 0,
+    component_idx: int = 0,
+    time_idx: int = 0,
+    epis_trans_idx: int = 0,
+    epis_nuis_idx: int = 0,
     offset: EEpisOffset = EEpisOffset.NOMINAL,
 ) -> ValECDF:
     """Extract one conditional ECDF using physical and epistemic axis indices.
@@ -56,11 +56,11 @@ def extract_ecdf(
     pooled. The offset coherently shifts every observation in the selected cell.
     """
     samples = quantity.select_aleatory(
-        point,
-        component,
-        time,
-        epis_trans=epis_trans,
-        epis_nuis=epis_nuis,
+        point_idx,
+        component_idx,
+        time_idx,
+        epis_trans_idx=epis_trans_idx,
+        epis_nuis_idx=epis_nuis_idx,
         offset=offset,
     )
     return calc_ecdf(samples)
@@ -85,11 +85,11 @@ def calc_ecdf_envelope(
 def extract_ecdf_envelope(
     quantity: ValArray,
     *,
-    point: int = 0,
-    component: int = 0,
-    time: int = 0,
-    epis_trans: int | None = None,
-    epis_nuis: int | None = None,
+    point_idx: int = 0,
+    component_idx: int = 0,
+    time_idx: int = 0,
+    epis_trans_idx: int | None = None,
+    epis_nuis_idx: int | None = None,
     offset: EEpisOffset | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Extract pointwise ECDF bounds, fixing or spanning epistemic axes.
@@ -100,11 +100,11 @@ def extract_ecdf_envelope(
     """
     samples = extract_aleatory_scenarios(
         quantity,
-        point=point,
-        component=component,
-        time=time,
-        epis_trans=epis_trans,
-        epis_nuis=epis_nuis,
+        point_idx=point_idx,
+        component_idx=component_idx,
+        time_idx=time_idx,
+        epis_trans_idx=epis_trans_idx,
+        epis_nuis_idx=epis_nuis_idx,
         offset=offset,
     )
     return calc_ecdf_envelope(samples)
@@ -113,11 +113,11 @@ def extract_ecdf_envelope(
 def extract_aleatory_scenarios(
     quantity: ValArray,
     *,
-    point: int = 0,
-    component: int = 0,
-    time: int = 0,
-    epis_trans: int | None = None,
-    epis_nuis: int | None = None,
+    point_idx: int = 0,
+    component_idx: int = 0,
+    time_idx: int = 0,
+    epis_trans_idx: int | None = None,
+    epis_nuis_idx: int | None = None,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
 ) -> list[np.ndarray]:
     """Select complete conditional samples in trans/nuis/offset product order.
@@ -127,8 +127,8 @@ def extract_aleatory_scenarios(
     """
     selections = []
     for axis, selection in (
-        (EValAxis.EPISTEMIC_TRANS, epis_trans),
-        (EValAxis.EPISTEMIC_NUIS, epis_nuis),
+        (EValAxis.EPISTEMIC_TRANS, epis_trans_idx),
+        (EValAxis.EPISTEMIC_NUIS, epis_nuis_idx),
     ):
         size = (
             quantity.data.shape[quantity.axes.index(axis)]
@@ -143,14 +143,16 @@ def extract_aleatory_scenarios(
     )
     samples = [
         quantity.select_aleatory(
-            point,
-            component,
-            time,
-            epis_trans=trans,
-            epis_nuis=nuis,
+            point_idx,
+            component_idx,
+            time_idx,
+            epis_trans_idx=epis_trans_idx,
+            epis_nuis_idx=epis_nuis_idx,
             offset=selected_offset,
         )
-        for trans, nuis, selected_offset in product(*selections, offsets)
+        for epis_trans_idx, epis_nuis_idx, selected_offset in product(
+            *selections, offsets
+        )
     ]
     return samples
 
@@ -159,20 +161,20 @@ def select_metric_part(
     field: ValMetricField,
     part: EValMetricPart = EValMetricPart.TOTAL,
     *,
-    index: tuple[int | slice, ...] = (),
+    selection_idxs: tuple[int | slice, ...] = (),
 ) -> np.ndarray:
     """Select a metric array; balance is d_plus - d_minus, not total mismatch."""
     if not isinstance(part, EValMetricPart):
         raise TypeError("Metric part must be EValMetricPart.")
     if part is EValMetricPart.TOTAL:
-        return field.metric[index]
+        return field.metric[selection_idxs]
     if field.d_plus is None or field.d_minus is None:
         raise ValueError("Selected metric has no directional results.")
     if part is EValMetricPart.D_PLUS:
-        return field.d_plus[index]
+        return field.d_plus[selection_idxs]
     if part is EValMetricPart.D_MINUS:
-        return field.d_minus[index]
-    return field.d_plus[index] - field.d_minus[index]
+        return field.d_minus[selection_idxs]
+    return field.d_plus[selection_idxs] - field.d_minus[selection_idxs]
 
 
 def extract_metric_values(
@@ -190,22 +192,22 @@ def extract_metric_values(
         raise ValueError(
             "Selectors must name stored axes other than the retained axis."
         )
-    indices: list[int | slice] = []
+    selection_idxs: list[int | slice] = []
     for axis, size in zip(field.axes, field.metric.shape, strict=True):
         if axis == keep:
-            indices.append(slice(None))
+            selection_idxs.append(slice(None))
             continue
         if axis not in selected and size != 1:
             raise ValueError(f"Select a {axis} index before plotting.")
-        index = selected.get(axis, 0)
-        if isinstance(index, (bool, np.bool_)) or not isinstance(
-            index, (int, np.integer)
+        selection_idx = selected.get(axis, 0)
+        if isinstance(selection_idx, (bool, np.bool_)) or not isinstance(
+            selection_idx, (int, np.integer)
         ):
             raise TypeError(f"{axis} index must be an integer.")
-        if not 0 <= index < size:
-            raise IndexError(f"{axis} index {index} is outside [0, {size}).")
-        indices.append(index)
-    return select_metric_part(field, part, index=tuple(indices))
+        if not 0 <= selection_idx < size:
+            raise IndexError(f"{axis} index {selection_idx} is outside [0, {size}).")
+        selection_idxs.append(selection_idx)
+    return select_metric_part(field, part, selection_idxs=tuple(selection_idxs))
 
 
 def create_metric_label(metric: EMetricType, part: EValMetricPart) -> str:
@@ -249,22 +251,22 @@ def calc_ecdf_summary(
     nominal = np.zeros_like(probabilities)
     lower = np.full_like(probabilities, np.inf)
     upper = np.full_like(probabilities, -np.inf)
-    lower_index = None
-    upper_index = None
+    lower_idx = None
+    upper_idx = None
     if bounds is EValECDFBounds.SUPPORT_SUM:
         support_sums = np.array([np.sum(cdf.quantiles) for cdf in cdfs])
-        lower_index = int(np.argmin(support_sums))
-        upper_index = int(np.argmax(support_sums))
-    for index, cdf in enumerate(cdfs):
+        lower_idx = int(np.argmin(support_sums))
+        upper_idx = int(np.argmax(support_sums))
+    for selection_idx, cdf in enumerate(cdfs):
         quantiles = evaluate_ecdf_quantiles(cdf, probabilities)
         nominal += quantiles
         if bounds is EValECDFBounds.POINTWISE:
             np.minimum(lower, quantiles, out=lower)
             np.maximum(upper, quantiles, out=upper)
         else:
-            if index == lower_index:
+            if selection_idx == lower_idx:
                 lower[:] = quantiles
-            if index == upper_index:
+            if selection_idx == upper_idx:
                 upper[:] = quantiles
     nominal /= len(cdfs)
     return ValECDFSummary(
@@ -273,8 +275,8 @@ def calc_ecdf_summary(
         upper,
         nominal,
         bounds,
-        lower_index,
-        upper_index,
+        lower_idx,
+        upper_idx,
     )
 
 
@@ -299,12 +301,12 @@ def calc_mavm_correction(
         for experiment in (exp_lower, exp_upper)
         for model in (model_lower, model_upper)
     )
-    lower_exp_index = int(np.argmax([comparisons[0].d_minus, comparisons[2].d_minus]))
-    upper_exp_index = int(np.argmax([comparisons[1].d_plus, comparisons[3].d_plus]))
+    lower_exp_idx = int(np.argmax([comparisons[0].d_minus, comparisons[2].d_minus]))
+    upper_exp_idx = int(np.argmax([comparisons[1].d_plus, comparisons[3].d_plus]))
     return MAVMCorrection(
-        comparisons[2 * lower_exp_index],
-        comparisons[2 * upper_exp_index + 1],
+        comparisons[2 * lower_exp_idx],
+        comparisons[2 * upper_exp_idx + 1],
         (comparisons[0], comparisons[1], comparisons[2], comparisons[3]),
-        lower_exp_index,
-        upper_exp_index,
+        lower_exp_idx,
+        upper_exp_idx,
     )

@@ -200,17 +200,17 @@ def _rectangle_signed_areas(
     Merging the two empirical-CDF probability grids gives a direct,
     independent area calculation for the MAVM integration loop.
     """
-    model_index = 0
-    exp_index = 0
+    model_idx = 0
+    exp_idx = 0
     prob = 0.0
     d_plus = 0.0
     d_minus = 0.0
-    while model_index < len(model_quantiles) and exp_index < len(exp_quantiles):
+    while model_idx < len(model_quantiles) and exp_idx < len(exp_quantiles):
         next_prob = min(
-            model_probs[model_index],
-            exp_probs[exp_index],
+            model_probs[model_idx],
+            exp_probs[exp_idx],
         )
-        area = (exp_quantiles[exp_index] - model_quantiles[model_index]) * (
+        area = (exp_quantiles[exp_idx] - model_quantiles[model_idx]) * (
             next_prob - prob
         )
         if area > 0.0:
@@ -219,10 +219,10 @@ def _rectangle_signed_areas(
             d_minus -= area
 
         prob = next_prob
-        if np.isclose(prob, model_probs[model_index]):
-            model_index += 1
-        if np.isclose(prob, exp_probs[exp_index]):
-            exp_index += 1
+        if np.isclose(prob, model_probs[model_idx]):
+            model_idx += 1
+        if np.isclose(prob, exp_probs[exp_idx]):
+            exp_idx += 1
 
     return d_plus, d_minus
 
