@@ -56,8 +56,8 @@ class ELayout(str, Enum):
 
 class EResidualMode(str, Enum):
     NONE = "NONE"
-    ABSOLUTE = "ABSOLUTE"
-    NORMALIZED = "NORMALIZED"
+    DIRECT = "DIRECT"
+    CORRECTED = "CORRECTED"
 
     @classmethod
     def _missing_(cls, value):

@@ -63,8 +63,8 @@ namespace util {
 
     enum class EResidualMode {
         NONE,
-        ABSOLUTE,
-        NORMALIZED
+        DIRECT,
+        CORRECTED
     };
 
     // Custom hash from above

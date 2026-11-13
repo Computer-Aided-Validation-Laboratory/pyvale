@@ -150,8 +150,8 @@ PYBIND11_MODULE(diccpp, m) {
 
     py::enum_<util::EResidualMode>(m, "ResidualMode")
         .value("NONE", util::EResidualMode::NONE)
-        .value("ABSOLUTE", util::EResidualMode::ABSOLUTE)
-        .value("NORMALIZED", util::EResidualMode::NORMALIZED);
+        .value("DIRECT", util::EResidualMode::DIRECT)
+        .value("CORRECTED", util::EResidualMode::CORRECTED);
 
     py::class_<util::Config>(m, "Config")
         .def(py::init<>())

@@ -26,7 +26,6 @@ double sample(const Interpolator &image, double x, double y) {
 
 void calculate_illumination_fields(std::vector<double> &a, // brightness
                                    std::vector<double> &b, // contrast
-                                   std::vector<double> &ref_std,
                                    std::vector<uint8_t> &valid,
                                    const Interpolator &reference,
                                    const Interpolator &deformed,
@@ -35,14 +34,13 @@ void calculate_illumination_fields(std::vector<double> &a, // brightness
                                    int subset_size,
                                    util::EShapeFunc shape_func) {
 
-    // "ABSOLUTE":   R(x,y) = R(x,y) = f(x,y)−g(x′,y′)
-    // "NORMALIZED": R(x,y) = a(x,y)+b(x,y)×f(x,y)−g(x′,y′).
+    // "DIRECT":    R(x,y) = f(x,y)−g(x′,y′)
+    // "CORRECTED": R(x,y) = a(x,y)+b(x,y)×f(x,y)−g(x′,y′)
 
     const int num_points = subset_grid.num;
 
     a.assign(num_points, std::numeric_limits<double>::quiet_NaN());
     b.assign(num_points, std::numeric_limits<double>::quiet_NaN());
-    ref_std.assign(num_points, std::numeric_limits<double>::quiet_NaN());
     valid.assign(num_points, 0);
 
     if (subset_size <= 0 || subset_size % 2 == 0) return;
@@ -57,9 +55,9 @@ void calculate_illumination_fields(std::vector<double> &a, // brightness
         const double cx = subset_grid.coords[2*i];
         const double cy = subset_grid.coords[2*i + 1];
 
-        Subset<double, true> reference_subset(subset_size, subset_size);
-        Subset<double, true> deformed_subset(subset_size, subset_size);
-        reference_subset.fill_from_centre_coords(cx, cy, reference);
+        Subset<double, true> ss_ref(subset_size, subset_size);
+        Subset<double, true> ss_def(subset_size, subset_size);
+        ss_ref.fill_from_centre_coords(cx, cy, reference);
 
         bool use_shape_parameters =
             results.num_params > 0 &&
@@ -76,21 +74,21 @@ void calculate_illumination_fields(std::vector<double> &a, // brightness
         }
 
         if (use_shape_parameters) {
-            deformed_subset.fill_from_shape_params(
+            ss_def.fill_from_shape_params(
                 cx, cy, params, deformed, shape_func);
         }
         else {
             params = {results.u[i], results.v[i]};
-            deformed_subset.fill_from_shape_params(
+            ss_def.fill_from_shape_params(
                 cx, cy, params, deformed, util::EShapeFunc::RIGID);
         }
 
         double mean_ref = 0.0;
         double mean_def = 0.0;
         int count = 0;
-        for (int pixel = 0; pixel < reference_subset.num_px; ++pixel) {
-            const double f = reference_subset.vals[pixel];
-            const double g = deformed_subset.vals[pixel];
+        for (int pixel = 0; pixel < ss_ref.num_px; ++pixel) {
+            const double f = ss_ref.vals[pixel];
+            const double g = ss_def.vals[pixel];
             if (std::isfinite(f) && std::isfinite(g)) {
                 mean_ref += f;
                 mean_def += g;
@@ -104,10 +102,10 @@ void calculate_illumination_fields(std::vector<double> &a, // brightness
         double ref_var = 0.0;
         double covar = 0.0;
 
-        for (int pixel = 0; pixel < reference_subset.num_px; ++pixel) {
+        for (int pixel = 0; pixel < ss_ref.num_px; ++pixel) {
 
-            const double f = reference_subset.vals[pixel];
-            const double g = deformed_subset.vals[pixel];
+            const double f = ss_ref.vals[pixel];
+            const double g = ss_def.vals[pixel];
             if (!std::isfinite(f) || !std::isfinite(g)) continue;
             const double df = f - mean_ref;
             const double dg = g - mean_def;
@@ -120,7 +118,6 @@ void calculate_illumination_fields(std::vector<double> &a, // brightness
 
         a[i] = mean_def - slope * mean_ref;
         b[i] = slope;
-        ref_std[i] = std::sqrt(ref_var / count);
         valid[i] = 1;
 
     }
@@ -140,12 +137,11 @@ void raster_triangle(std::vector<double> &R,
                      util::EResidualMode mode,
                      const std::vector<double> &brightness,
                      const std::vector<double> &contrast,
-                     const std::vector<double> &reference_std,
                      const std::vector<uint8_t> &illumination_valid) {
 
     if (a < 0 || b < 0 || c < 0 ||
         !valid[a] || !valid[b] || !valid[c] ||
-        (mode == util::EResidualMode::NORMALIZED &&
+        (mode == util::EResidualMode::CORRECTED &&
          (!illumination_valid[a] || !illumination_valid[b] || !illumination_valid[c]))) {
         return;
     }
@@ -193,17 +189,15 @@ void raster_triangle(std::vector<double> &R,
                 if (mode == util::EResidualMode::NONE) {
                     R[pixel] = def_val - ref_val;
                 }
-                else if (mode == util::EResidualMode::ABSOLUTE) {
-                    R[pixel] = std::abs(ref_val - def_val);
+                else if (mode == util::EResidualMode::DIRECT) {
+                    R[pixel] = ref_val - def_val;
                 }
                 else {
                     const double brightness_val = w_a * brightness[a] + w_b * brightness[b] + w_c * brightness[c];
                     const double contrast_val = w_a * contrast[a] + w_b * contrast[b] + w_c * contrast[c];
-                    const double sigma = w_a * reference_std[a] + w_b * reference_std[b] + w_c * reference_std[c];
 
-                    if (std::isfinite(brightness_val) && std::isfinite(contrast_val) &&
-                        std::isfinite(sigma) && sigma > 1.0e-12) {
-                        R[pixel] = std::abs((brightness_val + contrast_val * ref_val) - def_val) / sigma;
+                    if (std::isfinite(brightness_val) && std::isfinite(contrast_val)) {
+                        R[pixel] = brightness_val + contrast_val * ref_val - def_val;
                     }
                 }
             }
@@ -222,8 +216,8 @@ void create_residual_map(std::vector<double> &R,
                          util::EResidualMode mode) {
 
 
-    // "ABSOLUTE":   R(x,y) = R(x,y) = f(x,y)−g(x′,y′)
-    // "NORMALIZED": R(x,y) = a(x,y)+b(x,y)×f(x,y)−g(x′,y′).
+    // "DIRECT":    R(x,y) = f(x,y)−g(x′,y′)  [paper equation (7)]
+    // "CORRECTED": R(x,y) = a(x,y)+b(x,y)×f(x,y)−g(x′,y′)  [equation (8)]
 
     const int px_hori = interp_ref.px_hori;
     const int px_vert = interp_ref.px_vert;
@@ -239,10 +233,9 @@ void create_residual_map(std::vector<double> &R,
 
     std::vector<double> a; // brighness
     std::vector<double> b; // contrast
-    std::vector<double> ref_std;
     std::vector<uint8_t> illumination_valid;
-    if (mode == util::EResidualMode::NORMALIZED) {
-        calculate_illumination_fields(a, b, ref_std,
+    if (mode == util::EResidualMode::CORRECTED) {
+        calculate_illumination_fields(a, b,
                                       illumination_valid, interp_ref, interp_def,
                                       subset_grid, results, subset_size,
                                       shape_func);
@@ -272,12 +265,12 @@ void create_residual_map(std::vector<double> &R,
                             tl, tr, br,
                             subset_grid.coords, results.u, results.v,
                             results.valid_match, mode, a, b,
-                            ref_std, illumination_valid);
+                            illumination_valid);
             raster_triangle(R, interp_ref, interp_def, roi_mask,
                             tl, br, bl,
                             subset_grid.coords, results.u, results.v,
                             results.valid_match, mode, a, b,
-                            ref_std, illumination_valid);
+                            illumination_valid);
         }
     }
 }

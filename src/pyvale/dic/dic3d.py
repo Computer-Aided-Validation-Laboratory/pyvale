@@ -101,7 +101,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  fft_save: bool=False,
                  fft_precision: Literal["F64","F32"]="F32",
                  output_results: bool = True,
-                 output_residual: Literal["NONE", "ABSOLUTE", "NORMALIZED"] | EResidualMode = EResidualMode.NONE,
+                 output_residual: Literal["NONE", "DIRECT", "CORRECTED"] | EResidualMode = EResidualMode.NONE,
                  layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
@@ -257,11 +257,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         The in-memory ``Results`` dataclass. When ``output_results`` is True,
         the normal DIC result files are also written to ``output_basepath``.
 
-    output_residual : {"NONE", "ABSOLUTE", "NORMALIZED"}, optional
-        ``"NONE"`` disables residual output. ``"ABSOLUTE"`` writes the
-        absolute Eq. (7) residual ``|f - g|``. ``"NORMALIZED"`` writes the
-        illumination-corrected Eq. (8) residual using interpolated local
-        brightness and contrast fields (default: ``"NONE"``).
+    output_residual : {"NONE", "DIRECT", "CORRECTED"}, optional
+        ``"NONE"`` disables residual output. ``"DIRECT"`` writes the
+        signed Eq. (7) residual ``f - g``. ``"CORRECTED"`` writes the
+        signed illumination-corrected Eq. (8) residual using interpolated
+        local brightness and contrast fields (default: ``"NONE"``).
 
     Raises
     ------
@@ -332,8 +332,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     incremental_update_enum = EIncrementalMethod(incremental_update)
     if isinstance(output_residual, bool):
         # Keep compatibility with the earlier boolean switch: True selects
-        # the uncorrected absolute residual, False disables residual output.
-        residual_mode_enum = EResidualMode.ABSOLUTE if output_residual else EResidualMode.NONE
+        # the uncorrected Eq. (7) residual, False disables residual output.
+        residual_mode_enum = EResidualMode.DIRECT if output_residual else EResidualMode.NONE
     else:
         residual_mode_enum = EResidualMode(output_residual)
 
