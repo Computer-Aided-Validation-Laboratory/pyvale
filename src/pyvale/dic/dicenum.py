@@ -42,6 +42,8 @@ class EIncrementalMethod(str, Enum):
     ITER = "ITER"
 
 class ELayout(str, Enum):
+    """Layout used for imported DIC and strain result arrays."""
+
     COLUMN = "COLUMN"
     MATRIX = "MATRIX"
 
@@ -52,8 +54,6 @@ class ELayout(str, Enum):
                 if member.value == value.upper():
                     return member
         return None
-
-
 class EResidualMode(str, Enum):
     NONE = "NONE"
     DIRECT = "DIRECT"
