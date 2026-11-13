@@ -29,6 +29,7 @@ matplotlib.use("Agg")
 SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
+
 output_path = Path.cwd() / "pyvale-output" / "valid_ex0_quickstart"
 output_path.mkdir(parents=True, exist_ok=True)
 
