@@ -29,33 +29,20 @@
 namespace py = pybind11;
 
 /**
- * @brief Runs Digital Image Correlation (DIC) engine on input image data.
+ * @brief Run DIC on the image files selected by the configuration.
  *
- * This function performs 2D DIC using a specified correlation criterion,
- * shape function, interpolation scheme, and scan method.
- * It computes displacement fields by comparing a reference image with a stack of
- * deformed images over a defined region of interest (ROI).
+ * @param img_roi_arr C-contiguous NumPy bool array of shape (height, width).
+ * @param calib Camera calibration used for stereo reconstruction.
+ * @param conf Correlation settings, image paths, dimensions and seed positions.
+ * @param multiwindowconf FFT window sizes and search settings.
+ * @param saveconf Output paths, filenames and file-format settings.
  *
- * @param img_ref_arr A 2D NumPy array (pybind11) representing the reference image.
- * @param img_def_stack_arr A 3D NumPy array containing a stack of deformed images.
- *                          Each image must have the same dimensions as the reference image.
- * @param img_roi_arr A 2D boolean NumPy array specifying the region of interest (ROI).
- *                    True values indicate active ROI pixels.
- * @param conf Configuration parameters for the DIC engine (subset size, correlation method, etc.).
- *             This is an instance of `util::Config`.
- * @param saveconf Output configuration for saving DIC results to disk.
- *                 This is an instance of `SaveConfig`.
- *
- * @details
- * The function supports multiple scan methods including raster scan, brute force,
- * reliability-guided, and Fourier-based approaches. It computes correlation
- * between the reference and deformed images over subsets defined by the ROI.
- * 
- * Subset data is initialized and processed in parallel using OpenMP.
- * Results are saved after processing each image.
- *
- * @note This function is intended to be called via the Python interface using pybind11.
- *       Image arrays are expected to be contiguous and C-style (row-major) in memory.
+ * @details The ROI buffer is borrowed for the synchronous call and is not
+ * retained. The engine owns the image buffers it loads and its working arrays.
+ * Subset coordinates and displacement in the 2D correlation are in pixels;
+ * calibrated stereo coordinates use the calibration's length unit.
+ * Results are written to files according to saveconf; no output array is
+ * returned through this function.
  */
 void engine(const py::array_t<bool>& img_roi_arr,
             const Calib &calib,
@@ -63,6 +50,16 @@ void engine(const py::array_t<bool>& img_roi_arr,
             const MultiwindowConfig &multiwindowconf,
             const common_util::SaveConfig& saveconf);
 
+/**
+ * @brief Run DIC on image buffers already loaded into native Image objects.
+ *
+ * @details Each Image owns its row-major pixel buffer. Supported pixel types
+ * are uint8, uint16, uint32 and float32. This function borrows the Image vector
+ * and the C-contiguous bool ROI for the duration of the call; no caller buffer
+ * pointer is retained. The Python binding copies supplied image arrays into
+ * owned Image storage before calling this entry point. Configuration, units
+ * and file output follow engine().
+ */
 void engine_images(const std::vector<Image>& images,
                    const py::array_t<bool>& img_roi_arr,
                    const Calib &calib,

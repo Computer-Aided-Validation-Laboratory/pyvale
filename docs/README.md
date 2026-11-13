@@ -18,7 +18,8 @@ regenerating them. Tracked pages (including `pyvale.render.uvtools.rst`), manual
 content, galleries and guides are preserved. Generation is staged and the previous
 API pages are restored if regeneration fails. Newly generated pages carry an
 ownership comment; track a page or remove that comment before maintaining it by
-hand. C++ documentation generation runs afterward as before.
+hand. Native documentation is generated afterward using Doxygen and the current
+header inventory.
 
 With the docs Python installation already on PATH, you can also run from here:
 ```bash
@@ -75,3 +76,22 @@ before maintaining generated content by hand.
 The example navigation tests compare each public source directory with its
 curated index and check the gallery configuration. Development-only validation,
 analytic-data and visualisation examples remain outside the public gallery.
+
+## Native API generation
+
+`apidoc.sh` requires Doxygen for the native reference. It generates XML, then
+runs `generate_native_apidoc.py`; Doxygen's separate HTML and LaTeX outputs are
+not needed by Sphinx. Header pages and module indexes are derived from current
+headers in the DIC and strain modules, matching the Doxyfile inputs.
+
+Generated native pages carry an ownership comment. Remove that comment before
+maintaining a page by hand. The old bare header/index templates, including
+tracked copies, are recognised for migration; pages with additional authored
+content and symlinks are preserved. Obsolete owned pages are removed, and a
+failed publication restores the previous generated pages.
+
+The stereo matching page renders its function directly, while the stereo utility
+page owns the shared namespace listing. Both sets of symbols remain linkable
+without suppressing duplicate-declaration warnings or disabling indexing.
+The native API landing page documents buffer layout, dtypes, ownership and units;
+Python user workflows remain in the separate Python API reference.
