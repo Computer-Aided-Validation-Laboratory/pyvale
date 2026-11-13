@@ -126,7 +126,6 @@ Developed by the Computer Aided Validation Team and collaborators.
     examples/examples
     guide_user/guide_user
     guide_theory/guide_theory
-    guide_dev/dev_guide
     api_py
     api_cpp
     cite
