@@ -44,8 +44,11 @@ Follow the relevant route:
 
 * **Simulate measurements:** :doc:`SensorSim guide <guide_sensorsim>` · :doc:`First example </examples/basicsensorsim/ex0_quickstart>`
 * **Analyse images:** :doc:`DIC guide </guide_user/guide_dic>` · :doc:`Examples </examples/examples_dic>`
-* **Generate camera images:** :doc:`Render examples </examples/examples_render3d>` · :doc:`UV mapping </examples/examples_renderuvs>`
+* **Generate camera images:** :doc:`Render guide <guide_render>` · :doc:`UV mapping </examples/examples_renderuvs>`
 * **Run solver sweeps:** :doc:`Mooseherder guide </guide_user/guide_mooseherder>` · :doc:`First simulation </examples/mooseherder/ex01a_quickstart_rabbitfem>`
+
+For geometry preparation, see :doc:`Geometry and meshing <guide_meshing>`.
+For importing and interpreting fields, see :doc:`Working with SimData <guide_simdata>`.
 
 Connect predictions and measurements
 ------------------------------------
@@ -99,6 +102,7 @@ simulation runs, but the rabbit came first.
 
    guide_sensorsim
    guide_dic
-   guide_blender
-   guide_strain
+   guide_render
    guide_mooseherder
+   guide_meshing
+   guide_simdata

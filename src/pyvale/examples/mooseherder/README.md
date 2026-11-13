@@ -29,6 +29,11 @@ Gmsh runner
 * ``ex03a_gmsh_geo.py``
 * ``ex03b_gmsh_python.py``
 * ``ex03c_gmsh_custom_installation.py``
+* ``ex03d_gmsh_box3d.py`` and its companion ``gmsh_box.geo``: a 20 x 10 x 5 mm
+  box with named solid and end-face groups, meshed with linear tetrahedra.
+* ``ex03e_gmsh_monoblock.py``: the existing case16 geometry, in metres, with
+  tungsten armour, a copper interlayer and a CuCrZr tube. It preserves the
+  original quadratic hexahedra, material groups and boundary names.
 
 Sim Sweep
 ---------
