@@ -23,7 +23,7 @@ EXAMPLES = (
     ("ex03a_gmsh_geo", "mooseherder_ex03a_mesh/mesh.msh"),
     ("ex03b_gmsh_python", "mooseherder_ex03b_mesh/mesh.msh"),
     ("ex03c_gmsh_custom_installation", "mooseherder_ex03c_mesh/plate.inp"),
-    ("ex03d_gmsh_box3d", "mooseherder_ex03d_mesh/mesh.msh"),
+    ("ex03d_gmsh_plate3d", "mooseherder_ex03d_mesh/mesh.msh"),
     ("ex03e_gmsh_monoblock", "mooseherder_ex03e_mesh/mesh.msh"),
     ("ex04a_simsweep_mesh_and_solve", "mooseherder_ex04a_case17/sweep_0001/sweep.json"),
     (
@@ -57,7 +57,7 @@ def test_mooseherder_example(
         for path in (directory / "pyvale-output").iterdir()
     )
 
-    if example.endswith(("ex03d_gmsh_box3d.py", "ex03e_gmsh_monoblock.py")):
+    if example.endswith(("ex03d_gmsh_plate3d.py", "ex03e_gmsh_monoblock.py")):
         import gmsh
         import numpy as np
 
@@ -73,18 +73,20 @@ def test_mooseherder_example(
             }
             element_types, element_tags, _ = gmsh.model.mesh.getElements(3)
             assert sum(len(tags) for tags in element_tags) > 0
-            if example.endswith("ex03d_gmsh_box3d.py"):
+            if example.endswith("ex03d_gmsh_plate3d.py"):
                 np.testing.assert_allclose(coordinates.min(axis=0), 0, atol=1e-12)
-                np.testing.assert_allclose(coordinates.max(axis=0), [20, 10, 5])
-                assert material_names == {"solid"}
+                np.testing.assert_allclose(
+                    coordinates.max(axis=0), [0.1, 0.15, 0.005], atol=1e-12
+                )
+                assert material_names == {"plate"}
                 boundary_names = {
                     gmsh.model.getPhysicalName(dimension, tag)
                     for dimension, tag in gmsh.model.getPhysicalGroups(2)
                 }
-                assert boundary_names == {"fixed", "loaded"}
+                assert boundary_names == {"bc-base", "bc-top"}
                 assert all(
                     gmsh.model.mesh.getElementProperties(int(kind))[0]
-                    == "Tetrahedron 4"
+                    == "Hexahedron 27"
                     for kind in element_types
                 )
             else:

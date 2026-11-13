@@ -56,10 +56,11 @@ this contract.
 2. Move to a volume mesh
 ----------------------------
 
-Run the new box example to see a 20 × 10 × 5 mm volume with linear tetrahedra,
-a ``solid`` physical group and ``fixed`` / ``loaded`` end faces. Its companion
-:download:`gmsh_box.geo <../../../src/pyvale/examples/mooseherder/gmsh_box.geo>`
-defines the geometry and an overridable mesh size.
+Run the case08 example to mesh the existing 3D plate with a hole. The geometry
+is resolved through ``pyvale.data.sim_case_gmsh_file_path(8)`` and downloaded
+through Pooch when needed. Its native coordinates are metres: the plate is
+100 × 150 mm with a 12.5 mm-radius hole and 5 mm thickness. The original
+quadratic hexahedra and ``plate``, ``bc-base`` and ``bc-top`` groups are retained.
 
 ``mesh_dims=3`` requests a volume mesh when the geometry script has not already
 generated one. Keep three choices separate:
@@ -104,6 +105,6 @@ compatibility; a file extension selects the export format.
 
 Continue with these examples and guides:
 
-:doc:`2D meshing </examples/mooseherder/ex03b_gmsh_python>` · :doc:`3D box </examples/mooseherder/ex03d_gmsh_box3d>` · :doc:`Case16 monoblock </examples/mooseherder/ex03e_gmsh_monoblock>` · `Gmsh tutorials <https://gmsh.info/doc/texinfo/gmsh.html#Tutorial>`_
+:doc:`2D meshing </examples/mooseherder/ex03b_gmsh_python>` · :doc:`3D plate </examples/mooseherder/ex03d_gmsh_plate3d>` · :doc:`Case16 monoblock </examples/mooseherder/ex03e_gmsh_monoblock>` · `Gmsh tutorials <https://gmsh.info/doc/texinfo/gmsh.html#Tutorial>`_
 
 :doc:`Run the solver <guide_mooseherder>` · :doc:`Inspect fields <guide_simdata>`

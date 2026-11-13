@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:03.972** total execution time for 67 files **from all galleries**:
+**00:03.972** total execution time for 69 files **from all galleries**:
 
 .. container::
 
@@ -162,6 +162,12 @@ Computation times
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex03b_gmsh_python.py` (``../../src/pyvale/examples/mooseherder/ex03b_gmsh_python.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03d_gmsh_plate3d.py` (``../../src/pyvale/examples/mooseherder/ex03d_gmsh_plate3d.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03e_gmsh_monoblock.py` (``../../src/pyvale/examples/mooseherder/ex03e_gmsh_monoblock.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex04a_simsweep_mesh_and_solve.py` (``../../src/pyvale/examples/mooseherder/ex04a_simsweep_mesh_and_solve.py``)

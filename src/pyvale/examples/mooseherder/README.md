@@ -29,8 +29,9 @@ Gmsh runner
 * ``ex03a_gmsh_geo.py``
 * ``ex03b_gmsh_python.py``
 * ``ex03c_gmsh_custom_installation.py``
-* ``ex03d_gmsh_box3d.py`` and its companion ``gmsh_box.geo``: a 20 x 10 x 5 mm
-  box with named solid and end-face groups, meshed with linear tetrahedra.
+* ``ex03d_gmsh_plate3d.py``: the registered case08 3D plate with a hole,
+  resolved through ``pyvale.data``. Native coordinates are metres; original
+  quadratic hexahedra and plate/boundary groups are retained.
 * ``ex03e_gmsh_monoblock.py``: the existing case16 geometry, in metres, with
   tungsten armour, a copper interlayer and a CuCrZr tube. It preserves the
   original quadratic hexahedra, material groups and boundary names.
