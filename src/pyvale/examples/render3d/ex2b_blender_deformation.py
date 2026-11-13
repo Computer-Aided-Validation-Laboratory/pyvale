@@ -115,7 +115,7 @@ print(f"Output saved to: {output_dir}")
 # %%
 # The first deformation frame is shown below.
 #
-# .. image:: ../../../../_static/render3d_ex2b_blender_deformation.png
+# .. image:: /_static/render3d_ex2b_blender_deformation.png
 #    :alt: Blender deformation render of a speckled plate with a hole
 #    :width: 500px
 #    :align: center

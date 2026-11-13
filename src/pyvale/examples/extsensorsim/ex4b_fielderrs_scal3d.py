@@ -175,7 +175,7 @@ else:
 # Visualisation of nominal and perturbed sensor locations including the field
 # errors.
 #
-# .. image:: ../../../../_static/ext_ex4b_locs.png
+# .. image:: /_static/ext_ex4b_locs.png
 #    :alt: Visualisation of virtual sensor locations.
 #    :width: 800px
 #    :align: center
@@ -191,7 +191,7 @@ fig.savefig(output_path/"ext_ex4b_traces.png",dpi=300,bbox_inches="tight")
 # Sensor traces showing the effects of the field error perturbing sensor
 # location and sensor sample times.
 #
-# .. image:: ../../../../_static/ext_ex4b_traces.png
+# .. image:: /_static/ext_ex4b_traces.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center

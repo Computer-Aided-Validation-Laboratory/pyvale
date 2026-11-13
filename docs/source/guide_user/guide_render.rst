@@ -140,4 +140,4 @@ Continue with these examples and guides:
 
 :doc:`Riley quickstart </examples/render3d/ex1a_riley_quickstart>` · :doc:`DIC images from Exodus </examples/render3d/ex1e_riley_dic_from_exodus>` · :doc:`UV examples </examples/examples_renderuvs>` · :doc:`Blender examples </examples/examples_render3d>`
 
-:doc:`Load simulation data <guide_simdata>` · :doc:`Build meshes <guide_meshing>`
+:doc:`Load simulation data <guide_simdata>` · :doc:`Build meshes <guide_meshing>` · :doc:`Camera calibration API </pyvale.calib>`

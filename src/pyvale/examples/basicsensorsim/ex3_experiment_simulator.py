@@ -240,7 +240,7 @@ print(80*"-")
 print()
 
 #%%
-# .. image:: ../../../../_static/basics_ex3_term_out_0.png
+# .. image:: /_static/basics_ex3_term_out_0.png
 #    :alt: Terminal output showing the simulated experiment data keys
 #    :width: 700px
 #    :align: center
@@ -278,7 +278,7 @@ print()
 print(80*"-")
 
 #%%
-# .. image:: ../../../../_static/basics_ex3_term_out_1.png
+# .. image:: /_static/basics_ex3_term_out_1.png
 #    :alt: Terminal output showing the simulated experiment data structures
 #    :width: 700px
 #    :align: center
@@ -321,7 +321,7 @@ else:
 # %%
 # Visualisation of the virtual temperature sensor locations:
 #
-# .. image:: ../../../../_static/basics_ex3_temp_locs.png
+# .. image:: /_static/basics_ex3_temp_locs.png
 #    :alt: Visualisation of the virtual temperature sensor locations
 #    :width: 800px
 #    :align: center
@@ -339,7 +339,7 @@ else:
 # %%
 # Visualisation of the virtual strain sensor locations:
 #
-# .. image:: ../../../../_static/basics_ex3_strain_locs.png
+# .. image:: /_static/basics_ex3_strain_locs.png
 #    :alt: Visualisation of the virtual strain sensor locations
 #    :width: 800px
 #    :align: center
@@ -366,7 +366,7 @@ fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 # Virtual temperature sensor traces over all simulated experiments for the
 # nominal input simulation:
 #
-# .. image:: ../../../../_static/basics_ex3_traces_temp.png
+# .. image:: /_static/basics_ex3_traces_temp.png
 #    :alt: Simulated temperature sensor traces.
 #    :width: 500px
 #    :align: center
@@ -389,7 +389,7 @@ for ii,kk in enumerate(strain_plot_keys):
 # Virtual strain sensor traces over all simulated experiments for the perturbed
 # input simulation:
 #
-# .. image:: ../../../../_static/basics_ex3_traces_strain_yy.png
+# .. image:: /_static/basics_ex3_traces_strain_yy.png
 #    :alt: Simulated strain sensor traces.
 #    :width: 500px
 #    :align: center

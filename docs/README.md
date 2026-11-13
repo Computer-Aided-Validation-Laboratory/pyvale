@@ -55,3 +55,23 @@ assets:
 They are stored in `images/` and linked from `docs/source/_static/`.
 Citation formats for the PyVale DIC and Riley papers live on the separate
 `docs/source/cite.rst` page, available through the documentation sidebar.
+
+## API and example navigation
+
+`source/api_py.rst` is the curated Python API entry point, grouped by user task.
+The API generator omits its redundant package-root index, the unfinished
+validation package and internal native/standalone Blender implementation
+packages. Supported Blender interfaces remain documented under `pyvale.render`;
+verification helpers have their own supporting-reference section.
+
+Sphinx builds run `gallerycleanup` before Sphinx-Gallery. Cleanup removes an
+obsolete example page only when it is untracked, Git-ignored and carries the
+Sphinx-Gallery ownership header. The configured example directories determine
+whether its source still exists. Named companion downloads and cache metadata
+receive the same Git protections; tracked files, symlinks and unrecognised
+manual content are preserved. Track a page or remove its ownership header
+before maintaining generated content by hand.
+
+The example navigation tests compare each public source directory with its
+curated index and check the gallery configuration. Development-only validation,
+analytic-data and visualisation examples remain outside the public gallery.

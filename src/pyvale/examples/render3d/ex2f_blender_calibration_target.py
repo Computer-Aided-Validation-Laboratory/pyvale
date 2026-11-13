@@ -100,7 +100,7 @@ print(f"Calibration images directory: {output_dir / 'calimages'}")
 # %%
 # The first calibration pose from both cameras is combined side by side below.
 #
-# .. image:: ../../../../_static/render3d_ex2f_blender_calibration_target.png
+# .. image:: /_static/render3d_ex2f_blender_calibration_target.png
 #    :alt: Blender calibration target render from both cameras
 #    :width: 900px
 #    :align: center

@@ -127,7 +127,7 @@ print(
 # The original mapping is on the left and the combined transformed variant is
 # on the right.
 #
-# .. image:: ../../_static/renderuvs_ex1e_uv_transform.png
+# .. image:: /_static/renderuvs_ex1e_uv_transform.png
 #    :alt: Original and transformed UV mappings on a three dimensional rabbit
 #    :width: 900px
 #    :align: center

@@ -40,7 +40,7 @@ roi.interactive_selection()
 
 
 # %%
-# .. image:: ../../../../_static/roi_tool.gif
+# .. image:: /_static/roi_tool.gif
 #    :alt: ROI selection GUI (animated)
 #    :width: 600px
 #    :align: center
@@ -83,13 +83,13 @@ roi.save_image(region_img)
 #    :align: center
 #    :header-rows: 0
 #
-#    * - .. figure:: ../../../../_static/rect_boundary.png
+#    * - .. figure:: /_static/rect_boundary.png
 #          :width: 300px
 #          :align: center
 #
 #          ``roi.rect_boundary(left=200, right=200, bottom=200, top=200)``
 #
-#      - .. figure:: ../../../../_static/rect_region.png
+#      - .. figure:: /_static/rect_region.png
 #          :width: 300px
 #          :align: center
 #
