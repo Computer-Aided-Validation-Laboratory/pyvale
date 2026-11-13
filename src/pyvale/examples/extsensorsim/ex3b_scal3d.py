@@ -133,7 +133,7 @@ else:
     pv_plot.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex3b_locs.png
+# .. image:: /_static/ext_ex3b_locs.png
 #    :alt: Virtual sensor location visualisation.
 #    :width: 800px
 #    :align: center
@@ -145,7 +145,7 @@ fig.savefig(output_path/"ext_ex3b_traces.png",dpi=300,bbox_inches="tight")
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex3b_traces.png
+# .. image:: /_static/ext_ex3b_traces.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center

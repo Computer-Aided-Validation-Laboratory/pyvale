@@ -190,7 +190,7 @@ print("\n"+80*"-")
 # %%
 # Example terminal output:
 #
-# .. image:: ../../../../_static/basics_ex2_term_out.png
+# .. image:: /_static/basics_ex2_term_out.png
 #    :alt: Terminal output showing simulated measurements and error array shapes
 #    :width: 700px
 #    :align: center
@@ -221,7 +221,7 @@ else:
     pv_plot.show()
 
 # %%
-# .. image:: ../../../../_static/basics_ex2_disp_locs.png
+# .. image:: /_static/basics_ex2_disp_locs.png
 #    :alt: Location of virtual strain sensors
 #    :width: 800px
 #    :align: center
@@ -238,7 +238,7 @@ else:
 
 
 # %%
-# .. image:: ../../../../_static/basics_ex2_strain_locs.png
+# .. image:: /_static/basics_ex2_strain_locs.png
 #    :alt: Location of virtual strain sensors
 #    :width: 800px
 #    :align: center
@@ -255,7 +255,7 @@ for kk in disp_keys:
 
 
 # %%
-# .. image:: ../../../../_static/basics_ex2_traces_disp_y.png
+# .. image:: /_static/basics_ex2_traces_disp_y.png
 #    :alt: Simulated displacement sensor traces.
 #    :width: 500px
 #    :align: center
@@ -270,7 +270,7 @@ for kk in (strain_norm_keys+strain_dev_keys):
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/basics_ex2_traces_strain_yy.png
+# .. image:: /_static/basics_ex2_traces_strain_yy.png
 #    :alt: Simulated strain sensor traces
 #    :width: 500px
 #    :align: center

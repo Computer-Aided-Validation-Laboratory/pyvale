@@ -49,7 +49,7 @@ roi.read_yaml(data.dic_ex10_dic_chal_roi()) # <- or you can read the yaml file d
 
 
 # %%
-# .. image:: ../../../../_static/dic_ex10_roi.png
+# .. image:: /_static/dic_ex10_roi.png
 #    :alt: ROI
 #    :width: 100%
 #    :align: center
@@ -101,7 +101,7 @@ cloud.plot(
 )
 
 # %%
-# .. image:: ../../../../_static/dic_ex10_3d.png
+# .. image:: /_static/dic_ex10_3d.png
 #    :alt: ROI
 #    :width: 100%
 #    :align: center

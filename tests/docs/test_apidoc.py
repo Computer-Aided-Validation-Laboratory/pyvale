@@ -195,3 +195,22 @@ def test_empty_successful_generation_also_restores_previous_pages(
     with pytest.raises(RuntimeError, match="root pyvale.rst"):
         API_TOOLS["generate_api_docs"](docs_repo)
     assert {path: path.read_bytes() for path in source.rglob("*.rst")} == original_pages
+
+
+def test_public_api_excludes_unfinished_and_internal_packages(docs_repo: Path) -> None:
+    """The curated API is the root; public Render backend pages remain available."""
+    package = docs_repo / "src/pyvale"
+    packages = [
+        "", "dataio", "render", "render/blender", "blender", "commoncpp", "valid"
+    ]
+    for name in packages:
+        directory = package / name
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "__init__.py").write_text('"""Example package."""\n')
+    API_TOOLS["generate_api_docs"](docs_repo)
+    source = docs_repo / "docs/source"
+    assert (source / "pyvale.dataio.rst").is_file()
+    assert (source / "pyvale.render.blender.rst").is_file()
+    assert not (source / "pyvale.rst").exists()
+    for name in ["blender", "commoncpp", "valid"]:
+        assert not list(source.glob(f"pyvale.{name}*.rst"))

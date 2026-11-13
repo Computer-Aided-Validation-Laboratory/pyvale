@@ -1,75 +1,108 @@
 .. _guide_overview_user:
 
 User Guide
-=================================
+==========
 
-Module Specific Guides
------------------------
+Experiments are expensive. Before committing time, specimens and laboratory
+resources, you need to know what to measure and whether those measurements can
+answer your engineering question. PyVale lets you explore measurement choices
+and uncertainty using a physics simulation, then analyse the measurements you
+collect.
 
-.. toctree::
-   :maxdepth: 1
+The aim is to connect predictions with experimental evidence for simulation
+validation. A virtual experiment helps you investigate what sensors and cameras
+would observe under your assumptions; real measurements provide the evidence
+needed to assess those assumptions.
 
-   guide_sensorsim.rst
-   guide_dic.rst
-   guide_blender.rst
-   guide_strain.rst
-   guide_mooseherder.rst
+Start with what you have
+------------------------
 
+.. list-table::
+   :header-rows: 1
+   :widths: 30 25 45
 
-What is pyvale?
----------------------------------
+   * - Your starting point
+     - Workflow
+     - What you obtain
+   * - Simulation fields and a sensor plan
+     - **SensorSim**
+     - Virtual measurements and uncertainty distributions.
 
-Pyvale is a virtual engineering laboratory that allows you to simulate sensor deployments, optimise experimental design and calibrate/validate simulations. The motivation behind pyvale is to provide engineers with a software tool that they can import a physics simulation and virtually design a simulation validation experiment without needing to go to the laboratory. 
+   * - Camera images
+     - **Digital Image Correlation**
+     - Shape, displacement and strain.
 
-Pyvale will never completely replace the need to obtain real experimental data to validate engineering physics simulations. What it can do is reduce the time and cost of experiments by allowing you to perform smarter and more resilient experiments - while providing you the tools to analyse your experimental data to calibrate your simulation or calculate validation metrics.
+   * - A mesh and camera model
+     - **Render**
+     - Synthetic camera images with controlled imaging conditions.
 
-Another key motivation for pyvale was to provide open-source tools for simulating imaging sensors (e.g. digital image correlation and infra-red thermography) that could be used for large parallel design sweeps on computing clusters without licensing restrictions or the need to build from source. With pyvale we aim to make it easy for experimentalists and simulation engineers to simulate their imaging experiments with a simple python interface and underlying performant code.
-Pyvale consists of three overarching toolboxes which can be used for:
- 
-#. Sensor uncertainty quantification simulation. 
-#. Experimental design and sensor placement optimisation.
-#. Simulation calibration and validation metrics. 
+   * - Solver inputs and parameter choices
+     - **Physics Simulation**
+     - Physics fields and results from a collection of simulation cases.
 
-Current progress on pyvale has built the foundation of the sensor simulation engine as this will be used a virtual test bed for the other toolboxes. The pyvale sensor simulation engine can produce visualisations of virtual sensor deployments and simulated sensors traces with realistic uncertainties as shown below.  
+Follow the relevant route:
 
-.. |image1| image:: ../_static/thermomech3d_tc_vis.png
-   :width: 49%
-   :align: middle
+* **Simulate measurements:** :doc:`SensorSim guide <guide_sensorsim>` · :doc:`First example </examples/basicsensorsim/ex0_quickstart>`
+* **Analyse images:** :doc:`DIC guide </guide_user/guide_dic>` · :doc:`Examples </examples/examples_dic>`
+* **Generate camera images:** :doc:`Render guide <guide_render>` · :doc:`UV mapping </examples/examples_renderuvs>`
+* **Run solver sweeps:** :doc:`Mooseherder guide </guide_user/guide_mooseherder>` · :doc:`First simulation </examples/mooseherder/ex01a_quickstart_rabbitfem>`
 
-.. |image2| image:: ../_static/thermomech3d_tc_traces.png
-   :width: 49%
-   :align: middle
+For geometry preparation, see :doc:`Geometry and meshing <guide_meshing>`.
+For importing and interpreting fields, see :doc:`Working with SimData <guide_simdata>`.
 
-|image1| |image2|
+Connect predictions and measurements
+------------------------------------
 
+A physics simulation predicts fields. SensorSim predicts what a proposed sensor
+array would measure from those fields. Render turns a deforming mesh into
+camera images, and DIC turns images into deformation measurements. Experimental
+images can enter the DIC workflow directly; a physics solve is not a prerequisite
+for analysing them.
 
-What goes on under the hood?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The core sensor simulation engine in pyvale leverages a suite of scientific computing packages in python including: numpy, scipy, matplotlib and pyvista. All computations that are performed by pyvale in python are implemented as vectorised operations on numpy arrays to improve performance. The results from pyvale sensor simulations are returned as numpy arrays allowing for interoperability with tools like matplotlib for visualisation and scipy for statistical analysis.
+These connections help you design measurements that can discriminate between
+predictions and investigate uncertainty before collecting validation data.
 
-For the computationally expensive modules in pyvale such as the simulation of imaging sensors and processing of imaging data (e.g. digital image correlation) we use compiled code that only has minimal interaction with the python interpreter. This means that the user can setup and run a ray-tracing simulation for digital image correlation and then perform digital image correlation on the generated images with only a few lines of python code while maintaining good performance.
+SensorSim, DIC and Render are available for measurement simulation and image
+analysis. Rabbit FEM and Mooseherder support physics simulations and parameter
+sweeps. Dedicated tools for sensor placement optimisation, simulation
+calibration and validation, and a workflow engine for reproducible experimental
+campaigns are under development. Today, you connect the modules in Python.
 
+Getting started
+---------------
 
-How do I get started with pyvale?
----------------------------------
+Use Python 3.11 or newer for core PyVale workflows. Riley is the default
+starting point for rendering. The optional Blender backend requires Python
+3.13 and ``pip install "pyvale[blender]"``.
 
-You can install pyvale from PyPI using ``pip install pyvale``. We recommend a virtual environment with python 3.13. If you are a new python user and need help setting up the correct python version and your virtual environment then go to our detailed :ref:`install guide <install_all>`.
+:doc:`Installation guide </install/install>` · :doc:`Browse examples </examples/examples>`
 
-Once you have pyvale installed you should get familiar with the core concepts of pyvale starting with the :ref:`basic examples <examples_sensorsim_basics>`. These examples use demonstration data downloaded on demand and cached locally by PyVale. To use a local checkout or shared copy of the data instead, set ``PYVALE_DATA`` to the repository's ``Data`` directory before running an example. With the core functionality of pyvale you will have everything you need to be able to build any custom sensor array that samples scalar (e.g. temperature), vector (e.g. displacement, velocity) or tensor fields (e.g. strain).
-
-After that you might want to look at some of the camera sensor simulation tools in pyvale including our digital image correlation rendering module (based on Blender) and our digital image correlation processing module.
-
+Example data is downloaded on demand and cached locally. If you already have
+simulation results or camera images, start directly with the relevant workflow.
 
 Why is there a rabbit on our logo?
------------------------------------
+----------------------------------
 
-We like rabbits and we like digital image correlation - so a rabbit with a speckle pattern seemed like a good idea. Do we need another reason?
+We like rabbits and we like digital image correlation, so a rabbit with a
+speckle pattern seemed like a good idea.
 
-.. image:: ../_static/pyvale_rabbit_only.png
-   :alt: pyvale rabbit only
+.. image:: /_static/pyvale_rabbit_only.png
+   :alt: PyVale's rabbit with a DIC speckle pattern
+   :width: 220px
    :align: center
-   :width: 400px
 
-We could have said it was some forced metaphor that rabbits multiply a lot and one of the main applications of pyvale is running large parallel sweeps on computing clusters. But it was actually just a series of jokes from different team members. Someone said "I can't design the logo because if I do it will have a rabbit on it", then someone else said that "A rabbits ears look like the 'V' in pyvale". And that was how our logo was born.
+The design grew out of a few team jokes: “I can’t design the logo because if I
+do it will have a rabbit on it,” followed by, “A rabbit’s ears look like the V
+in PyVale.” We could claim a metaphor about rabbits multiplying like parallel
+simulation runs, but the rabbit came first.
 
+.. toctree::
+   :hidden:
+   :maxdepth: 1
 
+   guide_sensorsim
+   guide_dic
+   guide_render
+   guide_mooseherder
+   guide_meshing
+   guide_simdata

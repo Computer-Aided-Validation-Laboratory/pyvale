@@ -40,6 +40,8 @@ Gmsh runner
    mooseherder/ex03a_gmsh_geo
    mooseherder/ex03b_gmsh_python
    mooseherder/ex03c_gmsh_custom_installation
+   mooseherder/ex03d_gmsh_plate3d
+   mooseherder/ex03e_gmsh_monoblock
 
 Sim Sweep
 ---------

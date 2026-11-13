@@ -183,7 +183,7 @@ print(80*"-")
 print()
 
 # %%
-# .. image:: ../../../../_static/ext_ex5b_term_out_0.png
+# .. image:: /_static/ext_ex5b_term_out_0.png
 #    :alt: Terminal output showing the simulated experiment times
 #    :width: 700px
 #    :align: center
@@ -201,7 +201,7 @@ print(80*"-")
 print()
 
 # %%
-# .. image:: ../../../../_static/ext_ex5b_term_out_1.png
+# .. image:: /_static/ext_ex5b_term_out_1.png
 #    :alt: Terminal output showing the simulated experiment data keys
 #    :width: 700px
 #    :align: center
@@ -233,7 +233,7 @@ print()
 print(80*"-")
 
 # %%
-# .. image:: ../../../../_static/ext_ex5b_term_out_2.png
+# .. image:: /_static/ext_ex5b_term_out_2.png
 #    :alt: Terminal output showing the simulated experiment data structures
 #    :width: 700px
 #    :align: center
@@ -266,7 +266,7 @@ else:
 # %%
 # Visualisation of the virtual temperature sensor locations:
 #
-# .. image:: ../../../../_static/ext_ex5b_temp_locs.png
+# .. image:: /_static/ext_ex5b_temp_locs.png
 #    :alt: Visualisation of the virtual temperature sensor locations
 #    :width: 800px
 #    :align: center
@@ -291,7 +291,7 @@ else:
 # %%
 # Visualisation of the virtual strain sensor locations:
 #
-# .. image:: ../../../../_static/ext_ex5b_strain_locs.png
+# .. image:: /_static/ext_ex5b_strain_locs.png
 #    :alt: Visualisation of the virtual strain sensor locations
 #    :width: 800px
 #    :align: center
@@ -313,14 +313,14 @@ for kk in sim_data_dict:
 # %%
 # Simulated temperatures traces for input physics simulation 0:
 #
-# .. image:: ../../../../_static/ext_ex5b_traces_sim0_temp.png
+# .. image:: /_static/ext_ex5b_traces_sim0_temp.png
 #    :alt: Simulated temperature sensor traces for input simulation 0.
 #    :width: 600px
 #    :align: center
 #
 # Simulated temperature traces for input physics simulation 1:
 #
-# .. image:: ../../../../_static/ext_ex5b_traces_sim1_temp.png
+# .. image:: /_static/ext_ex5b_traces_sim1_temp.png
 #    :alt: Simulated temperature sensor traces for input simulation 1.
 #    :width: 600px
 #    :align: center
@@ -343,14 +343,14 @@ for key_sim in sim_data_dict:
 # %%
 # Simulated strain traces for input physics simulation 0:
 #
-# .. image:: ../../../../_static/ext_ex5b_traces_sim0_strain_yy.png
+# .. image:: /_static/ext_ex5b_traces_sim0_strain_yy.png
 #    :alt: Simulated strain sensor traces form input simulation 0.
 #    :width: 600px
 #    :align: center
 #
 # Simulated strain traces for input physics simulation 1:
 #
-# .. image:: ../../../../_static/ext_ex5b_traces_sim1_strain_yy.png
+# .. image:: /_static/ext_ex5b_traces_sim1_strain_yy.png
 #    :alt: Simulated strain sensor traces form input simulation 1.
 #    :width: 600px
 #    :align: center

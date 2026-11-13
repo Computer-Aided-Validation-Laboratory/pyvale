@@ -175,7 +175,7 @@ for variant_name, projection_plane, mesh_rotation, camera_rotation in variants:
 # matching physical dot pitch makes differences caused by the projection plane
 # easy to compare.
 #
-# .. image:: ../../_static/renderuvs_ex1a_uv_planar_axes_axes.png
+# .. image:: /_static/renderuvs_ex1a_uv_planar_axes_axes.png
 #    :alt: Three dimensional calibration plate with XY, YZ, and XZ UV maps
 #    :width: 900px
 #    :align: center
@@ -254,7 +254,7 @@ print(f"Rendered axis aligned UV projections to {output_dir}")
 # the requested five image pixels per feature rather than calibration dot
 # pitch, so it is shown separately from the projection plane comparison.
 #
-# .. image:: ../../_static/renderuvs_ex1a_uv_planar_axes_speckle.png
+# .. image:: /_static/renderuvs_ex1a_uv_planar_axes_speckle.png
 #    :alt: Camera scaled speckle texture on a calibration plate
 #    :width: 500px
 #    :align: center

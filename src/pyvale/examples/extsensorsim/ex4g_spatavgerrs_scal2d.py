@@ -139,7 +139,7 @@ fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex4g_traces.png
+# .. image:: /_static/ext_ex4g_traces.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center

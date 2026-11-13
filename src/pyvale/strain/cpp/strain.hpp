@@ -79,6 +79,18 @@ namespace strain {
 
 
 
+    /**
+     * @brief Calculate strain on a regular 2D DIC subset grid.
+     *
+     * @details Subset x/y positions use C-contiguous int32 arrays with shape
+     * (nss_y, nss_x). Displacements and optional physical-coordinate arrays use
+     * float64 with shape (nimg, nss_y, nss_x), also C-contiguous. The Python
+     * wrapper supplies NaN physical-coordinate arrays for uncalibrated 2D data.
+     * All input arrays are borrowed for this synchronous call; pointers are
+     * not retained. Working and result arrays are owned internally. Results
+     * are written according to strain_save_conf. Two-dimensional derivatives
+     * use pixel-grid coordinates and pixel displacements.
+     */
     void engine_2d(const py::array_t<int> &ss_x_arr,
                    const py::array_t<int> &ss_y_arr,
                    const py::array_t<double> &x_mm_arr,
@@ -94,6 +106,14 @@ namespace strain {
                    const common_util::SaveConfig &strain_save_conf,
                    const int debug_level, const double partial_window = 1.0);
 
+    /**
+     * @brief Calculate surface strain using calibrated stereo coordinates.
+     *
+     * @details Array dtypes, row-major layout and borrowed lifetimes follow
+     * engine_2d(). Physical positions and displacement components must use the
+     * same calibration length unit. Local surface coordinates are constructed
+     * for the strain fit, and output is written according to strain_save_conf.
+     */
     void engine_3d(const py::array_t<int> &ss_x_arr,
                    const py::array_t<int> &ss_y_arr,
                    const py::array_t<double> &x_mm_arr,

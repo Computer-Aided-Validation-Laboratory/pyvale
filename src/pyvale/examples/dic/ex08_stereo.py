@@ -135,7 +135,7 @@ cloud['elevation'] = points[:, 1]
 cloud.plot(eye_dome_lighting=True)
 
 # %%
-# .. image:: ../../../../_static/dic_ex08_3d.png
+# .. image:: /_static/dic_ex08_3d.png
 #    :alt: 3D reconstruction
 #    :width: 100%
 #    :align: center

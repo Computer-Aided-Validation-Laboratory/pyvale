@@ -22,7 +22,7 @@ then please get in touch and we'll see what we can do).
 """
 
 # %%
-# .. image:: ../../../../images/cal_target_flipped.png
+# .. image:: /_static/cal_target_flipped.png
 #    :alt: Calibration Target
 #    :width: 100%
 #    :align: center

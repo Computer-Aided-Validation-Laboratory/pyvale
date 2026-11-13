@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:05.064** total execution time for 67 files **from all galleries**:
+**00:03.972** total execution time for 69 files **from all galleries**:
 
 .. container::
 
@@ -41,19 +41,10 @@ Computation times
    * - :ref:`sphx_glr_examples_mooseherder_ex01b_quickstart_simdata.py` (``../../src/pyvale/examples/mooseherder/ex01b_quickstart_simdata.py``)
      - 00:00.341
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex02d_moose_modify_input_text.py` (``../../src/pyvale/examples/mooseherder/ex02d_moose_modify_input_text.py``)
-     - 00:00.326
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex02c_moose_multiple_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02c_moose_multiple_inputs.py``)
-     - 00:00.323
-     - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex02e_moose_mpi_solve.py` (``../../src/pyvale/examples/mooseherder/ex02e_moose_mpi_solve.py``)
      - 00:00.322
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex02f_moose_custom_installation.py` (``../../src/pyvale/examples/mooseherder/ex02f_moose_custom_installation.py``)
-     - 00:00.322
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex02b_moose_included_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02b_moose_included_inputs.py``)
      - 00:00.322
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex01a_quickstart_rabbitfem.py` (``../../src/pyvale/examples/mooseherder/ex01a_quickstart_rabbitfem.py``)
@@ -64,9 +55,6 @@ Computation times
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex03a_gmsh_geo.py` (``../../src/pyvale/examples/mooseherder/ex03a_gmsh_geo.py``)
      - 00:00.181
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex03b_gmsh_python.py` (``../../src/pyvale/examples/mooseherder/ex03b_gmsh_python.py``)
-     - 00:00.122
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex03c_gmsh_custom_installation.py` (``../../src/pyvale/examples/mooseherder/ex03c_gmsh_custom_installation.py``)
      - 00:00.121
@@ -162,6 +150,24 @@ Computation times
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_extsensorsim_ex5b_expsim_thermmech3d.py` (``../../src/pyvale/examples/extsensorsim/ex5b_expsim_thermmech3d.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex02b_moose_included_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02b_moose_included_inputs.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex02c_moose_multiple_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02c_moose_multiple_inputs.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex02d_moose_modify_input_text.py` (``../../src/pyvale/examples/mooseherder/ex02d_moose_modify_input_text.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03b_gmsh_python.py` (``../../src/pyvale/examples/mooseherder/ex03b_gmsh_python.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03d_gmsh_plate3d.py` (``../../src/pyvale/examples/mooseherder/ex03d_gmsh_plate3d.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03e_gmsh_monoblock.py` (``../../src/pyvale/examples/mooseherder/ex03e_gmsh_monoblock.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex04a_simsweep_mesh_and_solve.py` (``../../src/pyvale/examples/mooseherder/ex04a_simsweep_mesh_and_solve.py``)
