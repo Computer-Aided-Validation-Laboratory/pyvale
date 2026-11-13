@@ -10,7 +10,7 @@ from importlib.metadata import version as get_version
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Pyvale'
+project = 'PyVale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
 release = get_version('pyvale')
@@ -214,7 +214,7 @@ myst_enable_extensions = [
 # -- Options for HTML output ------------------------------------------------
 
 html_theme = 'furo'
-html_title = "Pyvale: The Python Validation Engine"
+html_title = "PyVale: Your virtual engineering laboratory"
 html_favicon = "_static/pyvale_logo_badge.png"
 
 # Theme options

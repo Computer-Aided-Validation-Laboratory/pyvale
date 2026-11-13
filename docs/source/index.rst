@@ -1,89 +1,122 @@
-.. pyvale documentation master file, created by
-   sphinx-quickstart on Wed Apr  2 13:15:20 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-
-.. image:: ./_static/pyvale_logo.png
-   :alt: Pyvale Logo
+.. image:: /_static/pyvale_logo.png
+   :alt: PyVale
+   :width: 420px
    :align: center
-   :width: 600px
 
-Pyvale: The Python Validation Engine
+Your virtual engineering laboratory
 ====================================
 
-.. |pypi| image:: https://img.shields.io/pypi/v/pyvale
-   :target: https://pypi.org/project/pyvale/
-   :alt: PyPI version
+Design experiments, analyse measurements and iterate with evidence.
+Experiments are expensive make every measurement count.
 
-.. |github| image:: https://img.shields.io/badge/github-repo-blue?logo=github
-   :target: https://github.com/Computer-Aided-Validation-Laboratory/pyvale
-   :alt: GitHub repository
+.. tab-set::
 
-.. |wheels| image:: https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/wheels.yml?branch=main&label=Build
-   :target: https://github.com/Computer-Aided-Validation-Laboratory/pyvale/actions/workflows/wheels.yml
-   :alt: Wheels Build
+   .. tab-item:: pip
 
-.. |tests| image:: https://img.shields.io/github/actions/workflow/status/Computer-Aided-Validation-Laboratory/pyvale/tests.yml?branch=main&label=Tests
-   :target: https://github.com/Computer-Aided-Validation-Laboratory/pyvale/actions/workflows/tests.yml
-   :alt: Run tests
+      .. code-block:: bash
 
-.. |issues| image:: https://img.shields.io/github/issues/Computer-Aided-Validation-Laboratory/pyvale
-   :target: https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues
-   :alt: Open GitHub issues
+         pip install pyvale
 
-.. |PR| image:: https://img.shields.io/github/issues-pr/Computer-Aided-Validation-Laboratory/pyvale
-   :target: https://github.com/Computer-Aided-Validation-Laboratory/pyvale/issues
-   :alt: Open GitHub Pull Requests
+   .. tab-item:: uv
 
-.. |license| image:: https://img.shields.io/github/license/Computer-Aided-Validation-Laboratory/pyvale
-   :target: https://choosealicense.com/licenses/mit/
-   :alt: MIT License
+      .. code-block:: bash
 
-|pypi| |github| |wheels| |tests| |issues| |PR| |license|
+         uv add pyvale
 
+Python 3.11+.
+:doc:`Installation guide </install/install>`
 
-Pyvale aims to become an all-in-one package for sensor uncertainty quantification simulation, experimental design, sensor placement optimisation and simulation calibration/validation.
-Used to simulate experimental data from an input multi-physics simulation by explicitly modelling sensors with realistic uncertainties.
-We are actively developing dedicated tools for simulation and uncertainty quantification of imaging sensors including digital image correlation (DIC) and infra-red thermography (IRT).
+.. grid:: 1 1 2 2
+   :gutter: 3
 
-Getting Started
----------------------------------
+   .. grid-item-card:: SensorSim
+
+      .. image:: /_static/basics_ex0_locs.png
+         :alt: Virtual sensor locations
+         :height: 145px
+         :align: center
+
+      Build virtual sensor arrays with realistic uncertainty. Run repeated experiments
+      and inspect measurement distributions.
+
+      +++
+
+      :doc:`First example </examples/basicsensorsim/ex0_quickstart>` · :doc:`User guide </guide_user/guide_sensorsim>`
+
+   .. grid-item-card:: Digital Image Correlation
+
+      .. image:: /_static/dic_ex10_3d.png
+         :alt: Stereo DIC reconstructed surface
+         :height: 145px
+         :align: center
+
+      Analyse 2D and stereo images to recover shape, displacement and strain from
+      synthetic or experimental images.
+
+      +++
+
+      :doc:`First example </examples/dic/ex02_plate_with_hole>` · :doc:`User guide </guide_user/guide_dic>`
+
+   .. grid-item-card:: Render
+
+      .. image:: /_static/render3d_ex1d_riley_dicuq.png
+         :alt: Synthetic camera images generated with Riley
+         :height: 145px
+         :align: center
+
+      Render deforming meshes with Riley, integrated into PyVale. Configure cameras,
+      textures, distortion and point spread functions; use optional Blender for path
+      tracing.
+
+      +++
+
+      :doc:`First example </examples/render3d/ex1a_riley_quickstart>` · :doc:`Examples </examples/examples_render3d>`
+
+   .. grid-item-card:: Physics Simulation
+
+      .. image:: /_static/physics_simulation_field.png
+         :alt: Raw Exodus temperature field on the undeformed finite element mesh; no sensors
+         :height: 145px
+         :align: center
+
+      Use Rabbit FEM through PyVale’s Mooseherder module to run thermo-mechanical finite
+      element simulations, vary inputs and load results for virtual experiments.
+
+      +++
+
+      :doc:`First example </examples/mooseherder/ex01a_quickstart_rabbitfem>` · :doc:`User guide </guide_user/guide_mooseherder>`
+
+SensorSim, DIC and Render are ready for general use. In development: sensor
+placement optimisation, simulation calibration and validation, and a workflow
+engine that brings PyVale’s modules together for reproducible virtual
+experimental campaigns, from individual studies to large-scale sweeps.
 
 .. grid:: 2
    :gutter: 3
 
-   .. grid-item-card:: Installation
-      :link: install/install
-      :link-type: doc
-      :text-align: center
-      :shadow: lg
+   .. grid-item::
 
-      :octicon:`gear;5em`
+      .. image:: /_static/riley_logo.png
+         :alt: Riley — rendering backend integrated with PyVale Render
+         :height: 155px
+         :align: center
+         :target: https://github.com/Computer-Aided-Validation-Laboratory/riley-raster
 
-   .. grid-item-card:: Examples
-      :link: examples/examples
-      :link-type: doc
-      :text-align: center
-      :shadow: lg
+      .. centered:: Riley · PyVale Render
 
-      :octicon:`file-code;5em`
+   .. grid-item::
 
-   .. grid-item-card:: User Guide
-      :link: guide_user/guide_user
-      :link-type: doc
-      :text-align: center
-      :shadow: lg
+      .. image:: /_static/logo_rabbitfem.png
+         :alt: Rabbit FEM — simulation backend used through Mooseherder
+         :height: 155px
+         :align: center
+         :target: https://github.com/Computer-Aided-Validation-Laboratory/rabbit-fem
 
-      :octicon:`workflow;5em`
+      .. centered:: Rabbit FEM · Mooseherder
 
-   .. grid-item-card:: Theory Overview
-      :link: guide_theory/guide_theory
-      :link-type: doc
-      :text-align: center
-      :shadow: lg
+----
 
-      :octicon:`book;5em`
+Developed by the Computer Aided Validation Team and collaborators.
 
 
 .. toctree::
@@ -97,57 +130,3 @@ Getting Started
     api_py
     api_cpp
     cite
-
-
-Citing Pyvale
----------------
-
-If you use the code in your published work, then please cite the following article:
-
-.. tab-set::
-
-   .. tab-item:: MLA
-
-         Hirst, Joel, et al. "PYVALE: A Fast, Scalable, Open-Source 2D Digital Image Correlation 
-         (DIC) Engine Capable of Handling Gigapixel Images." 
-         *arXiv preprint arXiv:2601.12941* (2026).
-
-   .. tab-item:: APA
-
-         Hirst, J., Sibson, L., Tayeb, A., Poole, B., Sampson, M., Bielajewa, W., ... & Fletcher, L. (2026). 
-         PYVALE: A Fast, Scalable, Open-Source 2D Digital Image Correlation (DIC) Engine 
-         Capable of Handling Gigapixel Images. 
-         *arXiv preprint arXiv:2601.12941*.
-
-   .. tab-item:: Bibtex
-
-      .. code-block::
-
-         @article{pyvale2026,
-            title={PYVALE: A Fast, Scalable, Open-Source 2D Digital Image Correlation (DIC) Engine Capable of Handling Gigapixel Images},
-            author={Hirst, Joel and Sibson, Lorna and Tayeb, Adel and Poole, Ben and Sampson, Megan and Bielajewa, Wiera and Atkinson, Michael and Marsh, Alex and Spencer, Rory and Hamill, Rob and others},
-            journal={arXiv preprint arXiv:2601.12941},
-            year={2026}
-        }
-
-
-Key Contributors
------------------
-
-The Computer Aided Validation Team at United Kingdom Atomic Energy Authority (UKAEA):
-
-* Lloyd Fletcher (`ScepticalRabbit <https://github.com/ScepticalRabbit>`_), UK Atomic Energy Authority
-* Joel Hirst (`JoelPhys <https://github.com/JoelPhys>`_), UK Atomic Energy Authority
-* Lorna Sibson (`lornasibson <https://github.com/lornasibsin>`_), UK Atomic Energy Authority
-* Megan Sampson (`megan sampson <https://github.com/meganasampson>`_), UK Atomic Energy Authority
-* Wiera Bielajewa (`WieraB <https://github.com/WieraB>`_), UK Atomic Energy Authority
-* Chris Dawson (`ctdaws <https://github.com/ctdaws>`_), UK Atomic Energy Authority
-* Michael Darcy (`AnalogArnold <https://github.com/AnalogArnold>`_), Swansea University
-* Rob Hamill (`rob-hamill <https://github.com/rob-hamill>`_), UK Atomic Energy Authority
-* Adel Tayeb (`3adelTayeb <https://github.com/3adelTayeb>`_), UK Atomic Energy Authority
-* Alex Marsh (`alexmarsh2 <https://github.com/alexmarsh2>`_), UK Atomic Energy Authority
-* Rory Spencer (`fusmatr <https://github.com/fusmatrs>`_), UK Atomic Energy Authority
-* John Charlton  (`coolmule0 <https://github.com/coolmule0>`_), UK Atomic Energy Authority
-
-
-
