@@ -36,3 +36,17 @@ class EIncrementalMethod(str, Enum):
     IMAGE = "IMAGE"
     COST = "COST"
     ITER = "ITER"
+
+class ELayout(str, Enum):
+    """Layout used for imported DIC and strain result arrays."""
+
+    COLUMN = "COLUMN"
+    MATRIX = "MATRIX"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if member.value == value.upper():
+                    return member
+        return None

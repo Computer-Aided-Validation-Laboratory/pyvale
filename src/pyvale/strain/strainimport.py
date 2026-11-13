@@ -17,7 +17,7 @@ from pyvale.dic.dicimport2d import check_delimiter
 
 def import_2d(data: str | Path | list[Path],
               binary: bool = False,
-              layout: Literal["column", "matrix"] = "matrix",
+              layout: Literal["COLUMN", "MATRIX", "column", "matrix"] | ELayout = ELayout.MATRIX,
               delimiter: str = ",") -> StrainResults:
     """Import 2D strain result data from text or binary files.
 
@@ -31,7 +31,7 @@ def import_2d(data: str | Path | list[Path],
 
 def import_3d(data: str | Path | list[Path],
               binary: bool = False,
-              layout: Literal["column", "matrix"] = "matrix",
+              layout: Literal["COLUMN", "MATRIX", "column", "matrix"] | ELayout = ELayout.MATRIX,
               delimiter: str = ",") -> StrainResults:
     """Import 3D-aware strain result data from text or binary files.
 
@@ -44,11 +44,11 @@ def import_3d(data: str | Path | list[Path],
 
 def _import(data: str | Path | list[Path],
             binary: bool,
-            layout: Literal["column", "matrix"],
+            layout: Literal["COLUMN", "MATRIX", "column", "matrix"] | ELayout,
             delimiter: str,
             require_coords: bool) -> StrainResults:
-    if layout not in {"column", "matrix"}:
-        raise ValueError("layout must be 'column' or 'matrix'.")
+
+    layout = ELayout(layout)
 
     print("Attempting Strain Data import...")
 
@@ -127,7 +127,7 @@ def _import(data: str | Path | list[Path],
     if len(tensor_arrays) != 10:
         raise ValueError(f"Strain data must contain 10 deformation-gradient and strain tensor columns. Number of cols = {len(tensor_arrays)}")
 
-    if layout == "matrix":
+    if layout == ELayout.MATRIX:
         x_unique = np.unique(window_x_ref)
         y_unique = np.unique(window_y_ref)
         window_x_out, window_y_out = np.meshgrid(x_unique, y_unique)

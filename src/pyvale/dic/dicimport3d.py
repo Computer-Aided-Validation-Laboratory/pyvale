@@ -11,6 +11,7 @@ from typing import Literal
 from numpy.typing import NDArray
 
 # Pyvale modules
+from pyvale.dic.dicresults import Results
 from pyvale.dic.dicenum import ELayout
 from pyvale.dic.dicimport2d import (
     to_grid,
@@ -52,7 +53,7 @@ _Dic3DData = tuple[
 def import_3d(data: str | Path | list[Path],
               delimiter: str,
               binary: bool = False,
-              layout: Literal["column", "matrix"] = "matrix",
+              layout: Literal["COLUMN", "MATRIX", "column", "matrix"] | ELayout = ELayout.MATRIX,
               print_level: int=1) -> Results:
     """
     Import stereo DIC result data from human readable text or binary files.
@@ -127,7 +128,8 @@ def import_3d(data: str | Path | list[Path],
     if print_level>0:
         common_util.info_out(f"Imported {len(files)} frames of stereo DIC data.", "")
 
-    if layout == "matrix":
+    layout = ELayout(layout)
+    if layout == ELayout.MATRIX:
 
 
         if print_level>0:
