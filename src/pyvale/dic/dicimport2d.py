@@ -15,6 +15,7 @@ from numpy.typing import NDArray
 
 # Pyvale modules
 from pyvale.dic.dicresults import Results
+from pyvale.dic.dicenum import ELayout
 import pyvale.common.util as common_util
 
 """
@@ -36,10 +37,42 @@ _Dic2DData = tuple[
 ]
 
 
+def align_frames_by_coordinates(coordinate_frames, frames):
+    """Align result fields on the union of subset coordinates."""
+    coordinates = np.unique(
+        np.concatenate(
+            [np.column_stack((x, y)) for x, y in coordinate_frames], axis=0
+        ),
+        axis=0,
+    )
+    x_out = coordinates[:, 0].astype(np.int32)
+    y_out = coordinates[:, 1].astype(np.int32)
+    coordinate_index = {
+        (int(x), int(y)): index
+        for index, (x, y) in enumerate(coordinates)
+    }
+    arrays = [
+        np.full((len(frames), len(coordinates)), np.nan, dtype=np.float64)
+        for _ in range(len(frames[0]))
+    ]
+    for frame_index, (coordinates_frame, frame) in enumerate(
+        zip(coordinate_frames, frames)
+    ):
+        row_indices = [
+            coordinate_index[(int(x), int(y))]
+            for x, y in zip(*coordinates_frame)
+        ]
+        if len(set(row_indices)) != len(row_indices):
+            raise ValueError("Duplicate subset coordinates in DIC result file.")
+        for field_index, values in enumerate(frame):
+            arrays[field_index][frame_index, row_indices] = values
+    return x_out, y_out, arrays
+
+
 def import_2d(data: str | Path | list[Path],
               delimiter: str,
               binary: bool = False,
-              layout: Literal["column", "matrix"] = "matrix",
+              layout: Literal["COLUMN", "MATRIX", "column", "matrix"] | ELayout = ELayout.MATRIX,
               print_level: int=1) -> Results:
 
     """
@@ -102,22 +135,25 @@ def import_2d(data: str | Path | list[Path],
 
     # Read first file to define reference coordinates
     read_data = _read_binary if binary else _read_text
-    ss_x_ref, ss_y_ref, *fields = read_data(files[0], delimiter=delimiter, print_level=print_level)
-    frames = [list(fields)]
+    first = read_data(files[0], delimiter=delimiter, print_level=print_level)
+    coordinate_frames = [(first[0], first[1])]
+    frames = [list(first[2:])]
 
     for file in files[1:]:
-        ss_x, ss_y, *f = read_data(file, delimiter)
-        if not (np.array_equal(ss_x_ref, ss_x) and np.array_equal(ss_y_ref, ss_y)):
-            raise ValueError("Mismatch in coordinates across frames.")
-        frames.append(f)
+        current = read_data(file, delimiter)
+        coordinate_frames.append((current[0], current[1]))
+        frames.append(list(current[2:]))
 
     # Stack results (except ss_x and ss_y) into arrays
-    arrays = [np.stack([frame[i] for frame in frames]) for i in range(len(fields))]
+    ss_x_ref, ss_y_ref, arrays = align_frames_by_coordinates(
+        coordinate_frames, frames
+    )
 
     if print_level>0:
         common_util.info_out(f"Imported {len(files)} frames of DIC data.", "")
 
-    if layout == "matrix":
+    layout = ELayout(layout)
+    if layout == ELayout.MATRIX:
 
         # convert x and y data to meshgrid
         x_unique = np.unique(ss_x_ref)
