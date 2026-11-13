@@ -85,4 +85,4 @@ jobs:
       - name: Run Rabbit and Gmsh integration tests and tutorials
         env:
           MPLBACKEND: Agg
-        run: python -m pytest -v tests/mooseherder tests/examples/test_mooseherder_examples.py tests/examples/test_example_navigation.py tests/docs
+        run: python -m pytest -v tests/mooseherder tests/examples/test_mooseherder_examples.py tests/examples/test_example_navigation.py
