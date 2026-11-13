@@ -166,7 +166,7 @@ print("\n"+80*"-")
 
 # %%
 #
-# .. image:: ../../../../_static/basics_ex1_term_out.png
+# .. image:: /_static/basics_ex1_term_out.png
 #    :alt: Terminal output showing the simulated measurements
 #    :width: 700px
 #    :align: center
@@ -214,7 +214,7 @@ else:
 
 # %%
 #
-# .. image:: ../../../../_static/basics_ex1_locs.png
+# .. image:: /_static/basics_ex1_locs.png
 #    :alt: Simulated temperature sensor locations.
 #    :width: 800px
 #    :align: center
@@ -235,7 +235,7 @@ fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 
 # %%
 #
-# .. image:: ../../../../_static/basics_ex1_traces.png
+# .. image:: /_static/basics_ex1_traces.png
 #    :alt: Simulated temperature sensor traces.
 #    :width: 500px
 #    :align: center

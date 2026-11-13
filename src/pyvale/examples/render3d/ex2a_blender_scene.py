@@ -107,7 +107,7 @@ print(f"Output saved to: {output_dir}")
 # %%
 # The first rendered frame is shown below.
 #
-# .. image:: ../../../../_static/render3d_ex2a_blender_scene.png
+# .. image:: /_static/render3d_ex2a_blender_scene.png
 #    :alt: Blender render of a speckled plate with a hole
 #    :width: 500px
 #    :align: center

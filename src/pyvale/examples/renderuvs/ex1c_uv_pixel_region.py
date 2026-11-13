@@ -163,7 +163,7 @@ print(
 # exposes its repeated edge, and saturation stretches the edge pixels wherever
 # the requested mapping lies beyond the source image.
 #
-# .. image:: ../../_static/renderuvs_ex1c_uv_pixel_region.png
+# .. image:: /_static/renderuvs_ex1c_uv_pixel_region.png
 #    :alt: Seamless, visibly seamed, and saturated texture boundary modes
 #    :width: 900px
 #    :align: center

@@ -114,7 +114,7 @@ print(f"Output saved to: {output_dir}")
 # %%
 # The first frame from both cameras is combined side by side below.
 #
-# .. image:: ../../../../_static/render3d_ex2c_blender_stereo.png
+# .. image:: /_static/render3d_ex2c_blender_stereo.png
 #    :alt: Blender stereo render from both cameras
 #    :width: 900px
 #    :align: center

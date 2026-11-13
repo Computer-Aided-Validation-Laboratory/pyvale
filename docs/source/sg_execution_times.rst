@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:00.000** total execution time for 64 files **from all galleries**:
+**00:03.972** total execution time for 69 files **from all galleries**:
 
 .. container::
 
@@ -32,6 +32,33 @@ Computation times
    * - Example
      - Time
      - Mem (MB)
+   * - :ref:`sphx_glr_examples_mooseherder_ex04b_simsweep_sequential_sweep.py` (``../../src/pyvale/examples/mooseherder/ex04b_simsweep_sequential_sweep.py``)
+     - 00:01.477
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex04c_simsweep_parallel_sweep.py` (``../../src/pyvale/examples/mooseherder/ex04c_simsweep_parallel_sweep.py``)
+     - 00:00.703
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex01b_quickstart_simdata.py` (``../../src/pyvale/examples/mooseherder/ex01b_quickstart_simdata.py``)
+     - 00:00.341
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex02e_moose_mpi_solve.py` (``../../src/pyvale/examples/mooseherder/ex02e_moose_mpi_solve.py``)
+     - 00:00.322
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex02f_moose_custom_installation.py` (``../../src/pyvale/examples/mooseherder/ex02f_moose_custom_installation.py``)
+     - 00:00.322
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex01a_quickstart_rabbitfem.py` (``../../src/pyvale/examples/mooseherder/ex01a_quickstart_rabbitfem.py``)
+     - 00:00.282
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex02a_moose_cli_parameters.py` (``../../src/pyvale/examples/mooseherder/ex02a_moose_cli_parameters.py``)
+     - 00:00.222
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03a_gmsh_geo.py` (``../../src/pyvale/examples/mooseherder/ex03a_gmsh_geo.py``)
+     - 00:00.181
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03c_gmsh_custom_installation.py` (``../../src/pyvale/examples/mooseherder/ex03c_gmsh_custom_installation.py``)
+     - 00:00.121
+     - 0.0
    * - :ref:`sphx_glr_examples_basicsensorsim_ex0_quickstart.py` (``../../src/pyvale/examples/basicsensorsim/ex0_quickstart.py``)
      - 00:00.000
      - 0.0
@@ -53,28 +80,25 @@ Computation times
    * - :ref:`sphx_glr_examples_dic_ex03_plate_with_hole_strain.py` (``../../src/pyvale/examples/dic/ex03_plate_with_hole_strain.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex04_dic_blender.py` (``../../src/pyvale/examples/dic/ex04_dic_blender.py``)
+   * - :ref:`sphx_glr_examples_dic_ex04_dic_challenge.py` (``../../src/pyvale/examples/dic/ex04_dic_challenge.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex05_dic_challenge.py` (``../../src/pyvale/examples/dic/ex05_dic_challenge.py``)
+   * - :ref:`sphx_glr_examples_dic_ex05_hrdic.py` (``../../src/pyvale/examples/dic/ex05_hrdic.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex06_hrdic.py` (``../../src/pyvale/examples/dic/ex06_hrdic.py``)
+   * - :ref:`sphx_glr_examples_dic_ex06_incremental.py` (``../../src/pyvale/examples/dic/ex06_incremental.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex07_incremental.py` (``../../src/pyvale/examples/dic/ex07_incremental.py``)
+   * - :ref:`sphx_glr_examples_dic_ex07_calibration.py` (``../../src/pyvale/examples/dic/ex07_calibration.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex08_calibration.py` (``../../src/pyvale/examples/dic/ex08_calibration.py``)
+   * - :ref:`sphx_glr_examples_dic_ex08_stereo.py` (``../../src/pyvale/examples/dic/ex08_stereo.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex09_stereo.py` (``../../src/pyvale/examples/dic/ex09_stereo.py``)
+   * - :ref:`sphx_glr_examples_dic_ex09_stereo_platehole.py` (``../../src/pyvale/examples/dic/ex09_stereo_platehole.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex10_stereo_platehole.py` (``../../src/pyvale/examples/dic/ex10_stereo_platehole.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_dic_ex11_dic_chal.py` (``../../src/pyvale/examples/dic/ex11_dic_chal.py``)
+   * - :ref:`sphx_glr_examples_dic_ex10_dic_chal.py` (``../../src/pyvale/examples/dic/ex10_dic_chal.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_extsensorsim_ex1_byosimdata.py` (``../../src/pyvale/examples/extsensorsim/ex1_byosimdata.py``)
@@ -128,61 +152,31 @@ Computation times
    * - :ref:`sphx_glr_examples_extsensorsim_ex5b_expsim_thermmech3d.py` (``../../src/pyvale/examples/extsensorsim/ex5b_expsim_thermmech3d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex0_create_moose_config.py` (``../../src/pyvale/examples/mooseherder/ex0_create_moose_config.py``)
+   * - :ref:`sphx_glr_examples_mooseherder_ex02b_moose_included_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02b_moose_included_inputs.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex1a_modify_moose_input.py` (``../../src/pyvale/examples/mooseherder/ex1a_modify_moose_input.py``)
+   * - :ref:`sphx_glr_examples_mooseherder_ex02c_moose_multiple_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02c_moose_multiple_inputs.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex1b_modify_gmsh_input.py` (``../../src/pyvale/examples/mooseherder/ex1b_modify_gmsh_input.py``)
+   * - :ref:`sphx_glr_examples_mooseherder_ex02d_moose_modify_input_text.py` (``../../src/pyvale/examples/mooseherder/ex02d_moose_modify_input_text.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex2a_run_moose_once.py` (``../../src/pyvale/examples/mooseherder/ex2a_run_moose_once.py``)
+   * - :ref:`sphx_glr_examples_mooseherder_ex03b_gmsh_python.py` (``../../src/pyvale/examples/mooseherder/ex03b_gmsh_python.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex2b_run_gmsh_once.py` (``../../src/pyvale/examples/mooseherder/ex2b_run_gmsh_once.py``)
+   * - :ref:`sphx_glr_examples_mooseherder_ex03d_gmsh_plate3d.py` (``../../src/pyvale/examples/mooseherder/ex03d_gmsh_plate3d.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex2c_run_both_once.py` (``../../src/pyvale/examples/mooseherder/ex2c_run_both_once.py``)
+   * - :ref:`sphx_glr_examples_mooseherder_ex03e_gmsh_monoblock.py` (``../../src/pyvale/examples/mooseherder/ex03e_gmsh_monoblock.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex3_run_moose_seq_para.py` (``../../src/pyvale/examples/mooseherder/ex3_run_moose_seq_para.py``)
+   * - :ref:`sphx_glr_examples_mooseherder_ex04a_simsweep_mesh_and_solve.py` (``../../src/pyvale/examples/mooseherder/ex04a_simsweep_mesh_and_solve.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex4_run_gmsh-moose_seq_para.py` (``../../src/pyvale/examples/mooseherder/ex4_run_gmsh-moose_seq_para.py``)
+   * - :ref:`sphx_glr_examples_mooseherder_ex04d_simsweep_read_sweep_results.py` (``../../src/pyvale/examples/mooseherder/ex04d_simsweep_read_sweep_results.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex5_run_moose_paramulti.py` (``../../src/pyvale/examples/mooseherder/ex5_run_moose_paramulti.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex6_read_moose_exodus.py` (``../../src/pyvale/examples/mooseherder/ex6_read_moose_exodus.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex7a_read_moose_herd_results.py` (``../../src/pyvale/examples/mooseherder/ex7a_read_moose_herd_results.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex7b_read_multi_herd_results.py` (``../../src/pyvale/examples/mooseherder/ex7b_read_multi_herd_results.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex7c_read_multi_gmshmoose_results.py` (``../../src/pyvale/examples/mooseherder/ex7c_read_multi_gmshmoose_results.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex7d_readconfig_multi_gmshmoose_results.py` (``../../src/pyvale/examples/mooseherder/ex7d_readconfig_multi_gmshmoose_results.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex8_read_existing_sweep_output.py` (``../../src/pyvale/examples/mooseherder/ex8_read_existing_sweep_output.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_render2d_ex1a_pixint_grid_one_elem_types.py` (``../../src/pyvale/examples/render2d/ex1a_pixint_grid_one_elem_types.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_render2d_ex1b_pixint_grid_mesh.py` (``../../src/pyvale/examples/render2d/ex1b_pixint_grid_mesh.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_render2d_ex1c_pixint_speck_newton.py` (``../../src/pyvale/examples/render2d/ex1c_pixint_speck_newton.py``)
-     - 00:00.000
-     - 0.0
-   * - :ref:`sphx_glr_examples_render2d_ex2a_imagedef2d_planar_deformation.py` (``../../src/pyvale/examples/render2d/ex2a_imagedef2d_planar_deformation.py``)
+   * - :ref:`sphx_glr_examples_mooseherder_ex05a_femu.py` (``../../src/pyvale/examples/mooseherder/ex05a_femu.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_render3d_ex1a_riley_quickstart.py` (``../../src/pyvale/examples/render3d/ex1a_riley_quickstart.py``)
@@ -191,19 +185,22 @@ Computation times
    * - :ref:`sphx_glr_examples_render3d_ex1b_riley_sphere200.py` (``../../src/pyvale/examples/render3d/ex1b_riley_sphere200.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_render3d_ex1c_riley_psf.py` (``../../src/pyvale/examples/render3d/ex1c_riley_psf.py``)
+   * - :ref:`sphx_glr_examples_render3d_ex1c_riley_rabbits.py` (``../../src/pyvale/examples/render3d/ex1c_riley_rabbits.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_render3d_ex1d_riley_rabbits.py` (``../../src/pyvale/examples/render3d/ex1d_riley_rabbits.py``)
+   * - :ref:`sphx_glr_examples_render3d_ex1d_riley_dicuq.py` (``../../src/pyvale/examples/render3d/ex1d_riley_dicuq.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_render3d_ex1e_riley_dicuq.py` (``../../src/pyvale/examples/render3d/ex1e_riley_dicuq.py``)
+   * - :ref:`sphx_glr_examples_render3d_ex1e_riley_dic_from_exodus.py` (``../../src/pyvale/examples/render3d/ex1e_riley_dic_from_exodus.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_render3d_ex1f_riley_dic_from_exodus.py` (``../../src/pyvale/examples/render3d/ex1f_riley_dic_from_exodus.py``)
+   * - :ref:`sphx_glr_examples_render3d_ex1f_riley_stereocal.py` (``../../src/pyvale/examples/render3d/ex1f_riley_stereocal.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_render3d_ex1g_riley_stereocal.py` (``../../src/pyvale/examples/render3d/ex1g_riley_stereocal.py``)
+   * - :ref:`sphx_glr_examples_render3d_ex1g_riley_psf.py` (``../../src/pyvale/examples/render3d/ex1g_riley_psf.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_render3d_ex1h_riley_feature_zoo.py` (``../../src/pyvale/examples/render3d/ex1h_riley_feature_zoo.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_render3d_ex2a_blender_scene.py` (``../../src/pyvale/examples/render3d/ex2a_blender_scene.py``)
@@ -222,5 +219,23 @@ Computation times
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_render3d_ex2f_blender_calibration_target.py` (``../../src/pyvale/examples/render3d/ex2f_blender_calibration_target.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_renderuvs___init__.py` (``../../src/pyvale/examples/renderuvs/__init__.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_renderuvs_ex1a_uv_planar_axes.py` (``../../src/pyvale/examples/renderuvs/ex1a_uv_planar_axes.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_renderuvs_ex1b_uv_texture_aspect.py` (``../../src/pyvale/examples/renderuvs/ex1b_uv_texture_aspect.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_renderuvs_ex1c_uv_pixel_region.py` (``../../src/pyvale/examples/renderuvs/ex1c_uv_pixel_region.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_renderuvs_ex1d_uv_arbitrary_plane.py` (``../../src/pyvale/examples/renderuvs/ex1d_uv_arbitrary_plane.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_renderuvs_ex1e_uv_transform.py` (``../../src/pyvale/examples/renderuvs/ex1e_uv_transform.py``)
      - 00:00.000
      - 0.0

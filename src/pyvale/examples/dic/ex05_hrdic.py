@@ -127,7 +127,7 @@ plt.tight_layout()
 plt.show()
 
 # %%
-# .. image:: ../../../../_static/hrdic.png
+# .. image:: /_static/hrdic.png
 #    :alt: Displacement and cost values
 #    :width: 100%
 #    :align: center

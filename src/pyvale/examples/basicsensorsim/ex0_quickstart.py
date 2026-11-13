@@ -113,7 +113,7 @@ else:
     pv_plot.show()
 
 # %%
-# .. image:: ../../../../_static/basics_ex0_locs.png
+# .. image:: /_static/basics_ex0_locs.png
 #    :alt: Location of the virtual temperature sensors.
 #    :width: 800px
 #    :align: center
@@ -134,7 +134,7 @@ fig.savefig(output_path/"basics_ex0_traces.png",dpi=300,bbox_inches="tight")
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/basics_ex0_traces.png
+# .. image:: /_static/basics_ex0_traces.png
 #    :alt: Simulated temperature sensor traces.
 #    :width: 500px
 #    :align: center

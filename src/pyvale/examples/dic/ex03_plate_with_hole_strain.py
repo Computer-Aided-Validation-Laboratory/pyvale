@@ -94,7 +94,7 @@ plt.tight_layout()
 plt.show()
 
 # %%
-# .. image:: ../../../../_static/plate_with_hole_def_grad.png
+# .. image:: /_static/plate_with_hole_def_grad.png
 #    :alt: Displacement and cost values
 #    :width: 800px
 #    :align: center

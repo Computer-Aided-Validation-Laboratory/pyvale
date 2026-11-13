@@ -108,7 +108,7 @@ print(f"{result.images=}")
 # %%
 # The first rendered frame is shown below.
 #
-# .. image:: ../../../../_static/render3d_ex1b_riley_sphere200.png
+# .. image:: /_static/render3d_ex1b_riley_sphere200.png
 #    :alt: A sphere with a speckle pattern
 #    :width: 500px
 #    :align: center

@@ -42,7 +42,7 @@ images = render.create_example_images_rigid()
 # ref_img = Path("/path/to/reference.tiff")
 # def_img = Path("/path/to/deformed*.tiff")
 
-# load the calibration parameters using prepackaged ground truth values.
+# Load the calibration parameters using PyVale's cached demonstration data.
 calib_params = calib.loadtxt(data.dic_ex08_stereo_calibration())
 
 
@@ -135,7 +135,7 @@ cloud['elevation'] = points[:, 1]
 cloud.plot(eye_dome_lighting=True)
 
 # %%
-# .. image:: ../../../../_static/dic_ex08_3d.png
+# .. image:: /_static/dic_ex08_3d.png
 #    :alt: 3D reconstruction
 #    :width: 100%
 #    :align: center

@@ -175,7 +175,7 @@ print(f"{result.images=}")
 # %%
 # The first frame from both cameras is combined side by side below.
 #
-# .. image:: ../../../../_static/render3d_ex1e_riley_dic_from_exodus.png
+# .. image:: /_static/render3d_ex1e_riley_dic_from_exodus.png
 #    :alt: Riley stereo DIC render loaded from Exodus data
 #    :width: 900px
 #    :align: center

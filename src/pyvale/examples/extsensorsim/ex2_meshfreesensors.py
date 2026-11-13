@@ -162,7 +162,7 @@ print(80*"-")
 # Example terminal output with timings and numerical comparison between
 # mesh-based and mesh-free virtual sensors:
 #
-# .. image:: ../../../../_static/ext_ex2_term_out.png
+# .. image:: /_static/ext_ex2_term_out.png
 #    :alt: Terminal output comparing mesh-based and mesh-free sensors.
 #    :width: 700px
 #    :align: center

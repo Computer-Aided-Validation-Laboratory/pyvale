@@ -148,7 +148,7 @@ print(f"{result.images=}")
 # %%
 # The first calibration pose from both cameras is combined side by side below.
 #
-# .. image:: ../../../../_static/render3d_ex1f_riley_stereocal.png
+# .. image:: /_static/render3d_ex1f_riley_stereocal.png
 #    :alt: Riley stereo calibration target from both cameras
 #    :width: 900px
 #    :align: center
