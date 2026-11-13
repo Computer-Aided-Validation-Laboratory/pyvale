@@ -2,8 +2,7 @@
 Application test 4: Mechanical plate with FEA data - stereo DIC
 Based on application_2_fea.py.
 
-It renders the image sets needed by a stereo-DIC workflow,
-following the structure used by ecomass_pres_dic/demo_dic.py:
+It renders the image sets needed by a stereo-DIC workflow.
 
 1. Stereo calibration images: a planar dot target viewed by both cameras at
    several poses (translations and small rotations).
@@ -21,13 +20,14 @@ The camera rig is a two-camera stereo pair. Camera 0 is the nominal
 application_2_fea.py camera; camera 1 is obtained by rotating camera 0 about
 the region of interest by STEREO_ANGLE_DEG about the world Y axis.
 
-Images are 8-bit mono BMPs named rtimage_{frame}_cam{camera}.bmp, which is the
-naming convention produced by the ray tracer for multi-camera scenes.
+Images are 8-bit mono BMPs named rtimage_{frame}_cam{camera}.bmp
 
 Outputs (relative to thesis-output/):
   app4_fea/{case}/stereocal/rtimage_{pose}_cam{0,1}.bmp
   app4_fea/{case}/stereodic/rtimage_{0,1}_cam{0,1}.bmp
   app4_fea/{case}/calplate/...      SimData CSVs for the calibration target
+  app4_fea/{case}/fea/fea_frame_{frame}_displacement.png
+  app4_fea/{case}/fea/fea_frame_{frame}_minmax.csv
   app4_fea/{case}/stereo_geometry.csv
 """
 import csv
@@ -36,6 +36,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.tri as mtri
+import pyvista as pv
 from scipy.spatial.transform import Rotation
 
 from global_utils import *
@@ -84,6 +87,7 @@ CASE_BASE_DIR = "app4_fea"
 CALPLATE_DIRNAME = "calplate"
 STEREOCAL_DIRNAME = "stereocal"
 STEREODIC_DIRNAME = "stereodic"
+FEA_DIRNAME = "fea"
 
 
 @dataclass(frozen=True)
@@ -307,6 +311,212 @@ def export_stereo_geometry(filepath: Path,
         writer.writerows(rows)
 
 
+def _front_face_surface(plate_rtmesh: RTMesh,
+                        displacement: np.ndarray
+                        ) -> tuple[pv.PolyData, np.ndarray]:
+    """
+    Build the triangulated camera-facing plate surface for plotting.
+
+    The plate SimData is a surface mesh of eight-node quadratic quads.  The
+    front face is the set of cells whose nodes all lie on the maximum-z plane.
+    """
+    nodes = plate_rtmesh.node_coords
+    cells = plate_rtmesh.connectivity.astype(np.int64)
+    z_front = float(nodes[:, 2].max())
+    front_cells = cells[
+        np.array([np.allclose(nodes[cell, 2], z_front) for cell in cells])
+    ]
+    if front_cells.size == 0:
+        raise RuntimeError(
+            f"No plate cells found on the camera-facing plane z={z_front:.3f} mm"
+        )
+
+    nodes_per_cell = front_cells.shape[1]
+    if nodes_per_cell == 8:
+        cell_type = pv.CellType.QUADRATIC_QUAD
+    elif nodes_per_cell == 4:
+        cell_type = pv.CellType.QUAD
+    elif nodes_per_cell == 3:
+        cell_type = pv.CellType.TRIANGLE
+    else:
+        raise RuntimeError(
+            f"Unsupported plate surface cell with {nodes_per_cell} nodes"
+        )
+
+    cell_array = np.hstack([
+        np.full((len(front_cells), 1), nodes_per_cell, dtype=np.int64),
+        front_cells,
+    ]).ravel()
+    grid = pv.UnstructuredGrid(
+        cell_array,
+        np.full(len(front_cells), cell_type, dtype=np.uint8),
+        nodes.copy(),
+    )
+    for component, values in zip(("u", "v", "w"), displacement.T):
+        grid.point_data[component] = values
+
+    surface = grid.extract_surface(algorithm="dataset_surface").triangulate()
+    return surface, np.isclose(nodes[:, 2], z_front)
+
+
+def _minmax_record(values: np.ndarray,
+                   points: np.ndarray,
+                   frame: int,
+                   component: str,
+                   region: str,
+                   frame_scale: float,
+                   positive_direction: str) -> dict[str, float | int | str]:
+    """Return one min/max record with the location of each extremum."""
+    finite = np.isfinite(values)
+    if not np.any(finite):
+        return {
+            "frame": frame,
+            "component": component,
+            "positive_direction": positive_direction,
+            "region": region,
+            "frame_scale": frame_scale,
+            "median_mm": np.nan,
+            "min_mm": np.nan,
+            "max_mm": np.nan,
+            "min_x_mm": np.nan,
+            "min_y_mm": np.nan,
+            "min_z_mm": np.nan,
+            "max_x_mm": np.nan,
+            "max_y_mm": np.nan,
+            "max_z_mm": np.nan,
+        }
+
+    masked = np.where(finite, values, np.nan)
+    index_min = int(np.nanargmin(masked))
+    index_max = int(np.nanargmax(masked))
+    return {
+        "frame": frame,
+        "component": component,
+        "positive_direction": positive_direction,
+        "region": region,
+        "frame_scale": frame_scale,
+        "median_mm": float(np.nanmedian(masked)),
+        "min_mm": float(masked[index_min]),
+        "max_mm": float(masked[index_max]),
+        "min_x_mm": float(points[index_min, 0]),
+        "min_y_mm": float(points[index_min, 1]),
+        "min_z_mm": float(points[index_min, 2]),
+        "max_x_mm": float(points[index_max, 0]),
+        "max_y_mm": float(points[index_max, 1]),
+        "max_z_mm": float(points[index_max, 2]),
+    }
+
+
+def plot_fea_frame(plate_rtmesh: RTMesh,
+                   node_displacements: np.ndarray,
+                   timestep: int,
+                   output_dir: Path,
+                   frame_scale: float = 1.0) -> None:
+    """
+    Plot the FEA frame used for the deformed render and record its min/max.
+
+    The figure contains the front-face displacement components u, v and w and
+    the magnitude |d|.  The components use the stereo-DIC/camera convention
+    (u=+x, v=-y, w=+z) so that they can be compared directly with the DIC
+    plots.  The signed components use symmetric colour limits, like the DIC
+    plots, while the accompanying CSV records the median, min/max values and
+    the locations of the extrema.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    fea_displacement = np.asarray(node_displacements[timestep], dtype=float)
+    # FEA y points up, while the stereo-DIC/camera frame has y pointing down.
+    dic_displacement = fea_displacement.copy()
+    dic_displacement[:, 1] *= -1.0
+    surface, front_nodes = _front_face_surface(plate_rtmesh, dic_displacement)
+
+    u = np.asarray(surface.point_data["u"])
+    v = np.asarray(surface.point_data["v"])
+    w = np.asarray(surface.point_data["w"])
+    magnitude = np.sqrt(u * u + v * v + w * w)
+
+    triangulation = mtri.Triangulation(
+        surface.points[:, 0],
+        surface.points[:, 1],
+        surface.faces.reshape(-1, 4)[:, 1:],
+    )
+
+    nodes = plate_rtmesh.node_coords
+    magnitude_all = np.linalg.norm(dic_displacement, axis=1)
+    records = []
+    for component, index, direction in (
+            ("u", 0, "+x"), ("v", 1, "-y (down)"), ("w", 2, "+z")):
+        records.append(_minmax_record(
+            dic_displacement[:, index], nodes, timestep, component, "all",
+            frame_scale, direction))
+        records.append(_minmax_record(
+            dic_displacement[front_nodes, index], nodes[front_nodes], timestep,
+            component, "front_face", frame_scale, direction))
+    records.append(_minmax_record(
+        magnitude_all, nodes, timestep, "magnitude", "all", frame_scale, "n/a"))
+    records.append(_minmax_record(
+        magnitude_all[front_nodes], nodes[front_nodes], timestep,
+        "magnitude", "front_face", frame_scale, "n/a"))
+
+    summary_path = output_dir / f"fea_frame_{timestep}_minmax.csv"
+    with open(summary_path, "w", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=list(records[0]))
+        writer.writeheader()
+        writer.writerows(records)
+
+    components = [
+        (r"$u$", "u", u, CMAP_DIC_FEA),
+        (r"$v$", "v", v, CMAP_DIC_FEA),
+        (r"$w$", "w", w, CMAP_DIC_FEA),
+        (r"$|\mathbf{d}|$", "magnitude", magnitude, "viridis"),
+    ]
+
+    fig, axes = plt.subplots(2, 2, figsize=FIGURE_SIZE_DOUBLE_CMAP)
+    for ax, (label, name, values, cmap) in zip(axes.ravel(), components):
+        finite = values[np.isfinite(values)]
+        if finite.size == 0:
+            ax.text(0.5, 0.5, "no finite data", ha="center", va="center",
+                    transform=ax.transAxes)
+            ax.set_axis_off()
+            continue
+
+        vmin = float(np.min(finite))
+        vmax = float(np.max(finite))
+        if name == "magnitude":
+            vmin = 0.0
+            if vmax <= vmin:
+                vmax = 1e-9
+        else:
+            limit = max(abs(vmin), abs(vmax))
+            if limit == 0.0:
+                limit = 1e-9
+            vmin, vmax = -limit, limit
+
+        image = ax.tripcolor(triangulation, values, shading="gouraud",
+                             cmap=cmap, vmin=vmin, vmax=vmax)
+        ax.set_aspect("equal")
+        ax.set_xlabel(r"$x$ [mm]")
+        ax.set_ylabel(r"$y$ [mm]")
+        ax.set_title(f"{label}: [{float(np.min(finite)):+.5f}, "
+                     f"{float(np.max(finite)):+.5f}] mm")
+        colorbar = fig.colorbar(image, ax=ax, fraction=0.05, pad=0.03)
+        colorbar.set_label(f"{label} [mm]")
+
+    scale_note = "" if np.isclose(frame_scale, 1.0) else (
+        f"; displacement scaled x{frame_scale:.3f}")
+    fig.suptitle(
+        f"FEA displacement field, frame {timestep} "
+        f"(used for deformed render){scale_note}\n"
+        r"Stereo-DIC frame: $u=+x$, $v=-y$ (down), $w=+z$")
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(output_dir / f"fea_frame_{timestep}_displacement.png",
+                dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+    print(f"  FEA frame {timestep}: {summary_path.name}")
+
+
 # ================================================================================
 # Rendering
 # ================================================================================
@@ -417,6 +627,7 @@ def plate_stereo_test(test_case: TestCaseApp,
                       render_dic: bool = False,
                       crop_px: bool = False,
                       cal_through_media: bool = True,
+                      plot_fea: bool = True,
                       stereo_angle_deg: float = STEREO_ANGLE_DEG) -> None:
     # 1. Paths and access to all data used in the scene
     # Object = main mesh that moves
@@ -539,10 +750,12 @@ def plate_stereo_test(test_case: TestCaseApp,
     print(f"Displaced frame idx: {displaced_frame_idx}, with maximum displacement of {max_displacement_mm} mm, which is less than the scale 1 px = {scale} mm")
 
     # If max displacement is below 0.5 px, we scale it to 1.0 px
+    frame_scale = 1.0
     if max_displacement_mm <= 0.5 * scale:
         target_displ_px = 1.0 # Target displacement in px
         target_mm = scale * target_displ_px
         factor = target_mm / max_displacement_mm
+        frame_scale = factor
         print(f"Scaling factor = {factor}")
         disp = node_displacements[displaced_frame_idx]
         scaled_disp = disp * factor
@@ -557,7 +770,13 @@ def plate_stereo_test(test_case: TestCaseApp,
 
     case_dir = test_dir(BASE_TEST_DIR, f"{CASE_BASE_DIR}/{test_case.value}")
 
-    # 6. Calibration images
+    # 6. FEA frame used for the deformed render, with its min/max records
+    if plot_fea:
+        plot_fea_frame(object, node_displacements, displaced_frame_idx,
+                       test_dir(case_dir, FEA_DIRNAME),
+                       frame_scale=frame_scale)
+
+    # 7. Calibration images
     if render_cal:
         render_stereo_calibration(
             test_case=test_case,
@@ -577,7 +796,7 @@ def plate_stereo_test(test_case: TestCaseApp,
             through_media=cal_through_media,
         )
 
-    # 7. Stereo DIC reference/deformed images
+    # 8. Stereo DIC reference/deformed images
     if render_dic:
         scene = Scene()
         add_case_media(scene, test_case, pipe, water)
@@ -592,7 +811,7 @@ def plate_stereo_test(test_case: TestCaseApp,
         render_stereo_dic(scene, out_dir, render_height, render_width,
                           anti_alias, displaced_frame_idx, output_format)
 
-    # 8. Nominal rig geometry (bookkeeping for downstream checks)
+    # 9. Nominal rig geometry (bookkeeping for downstream checks)
     export_stereo_geometry(case_dir / "stereo_geometry.csv",
                            cam0, cam1, roi_center)
 
@@ -609,4 +828,5 @@ if __name__ == "__main__":
             render_cal=True,
             render_dic=True,
             crop_px=True,
+            plot_fea=True,
         )
