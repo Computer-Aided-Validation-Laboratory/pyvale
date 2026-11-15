@@ -168,6 +168,7 @@ class ValArray:
 
         if any(not isinstance(axis, EValAxis) for axis in self.axes):
             raise TypeError("Axes must be EValAxis.")
+
         ordered_axes = tuple(sorted(self.axes, key=AXIS_ORDER.index))
         if ordered_axes != self.axes:
             raise ValueError("Array axes must be in canonical order.")
@@ -194,22 +195,29 @@ class ValArray:
             EValAxis.EPISTEMIC_NUIS: epis_nuis_idx,
             EValAxis.ALEATORY: slice(None),
         }
+
         for axis, selection_idx in selection_idxs.items():
             if axis is EValAxis.ALEATORY:
                 continue
+
             size = self.data.shape[self.axes.index(axis)] if axis in self.axes else 1
+
             if isinstance(selection_idx, (bool, np.bool_)) or not isinstance(
                 selection_idx, (int, np.integer)
             ):
                 raise TypeError(f"{axis.name} index must be an integer.")
+
             if not 0 <= selection_idx < size:
                 raise IndexError(
                     f"{axis.name} index {selection_idx} is outside [0, {size})."
                 )
+
         if not isinstance(offset, EEpisOffset):
             raise TypeError("Offset scenario must be EEpisOffset.")
+
         if offset != EEpisOffset.NOMINAL and self.offsets is None:
             raise ValueError("Quantity has no offset scenarios.")
+
         return self._select_aleatory(
             point_idx, component_idx, time_idx, epis_trans_idx, epis_nuis_idx, offset
         )
@@ -231,21 +239,28 @@ class ValArray:
             EValAxis.EPISTEMIC_NUIS: epis_nuis_idx,
             EValAxis.ALEATORY: slice(None),
         }
+
         values = np.atleast_1d(
             self.data[tuple(selection_idxs[axis] for axis in self.axes)]
         )
+
         if offset == EEpisOffset.NOMINAL:
             return values
+
         offsets = self.offsets
         assert offsets is not None
+
         physical = {
             EValAxis.POINT: point_idx,
             EValAxis.COMPONENT: component_idx,
             EValAxis.TIME: time_idx,
         }
         bound = offsets.lower if offset == EEpisOffset.LOWER else offsets.upper
+
         magnitude = np.asarray(bound)[tuple(physical[axis] for axis in offsets.axes)]
+
         sign = -1.0 if offset == EEpisOffset.LOWER else 1.0
+
         return values + sign * magnitude
 
 
@@ -267,8 +282,10 @@ class ValCase:
 
     def __post_init__(self) -> None:
         expected = set(self.domain.observables)
+
         if set(self.sim) != expected or set(self.exp) != expected:
             raise ValueError("Simulation and experiment must match domain keys.")
+
         for name, observable in self.domain.observables.items():
             for source, provenance in (
                 (self.sim, self.sim_inputs),
@@ -276,6 +293,7 @@ class ValCase:
             ):
                 quantity = source[name]
                 validate_real_array(quantity.data, name)
+
                 lengths = {
                     EValAxis.POINT: (
                         1
@@ -287,12 +305,14 @@ class ValCase:
                     if observable.times is None
                     else len(observable.times),
                 }
+
                 for axis, length in lengths.items():
                     if axis in quantity.axes:
                         if quantity.data.shape[quantity.axes.index(axis)] != length:
                             raise ValueError(f"{name}: {axis.name} length mismatch.")
                     elif length != 1:
                         raise ValueError(f"{name}: missing non-singleton {axis.name}.")
+
                 if quantity.offsets is not None:
                     offsets = quantity.offsets
                     for axis in offsets.axes:
@@ -305,6 +325,7 @@ class ValCase:
                                 raise ValueError(
                                     f"{name}: offset {axis.name} mismatch."
                                 )
+
                 if provenance is not None:
                     trace_arrays = list((provenance.parameters or {}).values())
                     if provenance.run_ids is not None:

@@ -85,11 +85,13 @@ class ValMetricField:
     def __post_init__(self) -> None:
         if any(not isinstance(axis, EValResAxis) for axis in self.axes):
             raise TypeError("Result axes must be EValResAxis.")
+
         if (
             len(set(self.axes)) != len(self.axes)
             or tuple(sorted(self.axes, key=VAL_RES_AXES.index)) != self.axes
         ):
             raise ValueError("Result axes must be unique and canonical.")
+
         if (
             self.axes[:3] != VAL_RES_AXES[:3]
             or self.metric.ndim != len(self.axes)
@@ -98,15 +100,19 @@ class ValMetricField:
             raise ValueError(
                 "Metric shape must match nonempty axes including physical axes."
             )
+
         if (self.d_plus is None) != (self.d_minus is None):
             raise ValueError("Directional arrays must be supplied together.")
+
         if self.metric.dtype.kind not in "iuf":
             raise TypeError("Metric arrays must contain real numbers.")
+
         for directional in (self.d_plus, self.d_minus):
             if directional is not None and directional.dtype.kind not in "iuf":
                 raise TypeError("Directional metric arrays must contain real numbers.")
             if directional is not None and directional.shape != self.metric.shape:
                 raise ValueError("Directional arrays must match metric shape.")
+
         for axis, scenarios in (self.scenarios or {}).items():
             if (
                 not isinstance(axis, EValResAxis)
