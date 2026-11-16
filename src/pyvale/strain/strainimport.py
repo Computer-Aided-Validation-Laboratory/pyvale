@@ -12,20 +12,12 @@ import numpy as np
 
 from pyvale.strain.strainresults import StrainResults
 from pyvale.dic.dicenum import ELayout
-<<<<<<< HEAD
 from pyvale.dic.dicimport2d import check_delimiter, to_grid
-=======
-from pyvale.dic.dicimport2d import check_delimiter
->>>>>>> fix/dic-data-import
 
 
 def import_2d(data: str | Path | list[Path],
               binary: bool = False,
-<<<<<<< HEAD
-              layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
-=======
               layout: Literal["COLUMN", "MATRIX", "column", "matrix"] | ELayout = ELayout.MATRIX,
->>>>>>> fix/dic-data-import
               delimiter: str = ",") -> StrainResults:
     """Import 2D strain result data from text or binary files.
 
@@ -39,11 +31,7 @@ def import_2d(data: str | Path | list[Path],
 
 def import_3d(data: str | Path | list[Path],
               binary: bool = False,
-<<<<<<< HEAD
-              layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
-=======
               layout: Literal["COLUMN", "MATRIX", "column", "matrix"] | ELayout = ELayout.MATRIX,
->>>>>>> fix/dic-data-import
               delimiter: str = ",") -> StrainResults:
     """Import 3D-aware strain result data from text or binary files.
 
@@ -56,16 +44,10 @@ def import_3d(data: str | Path | list[Path],
 
 def _import(data: str | Path | list[Path],
             binary: bool,
-<<<<<<< HEAD
-            layout: Literal["COLUMN", "MATRIX"] | ELayout,
-            delimiter: str,
-            require_coords: bool) -> StrainResults:
-=======
             layout: Literal["COLUMN", "MATRIX", "column", "matrix"] | ELayout,
             delimiter: str,
             require_coords: bool) -> StrainResults:
 
->>>>>>> fix/dic-data-import
     layout = ELayout(layout)
 
     print("Attempting Strain Data import...")
@@ -139,12 +121,9 @@ def _import(data: str | Path | list[Path],
     principal_arrays = tensor_arrays[10:12]
     tensor_arrays = tensor_arrays[:10]
 
-<<<<<<< HEAD
-=======
     if len(tensor_arrays) != 10:
         raise ValueError(f"Strain data must contain 10 deformation-gradient and strain tensor columns. Number of cols = {len(tensor_arrays)}")
 
->>>>>>> fix/dic-data-import
     if layout == ELayout.MATRIX:
         x_unique = np.unique(window_x_ref)
         y_unique = np.unique(window_y_ref)
@@ -159,22 +138,11 @@ def _import(data: str | Path | list[Path],
                 output[frame_index, y_indices, x_indices] = values[frame_index]
             return output
 
-<<<<<<< HEAD
-        principal_arrays = [
-            to_grid(a, shape, x_indices, y_indices)
-            for a in principal_arrays
-        ]
-
-        x_mm = to_grid(x_mm, shape, x_indices, y_indices)
-        y_mm = to_grid(y_mm, shape, x_indices, y_indices)
-        z_mm = to_grid(z_mm, shape, x_indices, y_indices)
-=======
         tensor_arrays = [grid_per_frame(a) for a in tensor_arrays]
         if has_coords:
             x_mm = grid_per_frame(x_mm)
             y_mm = grid_per_frame(y_mm)
             z_mm = grid_per_frame(z_mm)
->>>>>>> fix/dic-data-import
     else:
         window_x_out = window_x_ref
         window_y_out = window_y_ref
