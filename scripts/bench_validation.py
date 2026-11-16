@@ -27,17 +27,15 @@ def main() -> None:
     axis = np.linspace(0.0, 1.0, args.grid)
     xx, yy = np.meshgrid(axis, axis, indexing="xy")
     coords = np.column_stack((xx.ravel(), yy.ravel(), np.zeros(points)))
-    domain = val.ValDomain(
-        {
-            "strain": val.ValObservable(
-                val.ValGeometry(val.EValGeometry.POINT, coords),
-                val.EValOperator.SAMPLE,
-                ("strain_xx",),
-                None,
-                "1",
-            )
-        }
-    )
+    observables = {
+        "strain": val.ValObservable(
+            components=("strain_xx",),
+            geometry=val.EValGeometry.POINT,
+            coords=coords,
+            times=None,
+            phys_units="1",
+        )
+    }
     shape = (points, 1, args.samples)
     axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.ALEATORY)
     with TemporaryDirectory() as temporary:
@@ -53,7 +51,7 @@ def main() -> None:
             sim_file[point, 0] = samples
             exp_file[point, 0] = samples + 0.1
         val_case = val.ValCase(
-            domain,
+            observables,
             {"strain": val.ValArray(sim_file, axes)},
             {"strain": val.ValArray(exp_file, axes)},
         )
@@ -64,11 +62,13 @@ def main() -> None:
             .get("strain", val.EMetricType.AVM)
         )
         elapsed = perf_counter() - start
-        if not np.allclose(field.metric, 0.1, atol=1.0e-12):
+        if not np.allclose(
+            field.outputs[val.EMetricOutput.DISTANCE], 0.1, atol=1.0e-12
+        ):
             raise AssertionError("AVM shift sanity check failed.")
         print(f"points={points}, samples={args.samples}, seconds={elapsed:.3f}")
         print(f"input_bytes={sim_file.nbytes + exp_file.nbytes}")
-        print(f"output_bytes={field.metric.nbytes}")
+        print(f"output_bytes={field.outputs[val.EMetricOutput.DISTANCE].nbytes}")
 
 
 if __name__ == "__main__":

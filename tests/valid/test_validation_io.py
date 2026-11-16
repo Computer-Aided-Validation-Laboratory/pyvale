@@ -9,21 +9,19 @@ import pyvale.valid as val
 import pyvale.valid.converttovaldata as valconvert
 
 
-def _domain(points: int = 2) -> val.ValDomain:
+def _domain(points: int = 2) -> dict[str, val.ValObservable]:
     coords = np.column_stack(
         (np.arange(points), np.zeros(points), np.zeros(points))
     ).astype(float)
-    return val.ValDomain(
-        {
-            "temperature": val.ValObservable(
-                val.ValGeometry(val.EValGeometry.POINT, coords),
-                val.EValOperator.SAMPLE,
-                ("temperature",),
-                None,
-                "degC",
-            )
-        }
-    )
+    return {
+        "temperature": val.ValObservable(
+            components=("temperature",),
+            geometry=val.EValGeometry.POINT,
+            coords=coords,
+            times=None,
+            phys_units="degC",
+        )
+    }
 
 
 def test_arrays_are_zero_copy_and_axis_order_is_checked() -> None:
@@ -72,10 +70,17 @@ def test_engine_retains_sampled_epistemic_scenarios_and_offsets() -> None:
     result = val.ValidationEngine([val.MetricAVM(), val.MetricKS()]).run(val_case)
     field = result.get("temperature", val.EMetricType.AVM)
     assert field.axes == ("point", "component", "time", "sim_trans", "exp_offset")
-    assert field.metric.shape == (2, 1, 1, 2, 3)
-    maximum, where = result.find_extreme("temperature", val.EMetricType.AVM)
-    assert maximum == pytest.approx(np.max(field.metric))
-    assert field.metric[tuple(where[axis] for axis in field.axes)] == maximum
+    assert field.outputs[val.EMetricOutput.DISTANCE].shape == (2, 1, 1, 2, 3)
+    maximum, where = result.find_extreme(
+        "temperature", val.EMetricType.AVM, output=val.EMetricOutput.DISTANCE
+    )
+    assert maximum == pytest.approx(np.max(field.outputs[val.EMetricOutput.DISTANCE]))
+    assert (
+        field.outputs[val.EMetricOutput.DISTANCE][
+            tuple(where[axis] for axis in field.axes)
+        ]
+        == maximum
+    )
     for point in range(2):
         for trans in range(2):
             for offset in range(3):
@@ -83,9 +88,9 @@ def test_engine_retains_sampled_epistemic_scenarios_and_offsets() -> None:
                     point, 0, 0, offset=val.EEpisOffset(offset)
                 )
                 expected = val.calc_avm_1d(simulation[point, 0, trans], selected)
-                assert field.metric[point, 0, 0, trans, offset] == pytest.approx(
-                    expected
-                )
+                assert field.outputs[val.EMetricOutput.DISTANCE][
+                    point, 0, 0, trans, offset
+                ] == pytest.approx(expected)
 
 
 def test_pointwise_ecdf_envelope_handles_crossing_distributions() -> None:
@@ -120,22 +125,20 @@ def test_distribution_kernels_reject_implicit_axis_pooling(
 def test_combine_cases_preserves_transient_run_pairing() -> None:
     coords = np.array([[0.0, 0.0, 0.0]])
     times = np.array([0.0, 1.0])
-    domain = val.ValDomain(
-        {
-            "temperature": val.ValObservable(
-                val.ValGeometry(val.EValGeometry.POINT, coords),
-                val.EValOperator.SAMPLE,
-                ("temperature",),
-                times,
-                "degC",
-            )
-        }
-    )
+    observables = {
+        "temperature": val.ValObservable(
+            components=("temperature",),
+            geometry=val.EValGeometry.POINT,
+            coords=coords,
+            times=times,
+            phys_units="degC",
+        )
+    }
     axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.TIME)
     sim = {"temperature": val.ValArray(np.zeros((1, 1, 2)), axes)}
     cases = [
         val.ValCase(
-            domain,
+            observables,
             sim,
             {"temperature": val.ValArray(np.array([[[i, i + 10.0]]]), axes)},
         )
@@ -149,7 +152,7 @@ def test_combine_cases_preserves_transient_run_pairing() -> None:
 
 
 def test_combine_cases_preserves_parameter_provenance() -> None:
-    domain = _domain(points=1)
+    observables = _domain(points=1)
     axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT)
     sim = {"temperature": val.ValArray(np.array([[0.0]]), axes)}
     cases = []
@@ -158,7 +161,7 @@ def test_combine_cases_preserves_parameter_provenance() -> None:
             parameters={"loading": val.ValArray(np.array(parameter), ())}
         )
         exp = {"temperature": val.ValArray(np.array([[parameter]]), axes)}
-        cases.append(val.ValCase(domain, sim, exp, exp_inputs=inputs))
+        cases.append(val.ValCase(observables, sim, exp, exp_inputs=inputs))
     joined = valconvert.combine_val_cases(*cases)
     np.testing.assert_array_equal(
         joined.exp_inputs.parameters["loading"].data, [10.0, 20.0]
@@ -195,12 +198,12 @@ def test_invalid_points_remain_masked_without_affecting_other_points() -> None:
         .run(val_case)
         .get("temperature", val.EMetricType.AVM)
     )
-    assert field.metric[0, 0, 0] == pytest.approx(1.0)
-    assert np.isnan(field.metric[1, 0, 0])
+    assert field.outputs[val.EMetricOutput.DISTANCE][0, 0, 0] == pytest.approx(1.0)
+    assert np.isnan(field.outputs[val.EMetricOutput.DISTANCE][1, 0, 0])
 
 
 def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
-    domain = _domain(points=1)
+    observables = _domain(points=1)
     sim = val.ValArray(
         np.array([[[[0.0, 2.0], [2.0, 4.0]]]]),
         (
@@ -222,7 +225,7 @@ def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
         val.EpistemicOffsets(0.25, 0.75),
     )
     val_case = val.ValCase(
-        domain,
+        observables,
         {"temperature": sim},
         {"temperature": exp},
     )
@@ -240,7 +243,7 @@ def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
         "sim_offset",
         "exp_offset",
     )
-    assert field.metric.shape == (1, 1, 1, 2, 3, 3, 3)
+    assert field.outputs[val.EMetricOutput.DISTANCE].shape == (1, 1, 1, 2, 3, 3, 3)
     for st in range(2):
         for en in range(3):
             for so in range(3):
@@ -251,23 +254,23 @@ def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
                     right = exp.select_aleatory(
                         0, 0, 0, epis_nuis_idx=en, offset=val.EEpisOffset(eo)
                     )
-                    assert field.metric[0, 0, 0, st, en, so, eo] == pytest.approx(
-                        val.calc_avm_1d(left, right)
-                    )
+                    assert field.outputs[val.EMetricOutput.DISTANCE][
+                        0, 0, 0, st, en, so, eo
+                    ] == pytest.approx(val.calc_avm_1d(left, right))
 
 
 def test_case_validates_sample_input_dimensions_for_each_source() -> None:
     """Both provenance fields must describe the source's uncertainty axes."""
-    domain = _domain(points=1)
+    observables = _domain(points=1)
     axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.ALEATORY)
     quantities = {"temperature": val.ValArray(np.ones((1, 1, 3)), axes)}
     mismatched_inputs = val.ValSampleInputs(
         run_ids=val.ValArray(np.array(["run_0", "run_1"]), (val.EValAxis.ALEATORY,))
     )
     with pytest.raises(ValueError, match="sample input ALEATORY mismatch"):
-        val.ValCase(domain, quantities, quantities, sim_inputs=mismatched_inputs)
+        val.ValCase(observables, quantities, quantities, sim_inputs=mismatched_inputs)
     with pytest.raises(ValueError, match="sample input ALEATORY mismatch"):
-        val.ValCase(domain, quantities, quantities, exp_inputs=mismatched_inputs)
+        val.ValCase(observables, quantities, quantities, exp_inputs=mismatched_inputs)
 
 
 def test_combine_cases_preserves_simulation_provenance() -> None:

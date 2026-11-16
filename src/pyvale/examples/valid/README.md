@@ -8,7 +8,7 @@ plotting is opt-in.
 
 0. Quickstart: transient temperature and strain, repeats, epistemic scenarios,
    calibration offsets, metric histories, CDFs and a PyVista simulation overlay.
-1. Data model: geometry, observable definitions, domain, named array axes,
+1. Data model: geometry, observable dictionaries, named array axes,
    source data and tag matching in a validation case.
 2. Steady plate: multiple points, components and observable tags.
 3. Sampled epistemic uncertainty: conditional distributions and scenario selection.

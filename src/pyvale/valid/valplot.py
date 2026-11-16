@@ -21,6 +21,7 @@ from pyvale.valid.metricstrategy import EMetricType, MetricMAVM
 from pyvale.valid.valengine import (
     EValResAxis,
     ValResult,
+    resolve_metric_output,
 )
 from pyvale.valid.valtools import (
     build_metric_selection,
@@ -31,13 +32,13 @@ from pyvale.valid.valtools import (
     extract_aleatory_scenarios,
     extract_ecdf_envelope,
     extract_metric_values,
-    select_metric_part,
+    select_metric_output,
 )
 from pyvale.valid.valtypes import (
     EEpisOffset,
+    EMetricOutput,
     EValECDFBounds,
     EValMAVMDiagnostic,
-    EValMetricPart,
     EValSource,
     MAVMCorrection,
     ValArray,
@@ -111,7 +112,7 @@ def _create_axes(
 def _metric_units(result: ValResult, observable: str, metric: EMetricType) -> str:
     if metric in (EMetricType.KS, EMetricType.CVM, EMetricType.RELATIVE_ERROR):
         return "1"
-    return result.domain.observables[observable].phys_units
+    return result.observables[observable].phys_units
 
 
 def plot_val_cdfs(
@@ -200,7 +201,7 @@ def plot_val_cdfs(
             label=source_labels.exp_conf_upper,
         )
         ax.set_title(f"MAVM: d+={raw.d_plus:.4g}, d-={raw.d_minus:.4g}")
-    units = val_case.domain.observables[observable].phys_units
+    units = val_case.observables[observable].phys_units
     ax.set_xlabel(f"{observable} [{units}]")
     ax.set_ylabel("Cumulative probability")
     ax.set_ylim(0.0, 1.02)
@@ -262,7 +263,7 @@ def plot_val_cdf_envelope(
         label=f"{source_label}: pointwise upper",
     )
     ax.fill_between(support, lower, upper, step="post", alpha=0.2)
-    units = val_case.domain.observables[observable].phys_units
+    units = val_case.observables[observable].phys_units
     ax.set_xlabel(f"{observable} [{units}]")
     ax.set_ylabel("Cumulative probability")
     ax.set_ylim(0.0, 1.02)
@@ -278,28 +279,30 @@ def plot_val_metric_time(
     metric: EMetricType,
     *,
     selectors: dict[EValResAxis, int] | None = None,
-    part: EValMetricPart = EValMetricPart.TOTAL,
+    output: EMetricOutput | None = None,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
     """Plot one selected metric scenario against physical time."""
     field = result.get(observable, metric)
+    output = resolve_metric_output(field, output)
     selected = extract_metric_values(
         field,
         keep=EValResAxis.TIME,
         selectors=selectors,
-        part=part,
+        output=output,
     )
-    times = result.domain.observables[observable].times
+    times = result.observables[observable].times
     if times is None:
         raise ValueError("Time plot requires physical time coordinates.")
     fig, ax = _create_axes(ax, plot_opts)
-    ax.plot(times, selected, marker="o")
-    time_units = result.domain.observables[observable].time_units
+    ax.plot(times, selected, marker="o", label=create_metric_label(metric, output))
+    ax.legend()
+    time_units = result.observables[observable].time_units
     ax.set_xlabel(f"Time [{time_units}]" if time_units else "Time")
     ax.set_ylabel(
-        f"{create_metric_label(metric, part)} "
+        f"{create_metric_label(metric, output)} "
         f"[{_metric_units(result, observable, metric)}]"
     )
     ax.set_title(observable)
@@ -313,7 +316,7 @@ def plot_val_metric_distribution(
     observable: str,
     metric: EMetricType,
     *,
-    part: EValMetricPart = EValMetricPart.TOTAL,
+    output: EMetricOutput | None = None,
     selectors: dict[EValResAxis, int] | None = None,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
@@ -321,8 +324,9 @@ def plot_val_metric_distribution(
 ) -> tuple[Figure, Axes]:
     """Histogram finite metric values over selected physical/scenario cells."""
     field = result.get(observable, metric)
+    output = resolve_metric_output(field, output)
     selection_idx = build_metric_selection(field, selectors)
-    selected_field = select_metric_part(field, part, selection_idxs=selection_idx)
+    selected_field = select_metric_output(field, output, selection_idxs=selection_idx)
     values = selected_field.ravel()
     values = values[np.isfinite(values)]
     if not len(values):
@@ -330,7 +334,7 @@ def plot_val_metric_distribution(
     fig, ax = _create_axes(ax, plot_opts)
     ax.hist(values, bins=min(20, len(values)))
     ax.set_xlabel(
-        f"{create_metric_label(metric, part)} "
+        f"{create_metric_label(metric, output)} "
         f"[{_metric_units(result, observable, metric)}]"
     )
     ax.set_ylabel("Cell count")
@@ -406,7 +410,7 @@ def plot_val_cdf_envelope_points(
 ) -> tuple[Figure, np.ndarray]:
     """Plot conditional ECDF envelopes for selected physical observation points.
 
-    ``point_idxs=None`` selects every point in domain order; an explicit tuple keeps
+    ``point_idxs=None`` selects every point in observables order; an explicit tuple keeps
     its supplied order. Automatic layout uses a nearly square panel grid with
     landscape panels sized by PlotOptsGeneral. Specify rows, columns or both
     to control the layout. Axes always have shape (rows, columns), with spare
@@ -414,8 +418,8 @@ def plot_val_cdf_envelope_points(
     """
     if not isinstance(source, EValSource):
         raise TypeError("Source must be EValSource.SIM or EValSource.EXP.")
-    observable_data = val_case.domain.observables[observable]
-    coords = observable_data.geometry.coords
+    observable_data = val_case.observables[observable]
+    coords = observable_data.coords
     point_count = 1 if coords is None else len(coords)
     selected_point_idxs = (
         tuple(range(point_count)) if point_idxs is None else point_idxs
@@ -427,7 +431,9 @@ def plot_val_cdf_envelope_points(
         or point_idx >= point_count
         for point_idx in selected_point_idxs
     ):
-        raise ValueError("Point indices must identify points in the observable domain.")
+        raise ValueError(
+            "Point indices must identify points in the observable observables."
+        )
     quantity = (val_case.sim if source is EValSource.SIM else val_case.exp)[observable]
     for point_idx in selected_point_idxs:
         samples = extract_aleatory_scenarios(
@@ -516,7 +522,7 @@ def plot_val_cdfs_points(
     fig, axes = create_val_plot_grid(
         len(point_idxs), columns=columns, plot_opts=plot_opts
     )
-    observable_data = val_case.domain.observables[observable]
+    observable_data = val_case.observables[observable]
     time_label = (
         "steady"
         if observable_data.times is None
@@ -557,13 +563,14 @@ def plot_val_metric_time_points(
     *,
     point_idxs: tuple[int, ...],
     selectors: dict[EValResAxis, int] | None = None,
-    part: EValMetricPart = EValMetricPart.TOTAL,
+    output: EMetricOutput | None = None,
     columns: int = 3,
     plot_opts: PlotOptsGeneral | None = None,
     labels: ValPlotLabels | None = None,
 ) -> tuple[Figure, np.ndarray]:
     """Plot the same selected scenario over time for multiple point panels."""
-    if result.domain.observables[observable].times is None:
+    output = resolve_metric_output(result.get(observable, metric), output)
+    if result.observables[observable].times is None:
         raise ValueError("Time plot requires physical time coordinates.")
     for point_idx in point_idxs:
         selected = dict(selectors or {})
@@ -572,7 +579,7 @@ def plot_val_metric_time_points(
             result.get(observable, metric),
             keep=EValResAxis.TIME,
             selectors=selected,
-            part=part,
+            output=output,
         )
     fig, axes = create_val_plot_grid(
         len(point_idxs), columns=columns, plot_opts=plot_opts
@@ -585,7 +592,7 @@ def plot_val_metric_time_points(
             observable,
             metric,
             selectors=selected,
-            part=part,
+            output=output,
             plot_opts=plot_opts,
             labels=labels,
             ax=ax,

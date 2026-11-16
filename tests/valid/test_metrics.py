@@ -90,8 +90,6 @@ def test_strategy_pattern_metrics() -> None:
     mavm_strat = MetricMAVM(alpha=0.05)
     res_mavm = mavm_strat.calc(sim, exp)
     assert isinstance(res_mavm, MAVMResult)
-    assert res_mavm.d_total >= 0.0
-    assert res_mavm.d_total == res_mavm.d_plus + res_mavm.d_minus
 
     avm_strat = MetricAVM()
     assert avm_strat.calc(sim, exp).value == pytest.approx(1.0, rel=1e-3)

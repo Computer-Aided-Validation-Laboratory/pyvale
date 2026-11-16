@@ -87,21 +87,33 @@ def prepare_cases(
     specifications = (
         ("strain_gauges", STRAIN_GRID, ("strain_xx",), "1", STRAIN_NOISE_STD),
         (
-            "thermocouples", THERMOCOUPLE_GRID, ("temperature",), "degC",
+            "thermocouples",
+            THERMOCOUPLE_GRID,
+            ("temperature",),
+            "degC",
             TEMPERATURE_NOISE_STD,
         ),
         (
-            "dic", (camera_width, camera_height), ("disp_x", "disp_y"), "mm",
+            "dic",
+            (camera_width, camera_height),
+            ("disp_x", "disp_y"),
+            "mm",
             DISPLACEMENT_NOISE_STD_MM,
         ),
         (
-            "ir", (camera_width, camera_height), ("temperature",), "degC",
+            "ir",
+            (camera_width, camera_height),
+            ("temperature",),
+            "degC",
             TEMPERATURE_NOISE_STD,
         ),
     )
     simulation_axes = (
-        val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.TIME,
-        val.EValAxis.EPISTEMIC_TRANS, val.EValAxis.ALEATORY,
+        val.EValAxis.POINT,
+        val.EValAxis.COMPONENT,
+        val.EValAxis.TIME,
+        val.EValAxis.EPISTEMIC_TRANS,
+        val.EValAxis.ALEATORY,
     )
     experiment_axes = simulation_axes[:3] + (val.EValAxis.ALEATORY,)
     generator = np.random.default_rng(RANDOM_SEED)
@@ -126,8 +138,8 @@ def prepare_cases(
         )
         for scenario, weight in enumerate(np.linspace(0, 1, SIM_EPISTEMIC_SAMPLES)):
             scenario_mean = (
-                (1.0 - weight) * nominal_observations + weight * biased_observations
-            )
+                1.0 - weight
+            ) * nominal_observations + weight * biased_observations
             simulation_samples[..., scenario, :] = generator.normal(
                 0.0, noise_std, (*physical_shape, SIM_ALEATORY_SAMPLES)
             )
@@ -137,28 +149,38 @@ def prepare_cases(
         )
         experiment_samples += biased_observations[..., None]
         experiment = val.ValArray(
-            experiment_samples, experiment_axes,
+            experiment_samples,
+            experiment_axes,
             val.EpistemicOffsets(
                 noise_std * EXP_OFFSET_NOISE_MULTIPLIER,
                 noise_std * EXP_OFFSET_NOISE_MULTIPLIER,
             ),
         )
-        domain = val.ValDomain({name: val.ValObservable(
-            val.ValGeometry(
-                val.EValGeometry.POINT, coords, coord_units="mm", coord_frame="plate"
-            ),
-            val.EValOperator.SAMPLE, components, times, units, "s",
-        )})
+        observables = {
+            name: val.ValObservable(
+                components=components,
+                geometry=val.EValGeometry.POINT,
+                coords=coords,
+                times=times,
+                phys_units=units,
+                coord_units="mm",
+                coord_frame="plate",
+                time_units="s",
+            )
+        }
         distribution = val.ValCase(
-            domain, {name: val.ValArray(simulation_samples, simulation_axes)},
+            observables,
+            {name: val.ValArray(simulation_samples, simulation_axes)},
             {name: experiment},
         )
         # Explicit first-N pairing, retaining all epistemic/offset scenarios.
         paired = val.ValCase(
-            domain,
-            {name: val.ValArray(
-                simulation_samples[..., :EXP_ALEATORY_SAMPLES], simulation_axes
-            )},
+            observables,
+            {
+                name: val.ValArray(
+                    simulation_samples[..., :EXP_ALEATORY_SAMPLES], simulation_axes
+                )
+            },
             {name: experiment},
         )
         cases.append(BenchmarkCase(name, distribution, paired))
@@ -169,7 +191,7 @@ def check_outputs(result: val.ValResult) -> tuple[float, ...]:
     checksums = []
     for fields in result.fields.values():
         for field in fields.values():
-            for array in (field.metric, field.d_plus, field.d_minus):
+            for array in field.outputs.values():
                 if array is not None:
                     if not np.all(np.isfinite(array)):
                         raise AssertionError("Benchmark produced nonfinite metrics.")
@@ -205,16 +227,25 @@ def main() -> None:
     parser.add_argument("--report", type=Path, default=REPORT_PATH)
     arguments = parser.parse_args()
     counts = (
-        arguments.runs, arguments.camera_width, arguments.camera_height,
-        arguments.time_steps, SIM_EPISTEMIC_SAMPLES, SIM_ALEATORY_SAMPLES,
-        EXP_ALEATORY_SAMPLES, WORKERS, CHUNK_SIZE, *STRAIN_GRID, *THERMOCOUPLE_GRID,
+        arguments.runs,
+        arguments.camera_width,
+        arguments.camera_height,
+        arguments.time_steps,
+        SIM_EPISTEMIC_SAMPLES,
+        SIM_ALEATORY_SAMPLES,
+        EXP_ALEATORY_SAMPLES,
+        WORKERS,
+        CHUNK_SIZE,
+        *STRAIN_GRID,
+        *THERMOCOUPLE_GRID,
     )
     if any(count < 1 for count in counts):
         parser.error("All run, grid, sample, worker and chunk counts must be positive.")
     if EXP_ALEATORY_SAMPLES > SIM_ALEATORY_SAMPLES:
         parser.error("Paired comparison requires experiment count <= simulation count.")
     revision = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], text=True,
+        ["git", "rev-parse", "HEAD"],
+        text=True,
         cwd=Path(__file__).resolve().parents[1],
     ).strip()
     processor = platform.processor()
@@ -249,7 +280,8 @@ def main() -> None:
     preparation_seconds = perf_counter() - preparation_start
     input_bytes = sum(
         case.distribution.sim[case.name].data.nbytes
-        + case.distribution.exp[case.name].data.nbytes for case in cases
+        + case.distribution.exp[case.name].data.nbytes
+        for case in cases
     )
     setup = (
         f"Selected simulation times (s): {times.tolist()}\n"
@@ -261,45 +293,52 @@ def main() -> None:
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
         "# Validation performance baseline (in progress)\n\n"
-        + metadata + "\n\n" + setup + "\n\n"
+        + metadata
+        + "\n\n"
+        + setup
+        + "\n\n"
         + f"Requested timing runs: {arguments.runs}.\n"
         + "Timing run in progress; optimisation decisions are recorded separately.\n",
         encoding="utf-8",
     )
     distribution_engine = val.ValidationEngine(
-        [val.MetricMAVM(alpha=MAVM_ALPHA), val.MetricAVM(),
-         val.MetricKS(), val.MetricCVM()],
+        [
+            val.MetricMAVM(alpha=MAVM_ALPHA),
+            val.MetricAVM(),
+            val.MetricKS(),
+            val.MetricCVM(),
+        ],
         opts=val.ValEngineOpts(workers=WORKERS, chunk_size=CHUNK_SIZE),
     )
     # A fixed positive scale avoids singular relative error at initial zero fields.
     paired_engines = {
         case.name: val.ValidationEngine(
-            [val.MetricRMSE(), val.MetricRelErr(
-                normalization=val.ERelativeErrorNormalization.CONSTANT,
-                constant={
-                    "strain_gauges": STRAIN_NOISE_STD,
-                    "thermocouples": TEMPERATURE_NOISE_STD,
-                    "dic": DISPLACEMENT_NOISE_STD_MM,
-                    "ir": TEMPERATURE_NOISE_STD,
-                }[case.name],
-            )],
+            [
+                val.MetricRMSE(),
+                val.MetricRelErr(
+                    normalisation=val.ERelErrNorm.CONSTANT,
+                    constant={
+                        "strain_gauges": STRAIN_NOISE_STD,
+                        "thermocouples": TEMPERATURE_NOISE_STD,
+                        "dic": DISPLACEMENT_NOISE_STD_MM,
+                        "ir": TEMPERATURE_NOISE_STD,
+                    }[case.name],
+                ),
+            ],
             opts=val.ValEngineOpts(workers=WORKERS, chunk_size=CHUNK_SIZE),
-        ) for case in cases
+        )
+        for case in cases
     }
     distribution_case = val.ValCase(
-        val.ValDomain({
-            case.name: case.distribution.domain.observables[case.name]
-            for case in cases
-        }),
+        {case.name: case.distribution.observables[case.name] for case in cases},
         {case.name: case.distribution.sim[case.name] for case in cases},
         {case.name: case.distribution.exp[case.name] for case in cases},
     )
     # One distribution engine call shares worker startup across all observables.
-    # Paired calls retain each observable's physical normalization constant.
+    # Paired calls retain each observable's physical normalisation constant.
     workloads = [("all", "distribution", distribution_engine, distribution_case)]
     workloads.extend(
-        (case.name, "paired", paired_engines[case.name], case.paired)
-        for case in cases
+        (case.name, "paired", paired_engines[case.name], case.paired) for case in cases
     )
     durations: list[float] = []
     reference_checksums: dict[tuple[str, str], tuple[float, ...]] = {}
@@ -335,7 +374,10 @@ def main() -> None:
         )
         summary = describe_statistics(durations)
         report = (
-            "# Validation performance baseline\n\n" + metadata + "\n\n" + setup
+            "# Validation performance baseline\n\n"
+            + metadata
+            + "\n\n"
+            + setup
             + "\n\nAll six engine metrics are included. Distribution metrics use "
             "all simulation/experiment samples; RMSE and relative error pair the "
             "first experiment-count simulation samples with experiment samples. "
@@ -345,15 +387,17 @@ def main() -> None:
             "Synthetic epistemic responses interpolate the nominal and biased "
             "plate solutions. Relative error is normalized by measurement noise."
             "\n\nDistribution metrics share one engine call across observables; "
-            "paired metrics execute separately for each physical normalization. "
+            "paired metrics execute separately for each physical normalisation. "
             "Timings include engine preparation, shared-memory copies, worker "
             "spawn and output allocation. Run totals are wall times including "
             "output checks; sensor/input preparation is reported separately. "
             "Inputs are reused unchanged "
             "across runs; no warmup runs are discarded.\n\n"
-            + "\n".join(records) + "\n\nRun totals (s): "
+            + "\n".join(records)
+            + "\n\nRun totals (s): "
             + ", ".join(f"{duration:.6f}" for duration in durations)
-            + "\n\n" + summary
+            + "\n\n"
+            + summary
             + "\n\nThis file records timings; retention decisions are in "
             "pyvale_valid_perf_report.md.\n"
         )

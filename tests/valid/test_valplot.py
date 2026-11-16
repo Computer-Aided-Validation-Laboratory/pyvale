@@ -71,12 +71,13 @@ def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
         val.EMetricType.MAVM,
         point_idxs=(0, 5),
         selectors=selectors,
-        part=val.EValMetricPart.D_MINUS,
+        output=val.EMetricOutput.D_MINUS,
     )
     field = result.get("temperature", val.EMetricType.MAVM)
     for point, ax in zip((0, 5), axes.flat, strict=True):
         np.testing.assert_allclose(
-            ax.lines[0].get_ydata(), field.d_minus[point, 0, :, 1, 2]
+            ax.lines[0].get_ydata(),
+            field.outputs[val.EMetricOutput.D_MINUS][point, 0, :, 1, 2],
         )
         assert ax.get_ylabel() == "MAVM d− [degC]"
     assert val.EValResAxis.POINT not in selectors
@@ -207,25 +208,53 @@ def test_envelope_grid_rejects_invalid_points_and_layout(
 
 def test_envelope_grid_supports_a_single_global_observable() -> None:
     observable_tag = "response"
-    domain = val.ValDomain(
-        {
-            observable_tag: val.ValObservable(
-                geometry=val.ValGeometry(val.EValGeometry.GLOBAL, None),
-                operator=val.EValOperator.SAMPLE,
-                components=("response",),
-                phys_units="unit",
-            )
-        }
-    )
+    observables = {
+        observable_tag: val.ValObservable(
+            components=("response",),
+            geometry=val.EValGeometry.GLOBAL,
+            coords=None,
+            phys_units="unit",
+        )
+    }
     samples = {
         observable_tag: val.ValArray(
             np.array([0.0, 1.0, 2.0]), (val.EValAxis.ALEATORY,)
         )
     }
     fig, axes = valplot.plot_val_cdf_envelope_points(
-        val.ValCase(domain, samples, samples),
+        val.ValCase(observables, samples, samples),
         observable_tag,
     )
     assert axes.shape == (1, 1)
     assert "Point 0: response, steady" == axes[0, 0].get_title()
+    plt.close(fig)
+
+
+def test_directional_outputs_can_share_time_axes() -> None:
+    case = load_plate_case(transient=True)
+    result = val.ValidationEngine([val.MetricMAVM()]).run(case)
+    fig, ax = valplot.plot_val_metric_time(
+        result,
+        "temperature",
+        val.EMetricType.MAVM,
+        selectors={val.EValResAxis.POINT: 0},
+        output=val.EMetricOutput.D_PLUS,
+    )
+    valplot.plot_val_metric_time(
+        result,
+        "temperature",
+        val.EMetricType.MAVM,
+        selectors={val.EValResAxis.POINT: 0},
+        output=val.EMetricOutput.D_MINUS,
+        ax=ax,
+    )
+    assert [text.get_text() for text in ax.get_legend().get_texts()] == [
+        "MAVM d+",
+        "MAVM d−",
+    ]
+    field = result.get("temperature", val.EMetricType.MAVM)
+    for line, output in zip(
+        ax.lines, (val.EMetricOutput.D_PLUS, val.EMetricOutput.D_MINUS), strict=True
+    ):
+        np.testing.assert_allclose(line.get_ydata(), field.outputs[output][0, 0])
     plt.close(fig)

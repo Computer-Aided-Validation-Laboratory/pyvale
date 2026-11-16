@@ -4,7 +4,7 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Validation of 3D cube tensor observations
+"""MOOSE perturbations for 3D tensor validation
 ================================================================================
 
 Follow the six cube-face sensor locations used in extsensorsim/ex3f_tens3d.
@@ -17,6 +17,8 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pyvista as pv
+from matplotlib.figure import Figure
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -33,18 +35,35 @@ matplotlib.use("Agg")
 SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
-output_path = Path.cwd() / "pyvale-output" / "valid_ex8_cube_tensor"
+output_path = Path.cwd() / "pyvale-output" / "valid_ex9_cube_sweep"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
 # 1. Load and transform data
 # -----------------------------------------
-# The packaged HEX20 data describe a 10 mm cube. Exodus stores coordinates
-# in metres and tensor strains as dimensionless components. Scale lengths only;
-# strain must retain its physical values.
-input_path = dataset.element_case_output_path(dataset.EElemTest.HEX20)
-nominal_sim = mh.ExodusLoader(input_path).load_all_sim_data()
-experimental_sim = nominal_sim
+# Run three small HEX8 cube models with the packaged Rabbit MOOSE application.
+# One parameter changes at a time so its physical effect can be identified:
+# heat flux controls the thermal load; thermal expansion couples temperature to
+# mechanical strain. Both alternatives are +10% relative to the input deck.
+# A fresh run directory preserves solver inputs/logs and makes reruns safe.
+input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
+runner = mh.MooseRunner(timeout=120.0)
+run_root: Path = mh.get_next_run_path(output_path / "solves")
+parameter_sets: dict[str, dict[str, mh.InputValues]] = {
+    "nominal": {},
+    "heat_flux_plus_10pct": {"surfHeatFlux": 1.1 * 4.67e6},
+    "thermal_expansion_plus_10pct": {"ThermExp": 1.1 * 17.8e-6},
+}
+simulations: dict[str, io.SimData] = {}
+for name, parameters in parameter_sets.items():
+    solve_result: mh.RunResult = runner.run(
+        input_path,
+        input_params=parameters,
+        output_dir=run_root / name,
+    )
+    simulations[name] = mh.ExodusLoader(solve_result.output_file).load_all_sim_data()
+nominal_sim: io.SimData = simulations["nominal"]
+experimental_sim: io.SimData = simulations["heat_flux_plus_10pct"]
 
 # %%
 # Six strain rosettes sit at the centres of the xz, xy and yz face pairs.
@@ -60,13 +79,14 @@ coords = np.array(
         [10.0, 5.0, 5.0],
     ]
 )  # (6 points, 3 Cartesian coordinates), mm
-sens.scale_length_units(1000.0, nominal_sim, disp_keys=("disp_x", "disp_y", "disp_z"))
+for sim_data in simulations.values():
+    sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y", "disp_z"))
 times = np.linspace(nominal_sim.time[0], nominal_sim.time[-1], 5)
 norm_keys = ("strain_xx", "strain_yy", "strain_zz")
 dev_keys = ("strain_xy", "strain_xz", "strain_yz")
 component_keys = (*norm_keys, *dev_keys)
 sensor_data = sens.SensorData(positions=coords, sample_times=times)
-strain_sensors = sens.SensorFactory.tensor_point(
+strain_sensors: sens.SensorsPoint = sens.SensorFactory.tensor_point(
     experimental_sim,
     sensor_data,
     norm_comp_keys=norm_keys,
@@ -92,31 +112,33 @@ measurements = np.stack(
 )  # (6 points, 6 tensor components, 5 times, 6 aleatory repeats)
 
 # %%
-# Build the shared domain and sample the model through the same point operator.
+# Build the shared observables and sample the model through the same point operator.
 # IField component keys explicitly preserve xx, yy, zz, xy, xz, yz ordering.
 strain_tag = "cube_strain"
-domain = val.ValDomain(
-    {
-        strain_tag: val.ValObservable(
-            geometry=val.ValGeometry(
-                val.EValGeometry.POINT, coords, coord_units="mm", coord_frame="cube"
-            ),
-            operator=val.EValOperator.SAMPLE,
-            components=component_keys,
-            times=times,
-            phys_units="1",
-            time_units="s",
-        )
-    }
-)
-model = valconvert.convert_sim_to_val(
+observables = {
+    strain_tag: val.ValObservable(
+        components=component_keys,
+        geometry=val.EValGeometry.POINT,
+        coords=coords,
+        times=times,
+        phys_units="1",
+        coord_units="mm",
+        coord_frame="cube",
+        time_units="s",
+    )
+}
+# Keep all three solved parameter settings as separate transferable epistemic
+# alternatives. Each retains a separate conditional aleatory distribution.
+model: dict[str, val.ValArray] = valconvert.convert_sim_to_val(
     {
         strain_tag: lambda simulation: sens.FieldTensor(
             simulation, norm_keys, dev_keys, sens.EDim.THREED
         )
     },
-    domain,
-    [((), nominal_sim)],
+    observables,
+    [((index,), sim_data) for index, sim_data in enumerate(simulations.values())],
+    sample_axes=(val.EValAxis.EPISTEMIC_TRANS,),
+    sample_shape=(3,),
 )
 experiment = {
     strain_tag: val.ValArray(
@@ -129,29 +151,34 @@ experiment = {
         ),
     )
 }
-val_case = val.ValCase(domain, model, experiment)
+val_case = val.ValCase(observables, model, experiment)
 
 # %%
 # 2. Run validation analysis
 # --------------------------
 # The model is deterministic within each selected parameter scenario, while
 # the experiment has six repeat observations. INCLUDE handles repeated supports.
-mavm = val.MetricMAVM(duplicates=val.EMAVMDuplicates.INCLUDE)
-val_result = val.ValidationEngine([val.MetricAVM(), mavm]).run(val_case)
+val_result: val.ValResult = val.ValidationEngine(
+    [val.MetricAVM(), val.MetricMAVM()]
+).run(val_case)
 
 # %%
 # 3. Post-processing and inspect data structures
 # ----------------------------------------------
 # No tensor component is flattened into the observation axis. Result axes start
 # (6 points, 6 components, 5 times), followed by retained parameter scenarios.
-metric_field = val_result.get(strain_tag, val.EMetricType.MAVM)
+metric_field: val.ValMetricField = val_result.get(strain_tag, val.EMetricType.MAVM)
 print(
     "Model axes/shape:",
     model[strain_tag].axes,
     model[strain_tag].data.shape,
 )
 print("Experiment shape:", measurements.shape)
-print("Result axes/shape:", metric_field.axes, metric_field.metric.shape)
+print(
+    "Result axes/shape:",
+    metric_field.axes,
+    metric_field.outputs[val.EMetricOutput.D_PLUS].shape,
+)
 
 # %%
 # 4. Analysis and visualisation
@@ -160,6 +187,8 @@ print("Result axes/shape:", metric_field.axes, metric_field.metric.shape)
 # selected explicitly in a parameter sweep, so these panels compare like cells.
 point_idxs = tuple(range(len(coords)))
 for component_idx, component_key in enumerate(component_keys):
+    fig: Figure
+    axes: np.ndarray
     fig, axes = valplot.plot_val_cdfs_points(
         val_case,
         val_result,
@@ -167,7 +196,7 @@ for component_idx, component_key in enumerate(component_keys):
         point_idxs=point_idxs,
         component_idx=component_idx,
         time_idx=4,
-        metric=mavm,
+        metric=val.MetricMAVM(),
         labels=valplot.ValPlotLabels(x_label=f"{component_key} [1]"),
     )
     fig.savefig(output_path / f"{component_key}_cdfs.png", bbox_inches="tight")
@@ -176,13 +205,30 @@ for component_idx, component_key in enumerate(component_keys):
         strain_tag,
         val.EMetricType.MAVM,
         point_idxs=point_idxs,
-        selectors={val.EValResAxis.COMPONENT: component_idx},
-        part=val.EValMetricPart.D_MINUS,
+        selectors={
+            val.EValResAxis.COMPONENT: component_idx,
+            val.EValResAxis.SIM_TRANS: 0,
+        },
+        output=val.EMetricOutput.D_MINUS,
         labels=valplot.ValPlotLabels(title=component_key),
     )
     fig.savefig(output_path / f"{component_key}_d_minus_time.png", bbox_inches="tight")
     if not SHOW_PLOTS:
         plt.close("all")
+
+# %%
+# Compare the parameter alternatives while retaining their result axis.
+# The filenames identify the physical perturbation; y labels identify AVM distance.
+for scenario, scenario_name in enumerate(parameter_sets):
+    fig, axes = valplot.plot_val_metric_time_points(
+        val_result,
+        strain_tag,
+        val.EMetricType.AVM,
+        point_idxs=point_idxs,
+        selectors={val.EValResAxis.COMPONENT: 0, val.EValResAxis.SIM_TRANS: scenario},
+        labels=valplot.ValPlotLabels(title=f"strain_xx: {scenario_name}"),
+    )
+    fig.savefig(output_path / f"{scenario_name}_avm_time.png", bbox_inches="tight")
 # %%
 # Overlay the selected strain_xx metric on several independent background fields.
 # The two colourbars deliberately identify different quantities: model field
@@ -195,63 +241,63 @@ normal = np.stack(
 shear = np.stack(
     [nominal_sim.node_vars[key][:, background_time_idx] for key in dev_keys], axis=-1
 )  # (n_nodes, 3), tensor shear components xy, xz, yz
-strain_tensors = io.assemble_strain_tensor(
+strain_tensors: np.ndarray = io.assemble_strain_tensor(
     normal,
     shear,
     shear_convention=io.EStrainShear.TENSOR,
 )  # (n_nodes, 3, 3), symmetric small-strain tensor in global Cartesian axes
 # Equivalent strain is sqrt(2/3 epsilon_dev:epsilon_dev): volumetric strain is
 # excluded. Principal strains are descending; index zero is the first principal.
-equivalent_strain = io.calc_equivalent_strain(strain_tensors)
-first_principal = io.calc_principal_strains(strain_tensors)[:, 0]
-background_fields = {
-    "temperature": valvis.ValSimField(
-        nominal_sim.node_vars["temperature"][:, background_time_idx],
-        background_time_idx,
-        sens.SensorDescriptor(name="Temperature", symbol="T", units="degC"),
+equivalent_strain: np.ndarray = io.calc_equivalent_strain(strain_tensors)
+first_principal: np.ndarray = io.calc_principal_strains(strain_tensors)[:, 0]
+background_fields: dict[str, tuple[str | np.ndarray, sens.SensorDescriptor]] = {
+    "temperature": (
+        "temperature",
+        sens.SensorDescriptor(name="Temperature", symbol="T", units="degC", tag="SG"),
     ),
-    "strain_xx": valvis.ValSimField(
-        normal[:, 0],
-        background_time_idx,
-        sens.SensorDescriptor(name="Strain xx", symbol=r"\varepsilon_{xx}", units="1"),
-    ),
-    "equivalent_strain": valvis.ValSimField(
-        equivalent_strain,
-        background_time_idx,
+    "strain_xx": (
+        "strain_xx",
         sens.SensorDescriptor(
-            name="Equivalent strain", symbol=r"\varepsilon_{eq}", units="1"
+            name="Strain xx", symbol=r"\varepsilon_{xx}", units="1", tag="SG"
         ),
     ),
-    "first_principal_strain": valvis.ValSimField(
-        first_principal,
-        background_time_idx,
+    "equivalent_strain": (
+        equivalent_strain,
         sens.SensorDescriptor(
-            name="First principal strain", symbol=r"\varepsilon_1", units="1"
+            name="Equivalent strain", symbol=r"\varepsilon_{eq}", units="1", tag="SG"
+        ),
+    ),
+    "first_principal_strain": (
+        first_principal,
+        sens.SensorDescriptor(
+            name="First principal strain", symbol=r"\varepsilon_1", units="1", tag="SG"
         ),
     ),
 }
 # Show all face tags through the translucent mesh, including the far faces.
-point_labels = tuple(strain_sensors.get_descriptor().create_sensor_tags(len(coords)))
-for background_name, background_field in background_fields.items():
-    pv_plot = valvis.plot_val_metric_on_sim(
+for background_name, (background_field, descriptor) in background_fields.items():
+    pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
         val_result,
         strain_tag,
         val.EMetricType.MAVM,
         selectors={
             val.EValResAxis.COMPONENT: 0,
             val.EValResAxis.TIME: 4,
+            val.EValResAxis.SIM_TRANS: 0,
         },
-        part=val.EValMetricPart.BALANCE,
+        output=val.EMetricOutput.D_MINUS,
         sim_data=nominal_sim,
         sim_field=background_field,
+        sim_time_idx=background_time_idx,
+        descriptor=descriptor,
         sim_coord_units="mm",
         sim_coord_frame="cube",
-        vis_opts=valvis.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
-        metric_opts=valvis.ValVisOpts(
-            mesh_opacity=0.4, point_labels=point_labels, labels_always_visible=True
+        vis_opts=valvis.create_val_scene_opts(interactive=SHOW_PLOTS),
+        metric_opts=valvis.ValMetricVisOpts(
+            mesh_opacity=0.4, labels_always_visible=True
         ),
     )
-    pv_plot.screenshot(output_path / f"strain_xx_balance_on_{background_name}.png")
+    pv_plot.screenshot(output_path / f"strain_xx_d_minus_on_{background_name}.png")
     if SHOW_PLOTS:
         pv_plot.show()
     pv_plot.close()

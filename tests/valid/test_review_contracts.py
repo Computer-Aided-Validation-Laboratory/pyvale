@@ -6,28 +6,28 @@ from scipy import stats
 
 import pyvale.valid as val
 from pyvale.valid.cython.mavm import cyth_calc_mavm_1d, cyth_calc_mavm_pbox_1d
-from pyvale.valid.metrics import ERelativeErrorNormalization as Normalization
+from pyvale.valid.metrics import ERelErrNorm as Normalisation
 from pyvale.valid.valtools import build_metric_selection
 
 
 @pytest.mark.parametrize(
-    "normalization,constant,expected",
+    "normalisation,constant,expected",
     [
-        (Normalization.EXPERIMENT_MAX, None, 0.25),
-        (Normalization.SIMULATION_MAX, None, 0.2),
-        (Normalization.CONSTANT, 2.0, 0.5),
+        (Normalisation.EXPERIMENT_MAX, None, 0.25),
+        (Normalisation.SIMULATION_MAX, None, 0.2),
+        (Normalisation.CONSTANT, 2.0, 0.5),
     ],
 )
-def test_relative_error_normalization_parity(
-    normalization: Normalization, constant: float | None, expected: float
+def test_relative_error_normalisation_parity(
+    normalisation: Normalisation, constant: float | None, expected: float
 ) -> None:
     simulation = np.array([2.0, 5.0, np.nan])
     experiment = np.array([1.0, 4.0, 100.0])
-    metric = val.MetricRelErr(normalization=normalization, constant=constant)
+    metric = val.MetricRelErr(normalisation=normalisation, constant=constant)
     summary = val.calc_deterministic_metrics_1d(
         simulation,
         experiment,
-        normalization=normalization,
+        normalisation=normalisation,
         constant=constant,
     )
     assert summary.relative_error == pytest.approx(expected)
@@ -50,21 +50,21 @@ def test_relative_error_zero_and_near_zero(reference: float) -> None:
 
 
 @pytest.mark.parametrize(
-    "normalization,constant",
+    "normalisation,constant",
     [
         ("experiment", None),
-        (Normalization.CONSTANT, None),
-        (Normalization.CONSTANT, 0.0),
-        (Normalization.CONSTANT, -1.0),
-        (Normalization.CONSTANT, np.inf),
-        (Normalization.EXPERIMENT_MAX, 1.0),
+        (Normalisation.CONSTANT, None),
+        (Normalisation.CONSTANT, 0.0),
+        (Normalisation.CONSTANT, -1.0),
+        (Normalisation.CONSTANT, np.inf),
+        (Normalisation.EXPERIMENT_MAX, 1.0),
     ],
 )
 def test_invalid_relative_error_configuration(
-    normalization: Normalization | str, constant: float | None
+    normalisation: Normalisation | str, constant: float | None
 ) -> None:
     with pytest.raises((ValueError, TypeError)):
-        val.MetricRelErr(normalization=normalization, constant=constant)
+        val.MetricRelErr(normalisation=normalisation, constant=constant)
 
 
 @pytest.mark.parametrize(
@@ -156,17 +156,13 @@ def test_mavm_frequency_sensitive_legacy_confidence() -> None:
 
 
 def create_case(observations: np.ndarray) -> val.ValCase:
-    domain = val.ValDomain(
-        {
-            "scalar": val.ValObservable(
-                val.ValGeometry(val.EValGeometry.GLOBAL, None),
-                val.EValOperator.MEAN,
-                ("scalar",),
-            )
-        }
-    )
+    observables = {
+        "scalar": val.ValObservable(
+            components=("scalar",), geometry=val.EValGeometry.GLOBAL, coords=None
+        )
+    }
     quantity = val.ValArray(observations, (val.EValAxis.ALEATORY,))
-    return val.ValCase(domain, {"scalar": quantity}, {"scalar": quantity})
+    return val.ValCase(observables, {"scalar": quantity}, {"scalar": quantity})
 
 
 @pytest.mark.parametrize(
@@ -224,10 +220,16 @@ def test_offset_and_borrowing_contract() -> None:
 def test_metric_field_structure_and_selectors() -> None:
     axes = (val.EValResAxis.POINT, val.EValResAxis.COMPONENT, val.EValResAxis.TIME)
     with pytest.raises(ValueError):
-        val.ValMetricField(axes, np.zeros((2, 1)))
+        val.ValMetricField(axes, {val.EMetricOutput.ERROR: np.zeros((2, 1))})
     with pytest.raises(ValueError):
-        val.ValMetricField(axes, np.zeros((2, 1, 1)), d_plus=np.zeros((2, 1, 1)))
-    field = val.ValMetricField(axes, np.zeros((2, 1, 1)))
+        val.ValMetricField(
+            axes,
+            {
+                val.EMetricOutput.D_PLUS: np.zeros((2, 1, 1)),
+                val.EMetricOutput.D_MINUS: np.zeros((3, 1, 1)),
+            },
+        )
+    field = val.ValMetricField(axes, {val.EMetricOutput.ERROR: np.zeros((2, 1, 1))})
     for index in (-1, 2, True, 0.0):
         with pytest.raises((TypeError, IndexError)):
             build_metric_selection(field, {val.EValResAxis.POINT: index})
@@ -240,7 +242,9 @@ def test_metric_field_structure_and_selectors() -> None:
 )
 def test_geometry_rejects_nonfinite_and_complex(coordinates: np.ndarray) -> None:
     with pytest.raises((TypeError, ValueError)):
-        val.ValGeometry(val.EValGeometry.POINT, coordinates)
+        val.ValObservable(
+            components=("scalar",), coords=coordinates, geometry=val.EValGeometry.POINT
+        )
 
 
 def test_unsigned_support_must_be_ordered() -> None:
@@ -263,6 +267,7 @@ def test_plot_selectors_fail_without_creating_figures(selector: float) -> None:
             "scalar",
             val.EMetricType.AVM,
             selectors={val.EValResAxis.POINT: selector},
+            output=val.EMetricOutput.DISTANCE,
         )
     with pytest.raises((TypeError, IndexError)):
         valplot.plot_val_cdfs_points(case, result, "scalar", point_idxs=(selector,))
@@ -282,5 +287,125 @@ def test_unknown_histogram_axis_fails_without_creating_figure() -> None:
             "scalar",
             val.EMetricType.AVM,
             selectors={val.EValResAxis.SIM_TRANS: 0},
+            output=val.EMetricOutput.DISTANCE,
         )
+    assert plt.get_fignums() == figures
+
+
+class MetricSampleMeans(val.IValMetric):
+    """Exercise custom output ordering independently of built-in dispatch."""
+
+    def get_kind(self) -> val.EMetricType:
+        return val.EMetricType.AVM
+
+    def get_outputs(self) -> tuple[val.EMetricOutput, ...]:
+        return (val.EMetricOutput.ERROR, val.EMetricOutput.DISTANCE)
+
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> val.MetricResult:
+        return val.ScalarMetricResult(self.get_kind(), float(np.mean(sim)))
+
+    def extract_outputs(self, result: val.MetricResult) -> tuple[float, ...]:
+        assert isinstance(result, val.ScalarMetricResult)
+        return result.value, result.value + 1.0
+
+
+@pytest.mark.parametrize("workers", [1, 2])
+def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
+    workers: int,
+) -> None:
+    observations = np.array([[1.0, 3.0], [np.nan, np.nan], [4.0, 6.0]])
+    observable = val.ValObservable(
+        components=("scalar",), geometry=val.EValGeometry.POINT, coords=np.zeros((3, 3))
+    )
+    quantity = val.ValArray(observations, (val.EValAxis.POINT, val.EValAxis.ALEATORY))
+    case = val.ValCase(
+        {"scalar": observable}, {"scalar": quantity}, {"scalar": quantity}
+    )
+    result = val.ValidationEngine(
+        [MetricSampleMeans(), val.MetricKS()],
+        opts=val.ValEngineOpts(workers=workers, chunk_size=1),
+    ).run(case)
+    field = result.get("scalar", val.EMetricType.AVM)
+    assert tuple(field.outputs) == (val.EMetricOutput.ERROR, val.EMetricOutput.DISTANCE)
+    for output, expected in (
+        (val.EMetricOutput.ERROR, [2.0, np.nan, 5.0]),
+        (val.EMetricOutput.DISTANCE, [3.0, np.nan, 6.0]),
+    ):
+        assert field.outputs[output].shape == (3, 1, 1)
+        np.testing.assert_allclose(
+            val.extract_metric_values(field, output=output), expected
+        )
+        selected = val.select_metric_output(field, output)
+        assert np.shares_memory(selected, field.outputs[output])
+    statistic = result.get("scalar", val.EMetricType.KS).outputs[
+        val.EMetricOutput.STATISTIC
+    ]
+    np.testing.assert_allclose(statistic[:, 0, 0], [0.0, np.nan, 0.0])
+    maximum, selection = result.find_extreme(
+        "scalar", val.EMetricType.AVM, output=val.EMetricOutput.ERROR
+    )
+    assert maximum == 5.0
+    assert selection[val.EValResAxis.POINT] == 2
+
+
+@pytest.mark.parametrize(
+    ("geometry", "coords"),
+    [
+        (val.EValGeometry.GLOBAL, np.zeros((1, 3))),
+        (val.EValGeometry.POINT, None),
+        (val.EValGeometry.POINT, np.zeros(3)),
+        (val.EValGeometry.POINT, np.zeros((1, 2))),
+        (val.EValGeometry.POINT, np.zeros((0, 3))),
+    ],
+)
+def test_observable_rejects_incompatible_geometry_coordinates(
+    geometry: val.EValGeometry, coords: np.ndarray | None
+) -> None:
+    with pytest.raises(ValueError):
+        val.ValObservable(components=("scalar",), geometry=geometry, coords=coords)
+
+
+@pytest.mark.parametrize(
+    ("metric", "output"),
+    [
+        (val.MetricAVM(), val.EMetricOutput.DISTANCE),
+        (val.MetricKS(), val.EMetricOutput.STATISTIC),
+        (val.MetricCVM(), val.EMetricOutput.STATISTIC),
+        (val.MetricRMSE(), val.EMetricOutput.ERROR),
+        (val.MetricRelErr(), val.EMetricOutput.ERROR),
+    ],
+)
+def test_single_output_defaults_match_explicit_selection(
+    metric: val.IValMetric, output: val.EMetricOutput
+) -> None:
+    result = val.ValidationEngine([metric]).run(create_case(np.array([1.0, 2.0, 3.0])))
+    field = result.get("scalar", metric.get_kind())
+    assert tuple(field.outputs) == (output,)
+    np.testing.assert_array_equal(
+        val.extract_metric_values(field),
+        val.extract_metric_values(field, output=output),
+    )
+    assert np.shares_memory(val.select_metric_output(field), field.outputs[output])
+    assert result.find_extreme("scalar", metric.get_kind()) == result.find_extreme(
+        "scalar", metric.get_kind(), output=output
+    )
+
+
+@pytest.mark.parametrize("metric", [val.MetricMAVM(), MetricSampleMeans()])
+def test_multiple_outputs_require_explicit_selection(metric: val.IValMetric) -> None:
+    import matplotlib.pyplot as plt
+
+    from pyvale.valid import valplot
+
+    result = val.ValidationEngine([metric]).run(create_case(np.array([1.0, 2.0, 3.0])))
+    field = result.get("scalar", metric.get_kind())
+    with pytest.raises(ValueError, match="output explicitly"):
+        val.select_metric_output(field)
+    with pytest.raises(ValueError, match="output explicitly"):
+        val.extract_metric_values(field)
+    with pytest.raises(ValueError, match="output explicitly"):
+        result.find_extreme("scalar", metric.get_kind())
+    figures = plt.get_fignums()
+    with pytest.raises(ValueError, match="output explicitly"):
+        valplot.plot_val_metric_distribution(result, "scalar", metric.get_kind())
     assert plt.get_fignums() == figures

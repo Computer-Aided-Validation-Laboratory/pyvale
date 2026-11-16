@@ -24,7 +24,7 @@ CUBE_OUTPUTS = tuple(
     )
     for diagnostic in ("cdfs", "d_minus_time")
 ) + tuple(
-    f"strain_xx_balance_on_{background}.png"
+    f"strain_xx_d_minus_on_{background}.png"
     for background in (
         "temperature",
         "strain_xx",
@@ -67,56 +67,56 @@ PULSE25X_OUTPUTS = (
 
 EXAMPLES = (
     (
-        "ex0_val_quickstart",
+        "ex00_val_quickstart",
         "valid_ex0_quickstart",
         (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
             "temperature_d_plus_time.png",
-            "temperature_mavm_balance_on_sim.png",
+            "temperature_mavm_d_minus_on_sim.png",
         ),
     ),
-    ("ex1_val_metric", "valid_ex1_metric", ("observable_cdfs.png",)),
+    ("ex01_val_metric", "valid_ex1_metric", ("observable_cdfs.png",)),
     (
-        "ex2_val_steady",
+        "ex02_val_steady",
         "valid_ex2_steady",
         ("temperature_cdfs.png", "temperature_avm_on_sim.png"),
     ),
     (
-        "ex3_val_epistemic",
+        "ex03_val_epistemic",
         "valid_ex3_epistemic",
         (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
-            "temperature_mavm_balance_on_sim.png",
+            "temperature_mavm_d_minus_on_sim.png",
         ),
     ),
     (
-        "ex4_val_bounds",
+        "ex04_val_bounds",
         "valid_ex4_bounds",
         (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
-            "temperature_mavm_balance_on_sim.png",
+            "temperature_mavm_d_minus_on_sim.png",
         ),
     ),
     (
-        "ex5_val_transient",
+        "ex05_val_transient",
         "valid_ex5_transient",
         (
             "temperature_cdfs.png",
             "temperature_d_plus_time.png",
-            "temperature_mavm_balance_on_sim.png",
+            "temperature_mavm_d_minus_on_sim.png",
         ),
     ),
     (
-        "ex6_val_diagnostics",
+        "ex06_val_diagnostics",
         "valid_ex6_diagnostics",
         (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
             "temperature_d_plus_time.png",
-            "temperature_mavm_balance_on_sim.png",
+            "temperature_mavm_d_minus_on_sim.png",
             "conditional_cdf_families.png",
             "mavm_distributions.png",
             "mavm_comparisons.png",
@@ -126,7 +126,7 @@ EXAMPLES = (
         ),
     ),
     (
-        "ex7_val_field",
+        "ex07_val_field",
         "valid_ex7_field",
         (
             "strain_xx_avm_on_sim.png",
@@ -134,9 +134,9 @@ EXAMPLES = (
             "temperature_cdfs.png",
         ),
     ),
-    ("ex8_val_cube_tensor", "valid_ex8_cube_tensor", CUBE_OUTPUTS),
+    ("ex08_val_cube_tensor", "valid_ex8_cube_tensor", CUBE_OUTPUTS),
     (
-        "ex9_val_cube_sweep",
+        "ex09_val_cube_sweep",
         "valid_ex9_cube_sweep",
         CUBE_OUTPUTS
         + (

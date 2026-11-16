@@ -13,10 +13,10 @@ def create_case() -> val.ValCase:
     experiments = {}
     for name, points in (("camera", 7), ("gauge", 1)):
         observables[name] = val.ValObservable(
-            val.ValGeometry(val.EValGeometry.POINT, np.zeros((points, 3))),
-            val.EValOperator.SAMPLE,
-            ("temperature",),
-            np.array([0.0, 1.0]),
+            components=("temperature",),
+            geometry=val.EValGeometry.POINT,
+            coords=np.zeros((points, 3)),
+            times=np.array([0.0, 1.0]),
         )
         # Strided input exercises the shared-memory copy's layout handling.
         samples = generator.normal(size=(points, 1, 2, 2, 20))[..., ::2]
@@ -46,7 +46,7 @@ def create_case() -> val.ValCase:
                 (val.EValAxis.POINT,),
             ),
         )
-    return val.ValCase(val.ValDomain(observables), simulations, experiments)
+    return val.ValCase(observables, simulations, experiments)
 
 
 @pytest.mark.parametrize("chunk_size", [None, 5])
@@ -57,7 +57,7 @@ def test_spawned_metrics_match_serial(chunk_size: int | None) -> None:
     parallel = val.ValidationEngine(
         metrics, opts=val.ValEngineOpts(workers=2, chunk_size=chunk_size)
     ).run(case)
-    assert parallel.domain is case.domain
+    assert parallel.observables is case.observables
     assert parallel.metric_configs.keys() == serial.metric_configs.keys()
     serial_mavm = serial.metric_configs[val.EMetricType.MAVM]
     parallel_mavm = parallel.metric_configs[val.EMetricType.MAVM]
@@ -69,25 +69,31 @@ def test_spawned_metrics_match_serial(chunk_size: int | None) -> None:
         serial_mavm.tol,
     )
     assert parallel_mavm is not serial_mavm
-    for name in case.domain.observables:
+    for name in case.observables:
         for metric in metrics:
             expected = serial.get(name, metric.get_kind())
             actual = parallel.get(name, metric.get_kind())
             assert actual.axes == expected.axes
             assert actual.scenarios == expected.scenarios
-            for attribute in ("metric", "d_plus", "d_minus"):
-                expected_array = getattr(expected, attribute)
-                actual_array = getattr(actual, attribute)
-                if expected_array is None:
-                    assert actual_array is None
-                else:
-                    np.testing.assert_allclose(
-                        actual_array, expected_array, rtol=0, atol=0, equal_nan=True
-                    )
+            assert actual.outputs.keys() == expected.outputs.keys()
+            for output in expected.outputs:
+                np.testing.assert_allclose(
+                    actual.outputs[output],
+                    expected.outputs[output],
+                    rtol=0,
+                    atol=0,
+                    equal_nan=True,
+                )
     assert np.isnan(case.sim["camera"].data[0, 0, 0, 0]).all()
 
 
 class FailingMetric(val.IValMetric):
+    def get_outputs(self) -> tuple[val.EMetricOutput, ...]:
+        return (val.EMetricOutput.DISTANCE,)
+
+    def extract_outputs(self, result: val.MetricResult) -> tuple[float, ...]:
+        raise AssertionError("Failed calculations cannot produce outputs.")
+
     def get_kind(self) -> val.EMetricType:
         return val.EMetricType.AVM
 
@@ -101,14 +107,18 @@ def test_spawned_failure_propagates_and_engine_can_run_again() -> None:
     with pytest.raises(ValueError, match="Deliberate worker failure"):
         engine.run(case)
     engine.metrics = (val.MetricAVM(),)
-    assert np.isfinite(engine.run(case).get("camera", val.EMetricType.AVM).metric).any()
+    assert np.isfinite(
+        engine.run(case)
+        .get("camera", val.EMetricType.AVM)
+        .outputs[val.EMetricOutput.DISTANCE]
+    ).any()
 
 
 def test_invalid_observations_fail_when_case_is_initialized() -> None:
     case = create_case()
     case.sim["camera"].data[0, 0, 0, 0, 0] = np.inf
     with pytest.raises(ValueError, match="infinite"):
-        val.ValCase(case.domain, case.sim, case.exp)
+        val.ValCase(case.observables, case.sim, case.exp)
 
 
 @pytest.mark.parametrize("name", ["workers", "chunk_size"])

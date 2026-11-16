@@ -63,7 +63,7 @@ def calc_mavm_1d(
     Returns
     -------
     MAVMResult
-        Complete result dataclass with d+, d-, d_total, and CDF data.
+        Complete result dataclass with d+, d-, and CDF data.
     """
     return cyth_calc_mavm_1d(model_data, exp_data, alpha, duplicates, tol)
 
@@ -178,12 +178,12 @@ def _calculate_ks_statistic(simulation: np.ndarray, experiment: np.ndarray) -> f
     simulation_sorted = np.sort(simulation)
     experiment_sorted = np.sort(experiment)
     support = np.concatenate((simulation_sorted, experiment_sorted))
-    simulation_cdf = np.searchsorted(
-        simulation_sorted, support, side="right"
-    ) / len(simulation)
-    experiment_cdf = np.searchsorted(
-        experiment_sorted, support, side="right"
-    ) / len(experiment)
+    simulation_cdf = np.searchsorted(simulation_sorted, support, side="right") / len(
+        simulation
+    )
+    experiment_cdf = np.searchsorted(experiment_sorted, support, side="right") / len(
+        experiment
+    )
     return float(np.max(np.abs(simulation_cdf - experiment_cdf)))
 
 
@@ -196,19 +196,17 @@ def _calculate_cvm_statistic(simulation: np.ndarray, experiment: np.ndarray) -> 
     ranks = stats.rankdata(pooled, method="average")
     sim_rank_error = ranks[:sim_count] - np.arange(1, sim_count + 1)
     exp_rank_error = ranks[sim_count:] - np.arange(1, exp_count + 1)
-    rank_sum = (
-        sim_count * np.sum(sim_rank_error * sim_rank_error)
-        + exp_count * np.sum(exp_rank_error * exp_rank_error)
+    rank_sum = sim_count * np.sum(sim_rank_error * sim_rank_error) + exp_count * np.sum(
+        exp_rank_error * exp_rank_error
     )
     pair_count = sim_count * exp_count
     total_count = sim_count + exp_count
     return float(
-        rank_sum / (pair_count * total_count)
-        - (4 * pair_count - 1) / (6 * total_count)
+        rank_sum / (pair_count * total_count) - (4 * pair_count - 1) / (6 * total_count)
     )
 
 
-class ERelativeErrorNormalization(Enum):
+class ERelErrNorm(Enum):
     EXPERIMENT_MAX = auto()
     SIMULATION_MAX = auto()
     CONSTANT = auto()
@@ -223,12 +221,12 @@ class DeterministicMetricResult:
 
 
 def validate_relative_error_config(
-    normalization: ERelativeErrorNormalization,
+    normalisation: ERelErrNorm,
     constant: float | None,
 ) -> None:
-    if not isinstance(normalization, ERelativeErrorNormalization):
-        raise TypeError("Normalization must be ERelativeErrorNormalization.")
-    if normalization is ERelativeErrorNormalization.CONSTANT:
+    if not isinstance(normalisation, ERelErrNorm):
+        raise TypeError("Normalisation must be ERelErrNorm.")
+    if normalisation is ERelErrNorm.CONSTANT:
         if (
             constant is None
             or not isinstance(constant, (int, float, np.integer, np.floating))
@@ -237,21 +235,21 @@ def validate_relative_error_config(
             or constant <= 0
         ):
             raise ValueError(
-                "Constant normalization requires a positive finite constant."
+                "Constant normalisation requires a positive finite constant."
             )
     elif constant is not None:
-        raise ValueError("A normalization constant requires CONSTANT normalization.")
+        raise ValueError("A normalisation constant requires CONSTANT normalisation.")
 
 
 def calculate_relative_error(
     simulation: np.ndarray,
     experiment: np.ndarray,
-    normalization: ERelativeErrorNormalization,
+    normalisation: ERelErrNorm,
     constant: float | None,
 ) -> float:
-    if normalization is ERelativeErrorNormalization.EXPERIMENT_MAX:
+    if normalisation is ERelErrNorm.EXPERIMENT_MAX:
         denominator = float(np.max(np.abs(experiment)))
-    elif normalization is ERelativeErrorNormalization.SIMULATION_MAX:
+    elif normalisation is ERelErrNorm.SIMULATION_MAX:
         denominator = float(np.max(np.abs(simulation)))
     else:
         assert constant is not None
@@ -316,11 +314,11 @@ def calc_deterministic_metrics_1d(
     sim_val: float | np.ndarray,
     exp_val: float | np.ndarray,
     *,
-    normalization: ERelativeErrorNormalization = ERelativeErrorNormalization.EXPERIMENT_MAX,
+    normalisation: ERelErrNorm = ERelErrNorm.EXPERIMENT_MAX,
     constant: float | None = None,
 ) -> DeterministicMetricResult:
     """Return paired errors; NMSE is NaN for variance at or below the zero tolerance."""
-    validate_relative_error_config(normalization, constant)
+    validate_relative_error_config(normalisation, constant)
     simulation, experiment = validate_paired_samples(sim_val, exp_val)
     residual = simulation - experiment
     mean_square_error = float(np.mean(residual * residual))
@@ -328,7 +326,7 @@ def calc_deterministic_metrics_1d(
     return DeterministicMetricResult(
         absolute_error=float(np.mean(np.abs(residual))),
         relative_error=calculate_relative_error(
-            simulation, experiment, normalization, constant
+            simulation, experiment, normalisation, constant
         ),
         rmse=float(np.sqrt(mean_square_error)),
         nmse=mean_square_error / experimental_variance

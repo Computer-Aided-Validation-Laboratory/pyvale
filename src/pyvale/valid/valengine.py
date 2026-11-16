@@ -18,11 +18,11 @@ from os import cpu_count
 import numpy as np
 
 from pyvale.valid.cython.mavm import (
-    _PreparedECDF,
-    _PreparedMAVMExperiment,
     _calculate_prepared_mavm,
     _prepare_mavm_distribution,
     _prepare_mavm_experiment,
+    _PreparedECDF,
+    _PreparedMAVMExperiment,
 )
 from pyvale.valid.inputvalidation import validate_mavm_config, validate_unique_sample
 from pyvale.valid.metrics import validate_relative_error_config
@@ -37,14 +37,13 @@ from pyvale.valid.metricstrategy import (
 from pyvale.valid.valtypes import (
     EEpisOffset,
     EMAVMDuplicates,
+    EMetricOutput,
     EpistemicOffsets,
     EValAxis,
-    MAVMResult,
     ValArray,
     ValCase,
-    ValDomain,
+    ValObservable,
 )
-
 
 _SHARED_CHUNKS_PER_TASK = 4
 
@@ -71,15 +70,13 @@ class ValMetricField:
     Axes are point, component, time, simulation transferable/nuisance epistemic,
     experiment transferable/nuisance epistemic, simulation offset, experiment
     offset. Physical axes are always present; singleton uncertainty axes are
-    omitted. ``metric``, ``d_plus`` and ``d_minus`` share the same shape.
+    omitted. All output arrays share the same shape.
     A steady scalar observable commonly has shape (n_points, 1, 1); a transient
     vector has shape (n_points, n_components, n_times) before scenario axes.
     """
 
     axes: tuple[EValResAxis, ...]
-    metric: np.ndarray
-    d_plus: np.ndarray | None = None
-    d_minus: np.ndarray | None = None
+    outputs: dict[EMetricOutput, np.ndarray]
     scenarios: dict[EValResAxis, tuple[EEpisOffset, ...]] | None = None
 
     def __post_init__(self) -> None:
@@ -92,26 +89,23 @@ class ValMetricField:
         ):
             raise ValueError("Result axes must be unique and canonical.")
 
-        if (
-            self.axes[:3] != VAL_RES_AXES[:3]
-            or self.metric.ndim != len(self.axes)
-            or any(size == 0 for size in self.metric.shape)
-        ):
-            raise ValueError(
-                "Metric shape must match nonempty axes including physical axes."
-            )
-
-        if (self.d_plus is None) != (self.d_minus is None):
-            raise ValueError("Directional arrays must be supplied together.")
-
-        if self.metric.dtype.kind not in "iuf":
-            raise TypeError("Metric arrays must contain real numbers.")
-
-        for directional in (self.d_plus, self.d_minus):
-            if directional is not None and directional.dtype.kind not in "iuf":
-                raise TypeError("Directional metric arrays must contain real numbers.")
-            if directional is not None and directional.shape != self.metric.shape:
-                raise ValueError("Directional arrays must match metric shape.")
+        if not self.outputs:
+            raise ValueError("Metric fields require at least one output.")
+        shape = next(iter(self.outputs.values())).shape
+        for output, array in self.outputs.items():
+            if not isinstance(output, EMetricOutput):
+                raise TypeError("Metric outputs must be EMetricOutput.")
+            if (
+                self.axes[:3] != VAL_RES_AXES[:3]
+                or array.ndim != len(self.axes)
+                or any(size == 0 for size in array.shape)
+                or array.shape != shape
+            ):
+                raise ValueError(
+                    "Output shape must match nonempty axes and other outputs."
+                )
+            if array.dtype.kind not in "iuf":
+                raise TypeError("Metric arrays must contain real numbers.")
 
         for axis, scenarios in (self.scenarios or {}).items():
             if (
@@ -121,7 +115,7 @@ class ValMetricField:
             ):
                 raise ValueError("Scenarios must describe stored offset axes.")
             if (
-                len(scenarios) != self.metric.shape[self.axes.index(axis)]
+                len(scenarios) != shape[self.axes.index(axis)]
                 or len(set(scenarios)) != len(scenarios)
                 or any(not isinstance(scenario, EEpisOffset) for scenario in scenarios)
             ):
@@ -130,11 +124,26 @@ class ValMetricField:
                 )
 
 
+def resolve_metric_output(
+    field: ValMetricField, output: EMetricOutput | None
+) -> EMetricOutput:
+    """Select the sole output or require an explicit choice for multiple outputs."""
+    if output is None:
+        if len(field.outputs) != 1:
+            raise ValueError("Select an output explicitly for a multi-output metric.")
+        return next(iter(field.outputs))
+    if not isinstance(output, EMetricOutput):
+        raise TypeError("Metric output must be EMetricOutput.")
+    if output not in field.outputs:
+        raise ValueError(f"Metric field has no {output.name} output.")
+    return output
+
+
 @dataclass(slots=True)
 class ValResult:
-    """Borrow domain/field arrays and snapshot metric configurations."""
+    """Borrow observables/field arrays and snapshot metric configurations."""
 
-    domain: ValDomain
+    observables: dict[str, ValObservable]
     fields: dict[str, dict[EMetricType, ValMetricField]]
     metric_configs: dict[EMetricType, IValMetric]
 
@@ -150,20 +159,22 @@ class ValResult:
         observable: str,
         metric: EMetricType,
         *,
+        output: EMetricOutput | None = None,
         maximum: bool = True,
     ) -> tuple[float, dict[EValResAxis, int]]:
         """Locate a finite extreme without reducing the stored result field."""
         field = self.get(observable, metric)
-        if not np.any(np.isfinite(field.metric)):
+        values = field.outputs[resolve_metric_output(field, output)]
+        if not np.any(np.isfinite(values)):
             raise ValueError("Metric field contains no finite results.")
         selectable = np.where(
-            np.isfinite(field.metric), field.metric, -np.inf if maximum else np.inf
+            np.isfinite(values), values, -np.inf if maximum else np.inf
         )
         flat_idx = np.argmax(selectable) if maximum else np.argmin(selectable)
         selection_idx = tuple(
-            int(index) for index in np.unravel_index(flat_idx, field.metric.shape)
+            int(index) for index in np.unravel_index(flat_idx, values.shape)
         )
-        return float(field.metric[selection_idx]), dict(
+        return float(values[selection_idx]), dict(
             zip(field.axes, selection_idx, strict=True)
         )
 
@@ -242,13 +253,18 @@ class ValidationEngine:
             raise TypeError("Metric kinds must be EMetricType.")
         if len(set(kinds)) != len(kinds):
             raise ValueError("Metric types must be unique in one engine.")
+        for metric in metrics:
+            outputs = metric.get_outputs()
+            if not outputs or len(set(outputs)) != len(outputs):
+                raise ValueError("Metric outputs must be nonempty and unique.")
+            if any(not isinstance(output, EMetricOutput) for output in outputs):
+                raise TypeError("Metric outputs must be EMetricOutput.")
         self.metrics = tuple(deepcopy(metrics))
         self.opts = (
             ValEngineOpts()
             if opts is None
             else ValEngineOpts(workers=opts.workers, chunk_size=opts.chunk_size)
         )
-        _validate_metric_configs(self.metrics)
 
     def run(self, val_case: ValCase) -> ValResult:
         """Return all physical, sampled epistemic, and offset scenarios."""
@@ -257,7 +273,7 @@ class ValidationEngine:
         # mutate them during evaluation. Preflight scenario invariants before output.
         from pyvale.valid.valtools import extract_aleatory_scenarios
 
-        for name in val_case.domain.observables:
+        for name in val_case.observables:
             sim, exp = val_case.sim[name], val_case.exp[name]
             requires_pairs = any(
                 metric.get_kind() in (EMetricType.RMSE, EMetricType.RELATIVE_ERROR)
@@ -290,19 +306,20 @@ class ValidationEngine:
                             )
         results: dict[str, dict[EMetricType, ValMetricField]] = {}
         workloads = []
-        for name, observable in val_case.domain.observables.items():
+        for name, observable in val_case.observables.items():
             sim = val_case.sim[name]
             exp = val_case.exp[name]
+            leng_pt = 1
+            if observable.coords is not None:
+                leng_pt = observable.coords.shape[0]
+            leng_comp = len(observable.components)
+            leng_time = 1
+            if observable.times is not None:
+                leng_time = observable.times.shape[0]
             axis_sizes = {
-                EValResAxis.POINT: (
-                    1
-                    if observable.geometry.coords is None
-                    else len(observable.geometry.coords)
-                ),
-                EValResAxis.COMPONENT: len(observable.components),
-                EValResAxis.TIME: 1
-                if observable.times is None
-                else len(observable.times),
+                EValResAxis.POINT: leng_pt,
+                EValResAxis.COMPONENT: leng_comp,
+                EValResAxis.TIME: leng_time,
                 EValResAxis.SIM_TRANS: _get_axis_size(sim, EValAxis.EPISTEMIC_TRANS),
                 EValResAxis.SIM_NUIS: _get_axis_size(sim, EValAxis.EPISTEMIC_NUIS),
                 EValResAxis.EXP_TRANS: _get_axis_size(exp, EValAxis.EPISTEMIC_TRANS),
@@ -322,12 +339,12 @@ class ValidationEngine:
                     scenarios[axis] = tuple(EEpisOffset)
             fields = {}
             for metric in self.metrics:
-                directional = metric.get_kind() is EMetricType.MAVM
                 fields[metric.get_kind()] = ValMetricField(
                     axes=axes,
-                    metric=np.full(shape, np.nan),
-                    d_plus=np.full(shape, np.nan) if directional else None,
-                    d_minus=np.full(shape, np.nan) if directional else None,
+                    outputs={
+                        output: np.full(shape, np.nan)
+                        for output in metric.get_outputs()
+                    },
                     scenarios=scenarios or None,
                 )
             full_shape = tuple(axis_sizes[axis] for axis in VAL_RES_AXES)
@@ -394,7 +411,9 @@ class ValidationEngine:
                         for name, start, calculated in batch:
                             _store_chunk(results[name], self.metrics, start, calculated)
         configs = {metric.get_kind(): metric for metric in self.metrics}
-        return ValResult(domain=val_case.domain, fields=results, metric_configs=configs)
+        return ValResult(
+            observables=val_case.observables, fields=results, metric_configs=configs
+        )
 
 
 def _get_axis_size(quantity: ValArray, axis: EValAxis) -> int:
@@ -454,8 +473,12 @@ def _calculate_shared_batch(
         experiment = _attach_quantity(workload.exp, stack)
         for start in range(task.start, task.stop, task.chunk_size):
             calculated = _calculate_chunk(
-                simulation, experiment, workload.shape, task.metrics,
-                start, min(start + task.chunk_size, task.stop),
+                simulation,
+                experiment,
+                workload.shape,
+                task.metrics,
+                start,
+                min(start + task.chunk_size, task.stop),
             )
             calculated_chunks.append((workload.name, start, calculated))
     return calculated_chunks
@@ -474,7 +497,9 @@ def _calculate_chunk(
     )
     model_distributions: dict[tuple[int, ...], _PreparedECDF] = {}
     experimental_distributions: dict[tuple[int, ...], _PreparedMAVMExperiment] = {}
-    calculated = np.full((len(metrics), 3, stop - start), np.nan)
+    metric_outputs = tuple(metric.get_outputs() for metric in metrics)
+    output_count = sum(len(outputs) for outputs in metric_outputs)
+    calculated = np.full((output_count, stop - start), np.nan)
     for local_idx, flat_idx in enumerate(range(start, stop)):
         indices = tuple(int(index) for index in np.unravel_index(flat_idx, shape))
         (
@@ -505,11 +530,17 @@ def _calculate_chunk(
             paired = sim_present & exp_present
             paired_simulation = np.asarray(sim_samples[paired], dtype=np.float64)
             paired_experiment = np.asarray(exp_samples[paired], dtype=np.float64)
-        for metric_idx, metric in enumerate(metrics):
+        output_start = 0
+        for metric, outputs in zip(metrics, metric_outputs, strict=True):
             if type(metric) is MetricMAVM:
                 model_key = (point, component, time, sim_trans, sim_nuis, sim_off)
                 experimental_key = (
-                    point, component, time, exp_trans, exp_nuis, exp_off
+                    point,
+                    component,
+                    time,
+                    exp_trans,
+                    exp_nuis,
+                    exp_off,
                 )
                 if model_key not in model_distributions:
                     model_distributions[model_key] = _prepare_mavm_distribution(
@@ -522,7 +553,9 @@ def _calculate_chunk(
                 metric_result = _calculate_prepared_mavm(
                     model_distributions[model_key],
                     experimental_distributions[experimental_key],
-                    metric.alpha, metric.duplicates, metric.tol,
+                    metric.alpha,
+                    metric.duplicates,
+                    metric.tol,
                 )
             elif type(metric) in (MetricRMSE, MetricRelErr):
                 metric_result = calculate_trusted_metric(
@@ -530,14 +563,14 @@ def _calculate_chunk(
                 )
             else:
                 metric_result = calculate_trusted_metric(metric, simulation, experiment)
-            if isinstance(metric_result, MAVMResult):
-                calculated[metric_idx, :, local_idx] = (
-                    metric_result.d_total,
-                    metric_result.d_plus,
-                    metric_result.d_minus,
+            output_stop = output_start + len(outputs)
+            output_values = metric.extract_outputs(metric_result)
+            if len(output_values) != len(outputs):
+                raise ValueError(
+                    "Calculated outputs must match the metric declaration."
                 )
-            else:
-                calculated[metric_idx, 0, local_idx] = metric_result.value
+            calculated[output_start:output_stop, local_idx] = output_values
+            output_start = output_stop
     return calculated
 
 
@@ -548,13 +581,12 @@ def _store_chunk(
     calculated: np.ndarray,
 ) -> None:
     stop = start + calculated.shape[-1]
-    for metric_idx, metric in enumerate(metrics):
+    output_idx = 0
+    for metric in metrics:
         field = fields[metric.get_kind()]
-        field.metric.reshape(-1)[start:stop] = calculated[metric_idx, 0]
-        if field.d_plus is not None:
-            assert field.d_minus is not None
-            field.d_plus.reshape(-1)[start:stop] = calculated[metric_idx, 1]
-            field.d_minus.reshape(-1)[start:stop] = calculated[metric_idx, 2]
+        for output in metric.get_outputs():
+            field.outputs[output].reshape(-1)[start:stop] = calculated[output_idx]
+            output_idx += 1
 
 
 def _validate_metric_configs(metrics: tuple[IValMetric, ...]) -> None:
@@ -562,4 +594,4 @@ def _validate_metric_configs(metrics: tuple[IValMetric, ...]) -> None:
         if isinstance(metric, MetricMAVM):
             validate_mavm_config(metric.alpha, metric.duplicates, metric.tol)
         elif isinstance(metric, MetricRelErr):
-            validate_relative_error_config(metric.normalization, metric.constant)
+            validate_relative_error_config(metric.normalisation, metric.constant)

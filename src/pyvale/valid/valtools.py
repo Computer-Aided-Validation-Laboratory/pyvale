@@ -15,13 +15,13 @@ from pyvale.valid.constants import MAVM_AREA_TOLERANCE
 from pyvale.valid.inputvalidation import validate_finite_sample, validate_real_array
 from pyvale.valid.metrics import calc_mavm_1d
 from pyvale.valid.metricstrategy import EMetricType
-from pyvale.valid.valengine import EValResAxis, ValMetricField
+from pyvale.valid.valengine import EValResAxis, ValMetricField, resolve_metric_output
 from pyvale.valid.valtypes import (
     EEpisOffset,
     EMAVMDuplicates,
+    EMetricOutput,
     EValAxis,
     EValECDFBounds,
-    EValMetricPart,
     MAVMCorrection,
     ValArray,
     ValECDF,
@@ -150,24 +150,14 @@ def extract_aleatory_scenarios(
     return samples
 
 
-def select_metric_part(
+def select_metric_output(
     field: ValMetricField,
-    part: EValMetricPart = EValMetricPart.TOTAL,
+    output: EMetricOutput | None = None,
     *,
     selection_idxs: tuple[int | slice, ...] = (),
 ) -> np.ndarray:
-    """Borrow total/directional selections; allocate d_plus - d_minus for balance."""
-    if not isinstance(part, EValMetricPart):
-        raise TypeError("Metric part must be EValMetricPart.")
-    if part is EValMetricPart.TOTAL:
-        return field.metric[selection_idxs]
-    if field.d_plus is None or field.d_minus is None:
-        raise ValueError("Selected metric has no directional results.")
-    if part is EValMetricPart.D_PLUS:
-        return field.d_plus[selection_idxs]
-    if part is EValMetricPart.D_MINUS:
-        return field.d_minus[selection_idxs]
-    return field.d_plus[selection_idxs] - field.d_minus[selection_idxs]
+    """Borrow an explicit output, or the sole output when no choice is supplied."""
+    return field.outputs[resolve_metric_output(field, output)][selection_idxs]
 
 
 def extract_metric_values(
@@ -175,7 +165,7 @@ def extract_metric_values(
     *,
     keep: EValResAxis = EValResAxis.POINT,
     selectors: dict[EValResAxis, int] | None = None,
-    part: EValMetricPart = EValMetricPart.TOTAL,
+    output: EMetricOutput | None = None,
 ) -> np.ndarray:
     """Retain one axis and select every other non-singleton result axis."""
     if not isinstance(keep, EValResAxis) or keep not in field.axes:
@@ -184,7 +174,7 @@ def extract_metric_values(
     if keep in selected:
         raise ValueError("Selectors cannot name the retained axis.")
     selection_idxs = build_metric_selection(field, selectors, keep=keep)
-    return select_metric_part(field, part, selection_idxs=tuple(selection_idxs))
+    return select_metric_output(field, output, selection_idxs=tuple(selection_idxs))
 
 
 def build_metric_selection(
@@ -198,7 +188,9 @@ def build_metric_selection(
         if not isinstance(axis, EValResAxis) or axis not in field.axes:
             raise ValueError("Selectors must name stored result axes.")
     selection = []
-    for axis, size in zip(field.axes, field.metric.shape, strict=True):
+    for axis, size in zip(
+        field.axes, next(iter(field.outputs.values())).shape, strict=True
+    ):
         if axis == keep or (keep is None and axis not in selected):
             selection.append(slice(None))
             continue
@@ -215,22 +207,21 @@ def build_metric_selection(
     return tuple(selection)
 
 
-def create_metric_label(metric: EMetricType, part: EValMetricPart) -> str:
-    """Name the plotted quantity, including MAVM direction and cancellation."""
-    if metric is EMetricType.MAVM:
-        return {
-            EValMetricPart.TOTAL: "MAVM d+ + d−",
-            EValMetricPart.D_PLUS: "MAVM d+",
-            EValMetricPart.D_MINUS: "MAVM d−",
-            EValMetricPart.BALANCE: "MAVM directional balance (d+ − d−)",
-        }[part]
-    return metric.name
+def create_metric_label(metric: EMetricType, output: EMetricOutput) -> str:
+    output_label = {
+        EMetricOutput.D_PLUS: "d+",
+        EMetricOutput.D_MINUS: "d−",
+        EMetricOutput.DISTANCE: "distance",
+        EMetricOutput.STATISTIC: "statistic",
+        EMetricOutput.ERROR: "error",
+    }[output]
+    return f"{metric.name} {output_label}"
 
 
 def evaluate_ecdf_quantiles(cdf: ValECDF, probabilities: np.ndarray) -> np.ndarray:
     """Evaluate the inverse ECDF using the first support reaching each probability."""
     probabilities = validate_real_array(probabilities, "probabilities", allow_nan=False)
-    if probabilities.ndim != 1 or not np.all(np.isfinite(probabilities)):
+    if probabilities.ndim != 1:
         raise ValueError("Probabilities must be a finite one-dimensional array.")
     if np.any(probabilities < 0.0) or np.any(probabilities > 1.0):
         raise ValueError("Probabilities must lie in [0, 1].")

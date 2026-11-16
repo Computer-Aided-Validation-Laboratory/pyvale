@@ -21,18 +21,28 @@ def test_prepared_plate_gold_metrics() -> None:
     """Track the saved SensorSim fixture and selected metric diagnostics."""
     val_case = load_plate_case()
     result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(val_case)
-    assert result.get("temperature", val.EMetricType.AVM).metric[5, 0, 0] == (
-        pytest.approx(0.26243433506330643, abs=1e-10)
-    )
-    assert result.get("temperature", val.EMetricType.MAVM).metric[5, 0, 0] == (
-        pytest.approx(0.4891546824953229, abs=1e-10)
-    )
-    assert result.get("strain", val.EMetricType.AVM).metric[5, 0, 0] == (
-        pytest.approx(1.2018068336589567e-6, abs=1e-12)
-    )
-    assert result.get("strain", val.EMetricType.MAVM).metric[5, 2, 0] == (
-        pytest.approx(3.368761032966909e-6, abs=1e-12)
-    )
+    assert result.get("temperature", val.EMetricType.AVM).outputs[
+        val.EMetricOutput.DISTANCE
+    ][5, 0, 0] == (pytest.approx(0.26243433506330643, abs=1e-10))
+    assert (
+        result.get("temperature", val.EMetricType.MAVM).outputs[
+            val.EMetricOutput.D_PLUS
+        ][5, 0, 0]
+        + result.get("temperature", val.EMetricType.MAVM).outputs[
+            val.EMetricOutput.D_MINUS
+        ][5, 0, 0]
+    ) == (pytest.approx(0.4891546824953229, abs=1e-10))
+    assert result.get("strain", val.EMetricType.AVM).outputs[
+        val.EMetricOutput.DISTANCE
+    ][5, 0, 0] == (pytest.approx(1.2018068336589567e-6, abs=1e-12))
+    assert (
+        result.get("strain", val.EMetricType.MAVM).outputs[val.EMetricOutput.D_PLUS][
+            5, 2, 0
+        ]
+        + result.get("strain", val.EMetricType.MAVM).outputs[val.EMetricOutput.D_MINUS][
+            5, 2, 0
+        ]
+    ) == (pytest.approx(3.368761032966909e-6, abs=1e-12))
 
 
 def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
@@ -42,17 +52,15 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
         times = saved["times"].copy()
         measured = saved["exp_temp"].copy()
 
-    domain = val.ValDomain(
-        {
-            "temperature": val.ValObservable(
-                val.ValGeometry(val.EValGeometry.POINT, coords),
-                val.EValOperator.SAMPLE,
-                ("temperature",),
-                times,
-                "degC",
-            )
-        }
-    )
+    observables = {
+        "temperature": val.ValObservable(
+            components=("temperature",),
+            geometry=val.EValGeometry.POINT,
+            coords=coords,
+            times=times,
+            phys_units="degC",
+        )
+    }
     nominal_path = dataset.thermomechanical_2d_experiment_paths()[0]
     sim_data = mh.ExodusLoader(nominal_path).load_all_sim_data()
     sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
@@ -62,7 +70,7 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
                 simulation, "temperature", sens.EDim.TWOD
             )
         },
-        domain,
+        observables,
         [((), sim_data)],
     )
 
@@ -76,7 +84,7 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
         selections={"temperature": valconvert.ObservableSelection("temp", 0, coords)},
     )
     cases = [
-        val.ValCase(domain, sim, valconvert.convert_exp_to_val(run, domain))
+        val.ValCase(observables, sim, valconvert.convert_exp_to_val(run, observables))
         for run in acquisitions
     ]
     converted = valconvert.combine_val_cases(*cases)
@@ -98,7 +106,7 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
             ),
         )
     }
-    direct = val.ValCase(domain, direct_sim, direct_exp)
+    direct = val.ValCase(observables, direct_sim, direct_exp)
     np.testing.assert_array_equal(
         converted.exp["temperature"].data,
         direct.exp["temperature"].data,
@@ -107,15 +115,18 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
     converted_result = engine.run(converted)
     direct_result = engine.run(direct)
     for metric in (val.EMetricType.AVM, val.EMetricType.MAVM):
-        np.testing.assert_allclose(
-            converted_result.get("temperature", metric).metric,
-            direct_result.get("temperature", metric).metric,
-            rtol=0.0,
-            atol=1e-12,
-        )
+        expected = direct_result.get("temperature", metric)
+        actual = converted_result.get("temperature", metric)
+        for output in expected.outputs:
+            np.testing.assert_allclose(
+                actual.outputs[output], expected.outputs[output], rtol=0.0, atol=1e-12
+            )
 
 
-def test_global_and_spatial_average_simulation_extraction() -> None:
+@pytest.mark.parametrize("spatial_averager", [None, sens.EIntSpatialType.RECT4PT])
+def test_global_and_sensor_simulation_extraction(
+    spatial_averager: sens.EIntSpatialType | None,
+) -> None:
     """Reuse SensorSim's averaging and existing MOOSE global output."""
     sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
     sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
@@ -125,27 +136,25 @@ def test_global_and_spatial_average_simulation_extraction() -> None:
     average_sensor = sens.SensorData(
         positions=coords,
         sample_times=times,
-        spatial_averager=sens.EIntSpatialType.RECT4PT,
+        spatial_averager=spatial_averager,
         spatial_dims=np.array([5.0, 5.0, 0.0]),
     )
-    domain = val.ValDomain(
-        {
-            "temperature_average": val.ValObservable(
-                val.ValGeometry(val.EValGeometry.POINT, coords),
-                val.EValOperator.MEAN,
-                ("temperature",),
-                times,
-                "degC",
-            ),
-            "global_temperature": val.ValObservable(
-                val.ValGeometry(val.EValGeometry.GLOBAL, None),
-                val.EValOperator.MEAN,
-                ("temp_avg",),
-                times,
-                "degC",
-            ),
-        }
-    )
+    observables = {
+        "temperature_average": val.ValObservable(
+            components=("temperature",),
+            geometry=val.EValGeometry.POINT,
+            coords=coords,
+            times=times,
+            phys_units="degC",
+        ),
+        "global_temperature": val.ValObservable(
+            components=("temp_avg",),
+            geometry=val.EValGeometry.GLOBAL,
+            coords=None,
+            times=times,
+            phys_units="degC",
+        ),
+    }
     field = sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD)
     result = valconvert.convert_sim_to_val(
         {
@@ -154,7 +163,7 @@ def test_global_and_spatial_average_simulation_extraction() -> None:
             ),
             "global_temperature": None,
         },
-        domain,
+        observables,
         [((), sim_data)],
         sensor_data={"temperature_average": average_sensor},
     )
@@ -197,7 +206,7 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
         selectors={val.EValResAxis.POINT: 5},
     )
     np.testing.assert_array_equal(
-        ax_time.lines[0].get_xdata(), val_case.domain.observables["temperature"].times
+        ax_time.lines[0].get_xdata(), val_case.observables["temperature"].times
     )
     assert ax_time.get_xlabel() == "Time [s]"
     plt.close(fig_cdf)

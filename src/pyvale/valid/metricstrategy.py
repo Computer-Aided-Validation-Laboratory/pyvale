@@ -17,7 +17,7 @@ from pyvale.valid.constants import MAVM_AREA_TOLERANCE
 from pyvale.valid.cython.mavm import _calculate_mavm
 from pyvale.valid.inputvalidation import validate_mavm_config
 from pyvale.valid.metrics import (
-    ERelativeErrorNormalization,
+    ERelErrNorm,
     _calculate_cvm_statistic,
     _calculate_ks_statistic,
     calc_avm_1d,
@@ -28,7 +28,7 @@ from pyvale.valid.metrics import (
     validate_paired_samples,
     validate_relative_error_config,
 )
-from pyvale.valid.valtypes import EMAVMDuplicates, MAVMResult
+from pyvale.valid.valtypes import EMAVMDuplicates, EMetricOutput, MAVMResult
 
 
 class EMetricType(Enum):
@@ -66,6 +66,14 @@ class IValMetric(ABC):
     def get_kind(self) -> EMetricType:
         """Return the metric tag without calculating a result."""
 
+    @abstractmethod
+    def get_outputs(self) -> tuple[EMetricOutput, ...]:
+        """Declare outputs in the order returned by extract_outputs."""
+
+    @abstractmethod
+    def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
+        """Extract numerical outputs from this metric's tagged result."""
+
 
 class MetricMAVM(IValMetric):
     __slots__ = ("alpha", "duplicates", "tol")
@@ -88,6 +96,17 @@ class MetricMAVM(IValMetric):
     def get_kind(self) -> EMetricType:
         return EMetricType.MAVM
 
+    def get_outputs(self) -> tuple[EMetricOutput, ...]:
+        return (
+            EMetricOutput.D_PLUS,
+            EMetricOutput.D_MINUS,
+        )
+
+    def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
+        if not isinstance(result, MAVMResult):
+            raise TypeError("MAVM requires MAVMResult.")
+        return result.d_plus, result.d_minus
+
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> MAVMResult:
         return calc_mavm_1d(
             sim, exp, alpha=self.alpha, duplicates=self.duplicates, tol=self.tol
@@ -100,6 +119,17 @@ class MetricAVM(IValMetric):
     def get_kind(self) -> EMetricType:
         return EMetricType.AVM
 
+    def get_outputs(self) -> tuple[EMetricOutput, ...]:
+        return (EMetricOutput.DISTANCE,)
+
+    def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
+        if (
+            not isinstance(result, ScalarMetricResult)
+            or result.kind is not self.get_kind()
+        ):
+            raise TypeError("Result must match the metric kind.")
+        return (result.value,)
+
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         return ScalarMetricResult(EMetricType.AVM, calc_avm_1d(sim, exp))
 
@@ -109,6 +139,17 @@ class MetricKS(IValMetric):
 
     def get_kind(self) -> EMetricType:
         return EMetricType.KS
+
+    def get_outputs(self) -> tuple[EMetricOutput, ...]:
+        return (EMetricOutput.STATISTIC,)
+
+    def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
+        if (
+            not isinstance(result, ScalarMetricResult)
+            or result.kind is not self.get_kind()
+        ):
+            raise TypeError("Result must match the metric kind.")
+        return (result.value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         return ScalarMetricResult(EMetricType.KS, calc_ks_1d(sim, exp))
@@ -120,6 +161,17 @@ class MetricCVM(IValMetric):
     def get_kind(self) -> EMetricType:
         return EMetricType.CVM
 
+    def get_outputs(self) -> tuple[EMetricOutput, ...]:
+        return (EMetricOutput.STATISTIC,)
+
+    def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
+        if (
+            not isinstance(result, ScalarMetricResult)
+            or result.kind is not self.get_kind()
+        ):
+            raise TypeError("Result must match the metric kind.")
+        return (result.value,)
+
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         return ScalarMetricResult(EMetricType.CVM, calc_cvm_1d(sim, exp))
 
@@ -129,6 +181,17 @@ class MetricRMSE(IValMetric):
 
     def get_kind(self) -> EMetricType:
         return EMetricType.RMSE
+
+    def get_outputs(self) -> tuple[EMetricOutput, ...]:
+        return (EMetricOutput.ERROR,)
+
+    def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
+        if (
+            not isinstance(result, ScalarMetricResult)
+            or result.kind is not self.get_kind()
+        ):
+            raise TypeError("Result must match the metric kind.")
+        return (result.value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         sim_values, exp_values = validate_paired_samples(sim, exp)
@@ -140,29 +203,40 @@ class MetricRMSE(IValMetric):
 
 
 class MetricRelErr(IValMetric):
-    __slots__ = ("constant", "normalization")
-    normalization: ERelativeErrorNormalization
+    __slots__ = ("constant", "normalisation")
+    normalisation: ERelErrNorm
     constant: float | None
 
     def __init__(
         self,
         *,
-        normalization: ERelativeErrorNormalization = ERelativeErrorNormalization.EXPERIMENT_MAX,
+        normalisation: ERelErrNorm = ERelErrNorm.EXPERIMENT_MAX,
         constant: float | None = None,
     ) -> None:
-        validate_relative_error_config(normalization, constant)
-        self.normalization = normalization
+        validate_relative_error_config(normalisation, constant)
+        self.normalisation = normalisation
         self.constant = constant
 
     def get_kind(self) -> EMetricType:
         return EMetricType.RELATIVE_ERROR
+
+    def get_outputs(self) -> tuple[EMetricOutput, ...]:
+        return (EMetricOutput.ERROR,)
+
+    def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
+        if (
+            not isinstance(result, ScalarMetricResult)
+            or result.kind is not self.get_kind()
+        ):
+            raise TypeError("Result must match the metric kind.")
+        return (result.value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         simulation, experiment = validate_paired_samples(sim, exp)
         return ScalarMetricResult(
             EMetricType.RELATIVE_ERROR,
             calculate_relative_error(
-                simulation, experiment, self.normalization, self.constant
+                simulation, experiment, self.normalisation, self.constant
             ),
         )
 
@@ -178,7 +252,7 @@ def calculate_trusted_metric(
             return ScalarMetricResult(kind, float("nan"))
         if isinstance(metric, MetricRelErr):
             value = calculate_relative_error(
-                simulation, experiment, metric.normalization, metric.constant
+                simulation, experiment, metric.normalisation, metric.constant
             )
         else:
             residual = simulation - experiment
@@ -193,9 +267,7 @@ def calculate_trusted_metric(
             kind, float(stats.wasserstein_distance(simulation, experiment))
         )
     if type(metric) is MetricKS:
-        return ScalarMetricResult(
-            kind, _calculate_ks_statistic(simulation, experiment)
-        )
+        return ScalarMetricResult(kind, _calculate_ks_statistic(simulation, experiment))
     if type(metric) is MetricCVM:
         return ScalarMetricResult(
             kind, _calculate_cvm_statistic(simulation, experiment)

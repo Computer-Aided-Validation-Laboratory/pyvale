@@ -27,7 +27,7 @@ def validate_real_array(
 
     if np.any(np.isinf(array)):
         raise ValueError(f"{name} cannot contain infinite values (infinity).")
-        
+
     if not allow_nan and np.any(np.isnan(array)):
         raise ValueError(f"{name} must contain finite values.")
 

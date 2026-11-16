@@ -14,11 +14,12 @@ import numpy as np
 from pyvale.valid.inputvalidation import validate_real_array
 
 
-class EValMetricPart(Enum):
-    TOTAL = auto()
+class EMetricOutput(Enum):
     D_PLUS = auto()
     D_MINUS = auto()
-    BALANCE = auto()
+    DISTANCE = auto()
+    STATISTIC = auto()
+    ERROR = auto()
 
 
 class EEpisOffset(IntEnum):
@@ -49,72 +50,46 @@ class EValGeometry(Enum):
     GLOBAL = auto()
 
 
-class EValOperator(Enum):
-    SAMPLE = auto()
-    MEAN = auto()
-    INTEGRAL = auto()
-
-
 class EValSource(StrEnum):
     SIM = "sim"
     EXP = "exp"
 
 
 @dataclass(slots=True)
-class ValGeometry:
-    kind: EValGeometry
-    coords: np.ndarray | None
+class ValObservable:
+    components: tuple[str, ...]
+    geometry: EValGeometry
+    coords: np.ndarray | None = None
     connect: dict[str, np.ndarray] | None = None
+    times: np.ndarray | None = None
+    phys_units: str = ""
     coord_units: str = ""
     coord_frame: str = ""
-    """Spatial coordinate reference frame for mesh and observation locations."""
+    time_units: str = ""
 
     def __post_init__(self) -> None:
-        if not isinstance(self.kind, EValGeometry):
+        if not isinstance(self.geometry, EValGeometry):
             raise TypeError("Geometry kind must be EValGeometry.")
         if self.coords is not None:
             validate_real_array(self.coords, "coords", allow_nan=False)
-        if self.kind is EValGeometry.GLOBAL:
+        if self.geometry is EValGeometry.GLOBAL:
             if self.coords is not None:
                 raise ValueError("GLOBAL geometry cannot have point coordinates.")
         elif self.coords is None or self.coords.ndim != 2:
             raise ValueError("Spatial geometry requires coordinates (point, xyz).")
 
         if self.coords is not None and (
-            self.coords.shape[1] != 3 or len(self.coords) == 0
+            self.coords.shape[1] != 3 or self.coords.shape[0] == 0
         ):
             raise ValueError("Coordinates must have x, y, z columns.")
-
-
-@dataclass(slots=True)
-class ValObservable:
-    geometry: ValGeometry
-    operator: EValOperator
-    components: tuple[str, ...]
-    times: np.ndarray | None = None
-    phys_units: str = ""
-    time_units: str = ""
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.operator, EValOperator):
-            raise TypeError("Observable operator must be EValOperator.")
         if not self.components or len(set(self.components)) != len(self.components):
             raise ValueError("Observable components must be nonempty and unique.")
         if self.times is not None:
             validate_real_array(self.times, "times", allow_nan=False)
-            if self.times.ndim != 1 or len(self.times) == 0:
+            if self.times.ndim != 1 or self.times.shape[0] == 0:
                 raise ValueError("Times must be a nonempty 1D array.")
             if np.any(self.times[1:] <= self.times[:-1]):
                 raise ValueError("Times must increase strictly.")
-
-
-@dataclass(slots=True)
-class ValDomain:
-    observables: dict[str, ValObservable]
-
-    def __post_init__(self) -> None:
-        if not self.observables:
-            raise ValueError("A validation domain requires an observable.")
 
 
 @dataclass(slots=True)
@@ -274,37 +249,39 @@ class ValSampleInputs:
 class ValCase:
     """Validate and borrow observations and metadata without copying large arrays."""
 
-    domain: ValDomain
+    observables: dict[str, ValObservable]
     sim: dict[str, ValArray]
     exp: dict[str, ValArray]
     sim_inputs: ValSampleInputs | None = field(default=None, kw_only=True)
     exp_inputs: ValSampleInputs | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
-        expected = set(self.domain.observables)
+        if not self.observables:
+            raise ValueError("A validation case requires an observable.")
+        expected = set(self.observables)
 
         if set(self.sim) != expected or set(self.exp) != expected:
-            raise ValueError("Simulation and experiment must match domain keys.")
+            raise ValueError("Simulation and experiment must match observables keys.")
 
-        for name, observable in self.domain.observables.items():
+        for name, observable in self.observables.items():
+            leng_pt = 1
+            if observable.coords is not None:
+                leng_pt = observable.coords.shape[0]
+            leng_comp = len(observable.components)
+            leng_time = 1
+            if observable.times is not None:
+                leng_time = observable.times.shape[0]
+            lengths = {
+                EValAxis.POINT: leng_pt,
+                EValAxis.COMPONENT: leng_comp,
+                EValAxis.TIME: leng_time,
+            }
             for source, provenance in (
                 (self.sim, self.sim_inputs),
                 (self.exp, self.exp_inputs),
             ):
                 quantity = source[name]
                 validate_real_array(quantity.data, name)
-
-                lengths = {
-                    EValAxis.POINT: (
-                        1
-                        if observable.geometry.coords is None
-                        else len(observable.geometry.coords)
-                    ),
-                    EValAxis.COMPONENT: len(observable.components),
-                    EValAxis.TIME: 1
-                    if observable.times is None
-                    else len(observable.times),
-                }
 
                 for axis, length in lengths.items():
                     if axis in quantity.axes:
@@ -349,13 +326,6 @@ class ValCase:
                                 )
 
 
-def assemble_val_case(
-    domain: ValDomain, sim: dict[str, ValArray], exp: dict[str, ValArray]
-) -> ValCase:
-    """Validate common observable metadata and assemble a comparison."""
-    return ValCase(domain=domain, sim=sim, exp=exp)
-
-
 class EMAVMDuplicates(Enum):
     """Selects the MAVM empirical-CDF integration algorithm."""
 
@@ -377,9 +347,6 @@ class MAVMResult:
 
     d_minus: float
     """Negative support-shift mismatch area, matching fullfieldvalmetrics."""
-
-    d_total: float
-    """Total mismatch distance (d_plus + d_minus)."""
 
     model_quantiles: np.ndarray
     """Quantiles (support values) of the model empirical CDF."""

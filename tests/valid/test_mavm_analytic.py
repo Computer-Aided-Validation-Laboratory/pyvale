@@ -127,10 +127,6 @@ def test_mavm_matches_fullfield_analytic_cases(
 
     assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-10)
     assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-10)
-    assert result.d_total == pytest.approx(
-        expected_d_plus + expected_d_minus,
-        abs=1e-10,
-    )
 
 
 @pytest.mark.parametrize(
@@ -186,7 +182,31 @@ def test_mavm_pbox(duplicates: EMAVMDuplicates, calculator: MAVMCalculator) -> N
 
     assert result.d_plus > 0.0
     assert result.d_minus > 0.0
-    assert result.d_total == result.d_plus + result.d_minus
+    lower_result = calc_mavm_1d(sim_min, exp_data, duplicates=duplicates)
+    upper_result = calc_mavm_1d(sim_max, exp_data, duplicates=duplicates)
+    np.testing.assert_allclose(
+        [result.d_plus, result.d_minus],
+        [
+            lower_result.d_plus,
+            upper_result.d_minus,
+        ],
+        rtol=1e-13,
+        atol=1e-12,
+    )
+    np.testing.assert_array_equal(result.exp_conf_lower, lower_result.exp_conf_lower)
+    np.testing.assert_array_equal(result.exp_conf_upper, upper_result.exp_conf_upper)
+
+
+@pytest.mark.parametrize("calculator", MAVM_PBOX_CALCULATORS)
+@pytest.mark.parametrize("sample_index", [0, 1, 2])
+@pytest.mark.parametrize("separation", [0.0, MAVM_DUPLICATE_TOLERANCE / 2.0])
+def test_mavm_pbox_rejects_duplicate_samples(
+    calculator: MAVMCalculator, sample_index: int, separation: float
+) -> None:
+    samples = [np.array([0.0, 1.0, 2.0]) for _ in range(3)]
+    samples[sample_index] = np.array([0.0, separation, 2.0])
+    with pytest.raises(ValueError, match="REJECT MAVM duplicates"):
+        calculator(*samples, duplicates=EMAVMDuplicates.REJECT)
 
 
 def _rectangle_signed_areas(
@@ -295,12 +315,13 @@ def test_mavm_matches_independent_rectangle_integration(
 
 
 @pytest.mark.parametrize("calculator", MAVM_CALCULATORS)
+@pytest.mark.parametrize("separation", [0.0, MAVM_DUPLICATE_TOLERANCE / 2.0])
 def test_mavm_default_rejects_near_duplicate_model_data(
-    calculator: MAVMCalculator,
+    calculator: MAVMCalculator, separation: float
 ) -> None:
     """REJECT directs near-duplicate input to the robust implementation."""
     model_data = np.array(
-        [0.0, MAVM_DUPLICATE_TOLERANCE / 2.0, 2.0],
+        [0.0, separation, 2.0],
         dtype=np.float64,
     )
     exp_data = np.array([0.5, 1.5, 2.5], dtype=np.float64)

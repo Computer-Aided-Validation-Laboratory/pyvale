@@ -20,12 +20,12 @@ from scipy import stats
 
 from pyvale.valid.constants import (
     MAVM_AREA_TOLERANCE,
+    MAVM_DUPLICATE_TOLERANCE,
     MAVM_PROBABILITY_TOLERANCE,
 )
 from pyvale.valid.inputvalidation import (
     validate_finite_sample,
     validate_mavm_config,
-    validate_unique_sample,
 )
 from pyvale.valid.valtypes import (
     EMAVMDuplicates,
@@ -235,11 +235,16 @@ def cyth_calc_mavm_1d(
     model_clean = validate_finite_sample(model_data, "model_data")
     exp_clean = validate_finite_sample(exp_data, "exp_data")
 
-    if duplicates is EMAVMDuplicates.REJECT:
-        validate_unique_sample(model_clean, "model")
-        validate_unique_sample(exp_clean, "experimental")
-
-    return _calculate_mavm(model_clean, exp_clean, alpha, duplicates, tol)
+    model = _prepare_mavm_distribution(
+        model_clean,
+        unique_label="model" if duplicates is EMAVMDuplicates.REJECT else None,
+    )
+    experiment = _prepare_mavm_experiment(
+        exp_clean,
+        alpha,
+        unique_label="experimental" if duplicates is EMAVMDuplicates.REJECT else None,
+    )
+    return _calculate_prepared_mavm(model, experiment, alpha, duplicates, tol)
 
 
 def _calculate_mavm(
@@ -252,7 +257,9 @@ def _calculate_mavm(
     return _calculate_prepared_mavm(
         _prepare_mavm_distribution(model_clean),
         _prepare_mavm_experiment(exp_clean, alpha),
-        alpha, duplicates, tol,
+        alpha,
+        duplicates,
+        tol,
     )
 
 
@@ -269,8 +276,21 @@ class _PreparedMAVMExperiment:
     upper: np.ndarray
 
 
-def _prepare_mavm_distribution(samples: np.ndarray) -> _PreparedECDF:
+def _prepare_mavm_distribution(
+    samples: np.ndarray, *, unique_label: str | None = None
+) -> _PreparedECDF:
     distribution = stats.ecdf(samples).cdf
+    if unique_label is not None:
+        has_duplicates = len(distribution.quantiles) != len(samples)
+        has_close_support = np.any(
+            np.diff(distribution.quantiles) <= MAVM_DUPLICATE_TOLERANCE
+        )
+        if has_duplicates or has_close_support:
+            raise ValueError(
+                f"REJECT MAVM duplicates requires unique {unique_label} observations "
+                f"within MAVM_DUPLICATE_TOLERANCE={MAVM_DUPLICATE_TOLERANCE}. "
+                "Use duplicates=EMAVMDuplicates.INCLUDE for repeated observations."
+            )
     return _PreparedECDF(
         convert_contiguous_float64(distribution.quantiles),
         convert_contiguous_float64(distribution.probabilities),
@@ -278,9 +298,9 @@ def _prepare_mavm_distribution(samples: np.ndarray) -> _PreparedECDF:
 
 
 def _prepare_mavm_experiment(
-    samples: np.ndarray, alpha: float
+    samples: np.ndarray, alpha: float, *, unique_label: str | None = None
 ) -> _PreparedMAVMExperiment:
-    distribution = _prepare_mavm_distribution(samples)
+    distribution = _prepare_mavm_distribution(samples, unique_label=unique_label)
     quantiles = distribution.quantiles
     count = len(quantiles)
     degrees_freedom = count - 1
@@ -348,7 +368,6 @@ def _calculate_prepared_mavm(
     return MAVMResult(
         d_plus=d_plus,
         d_minus=d_minus,
-        d_total=d_plus + d_minus,
         model_quantiles=model_quantiles,
         model_probs=model_probabilities,
         exp_quantiles=exp_quantiles,
@@ -373,21 +392,29 @@ def cyth_calc_mavm_pbox_1d(
     lower_samples = validate_finite_sample(model_pbox_min, "model_pbox_min")
     upper_samples = validate_finite_sample(model_pbox_max, "model_pbox_max")
     experimental_samples = validate_finite_sample(exp_data, "exp_data")
-    if duplicates is EMAVMDuplicates.REJECT:
-        validate_unique_sample(lower_samples, "lower model")
-        validate_unique_sample(upper_samples, "upper model")
-        validate_unique_sample(experimental_samples, "experimental")
-    result_min = _calculate_mavm(
-        lower_samples, experimental_samples, alpha, duplicates, tol
+    lower_model = _prepare_mavm_distribution(
+        lower_samples,
+        unique_label="lower model" if duplicates is EMAVMDuplicates.REJECT else None,
     )
-    result_max = _calculate_mavm(
-        upper_samples, experimental_samples, alpha, duplicates, tol
+    upper_model = _prepare_mavm_distribution(
+        upper_samples,
+        unique_label="upper model" if duplicates is EMAVMDuplicates.REJECT else None,
+    )
+    experiment = _prepare_mavm_experiment(
+        experimental_samples,
+        alpha,
+        unique_label="experimental" if duplicates is EMAVMDuplicates.REJECT else None,
+    )
+    result_min = _calculate_prepared_mavm(
+        lower_model, experiment, alpha, duplicates, tol
+    )
+    result_max = _calculate_prepared_mavm(
+        upper_model, experiment, alpha, duplicates, tol
     )
 
     return MAVMResult(
         d_plus=result_min.d_plus,
         d_minus=result_max.d_minus,
-        d_total=result_min.d_plus + result_max.d_minus,
         model_quantiles=result_min.model_quantiles,
         model_probs=result_min.model_probs,
         exp_quantiles=result_min.exp_quantiles,

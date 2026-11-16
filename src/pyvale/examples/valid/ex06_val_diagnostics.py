@@ -17,8 +17,11 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pyvista as pv
+from matplotlib.figure import Figure
 
 import pyvale.data as dataset
+import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.valid as val
@@ -46,42 +49,41 @@ output_path.mkdir(parents=True, exist_ok=True)
 # Prepared arrays already follow the validation axis order declared below.
 # Temperature has one component; strain has three components (xx, yy, xy).
 with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
-    coords = saved["coords"].copy()
-    times = saved["times"].copy()
-    sim_temp = saved["sim_temp"].copy()  # (12, 1, 5, 2, 6)
-    exp_temp = saved["exp_temp"].copy()  # (12, 1, 5, 6)
-    sim_strain = saved["sim_strain"].copy()
-    exp_strain = saved["exp_strain"].copy()
+    coords: np.ndarray = saved["coords"].copy()
+    times: np.ndarray = saved["times"].copy()
+    sim_temp: np.ndarray = saved["sim_temp"].copy()  # (12, 1, 5, 2, 6)
+    exp_temp: np.ndarray = saved["exp_temp"].copy()  # (12, 1, 5, 6)
+    sim_strain: np.ndarray = saved["sim_strain"].copy()
+    exp_strain: np.ndarray = saved["exp_strain"].copy()
 
 # %%
-# A shared domain registers units, component order and physical coordinates.
+# A shared observables registers units, component order and physical coordinates.
 # Validation compares corresponding physical cells, retaining distinct point,
 # component, time and repeat-experiment axes.
-geometry = val.ValGeometry(
-    val.EValGeometry.POINT, coords, coord_units="mm", coord_frame="plate"
-)
 temperature_tag = "plate_temperature"
 strain_tag = "plate_strain"
-domain = val.ValDomain(
-    {
-        temperature_tag: val.ValObservable(
-            geometry=geometry,
-            operator=val.EValOperator.SAMPLE,
-            components=("temperature",),
-            times=times,
-            phys_units="degC",
-            time_units="s",
-        ),
-        strain_tag: val.ValObservable(
-            geometry=geometry,
-            operator=val.EValOperator.SAMPLE,
-            components=("strain_xx", "strain_yy", "strain_xy"),
-            times=times,
-            phys_units="1",
-            time_units="s",
-        ),
-    }
-)
+observables = {
+    temperature_tag: val.ValObservable(
+        components=("temperature",),
+        geometry=val.EValGeometry.POINT,
+        coords=coords,
+        times=times,
+        phys_units="degC",
+        coord_units="mm",
+        coord_frame="plate",
+        time_units="s",
+    ),
+    strain_tag: val.ValObservable(
+        components=("strain_xx", "strain_yy", "strain_xy"),
+        geometry=val.EValGeometry.POINT,
+        coords=coords,
+        times=times,
+        phys_units="1",
+        coord_units="mm",
+        coord_frame="plate",
+        time_units="s",
+    ),
+}
 
 # EPISTEMIC_TRANS holds two alternative model parameter settings: nominal
 # then perturbed. Each setting contains its own six aleatory observations.
@@ -122,15 +124,16 @@ for observable_tag, sim_values, exp_values in (
     sim_arrays[observable_tag] = val.ValArray(sim_values, sim_axes)
     exp_arrays[observable_tag] = val.ValArray(exp_values, exp_axes, offsets=bound)
 
-val_case = val.ValCase(domain, sim_arrays, exp_arrays)
+val_case = val.ValCase(observables, sim_arrays, exp_arrays)
 
 # %%
 # 2. Run validation analysis
 # --------------------------
 # AVM gives a distance in the observable's units. MAVM additionally separates
 # positive and negative support mismatch; INCLUDE retains repeated observations.
-mavm = val.MetricMAVM(duplicates=val.EMAVMDuplicates.INCLUDE)
-val_result = val.ValidationEngine([val.MetricAVM(), mavm]).run(val_case)
+val_result: val.ValResult = val.ValidationEngine(
+    [val.MetricAVM(), val.MetricMAVM()]
+).run(val_case)
 
 # %%
 # 3. Post-processing and inspect data structures
@@ -138,8 +141,8 @@ val_result = val.ValidationEngine([val.MetricAVM(), mavm]).run(val_case)
 # metric_field.axes names each array dimension. The first three axes are always
 # (point, component, time), including singleton time for steady comparisons.
 # Non-singleton epistemic/offset axes follow in the engine's canonical order.
-metric_field = val_result.get(temperature_tag, val.EMetricType.MAVM)
-metric_shape = metric_field.metric.shape
+metric_field: val.ValMetricField = val_result.get(temperature_tag, val.EMetricType.MAVM)
+metric_shape = metric_field.outputs[val.EMetricOutput.D_PLUS].shape
 metric_axes = metric_field.axes
 print("Simulation axes:", sim_arrays[temperature_tag].axes)
 print("Simulation shape:", sim_arrays[temperature_tag].data.shape)
@@ -152,13 +155,15 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 # agree with sensor figures. Each CDF panel overlays simulation and experiment;
 # dashed curves show the experimental MAVM confidence bounds.
 point_idxs = tuple(range(len(coords)))
+fig: Figure
+axes: np.ndarray
 fig, axes = valplot.plot_val_cdfs_points(
     val_case,
     val_result,
     temperature_tag,
     point_idxs=point_idxs,
     time_idx=4,
-    metric=mavm,
+    metric=val.MetricMAVM(),
     labels=valplot.ValPlotLabels(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
@@ -187,7 +192,7 @@ fig, axes = valplot.plot_val_metric_time_points(
         val.EValResAxis.SIM_TRANS: 0,
         val.EValResAxis.EXP_OFFSET: val.EEpisOffset.UPPER,
     },
-    part=val.EValMetricPart.D_PLUS,
+    output=val.EMetricOutput.D_PLUS,
 )
 fig.savefig(output_path / "temperature_d_plus_time.png", bbox_inches="tight")
 
@@ -196,18 +201,12 @@ fig.savefig(output_path / "temperature_d_plus_time.png", bbox_inches="tight")
 # The model mesh and sensor positions must share mm coordinates and the plate
 # coordinate frame. Background nodal scalars (n_nodes,) have a physical colourbar.
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
-sim_data = mh.ExodusLoader(sim_path).load_all_sim_data()
+sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
 background_time_idx = len(sim_data.time) - 1
-background_field = valvis.ValSimField(
-    sim_data.node_vars["temperature"][:, background_time_idx],
-    background_time_idx,
-    sens.SensorDescriptor(name="Temperature", symbol=r"T", units="degC"),
-)
-point_labels = tuple(sens.SensorDescriptor(tag="TC").create_sensor_tags(len(coords)))
-# Blue/red encode negative/positive MAVM directional balance. A white point
-# can have nonzero total mismatch because d+ and d- can cancel in this display.
-pv_plot = valvis.plot_val_metric_on_sim(
+# Show the MAVM d- output directly, with a nonnegative colour scale.
+# The d+ output is stored separately and can be selected in the same way.
+pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
     val_result,
     temperature_tag,
     val.EMetricType.MAVM,
@@ -216,17 +215,19 @@ pv_plot = valvis.plot_val_metric_on_sim(
         val.EValResAxis.TIME: 4,
         val.EValResAxis.EXP_OFFSET: val.EEpisOffset.UPPER,
     },
-    part=val.EValMetricPart.BALANCE,
+    output=val.EMetricOutput.D_MINUS,
     sim_data=sim_data,
-    sim_field=background_field,
+    sim_field="temperature",
+    sim_time_idx=background_time_idx,
+    descriptor=sens.SensorDescriptor(
+        name="Temperature", symbol=r"T", units="degC", tag="TC"
+    ),
     sim_coord_units="mm",
     sim_coord_frame="plate",
-    vis_opts=valvis.create_val_vis_opts(interactive=True) if SHOW_PLOTS else None,
-    metric_opts=valvis.ValVisOpts(
-        point_labels=point_labels, labels_always_visible=True
-    ),
+    vis_opts=valvis.create_val_scene_opts(interactive=SHOW_PLOTS),
+    metric_opts=valvis.ValMetricVisOpts(labels_always_visible=True),
 )
-pv_plot.screenshot(output_path / "temperature_mavm_balance_on_sim.png")
+pv_plot.screenshot(output_path / "temperature_mavm_d_minus_on_sim.png")
 if SHOW_PLOTS:
     pv_plot.show()
 pv_plot.close()
@@ -281,28 +282,28 @@ diagnostic_views = (
 for view in diagnostic_views:
     fig, axes = valplot.create_val_plot_grid(len(coords))
     for point_idx, ax in enumerate(axes.flat):
-        model_scenarios = val.extract_aleatory_scenarios(
+        model_scenarios: list[np.ndarray] = val.extract_aleatory_scenarios(
             model_quantity,
             point_idx=point_idx,
             component_idx=0,
             time_idx=4,
         )
-        experimental_scenarios = val.extract_aleatory_scenarios(
+        experimental_scenarios: list[np.ndarray] = val.extract_aleatory_scenarios(
             experiment_quantity,
             point_idx=point_idx,
             component_idx=0,
             time_idx=4,
             offset=None,
         )
-        model_summary = val.calc_ecdf_summary(
+        model_summary: val.ValECDFSummary = val.calc_ecdf_summary(
             model_scenarios,
             bounds=val.EValECDFBounds.SUPPORT_SUM,
         )
-        experiment_summary = val.calc_ecdf_summary(
+        experiment_summary: val.ValECDFSummary = val.calc_ecdf_summary(
             experimental_scenarios,
             bounds=val.EValECDFBounds.SUPPORT_SUM,
         )
-        correction = val.calc_mavm_correction(
+        correction: val.MAVMCorrection = val.calc_mavm_correction(
             model_scenarios[model_summary.lower_idx],
             model_scenarios[model_summary.upper_idx],
             experimental_scenarios[experiment_summary.lower_idx],
@@ -327,14 +328,14 @@ for view in diagnostic_views:
 # Histograms count physical/scenario cells within each distance bin. Separate
 # directional magnitudes expose asymmetry between d+ and d-.
 fig, axes = valplot.create_val_plot_grid(2)
-for part, ax in zip(
-    (val.EValMetricPart.D_PLUS, val.EValMetricPart.D_MINUS), axes.flat, strict=True
+for output, ax in zip(
+    (val.EMetricOutput.D_PLUS, val.EMetricOutput.D_MINUS), axes.flat, strict=True
 ):
     valplot.plot_val_metric_distribution(
         val_result,
         temperature_tag,
         val.EMetricType.MAVM,
-        part=part,
+        output=output,
         ax=ax,
         labels=valplot.ValPlotLabels(
             title="Temperature: retained physical/scenario cells"

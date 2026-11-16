@@ -34,6 +34,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 import pyvale.data as dataset
 import pyvale.valid as val
@@ -54,10 +56,10 @@ output_path.mkdir(parents=True, exist_ok=True)
 # -----------------------------------------
 # The archive losslessly stores the full point-sensor CSV used by the paper.
 # Axes: (11 channels, 250 transferable epistemic settings, 400 aleatory samples).
-data_path = dataset.valid_data_dir()
+data_path: Path = dataset.valid_data_dir()
 with np.load(data_path / "pulse25x_full_simulation.npz") as saved:
     sensor_tags = tuple(saved["sensor_tags"].tolist())
-    simulation = saved["simulation"]
+    simulation: np.ndarray = saved["simulation"]
 with (data_path / "pulse25x_provenance.json").open() as stream:
     provenance = json.load(stream)
 
@@ -73,7 +75,7 @@ experimental_sources = (
     ("SteadyPICOData", ("CV",)),
 )
 for source, channels in experimental_sources:
-    measurement_table = pd.read_csv(data_path / f"Pulse255_{source}.csv")
+    measurement_table: pd.DataFrame = pd.read_csv(data_path / f"Pulse255_{source}.csv")
     for channel in channels:
         column = "Coil RMS Voltage" if channel == "CV" else channel
         measurements[channel] = measurement_table[column].to_numpy(dtype=np.float64)
@@ -83,12 +85,11 @@ for source, channels in experimental_sources:
 # mismatch with channel tags: TC3 receives TC2's magnitude, TC5 receives TC4's,
 # etc. The exported channel_status.csv makes every association reviewable.
 # These are coherent calibration shifts in degC or V, shared by every repeat.
-summary = pd.read_csv(data_path / "pulse25x_uncertainty_summary.csv")
+summary: pd.DataFrame = pd.read_csv(data_path / "pulse25x_uncertainty_summary.csv")
 uncertainty_columns = (*sensor_tags[:-1], "Coil RMS Voltage")
 uncertainties = summary.loc[summary.index[-1], list(uncertainty_columns)].to_numpy(
     dtype=float
 )
-geometry = val.ValGeometry(val.EValGeometry.GLOBAL, None)
 observables: dict[str, val.ValObservable] = {}
 sim_arrays: dict[str, val.ValArray] = {}
 exp_arrays: dict[str, val.ValArray] = {}
@@ -96,9 +97,9 @@ channel_status = []
 for index, (channel, observations) in enumerate(measurements.items()):
     units = "V" if channel == "CV" else "degC"
     observables[channel] = val.ValObservable(
-        geometry=geometry,
-        operator=val.EValOperator.SAMPLE,
         components=(channel,),
+        geometry=val.EValGeometry.GLOBAL,
+        coords=None,
         times=None,
         phys_units=units,
     )
@@ -128,7 +129,7 @@ for index, (channel, observations) in enumerate(measurements.items()):
             "offset_magnitude": magnitude,
         }
     )
-val_case = val.ValCase(val.ValDomain(observables), sim_arrays, exp_arrays)
+val_case = val.ValCase(observables, sim_arrays, exp_arrays)
 pd.DataFrame(channel_status).to_csv(output_path / "channel_status.csv", index=False)
 
 # %%
@@ -139,8 +140,9 @@ pd.DataFrame(channel_status).to_csv(output_path / "channel_status.csv", index=Fa
 # sim_trans=250, exp_offset=3). Missing TC1, TC4 and TC7 retain NaN results.
 # The reference uses t.ppf(0.95, n_unique-1), matching alpha=0.05 here. Its
 # symmetric bounds use the 95th Student-t percentile for each support shift.
-mavm = val.MetricMAVM(alpha=0.05, duplicates=val.EMAVMDuplicates.REJECT)
-val_result = val.ValidationEngine([mavm]).run(val_case)
+val_result: val.ValResult = val.ValidationEngine(
+    [val.MetricMAVM(alpha=0.05, duplicates=val.EMAVMDuplicates.REJECT)]
+).run(val_case)
 print("Simulation:", simulation.shape, "(channel, epis_trans, aleatory)")
 print(pd.DataFrame(channel_status))
 print("TC3 result axes:", val_result.get("TC3", val.EMetricType.MAVM).axes)
@@ -164,8 +166,10 @@ axis_limits: dict[str, tuple[float, float]] = {}
 for channel in measurements:
     units = observables[channel].phys_units
     axis_label = "Coil RMS voltage [V]" if channel == "CV" else "Temperature [degC]"
-    model_scenarios = val.extract_aleatory_scenarios(sim_arrays[channel])
-    model_summary = val.calc_ecdf_summary(
+    model_scenarios: list[np.ndarray] = val.extract_aleatory_scenarios(
+        sim_arrays[channel]
+    )
+    model_summary: val.ValECDFSummary = val.calc_ecdf_summary(
         model_scenarios, bounds=val.EValECDFBounds.SUPPORT_SUM
     )
     selected_scenarios[channel] = {
@@ -179,6 +183,8 @@ for channel in measurements:
     # Family plots retain the 250 conditional model ECDFs for every channel.
     # Available experimental readings retain their individual measurement spread.
     labels = valplot.ValPlotLabels(title=channel, x_label=axis_label)
+    fig: Figure
+    ax: Axes
     fig, ax = valplot.plot_val_ecdf_family(
         sim_arrays[channel],
         bounds=val.EValECDFBounds.SUPPORT_SUM,
@@ -192,22 +198,22 @@ for channel in measurements:
     if np.any(np.isnan(exp_arrays[channel].data)):
         continue
 
-    experimental_scenarios = val.extract_aleatory_scenarios(
+    experimental_scenarios: list[np.ndarray] = val.extract_aleatory_scenarios(
         exp_arrays[channel], offset=None
     )
-    experiment_summary = val.calc_ecdf_summary(
+    experiment_summary: val.ValECDFSummary = val.calc_ecdf_summary(
         experimental_scenarios,
         bounds=val.EValECDFBounds.SUPPORT_SUM,
     )
     model_lower = model_scenarios[model_summary.lower_idx]
     model_upper = model_scenarios[model_summary.upper_idx]
-    exp_lower = exp_arrays[channel].select_aleatory(
+    exp_lower: np.ndarray = exp_arrays[channel].select_aleatory(
         0, 0, 0, offset=val.EEpisOffset.LOWER
     )
-    exp_upper = exp_arrays[channel].select_aleatory(
+    exp_upper: np.ndarray = exp_arrays[channel].select_aleatory(
         0, 0, 0, offset=val.EEpisOffset.UPPER
     )
-    correction = val.calc_mavm_correction(
+    correction: val.MAVMCorrection = val.calc_mavm_correction(
         model_lower,
         model_upper,
         exp_lower,
@@ -226,14 +232,22 @@ for channel in measurements:
     # %%
     # Export the original four endpoint comparisons using the engine arrays.
     # These are distinct from the worst MAVM over every retained scenario.
-    metric_field = val_result.get(channel, val.EMetricType.MAVM)
+    metric_field: val.ValMetricField = val_result.get(channel, val.EMetricType.MAVM)
     distances = []
     for offset in (val.EEpisOffset.LOWER, val.EEpisOffset.UPPER):
         for model_idx in (model_summary.lower_idx, model_summary.upper_idx):
             distances.extend(
                 [
-                    float(metric_field.d_plus[0, 0, 0, model_idx, offset]),
-                    float(metric_field.d_minus[0, 0, 0, model_idx, offset]),
+                    float(
+                        metric_field.outputs[val.EMetricOutput.D_PLUS][
+                            0, 0, 0, model_idx, offset
+                        ]
+                    ),
+                    float(
+                        metric_field.outputs[val.EMetricOutput.D_MINUS][
+                            0, 0, 0, model_idx, offset
+                        ]
+                    ),
                 ]
             )
     metric_table[channel] = distances
@@ -268,7 +282,9 @@ for channel in measurements:
 # eight available channels × four endpoint pairs × two directions = 64 values.
 # The frozen reference and its source hashes are bundled with the full dataset.
 calculated = pd.DataFrame(metric_table, index=metric_rows)
-reference = pd.read_csv(data_path / "pulse25x_reference_mavm.csv", index_col=0)
+reference: pd.DataFrame = pd.read_csv(
+    data_path / "pulse25x_reference_mavm.csv", index_col=0
+)
 np.testing.assert_allclose(calculated, reference, rtol=1e-12, atol=1e-12)
 calculated.to_csv(output_path / "pointsensors_mavm.csv")
 parity = {

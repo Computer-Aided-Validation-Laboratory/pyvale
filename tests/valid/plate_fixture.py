@@ -41,30 +41,29 @@ def load_plate_case(
         sim_strain = data["sim_strain"].copy()
         exp_strain = data["exp_strain"].copy()
 
-    geometry = val.ValGeometry(
-        val.EValGeometry.POINT, coords, coord_units="mm", coord_frame="plate"
-    )
     evaluation_times = times if transient else None
-    domain = val.ValDomain(
-        {
-            "temperature": val.ValObservable(
-                geometry,
-                val.EValOperator.SAMPLE,
-                ("temperature",),
-                evaluation_times,
-                "degC",
-                time_units="s" if transient else "",
-            ),
-            "strain": val.ValObservable(
-                geometry,
-                val.EValOperator.SAMPLE,
-                ("strain_xx", "strain_yy", "strain_xy"),
-                evaluation_times,
-                "1",
-                time_units="s" if transient else "",
-            ),
-        }
-    )
+    observables = {
+        "temperature": val.ValObservable(
+            components=("temperature",),
+            geometry=val.EValGeometry.POINT,
+            coords=coords,
+            times=evaluation_times,
+            phys_units="degC",
+            coord_units="mm",
+            coord_frame="plate",
+            time_units="s" if transient else "",
+        ),
+        "strain": val.ValObservable(
+            components=("strain_xx", "strain_yy", "strain_xy"),
+            geometry=val.EValGeometry.POINT,
+            coords=coords,
+            times=evaluation_times,
+            phys_units="1",
+            coord_units="mm",
+            coord_frame="plate",
+            time_units="s" if transient else "",
+        ),
+    }
     sim_arrays = {}
     exp_arrays = {}
     for name, sim_values, exp_values in (
@@ -100,4 +99,4 @@ def load_plate_case(
         sim_arrays[name] = val.ValArray(sim_values, axes)
         exp_arrays[name] = val.ValArray(exp_values, exp_axes, bound)
 
-    return val.ValCase(domain, sim_arrays, exp_arrays)
+    return val.ValCase(observables, sim_arrays, exp_arrays)

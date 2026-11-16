@@ -20,17 +20,16 @@ from pyvale.valid.inputvalidation import validate_real_array
 from pyvale.valid.valtypes import (
     EValAxis,
     EValGeometry,
-    EValOperator,
     ValArray,
     ValCase,
-    ValDomain,
+    ValObservable,
     ValSampleInputs,
 )
 
 
 def convert_sim_to_val(
     fields: dict[str, Callable[[SimData], IField] | None],
-    domain: ValDomain,
+    observables: dict[str, ValObservable],
     runs: Iterable[tuple[tuple[int, ...], SimData]],
     *,
     sample_axes: tuple[EValAxis, ...] = (),
@@ -41,11 +40,11 @@ def convert_sim_to_val(
 
     Each run key gives its index on ``sample_axes``. A run is processed and
     discarded before the next one; only extracted sensor values are retained.
-    The domain must supply explicit evaluation times, even for steady data.
+    The observables must supply explicit evaluation times, even for steady data.
     Field factories create extraction-owned fields for each run.
     """
-    if set(fields) != set(domain.observables):
-        raise ValueError("Field keys must match domain observables.")
+    if set(fields) != set(observables):
+        raise ValueError("Field keys must match observable keys.")
     if any(
         factory is not None and not callable(factory) for factory in fields.values()
     ):
@@ -66,32 +65,24 @@ def convert_sim_to_val(
         raise ValueError("Run axes must be unique and nonempty.")
 
     arrays: dict[str, ValArray] = {}
-    for name, observable in domain.observables.items():
+    for name, observable in observables.items():
         if observable.times is None:
             raise ValueError("Simulation extraction needs explicit evaluation times.")
-        if observable.geometry.kind is EValGeometry.GLOBAL:
-            if observable.operator is EValOperator.SAMPLE:
-                raise ValueError("GLOBAL observables need MEAN or INTEGRAL.")
+        if observable.geometry is EValGeometry.GLOBAL:
             point_count = 1
         else:
-            assert observable.geometry.coords is not None
-            point_count = len(observable.geometry.coords)
-            if observable.operator is EValOperator.MEAN:
-                if sensor_data is None or name not in sensor_data:
-                    raise ValueError(f"{name}: MEAN requires SensorData.")
+            assert observable.coords is not None
+            point_count = len(observable.coords)
+            if sensor_data is not None and name in sensor_data:
                 sensor = sensor_data[name]
                 if sensor.positions is None or not np.array_equal(
-                    sensor.positions, observable.geometry.coords
+                    sensor.positions, observable.coords
                 ):
                     raise ValueError(f"{name}: SensorData positions differ.")
                 if sensor.sample_times is None or not np.array_equal(
                     sensor.sample_times, observable.times
                 ):
                     raise ValueError(f"{name}: SensorData times differ.")
-                if sensor.spatial_averager is None:
-                    raise ValueError(f"{name}: MEAN needs a spatial averager.")
-            elif observable.operator is not EValOperator.SAMPLE:
-                raise ValueError(f"{name}: unsupported spatial operator.")
         shape = (
             point_count,
             len(observable.components),
@@ -122,7 +113,7 @@ def convert_sim_to_val(
             np.max(sim_data.coords, axis=0) if sim_data.coords is not None else None
         )
         for name, create_field in fields.items():
-            observable = domain.observables[name]
+            observable = observables[name]
             assert observable.times is not None
             if sim_data.time is None or len(sim_data.time) == 0:
                 raise ValueError(f"{name}: simulation has no time coordinates.")
@@ -131,7 +122,7 @@ def convert_sim_to_val(
                 or observable.times[-1] > sim_data.time[-1]
             ):
                 raise ValueError(f"{name}: evaluation times leave simulation range.")
-            if observable.geometry.kind is EValGeometry.GLOBAL:
+            if observable.geometry is EValGeometry.GLOBAL:
                 if sim_data.glob_vars is None or sim_data.time is None:
                     raise ValueError("Global extraction needs variables and time.")
                 sampled = np.empty(
@@ -148,22 +139,21 @@ def convert_sim_to_val(
                 continue
             if create_field is None:
                 raise ValueError(f"{name}: spatial observable needs IField.")
-            assert observable.geometry.coords is not None
+            assert observable.coords is not None
             if sim_data.coords is None:
                 raise ValueError(f"{name}: simulation has no coordinates.")
-            points = observable.geometry.coords
+            points = observable.coords
             assert mesh_lower is not None and mesh_upper is not None
             if np.any(points < mesh_lower) or np.any(points > mesh_upper):
                 raise ValueError(f"{name}: sample points leave simulation bounds.")
             field = create_field(sim_data)
             all_components = field.get_all_components()
             component_idxs = [all_components.index(c) for c in observable.components]
-            if observable.operator is EValOperator.MEAN:
-                assert sensor_data is not None
+            if sensor_data is not None and name in sensor_data:
                 sampled = sample_field_with_sensor_data(field, sensor_data[name])
             else:
                 sampled = field.sample_field(
-                    observable.geometry.coords,
+                    observable.coords,
                     observable.times,
                 )
             arrays[name].data[
@@ -176,32 +166,34 @@ def convert_sim_to_val(
 
 def convert_exp_to_val(
     sources: dict[str, ExpData],
-    domain: ValDomain,
+    observables: dict[str, ValObservable],
     *,
     steady_window: slice | None = None,
 ) -> dict[str, ValArray]:
-    """Borrow acquisition arrays per observable on a registered domain.
+    """Borrow acquisition arrays per observable at registered observable coordinates.
 
     A steady window treats trace values as aleatory observations. Transient
-    acquisition times must exactly match the requested domain times.
+    acquisition times must exactly match the requested observables times.
     """
-    if set(sources) != set(domain.observables):
-        raise ValueError("Experimental source keys must match the domain.")
+    if set(sources) != set(observables):
+        raise ValueError("Experimental source keys must match the observables.")
     arrays = {}
     for name, exp_data in sources.items():
-        observable = domain.observables[name]
-        coords = observable.geometry.coords
+        observable = observables[name]
+        coords = observable.coords
         if coords is None or exp_data.coords is None:
             raise ValueError(f"{name}: explicit registered coordinates required.")
         if not np.array_equal(coords, exp_data.coords):
-            raise ValueError(f"{name}: experimental coordinates differ from domain.")
+            raise ValueError(
+                f"{name}: experimental coordinates differ from observables."
+            )
         if exp_data.fields.ndim != 2 or len(observable.components) != 1:
             raise ValueError(f"{name}: ExpData source must have one component.")
         if exp_data.fields.shape[0] != len(coords):
             raise ValueError(f"{name}: experimental point count mismatch.")
         if steady_window is not None:
             if observable.times is not None:
-                raise ValueError("Steady window requires a domain without times.")
+                raise ValueError("Steady window requires observables without times.")
             values = exp_data.fields[:, steady_window]
             arrays[name] = ValArray(
                 values[:, None, :],
@@ -211,7 +203,7 @@ def convert_exp_to_val(
             if observable.times is None or exp_data.times is None:
                 raise ValueError("Transient acquisition requires time coordinates.")
             if not np.array_equal(observable.times, exp_data.times):
-                raise ValueError(f"{name}: acquisition times differ from domain.")
+                raise ValueError(f"{name}: acquisition times differ from observables.")
             arrays[name] = ValArray(
                 exp_data.fields[:, None, :],
                 (EValAxis.POINT, EValAxis.COMPONENT, EValAxis.TIME),
@@ -336,7 +328,7 @@ def _compare_sample_inputs(
 def combine_val_cases(*cases: ValCase) -> ValCase:
     """Join compatible acquisitions on the experimental aleatory axis.
 
-    Simulations and domain metadata must be identical. For transient cases,
+    Simulations and observables metadata must be identical. For transient cases,
     each complete trace becomes a joint aleatory realization at every time.
     """
     if not cases:
@@ -345,7 +337,7 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
     combined = {}
     run_ids = []
     for case_idx, val_case in enumerate(cases):
-        if set(val_case.domain.observables) != set(first.domain.observables):
+        if set(val_case.observables) != set(first.observables):
             raise ValueError("Cases have different observable keys.")
         if not _compare_sample_inputs(val_case.sim_inputs, first.sim_inputs):
             raise ValueError("Simulation sample provenance differs across cases.")
@@ -365,15 +357,15 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
             run_ids.append(identifiers.data.astype(str))
         else:
             run_ids.append(np.full(sample_count, f"case_{case_idx}"))
-    for name, observable in first.domain.observables.items():
+    for name, observable in first.observables.items():
         reference = first.exp[name]
         base_axes = tuple(
             axis for axis in reference.axes if axis is not EValAxis.ALEATORY
         )
         pieces = []
         for case_idx, val_case in enumerate(cases):
-            other = val_case.domain.observables.get(name)
-            if other is None or other.operator is not observable.operator:
+            other = val_case.observables.get(name)
+            if other is None:
                 raise ValueError(f"{name}: incompatible observable.")
             if (
                 other.components != observable.components
@@ -382,13 +374,13 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
             ):
                 raise ValueError(f"{name}: incompatible components or units.")
             if (
-                other.geometry.kind is not observable.geometry.kind
-                or other.geometry.coord_units != observable.geometry.coord_units
-                or other.geometry.coord_frame != observable.geometry.coord_frame
+                other.geometry is not observable.geometry
+                or other.coord_units != observable.coord_units
+                or other.coord_frame != observable.coord_frame
             ):
                 raise ValueError(f"{name}: incompatible geometry or coord_frame.")
-            left_connect = observable.geometry.connect or {}
-            right_connect = other.geometry.connect or {}
+            left_connect = observable.connect or {}
+            right_connect = other.connect or {}
             if set(left_connect) != set(right_connect) or any(
                 not np.array_equal(left_connect[key], right_connect[key])
                 for key in left_connect
@@ -396,16 +388,16 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
                 raise ValueError(f"{name}: incompatible geometry connectivity.")
             for other_coordinates, reference_coordinates in (
                 (other.times, observable.times),
-                (other.geometry.coords, observable.geometry.coords),
+                (other.coords, observable.coords),
             ):
                 if (other_coordinates is None) != (reference_coordinates is None):
-                    raise ValueError(f"{name}: incompatible domain coordinates.")
+                    raise ValueError(f"{name}: incompatible observables coordinates.")
                 if (
                     other_coordinates is not None
                     and reference_coordinates is not None
                     and not np.array_equal(other_coordinates, reference_coordinates)
                 ):
-                    raise ValueError(f"{name}: incompatible domain coordinates.")
+                    raise ValueError(f"{name}: incompatible observables coordinates.")
             reference_simulation = first.sim[name]
             other_simulation = val_case.sim[name]
             if reference_simulation.axes != other_simulation.axes or not np.array_equal(
@@ -480,7 +472,7 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
         run_ids=ValArray(np.concatenate(run_ids), (EValAxis.ALEATORY,)),
     )
     return ValCase(
-        first.domain,
+        first.observables,
         first.sim,
         combined,
         sim_inputs=first.sim_inputs,
