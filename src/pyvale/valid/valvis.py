@@ -111,7 +111,7 @@ def plot_val_metric_on_sim(
     """
     options = create_val_scene_opts() if vis_opts is None else vis_opts
     metric_options = ValMetricVisOpts() if metric_opts is None else metric_opts
-    field = result.get(observable, metric)
+    field = result.metrics[observable][metric]
     output = resolve_metric_output(field, output)
     values = extract_metric_values(field, selectors=selectors, output=output)
     observable_data = result.observables[observable]

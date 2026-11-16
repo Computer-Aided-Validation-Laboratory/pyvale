@@ -144,15 +144,11 @@ class ValResult:
     """Borrow observables/field arrays and snapshot metric configurations."""
 
     observables: dict[str, ValObservable]
-    fields: dict[str, dict[EMetricType, ValMetricField]]
+    metrics: dict[str, dict[EMetricType, ValMetricField]]
     metric_configs: dict[EMetricType, IValMetric]
 
     def __post_init__(self) -> None:
         self.metric_configs = deepcopy(self.metric_configs)
-
-    def get(self, observable: str, metric: EMetricType) -> ValMetricField:
-        """Select the labelled field for one observable and metric."""
-        return self.fields[observable][metric]
 
     def find_extreme(
         self,
@@ -163,7 +159,7 @@ class ValResult:
         maximum: bool = True,
     ) -> tuple[float, dict[EValResAxis, int]]:
         """Locate a finite extreme without reducing the stored result field."""
-        field = self.get(observable, metric)
+        field = self.metrics[observable][metric]
         values = field.outputs[resolve_metric_output(field, output)]
         if not np.any(np.isfinite(values)):
             raise ValueError("Metric field contains no finite results.")
@@ -337,9 +333,9 @@ class ValidationEngine:
             for axis in (EValResAxis.SIM_OFFSET, EValResAxis.EXP_OFFSET):
                 if axis in axes:
                     scenarios[axis] = tuple(EEpisOffset)
-            fields = {}
+            metric_fields = {}
             for metric in self.metrics:
-                fields[metric.get_kind()] = ValMetricField(
+                metric_fields[metric.get_kind()] = ValMetricField(
                     axes=axes,
                     outputs={
                         output: np.full(shape, np.nan)
@@ -349,7 +345,7 @@ class ValidationEngine:
                 )
             full_shape = tuple(axis_sizes[axis] for axis in VAL_RES_AXES)
             workloads.append(_Workload(name, sim, exp, full_shape))
-            results[name] = fields
+            results[name] = metric_fields
         workers = self.opts.workers
         if workers is None:
             workers = cpu_count() or 1
@@ -412,7 +408,7 @@ class ValidationEngine:
                             _store_chunk(results[name], self.metrics, start, calculated)
         configs = {metric.get_kind(): metric for metric in self.metrics}
         return ValResult(
-            observables=val_case.observables, fields=results, metric_configs=configs
+            observables=val_case.observables, metrics=results, metric_configs=configs
         )
 
 
@@ -575,7 +571,7 @@ def _calculate_chunk(
 
 
 def _store_chunk(
-    fields: dict[EMetricType, ValMetricField],
+    metric_fields: dict[EMetricType, ValMetricField],
     metrics: tuple[IValMetric, ...],
     start: int,
     calculated: np.ndarray,
@@ -583,7 +579,7 @@ def _store_chunk(
     stop = start + calculated.shape[-1]
     output_idx = 0
     for metric in metrics:
-        field = fields[metric.get_kind()]
+        field = metric_fields[metric.get_kind()]
         for output in metric.get_outputs():
             field.outputs[output].reshape(-1)[start:stop] = calculated[output_idx]
             output_idx += 1

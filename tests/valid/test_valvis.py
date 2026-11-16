@@ -168,7 +168,7 @@ def test_selection_requires_all_scenarios_and_preserves_output(
     scene: tuple[val.ValResult, io.SimData],
 ) -> None:
     result, _ = scene
-    field = result.get("temperature", val.EMetricType.MAVM)
+    field = result.metrics["temperature"][val.EMetricType.MAVM]
     with pytest.raises(ValueError, match="Select"):
         val.extract_metric_values(field, output=val.EMetricOutput.D_MINUS)
     selected = val.extract_metric_values(

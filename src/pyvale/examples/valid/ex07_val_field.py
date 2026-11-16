@@ -99,7 +99,6 @@ observables = {
         times=times,
         phys_units="degC" if name == temperature_tag else "1",
         coord_units="mm",
-        coord_frame="plate",
         time_units="s",
     )
     for name in selections
@@ -161,8 +160,8 @@ print("Experiment:", experiment_quantity.axes, experiment_quantity.data.shape)
 # and CDFs so every sensor location appears in its own panel.
 # %%
 # Overlay validation points on the nominal model in its original xyz geometry.
-# The model mesh and sensor positions must share mm coordinates and the plate
-# coordinate frame. Background nodal scalars (n_nodes,) have a physical colourbar.
+# The model mesh and sensor positions use the same coordinates in mm.
+# Background nodal scalars (n_nodes,) have a physical colourbar.
 background_time_idx = len(sim_data.time) - 1
 # AVM distance is a nonnegative magnitude, so its point scale starts at zero.
 pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
@@ -179,7 +178,6 @@ pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
         name="Axial strain xx", symbol=r"\varepsilon_{xx}", units="1", tag="SG"
     ),
     sim_coord_units="mm",
-    sim_coord_frame="plate",
     vis_opts=valvis.create_val_scene_opts(interactive=SHOW_PLOTS),
     metric_opts=valvis.ValMetricVisOpts(labels_always_visible=True),
 )

@@ -325,7 +325,7 @@ def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
         [MetricSampleMeans(), val.MetricKS()],
         opts=val.ValEngineOpts(workers=workers, chunk_size=1),
     ).run(case)
-    field = result.get("scalar", val.EMetricType.AVM)
+    field = result.metrics["scalar"][val.EMetricType.AVM]
     assert tuple(field.outputs) == (val.EMetricOutput.ERROR, val.EMetricOutput.DISTANCE)
     for output, expected in (
         (val.EMetricOutput.ERROR, [2.0, np.nan, 5.0]),
@@ -337,7 +337,7 @@ def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
         )
         selected = val.select_metric_output(field, output)
         assert np.shares_memory(selected, field.outputs[output])
-    statistic = result.get("scalar", val.EMetricType.KS).outputs[
+    statistic = result.metrics["scalar"][val.EMetricType.KS].outputs[
         val.EMetricOutput.STATISTIC
     ]
     np.testing.assert_allclose(statistic[:, 0, 0], [0.0, np.nan, 0.0])
@@ -379,7 +379,7 @@ def test_single_output_defaults_match_explicit_selection(
     metric: val.IValMetric, output: val.EMetricOutput
 ) -> None:
     result = val.ValidationEngine([metric]).run(create_case(np.array([1.0, 2.0, 3.0])))
-    field = result.get("scalar", metric.get_kind())
+    field = result.metrics["scalar"][metric.get_kind()]
     assert tuple(field.outputs) == (output,)
     np.testing.assert_array_equal(
         val.extract_metric_values(field),
@@ -398,7 +398,7 @@ def test_multiple_outputs_require_explicit_selection(metric: val.IValMetric) -> 
     from pyvale.valid import valplot
 
     result = val.ValidationEngine([metric]).run(create_case(np.array([1.0, 2.0, 3.0])))
-    field = result.get("scalar", metric.get_kind())
+    field = result.metrics["scalar"][metric.get_kind()]
     with pytest.raises(ValueError, match="output explicitly"):
         val.select_metric_output(field)
     with pytest.raises(ValueError, match="output explicitly"):

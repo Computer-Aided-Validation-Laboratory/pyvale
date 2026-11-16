@@ -68,7 +68,7 @@ def test_engine_retains_sampled_epistemic_scenarios_and_offsets() -> None:
         {"temperature": val.ValArray(experiment, exp_axes, offsets)},
     )
     result = val.ValidationEngine([val.MetricAVM(), val.MetricKS()]).run(val_case)
-    field = result.get("temperature", val.EMetricType.AVM)
+    field = result.metrics["temperature"][val.EMetricType.AVM]
     assert field.axes == ("point", "component", "time", "sim_trans", "exp_offset")
     assert field.outputs[val.EMetricOutput.DISTANCE].shape == (2, 1, 1, 2, 3)
     maximum, where = result.find_extreme(
@@ -196,7 +196,7 @@ def test_invalid_points_remain_masked_without_affecting_other_points() -> None:
     field = (
         val.ValidationEngine([val.MetricAVM()])
         .run(val_case)
-        .get("temperature", val.EMetricType.AVM)
+        .metrics["temperature"][val.EMetricType.AVM]
     )
     assert field.outputs[val.EMetricOutput.DISTANCE][0, 0, 0] == pytest.approx(1.0)
     assert np.isnan(field.outputs[val.EMetricOutput.DISTANCE][1, 0, 0])
@@ -232,7 +232,7 @@ def test_both_sided_epistemic_samples_and_offsets_are_not_collapsed() -> None:
     field = (
         val.ValidationEngine([val.MetricAVM()])
         .run(val_case)
-        .get("temperature", val.EMetricType.AVM)
+        .metrics["temperature"][val.EMetricType.AVM]
     )
     assert field.axes == (
         "point",

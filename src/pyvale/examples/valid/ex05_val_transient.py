@@ -70,7 +70,6 @@ observables = {
         times=times,
         phys_units="degC",
         coord_units="mm",
-        coord_frame="plate",
         time_units="s",
     ),
     strain_tag: val.ValObservable(
@@ -80,7 +79,6 @@ observables = {
         times=times,
         phys_units="1",
         coord_units="mm",
-        coord_frame="plate",
         time_units="s",
     ),
 }
@@ -125,7 +123,9 @@ val_result: val.ValResult = val.ValidationEngine(
 # metric_field.axes names each array dimension. The first three axes are always
 # (point, component, time), including singleton time for steady comparisons.
 # Non-singleton epistemic/offset axes follow in the engine's canonical order.
-metric_field: val.ValMetricField = val_result.get(temperature_tag, val.EMetricType.MAVM)
+metric_field: val.ValMetricField = val_result.metrics[temperature_tag][
+    val.EMetricType.MAVM
+]
 metric_shape = metric_field.outputs[val.EMetricOutput.D_PLUS].shape
 metric_axes = metric_field.axes
 print("Simulation axes:", sim_arrays[temperature_tag].axes)
@@ -166,8 +166,8 @@ fig.savefig(output_path / "temperature_d_plus_time.png", bbox_inches="tight")
 
 # %%
 # Overlay validation points on the nominal model in its original xyz geometry.
-# The model mesh and sensor positions must share mm coordinates and the plate
-# coordinate frame. Background nodal scalars (n_nodes,) have a physical colourbar.
+# The model mesh and sensor positions use the same coordinates in mm.
+# Background nodal scalars (n_nodes,) have a physical colourbar.
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
@@ -189,7 +189,6 @@ pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
         name="Temperature", symbol=r"T", units="degC", tag="TC"
     ),
     sim_coord_units="mm",
-    sim_coord_frame="plate",
     vis_opts=valvis.create_val_scene_opts(interactive=SHOW_PLOTS),
     metric_opts=valvis.ValMetricVisOpts(labels_always_visible=True),
 )

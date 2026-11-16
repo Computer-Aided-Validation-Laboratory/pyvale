@@ -135,7 +135,7 @@ def plot_val_cdfs(
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
     """Show the exact conditional samples compared at one physical cell."""
-    if observable not in result.fields:
+    if observable not in result.metrics:
         raise KeyError(observable)
     sim = val_case.sim[observable].select_aleatory(
         point_idx,
@@ -285,7 +285,7 @@ def plot_val_metric_time(
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
     """Plot one selected metric scenario against physical time."""
-    field = result.get(observable, metric)
+    field = result.metrics[observable][metric]
     output = resolve_metric_output(field, output)
     selected = extract_metric_values(
         field,
@@ -323,7 +323,7 @@ def plot_val_metric_distribution(
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
     """Histogram finite metric values over selected physical/scenario cells."""
-    field = result.get(observable, metric)
+    field = result.metrics[observable][metric]
     output = resolve_metric_output(field, output)
     selection_idx = build_metric_selection(field, selectors)
     selected_field = select_metric_output(field, output, selection_idxs=selection_idx)
@@ -569,14 +569,14 @@ def plot_val_metric_time_points(
     labels: ValPlotLabels | None = None,
 ) -> tuple[Figure, np.ndarray]:
     """Plot the same selected scenario over time for multiple point panels."""
-    output = resolve_metric_output(result.get(observable, metric), output)
+    output = resolve_metric_output(result.metrics[observable][metric], output)
     if result.observables[observable].times is None:
         raise ValueError("Time plot requires physical time coordinates.")
     for point_idx in point_idxs:
         selected = dict(selectors or {})
         selected[EValResAxis.POINT] = point_idx
         extract_metric_values(
-            result.get(observable, metric),
+            result.metrics[observable][metric],
             keep=EValResAxis.TIME,
             selectors=selected,
             output=output,

@@ -99,8 +99,6 @@ for index, (channel, observations) in enumerate(measurements.items()):
     observables[channel] = val.ValObservable(
         components=(channel,),
         geometry=val.EValGeometry.GLOBAL,
-        coords=None,
-        times=None,
         phys_units=units,
     )
     sim_arrays[channel] = val.ValArray(
@@ -145,7 +143,7 @@ val_result: val.ValResult = val.ValidationEngine(
 ).run(val_case)
 print("Simulation:", simulation.shape, "(channel, epis_trans, aleatory)")
 print(pd.DataFrame(channel_status))
-print("TC3 result axes:", val_result.get("TC3", val.EMetricType.MAVM).axes)
+print("TC3 result axes:", val_result.metrics["TC3"][val.EMetricType.MAVM].axes)
 
 # %%
 # 3. Post-processing and inspect data structures
@@ -232,7 +230,7 @@ for channel in measurements:
     # %%
     # Export the original four endpoint comparisons using the engine arrays.
     # These are distinct from the worst MAVM over every retained scenario.
-    metric_field: val.ValMetricField = val_result.get(channel, val.EMetricType.MAVM)
+    metric_field: val.ValMetricField = val_result.metrics[channel][val.EMetricType.MAVM]
     distances = []
     for offset in (val.EEpisOffset.LOWER, val.EEpisOffset.UPPER):
         for model_idx in (model_summary.lower_idx, model_summary.upper_idx):

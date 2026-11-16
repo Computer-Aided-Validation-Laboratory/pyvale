@@ -71,8 +71,8 @@ def test_spawned_metrics_match_serial(chunk_size: int | None) -> None:
     assert parallel_mavm is not serial_mavm
     for name in case.observables:
         for metric in metrics:
-            expected = serial.get(name, metric.get_kind())
-            actual = parallel.get(name, metric.get_kind())
+            expected = serial.metrics[name][metric.get_kind()]
+            actual = parallel.metrics[name][metric.get_kind()]
             assert actual.axes == expected.axes
             assert actual.scenarios == expected.scenarios
             assert actual.outputs.keys() == expected.outputs.keys()
@@ -109,7 +109,7 @@ def test_spawned_failure_propagates_and_engine_can_run_again() -> None:
     engine.metrics = (val.MetricAVM(),)
     assert np.isfinite(
         engine.run(case)
-        .get("camera", val.EMetricType.AVM)
+        .metrics["camera"][val.EMetricType.AVM]
         .outputs[val.EMetricOutput.DISTANCE]
     ).any()
 

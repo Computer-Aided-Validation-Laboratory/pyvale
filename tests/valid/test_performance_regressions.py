@@ -69,7 +69,7 @@ def test_engine_matches_standalone_uncertainty_products(
             exp_offset,
         )
         for metric in metrics:
-            field = result.get("response", metric.get_kind())
+            field = result.metrics["response"][metric.get_kind()]
             assert tuple(field.outputs) == metric.get_outputs()
             if not np.any(np.isfinite(exp_samples)):
                 for array in field.outputs.values():
@@ -171,7 +171,7 @@ def test_small_workload_with_worker_cap_matches_analytic_shift() -> None:
         ).run(case)
         for metric in metrics:
             assert (
-                result.get("response", metric.get_kind())
+                result.metrics["response"][metric.get_kind()]
                 .outputs[metric.get_outputs()[0]]
                 .item()
                 == 0.125

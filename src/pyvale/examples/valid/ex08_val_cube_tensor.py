@@ -105,7 +105,6 @@ observables = {
         times=times,
         phys_units="1",
         coord_units="mm",
-        coord_frame="cube",
         time_units="s",
     )
 }
@@ -145,7 +144,7 @@ val_result: val.ValResult = val.ValidationEngine(
 # ----------------------------------------------
 # No tensor component is flattened into the observation axis. Result axes start
 # (6 points, 6 components, 5 times), followed by retained parameter scenarios.
-metric_field: val.ValMetricField = val_result.get(strain_tag, val.EMetricType.MAVM)
+metric_field: val.ValMetricField = val_result.metrics[strain_tag][val.EMetricType.MAVM]
 print(
     "Model axes/shape:",
     model[strain_tag].axes,
@@ -251,7 +250,6 @@ for background_name, (background_field, descriptor) in background_fields.items()
         sim_time_idx=background_time_idx,
         descriptor=descriptor,
         sim_coord_units="mm",
-        sim_coord_frame="cube",
         vis_opts=valvis.create_val_scene_opts(interactive=SHOW_PLOTS),
         metric_opts=valvis.ValMetricVisOpts(
             mesh_opacity=0.4, labels_always_visible=True

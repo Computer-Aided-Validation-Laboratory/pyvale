@@ -73,7 +73,7 @@ def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
         selectors=selectors,
         output=val.EMetricOutput.D_MINUS,
     )
-    field = result.get("temperature", val.EMetricType.MAVM)
+    field = result.metrics["temperature"][val.EMetricType.MAVM]
     for point, ax in zip((0, 5), axes.flat, strict=True):
         np.testing.assert_allclose(
             ax.lines[0].get_ydata(),
@@ -252,7 +252,7 @@ def test_directional_outputs_can_share_time_axes() -> None:
         "MAVM d+",
         "MAVM d−",
     ]
-    field = result.get("temperature", val.EMetricType.MAVM)
+    field = result.metrics["temperature"][val.EMetricType.MAVM]
     for line, output in zip(
         ax.lines, (val.EMetricOutput.D_PLUS, val.EMetricOutput.D_MINUS), strict=True
     ):

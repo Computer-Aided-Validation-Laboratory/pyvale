@@ -21,27 +21,27 @@ def test_prepared_plate_gold_metrics() -> None:
     """Track the saved SensorSim fixture and selected metric diagnostics."""
     val_case = load_plate_case()
     result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(val_case)
-    assert result.get("temperature", val.EMetricType.AVM).outputs[
+    assert result.metrics["temperature"][val.EMetricType.AVM].outputs[
         val.EMetricOutput.DISTANCE
     ][5, 0, 0] == (pytest.approx(0.26243433506330643, abs=1e-10))
     assert (
-        result.get("temperature", val.EMetricType.MAVM).outputs[
+        result.metrics["temperature"][val.EMetricType.MAVM].outputs[
             val.EMetricOutput.D_PLUS
         ][5, 0, 0]
-        + result.get("temperature", val.EMetricType.MAVM).outputs[
+        + result.metrics["temperature"][val.EMetricType.MAVM].outputs[
             val.EMetricOutput.D_MINUS
         ][5, 0, 0]
     ) == (pytest.approx(0.4891546824953229, abs=1e-10))
-    assert result.get("strain", val.EMetricType.AVM).outputs[
+    assert result.metrics["strain"][val.EMetricType.AVM].outputs[
         val.EMetricOutput.DISTANCE
     ][5, 0, 0] == (pytest.approx(1.2018068336589567e-6, abs=1e-12))
     assert (
-        result.get("strain", val.EMetricType.MAVM).outputs[val.EMetricOutput.D_PLUS][
-            5, 2, 0
-        ]
-        + result.get("strain", val.EMetricType.MAVM).outputs[val.EMetricOutput.D_MINUS][
-            5, 2, 0
-        ]
+        result.metrics["strain"][val.EMetricType.MAVM].outputs[
+            val.EMetricOutput.D_PLUS
+        ][5, 2, 0]
+        + result.metrics["strain"][val.EMetricType.MAVM].outputs[
+            val.EMetricOutput.D_MINUS
+        ][5, 2, 0]
     ) == (pytest.approx(3.368761032966909e-6, abs=1e-12))
 
 
@@ -115,8 +115,8 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
     converted_result = engine.run(converted)
     direct_result = engine.run(direct)
     for metric in (val.EMetricType.AVM, val.EMetricType.MAVM):
-        expected = direct_result.get("temperature", metric)
-        actual = converted_result.get("temperature", metric)
+        expected = direct_result.metrics["temperature"][metric]
+        actual = converted_result.metrics["temperature"][metric]
         for output in expected.outputs:
             np.testing.assert_allclose(
                 actual.outputs[output], expected.outputs[output], rtol=0.0, atol=1e-12

@@ -60,7 +60,6 @@ observables = {
         times=times,
         phys_units="degC",
         coord_units="mm",
-        coord_frame="plate",
         time_units="s",
     ),
     strain_tag: val.ValObservable(
@@ -70,7 +69,6 @@ observables = {
         times=times,
         phys_units="1",
         coord_units="mm",
-        coord_frame="plate",
         time_units="s",
     ),
 }
@@ -118,7 +116,9 @@ val_result: val.ValResult = val.ValidationEngine(
 # %%
 # 3. Post-processing and inspect data structures
 # ------------------------------------------------------------
-metric_field: val.ValMetricField = val_result.get(temperature_tag, val.EMetricType.MAVM)
+metric_field: val.ValMetricField = val_result.metrics[temperature_tag][
+    val.EMetricType.MAVM
+]
 metric_shape = metric_field.outputs[val.EMetricOutput.D_PLUS].shape
 metric_axes = metric_field.axes
 
@@ -193,7 +193,6 @@ pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
         name="Temperature", symbol=r"T", units="degC", tag="TC"
     ),
     sim_coord_units="mm",
-    sim_coord_frame="plate",
     vis_opts=valvis.create_val_scene_opts(interactive=SHOW_PLOTS),
     metric_opts=valvis.ValMetricVisOpts(labels_always_visible=True),
 )

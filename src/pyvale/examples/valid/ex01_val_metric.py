@@ -51,8 +51,6 @@ experiment = simulation + 2.0
 scalar_observable = val.ValObservable(
     components=("scalar",),
     geometry=val.EValGeometry.GLOBAL,
-    coords=None,
-    times=None,
     phys_units="unit",
 )
 
@@ -102,13 +100,11 @@ val_result: val.ValResult = val.ValidationEngine(
 # ----------------------------------------------
 # Engine arrays have shape (1 point, 1 component, 1 time). Select by metric
 # type. The three input entries remain independent observations for one point.
-metric_fields: dict[val.EMetricType, val.ValMetricField] = val_result.fields[
-    observable_tag
-]
+metrics: dict[val.EMetricType, val.ValMetricField] = val_result.metrics[observable_tag]
 print("Observable tags:", tuple(observables))
 print("Simulation axes and shape:", sim_response.axes, sim_response.data.shape)
 print("Experiment axes and shape:", exp_response.axes, exp_response.data.shape)
-for metric_type, metric_field in metric_fields.items():
+for metric_type, metric_field in metrics.items():
     print(metric_type.name, metric_field.axes, metric_field.outputs)
 
 # %%

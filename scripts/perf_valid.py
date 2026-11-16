@@ -189,8 +189,8 @@ def prepare_cases(
 
 def check_outputs(result: val.ValResult) -> tuple[float, ...]:
     checksums = []
-    for fields in result.fields.values():
-        for field in fields.values():
+    for metrics in result.metrics.values():
+        for field in metrics.values():
             for array in field.outputs.values():
                 if array is not None:
                     if not np.all(np.isfinite(array)):
@@ -221,6 +221,8 @@ def describe_statistics(durations: list[float]) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runs", type=int, default=TIMING_RUNS)
+    parser.add_argument("--workers", type=int, default=WORKERS,
+                        help="Worker processes; use 1 for the serial control.")
     parser.add_argument("--camera-width", type=int, default=CAMERA_WIDTH)
     parser.add_argument("--camera-height", type=int, default=CAMERA_HEIGHT)
     parser.add_argument("--time-steps", type=int, default=TIME_STEPS)
@@ -234,7 +236,7 @@ def main() -> None:
         SIM_EPISTEMIC_SAMPLES,
         SIM_ALEATORY_SAMPLES,
         EXP_ALEATORY_SAMPLES,
-        WORKERS,
+        arguments.workers,
         CHUNK_SIZE,
         *STRAIN_GRID,
         *THERMOCOUPLE_GRID,
@@ -267,7 +269,7 @@ def main() -> None:
         f"strain grid: {STRAIN_GRID}; thermocouple grid: {THERMOCOUPLE_GRID}\n"
         f"Simulation epistemic/aleatory: {SIM_EPISTEMIC_SAMPLES}/"
         f"{SIM_ALEATORY_SAMPLES}; experiment aleatory: {EXP_ALEATORY_SAMPLES}\n"
-        f"Workers: {WORKERS}; chunk size: {CHUNK_SIZE}; seed: {RANDOM_SEED}; "
+        f"Workers: {arguments.workers}; chunk size: {CHUNK_SIZE}; seed: {RANDOM_SEED}; "
         f"native threads per worker: {NATIVE_THREADS}"
     )
     print(metadata, flush=True)
@@ -308,7 +310,7 @@ def main() -> None:
             val.MetricKS(),
             val.MetricCVM(),
         ],
-        opts=val.ValEngineOpts(workers=WORKERS, chunk_size=CHUNK_SIZE),
+        opts=val.ValEngineOpts(workers=arguments.workers, chunk_size=CHUNK_SIZE),
     )
     # A fixed positive scale avoids singular relative error at initial zero fields.
     paired_engines = {
@@ -325,7 +327,7 @@ def main() -> None:
                     }[case.name],
                 ),
             ],
-            opts=val.ValEngineOpts(workers=WORKERS, chunk_size=CHUNK_SIZE),
+            opts=val.ValEngineOpts(workers=arguments.workers, chunk_size=CHUNK_SIZE),
         )
         for case in cases
     }

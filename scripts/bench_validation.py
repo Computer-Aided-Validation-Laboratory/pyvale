@@ -59,7 +59,7 @@ def main() -> None:
         field = (
             val.ValidationEngine([val.MetricAVM()])
             .run(val_case)
-            .get("strain", val.EMetricType.AVM)
+            .metrics["strain"][val.EMetricType.AVM]
         )
         elapsed = perf_counter() - start
         if not np.allclose(
