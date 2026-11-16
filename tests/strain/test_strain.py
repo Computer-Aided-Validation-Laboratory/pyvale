@@ -416,3 +416,8 @@ def test_strain_import_aligns_frames_with_missing_subsets(tmp_path, importer, la
         assert np.isnan(result.x_mm[1, 0, 1])
         np.testing.assert_allclose(result.x_mm[1, 0, 0], 11)
         np.testing.assert_allclose(result.x_mm[1, 1, 0], 10)
+        assert result.eps1.shape == (2, 2, 2)
+        assert result.eps2.shape == (2, 2, 2)
+        assert np.isnan(result.eps1[1, 0, 1])
+        np.testing.assert_allclose(result.eps1[1, 0, 0], 11)
+        np.testing.assert_allclose(result.eps2[1, 1, 0], 10)

@@ -139,10 +139,10 @@ def _import(data: str | Path | list[Path],
             return output
 
         tensor_arrays = [grid_per_frame(a) for a in tensor_arrays]
-        if has_coords:
-            x_mm = grid_per_frame(x_mm)
-            y_mm = grid_per_frame(y_mm)
-            z_mm = grid_per_frame(z_mm)
+        principal_arrays = [grid_per_frame(a) for a in principal_arrays]
+        x_mm = grid_per_frame(x_mm)
+        y_mm = grid_per_frame(y_mm)
+        z_mm = grid_per_frame(z_mm)
     else:
         window_x_out = window_x_ref
         window_y_out = window_y_ref

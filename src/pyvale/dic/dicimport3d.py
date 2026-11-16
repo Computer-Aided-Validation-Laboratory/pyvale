@@ -121,6 +121,9 @@ def import_3d(data: str | Path | list[Path],
         coordinate_frames.append((current[0], current[1]))
         frames.append(list(current[2:]))
 
+    if print_level > 0:
+        common_util.info_out("Aligning frames by common coordinates", "")
+
     ss_x_ref, ss_y_ref, arrays = align_frames_by_coordinates(
         coordinate_frames, frames
     )
