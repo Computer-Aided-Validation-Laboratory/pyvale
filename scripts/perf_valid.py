@@ -1,14 +1,15 @@
 """Repeated plate validation timings; run from the repository root."""
 
 import argparse
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from hashlib import sha256
 import os
-from pathlib import Path
 import platform
 import statistics
 import subprocess
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from hashlib import sha256
+from multiprocessing import get_start_method
+from pathlib import Path
 from time import perf_counter
 
 # Set native thread limits before NumPy/SciPy imports and spawned workers.
@@ -20,8 +21,8 @@ import numpy as np
 import scipy
 
 import pyvale.valid as val
-import pyvale.valid.cython.mavm as mavm
-
+from pyvale.valid import valengine
+from pyvale.valid.cython import mavm
 
 CAMERA_WIDTH = 4
 CAMERA_HEIGHT = 4
@@ -32,7 +33,6 @@ SIM_ALEATORY_SAMPLES = 64
 EXP_ALEATORY_SAMPLES = 8
 TIME_STEPS = 2
 WORKERS = 4
-CHUNK_SIZE = 128
 TIMING_RUNS = 3
 RANDOM_SEED = 2871
 X_LIMITS_MM = (10.0, 90.0)
@@ -42,7 +42,13 @@ TEMPERATURE_NOISE_STD = 0.3
 DISPLACEMENT_NOISE_STD_MM = 0.001
 EXP_OFFSET_NOISE_MULTIPLIER = 2.0
 MAVM_ALPHA = 0.05
-REPORT_PATH = Path.home() / "lfdev/ai-coding/pyvale_valid_perf_run.md"
+REPORT_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "pyvale-output"
+    / "perf"
+    / "valid"
+    / "pyvale_valid_perf_run.md"
+)
 
 
 @dataclass(slots=True)
@@ -66,7 +72,7 @@ def create_grid(width: int, height: int) -> np.ndarray:
 def prepare_cases(
     *, camera_width: int, camera_height: int, time_steps: int
 ) -> tuple[list[BenchmarkCase], np.ndarray]:
-    # Spawned metric workers do not need sensor generation or VTK imports.
+    # Sensor generation runs only in the parent; pyvale still imports VTK on startup.
     import pyvale.data as dataset
     import pyvale.mooseherder as mh
     import pyvale.sensorsim as sens
@@ -202,10 +208,14 @@ def check_outputs(result: val.ValResult) -> tuple[float, ...]:
 def describe_statistics(durations: list[float]) -> str:
     mean = statistics.mean(durations)
     lines = [
-        f"runs={len(durations)}, mean={mean:.3f} s, "
-        f"median={statistics.median(durations):.3f} s",
-        f"min={min(durations):.3f} s, max={max(durations):.3f} s, "
-        f"range={max(durations) - min(durations):.3f} s",
+        (
+            f"runs={len(durations)}, mean={mean:.3f} s, "
+            f"median={statistics.median(durations):.3f} s"
+        ),
+        (
+            f"min={min(durations):.3f} s, max={max(durations):.3f} s, "
+            f"range={max(durations) - min(durations):.3f} s"
+        ),
     ]
     if len(durations) > 1:
         deviation = statistics.stdev(durations)
@@ -221,8 +231,12 @@ def describe_statistics(durations: list[float]) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runs", type=int, default=TIMING_RUNS)
-    parser.add_argument("--workers", type=int, default=WORKERS,
-                        help="Worker processes; use 1 for the serial control.")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=WORKERS,
+        help="Worker processes; use 1 for the serial control.",
+    )
     parser.add_argument("--camera-width", type=int, default=CAMERA_WIDTH)
     parser.add_argument("--camera-height", type=int, default=CAMERA_HEIGHT)
     parser.add_argument("--time-steps", type=int, default=TIME_STEPS)
@@ -237,12 +251,11 @@ def main() -> None:
         SIM_ALEATORY_SAMPLES,
         EXP_ALEATORY_SAMPLES,
         arguments.workers,
-        CHUNK_SIZE,
         *STRAIN_GRID,
         *THERMOCOUPLE_GRID,
     )
     if any(count < 1 for count in counts):
-        parser.error("All run, grid, sample, worker and chunk counts must be positive.")
+        parser.error("All run, grid, sample, worker counts must be positive.")
     if EXP_ALEATORY_SAMPLES > SIM_ALEATORY_SAMPLES:
         parser.error("Paired comparison requires experiment count <= simulation count.")
     revision = subprocess.check_output(
@@ -258,18 +271,21 @@ def main() -> None:
                 processor = line.partition(":")[2].strip()
                 break
     native_fingerprint = sha256(Path(mavm.__file__).read_bytes()).hexdigest()
+    engine_fingerprint = sha256(Path(valengine.__file__).read_bytes()).hexdigest()
     metadata = (
-        f"UTC: {datetime.now(timezone.utc).isoformat()}\n"
+        f"UTC: {datetime.now(UTC).isoformat()}\n"
         f"Revision: {revision}\n"
         f"Platform: {platform.platform()}; CPU: {processor}\n"
         f"Python: {platform.python_version()}; NumPy: {np.__version__}; "
         f"SciPy: {scipy.__version__}\nMAVM module: {mavm.__file__}\n"
         f"MAVM binary SHA256: {native_fingerprint}\n"
+        f"Engine source SHA256: {engine_fingerprint}\n"
+        f"Process start method: {get_start_method()}\n"
         f"Camera grids: {arguments.camera_width} x {arguments.camera_height}; "
         f"strain grid: {STRAIN_GRID}; thermocouple grid: {THERMOCOUPLE_GRID}\n"
         f"Simulation epistemic/aleatory: {SIM_EPISTEMIC_SAMPLES}/"
         f"{SIM_ALEATORY_SAMPLES}; experiment aleatory: {EXP_ALEATORY_SAMPLES}\n"
-        f"Workers: {arguments.workers}; chunk size: {CHUNK_SIZE}; seed: {RANDOM_SEED}; "
+        f"Workers: {arguments.workers}; one partition per worker; seed: {RANDOM_SEED}; "
         f"native threads per worker: {NATIVE_THREADS}"
     )
     print(metadata, flush=True)
@@ -310,7 +326,7 @@ def main() -> None:
             val.MetricKS(),
             val.MetricCVM(),
         ],
-        opts=val.ValEngineOpts(workers=arguments.workers, chunk_size=CHUNK_SIZE),
+        opts=val.ValEngineOpts(workers=arguments.workers),
     )
     # A fixed positive scale avoids singular relative error at initial zero fields.
     paired_engines = {
@@ -327,7 +343,7 @@ def main() -> None:
                     }[case.name],
                 ),
             ],
-            opts=val.ValEngineOpts(workers=arguments.workers, chunk_size=CHUNK_SIZE),
+            opts=val.ValEngineOpts(workers=arguments.workers),
         )
         for case in cases
     }
@@ -390,8 +406,8 @@ def main() -> None:
             "plate solutions. Relative error is normalized by measurement noise."
             "\n\nDistribution metrics share one engine call across observables; "
             "paired metrics execute separately for each physical normalisation. "
-            "Timings include engine preparation, shared-memory copies, worker "
-            "spawn and output allocation. Run totals are wall times including "
+            "Timings include engine preparation, process startup, input/output "
+            "serialization and output allocation. Run totals are wall times including "
             "output checks; sensor/input preparation is reported separately. "
             "Inputs are reused unchanged "
             "across runs; no warmup runs are discarded.\n\n"

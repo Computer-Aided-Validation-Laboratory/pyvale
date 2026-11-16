@@ -6,13 +6,11 @@
 
 """Run standalone metrics over shared physical and uncertainty axes."""
 
-from contextlib import ExitStack
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import StrEnum
-from math import ceil, prod
-from multiprocessing import get_context
-from multiprocessing.shared_memory import SharedMemory
+from math import prod
+from multiprocessing.pool import AsyncResult, Pool
 from os import cpu_count
 
 import numpy as np
@@ -44,8 +42,6 @@ from pyvale.valid.valtypes import (
     ValCase,
     ValObservable,
 )
-
-_SHARED_CHUNKS_PER_TASK = 4
 
 
 class EValResAxis(StrEnum):
@@ -178,31 +174,13 @@ class ValResult:
 @dataclass(slots=True)
 class ValEngineOpts:
     workers: int | None = 1
-    chunk_size: int | None = None
 
     def __post_init__(self) -> None:
-        for name, value in (("workers", self.workers), ("chunk_size", self.chunk_size)):
-            if value is not None:
-                if isinstance(value, bool) or not isinstance(value, int):
-                    raise TypeError(f"{name} must be an integer or None.")
-                if value < 1:
-                    raise ValueError(f"{name} must be positive.")
-
-
-@dataclass(slots=True)
-class _SharedArray:
-    name: str
-    shape: tuple[int, ...]
-    dtype: np.dtype
-
-
-@dataclass(slots=True)
-class _SharedQuantity:
-    data: _SharedArray
-    axes: tuple[EValAxis, ...]
-    lower: _SharedArray | None
-    upper: _SharedArray | None
-    offset_axes: tuple[EValAxis, ...]
+        if self.workers is not None:
+            if isinstance(self.workers, bool) or not isinstance(self.workers, int):
+                raise TypeError("workers must be an integer or None.")
+            if self.workers < 1:
+                raise ValueError("workers must be positive.")
 
 
 @dataclass(slots=True)
@@ -211,23 +189,8 @@ class _Workload:
     sim: ValArray
     exp: ValArray
     shape: tuple[int, ...]
-
-
-@dataclass(slots=True)
-class _SharedWorkload:
-    name: str
-    sim: _SharedQuantity
-    exp: _SharedQuantity
-    shape: tuple[int, ...]
-
-
-@dataclass(slots=True)
-class _SharedBatch:
-    workload: _SharedWorkload
-    metrics: tuple[IValMetric, ...]
     start: int
     stop: int
-    chunk_size: int
 
 
 class ValidationEngine:
@@ -257,9 +220,7 @@ class ValidationEngine:
                 raise TypeError("Metric outputs must be EMetricOutput.")
         self.metrics = tuple(deepcopy(metrics))
         self.opts = (
-            ValEngineOpts()
-            if opts is None
-            else ValEngineOpts(workers=opts.workers, chunk_size=opts.chunk_size)
+            ValEngineOpts() if opts is None else ValEngineOpts(workers=opts.workers)
         )
 
     def run(self, val_case: ValCase) -> ValResult:
@@ -300,8 +261,10 @@ class ValidationEngine:
                             validate_unique_sample(
                                 samples[np.isfinite(samples)], "engine"
                             )
+
         results: dict[str, dict[EMetricType, ValMetricField]] = {}
-        workloads = []
+        workloads: list[_Workload] = []
+
         for name, observable in val_case.observables.items():
             sim = val_case.sim[name]
             exp = val_case.exp[name]
@@ -344,68 +307,53 @@ class ValidationEngine:
                     scenarios=scenarios or None,
                 )
             full_shape = tuple(axis_sizes[axis] for axis in VAL_RES_AXES)
-            workloads.append(_Workload(name, sim, exp, full_shape))
+            workloads.append(_Workload(name, sim, exp, full_shape, 0, prod(full_shape)))
             results[name] = metric_fields
         workers = self.opts.workers
         if workers is None:
             workers = cpu_count() or 1
-        total = sum(prod(workload.shape) for workload in workloads)
-        chunk_size = self.opts.chunk_size
-        if chunk_size is None:
-            chunk_size = 1024 if workers == 1 else max(1, ceil(total / (4 * workers)))
-        # Bound retained results and avoid a pool when only one batch is useful.
-        batch_size = _SHARED_CHUNKS_PER_TASK * chunk_size
-        workers = min(
-            workers,
-            sum(ceil(prod(workload.shape) / batch_size) for workload in workloads),
-        )
+        total = sum(workload.stop for workload in workloads)
+        workers = min(workers, total)
         if workers == 1:
-            for workload in workloads:
-                name, sim, exp, full_shape = (
-                    workload.name,
-                    workload.sim,
-                    workload.exp,
-                    workload.shape,
-                )
-                for start in range(0, prod(full_shape), chunk_size):
-                    calculated = _calculate_chunk(
-                        sim,
-                        exp,
-                        full_shape,
-                        self.metrics,
-                        start,
-                        min(start + chunk_size, prod(full_shape)),
-                    )
-                    _store_chunk(results[name], self.metrics, start, calculated)
+            for name, start, calculated in _calculate_partition(
+                workloads, self.metrics
+            ):
+                _store_chunk(results[name], self.metrics, start, calculated)
         else:
-            with ExitStack() as stack:
-                shared_workloads = []
-                for workload in workloads:
-                    shared_workloads.append(
-                        _SharedWorkload(
-                            workload.name,
-                            _share_quantity(workload.sim, stack),
-                            _share_quantity(workload.exp, stack),
-                            workload.shape,
+            with Pool(workers) as pool:
+                pending: list[AsyncResult] = []
+                for worker_idx in range(workers):
+                    partition_start = total * worker_idx // workers
+                    partition_stop = total * (worker_idx + 1) // workers
+                    partition: list[_Workload] = []
+                    observable_start = 0
+                    for workload in workloads:
+                        start = max(0, partition_start - observable_start)
+                        stop = min(workload.stop, partition_stop - observable_start)
+                        observable_start += workload.stop
+                        if start >= stop:
+                            continue
+                        cells_per_point = prod(workload.shape[1:])
+                        point_start = start // cells_per_point
+                        point_stop = (stop - 1) // cells_per_point + 1
+                        partition.append(
+                            _Workload(
+                                workload.name,
+                                _slice_points(workload.sim, point_start, point_stop),
+                                _slice_points(workload.exp, point_start, point_stop),
+                                (point_stop - point_start, *workload.shape[1:]),
+                                start,
+                                stop,
+                            )
+                        )
+                    pending.append(
+                        pool.apply_async(
+                            _calculate_partition, args=(partition, self.metrics)
                         )
                     )
-                with get_context("spawn").Pool(workers) as pool:
-                    tasks = (
-                        _SharedBatch(
-                            workload,
-                            self.metrics,
-                            start,
-                            min(start + batch_size, prod(workload.shape)),
-                            chunk_size,
-                        )
-                        for workload in shared_workloads
-                        for start in range(0, prod(workload.shape), batch_size)
-                    )
-                    for batch in pool.imap_unordered(
-                        _calculate_shared_batch, tasks, chunksize=1
-                    ):
-                        for name, start, calculated in batch:
-                            _store_chunk(results[name], self.metrics, start, calculated)
+                for task in pending:
+                    for name, start, calculated in task.get():
+                        _store_chunk(results[name], self.metrics, start, calculated)
         configs = {metric.get_kind(): metric for metric in self.metrics}
         return ValResult(
             observables=val_case.observables, metrics=results, metric_configs=configs
@@ -418,156 +366,124 @@ def _get_axis_size(quantity: ValArray, axis: EValAxis) -> int:
     return quantity.data.shape[quantity.axes.index(axis)]
 
 
-def _share_array(array: np.ndarray, stack: ExitStack) -> _SharedArray:
-    contiguous = np.asarray(array)
-    memory = SharedMemory(create=True, size=contiguous.nbytes)
-    stack.callback(memory.unlink)
-    stack.callback(memory.close)
-    shared = np.ndarray(contiguous.shape, dtype=contiguous.dtype, buffer=memory.buf)
-    shared[...] = contiguous
-    return _SharedArray(memory.name, contiguous.shape, contiguous.dtype)
-
-
-def _share_quantity(quantity: ValArray, stack: ExitStack) -> _SharedQuantity:
+def _slice_points(quantity: ValArray, start: int, stop: int) -> ValArray:
+    if start == 0 and stop == _get_axis_size(quantity, EValAxis.POINT):
+        return quantity
+    selection = tuple(
+        slice(start, stop) if axis is EValAxis.POINT else slice(None)
+        for axis in quantity.axes
+    )
     offsets = quantity.offsets
-    return _SharedQuantity(
-        _share_array(quantity.data, stack),
-        quantity.axes,
-        None if offsets is None else _share_array(np.asarray(offsets.lower), stack),
-        None if offsets is None else _share_array(np.asarray(offsets.upper), stack),
-        () if offsets is None else offsets.axes,
-    )
-
-
-def _attach_array(description: _SharedArray, stack: ExitStack) -> np.ndarray:
-    memory = SharedMemory(name=description.name)
-    stack.callback(memory.close)
-    array = np.ndarray(description.shape, dtype=description.dtype, buffer=memory.buf)
-    array.flags.writeable = False
-    return array
-
-
-def _attach_quantity(description: _SharedQuantity, stack: ExitStack) -> ValArray:
-    offsets = None
-    if description.lower is not None:
-        assert description.upper is not None
+    if offsets is not None and EValAxis.POINT in offsets.axes:
+        offset_selection = tuple(
+            slice(start, stop) if axis is EValAxis.POINT else slice(None)
+            for axis in offsets.axes
+        )
         offsets = EpistemicOffsets(
-            _attach_array(description.lower, stack),
-            _attach_array(description.upper, stack),
-            description.offset_axes,
+            np.asarray(offsets.lower)[offset_selection],
+            np.asarray(offsets.upper)[offset_selection],
+            offsets.axes,
         )
-    return ValArray(_attach_array(description.data, stack), description.axes, offsets)
+    return ValArray(quantity.data[selection], quantity.axes, offsets)
 
 
-def _calculate_shared_batch(
-    task: _SharedBatch,
+def _calculate_partition(
+    workloads: list[_Workload], metrics: tuple[IValMetric, ...]
 ) -> list[tuple[str, int, np.ndarray]]:
-    workload = task.workload
-    calculated_chunks = []
-    with ExitStack() as stack:
-        simulation = _attach_quantity(workload.sim, stack)
-        experiment = _attach_quantity(workload.exp, stack)
-        for start in range(task.start, task.stop, task.chunk_size):
-            calculated = _calculate_chunk(
-                simulation,
-                experiment,
-                workload.shape,
-                task.metrics,
-                start,
-                min(start + task.chunk_size, task.stop),
+    calculated_workloads: list[tuple[str, int, np.ndarray]] = []
+    for workload in workloads:
+        sim, exp, shape = workload.sim, workload.exp, workload.shape
+        start = workload.start % prod(shape[1:])
+        stop = start + workload.stop - workload.start
+        requires_pairs = any(
+            type(metric) in (MetricRMSE, MetricRelErr) for metric in metrics
+        )
+        model_distributions: dict[tuple[int, ...], _PreparedECDF] = {}
+        experimental_distributions: dict[tuple[int, ...], _PreparedMAVMExperiment] = {}
+        metric_outputs = tuple(metric.get_outputs() for metric in metrics)
+        output_count = sum(len(outputs) for outputs in metric_outputs)
+        calculated = np.full((output_count, stop - start), np.nan)
+        physical_cell: tuple[int, int, int] | None = None
+        for local_idx, flat_idx in enumerate(range(start, stop)):
+            indices = tuple(int(index) for index in np.unravel_index(flat_idx, shape))
+            (
+                point,
+                component,
+                time,
+                sim_trans,
+                sim_nuis,
+                exp_trans,
+                exp_nuis,
+                sim_off,
+                exp_off,
+            ) = indices
+            current_cell = (point, component, time)
+            if current_cell != physical_cell:
+                model_distributions.clear()
+                experimental_distributions.clear()
+                physical_cell = current_cell
+            sim_samples = sim._select_aleatory(
+                point, component, time, sim_trans, sim_nuis, EEpisOffset(sim_off)
             )
-            calculated_chunks.append((workload.name, start, calculated))
-    return calculated_chunks
-
-
-def _calculate_chunk(
-    sim: ValArray,
-    exp: ValArray,
-    shape: tuple[int, ...],
-    metrics: tuple[IValMetric, ...],
-    start: int,
-    stop: int,
-) -> np.ndarray:
-    requires_pairs = any(
-        type(metric) in (MetricRMSE, MetricRelErr) for metric in metrics
-    )
-    model_distributions: dict[tuple[int, ...], _PreparedECDF] = {}
-    experimental_distributions: dict[tuple[int, ...], _PreparedMAVMExperiment] = {}
-    metric_outputs = tuple(metric.get_outputs() for metric in metrics)
-    output_count = sum(len(outputs) for outputs in metric_outputs)
-    calculated = np.full((output_count, stop - start), np.nan)
-    for local_idx, flat_idx in enumerate(range(start, stop)):
-        indices = tuple(int(index) for index in np.unravel_index(flat_idx, shape))
-        (
-            point,
-            component,
-            time,
-            sim_trans,
-            sim_nuis,
-            exp_trans,
-            exp_nuis,
-            sim_off,
-            exp_off,
-        ) = indices
-        sim_samples = sim._select_aleatory(
-            point, component, time, sim_trans, sim_nuis, EEpisOffset(sim_off)
-        )
-        exp_samples = exp._select_aleatory(
-            point, component, time, exp_trans, exp_nuis, EEpisOffset(exp_off)
-        )
-        sim_present = ~np.isnan(sim_samples)
-        exp_present = ~np.isnan(exp_samples)
-        simulation = np.asarray(sim_samples[sim_present], dtype=np.float64)
-        experiment = np.asarray(exp_samples[exp_present], dtype=np.float64)
-        if not len(simulation) or not len(experiment):
-            continue
-        paired_simulation, paired_experiment = simulation, experiment
-        if requires_pairs:
-            paired = sim_present & exp_present
-            paired_simulation = np.asarray(sim_samples[paired], dtype=np.float64)
-            paired_experiment = np.asarray(exp_samples[paired], dtype=np.float64)
-        output_start = 0
-        for metric, outputs in zip(metrics, metric_outputs, strict=True):
-            if type(metric) is MetricMAVM:
-                model_key = (point, component, time, sim_trans, sim_nuis, sim_off)
-                experimental_key = (
-                    point,
-                    component,
-                    time,
-                    exp_trans,
-                    exp_nuis,
-                    exp_off,
-                )
-                if model_key not in model_distributions:
-                    model_distributions[model_key] = _prepare_mavm_distribution(
-                        simulation
+            exp_samples = exp._select_aleatory(
+                point, component, time, exp_trans, exp_nuis, EEpisOffset(exp_off)
+            )
+            sim_present = ~np.isnan(sim_samples)
+            exp_present = ~np.isnan(exp_samples)
+            simulation = np.asarray(sim_samples[sim_present], dtype=np.float64)
+            experiment = np.asarray(exp_samples[exp_present], dtype=np.float64)
+            if not len(simulation) or not len(experiment):
+                continue
+            paired_simulation, paired_experiment = simulation, experiment
+            if requires_pairs:
+                paired = sim_present & exp_present
+                paired_simulation = np.asarray(sim_samples[paired], dtype=np.float64)
+                paired_experiment = np.asarray(exp_samples[paired], dtype=np.float64)
+            output_start = 0
+            for metric, outputs in zip(metrics, metric_outputs, strict=True):
+                if type(metric) is MetricMAVM:
+                    model_key = (point, component, time, sim_trans, sim_nuis, sim_off)
+                    experimental_key = (
+                        point,
+                        component,
+                        time,
+                        exp_trans,
+                        exp_nuis,
+                        exp_off,
                     )
-                if experimental_key not in experimental_distributions:
-                    experimental_distributions[experimental_key] = (
-                        _prepare_mavm_experiment(experiment, metric.alpha)
+                    if model_key not in model_distributions:
+                        model_distributions[model_key] = _prepare_mavm_distribution(
+                            simulation
+                        )
+                    if experimental_key not in experimental_distributions:
+                        experimental_distributions[experimental_key] = (
+                            _prepare_mavm_experiment(experiment, metric.alpha)
+                        )
+                    metric_result = _calculate_prepared_mavm(
+                        model_distributions[model_key],
+                        experimental_distributions[experimental_key],
+                        metric.alpha,
+                        metric.duplicates,
+                        metric.tol,
                     )
-                metric_result = _calculate_prepared_mavm(
-                    model_distributions[model_key],
-                    experimental_distributions[experimental_key],
-                    metric.alpha,
-                    metric.duplicates,
-                    metric.tol,
-                )
-            elif type(metric) in (MetricRMSE, MetricRelErr):
-                metric_result = calculate_trusted_metric(
-                    metric, paired_simulation, paired_experiment
-                )
-            else:
-                metric_result = calculate_trusted_metric(metric, simulation, experiment)
-            output_stop = output_start + len(outputs)
-            output_values = metric.extract_outputs(metric_result)
-            if len(output_values) != len(outputs):
-                raise ValueError(
-                    "Calculated outputs must match the metric declaration."
-                )
-            calculated[output_start:output_stop, local_idx] = output_values
-            output_start = output_stop
-    return calculated
+                elif type(metric) in (MetricRMSE, MetricRelErr):
+                    metric_result = calculate_trusted_metric(
+                        metric, paired_simulation, paired_experiment
+                    )
+                else:
+                    metric_result = calculate_trusted_metric(
+                        metric, simulation, experiment
+                    )
+                output_stop = output_start + len(outputs)
+                output_values = metric.extract_outputs(metric_result)
+                if len(output_values) != len(outputs):
+                    raise ValueError(
+                        "Calculated outputs must match the metric declaration."
+                    )
+                calculated[output_start:output_stop, local_idx] = output_values
+                output_start = output_stop
+        calculated_workloads.append((workload.name, workload.start, calculated))
+    return calculated_workloads
 
 
 def _store_chunk(

@@ -13,10 +13,8 @@ from scipy import stats
 import pyvale.valid as val
 
 
-@pytest.mark.parametrize("workers,chunk_size", [(1, 1), (1, 17), (2, 17)])
-def test_engine_matches_standalone_uncertainty_products(
-    workers: int, chunk_size: int
-) -> None:
+@pytest.mark.parametrize("workers", [1, 2, 4])
+def test_engine_matches_standalone_uncertainty_products(workers: int) -> None:
     generator = np.random.default_rng(1729)
     simulation = generator.integers(-3, 4, (1, 1, 1, 2, 2, 8)).astype(float)
     experiment = generator.integers(-2, 5, (1, 1, 1, 2, 2, 5)).astype(float)
@@ -35,9 +33,9 @@ def test_engine_matches_standalone_uncertainty_products(
         )
     }
     metrics = [val.MetricMAVM(), val.MetricAVM(), val.MetricKS(), val.MetricCVM()]
-    result = val.ValidationEngine(
-        metrics, opts=val.ValEngineOpts(workers=workers, chunk_size=chunk_size)
-    ).run(val.ValCase(observables, {"response": simulated}, {"response": observed}))
+    result = val.ValidationEngine(metrics, opts=val.ValEngineOpts(workers=workers)).run(
+        val.ValCase(observables, {"response": simulated}, {"response": observed})
+    )
     for sim_trans, sim_nuis, exp_trans, exp_nuis, sim_offset, exp_offset in product(
         range(2), range(2), range(2), range(2), val.EEpisOffset, val.EEpisOffset
     ):
@@ -167,7 +165,7 @@ def test_small_workload_with_worker_cap_matches_analytic_shift() -> None:
     ]
     for workers in (1, 4):
         result = val.ValidationEngine(
-            metrics, opts=val.ValEngineOpts(workers=workers, chunk_size=1)
+            metrics, opts=val.ValEngineOpts(workers=workers)
         ).run(case)
         for metric in metrics:
             assert (

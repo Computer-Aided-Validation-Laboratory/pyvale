@@ -323,7 +323,7 @@ def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
     )
     result = val.ValidationEngine(
         [MetricSampleMeans(), val.MetricKS()],
-        opts=val.ValEngineOpts(workers=workers, chunk_size=1),
+        opts=val.ValEngineOpts(workers=workers),
     ).run(case)
     field = result.metrics["scalar"][val.EMetricType.AVM]
     assert tuple(field.outputs) == (val.EMetricOutput.ERROR, val.EMetricOutput.DISTANCE)
