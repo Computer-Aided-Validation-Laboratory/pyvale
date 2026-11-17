@@ -16,12 +16,14 @@ from collections.abc import Callable
 
 import numpy as np
 import pytest
+from scipy import stats
 
 from pyvale.valid.constants import MAVM_DUPLICATE_TOLERANCE
 from pyvale.valid.cython import cyth_calc_mavm_1d, cyth_calc_mavm_pbox_1d
 from pyvale.valid.metrics import (
     EMAVMDuplicates,
     MAVMResult,
+    calc_avm_1d,
     calc_mavm_1d,
     calc_mavm_pbox_1d,
 )
@@ -253,7 +255,6 @@ def _rectangle_mavm_areas(
     alpha: float = 0.05,
 ) -> tuple[float, float]:
     """Calculate MAVM using only merged empirical-CDF rectangles."""
-    from scipy import stats
 
     model_cdf = stats.ecdf(model_data).cdf
     exp_cdf = stats.ecdf(exp_data).cdf
@@ -374,7 +375,6 @@ def test_avm_matches_hand_calculated_ecdf_rectangles(
     expected_area: float,
 ) -> None:
     """Verify AVM against manually summed empirical-CDF rectangles."""
-    from pyvale.valid.metrics import calc_avm_1d
 
     assert calc_avm_1d(model_data, exp_data) == pytest.approx(
         expected_area,

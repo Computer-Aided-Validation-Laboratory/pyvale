@@ -25,7 +25,7 @@ from pyvale.valid.metricstrategy import (
     MetricRelErr,
     MetricRMSE,
 )
-from pyvale.valid.valtypes import ValECDF
+from pyvale.valid.validtypes import ValidECDF
 
 
 def test_avm_1d_shift() -> None:
@@ -34,8 +34,8 @@ def test_avm_1d_shift() -> None:
     shift = 3.5
     y = x + shift
 
-    val = calc_avm_1d(y, x)
-    assert val == pytest.approx(shift, rel=1e-5)
+    avm_distance = calc_avm_1d(y, x)
+    assert avm_distance == pytest.approx(shift, rel=1e-5)
 
 
 def test_ks_1d_identical_and_separated() -> None:
@@ -64,7 +64,7 @@ def test_u_pooling_1d() -> None:
     """U-pooling metric produces near zero for matching observations."""
     probs = np.linspace(0.01, 1.0, 100)
     quants = np.linspace(0.0, 10.0, 100)
-    cdfs = [ValECDF(quants, probs) for _ in range(50)]
+    cdfs = [ValidECDF(quants, probs) for _ in range(50)]
     obs = np.linspace(0.0, 10.0, 50)
 
     u_metric = calc_u_pooling_1d(cdfs, obs)
@@ -83,7 +83,7 @@ def test_deterministic_metrics() -> None:
 
 
 def test_strategy_pattern_metrics() -> None:
-    """Metric strategy classes conform to IValMetric interface."""
+    """Metric strategy classes conform to IValidMetric interface."""
     sim = np.linspace(0.0, 10.0, 100)
     exp = np.linspace(1.0, 11.0, 100)
 

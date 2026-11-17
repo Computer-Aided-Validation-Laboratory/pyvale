@@ -17,14 +17,14 @@ the Pulse25X analysis from
 .. toctree::
    :maxdepth: 1
 
-   valid/ex00_val_quickstart
-   valid/ex01_val_metric
-   valid/ex02_val_steady
-   valid/ex03_val_epistemic
-   valid/ex04_val_bounds
-   valid/ex05_val_transient
-   valid/ex06_val_diagnostics
-   valid/ex07_val_field
-   valid/ex08_val_cube_tensor
-   valid/ex09_val_cube_sweep
-   valid/ex10_val_pulse25x
+   valid/ex00_valid_quickstart
+   valid/ex01_valid_metric
+   valid/ex02_valid_steady
+   valid/ex03_valid_epistemic
+   valid/ex04_valid_bounds
+   valid/ex05_valid_transient
+   valid/ex06_valid_diagnostics
+   valid/ex07_valid_field
+   valid/ex08_valid_cube_tensor
+   valid/ex09_valid_cube_sweep
+   valid/ex10_valid_pulse25x

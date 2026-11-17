@@ -6,12 +6,19 @@
 
 """Named physical and uncertainty axes for validation data."""
 
+from __future__ import annotations
+
+from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, StrEnum, auto
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pyvale.valid.inputvalidation import validate_real_array
+from pyvale.valid.validchecks import validate_real_array
+
+if TYPE_CHECKING:
+    from pyvale.valid.metricstrategy import EMetricType, IValidMetric
 
 
 class EMetricOutput(Enum):
@@ -28,7 +35,7 @@ class EEpisOffset(IntEnum):
     UPPER = 2
 
 
-class EValAxis(Enum):
+class EValidAxis(Enum):
     POINT = auto()
     COMPONENT = auto()
     TIME = auto()
@@ -37,12 +44,12 @@ class EValAxis(Enum):
     ALEATORY = auto()
 
 
-AXIS_ORDER = tuple(EValAxis)
+AXIS_ORDER = tuple(EValidAxis)
 PHYSICAL_AXES = AXIS_ORDER[:3]
 SAMPLE_AXES = AXIS_ORDER[3:]
 
 
-class EValGeometry(Enum):
+class EValidGeometry(Enum):
     POINT = auto()
     LINE = auto()
     SURFACE = auto()
@@ -50,15 +57,15 @@ class EValGeometry(Enum):
     GLOBAL = auto()
 
 
-class EValSource(StrEnum):
+class EValidSource(StrEnum):
     SIM = "sim"
     EXP = "exp"
 
 
 @dataclass(slots=True)
-class ValObservable:
+class ValidObservable:
     components: tuple[str, ...]
-    geometry: EValGeometry
+    geometry: EValidGeometry
     coords: np.ndarray | None = None
     connect: dict[str, np.ndarray] | None = None
     times: np.ndarray | None = None
@@ -68,11 +75,11 @@ class ValObservable:
     time_units: str = ""
 
     def __post_init__(self) -> None:
-        if not isinstance(self.geometry, EValGeometry):
-            raise TypeError("Geometry kind must be EValGeometry.")
+        if not isinstance(self.geometry, EValidGeometry):
+            raise TypeError("Geometry kind must be EValidGeometry.")
         if self.coords is not None:
             validate_real_array(self.coords, "coords", allow_nan=False)
-        if self.geometry is EValGeometry.GLOBAL:
+        if self.geometry is EValidGeometry.GLOBAL:
             if self.coords is not None:
                 raise ValueError("GLOBAL geometry cannot have point coordinates.")
         elif self.coords is None or self.coords.ndim != 2:
@@ -98,7 +105,7 @@ class EpistemicOffsets:
 
     lower: np.ndarray | float
     upper: np.ndarray | float
-    axes: tuple[EValAxis, ...] = ()
+    axes: tuple[EValidAxis, ...] = ()
 
     def __post_init__(self) -> None:
         if any(axis not in PHYSICAL_AXES for axis in self.axes):
@@ -107,8 +114,8 @@ class EpistemicOffsets:
         if len(set(self.axes)) != len(self.axes):
             raise ValueError("Offset axes must be unique.")
 
-        if any(not isinstance(axis, EValAxis) for axis in self.axes):
-            raise TypeError("Axes must be EValAxis.")
+        if any(not isinstance(axis, EValidAxis) for axis in self.axes):
+            raise TypeError("Axes must be EValidAxis.")
         ordered_axes = tuple(sorted(self.axes, key=AXIS_ORDER.index))
         if ordered_axes != self.axes:
             raise ValueError("Offset axes must be in canonical order.")
@@ -122,16 +129,16 @@ class EpistemicOffsets:
 
 
 @dataclass(slots=True)
-class ValArray:
+class ValidArray:
     """Borrow data with explicit axes; nominal selections share its memory.
 
-    Observation dtype and finiteness are checked when assembling a ValCase.
+    Observation dtype and finiteness are checked when assembling a ValidCase.
     Other arrays may carry nonnumeric run identifiers. Borrowed observations
     and metadata must remain unchanged for the lifetime of a case.
     """
 
     data: np.ndarray
-    axes: tuple[EValAxis, ...]
+    axes: tuple[EValidAxis, ...]
     offsets: EpistemicOffsets | None = None
 
     def __post_init__(self) -> None:
@@ -141,8 +148,8 @@ class ValArray:
         if len(set(self.axes)) != len(self.axes):
             raise ValueError("Array axes must be unique.")
 
-        if any(not isinstance(axis, EValAxis) for axis in self.axes):
-            raise TypeError("Axes must be EValAxis.")
+        if any(not isinstance(axis, EValidAxis) for axis in self.axes):
+            raise TypeError("Axes must be EValidAxis.")
 
         ordered_axes = tuple(sorted(self.axes, key=AXIS_ORDER.index))
         if ordered_axes != self.axes:
@@ -163,16 +170,16 @@ class ValArray:
     ) -> np.ndarray:
         """Select one conditional 1D sample, applying a coherent value shift."""
         selection_idxs = {
-            EValAxis.POINT: point_idx,
-            EValAxis.COMPONENT: component_idx,
-            EValAxis.TIME: time_idx,
-            EValAxis.EPISTEMIC_TRANS: epis_trans_idx,
-            EValAxis.EPISTEMIC_NUIS: epis_nuis_idx,
-            EValAxis.ALEATORY: slice(None),
+            EValidAxis.POINT: point_idx,
+            EValidAxis.COMPONENT: component_idx,
+            EValidAxis.TIME: time_idx,
+            EValidAxis.EPISTEMIC_TRANS: epis_trans_idx,
+            EValidAxis.EPISTEMIC_NUIS: epis_nuis_idx,
+            EValidAxis.ALEATORY: slice(None),
         }
 
         for axis, selection_idx in selection_idxs.items():
-            if axis is EValAxis.ALEATORY:
+            if axis is EValidAxis.ALEATORY:
                 continue
 
             size = self.data.shape[self.axes.index(axis)] if axis in self.axes else 1
@@ -207,12 +214,12 @@ class ValArray:
         offset: EEpisOffset,
     ) -> np.ndarray:
         selection_idxs = {
-            EValAxis.POINT: point_idx,
-            EValAxis.COMPONENT: component_idx,
-            EValAxis.TIME: time_idx,
-            EValAxis.EPISTEMIC_TRANS: epis_trans_idx,
-            EValAxis.EPISTEMIC_NUIS: epis_nuis_idx,
-            EValAxis.ALEATORY: slice(None),
+            EValidAxis.POINT: point_idx,
+            EValidAxis.COMPONENT: component_idx,
+            EValidAxis.TIME: time_idx,
+            EValidAxis.EPISTEMIC_TRANS: epis_trans_idx,
+            EValidAxis.EPISTEMIC_NUIS: epis_nuis_idx,
+            EValidAxis.ALEATORY: slice(None),
         }
 
         values = np.atleast_1d(
@@ -226,9 +233,9 @@ class ValArray:
         assert offsets is not None
 
         physical = {
-            EValAxis.POINT: point_idx,
-            EValAxis.COMPONENT: component_idx,
-            EValAxis.TIME: time_idx,
+            EValidAxis.POINT: point_idx,
+            EValidAxis.COMPONENT: component_idx,
+            EValidAxis.TIME: time_idx,
         }
         bound = offsets.lower if offset == EEpisOffset.LOWER else offsets.upper
 
@@ -240,20 +247,20 @@ class ValArray:
 
 
 @dataclass(slots=True)
-class ValSampleInputs:
-    parameters: dict[str, ValArray] | None = None
-    run_ids: ValArray | None = None
+class ValidSampleInputs:
+    parameters: dict[str, ValidArray] | None = None
+    run_ids: ValidArray | None = None
 
 
 @dataclass(slots=True)
-class ValCase:
+class ValidCase:
     """Validate and borrow observations and metadata without copying large arrays."""
 
-    observables: dict[str, ValObservable]
-    sim: dict[str, ValArray]
-    exp: dict[str, ValArray]
-    sim_inputs: ValSampleInputs | None = field(default=None, kw_only=True)
-    exp_inputs: ValSampleInputs | None = field(default=None, kw_only=True)
+    observables: dict[str, ValidObservable]
+    sim: dict[str, ValidArray]
+    exp: dict[str, ValidArray]
+    sim_inputs: ValidSampleInputs | None = field(default=None, kw_only=True)
+    exp_inputs: ValidSampleInputs | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         if not self.observables:
@@ -272,9 +279,9 @@ class ValCase:
             if observable.times is not None:
                 leng_time = observable.times.shape[0]
             lengths = {
-                EValAxis.POINT: leng_pt,
-                EValAxis.COMPONENT: leng_comp,
-                EValAxis.TIME: leng_time,
+                EValidAxis.POINT: leng_pt,
+                EValidAxis.COMPONENT: leng_comp,
+                EValidAxis.TIME: leng_time,
             }
             for source, provenance in (
                 (self.sim, self.sim_inputs),
@@ -371,7 +378,7 @@ class MAVMResult:
 
 
 @dataclass(slots=True)
-class ValECDF:
+class ValidECDF:
     """Borrow support/probabilities, each shaped (n_support,).
 
     Support and cumulative probabilities increase strictly; probabilities end
@@ -382,12 +389,12 @@ class ValECDF:
     probabilities: np.ndarray
 
 
-class EValECDFBounds(Enum):
+class EValidECDFBounds(Enum):
     POINTWISE = auto()
     SUPPORT_SUM = auto()
 
 
-class EValMAVMDiagnostic(Enum):
+class EValidMAVMDiagnostic(Enum):
     DISTRIBUTIONS = auto()
     COMPARISONS = auto()
     CORRECTION = auto()
@@ -395,7 +402,7 @@ class EValMAVMDiagnostic(Enum):
 
 
 @dataclass(slots=True)
-class ValECDFSummary:
+class ValidECDFSummary:
     """Conditional quantile curves on a shared probability grid, each shaped (n,).
 
     nominal is the arithmetic mean of conditional quantiles, not a pooled CDF.
@@ -407,7 +414,7 @@ class ValECDFSummary:
     lower: np.ndarray
     upper: np.ndarray
     nominal: np.ndarray
-    bounds: EValECDFBounds
+    bounds: EValidECDFBounds
     lower_idx: int | None
     upper_idx: int | None
 
@@ -426,3 +433,137 @@ class MAVMCorrection:
     comparisons: tuple[MAVMResult, MAVMResult, MAVMResult, MAVMResult]
     lower_exp_idx: int
     upper_exp_idx: int
+
+
+def validate_mavm_config(alpha: float, duplicates: EMAVMDuplicates, tol: float) -> None:
+    if not isinstance(duplicates, EMAVMDuplicates):
+        raise TypeError("MAVM duplicates must be EMAVMDuplicates.")
+
+    if (
+        not isinstance(alpha, (int, float, np.integer, np.floating))
+        or isinstance(alpha, (bool, np.bool_))
+        or not np.isfinite(alpha)
+        or not 0 < alpha < 1
+    ):
+        raise ValueError("MAVM alpha must be between zero and one.")
+
+    if (
+        not isinstance(tol, (int, float, np.integer, np.floating))
+        or isinstance(tol, (bool, np.bool_))
+        or not np.isfinite(tol)
+        or tol < 0
+    ):
+        raise ValueError("MAVM tolerance must be finite and nonnegative.")
+
+
+def validate_ecdf(cdf: ValidECDF) -> None:
+    if not isinstance(cdf, ValidECDF):
+        raise TypeError("Model CDFs must be ValidECDF records.")
+
+    validate_real_array(cdf.quantiles, "quantiles", allow_nan=False)
+    validate_real_array(cdf.probabilities, "probabilities", allow_nan=False)
+
+    if (
+        cdf.quantiles.ndim != 1
+        or not len(cdf.quantiles)
+        or cdf.quantiles.shape != cdf.probabilities.shape
+    ):
+        raise ValueError(
+            "ECDF support and probabilities need matching nonempty 1D shapes."
+        )
+
+    if np.any(cdf.quantiles[1:] <= cdf.quantiles[:-1]):
+        raise ValueError("ECDF support must increase strictly.")
+
+    if (
+        np.any(cdf.probabilities <= 0)
+        or np.any(cdf.probabilities > 1)
+        or np.any(cdf.probabilities[1:] <= cdf.probabilities[:-1])
+        or cdf.probabilities[-1] != 1
+    ):
+        raise ValueError(
+            "ECDF probabilities must increase strictly in (0, 1] and end at one."
+        )
+
+
+class EValidResAxis(StrEnum):
+    POINT = "point"
+    COMPONENT = "component"
+    TIME = "time"
+    SIM_TRANS = "sim_trans"
+    SIM_NUIS = "sim_nuis"
+    EXP_TRANS = "exp_trans"
+    EXP_NUIS = "exp_nuis"
+    SIM_OFFSET = "sim_offset"
+    EXP_OFFSET = "exp_offset"
+
+
+VALID_RES_AXES = tuple(EValidResAxis)
+
+
+@dataclass(slots=True)
+class ValidMetricField:
+    """Metric arrays in canonical result-axis order.
+
+    Axes are point, component, time, simulation transferable/nuisance epistemic,
+    experiment transferable/nuisance epistemic, simulation offset, experiment
+    offset. Physical axes are always present; singleton uncertainty axes are
+    omitted. All output arrays share the same shape.
+    A steady scalar observable commonly has shape (n_points, 1, 1); a transient
+    vector has shape (n_points, n_components, n_times) before scenario axes.
+    """
+
+    axes: tuple[EValidResAxis, ...]
+    outputs: dict[EMetricOutput, np.ndarray]
+    scenarios: dict[EValidResAxis, tuple[EEpisOffset, ...]] | None = None
+
+
+def resolve_metric_output(
+    field: ValidMetricField, output: EMetricOutput | None
+) -> EMetricOutput:
+    """Select the sole output or require an explicit choice for multiple outputs."""
+    if output is None:
+        if len(field.outputs) != 1:
+            raise ValueError("Select an output explicitly for a multi-output metric.")
+        return next(iter(field.outputs))
+    if not isinstance(output, EMetricOutput):
+        raise TypeError("Metric output must be EMetricOutput.")
+    if output not in field.outputs:
+        raise ValueError(f"Metric field has no {output.name} output.")
+    return output
+
+
+@dataclass(slots=True)
+class ValidResult:
+    """Borrow observables/field arrays and snapshot metric configurations."""
+
+    observables: dict[str, ValidObservable]
+    metrics: dict[str, dict[EMetricType, ValidMetricField]]
+    metric_configs: dict[EMetricType, IValidMetric]
+
+    def __post_init__(self) -> None:
+        self.metric_configs = deepcopy(self.metric_configs)
+
+    def find_extreme(
+        self,
+        observable: str,
+        metric: EMetricType,
+        *,
+        output: EMetricOutput | None = None,
+        maximum: bool = True,
+    ) -> tuple[float, dict[EValidResAxis, int]]:
+        """Locate a finite extreme without reducing the stored result field."""
+        field = self.metrics[observable][metric]
+        values = field.outputs[resolve_metric_output(field, output)]
+        if not np.any(np.isfinite(values)):
+            raise ValueError("Metric field contains no finite results.")
+        selectable = np.where(
+            np.isfinite(values), values, -np.inf if maximum else np.inf
+        )
+        flat_idx = np.argmax(selectable) if maximum else np.argmin(selectable)
+        selection_idx = tuple(
+            int(index) for index in np.unravel_index(flat_idx, values.shape)
+        )
+        return float(values[selection_idx]), dict(
+            zip(field.axes, selection_idx, strict=True)
+        )

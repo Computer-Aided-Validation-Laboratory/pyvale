@@ -25,12 +25,16 @@ from pyvale.valid.cython.mavm import (
     cyth_calc_mavm_1d,
     cyth_calc_mavm_pbox_1d,
 )
-from pyvale.valid.inputvalidation import (
-    validate_ecdf,
+from pyvale.valid.validchecks import (
     validate_finite_sample,
     validate_real_array,
 )
-from pyvale.valid.valtypes import EMAVMDuplicates, MAVMResult, ValECDF
+from pyvale.valid.validtypes import (
+    EMAVMDuplicates,
+    MAVMResult,
+    ValidECDF,
+    validate_ecdf,
+)
 
 
 def calc_mavm_1d(
@@ -128,8 +132,8 @@ def calc_avm_1d(
         1-Wasserstein / AVM distance between model and experiment.
     """
     model_samples = validate_finite_sample(model_data, "model_data")
-    experimental_samples = validate_finite_sample(exp_data, "exp_data")
-    return float(stats.wasserstein_distance(model_samples, experimental_samples))
+    exp_samples = validate_finite_sample(exp_data, "exp_data")
+    return float(stats.wasserstein_distance(model_samples, exp_samples))
 
 
 def calc_ks_1d(
@@ -151,8 +155,8 @@ def calc_ks_1d(
         Two-sample Kolmogorov-Smirnov test statistic.
     """
     model_samples = validate_finite_sample(model_data, "model_data")
-    experimental_samples = validate_finite_sample(exp_data, "exp_data")
-    return _calculate_ks_statistic(model_samples, experimental_samples)
+    exp_samples = validate_finite_sample(exp_data, "exp_data")
+    return _calculate_ks_statistic(model_samples, exp_samples)
 
 
 def calc_cvm_1d(
@@ -174,29 +178,25 @@ def calc_cvm_1d(
         Two-sample Cramér-von Mises test statistic.
     """
     model_samples = validate_finite_sample(model_data, "model_data")
-    experimental_samples = validate_finite_sample(exp_data, "exp_data")
-    return _calculate_cvm_statistic(model_samples, experimental_samples)
+    exp_samples = validate_finite_sample(exp_data, "exp_data")
+    return _calculate_cvm_statistic(model_samples, exp_samples)
 
 
-def _calculate_ks_statistic(simulation: np.ndarray, experiment: np.ndarray) -> float:
-    simulation_sorted = np.sort(simulation)
-    experiment_sorted = np.sort(experiment)
-    support = np.concatenate((simulation_sorted, experiment_sorted))
-    simulation_cdf = np.searchsorted(simulation_sorted, support, side="right") / len(
-        simulation
-    )
-    experiment_cdf = np.searchsorted(experiment_sorted, support, side="right") / len(
-        experiment
-    )
-    return float(np.max(np.abs(simulation_cdf - experiment_cdf)))
+def _calculate_ks_statistic(sim: np.ndarray, exp: np.ndarray) -> float:
+    sim_sorted = np.sort(sim)
+    exp_sorted = np.sort(exp)
+    support = np.concatenate((sim_sorted, exp_sorted))
+    sim_cdf = np.searchsorted(sim_sorted, support, side="right") / len(sim)
+    exp_cdf = np.searchsorted(exp_sorted, support, side="right") / len(exp)
+    return float(np.max(np.abs(sim_cdf - exp_cdf)))
 
 
-def _calculate_cvm_statistic(simulation: np.ndarray, experiment: np.ndarray) -> float:
-    sim_count, exp_count = len(simulation), len(experiment)
+def _calculate_cvm_statistic(sim: np.ndarray, exp: np.ndarray) -> float:
+    sim_count, exp_count = len(sim), len(exp)
     if min(sim_count, exp_count) < 2:
-        return float(stats.cramervonmises_2samp(simulation, experiment).statistic)
+        return float(stats.cramervonmises_2samp(sim, exp).statistic)
     # Anderson's two-sample statistic with pooled average ranks for ties.
-    pooled = np.concatenate((np.sort(simulation), np.sort(experiment)))
+    pooled = np.concatenate((np.sort(sim), np.sort(exp)))
     ranks = stats.rankdata(pooled, method="average")
     sim_rank_error = ranks[:sim_count] - np.arange(1, sim_count + 1)
     exp_rank_error = ranks[sim_count:] - np.arange(1, exp_count + 1)
@@ -211,8 +211,8 @@ def _calculate_cvm_statistic(simulation: np.ndarray, experiment: np.ndarray) -> 
 
 
 class ERelErrNorm(Enum):
-    EXPERIMENT_MAX = auto()
-    SIMULATION_MAX = auto()
+    EXP_MAX = auto()
+    SIM_MAX = auto()
     CONSTANT = auto()
 
 
@@ -246,24 +246,24 @@ def validate_relative_error_config(
 
 
 def calculate_relative_error(
-    simulation: np.ndarray,
-    experiment: np.ndarray,
+    sim: np.ndarray,
+    exp: np.ndarray,
     normalisation: ERelErrNorm,
     constant: float | None,
 ) -> float:
-    if normalisation is ERelErrNorm.EXPERIMENT_MAX:
-        denominator = float(np.max(np.abs(experiment)))
-    elif normalisation is ERelErrNorm.SIMULATION_MAX:
-        denominator = float(np.max(np.abs(simulation)))
+    if normalisation is ERelErrNorm.EXP_MAX:
+        denominator = float(np.max(np.abs(exp)))
+    elif normalisation is ERelErrNorm.SIM_MAX:
+        denominator = float(np.max(np.abs(sim)))
     else:
         assert constant is not None
         denominator = constant
     if denominator == 0:
         return float("nan")
-    return float(np.mean(np.abs(simulation - experiment)) / denominator)
+    return float(np.mean(np.abs(sim - exp)) / denominator)
 
 
-def calc_u_pooling_1d(model_cdfs: list[ValECDF], exp_obs: np.ndarray) -> float:
+def calc_u_pooling_1d(model_cdfs: list[ValidECDF], exp_obs: np.ndarray) -> float:
     """Evaluate right-continuous ECDFs and integrate distance to continuous U(0,1)."""
     observations = validate_real_array(exp_obs, "exp_obs", allow_nan=False)
     if observations.ndim != 1 or not len(observations):
@@ -298,41 +298,37 @@ def calc_u_pooling_1d(model_cdfs: list[ValECDF], exp_obs: np.ndarray) -> float:
 
 
 def validate_paired_samples(
-    simulation: float | np.ndarray,
-    experiment: float | np.ndarray,
+    sim: float | np.ndarray,
+    exp: float | np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    simulation_array = np.atleast_1d(validate_real_array(simulation, "simulation"))
-    experiment_array = np.atleast_1d(validate_real_array(experiment, "experiment"))
-    if simulation_array.ndim != 1 or simulation_array.shape != experiment_array.shape:
+    sim_array = np.atleast_1d(validate_real_array(sim, "simulation"))
+    exp_array = np.atleast_1d(validate_real_array(exp, "experiment"))
+    if sim_array.ndim != 1 or sim_array.shape != exp_array.shape:
         raise ValueError("Deterministic metrics require paired 1D observations.")
-    paired = ~np.isnan(simulation_array) & ~np.isnan(experiment_array)
+    paired = ~np.isnan(sim_array) & ~np.isnan(exp_array)
     if not np.any(paired):
         raise ValueError("Deterministic metrics need a finite observation pair.")
-    return simulation_array[paired].astype(np.float64), experiment_array[paired].astype(
-        np.float64
-    )
+    return sim_array[paired].astype(np.float64), exp_array[paired].astype(np.float64)
 
 
 def calc_deterministic_metrics_1d(
-    sim_val: float | np.ndarray,
-    exp_val: float | np.ndarray,
+    sim_valid: float | np.ndarray,
+    exp_valid: float | np.ndarray,
     *,
-    normalisation: ERelErrNorm = ERelErrNorm.EXPERIMENT_MAX,
+    normalisation: ERelErrNorm = ERelErrNorm.EXP_MAX,
     constant: float | None = None,
 ) -> DeterministicMetricResult:
     """Return paired errors; NMSE is NaN for variance at or below the zero tolerance."""
     validate_relative_error_config(normalisation, constant)
-    simulation, experiment = validate_paired_samples(sim_val, exp_val)
-    residual = simulation - experiment
+    sim, exp = validate_paired_samples(sim_valid, exp_valid)
+    residual = sim - exp
     mean_square_error = float(np.mean(residual * residual))
-    experimental_variance = float(np.var(experiment))
+    exp_variance = float(np.var(exp))
     return DeterministicMetricResult(
         absolute_error=float(np.mean(np.abs(residual))),
-        relative_error=calculate_relative_error(
-            simulation, experiment, normalisation, constant
-        ),
+        relative_error=calculate_relative_error(sim, exp, normalisation, constant),
         rmse=float(np.sqrt(mean_square_error)),
-        nmse=mean_square_error / experimental_variance
-        if experimental_variance > METRIC_ZERO_TOLERANCE
+        nmse=mean_square_error / exp_variance
+        if exp_variance > METRIC_ZERO_TOLERANCE
         else float("nan"),
     )

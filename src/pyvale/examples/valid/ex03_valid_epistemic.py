@@ -24,8 +24,8 @@ import pyvale.data as dataset
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.valid as val
-from pyvale.valid import valplot, valvis
+from pyvale import valid
+from pyvale.valid import validplot, validvis
 
 matplotlib.use("Agg")
 
@@ -62,16 +62,16 @@ with np.load(dataset.valid_data_dir() / "plate_validation_2d_steady.npz") as sav
 temperature_tag = "plate_temperature"
 strain_tag = "plate_strain"
 observables = {
-    temperature_tag: val.ValObservable(
+    temperature_tag: valid.ValidObservable(
         components=("temperature",),
-        geometry=val.EValGeometry.POINT,
+        geometry=valid.EValidGeometry.POINT,
         coords=coords,
         phys_units="degC",
         coord_units="mm",
     ),
-    strain_tag: val.ValObservable(
+    strain_tag: valid.ValidObservable(
         components=("strain_xx", "strain_yy", "strain_xy"),
-        geometry=val.EValGeometry.POINT,
+        geometry=valid.EValidGeometry.POINT,
         coords=coords,
         phys_units="1",
         coord_units="mm",
@@ -83,35 +83,35 @@ observables = {
 # Physical axes identify each comparison cell; ALEATORY holds its repeated
 # observations. The declared axis order matches the arrays in the archive.
 sim_axes = (
-    val.EValAxis.POINT,
-    val.EValAxis.COMPONENT,
-    val.EValAxis.EPISTEMIC_TRANS,
-    val.EValAxis.ALEATORY,
+    valid.EValidAxis.POINT,
+    valid.EValidAxis.COMPONENT,
+    valid.EValidAxis.EPISTEMIC_TRANS,
+    valid.EValidAxis.ALEATORY,
 )
 exp_axes = (
-    val.EValAxis.POINT,
-    val.EValAxis.COMPONENT,
-    val.EValAxis.ALEATORY,
+    valid.EValidAxis.POINT,
+    valid.EValidAxis.COMPONENT,
+    valid.EValidAxis.ALEATORY,
 )
-sim_arrays: dict[str, val.ValArray] = {}
-exp_arrays: dict[str, val.ValArray] = {}
+sim_arrays: dict[str, valid.ValidArray] = {}
+exp_arrays: dict[str, valid.ValidArray] = {}
 for observable_tag, sim_values, exp_values in (
     (temperature_tag, sim_temp, exp_temp),
     (strain_tag, sim_strain, exp_strain),
 ):
-    sim_arrays[observable_tag] = val.ValArray(sim_values, sim_axes)
-    exp_arrays[observable_tag] = val.ValArray(exp_values, exp_axes)
+    sim_arrays[observable_tag] = valid.ValidArray(sim_values, sim_axes)
+    exp_arrays[observable_tag] = valid.ValidArray(exp_values, exp_axes)
 
-val_case = val.ValCase(observables, sim_arrays, exp_arrays)
+valid_case = valid.ValidCase(observables, sim_arrays, exp_arrays)
 
 # %%
 # 2. Run validation analysis
 # --------------------------
 # AVM gives a distance in the observable's units. MAVM additionally separates
 # positive and negative support mismatch; INCLUDE retains repeated observations.
-val_result: val.ValResult = val.ValidationEngine(
-    [val.MetricAVM(), val.MetricMAVM()]
-).run(val_case)
+valid_result: valid.ValidResult = valid.ValidEngine(
+    [valid.MetricAVM(), valid.MetricMAVM()]
+).run(valid_case)
 
 # %%
 # 3. Post-processing and inspect data structures
@@ -119,10 +119,10 @@ val_result: val.ValResult = val.ValidationEngine(
 # metric_field.axes names each array dimension. The first three axes are always
 # (point, component, time), including singleton time for steady comparisons.
 # Non-singleton epistemic/offset axes follow in the engine's canonical order.
-metric_field: val.ValMetricField = val_result.metrics[temperature_tag][
-    val.EMetricType.MAVM
+metric_field: valid.ValidMetricField = valid_result.metrics[temperature_tag][
+    valid.EMetricType.MAVM
 ]
-metric_shape = metric_field.outputs[val.EMetricOutput.D_PLUS].shape
+metric_shape = metric_field.outputs[valid.EMetricOutput.D_PLUS].shape
 metric_axes = metric_field.axes
 print("Simulation axes:", sim_arrays[temperature_tag].axes)
 print("Simulation shape:", sim_arrays[temperature_tag].data.shape)
@@ -137,13 +137,13 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 point_idxs = tuple(range(len(coords)))
 fig: Figure
 axes: np.ndarray
-fig, axes = valplot.plot_val_cdfs_points(
-    val_case,
-    val_result,
+fig, axes = validplot.plot_valid_cdfs_points(
+    valid_case,
+    valid_result,
     temperature_tag,
     point_idxs=point_idxs,
-    metric=val.MetricMAVM(),
-    labels=valplot.ValPlotLabels(x_label="Temperature [degC]"),
+    metric=valid.MetricMAVM(),
+    valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
@@ -152,10 +152,10 @@ fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 # bounds over the conditional distributions. Show every plate sensor.
 # point_idxs=None plots every sensor. Supply a tuple to choose points in order,
 # and set rows and/or columns to control the automatically sized landscape grid.
-fig, axes = valplot.plot_val_cdf_envelope_points(
-    val_case,
+fig, axes = validplot.plot_valid_cdf_envelope_points(
+    valid_case,
     temperature_tag,
-    labels=valplot.ValPlotLabels(x_label="Temperature [degC]"),
+    valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 
@@ -169,17 +169,18 @@ fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
-background_time_idx = len(sim_data.time) - 1
+assert sim_data.time is not None
+background_time_idx = sim_data.time.size - 1
 # Show the MAVM d- output directly, with a nonnegative colour scale.
 # The d+ output is stored separately and can be selected in the same way.
-pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
-    val_result,
+pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
+    valid_result,
     temperature_tag,
-    val.EMetricType.MAVM,
+    valid.EMetricType.MAVM,
     selectors={
-        val.EValResAxis.SIM_TRANS: 0,
+        valid.EValidResAxis.SIM_TRANS: 0,
     },
-    output=val.EMetricOutput.D_MINUS,
+    output=valid.EMetricOutput.D_MINUS,
     sim_data=sim_data,
     sim_field="temperature",
     sim_time_idx=background_time_idx,
@@ -187,8 +188,8 @@ pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
         name="Temperature", symbol=r"T", units="degC", tag="TC"
     ),
     sim_coord_units="mm",
-    vis_opts=valvis.create_val_scene_opts(interactive=SHOW_PLOTS),
-    metric_opts=valvis.ValMetricVisOpts(labels_always_visible=True),
+    vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
+    metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
 )
 pv_plot.screenshot(output_path / "temperature_mavm_d_minus_on_sim.png")
 if SHOW_PLOTS:

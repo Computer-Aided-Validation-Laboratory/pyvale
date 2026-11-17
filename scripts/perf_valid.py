@@ -20,8 +20,11 @@ for variable in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
 import numpy as np
 import scipy
 
-import pyvale.valid as val
-from pyvale.valid import valengine
+import pyvale.data as dataset
+import pyvale.mooseherder as mh
+import pyvale.sensorsim as sens
+from pyvale import valid
+from pyvale.valid import validengine
 from pyvale.valid.cython import mavm
 
 CAMERA_WIDTH = 4
@@ -54,8 +57,8 @@ REPORT_PATH = (
 @dataclass(slots=True)
 class BenchmarkCase:
     name: str
-    distribution: val.ValCase
-    paired: val.ValCase
+    distribution: valid.ValidCase
+    paired: valid.ValidCase
 
 
 def create_grid(width: int, height: int) -> np.ndarray:
@@ -72,16 +75,11 @@ def create_grid(width: int, height: int) -> np.ndarray:
 def prepare_cases(
     *, camera_width: int, camera_height: int, time_steps: int
 ) -> tuple[list[BenchmarkCase], np.ndarray]:
-    # Sensor generation runs only in the parent; pyvale still imports VTK on startup.
-    import pyvale.data as dataset
-    import pyvale.mooseherder as mh
-    import pyvale.sensorsim as sens
-
     nominal_path, biased_path = dataset.thermomechanical_2d_experiment_paths()
     nominal = mh.ExodusLoader(nominal_path).load_all_sim_data()
     biased = mh.ExodusLoader(biased_path).load_all_sim_data()
-    for simulation in (nominal, biased):
-        sens.scale_length_units(1000.0, simulation, disp_keys=("disp_x", "disp_y"))
+    for sim_data in (nominal, biased):
+        sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
     if not 1 <= time_steps <= len(nominal.time):
         raise ValueError("TIME_STEPS must select between 1 and all plate time steps.")
     if not np.array_equal(nominal.time, biased.time):
@@ -114,24 +112,24 @@ def prepare_cases(
             TEMPERATURE_NOISE_STD,
         ),
     )
-    simulation_axes = (
-        val.EValAxis.POINT,
-        val.EValAxis.COMPONENT,
-        val.EValAxis.TIME,
-        val.EValAxis.EPISTEMIC_TRANS,
-        val.EValAxis.ALEATORY,
+    sim_axes = (
+        valid.EValidAxis.POINT,
+        valid.EValidAxis.COMPONENT,
+        valid.EValidAxis.TIME,
+        valid.EValidAxis.EPISTEMIC_TRANS,
+        valid.EValidAxis.ALEATORY,
     )
-    experiment_axes = simulation_axes[:3] + (val.EValAxis.ALEATORY,)
+    exp_axes = sim_axes[:3] + (valid.EValidAxis.ALEATORY,)
     generator = np.random.default_rng(RANDOM_SEED)
     cases = []
     for name, grid, components, units, noise_std in specifications:
         coords = create_grid(*grid)
         observations = []
-        for simulation in (nominal, biased):
+        for sim_data in (nominal, biased):
             if len(components) == 1:
-                field = sens.FieldScalar(simulation, components[0], sens.EDim.TWOD)
+                field = sens.FieldScalar(sim_data, components[0], sens.EDim.TWOD)
             else:
-                field = sens.FieldVector(simulation, components, sens.EDim.TWOD)
+                field = sens.FieldVector(sim_data, components, sens.EDim.TWOD)
             observations.append(field.sample_field(coords, times))
         nominal_observations, biased_observations = observations
         physical_shape = (len(coords), len(components), len(times))
@@ -139,33 +137,33 @@ def prepare_cases(
             raise ValueError(f"Unexpected sensor observation shape for {name}.")
         # Synthetic transferable scenarios interpolate nominal/biased responses.
         # These are response-space surrogates rather than separate FE solutions.
-        simulation_samples = np.empty(
+        sim_samples = np.empty(
             (*physical_shape, SIM_EPISTEMIC_SAMPLES, SIM_ALEATORY_SAMPLES)
         )
         for scenario, weight in enumerate(np.linspace(0, 1, SIM_EPISTEMIC_SAMPLES)):
             scenario_mean = (
                 1.0 - weight
             ) * nominal_observations + weight * biased_observations
-            simulation_samples[..., scenario, :] = generator.normal(
+            sim_samples[..., scenario, :] = generator.normal(
                 0.0, noise_std, (*physical_shape, SIM_ALEATORY_SAMPLES)
             )
-            simulation_samples[..., scenario, :] += scenario_mean[..., None]
-        experiment_samples = generator.normal(
+            sim_samples[..., scenario, :] += scenario_mean[..., None]
+        exp_samples = generator.normal(
             0.0, noise_std, (*physical_shape, EXP_ALEATORY_SAMPLES)
         )
-        experiment_samples += biased_observations[..., None]
-        experiment = val.ValArray(
-            experiment_samples,
-            experiment_axes,
-            val.EpistemicOffsets(
+        exp_samples += biased_observations[..., None]
+        exp = valid.ValidArray(
+            exp_samples,
+            exp_axes,
+            valid.EpistemicOffsets(
                 noise_std * EXP_OFFSET_NOISE_MULTIPLIER,
                 noise_std * EXP_OFFSET_NOISE_MULTIPLIER,
             ),
         )
         observables = {
-            name: val.ValObservable(
+            name: valid.ValidObservable(
                 components=components,
-                geometry=val.EValGeometry.POINT,
+                geometry=valid.EValidGeometry.POINT,
                 coords=coords,
                 times=times,
                 phys_units=units,
@@ -174,26 +172,22 @@ def prepare_cases(
                 time_units="s",
             )
         }
-        distribution = val.ValCase(
+        distribution = valid.ValidCase(
             observables,
-            {name: val.ValArray(simulation_samples, simulation_axes)},
-            {name: experiment},
+            {name: valid.ValidArray(sim_samples, sim_axes)},
+            {name: exp},
         )
         # Explicit first-N pairing, retaining all epistemic/offset scenarios.
-        paired = val.ValCase(
+        paired = valid.ValidCase(
             observables,
-            {
-                name: val.ValArray(
-                    simulation_samples[..., :EXP_ALEATORY_SAMPLES], simulation_axes
-                )
-            },
-            {name: experiment},
+            {name: valid.ValidArray(sim_samples[..., :EXP_ALEATORY_SAMPLES], sim_axes)},
+            {name: exp},
         )
         cases.append(BenchmarkCase(name, distribution, paired))
     return cases, times
 
 
-def check_outputs(result: val.ValResult) -> tuple[float, ...]:
+def check_outputs(result: valid.ValidResult) -> tuple[float, ...]:
     checksums = []
     for metrics in result.metrics.values():
         for field in metrics.values():
@@ -271,7 +265,7 @@ def main() -> None:
                 processor = line.partition(":")[2].strip()
                 break
     native_fingerprint = sha256(Path(mavm.__file__).read_bytes()).hexdigest()
-    engine_fingerprint = sha256(Path(valengine.__file__).read_bytes()).hexdigest()
+    engine_fingerprint = sha256(Path(validengine.__file__).read_bytes()).hexdigest()
     metadata = (
         f"UTC: {datetime.now(UTC).isoformat()}\n"
         f"Revision: {revision}\n"
@@ -319,22 +313,22 @@ def main() -> None:
         + "Timing run in progress; optimisation decisions are recorded separately.\n",
         encoding="utf-8",
     )
-    distribution_engine = val.ValidationEngine(
+    distribution_engine = valid.ValidEngine(
         [
-            val.MetricMAVM(alpha=MAVM_ALPHA),
-            val.MetricAVM(),
-            val.MetricKS(),
-            val.MetricCVM(),
+            valid.MetricMAVM(alpha=MAVM_ALPHA),
+            valid.MetricAVM(),
+            valid.MetricKS(),
+            valid.MetricCVM(),
         ],
-        opts=val.ValEngineOpts(workers=arguments.workers),
+        opts=valid.ValidEngineOpts(workers=arguments.workers),
     )
     # A fixed positive scale avoids singular relative error at initial zero fields.
     paired_engines = {
-        case.name: val.ValidationEngine(
+        case.name: valid.ValidEngine(
             [
-                val.MetricRMSE(),
-                val.MetricRelErr(
-                    normalisation=val.ERelErrNorm.CONSTANT,
+                valid.MetricRMSE(),
+                valid.MetricRelErr(
+                    normalisation=valid.ERelErrNorm.CONSTANT,
                     constant={
                         "strain_gauges": STRAIN_NOISE_STD,
                         "thermocouples": TEMPERATURE_NOISE_STD,
@@ -343,11 +337,11 @@ def main() -> None:
                     }[case.name],
                 ),
             ],
-            opts=val.ValEngineOpts(workers=arguments.workers),
+            opts=valid.ValidEngineOpts(workers=arguments.workers),
         )
         for case in cases
     }
-    distribution_case = val.ValCase(
+    distribution_case = valid.ValidCase(
         {case.name: case.distribution.observables[case.name] for case in cases},
         {case.name: case.distribution.sim[case.name] for case in cases},
         {case.name: case.distribution.exp[case.name] for case in cases},
@@ -364,10 +358,10 @@ def main() -> None:
     for run in range(arguments.runs):
         run_start = perf_counter()
         elapsed = 0.0
-        for name, group, engine, val_case in workloads:
+        for name, group, engine, valid_case in workloads:
             print(f"Run {run + 1}: {name}/{group} starting", flush=True)
             start = perf_counter()
-            result = engine.run(val_case)
+            result = engine.run(valid_case)
             seconds = perf_counter() - start
             elapsed += seconds
             checksums = check_outputs(result)

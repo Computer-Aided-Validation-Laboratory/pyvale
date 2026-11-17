@@ -11,16 +11,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-import pyvale.valid as val
-from pyvale.valid import valplot
+from pyvale import valid
+from pyvale.valid import validplot
 
 matplotlib.use("Agg")
 
 
 def test_crossing_cdfs_distinguish_pointwise_from_support_sum_bounds() -> None:
     scenarios = [np.array([0.0, 10.0]), np.array([4.0, 5.0])]
-    pointwise = val.calc_ecdf_summary(scenarios)
-    selected = val.calc_ecdf_summary(scenarios, bounds=val.EValECDFBounds.SUPPORT_SUM)
+    pointwise = valid.calc_ecdf_summary(scenarios)
+    selected = valid.calc_ecdf_summary(
+        scenarios, bounds=valid.EValidECDFBounds.SUPPORT_SUM
+    )
     np.testing.assert_allclose(pointwise.probabilities, [0.5, 1.0])
     np.testing.assert_allclose(pointwise.lower, [0.0, 5.0])
     np.testing.assert_allclose(pointwise.upper, [4.0, 10.0])
@@ -35,20 +37,20 @@ def test_crossing_cdfs_distinguish_pointwise_from_support_sum_bounds() -> None:
 
 def test_quantile_summary_preserves_duplicate_mass_and_unequal_counts() -> None:
     samples = [np.array([0.0, 0.0, 2.0]), np.array([1.0, 3.0])]
-    summary = val.calc_ecdf_summary(samples)
+    summary = valid.calc_ecdf_summary(samples)
     np.testing.assert_allclose(summary.probabilities, [0.5, 2.0 / 3.0, 1.0])
     np.testing.assert_allclose(summary.lower, [0.0, 0.0, 2.0])
     np.testing.assert_allclose(summary.upper, [1.0, 3.0, 3.0])
     np.testing.assert_allclose(summary.nominal, [0.5, 1.5, 2.5])
-    cdf = val.calc_ecdf(samples[0])
+    cdf = valid.calc_ecdf(samples[0])
     np.testing.assert_allclose(
-        val.evaluate_ecdf_quantiles(cdf, np.array([0.0, 2.0 / 3.0, 1.0])),
+        valid.evaluate_ecdf_quantiles(cdf, np.array([0.0, 2.0 / 3.0, 1.0])),
         [0.0, 0.0, 2.0],
     )
 
 
 def test_endpoint_corrections_are_anchored_to_model_limits() -> None:
-    correction = val.calc_mavm_correction(
+    correction = valid.calc_mavm_correction(
         np.array([0.0]), np.array([10.0]), np.array([-2.0]), np.array([13.0])
     )
     assert correction.lower.d_minus == pytest.approx(2.0)
@@ -65,32 +67,32 @@ def test_endpoint_corrections_are_anchored_to_model_limits() -> None:
     )
 
 
-@pytest.mark.parametrize("view", tuple(val.EValMAVMDiagnostic))
+@pytest.mark.parametrize("view", tuple(valid.EValidMAVMDiagnostic))
 def test_diagnostic_views_show_expected_sources_and_support_shifts(
-    view: val.EValMAVMDiagnostic,
+    view: valid.EValidMAVMDiagnostic,
 ) -> None:
-    simulation = val.calc_ecdf_summary([np.array([0.0]), np.array([10.0])])
-    experiment = val.calc_ecdf_summary([np.array([-2.0]), np.array([13.0])])
-    correction = val.calc_mavm_correction(
+    sim_data = valid.calc_ecdf_summary([np.array([0.0]), np.array([10.0])])
+    exp = valid.calc_ecdf_summary([np.array([-2.0]), np.array([13.0])])
+    correction = valid.calc_mavm_correction(
         np.array([0.0]), np.array([10.0]), np.array([-2.0]), np.array([13.0])
     )
-    fig, ax = valplot.plot_val_mavm_diagnostic(
-        simulation,
-        experiment,
+    fig, ax = validplot.plot_valid_mavm_diagnostic(
+        sim_data,
+        exp,
         correction=correction,
         view=view,
-        labels=valplot.ValPlotLabels(x_label="Temperature [degC]"),
+        valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
     )
     try:
         assert ax.get_xlabel() == "Temperature [degC]"
         legend = [text.get_text() for text in ax.get_legend().get_texts()]
-        if view is val.EValMAVMDiagnostic.MODEL_CORRECTION:
-            assert not any("Experiment" in text for text in legend)
+        if view is valid.EValidMAVMDiagnostic.MODEL_CORRECTION:
+            assert not any("Exp." in text for text in legend)
         else:
-            assert any("Experiment" in text for text in legend)
+            assert any("Exp." in text for text in legend)
         if view in (
-            val.EValMAVMDiagnostic.CORRECTION,
-            val.EValMAVMDiagnostic.MODEL_CORRECTION,
+            valid.EValidMAVMDiagnostic.CORRECTION,
+            valid.EValidMAVMDiagnostic.MODEL_CORRECTION,
         ):
             np.testing.assert_allclose(ax.lines[-2].get_xdata(), [-2.0, -2.0])
             np.testing.assert_allclose(ax.lines[-1].get_xdata(), [13.0, 13.0])
@@ -100,11 +102,11 @@ def test_diagnostic_views_show_expected_sources_and_support_shifts(
 
 
 def test_family_plot_preserves_conditional_ecdf_probability_mass() -> None:
-    quantity = val.ValArray(
+    quantity = valid.ValidArray(
         np.array([[0.0, 0.0, 2.0], [1.0, 3.0, 3.0]]),
-        (val.EValAxis.EPISTEMIC_TRANS, val.EValAxis.ALEATORY),
+        (valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
     )
-    fig, ax = valplot.plot_val_ecdf_family(quantity)
+    fig, ax = validplot.plot_valid_ecdf_family(quantity)
     np.testing.assert_allclose(ax.lines[0].get_ydata(), [0.0, 2.0 / 3.0, 1.0])
     np.testing.assert_allclose(ax.lines[1].get_ydata(), [0.0, 1.0 / 3.0, 1.0])
     plt.close(fig)
@@ -116,14 +118,16 @@ def test_family_plot_preserves_conditional_ecdf_probability_mass() -> None:
 )
 def test_invalid_quantile_probabilities_fail(probabilities: np.ndarray) -> None:
     with pytest.raises(ValueError):
-        val.evaluate_ecdf_quantiles(val.calc_ecdf(np.array([1.0, 2.0])), probabilities)
+        valid.evaluate_ecdf_quantiles(
+            valid.calc_ecdf(np.array([1.0, 2.0])), probabilities
+        )
 
 
 def test_missing_diagnostic_inputs_fail_before_plotting() -> None:
     with pytest.raises(ValueError):
-        val.calc_ecdf_summary([])
-    summary = val.calc_ecdf_summary([np.array([1.0, 2.0])])
+        valid.calc_ecdf_summary([])
+    summary = valid.calc_ecdf_summary([np.array([1.0, 2.0])])
     with pytest.raises(ValueError, match="correction"):
-        valplot.plot_val_mavm_diagnostic(
-            summary, view=val.EValMAVMDiagnostic.CORRECTION
+        validplot.plot_valid_mavm_diagnostic(
+            summary, view=valid.EValidMAVMDiagnostic.CORRECTION
         )

@@ -2,9 +2,9 @@ Validation
 ==========
 
 ``pyvale.valid`` compares simulation and experimental observables on a shared
-physical domain. Import it as ``import pyvale.valid as val``. A ``ValCase`` has
-one ``ValDomain`` and separate simulation and experimental dictionaries mapping
-observable tags to ``ValArray`` objects.
+physical domain. Import it as ``import pyvale.valid as valid``. A ``ValidCase`` has
+one ``ValidDomain`` and separate simulation and experimental dictionaries mapping
+observable tags to ``ValidArray`` objects.
 The domain records point coordinates, component order, evaluation times,
 measurement operator, field units, optional time and coordinate units, and a spatial ``coord_frame`` identifier.
 Arrays supplied directly must already use that physical support and those
@@ -14,11 +14,11 @@ convert units, interpolate, or pool runs.
 Named axes
 ----------
 
-``ValArray`` names each dimension with ``EValAxis``. Axes, when present, follow
+``ValidArray`` names each dimension with ``EValidAxis``. Axes, when present, follow
 ``POINT, COMPONENT, TIME, EPISTEMIC_TRANS, EPISTEMIC_NUIS, ALEATORY``. An absent
 physical axis has length one. Simulation and experiment may have different
 uncertainty axis lengths. The final aleatory axis is contiguous for ordinary
-C-order arrays, so one conditional sample is a cheap slice. ``ValArray`` preserves
+C-order arrays, so one conditional sample is a cheap slice. ``ValidArray`` preserves
 the original array or memory map; the caller controls its lifetime.
 
 ``EpistemicOffsets`` gives nonnegative ``lower`` and ``upper`` magnitudes in
@@ -34,47 +34,47 @@ Basic workflow
 
 .. code-block:: python
 
-   import pyvale.valid as val
+   import pyvale.valid as valid
 
-   case = val.ValCase(domain, sim_data, exp_data)
-   engine = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()])
+   case = valid.ValidCase(domain, sim_data, exp_data)
+   engine = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM()])
    result = engine.run(case)
-   avm = result.get("temperature", val.EMetricType.AVM)
-   maximum, indices = result.find_extreme("temperature", val.EMetricType.AVM)
+   avm = result.get("temperature", valid.EMetricType.AVM)
+   maximum, indices = result.find_extreme("temperature", valid.EMetricType.AVM)
 
 Metrics also work independently on one-dimensional NumPy samples through
 ``calc_avm_1d``, ``calc_mavm_1d``, ``calc_ks_1d``, and ``calc_cvm_1d`` or their
 ``Metric*`` strategy objects. RMSE and relative error require paired samples of
 equal length. The distribution metrics accept unequal sample lengths. Missing
 values represented by NaN are omitted by the distribution kernels; a cell with
-no finite observations remains NaN in ``ValResult``. The MAVM strategy defaults
+no finite observations remains NaN in ``ValidResult``. The MAVM strategy defaults
 to the robust tie-aware mode. ``calc_mavm_1d`` retains its original mode default
 for direct callers, so select ``EMAVMMode.ROBUST`` explicitly for repeated data.
 
-``ValResult`` keeps a labelled array for each observable and metric. It retains
+``ValidResult`` keeps a labelled array for each observable and metric. It retains
 sampled epistemic and offset scenarios rather than reducing them. The MAVM
 field also stores directional ``d_plus`` and ``d_minus``. CDF diagnostics can
-be reconstructed from the ``ValCase`` at a selected point and scenario with
-``plot_val_cdfs``. ``plot_val_cdf_envelope`` computes a pointwise envelope over
+be reconstructed from the ``ValidCase`` at a selected point and scenario with
+``plot_valid_cdfs``. ``plot_valid_cdf_envelope`` computes a pointwise envelope over
 the supplied *coherent* scenario CDFs; crossing CDFs need not correspond to a
 single limiting scenario. Metric maps and time plots use domain metadata kept
-in ``ValResult``.
+in ``ValidResult``.
 
 Conversion and repeated experiments
 -----------------------------------
 
-``val_from_sim`` samples a stream of indexed ``SimData`` runs through existing
+``valid_from_sim`` samples a stream of indexed ``SimData`` runs through existing
 SensorSim ``IField`` objects. Each run index explicitly identifies its
 rectangular uncertainty coordinates. ``SensorData`` enables SensorSim's
 spatial averaging; precomputed MOOSE global variables may supply global mean or
-integral observables. ``val_from_exp`` selects a single registered ``ExpData``
+integral observables. ``valid_from_exp`` selects a single registered ``ExpData``
 acquisition for each observable. A steady window becomes aleatory observations;
 transient inputs require the domain's exact evaluation times. Separate
-acquisitions normally produce separate ``ValCase`` objects.
+acquisitions normally produce separate ``ValidCase`` objects.
 
-``combine_val_cases`` joins compatible cases along the experimental aleatory
+``concatenate_valid_cases`` joins compatible cases along the experimental aleatory
 axis, keeping complete transient traces together and recording source case IDs.
-``conv_exp_sim_to_data`` splits SensorSim's current result dictionary into
+``extract_exp_sim_data`` splits SensorSim's current result dictionary into
 one ``ExpData`` per experiment and selected sensor component. This is an
 interim bridge until ``ExperimentSimulator`` emits ``ExpData`` directly.
 

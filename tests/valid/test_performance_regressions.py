@@ -10,34 +10,39 @@ import numpy as np
 import pytest
 from scipy import stats
 
-import pyvale.valid as val
+from pyvale import valid
 
 
 @pytest.mark.parametrize("workers", [1, 2, 4])
 def test_engine_matches_standalone_uncertainty_products(workers: int) -> None:
     generator = np.random.default_rng(1729)
-    simulation = generator.integers(-3, 4, (1, 1, 1, 2, 2, 8)).astype(float)
-    experiment = generator.integers(-2, 5, (1, 1, 1, 2, 2, 5)).astype(float)
-    simulation[..., 0, 0, 0] = np.nan
-    experiment[..., 1, 0, :] = np.nan
-    experiment[..., 0, 1, 0] = np.nan
-    axes = tuple(val.EValAxis)
-    simulated = val.ValArray(simulation, axes, val.EpistemicOffsets(0.25, 0.5))
-    observed = val.ValArray(experiment, axes, val.EpistemicOffsets(0.4, 0.6))
+    sim_data = generator.integers(-3, 4, (1, 1, 1, 2, 2, 8)).astype(float)
+    exp = generator.integers(-2, 5, (1, 1, 1, 2, 2, 5)).astype(float)
+    sim_data[..., 0, 0, 0] = np.nan
+    exp[..., 1, 0, :] = np.nan
+    exp[..., 0, 1, 0] = np.nan
+    axes = tuple(valid.EValidAxis)
+    simulated = valid.ValidArray(sim_data, axes, valid.EpistemicOffsets(0.25, 0.5))
+    observed = valid.ValidArray(exp, axes, valid.EpistemicOffsets(0.4, 0.6))
     observables = {
-        "response": val.ValObservable(
+        "response": valid.ValidObservable(
             components=("response",),
-            geometry=val.EValGeometry.POINT,
+            geometry=valid.EValidGeometry.POINT,
             coords=np.zeros((1, 3)),
             times=np.array([0.0]),
         )
     }
-    metrics = [val.MetricMAVM(), val.MetricAVM(), val.MetricKS(), val.MetricCVM()]
-    result = val.ValidationEngine(metrics, opts=val.ValEngineOpts(workers=workers)).run(
-        val.ValCase(observables, {"response": simulated}, {"response": observed})
-    )
+    metrics = [
+        valid.MetricMAVM(),
+        valid.MetricAVM(),
+        valid.MetricKS(),
+        valid.MetricCVM(),
+    ]
+    result = valid.ValidEngine(
+        metrics, opts=valid.ValidEngineOpts(workers=workers)
+    ).run(valid.ValidCase(observables, {"response": simulated}, {"response": observed}))
     for sim_trans, sim_nuis, exp_trans, exp_nuis, sim_offset, exp_offset in product(
-        range(2), range(2), range(2), range(2), val.EEpisOffset, val.EEpisOffset
+        range(2), range(2), range(2), range(2), valid.EEpisOffset, valid.EEpisOffset
     ):
         sim_samples = simulated.select_aleatory(
             0,
@@ -90,47 +95,48 @@ def test_distribution_statistics_match_scipy(
 ) -> None:
     generator = np.random.default_rng(8921)
     if repeated:
-        simulation = generator.integers(-2, 4, sim_count).astype(float)
-        experiment = generator.integers(-1, 5, exp_count).astype(float)
+        sim_data = generator.integers(-2, 4, sim_count).astype(float)
+        exp = generator.integers(-1, 5, exp_count).astype(float)
     else:
-        simulation = generator.normal(0.0, 1.0, sim_count)
-        experiment = generator.normal(0.3, 1.1, exp_count)
+        sim_data = generator.normal(0.0, 1.0, sim_count)
+        exp = generator.normal(0.3, 1.1, exp_count)
     for sim_samples, exp_samples in (
-        (simulation, experiment),
-        (experiment[::-1], simulation[::-1]),
+        (sim_data, exp),
+        (exp[::-1], sim_data[::-1]),
         (np.zeros(sim_count), np.zeros(exp_count)),
         (np.zeros(sim_count), np.ones(exp_count)),
     ):
-        assert val.calc_ks_1d(sim_samples, exp_samples) == pytest.approx(
+        assert valid.calc_ks_1d(sim_samples, exp_samples) == pytest.approx(
             stats.ks_2samp(sim_samples, exp_samples).statistic,
             rel=1e-13,
             abs=1e-14,
         )
-        assert val.calc_cvm_1d(sim_samples, exp_samples) == pytest.approx(
+        assert valid.calc_cvm_1d(sim_samples, exp_samples) == pytest.approx(
             stats.cramervonmises_2samp(sim_samples, exp_samples).statistic,
             rel=1e-13,
             abs=1e-14,
         )
 
 
-@pytest.mark.parametrize("duplicates", list(val.EMAVMDuplicates))
+@pytest.mark.parametrize("duplicates", list(valid.EMAVMDuplicates))
 def test_native_and_interpreted_mavm_agree(
-    duplicates: val.EMAVMDuplicates,
+    duplicates: valid.EMAVMDuplicates,
 ) -> None:
     source = Path(__file__).resolve().parents[2] / "src/pyvale/valid/cython/mavm.py"
     interpreted = cast(
-        Callable[..., val.MAVMResult], runpy.run_path(str(source))["cyth_calc_mavm_1d"]
+        Callable[..., valid.MAVMResult],
+        runpy.run_path(str(source))["cyth_calc_mavm_1d"],
     )
     generator = np.random.default_rng(2751)
-    simulation = generator.normal(size=64)
-    experiment = generator.normal(size=8)
-    if duplicates is val.EMAVMDuplicates.INCLUDE:
-        simulation = np.round(simulation)
-        experiment = np.round(experiment)
-    simulation[0] = np.nan
-    experiment[0] = np.nan
-    native = val.calc_mavm_1d(simulation, experiment, duplicates=duplicates)
-    reference = interpreted(simulation, experiment, duplicates=duplicates)
+    sim_data = generator.normal(size=64)
+    exp = generator.normal(size=8)
+    if duplicates is valid.EMAVMDuplicates.INCLUDE:
+        sim_data = np.round(sim_data)
+        exp = np.round(exp)
+    sim_data[0] = np.nan
+    exp[0] = np.nan
+    native = valid.calc_mavm_1d(sim_data, exp, duplicates=duplicates)
+    reference = interpreted(sim_data, exp, duplicates=duplicates)
     np.testing.assert_allclose(
         [native.d_plus, native.d_minus],
         [reference.d_plus, reference.d_minus],
@@ -145,27 +151,31 @@ def test_native_and_interpreted_mavm_agree(
 
 def test_small_workload_with_worker_cap_matches_analytic_shift() -> None:
     observables = {
-        "response": val.ValObservable(
+        "response": valid.ValidObservable(
             components=("response",),
-            geometry=val.EValGeometry.POINT,
+            geometry=valid.EValidGeometry.POINT,
             coords=np.zeros((1, 3)),
         )
     }
-    axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.ALEATORY)
-    simulation = np.array([[[0.0, 1.0]]])
-    case = val.ValCase(
+    axes = (
+        valid.EValidAxis.POINT,
+        valid.EValidAxis.COMPONENT,
+        valid.EValidAxis.ALEATORY,
+    )
+    sim_data = np.array([[[0.0, 1.0]]])
+    case = valid.ValidCase(
         observables,
-        {"response": val.ValArray(simulation, axes)},
-        {"response": val.ValArray(simulation + 0.125, axes)},
+        {"response": valid.ValidArray(sim_data, axes)},
+        {"response": valid.ValidArray(sim_data + 0.125, axes)},
     )
     metrics = [
-        val.MetricAVM(),
-        val.MetricRMSE(),
-        val.MetricRelErr(normalisation=val.ERelErrNorm.CONSTANT, constant=1.0),
+        valid.MetricAVM(),
+        valid.MetricRMSE(),
+        valid.MetricRelErr(normalisation=valid.ERelErrNorm.CONSTANT, constant=1.0),
     ]
     for workers in (1, 4):
-        result = val.ValidationEngine(
-            metrics, opts=val.ValEngineOpts(workers=workers)
+        result = valid.ValidEngine(
+            metrics, opts=valid.ValidEngineOpts(workers=workers)
         ).run(case)
         for metric in metrics:
             assert (

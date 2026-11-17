@@ -13,14 +13,14 @@ import pandas as pd
 import pytest
 
 import pyvale.data as dataset
-import pyvale.valid as val
+from pyvale import valid
 
 
 @dataclass(slots=True)
 class Pulse25XReference:
-    simulation: np.ndarray
+    sim_data: np.ndarray
     sensor_tags: tuple[str, ...]
-    experiment: dict[str, np.ndarray]
+    exp: dict[str, np.ndarray]
     offsets: dict[str, float]
     expected: pd.DataFrame
 
@@ -29,9 +29,9 @@ class Pulse25XReference:
 def reference() -> Pulse25XReference:
     data_path = dataset.valid_data_dir()
     with np.load(data_path / "pulse25x_full_simulation.npz") as saved:
-        simulation = saved["simulation"]
+        sim_data = saved["simulation"]
         tags = tuple(saved["sensor_tags"].tolist())
-    experiment = {}
+    exp = {}
     for suffix, channels in (
         (
             "SteadyDICData",
@@ -43,14 +43,14 @@ def reference() -> Pulse25XReference:
         frame = pd.read_csv(data_path / f"Pulse255_{suffix}.csv")
         for channel in channels:
             key = "Coil RMS Voltage" if channel == "CV" else channel
-            experiment[channel] = frame[key].to_numpy(dtype=float)
+            exp[channel] = frame[key].to_numpy(dtype=float)
     # Reproduce the original positional association, not a corrected tag lookup.
     frame = pd.read_csv(data_path / "pulse25x_uncertainty_summary.csv")
     uncertainty = frame.iloc[-1, -11:].to_numpy(dtype=float)
     uncertainty = np.r_[uncertainty[1:], uncertainty[0]]
-    offsets = dict(zip(experiment, uncertainty, strict=True))
+    offsets = dict(zip(exp, uncertainty, strict=True))
     expected = pd.read_csv(data_path / "pulse25x_reference_mavm.csv", index_col=0)
-    return Pulse25XReference(simulation, tags, experiment, offsets, expected)
+    return Pulse25XReference(sim_data, tags, exp, offsets, expected)
 
 
 @pytest.mark.parametrize(
@@ -60,16 +60,16 @@ def test_all_paper_endpoint_distances_match_independent_reference(
     reference: Pulse25XReference,
     channel: str,
 ) -> None:
-    scenarios = reference.simulation[reference.sensor_tags.index(channel)]
+    scenarios = reference.sim_data[reference.sensor_tags.index(channel)]
     support_sums = np.sum(np.sort(scenarios, axis=1), axis=1)
     lower_idx = int(np.argmin(support_sums))
     upper_idx = int(np.argmax(support_sums))
-    experimental_support = np.unique(reference.experiment[channel])
+    exp_support = np.unique(reference.exp[channel])
     for exp_name, sign in (("min", -1.0), ("max", 1.0)):
-        experiment = experimental_support + sign * reference.offsets[channel]
+        exp = exp_support + sign * reference.offsets[channel]
         for sim_name, index in (("min", lower_idx), ("max", upper_idx)):
-            calculated = val.calc_mavm_1d(
-                scenarios[index], experiment, duplicates=val.EMAVMDuplicates.REJECT
+            calculated = valid.calc_mavm_1d(
+                scenarios[index], exp, duplicates=valid.EMAVMDuplicates.REJECT
             )
             for direction, distance in (
                 ("d+", calculated.d_plus),
@@ -79,12 +79,12 @@ def test_all_paper_endpoint_distances_match_independent_reference(
                 assert distance == pytest.approx(
                     reference.expected.loc[row, channel], rel=1e-12, abs=1e-12
                 )
-    correction = val.calc_mavm_correction(
+    correction = valid.calc_mavm_correction(
         scenarios[lower_idx],
         scenarios[upper_idx],
-        experimental_support - reference.offsets[channel],
-        experimental_support + reference.offsets[channel],
-        duplicates=val.EMAVMDuplicates.REJECT,
+        exp_support - reference.offsets[channel],
+        exp_support + reference.offsets[channel],
+        duplicates=valid.EMAVMDuplicates.REJECT,
     )
     expected_lower = max(
         reference.expected.loc[f"sim-min_exp-{exp_name}-d-", channel]
@@ -105,10 +105,10 @@ def test_all_paper_endpoint_distances_match_independent_reference(
 def test_reference_retains_missing_channels_and_documents_duplicate_weighting(
     reference: Pulse25XReference,
 ) -> None:
-    assert reference.simulation.shape == (11, 250, 400)
+    assert reference.sim_data.shape == (11, 250, 400)
     for channel in ("TC1", "TC4", "TC7"):
-        assert np.all(np.isnan(reference.experiment[channel]))
-    assert len(reference.experiment["TC2"]) == 447
-    assert len(np.unique(reference.experiment["TC2"])) == 311
-    assert len(reference.experiment["CV"]) == 847
-    assert len(np.unique(reference.experiment["CV"])) == 817
+        assert np.all(np.isnan(reference.exp[channel]))
+    assert len(reference.exp["TC2"]) == 447
+    assert len(np.unique(reference.exp["TC2"])) == 311
+    assert len(reference.exp["CV"]) == 847
+    assert len(np.unique(reference.exp["CV"])) == 817

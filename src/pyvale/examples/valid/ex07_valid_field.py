@@ -24,9 +24,9 @@ import pyvale.data as dataset
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.valid as val
-import pyvale.valid.converttovaldata as valconvert
-from pyvale.valid import valplot, valvis
+import pyvale.valid.validpreparation as validprep
+from pyvale import valid
+from pyvale.valid import validplot, validvis
 
 matplotlib.use("Agg")
 
@@ -62,7 +62,7 @@ with np.load(dataset.valid_data_dir() / "plate_sensorsim_2d.npz") as saved:
 # coordinates. ExpData retains acquisition identity; combine runs only after
 # registering the common comparison observables.
 # The dictionary key is our observable tag; the record names a SensorSim array
-# and its component index. The ValObservable component tuple below supplies
+# and its component index. The ValidObservable component tuple below supplies
 # the simulation field key used when sampling IField. These three identifiers
 # have distinct roles, so we name the observable tags explicitly.
 temperature_tag = "plate_temperature"
@@ -70,12 +70,12 @@ strain_xx_tag = "plate_strain_xx"
 strain_yy_tag = "plate_strain_yy"
 strain_xy_tag = "plate_strain_xy"
 selections = {
-    temperature_tag: valconvert.ObservableSelection("temperature", 0, coords),
-    strain_xx_tag: valconvert.ObservableSelection("strain", 0, coords),
-    strain_yy_tag: valconvert.ObservableSelection("strain", 1, coords),
-    strain_xy_tag: valconvert.ObservableSelection("strain", 2, coords),
+    temperature_tag: validprep.SensorOutputSelection("temperature", 0, coords),
+    strain_xx_tag: validprep.SensorOutputSelection("strain", 0, coords),
+    strain_yy_tag: validprep.SensorOutputSelection("strain", 1, coords),
+    strain_xy_tag: validprep.SensorOutputSelection("strain", 2, coords),
 }
-acquisitions: list[dict[str, io.ExpData]] = valconvert.conv_exp_sim_to_data(
+acquisitions: list[dict[str, io.ExpData]] = validprep.extract_exp_sim_data(
     output,
     sim_key="perturbed",
     selections=selections,
@@ -92,9 +92,9 @@ observable_components = {
     strain_xy_tag: "strain_xy",
 }
 observables = {
-    name: val.ValObservable(
+    name: valid.ValidObservable(
         components=(observable_components[name],),
-        geometry=val.EValGeometry.POINT,
+        geometry=valid.EValidGeometry.POINT,
         coords=coords,
         times=times,
         phys_units="degC" if name == temperature_tag else "1",
@@ -110,48 +110,44 @@ observables = {
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
-fields = {
-    temperature_tag: lambda simulation: sens.FieldScalar(
-        simulation, "temperature", sens.EDim.TWOD
-    ),
-    strain_xx_tag: lambda simulation: sens.FieldTensor(
-        simulation, ("strain_xx", "strain_yy"), ("strain_xy",), sens.EDim.TWOD
-    ),
-    strain_yy_tag: lambda simulation: sens.FieldTensor(
-        simulation, ("strain_xx", "strain_yy"), ("strain_xy",), sens.EDim.TWOD
-    ),
-    strain_xy_tag: lambda simulation: sens.FieldTensor(
-        simulation, ("strain_xx", "strain_yy"), ("strain_xy",), sens.EDim.TWOD
-    ),
+strain_field = sens.FieldTensor(
+    sim_data, ("strain_xx", "strain_yy"), ("strain_xy",), sens.EDim.TWOD
+)
+fields: dict[str, sens.IField] = {
+    temperature_tag: sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD),
+    strain_xx_tag: strain_field,
+    strain_yy_tag: strain_field,
+    strain_xy_tag: strain_field,
 }
-simulation: dict[str, val.ValArray] = valconvert.convert_sim_to_val(
+# The sweep rebinds reusable fields in place and leaves them on its final run.
+sim_arrays: dict[str, valid.ValidArray] = validprep.sample_sim_sweep(
     fields, observables, [((), sim_data)]
 )
 cases = [
-    val.ValCase(
-        observables, simulation, valconvert.convert_exp_to_val(run, observables)
+    valid.ValidCase(
+        observables, sim_arrays, validprep.assemble_exp_arrays(run, observables)
     )
     for run in acquisitions
 ]
-val_case: val.ValCase = valconvert.combine_val_cases(*cases)
+valid_case: valid.ValidCase = validprep.concatenate_valid_cases(*cases)
 # %%
 # 2. Run validation analysis
 # --------------------------
 # The bridge appends the repeated acquisitions on the aleatory axis; physical
 # axes remain (point, component, time), followed by uncertainty axes.
-val_result: val.ValResult = val.ValidationEngine(
-    [val.MetricAVM(), val.MetricMAVM()]
-).run(val_case)
+valid_result: valid.ValidResult = valid.ValidEngine(
+    [valid.MetricAVM(), valid.MetricMAVM()]
+).run(valid_case)
 
 # %%
 # 3. Post-processing and inspect data structures
 # ----------------------------------------------
 # Field samples and converted acquisitions share (12, 1, 5) physical shape.
 # The experiment additionally has six aleatory observations per physical cell.
-model_quantity = val_case.sim[temperature_tag]
-experiment_quantity = val_case.exp[temperature_tag]
+model_quantity = valid_case.sim[temperature_tag]
+exp_quantity = valid_case.exp[temperature_tag]
 print("Model:", model_quantity.axes, model_quantity.data.shape)
-print("Experiment:", experiment_quantity.axes, experiment_quantity.data.shape)
+print("Experiment:", exp_quantity.axes, exp_quantity.data.shape)
 
 # %%
 # 4. Analysis and visualisation
@@ -162,14 +158,15 @@ print("Experiment:", experiment_quantity.axes, experiment_quantity.data.shape)
 # Overlay validation points on the nominal model in its original xyz geometry.
 # The model mesh and sensor positions use the same coordinates in mm.
 # Background nodal scalars (n_nodes,) have a physical colourbar.
-background_time_idx = len(sim_data.time) - 1
+assert sim_data.time is not None
+background_time_idx = sim_data.time.size - 1
 # AVM distance is a nonnegative magnitude, so its point scale starts at zero.
-pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
-    val_result,
+pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
+    valid_result,
     strain_xx_tag,
-    val.EMetricType.AVM,
+    valid.EMetricType.AVM,
     selectors={
-        val.EValResAxis.TIME: 4,
+        valid.EValidResAxis.TIME: 4,
     },
     sim_data=sim_data,
     sim_field="strain_xx",
@@ -178,8 +175,8 @@ pv_plot: pv.Plotter = valvis.plot_val_metric_on_sim(
         name="Axial strain xx", symbol=r"\varepsilon_{xx}", units="1", tag="SG"
     ),
     sim_coord_units="mm",
-    vis_opts=valvis.create_val_scene_opts(interactive=SHOW_PLOTS),
-    metric_opts=valvis.ValMetricVisOpts(labels_always_visible=True),
+    vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
+    metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
 )
 pv_plot.screenshot(output_path / "strain_xx_avm_on_sim.png")
 if SHOW_PLOTS:
@@ -190,20 +187,20 @@ pv_plot.close()
 point_idxs = tuple(range(len(coords)))
 fig: Figure
 axes: np.ndarray
-fig, axes = valplot.plot_val_metric_time_points(
-    val_result,
+fig, axes = validplot.plot_valid_metric_time_points(
+    valid_result,
     temperature_tag,
-    val.EMetricType.AVM,
+    valid.EMetricType.AVM,
     point_idxs=point_idxs,
 )
 fig.savefig(output_path / "temperature_avm_time.png", bbox_inches="tight")
-fig, axes = valplot.plot_val_cdfs_points(
-    val_case,
-    val_result,
+fig, axes = validplot.plot_valid_cdfs_points(
+    valid_case,
+    valid_result,
     temperature_tag,
     point_idxs=point_idxs,
     time_idx=4,
-    metric=val.MetricMAVM(),
+    metric=valid.MetricMAVM(),
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 if SHOW_PLOTS:

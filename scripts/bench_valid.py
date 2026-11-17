@@ -1,6 +1,6 @@
 """Optional DIC-like validation benchmark using C-order memory-mapped arrays.
 
-Run ``.venv/bin/python scripts/bench_validation.py --grid 128 --samples 16``.
+Run ``.venv/bin/python scripts/bench_valid.py --grid 128 --samples 16``.
 The benchmark reports elapsed time and the size of input/output arrays. It is
 excluded from CI and is not a numerical correctness test.
 """
@@ -12,7 +12,7 @@ from time import perf_counter
 
 import numpy as np
 
-import pyvale.valid as val
+from pyvale import valid
 
 
 def main() -> None:
@@ -28,16 +28,20 @@ def main() -> None:
     xx, yy = np.meshgrid(axis, axis, indexing="xy")
     coords = np.column_stack((xx.ravel(), yy.ravel(), np.zeros(points)))
     observables = {
-        "strain": val.ValObservable(
+        "strain": valid.ValidObservable(
             components=("strain_xx",),
-            geometry=val.EValGeometry.POINT,
+            geometry=valid.EValidGeometry.POINT,
             coords=coords,
             times=None,
             phys_units="1",
         )
     }
     shape = (points, 1, args.samples)
-    axes = (val.EValAxis.POINT, val.EValAxis.COMPONENT, val.EValAxis.ALEATORY)
+    axes = (
+        valid.EValidAxis.POINT,
+        valid.EValidAxis.COMPONENT,
+        valid.EValidAxis.ALEATORY,
+    )
     with TemporaryDirectory() as temporary:
         sim_file = np.memmap(
             Path(temporary) / "sim.dat", dtype="float64", mode="w+", shape=shape
@@ -50,25 +54,25 @@ def main() -> None:
             samples = rng.normal(size=args.samples)
             sim_file[point, 0] = samples
             exp_file[point, 0] = samples + 0.1
-        val_case = val.ValCase(
+        valid_case = valid.ValidCase(
             observables,
-            {"strain": val.ValArray(sim_file, axes)},
-            {"strain": val.ValArray(exp_file, axes)},
+            {"strain": valid.ValidArray(sim_file, axes)},
+            {"strain": valid.ValidArray(exp_file, axes)},
         )
         start = perf_counter()
         field = (
-            val.ValidationEngine([val.MetricAVM()])
-            .run(val_case)
-            .metrics["strain"][val.EMetricType.AVM]
+            valid.ValidEngine([valid.MetricAVM()])
+            .run(valid_case)
+            .metrics["strain"][valid.EMetricType.AVM]
         )
         elapsed = perf_counter() - start
         if not np.allclose(
-            field.outputs[val.EMetricOutput.DISTANCE], 0.1, atol=1.0e-12
+            field.outputs[valid.EMetricOutput.DISTANCE], 0.1, atol=1.0e-12
         ):
             raise AssertionError("AVM shift sanity check failed.")
         print(f"points={points}, samples={args.samples}, seconds={elapsed:.3f}")
         print(f"input_bytes={sim_file.nbytes + exp_file.nbytes}")
-        print(f"output_bytes={field.outputs[val.EMetricOutput.DISTANCE].nbytes}")
+        print(f"output_bytes={field.outputs[valid.EMetricOutput.DISTANCE].nbytes}")
 
 
 if __name__ == "__main__":

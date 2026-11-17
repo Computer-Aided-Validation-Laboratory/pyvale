@@ -14,19 +14,19 @@ import pyvista as pv
 
 import pyvale.dataio as io
 import pyvale.sensorsim as sens
-import pyvale.valid as val
-from pyvale.valid import valvis
+from pyvale import valid
+from pyvale.valid import validvis
 
 
 @pytest.fixture
-def scene() -> tuple[val.ValResult, io.SimData]:
+def scene() -> tuple[valid.ValidResult, io.SimData]:
     coords = np.array(
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     )
     observables = {
-        "temperature": val.ValObservable(
+        "temperature": valid.ValidObservable(
             components=("temperature",),
-            geometry=val.EValGeometry.POINT,
+            geometry=valid.EValidGeometry.POINT,
             coords=coords,
             times=np.array([0.0, 1.0]),
             phys_units="degC",
@@ -42,19 +42,19 @@ def scene() -> tuple[val.ValResult, io.SimData]:
     minus = np.broadcast_to(
         np.array([0.0, 3.0, 1.0, np.nan])[:, None, None, None], shape
     ).copy()
-    field = val.ValMetricField(
+    field = valid.ValidMetricField(
         (
-            val.EValResAxis.POINT,
-            val.EValResAxis.COMPONENT,
-            val.EValResAxis.TIME,
-            val.EValResAxis.SIM_TRANS,
+            valid.EValidResAxis.POINT,
+            valid.EValidResAxis.COMPONENT,
+            valid.EValidResAxis.TIME,
+            valid.EValidResAxis.SIM_TRANS,
         ),
-        {val.EMetricOutput.D_PLUS: plus, val.EMetricOutput.D_MINUS: minus},
+        {valid.EMetricOutput.D_PLUS: plus, valid.EMetricOutput.D_MINUS: minus},
     )
-    result = val.ValResult(
-        observables, {"temperature": {val.EMetricType.MAVM: field}}, {}
+    result = valid.ValidResult(
+        observables, {"temperature": {valid.EMetricType.MAVM: field}}, {}
     )
-    simulation = io.SimData(
+    sim_data = io.SimData(
         coords=coords.copy(),
         connect={"connect1": np.array([[1, 2, 3, 4]])},
         time=np.array([0.0, 1.0]),
@@ -65,19 +65,19 @@ def scene() -> tuple[val.ValResult, io.SimData]:
             ),
         },
     )
-    return result, simulation
+    return result, sim_data
 
 
 @pytest.mark.parametrize(
     "sim_field", ["temperature", np.array([100.0, 200.0, 300.0, 400.0])]
 )
 def test_overlay_preserves_xyz_ids_and_independent_scalar_bars(
-    scene: tuple[val.ValResult, io.SimData],
+    scene: tuple[valid.ValidResult, io.SimData],
     tmp_path: Path,
     sim_field: str | np.ndarray,
 ) -> None:
-    result, simulation = scene
-    original_coords = simulation.coords.copy()
+    result, sim_data = scene
+    original_coords = sim_data.coords.copy()
     scalars = np.array([100.0, 200.0, 300.0, 400.0])
     original_theme = pv.global_theme.font.color
     opts = sens.VisOptsSimSensors(
@@ -86,21 +86,21 @@ def test_overlay_preserves_xyz_ids_and_independent_scalar_bars(
         camera_position="iso",
         font_colour="navy",
     )
-    plotter = valvis.plot_val_metric_on_sim(
+    plotter = validvis.plot_valid_metric_on_sim(
         result,
         "temperature",
-        val.EMetricType.MAVM,
-        selectors={val.EValResAxis.TIME: 1, val.EValResAxis.SIM_TRANS: 0},
-        output=val.EMetricOutput.D_MINUS,
+        valid.EMetricType.MAVM,
+        selectors={valid.EValidResAxis.TIME: 1, valid.EValidResAxis.SIM_TRANS: 0},
+        output=valid.EMetricOutput.D_MINUS,
         point_idxs=(2, 0, 3),
-        sim_data=simulation,
+        sim_data=sim_data,
         sim_field=sim_field,
         sim_time_idx=1,
         descriptor=sens.SensorDescriptor(name="Temperature", units="degC", tag="P"),
         sim_coord_units="mm",
         sim_coord_frame="cube",
         vis_opts=opts,
-        metric_opts=valvis.ValMetricVisOpts(labels_always_visible=True),
+        metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
     )
     try:
         assert plotter.off_screen
@@ -115,7 +115,7 @@ def test_overlay_preserves_xyz_ids_and_independent_scalar_bars(
         assert len(plotter.scalar_bars) == 2
         assert any("MAVM d−" in title for title in plotter.scalar_bars.keys())  # noqa: SIM118
         assert any(
-            "Simulation:" in title and "degC" in title
+            "Sim.:" in title and "degC" in title
             for title in plotter.scalar_bars.keys()  # noqa: SIM118
         )
         assert any(name.startswith("validation-labels") for name in plotter.actors)
@@ -125,12 +125,10 @@ def test_overlay_preserves_xyz_ids_and_independent_scalar_bars(
         label_mapper = plotter.actors["validation-labels-labels"].GetMapper()
         point_tags = label_mapper.GetInputDataObject(0, 0).GetLabels()
         assert [point_tags.GetValue(index) for index in range(3)] == ["P3", "P1", "P4"]
-        np.testing.assert_array_equal(
-            simulation.node_vars["temperature"][:, 1], scalars
-        )
+        np.testing.assert_array_equal(sim_data.node_vars["temperature"][:, 1], scalars)
         if isinstance(sim_field, np.ndarray):
             np.testing.assert_array_equal(sim_field, scalars)
-        np.testing.assert_array_equal(simulation.coords, original_coords)
+        np.testing.assert_array_equal(sim_data.coords, original_coords)
         np.testing.assert_array_equal(scalars, [100.0, 200.0, 300.0, 400.0])
         assert pv.global_theme.font.color == original_theme
         assert opts.colour_bar_lims is None
@@ -139,52 +137,56 @@ def test_overlay_preserves_xyz_ids_and_independent_scalar_bars(
 
 
 def test_directional_and_zero_outputs_have_valid_colour_limits(
-    scene: tuple[val.ValResult, io.SimData],
+    scene: tuple[valid.ValidResult, io.SimData],
 ) -> None:
     result, _ = scene
-    selectors = {val.EValResAxis.TIME: 0, val.EValResAxis.SIM_TRANS: 0}
-    plotter = valvis.plot_val_metric_on_sim(
+    selectors = {valid.EValidResAxis.TIME: 0, valid.EValidResAxis.SIM_TRANS: 0}
+    plotter = validvis.plot_valid_metric_on_sim(
         result,
         "temperature",
-        val.EMetricType.MAVM,
+        valid.EMetricType.MAVM,
         selectors=selectors,
-        output=val.EMetricOutput.D_MINUS,
+        output=valid.EMetricOutput.D_MINUS,
     )
     assert plotter.actors["validation-points"].mapper.scalar_range == (0.0, 3.0)
     plotter.close()
-    plotter = valvis.plot_val_metric_on_sim(
+    plotter = validvis.plot_valid_metric_on_sim(
         result,
         "temperature",
-        val.EMetricType.MAVM,
+        valid.EMetricType.MAVM,
         selectors=selectors,
         point_idxs=(0,),
-        output=val.EMetricOutput.D_MINUS,
+        output=valid.EMetricOutput.D_MINUS,
     )
     assert plotter.actors["validation-points"].mapper.scalar_range == (0.0, 1.0)
     plotter.close()
 
 
 def test_selection_requires_all_scenarios_and_preserves_output(
-    scene: tuple[val.ValResult, io.SimData],
+    scene: tuple[valid.ValidResult, io.SimData],
 ) -> None:
     result, _ = scene
-    field = result.metrics["temperature"][val.EMetricType.MAVM]
+    field = result.metrics["temperature"][valid.EMetricType.MAVM]
     with pytest.raises(ValueError, match="Select"):
-        val.extract_metric_values(field, output=val.EMetricOutput.D_MINUS)
-    selected = val.extract_metric_values(
+        valid.extract_metric_values(field, output=valid.EMetricOutput.D_MINUS)
+    selected = valid.extract_metric_values(
         field,
-        selectors={val.EValResAxis.TIME: 0, val.EValResAxis.SIM_TRANS: 0},
-        output=val.EMetricOutput.D_MINUS,
+        selectors={valid.EValidResAxis.TIME: 0, valid.EValidResAxis.SIM_TRANS: 0},
+        output=valid.EMetricOutput.D_MINUS,
     )
     np.testing.assert_allclose(selected, [0.0, 3.0, 1.0, np.nan])
-    assert field.outputs[val.EMetricOutput.D_MINUS][2, 0, 0, 0] == 1.0
+    assert field.outputs[valid.EMetricOutput.D_MINUS][2, 0, 0, 0] == 1.0
     with pytest.raises(ValueError, match="output"):
-        val.select_metric_output(
-            val.ValMetricField(
+        valid.select_metric_output(
+            valid.ValidMetricField(
                 field.axes,
-                {val.EMetricOutput.D_MINUS: field.outputs[val.EMetricOutput.D_MINUS]},
+                {
+                    valid.EMetricOutput.D_MINUS: field.outputs[
+                        valid.EMetricOutput.D_MINUS
+                    ]
+                },
             ),
-            val.EMetricOutput.D_PLUS,
+            valid.EMetricOutput.D_PLUS,
         )
 
 
@@ -198,46 +200,46 @@ def test_selection_requires_all_scenarios_and_preserves_output(
     ],
 )
 def test_overlay_rejects_misaligned_background(
-    scene: tuple[val.ValResult, io.SimData],
+    scene: tuple[valid.ValidResult, io.SimData],
     time_idx: int,
     units: str,
     coord_frame: str,
     values: np.ndarray,
     message: str,
 ) -> None:
-    result, simulation = scene
+    result, sim_data = scene
     with pytest.raises(ValueError, match=message):
-        valvis.plot_val_metric_on_sim(
+        validvis.plot_valid_metric_on_sim(
             result,
             "temperature",
-            val.EMetricType.MAVM,
-            selectors={val.EValResAxis.TIME: 1, val.EValResAxis.SIM_TRANS: 0},
-            sim_data=simulation,
+            valid.EMetricType.MAVM,
+            selectors={valid.EValidResAxis.TIME: 1, valid.EValidResAxis.SIM_TRANS: 0},
+            sim_data=sim_data,
             sim_field=values,
             sim_time_idx=time_idx,
             sim_coord_units=units,
             sim_coord_frame=coord_frame,
-            output=val.EMetricOutput.D_PLUS,
+            output=valid.EMetricOutput.D_PLUS,
         )
 
 
 def test_output_limits_must_increase(
-    scene: tuple[val.ValResult, io.SimData],
+    scene: tuple[valid.ValidResult, io.SimData],
 ) -> None:
     result, _ = scene
     with pytest.raises(ValueError, match="increasing"):
-        valvis.plot_val_metric_on_sim(
+        validvis.plot_valid_metric_on_sim(
             result,
             "temperature",
-            val.EMetricType.MAVM,
-            selectors={val.EValResAxis.TIME: 0, val.EValResAxis.SIM_TRANS: 0},
-            output=val.EMetricOutput.D_MINUS,
-            metric_opts=valvis.ValMetricVisOpts(metric_colour_lims=(2.0, 1.0)),
+            valid.EMetricType.MAVM,
+            selectors={valid.EValidResAxis.TIME: 0, valid.EValidResAxis.SIM_TRANS: 0},
+            output=valid.EMetricOutput.D_MINUS,
+            metric_opts=validvis.ValidMetricVisOpts(metric_colour_lims=(2.0, 1.0)),
         )
 
 
 def test_composition_preserves_existing_plotter_camera(
-    scene: tuple[val.ValResult, io.SimData],
+    scene: tuple[valid.ValidResult, io.SimData],
 ) -> None:
     result, _ = scene
     plotter = pv.Plotter(off_screen=True)
@@ -246,13 +248,13 @@ def test_composition_preserves_existing_plotter_camera(
         [plotter.camera.position, plotter.camera.focal_point, plotter.camera.up]
     )
     try:
-        returned = valvis.plot_val_metric_on_sim(
+        returned = validvis.plot_valid_metric_on_sim(
             result,
             "temperature",
-            val.EMetricType.MAVM,
-            selectors={val.EValResAxis.TIME: 0, val.EValResAxis.SIM_TRANS: 0},
+            valid.EMetricType.MAVM,
+            selectors={valid.EValidResAxis.TIME: 0, valid.EValidResAxis.SIM_TRANS: 0},
             plotter=plotter,
-            output=val.EMetricOutput.D_PLUS,
+            output=valid.EMetricOutput.D_PLUS,
         )
         assert returned is plotter
         np.testing.assert_allclose(
@@ -275,20 +277,20 @@ def test_composition_preserves_existing_plotter_camera(
     ],
 )
 def test_background_rejects_invalid_fields_and_steps(
-    scene: tuple[val.ValResult, io.SimData],
+    scene: tuple[valid.ValidResult, io.SimData],
     sim_field: str | np.ndarray,
     sim_time_idx: int | None,
     message: str,
 ) -> None:
-    result, simulation = scene
+    result, sim_data = scene
     with pytest.raises(ValueError, match=message):
-        valvis.plot_val_metric_on_sim(
+        validvis.plot_valid_metric_on_sim(
             result,
             "temperature",
-            val.EMetricType.MAVM,
-            output=val.EMetricOutput.D_PLUS,
-            selectors={val.EValResAxis.TIME: 1, val.EValResAxis.SIM_TRANS: 0},
-            sim_data=simulation,
+            valid.EMetricType.MAVM,
+            output=valid.EMetricOutput.D_PLUS,
+            selectors={valid.EValidResAxis.TIME: 1, valid.EValidResAxis.SIM_TRANS: 0},
+            sim_data=sim_data,
             sim_field=sim_field,
             sim_time_idx=sim_time_idx,
             sim_coord_units="mm",
@@ -297,16 +299,16 @@ def test_background_rejects_invalid_fields_and_steps(
 
 
 def test_background_defaults_and_direct_style_options(
-    scene: tuple[val.ValResult, io.SimData],
+    scene: tuple[valid.ValidResult, io.SimData],
 ) -> None:
-    result, simulation = scene
-    plotter = valvis.plot_val_metric_on_sim(
+    result, sim_data = scene
+    plotter = validvis.plot_valid_metric_on_sim(
         result,
         "temperature",
-        val.EMetricType.MAVM,
-        output=val.EMetricOutput.D_PLUS,
-        selectors={val.EValResAxis.TIME: 1, val.EValResAxis.SIM_TRANS: 0},
-        sim_data=simulation,
+        valid.EMetricType.MAVM,
+        output=valid.EMetricOutput.D_PLUS,
+        selectors={valid.EValidResAxis.TIME: 1, valid.EValidResAxis.SIM_TRANS: 0},
+        sim_data=sim_data,
         sim_field="temperature",
         sim_time_idx=1,
         sim_coord_units="mm",
@@ -319,7 +321,7 @@ def test_background_defaults_and_direct_style_options(
             0.0,
             500.0,
         )
-        assert "Simulation: temperature" in plotter.scalar_bars
+        assert "Sim.: temperature" in plotter.scalar_bars
         assert not any(name.startswith("validation-labels") for name in plotter.actors)
     finally:
         plotter.close()

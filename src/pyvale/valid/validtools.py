@@ -12,36 +12,38 @@ import numpy as np
 from scipy import stats
 
 from pyvale.valid.constants import MAVM_AREA_TOLERANCE
-from pyvale.valid.inputvalidation import (
-    validate_ecdf,
+from pyvale.valid.metrics import calc_mavm_1d
+from pyvale.valid.metricstrategy import EMetricType
+from pyvale.valid.validchecks import (
     validate_finite_sample,
     validate_real_array,
 )
-from pyvale.valid.metrics import calc_mavm_1d
-from pyvale.valid.metricstrategy import EMetricType
-from pyvale.valid.valengine import EValResAxis, ValMetricField, resolve_metric_output
-from pyvale.valid.valtypes import (
+from pyvale.valid.validtypes import (
     EEpisOffset,
     EMAVMDuplicates,
     EMetricOutput,
-    EValAxis,
-    EValECDFBounds,
+    EValidAxis,
+    EValidECDFBounds,
+    EValidResAxis,
     MAVMCorrection,
-    ValArray,
-    ValECDF,
-    ValECDFSummary,
+    ValidArray,
+    ValidECDF,
+    ValidECDFSummary,
+    ValidMetricField,
+    resolve_metric_output,
+    validate_ecdf,
 )
 
 
-def calc_ecdf(samples: np.ndarray) -> ValECDF:
+def calc_ecdf(samples: np.ndarray) -> ValidECDF:
     """Calculate a 1D ECDF, omitting NaNs and preserving duplicate mass."""
     observations = validate_finite_sample(samples, "samples")
     cdf = stats.ecdf(observations).cdf
-    return ValECDF(cdf.quantiles, cdf.probabilities)
+    return ValidECDF(cdf.quantiles, cdf.probabilities)
 
 
 def extract_ecdf(
-    quantity: ValArray,
+    quantity: ValidArray,
     *,
     point_idx: int = 0,
     component_idx: int = 0,
@@ -49,7 +51,7 @@ def extract_ecdf(
     epis_trans_idx: int = 0,
     epis_nuis_idx: int = 0,
     offset: EEpisOffset = EEpisOffset.NOMINAL,
-) -> ValECDF:
+) -> ValidECDF:
     """Extract one conditional ECDF using physical and epistemic axis indices.
 
     Only ALEATORY supplies observations. Epistemic scenarios are selected, never
@@ -79,7 +81,7 @@ def calc_ecdf_envelope(
 
 
 def extract_ecdf_envelope(
-    quantity: ValArray,
+    quantity: ValidArray,
     *,
     point_idx: int = 0,
     component_idx: int = 0,
@@ -107,7 +109,7 @@ def extract_ecdf_envelope(
 
 
 def extract_aleatory_scenarios(
-    quantity: ValArray,
+    quantity: ValidArray,
     *,
     point_idx: int = 0,
     component_idx: int = 0,
@@ -123,8 +125,8 @@ def extract_aleatory_scenarios(
     """
     selections = []
     for axis, selection in (
-        (EValAxis.EPISTEMIC_TRANS, epis_trans_idx),
-        (EValAxis.EPISTEMIC_NUIS, epis_nuis_idx),
+        (EValidAxis.EPISTEMIC_TRANS, epis_trans_idx),
+        (EValidAxis.EPISTEMIC_NUIS, epis_nuis_idx),
     ):
         size = (
             quantity.data.shape[quantity.axes.index(axis)]
@@ -153,7 +155,7 @@ def extract_aleatory_scenarios(
 
 
 def select_metric_output(
-    field: ValMetricField,
+    field: ValidMetricField,
     output: EMetricOutput | None = None,
     *,
     selection_idxs: tuple[int | slice, ...] = (),
@@ -163,14 +165,14 @@ def select_metric_output(
 
 
 def extract_metric_values(
-    field: ValMetricField,
+    field: ValidMetricField,
     *,
-    keep: EValResAxis = EValResAxis.POINT,
-    selectors: dict[EValResAxis, int] | None = None,
+    keep: EValidResAxis = EValidResAxis.POINT,
+    selectors: dict[EValidResAxis, int] | None = None,
     output: EMetricOutput | None = None,
 ) -> np.ndarray:
     """Retain one axis and select every other non-singleton result axis."""
-    if not isinstance(keep, EValResAxis) or keep not in field.axes:
+    if not isinstance(keep, EValidResAxis) or keep not in field.axes:
         raise ValueError(f"Result has no {keep} axis.")
     selected = selectors or {}
     if keep in selected:
@@ -180,14 +182,14 @@ def extract_metric_values(
 
 
 def build_metric_selection(
-    field: ValMetricField,
-    selectors: dict[EValResAxis, int] | None,
+    field: ValidMetricField,
+    selectors: dict[EValidResAxis, int] | None,
     *,
-    keep: EValResAxis | None = None,
+    keep: EValidResAxis | None = None,
 ) -> tuple[int | slice, ...]:
     selected = selectors or {}
     for axis in selected:
-        if not isinstance(axis, EValResAxis) or axis not in field.axes:
+        if not isinstance(axis, EValidResAxis) or axis not in field.axes:
             raise ValueError("Selectors must name stored result axes.")
     selection = []
     for axis, size in zip(
@@ -220,7 +222,7 @@ def create_metric_label(metric: EMetricType, output: EMetricOutput) -> str:
     return f"{metric.name} {output_label}"
 
 
-def evaluate_ecdf_quantiles(cdf: ValECDF, probabilities: np.ndarray) -> np.ndarray:
+def evaluate_ecdf_quantiles(cdf: ValidECDF, probabilities: np.ndarray) -> np.ndarray:
     """Evaluate the inverse ECDF using the first support reaching each probability."""
     validate_ecdf(cdf)
     probabilities = validate_real_array(probabilities, "probabilities", allow_nan=False)
@@ -231,15 +233,15 @@ def evaluate_ecdf_quantiles(cdf: ValECDF, probabilities: np.ndarray) -> np.ndarr
     return _evaluate_ecdf_quantiles(cdf, probabilities)
 
 
-def _evaluate_ecdf_quantiles(cdf: ValECDF, probabilities: np.ndarray) -> np.ndarray:
+def _evaluate_ecdf_quantiles(cdf: ValidECDF, probabilities: np.ndarray) -> np.ndarray:
     return cdf.quantiles[np.searchsorted(cdf.probabilities, probabilities, side="left")]
 
 
 def calc_ecdf_summary(
     samples: list[np.ndarray],
     *,
-    bounds: EValECDFBounds = EValECDFBounds.POINTWISE,
-) -> ValECDFSummary:
+    bounds: EValidECDFBounds = EValidECDFBounds.POINTWISE,
+) -> ValidECDFSummary:
     """Summarise conditional distributions without mixing epistemic scenarios.
 
     SUPPORT_SUM reproduces the paper script's complete-scenario selection by
@@ -247,8 +249,8 @@ def calc_ecdf_summary(
     """
     if not samples:
         raise ValueError("Supply at least one conditional sample.")
-    if not isinstance(bounds, EValECDFBounds):
-        raise TypeError("Bounds must be EValECDFBounds.")
+    if not isinstance(bounds, EValidECDFBounds):
+        raise TypeError("Bounds must be EValidECDFBounds.")
     cdfs = [calc_ecdf(sample) for sample in samples]
     probabilities = np.unique(np.concatenate([cdf.probabilities for cdf in cdfs]))
     nominal = np.zeros_like(probabilities)
@@ -256,14 +258,14 @@ def calc_ecdf_summary(
     upper = np.full_like(probabilities, -np.inf)
     lower_idx = None
     upper_idx = None
-    if bounds is EValECDFBounds.SUPPORT_SUM:
+    if bounds is EValidECDFBounds.SUPPORT_SUM:
         support_sums = np.array([np.sum(cdf.quantiles) for cdf in cdfs])
         lower_idx = int(np.argmin(support_sums))
         upper_idx = int(np.argmax(support_sums))
     for selection_idx, cdf in enumerate(cdfs):
         quantiles = _evaluate_ecdf_quantiles(cdf, probabilities)
         nominal += quantiles
-        if bounds is EValECDFBounds.POINTWISE:
+        if bounds is EValidECDFBounds.POINTWISE:
             np.minimum(lower, quantiles, out=lower)
             np.maximum(upper, quantiles, out=upper)
         else:
@@ -272,7 +274,7 @@ def calc_ecdf_summary(
             if selection_idx == upper_idx:
                 upper[:] = quantiles
     nominal /= len(cdfs)
-    return ValECDFSummary(
+    return ValidECDFSummary(
         probabilities,
         lower,
         upper,
@@ -300,8 +302,8 @@ def calc_mavm_correction(
     diagnostics, not a reduction to the largest MAVM across every model scenario.
     """
     comparisons = tuple(
-        calc_mavm_1d(model, experiment, alpha=alpha, duplicates=duplicates, tol=tol)
-        for experiment in (exp_lower, exp_upper)
+        calc_mavm_1d(model, exp, alpha=alpha, duplicates=duplicates, tol=tol)
+        for exp in (exp_lower, exp_upper)
         for model in (model_lower, model_upper)
     )
     lower_exp_idx = int(np.argmax([comparisons[0].d_minus, comparisons[2].d_minus]))

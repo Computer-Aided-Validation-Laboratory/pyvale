@@ -12,35 +12,35 @@ from plate_fixture import load_plate_case
 import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.valid as val
-import pyvale.valid.converttovaldata as valconvert
-from pyvale.valid import valplot, valvis
+import pyvale.valid.validpreparation as validprep
+from pyvale import valid
+from pyvale.valid import validplot, validvis
 
 
 def test_prepared_plate_gold_metrics() -> None:
     """Track the saved SensorSim fixture and selected metric diagnostics."""
-    val_case = load_plate_case()
-    result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(val_case)
-    assert result.metrics["temperature"][val.EMetricType.AVM].outputs[
-        val.EMetricOutput.DISTANCE
+    valid_case = load_plate_case()
+    result = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM()]).run(valid_case)
+    assert result.metrics["temperature"][valid.EMetricType.AVM].outputs[
+        valid.EMetricOutput.DISTANCE
     ][5, 0, 0] == (pytest.approx(0.26243433506330643, abs=1e-10))
     assert (
-        result.metrics["temperature"][val.EMetricType.MAVM].outputs[
-            val.EMetricOutput.D_PLUS
+        result.metrics["temperature"][valid.EMetricType.MAVM].outputs[
+            valid.EMetricOutput.D_PLUS
         ][5, 0, 0]
-        + result.metrics["temperature"][val.EMetricType.MAVM].outputs[
-            val.EMetricOutput.D_MINUS
+        + result.metrics["temperature"][valid.EMetricType.MAVM].outputs[
+            valid.EMetricOutput.D_MINUS
         ][5, 0, 0]
     ) == (pytest.approx(0.4891546824953229, abs=1e-10))
-    assert result.metrics["strain"][val.EMetricType.AVM].outputs[
-        val.EMetricOutput.DISTANCE
+    assert result.metrics["strain"][valid.EMetricType.AVM].outputs[
+        valid.EMetricOutput.DISTANCE
     ][5, 0, 0] == (pytest.approx(1.2018068336589567e-6, abs=1e-12))
     assert (
-        result.metrics["strain"][val.EMetricType.MAVM].outputs[
-            val.EMetricOutput.D_PLUS
+        result.metrics["strain"][valid.EMetricType.MAVM].outputs[
+            valid.EMetricOutput.D_PLUS
         ][5, 2, 0]
-        + result.metrics["strain"][val.EMetricType.MAVM].outputs[
-            val.EMetricOutput.D_MINUS
+        + result.metrics["strain"][valid.EMetricType.MAVM].outputs[
+            valid.EMetricOutput.D_MINUS
         ][5, 2, 0]
     ) == (pytest.approx(3.368761032966909e-6, abs=1e-12))
 
@@ -53,9 +53,9 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
         measured = saved["exp_temp"].copy()
 
     observables = {
-        "temperature": val.ValObservable(
+        "temperature": valid.ValidObservable(
             components=("temperature",),
-            geometry=val.EValGeometry.POINT,
+            geometry=valid.EValidGeometry.POINT,
             coords=coords,
             times=times,
             phys_units="degC",
@@ -64,12 +64,8 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
     nominal_path = dataset.thermomechanical_2d_experiment_paths()[0]
     sim_data = mh.ExodusLoader(nominal_path).load_all_sim_data()
     sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
-    sim = valconvert.convert_sim_to_val(
-        {
-            "temperature": lambda simulation: sens.FieldScalar(
-                simulation, "temperature", sens.EDim.TWOD
-            )
-        },
+    sim = validprep.sample_sim_sweep(
+        {"temperature": sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD)},
         observables,
         [((), sim_data)],
     )
@@ -78,43 +74,45 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
         ("perturbed", "temp", "meas"): measured,
         ("perturbed", "temp", "sens_times"): times,
     }
-    acquisitions = valconvert.conv_exp_sim_to_data(
+    acquisitions = validprep.extract_exp_sim_data(
         output,
         sim_key="perturbed",
-        selections={"temperature": valconvert.ObservableSelection("temp", 0, coords)},
+        selections={"temperature": validprep.SensorOutputSelection("temp", 0, coords)},
     )
     cases = [
-        val.ValCase(observables, sim, valconvert.convert_exp_to_val(run, observables))
+        valid.ValidCase(
+            observables, sim, validprep.assemble_exp_arrays(run, observables)
+        )
         for run in acquisitions
     ]
-    converted = valconvert.combine_val_cases(*cases)
+    converted = validprep.concatenate_valid_cases(*cases)
 
     direct_sim = {
-        "temperature": val.ValArray(
+        "temperature": valid.ValidArray(
             sim["temperature"].data,
             sim["temperature"].axes,
         )
     }
     direct_exp = {
-        "temperature": val.ValArray(
+        "temperature": valid.ValidArray(
             np.moveaxis(measured, 0, -1),
             (
-                val.EValAxis.POINT,
-                val.EValAxis.COMPONENT,
-                val.EValAxis.TIME,
-                val.EValAxis.ALEATORY,
+                valid.EValidAxis.POINT,
+                valid.EValidAxis.COMPONENT,
+                valid.EValidAxis.TIME,
+                valid.EValidAxis.ALEATORY,
             ),
         )
     }
-    direct = val.ValCase(observables, direct_sim, direct_exp)
+    direct = valid.ValidCase(observables, direct_sim, direct_exp)
     np.testing.assert_array_equal(
         converted.exp["temperature"].data,
         direct.exp["temperature"].data,
     )
-    engine = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()])
+    engine = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM()])
     converted_result = engine.run(converted)
     direct_result = engine.run(direct)
-    for metric in (val.EMetricType.AVM, val.EMetricType.MAVM):
+    for metric in (valid.EMetricType.AVM, valid.EMetricType.MAVM):
         expected = direct_result.metrics["temperature"][metric]
         actual = converted_result.metrics["temperature"][metric]
         for output in expected.outputs:
@@ -124,7 +122,7 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
 
 
 @pytest.mark.parametrize("spatial_averager", [None, sens.EIntSpatialType.RECT4PT])
-def test_global_and_sensor_simulation_extraction(
+def test_global_and_sensor_sim_extraction(
     spatial_averager: sens.EIntSpatialType | None,
 ) -> None:
     """Reuse SensorSim's averaging and existing MOOSE global output."""
@@ -140,28 +138,27 @@ def test_global_and_sensor_simulation_extraction(
         spatial_dims=np.array([5.0, 5.0, 0.0]),
     )
     observables = {
-        "temperature_average": val.ValObservable(
+        "temperature_average": valid.ValidObservable(
             components=("temperature",),
-            geometry=val.EValGeometry.POINT,
+            geometry=valid.EValidGeometry.POINT,
             coords=coords,
             times=times,
             phys_units="degC",
         ),
-        "global_temperature": val.ValObservable(
+        "global_temperature": valid.ValidObservable(
             components=("temp_avg",),
-            geometry=val.EValGeometry.GLOBAL,
+            geometry=valid.EValidGeometry.GLOBAL,
             coords=None,
             times=times,
             phys_units="degC",
         ),
     }
     field = sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD)
-    result = valconvert.convert_sim_to_val(
+    result = validprep.sample_sim_sweep(
         {
-            "temperature_average": lambda simulation: sens.FieldScalar(
-                simulation, "temperature", sens.EDim.TWOD
+            "temperature_average": sens.FieldScalar(
+                sim_data, "temperature", sens.EDim.TWOD
             ),
-            "global_temperature": None,
         },
         observables,
         [((), sim_data)],
@@ -179,34 +176,34 @@ def test_global_and_sensor_simulation_extraction(
 
 
 def test_diagnostic_plots_show_units_and_registered_axes() -> None:
-    val_case = load_plate_case(transient=True)
-    result = val.ValidationEngine([val.MetricAVM(), val.MetricMAVM()]).run(val_case)
-    fig_cdf, ax_cdf = valplot.plot_val_cdfs(
-        val_case,
+    valid_case = load_plate_case(transient=True)
+    result = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM()]).run(valid_case)
+    fig_cdf, ax_cdf = validplot.plot_valid_cdfs(
+        valid_case,
         result,
         "temperature",
         point_idx=5,
         time_idx=4,
-        metric=val.MetricMAVM(),
+        metric=valid.MetricMAVM(),
     )
     assert "degC" in ax_cdf.get_xlabel()
     assert len(ax_cdf.lines) == 4
-    pv_plot = valvis.plot_val_metric_on_sim(
+    pv_plot = validvis.plot_valid_metric_on_sim(
         result,
         "temperature",
-        val.EMetricType.AVM,
-        selectors={val.EValResAxis.TIME: 4},
+        valid.EMetricType.AVM,
+        selectors={valid.EValidResAxis.TIME: 4},
     )
     assert pv_plot.actors["validation-points"].mapper.dataset.n_points == 12
     pv_plot.close()
-    fig_time, ax_time = valplot.plot_val_metric_time(
+    fig_time, ax_time = validplot.plot_valid_metric_time(
         result,
         "temperature",
-        val.EMetricType.AVM,
-        selectors={val.EValResAxis.POINT: 5},
+        valid.EMetricType.AVM,
+        selectors={valid.EValidResAxis.POINT: 5},
     )
     np.testing.assert_array_equal(
-        ax_time.lines[0].get_xdata(), val_case.observables["temperature"].times
+        ax_time.lines[0].get_xdata(), valid_case.observables["temperature"].times
     )
     assert ax_time.get_xlabel() == "Time [s]"
     plt.close(fig_cdf)
@@ -214,12 +211,12 @@ def test_diagnostic_plots_show_units_and_registered_axes() -> None:
 
 
 def test_spatial_temporal_offset_is_applied_per_conditional_cdf() -> None:
-    val_case = load_plate_case(transient=True, epistemic=True, offsets=True)
-    quantity = val_case.exp["temperature"]
-    assert quantity.offsets.axes == (val.EValAxis.POINT, val.EValAxis.TIME)
+    valid_case = load_plate_case(transient=True, epistemic=True, offsets=True)
+    quantity = valid_case.exp["temperature"]
+    assert quantity.offsets.axes == (valid.EValidAxis.POINT, valid.EValidAxis.TIME)
     nominal = quantity.select_aleatory(5, 0, 0)
-    lower_early = quantity.select_aleatory(5, 0, 0, offset=val.EEpisOffset.LOWER)
-    lower_late = quantity.select_aleatory(5, 0, 4, offset=val.EEpisOffset.LOWER)
+    lower_early = quantity.select_aleatory(5, 0, 0, offset=valid.EEpisOffset.LOWER)
+    lower_late = quantity.select_aleatory(5, 0, 4, offset=valid.EEpisOffset.LOWER)
     late_nominal = quantity.select_aleatory(5, 0, 4)
     assert np.allclose(nominal - lower_early, quantity.offsets.lower[5, 0])
     assert np.allclose(late_nominal - lower_late, quantity.offsets.lower[5, 4])
