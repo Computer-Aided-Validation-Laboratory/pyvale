@@ -12,7 +12,7 @@ import numpy as np
 
 from pyvale.strain.strainresults import StrainResults
 from pyvale.dic.dicenum import ELayout
-from pyvale.dic.dicimport2d import check_delimiter, to_grid
+from pyvale.dic.dicimport2d import align_frames_by_coordinates, check_delimiter, to_grid
 
 
 def import_2d(data: str | Path | list[Path],
@@ -83,35 +83,10 @@ def _import(data: str | Path | list[Path],
     if any(len(frame) - 2 != nfields for frame in read_frames):
         raise ValueError("Strain result files contain different numbers of columns.")
 
-    coordinates = np.unique(
-        np.concatenate(
-            [np.column_stack((x, y)) for x, y in coordinate_frames],
-            axis=0,
-        ),
-        axis=0,
+    window_x_ref, window_y_ref, arrays = align_frames_by_coordinates(
+        coordinate_frames,
+        [list(frame[2:]) for frame in read_frames],
     )
-    window_x_ref = coordinates[:, 0].astype(np.int32)
-    window_y_ref = coordinates[:, 1].astype(np.int32)
-
-    coordinate_index = {
-        (int(x), int(y)): index
-        for index, (x, y) in enumerate(coordinates)
-    }
-    arrays = [
-        np.full((len(files), len(coordinates)), np.nan, dtype=np.float64)
-        for _ in range(nfields)
-    ]
-    for frame_index, frame in enumerate(read_frames):
-        row_indices = [
-            coordinate_index[(int(x), int(y))]
-            for x, y in zip(frame[0], frame[1])
-        ]
-        if len(set(row_indices)) != len(row_indices):
-            raise ValueError(
-                f"Duplicate subset coordinates in strain result file: {files[frame_index]}"
-            )
-        for field_index, values in enumerate(frame[2:]):
-            arrays[field_index][frame_index, row_indices] = values
 
     if len(arrays) != 15:
         raise ValueError( "Strain data must be in 17-column format.")

@@ -39,6 +39,23 @@ _Dic2DData = tuple[
 
 def align_frames_by_coordinates(coordinate_frames, frames):
     """Align result fields on the union of subset coordinates."""
+    x_ref, y_ref = coordinate_frames[0]
+
+    same_coordinates = all(
+        np.array_equal(x, x_ref) and np.array_equal(y, y_ref)
+        for x, y in coordinate_frames[1:]
+    )
+    if same_coordinates:
+        coordinates = np.column_stack((x_ref, y_ref))
+        if np.unique(coordinates, axis=0).shape[0] != len(x_ref):
+            raise ValueError("Duplicate subset coordinates in DIC result file.")
+
+        arrays = [
+            np.stack([frame[field_index] for frame in frames], axis=0)
+            for field_index in range(len(frames[0]))
+        ]
+        return x_ref.astype(np.int32), y_ref.astype(np.int32), arrays
+
     coordinates = np.unique(
         np.concatenate(
             [np.column_stack((x, y)) for x, y in coordinate_frames], axis=0
