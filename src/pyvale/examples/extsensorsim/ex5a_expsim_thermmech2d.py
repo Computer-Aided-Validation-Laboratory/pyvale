@@ -179,7 +179,7 @@ print(80*"-")
 print()
 
 # %%
-# .. image:: ../../../../_static/ext_ex5a_term_out_0.png
+# .. image:: /_static/ext_ex5a_term_out_0.png
 #    :alt: Terminal output showing the simulated experiment times
 #    :width: 700px
 #    :align: center
@@ -197,7 +197,7 @@ print(80*"-")
 print()
 
 # %%
-# .. image:: ../../../../_static/ext_ex5a_term_out_1.png
+# .. image:: /_static/ext_ex5a_term_out_1.png
 #    :alt: Terminal output showing the keys of the experiment data dictionary
 #    :width: 700px
 #    :align: center
@@ -229,7 +229,7 @@ print()
 print(80*"-")
 
 # %%
-# .. image:: ../../../../_static/ext_ex5a_term_out_2.png
+# .. image:: /_static/ext_ex5a_term_out_2.png
 #    :alt: Terminal output showing the simulated measurement arrays
 #    :width: 700px
 #    :align: center
@@ -260,7 +260,7 @@ else:
 # %%
 # Visualisation of the virtual temperature sensor locations:
 #
-# .. image:: ../../../../_static/ext_ex5a_temp_locs.png
+# .. image:: /_static/ext_ex5a_temp_locs.png
 #    :alt: Visualisation of the virtual temperature sensor locations
 #    :width: 800px
 #    :align: center
@@ -285,7 +285,7 @@ else:
 # %%
 # Visualisation of the virtual displacement sensor locations:
 #
-# .. image:: ../../../../_static/basics_ex5a_disp_locs.png
+# .. image:: /_static/ext_ex5a_disp_locs.png
 #    :alt: Visualisation of the virtual displacement sensor locations
 #    :width: 800px
 #    :align: center
@@ -305,14 +305,14 @@ for kk in sim_data_dict:
 # %%
 # Simulated temperatures traces for input physics simulation 0:
 #
-# .. image:: ../../../../_static/ext_ex5a_traces_sim0_temp.png
+# .. image:: /_static/ext_ex5a_traces_sim0_temp.png
 #    :alt: Simulated temperature sensor traces for input simulation 0.
 #    :width: 600px
 #    :align: center
 #
 # Simulated temperature traces for input physics simulation 1:
 #
-# .. image:: ../../../../_static/ext_ex5a_traces_sim1_temp.png
+# .. image:: /_static/ext_ex5a_traces_sim1_temp.png
 #    :alt: Simulated temperature sensor traces for input simulation 1.
 #    :width: 600px
 #    :align: center
@@ -335,14 +335,14 @@ for key_sim in sim_data_dict:
 # %%
 # Simulated displacement traces for input physics simulation 0:
 #
-# .. image:: ../../../../_static/ext_ex5a_traces_sim0_disp_y.png
+# .. image:: /_static/ext_ex5a_traces_sim0_disp_y.png
 #    :alt: Simulated displacement sensor traces form input simulation 0.
 #    :width: 600px
 #    :align: center
 #
 # Simulated displacement traces for input physics simulation 1:
 #
-# .. image:: ../../../../_static/ext_ex5a_traces_sim1_disp_y.png
+# .. image:: /_static/ext_ex5a_traces_sim1_disp_y.png
 #    :alt: Simulated displacement sensor traces form input simulation 1.
 #    :width: 600px
 #    :align: center

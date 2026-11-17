@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+import sys
 from sphinx_gallery.sorting import FileNameSortKey
 from importlib.metadata import version as get_version
 
@@ -10,7 +12,7 @@ from importlib.metadata import version as get_version
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Pyvale'
+project = 'PyVale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
 release = get_version('pyvale')
@@ -18,6 +20,8 @@ version = release
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -28,6 +32,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_codeautolink',
     'sphinx_copybutton',
+    'gallerycleanup',
     'sphinx_gallery.gen_gallery',
     'sphinx.ext.mathjax',
     'breathe',
@@ -169,7 +174,7 @@ sphinx_gallery_conf = {
     'filename_pattern': safe_example_pattern,
     # Private helper modules support examples but are not gallery tutorials.
     'ignore_pattern': (
-        r'(?:^|/)(?:_blender_example_tools|_riley_demo_tools|tools)\.py$'
+        r'(?:^|/)(?:__init__|_blender_example_tools|_riley_demo_tools|tools)\.py$'
     ),
     # Specify that examples should be ordered according to filename
     'within_subsection_order': FileNameSortKey,
@@ -214,7 +219,7 @@ myst_enable_extensions = [
 # -- Options for HTML output ------------------------------------------------
 
 html_theme = 'furo'
-html_title = "Pyvale: The Python Validation Engine"
+html_title = "PyVale: Your virtual engineering laboratory"
 html_favicon = "_static/pyvale_logo_badge.png"
 
 # Theme options

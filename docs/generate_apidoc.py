@@ -177,6 +177,9 @@ def generate_api_docs(repo_root: Path) -> None:
                     str(staged_dir),
                     str(package_dir),
                     str(package_dir / "examples"),
+                    str(package_dir / "blender"),
+                    str(package_dir / "commoncpp"),
+                    str(package_dir / "valid"),
                 ],
                 cwd=repo_root,
                 check=True,
@@ -186,7 +189,9 @@ def generate_api_docs(repo_root: Path) -> None:
                     "sphinx-apidoc did not generate the root pyvale.rst page"
                 )
             for page in sorted(staged_dir.glob("pyvale*.rst")):
-                if page.name == "pyvale.dic.dic2dcpp.rst":
+                # api_py.rst is the curated root. Avoid a second package index
+                # that exposes implementation and unfinished packages equally.
+                if page.name in {"pyvale.rst", "pyvale.dic.dic2dcpp.rst"}:
                     continue
                 target = source_dir / page.name
                 if target in tracked_paths or target.exists() or target.is_symlink():

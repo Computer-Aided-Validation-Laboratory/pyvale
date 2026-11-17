@@ -171,7 +171,7 @@ else:
 # %%
 # Virtual sensor locations:
 #
-# .. image:: ../../../../_static/ext_ex4c_locs.png
+# .. image:: /_static/ext_ex4c_locs.png
 #    :alt: Visualisation of virtual sensor locations.
 #    :width: 800px
 #    :align: center
@@ -198,7 +198,7 @@ for ff in disp_keys:
 # %%
 # Non-rotated sensors, y displacement:
 #
-# .. image:: ../../../../_static/ext_ex4c_traces_norot_disp_y.png
+# .. image:: /_static/ext_ex4c_traces_norot_disp_y.png
 #    :alt: Non-rotated sensor traces for the y displacement.
 #    :width: 600px
 #    :align: center
@@ -206,7 +206,7 @@ for ff in disp_keys:
 # %%
 # Rotated sensors, x displacement:
 #
-# .. image:: ../../../../_static/ext_ex4c_traces_rot_disp_x.png
+# .. image:: /_static/ext_ex4c_traces_rot_disp_x.png
 #    :alt: Rotated sensor traces for the x displacement.
 #    :width: 600px
 #    :align: center

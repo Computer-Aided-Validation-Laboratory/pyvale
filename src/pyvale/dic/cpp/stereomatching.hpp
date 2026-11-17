@@ -24,6 +24,13 @@
 
 namespace stereo {
 
+    /**
+     * @brief Match subsets between the left and right camera images.
+     *
+     * @details Images, interpolators, configuration, subset grid and the left
+     * temporal results are borrowed for the call. Matching writes into the
+     * caller-owned results_r arrays. No input buffer pointers are retained.
+     */
     void matching(const Image &img_l,
                 const Image &img_r,
                 const Interpolator &interp_l,

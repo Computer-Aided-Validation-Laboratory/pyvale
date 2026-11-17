@@ -95,7 +95,7 @@ print(f"{result.images.shape=}")
 # %%
 # The first rendered frame is shown below.
 #
-# .. image:: ../../../../_static/render3d_ex1a_riley_quickstart.png
+# .. image:: /_static/render3d_ex1a_riley_quickstart.png
 #    :alt: Riley checkerboard triangle quickstart render
 #    :width: 500px
 #    :align: center

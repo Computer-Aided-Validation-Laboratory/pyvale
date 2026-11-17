@@ -20,9 +20,11 @@ going any further. We like to import the modules in the following way:
 
 .. code-block:: Python
 
-    import pyvale.dic as dic
-    import pyvale.strain as strain
-
+   from pathlib import Path
+   import numpy as np
+   import pyvale.render as render
+   import pyvale.dic as dic
+   import pyvale.strain as strain
 
 The Pyvale DIC workflow
 -----------------------
@@ -50,14 +52,30 @@ Basic approaches are summarized below:
 
       .. code-block:: python
 
-         roi = dic.RegionOfInterest(ref_image="./ref_img.tiff") # initialization
-         roi.interactive_selection(subset_size=31)  # ROI GUI will launch
+         from pathlib import Path
+         import numpy as np
+         import pyvale.render as render
+         import pyvale.dic as dic
+
+         # Riley generates matching images from downloaded/cached demonstration data.
+         images = render.create_example_images_rigid()
+         ref_image = images.cam0_reference
+         def_images = sorted(images.cam0_deformed.parent.glob(images.cam0_deformed.name))
+         def_image = next(image for image in def_images if image != ref_image)
+
+         roi = dic.RegionOfInterest(ref_image=ref_image)
+         # Requires a desktop session: draw the ROI and select a seed, then close the GUI.
+         roi.interactive_selection(subset_size=31)
 
          dic.calculate_2d(
-             ...,
-             roi=roi.mask,
+             reference=ref_image,
+             deformed=def_image,
+             roi_mask=roi.mask,
              seed=roi.seed,
-             ...,
+             subset_size=31,
+             subset_step=25,
+             num_threads=2,
+             # Other optional settings use their defaults.
          )
 
    .. tab-item:: Programmatic ROI Pyvale
@@ -65,14 +83,28 @@ Basic approaches are summarized below:
 
       .. code-block:: Python
 
-         roi = dic.RegionOfInterest(ref_image="./ref_img.tiff") # initialization
-         roi.rect_boundary(left=100,right=100,bottom=100,top=100) # exclude a 100 pixel boundary
+         from pathlib import Path
+         import numpy as np
+         import pyvale.render as render
+         import pyvale.dic as dic
+
+         # Riley generates matching images from downloaded/cached demonstration data.
+         images = render.create_example_images_rigid()
+         ref_image = images.cam0_reference
+         def_images = sorted(images.cam0_deformed.parent.glob(images.cam0_deformed.name))
+         def_image = next(image for image in def_images if image != ref_image)
+
+         roi = dic.RegionOfInterest(ref_image=ref_image)
+         roi.rect_boundary(left=50, right=50, bottom=50, top=50)
 
          dic.calculate_2d(
-             ...,
-             roi=roi.mask,
-             seed=[500, 500],  # seed at centre of image
-             ...,
+             reference=ref_image,
+             deformed=def_image,
+             roi_mask=roi.mask,
+             seed=[roi.mask.shape[1] // 2, roi.mask.shape[0] // 2],
+             subset_size=31,
+             subset_step=25,
+             num_threads=2,
          )
 
    .. tab-item:: Programmatic ROI Numpy
@@ -80,14 +112,29 @@ Basic approaches are summarized below:
 
       .. code-block:: Python
 
-         arr = np.zeros((1000, 1000), dtype=bool)  # image is 1000x1000
-         arr[100:900, 100:900] = True  # Exclude a 100 pixel boundary
+         from pathlib import Path
+         import numpy as np
+         import pyvale.render as render
+         import pyvale.dic as dic
+
+         # Riley generates matching images from downloaded/cached demonstration data.
+         images = render.create_example_images_rigid()
+         ref_image = images.cam0_reference
+         def_images = sorted(images.cam0_deformed.parent.glob(images.cam0_deformed.name))
+         def_image = next(image for image in def_images if image != ref_image)
+
+         roi = dic.RegionOfInterest(ref_image=ref_image)
+         arr = np.zeros(roi.mask.shape, dtype=bool)
+         arr[50:-50, 50:-50] = True  # Rows are y; columns are x.
 
          dic.calculate_2d(
-             ...,
-             roi=arr,
-             seed=[500, 500],  # seed at centre of image
-             ...,
+             reference=ref_image,
+             deformed=def_image,
+             roi_mask=arr,
+             seed=[roi.mask.shape[1] // 2, roi.mask.shape[0] // 2],
+             subset_size=31,
+             subset_step=25,
+             num_threads=2,
          )
 
 Behind the scenes ``dic.RegionOfInterest`` initializes ``roi.mask`` as a ``np.ndarray`` with
@@ -142,51 +189,25 @@ GUI can be found below:
 
          .. code-block:: yaml
 
-          - type: RectROI
-            pos:
-            - 34
-            - 37
-            size:
-            - 433
-            - 588
-            add: true
             - type: RectROI
-            pos:
-            - 322
-            - 53
-            size:
-            - 123
-            - 225
-            add: false
+              pos: [34, 37]
+              size: [433, 588]
+              add: true
+            - type: RectROI
+              pos: [322, 53]
+              size: [123, 225]
+              add: false
             - type: CircleROI
-            pos:
-            - 371
-            - 536
-            size:
-            - 133
-            - 133
-            add: false
+              pos: [371, 536]
+              size: [133, 133]
+              add: false
             - type: PolyLineROI
-            points:
-            - - 158
-              - 422
-            - - 85
-              - 482
-            - - 88
-              - 584
-            - - 222
-              - 586
-            - - 227
-              - 480
-            add: false
+              points: [[158, 422], [85, 482], [88, 584], [222, 586], [227, 480]]
+              add: false
             - type: SeedROI
-            pos:
-            - 108
-            - 145
-            size:
-            - 41
-            - 41
-            add: true
+              pos: [108, 145]
+              size: [41, 41]
+              add: true
 
      - .. image:: ./guide_dic_interactive.png
           :height: 400px
@@ -201,15 +222,37 @@ rference and deformed images, the roi mask and seed, as well as the subset size
 and subset step:
 
 .. code-block:: Python
+   :name: dic-guide-complete-2d
+
+   from pathlib import Path
+   import numpy as np
+   import pyvale.render as render
+   import pyvale.dic as dic
+
+   # Riley generates matching images from downloaded/cached demonstration data.
+   images = render.create_example_images_rigid()
+   ref_image = images.cam0_reference
+   def_images = sorted(images.cam0_deformed.parent.glob(images.cam0_deformed.name))
+   def_image = next(image for image in def_images if image != ref_image)
+
+   output_path = Path.cwd() / "dic_2d_results"
+   output_path.mkdir(parents=True, exist_ok=True)
+   roi = dic.RegionOfInterest(ref_image=ref_image)
+   roi.rect_boundary(left=50, right=50, bottom=50, top=50)
 
    dic.calculate_2d(
-        reference=ref_image, # Can be str | pathlib.Path | np.ndarray
-        deformed=def_image,  # Can be str | pathlib.Path | np.ndarray
-        roi_mask=roi.mask,   # np.ndarray
-        seed=roi.seed,       # pair of intergers. Allowed as list[int] | list[np.int32] | np.ndarray 
-        subset_size=31,      # must be an odd number
-        subset_step=15
+       reference=ref_image,
+       deformed=def_image,
+       roi_mask=roi.mask,
+       seed=[roi.mask.shape[1] // 2, roi.mask.shape[0] // 2],
+       subset_size=31,
+       subset_step=25,
+       num_threads=2,
+       output_basepath=output_path,
    )
+
+   dic_results = dic.import_2d(data=output_path / "dic_results_*.csv", delimiter=",")
+   print(dic_results.u_px.shape)  # images, subset rows, subset columns
 
 All other possible arguments will have default values. See
 the API documentation for this function for more details.
@@ -336,14 +379,14 @@ create a simple plot of the displacement:
 
 .. code-block:: Python
 
+   from pathlib import Path
    import matplotlib.pyplot as plt
+   import pyvale.dic as dic
 
-   dic_data = dic.import_2d(data="./dic_results_*", delimiter=",")
-
-   # plot of vertical displacement for first deformation image.
-   plt.pcolor(dic_data.ss_x, 
-           dic_data.ss_y, 
-           dic_data.v_px[0]) # [image, y, x]
+   # Run the complete 2D correlation example above first.
+   dic_files = Path.cwd() / "dic_2d_results" / "dic_results_*.csv"
+   dic_data = dic.import_2d(data=dic_files, delimiter=",")
+   plt.pcolor(dic_data.ss_x, dic_data.ss_y, dic_data.v_px[0])
 
 The import will find all files in the current working directory with that
 filname prefix. If you have changed :code:`output_delimiter` prior to the
@@ -370,24 +413,36 @@ can import DIC data and calculate strains using
 
       .. code-block:: python
 
-         strain.calculate_2d(data="./dic_results_*",
-            input_delimiter=",",
-            window_size=5,
-            window_element=9
+         from pathlib import Path
+         import pyvale.strain as strain
+
+         # Uses the outputs from the complete 2D correlation example.
+         strain.calculate_2d(
+             data=Path.cwd() / "dic_2d_results" / "dic_results_*.csv",
+             input_delimiter=",",
+             window_size=5,
+             window_element=9,
+             num_threads=2,
          )
 
    .. tab-item:: Prior DIC data Import
 
       .. code-block:: Python
 
-         dic_data = dic.import_2d(data="./dic_results_*", delimiter=",")
+         from pathlib import Path
+         import pyvale.dic as dic
+         import pyvale.strain as strain
 
-         strain.calculate_2d(
-            data=dic_data,
-            window_size=5,
-            window_element=9
+         dic_data = dic.import_2d(
+             data=Path.cwd() / "dic_2d_results" / "dic_results_*.csv",
+             delimiter=",",
          )
-
+         strain.calculate_2d(
+             data=dic_data,
+             window_size=5,
+             window_element=9,
+             num_threads=2,
+         )
 
 Understanding Strain Output Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -444,13 +499,15 @@ create a simple plot of the normal strain in the x-direction:
 .. code-block:: Python
 
    import matplotlib.pyplot as plt
+   import pyvale.strain as strain
 
-   strain_data = strain.import_2d(data="./strain_*", delimiter=",")
-
-   # plot of normal strain in x-direction for first deformation image.
-   plt.pcolor(strain_data.window_x, 
-              strain_data.window_y, 
-              strain_data.eps_xx[0]) # [image, y, x]
+   # Run either strain calculation example above first.
+   strain_data = strain.import_2d(data="./strain_*.csv", delimiter=",")
+   plt.pcolor(
+       strain_data.window_x,
+       strain_data.window_y,
+       strain_data.eps_xx[0],
+   )
 
 The import will find all files in the current working directory with that
 filename prefix. If you have changed :code:`output_delimiter` prior to the
@@ -468,13 +525,22 @@ later image is too large for a robust subset match.
 Incremental DIC changes the reference image during a sequence:
 
 .. code-block:: Python
-   :emphasize-lines: 3-5
+   :emphasize-lines: 11-12
 
+   # Reuse ref_image, roi and the output_path from the complete 2D example.
+   def_images = [image for image in def_images if image != ref_image][:3]
+   (output_path / "incremental").mkdir(parents=True, exist_ok=True)
    dic.calculate_2d(
-        ...,
-        incremental_update="IMAGE",
-        incremental_update_value=1,
-        ...,
+       reference=ref_image,
+       deformed=def_images,
+       roi_mask=roi.mask,
+       seed=[roi.mask.shape[1] // 2, roi.mask.shape[0] // 2],
+       subset_size=31,
+       subset_step=25,
+       incremental_update="IMAGE",
+       incremental_update_value=1,
+       num_threads=2,
+       output_basepath=output_path / "incremental",
    )
 
 When ``incremental_update`` is not ``"OFF"``, Pyvale may replace the active reference image with
@@ -521,17 +587,39 @@ the left and right cameras. Stereo DIC uses the ``dic.calculate_3d`` function in
 of ``dic.calculate_2d``:
 
 .. code-block:: Python
+   :name: dic-guide-complete-stereo
 
+   from pathlib import Path
+   import pyvale.calib as calib
+   import pyvale.data as data
+   import pyvale.dic as dic
+
+   # Download the Stereo-DIC Challenge pair and its supplied calibration/ROI.
+   left_ref_image = data.dic_chal_3d_cam0()
+   right_ref_image = data.dic_chal_3d_cam1()
+   calibration = calib.loadtxt(data.dic_ex10_dic_chal_calibration())
+   roi = dic.RegionOfInterest(ref_image=left_ref_image)
+   roi.read_yaml(data.dic_ex10_dic_chal_roi())
+   output_path = Path.cwd() / "dic_stereo_results"
+   output_path.mkdir(parents=True, exist_ok=True)
+
+   # Reuse the undeformed pair to reconstruct shape with zero temporal motion.
+   # For a deformation sequence, supply synchronised image lists for each camera.
    dic.calculate_3d(
        reference=[left_ref_image, right_ref_image],
-       deformed=[left_def_images, right_def_images],
-       roi_mask=roi_mask,
-       seed=seed,
-       calibration=calib,  # Calib dataclass from pyvale.calib
-       subset_size=31,
+       deformed=[left_ref_image, right_ref_image],
+       roi_mask=roi.mask,
+       seed=roi.seed,
+       calibration=calibration,
+       subset_size=27,
        subset_step=15,
-       ...
+       num_threads=2,
+       output_basepath=output_path,
+       # Other optional settings use their defaults.
    )
+
+   stereo_results = dic.import_3d(data=output_path / "dic_results_*.csv", delimiter=",")
+   print(stereo_results.stereo.x_mm.shape)
 
 The key differences from 2D DIC are:
 
@@ -564,12 +652,20 @@ you *think* your max displacement is roughly 300 pixels, then trying a value of
 can be done with:
 
 .. code-block:: Python
-   :emphasize-lines: 3
+   :emphasize-lines: 10
 
+   # Reuse the reference and ROI from the complete 2D example.
+   (output_path / "large_displacement").mkdir(parents=True, exist_ok=True)
    dic.calculate_2d(
-        ...,
-        max_displacement=512,
-        ...,
+       reference=ref_image,
+       deformed=sorted(images.cam0_deformed.parent.glob(images.cam0_deformed.name))[-1],
+       roi_mask=roi.mask,
+       seed=[roi.mask.shape[1] // 2, roi.mask.shape[0] // 2],
+       subset_size=31,
+       subset_step=25,
+       max_displacement=512,
+       num_threads=2,
+       output_basepath=output_path / "large_displacement",
    )
 
 Pyvale will always round the `max_displacement` value up to the next greatest
@@ -591,15 +687,23 @@ estimates for each FFTCC window size. This can be enabled with the following
 arguments when calling the DIC engine:
 
 .. code-block:: Python
-   :emphasize-lines: 3-6
+   :emphasize-lines: 10-13
 
+   # Reuse ref_image, def_image and roi from the complete 2D example.
+   (output_path / "fft_filter").mkdir(parents=True, exist_ok=True)
    dic.calculate_2d(
-        ...,
-        fft_filter=True,
-        fft_filter_threshold=3.0, # <-- Default value
-        fft_filter_radius=3,
-        fft_filter_corr_power=2.0,
-        ...
+       reference=ref_image,
+       deformed=def_image,
+       roi_mask=roi.mask,
+       seed=[roi.mask.shape[1] // 2, roi.mask.shape[0] // 2],
+       subset_size=31,
+       subset_step=25,
+       fft_filter=True,
+       fft_filter_threshold=3.0,
+       fft_filter_radius=3,
+       fft_filter_corr_power=2.0,
+       num_threads=2,
+       output_basepath=output_path / "fft_filter",
    )
 
 The FFT displacement outlier removal works in the following way:
@@ -624,15 +728,23 @@ below:
 
 .. code-block:: python
 
-    ref_img = "ref_00.tiff"
-    def_imgs = ["def_00.tiff", "def_01.tiff", "def_02.tiff"]
-
-    for def_img in def_imgs:
-        dic.calculate_2d(
-            roi,
-            reference=ref_img,
-            deformed=def_img,
-        )
+   # Reuse the reference and ROI from the complete 2D example.
+   ref_img = ref_image
+   def_imgs = [image for image in sorted(
+       images.cam0_deformed.parent.glob(images.cam0_deformed.name)
+   ) if image != ref_img][:3]
+   (output_path / "sequential").mkdir(parents=True, exist_ok=True)
+   for def_img in def_imgs:
+       dic.calculate_2d(
+           reference=ref_img,
+           deformed=def_img,
+           roi_mask=roi.mask,
+           seed=[roi.mask.shape[1] // 2, roi.mask.shape[0] // 2],
+           subset_size=31,
+           subset_step=25,
+           num_threads=2,
+           output_basepath=output_path / "sequential",
+       )
 
 There are plans to change this in later pyvale versions so that images
 are read sequentially and thus avoiding the need for any loops. Please keep an
@@ -648,13 +760,19 @@ Users can select the number of threads used in the DIC calculation with the
 
 
 .. code-block:: python
-   :emphasize-lines: 3
+   :emphasize-lines: 10
 
+   # Reuse ref_image, def_image and roi from the complete 2D example.
+   (output_path / "threads").mkdir(parents=True, exist_ok=True)
    dic.calculate_2d(
-       roi,
-       reference="ref.tiff",
-       deformed="def.tiff",
+       reference=ref_image,
+       deformed=def_image,
+       roi_mask=roi.mask,
+       seed=[roi.mask.shape[1] // 2, roi.mask.shape[0] // 2],
+       subset_size=31,
+       subset_step=25,
        num_threads=4,
+       output_basepath=output_path / "threads",
    )
 
 Alternatively, those on UNIX operating systems (MacoS, Linux) can set the number

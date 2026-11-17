@@ -95,7 +95,7 @@ for buffer_mode in buffer_modes:
 # %%
 # The ``global_subpx_full`` result is used as the representative buffer mode.
 #
-# .. image:: ../../../../_static/render3d_ex1g_riley_psf.png
+# .. image:: /_static/render3d_ex1g_riley_psf.png
 #    :alt: Speckled sphere rendered with a Gaussian point spread function
 #    :width: 500px
 #    :align: center

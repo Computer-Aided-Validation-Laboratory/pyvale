@@ -163,7 +163,7 @@ for kk in disp_keys:
         pv_plot.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex4d_locs_disp_y.png
+# .. image:: /_static/ext_ex4d_locs_disp_y.png
 #    :alt: Virtual sensor location visualisation.
 #    :width: 800px
 #    :align: center
@@ -179,7 +179,7 @@ for kk in disp_keys:
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex4d_traces_disp_y.png
+# .. image:: /_static/ext_ex4d_traces_disp_y.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center
