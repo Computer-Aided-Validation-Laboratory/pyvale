@@ -55,7 +55,7 @@ for direct callers, so select ``EMAVMMode.ROBUST`` explicitly for repeated data.
 sampled epistemic and offset scenarios rather than reducing them. The MAVM
 field also stores directional ``d_plus`` and ``d_minus``. CDF diagnostics can
 be reconstructed from the ``ValidCase`` at a selected point and scenario with
-``plot_valid_cdfs``. ``plot_valid_cdf_envelope`` computes a pointwise envelope over
+``plot_sim_exp_cdfs``. ``plot_sim_ecdfs`` computes a pointwise envelope over
 the supplied *coherent* scenario CDFs; crossing CDFs need not correspond to a
 single limiting scenario. Metric maps and time plots use domain metadata kept
 in ``ValidResult``.

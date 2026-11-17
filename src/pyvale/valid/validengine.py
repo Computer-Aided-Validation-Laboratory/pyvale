@@ -35,7 +35,7 @@ from pyvale.valid.metricstrategy import (
     calculate_trusted_metric,
 )
 from pyvale.valid.validchecks import validate_unique_sample
-from pyvale.valid.validtools import extract_aleatory_scenarios
+from pyvale.valid.validecdf import extract_aleatory_scenarios
 from pyvale.valid.validtypes import (
     VALID_RES_AXES,
     EEpisOffset,

@@ -184,7 +184,7 @@ for channel in measurements:
     labels = validplot.ValidPlotOpts(title=channel, x_label=axis_label)
     fig: Figure
     ax: Axes
-    fig, axes = validplot.plot_sim_ecdfs(
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_ecdfs(
         valid_case,
         channel,
         valid_plot_opts=labels,
@@ -192,6 +192,7 @@ for channel in measurements:
             scenario_idxs=None, centre=valid.EValidECDFCentre.MEAN
         ),
     )
+    fig, axes = ecdf_plot.figure, ecdf_plot.axes
     figure_name = f"0_sim_allcdfs_{channel}.png"
     fig.savefig(output_path / figure_name, bbox_inches="tight")
     axis_limits[figure_name] = axes[0, 0].get_xlim()
@@ -199,6 +200,20 @@ for channel in measurements:
         plt.close(fig)
     if np.any(np.isnan(exp_arrays[channel].data)):
         continue
+
+    # Keep directional metric magnitudes in separate figures for each channel.
+    for metric_output, direction in (
+        (valid.EMetricOutput.D_PLUS, "d_plus"),
+        (valid.EMetricOutput.D_MINUS, "d_minus"),
+    ):
+        metric_fig, metric_ax = validplot.plot_valid_metric_distribution(
+            valid_result, channel, valid.EMetricType.MAVM, output=metric_output
+        )
+        metric_fig.savefig(
+            output_path / f"mavm_{direction}_{channel}.png", bbox_inches="tight"
+        )
+        if not SHOW_PLOTS:
+            plt.close(metric_fig)
 
     exp_scenarios: list[np.ndarray] = valid.extract_aleatory_scenarios(
         exp_arrays[channel], offset=None

@@ -275,3 +275,512 @@ def test_engine_outputs_match_analytic_sample_count_cases(case: AnalyticCase) ->
         for metric in (valid.MetricRMSE(), valid.MetricRelErr()):
             with pytest.raises(ValueError, match="equal aleatory counts"):
                 valid.ValidEngine([metric]).run(valid_case)
+
+
+# Epistemic toolbox references: all probabilities and distances below are
+# hand-derived. No production profiling function supplies an expected answer.
+
+
+def create_epistemic_case(sim: np.ndarray, exp: np.ndarray) -> valid.ValidCase:
+    """Create a scalar physical cell with (transferable, nuisance, aleatory) axes."""
+    axes = (
+        valid.EValidAxis.EPISTEMIC_TRANS,
+        valid.EValidAxis.EPISTEMIC_NUIS,
+        valid.EValidAxis.ALEATORY,
+    )
+    observable = valid.ValidObservable(
+        components=("length",), geometry=valid.EValidGeometry.GLOBAL, phys_units="m"
+    )
+    return valid.ValidCase(
+        {"length": observable},
+        {"length": valid.ValidArray(sim, axes)},
+        {"length": valid.ValidArray(exp, axes)},
+    )
+
+
+@pytest.mark.parametrize(
+    "reduction, probability, lower, upper",
+    [
+        (valid.EValidECDFReduce.KEEP, None, 1.0, 90.0),
+        (valid.EValidECDFReduce.MEAN, None, 4.0, 33.0),
+        (valid.EValidECDFReduce.MEDIAN, None, 3.0, 8.0),
+        (valid.EValidECDFReduce.QUANTILE, 0.0, 1.0, 4.0),
+        (valid.EValidECDFReduce.QUANTILE, 0.25, 2.5, 4.5),
+        (valid.EValidECDFReduce.QUANTILE, 0.5, 3.0, 8.0),
+        (valid.EValidECDFReduce.QUANTILE, 0.75, 5.0, 49.0),
+        (valid.EValidECDFReduce.QUANTILE, 1.0, 6.0, 90.0),
+    ],
+)
+def test_epis_bounds_nuisance_treatments_have_analytic_quantiles(
+    reduction: valid.EValidECDFReduce,
+    probability: float | None,
+    lower: float,
+    upper: float,
+) -> None:
+    # Nuisance shifts per transferable case: [1,90,8], [2,3,7], [4,6,5].
+    shifts = np.array([[1.0, 90.0, 8.0], [2.0, 3.0, 7.0], [4.0, 6.0, 5.0]])
+    quantity = valid.ValidArray(
+        shifts[..., None] + np.array([0.0, 2.0]),
+        (
+            valid.EValidAxis.EPISTEMIC_TRANS,
+            valid.EValidAxis.EPISTEMIC_NUIS,
+            valid.EValidAxis.ALEATORY,
+        ),
+    )
+    bounds = valid.find_ecdf_epis_bounds(
+        quantity, nuis_reduce=reduction, nuis_quantile=probability
+    )
+    np.testing.assert_allclose(bounds.probabilities, [0.5, 1.0])
+    np.testing.assert_allclose(bounds.lower, [lower, lower + 2], rtol=0, atol=1e-12)
+    np.testing.assert_allclose(bounds.upper, [upper, upper + 2], rtol=0, atol=1e-12)
+    if reduction is valid.EValidECDFReduce.KEEP:
+        np.testing.assert_array_equal(bounds.lower_indices[:, :2], [[0, 0], [0, 0]])
+        np.testing.assert_array_equal(bounds.upper_indices[:, :2], [[0, 1], [0, 1]])
+    else:
+        assert np.all(bounds.lower_indices[:, 1] == -1)
+        assert np.all(bounds.upper_indices[:, 1] == -1)
+    conditioned = valid.find_ecdf_epis_bounds(quantity, nuis_idxs=(1,))
+    np.testing.assert_array_equal(conditioned.lower, [3.0, 5.0])
+    np.testing.assert_array_equal(conditioned.upper, [90.0, 92.0])
+
+
+def test_avm_bounds_preserve_unequal_empirical_probability_mass() -> None:
+    sim = valid.ValidArray(
+        np.array([[0.0, 10.0, np.nan], [2.0, 3.0, 20.0]]),
+        (valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
+    )
+    exp = valid.ValidArray(np.array([5.0]), (valid.EValidAxis.ALEATORY,))
+    sim_bounds = valid.find_ecdf_epis_bounds(sim)
+    exp_bounds = valid.find_ecdf_epis_bounds(exp)
+    # The grid has interval weights [1/3,1/6,1/6,1/3], not four equal masses.
+    np.testing.assert_allclose(sim_bounds.probabilities, [1 / 3, 0.5, 2 / 3, 1.0])
+    np.testing.assert_array_equal(sim_bounds.lower, [0.0, 0.0, 3.0, 10.0])
+    np.testing.assert_array_equal(sim_bounds.upper, [2.0, 3.0, 10.0, 20.0])
+    supports = valid.calc_avm_over_epis_bounds(sim_bounds, exp_bounds)
+    assert supports.metric_outputs is not None
+    np.testing.assert_allclose(
+        supports.metric_outputs[valid.EMetricOutput.DISTANCE],
+        [[9 / 2, 9 / 2], [43 / 6, 43 / 6]],
+        rtol=0,
+        atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        supports.lower, [-31 / 6, -9 / 2, -3 / 2, 11 / 2], rtol=0, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        supports.upper, [55 / 6, 61 / 6, 103 / 6, 163 / 6], rtol=0, atol=1e-12
+    )
+
+
+def test_mavm_over_bounds_checks_both_sim_anchors_in_each_direction() -> None:
+    sim = valid.ValidArray(
+        np.array([[0.0, 100.0], [40.0, 100.0]]),
+        (valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
+    )
+    exp = valid.ValidArray(np.array([100.0]), (valid.EValidAxis.ALEATORY,))
+    supports = valid.calc_mavm_over_epis_bounds(
+        valid.find_ecdf_epis_bounds(sim), valid.find_ecdf_epis_bounds(exp)
+    )
+    # d+ is 50 on the lower boundary and 30 on the upper boundary. Thus the
+    # upper boundary controls p=.5 (70), but the lower controls p=1 (150).
+    np.testing.assert_allclose(supports.upper, [70.0, 150.0], rtol=0, atol=1e-12)
+    np.testing.assert_allclose(supports.lower, [0.0, 100.0], rtol=0, atol=1e-12)
+    np.testing.assert_array_equal(supports.upper_indices[:, 0], [1, 0])
+    assert supports.metric_outputs is not None
+    np.testing.assert_allclose(
+        supports.metric_outputs[valid.EMetricOutput.D_PLUS],
+        [[50.0, 50.0], [30.0, 30.0]],
+        rtol=0,
+        atol=1e-12,
+    )
+
+
+def test_mavm_confidence_is_constructed_before_enveloping_original_exp_cases() -> None:
+    sim = valid.ValidArray(np.array([-20.0]), (valid.EValidAxis.ALEATORY,))
+    exp = valid.ValidArray(
+        np.array([[0.0, 2.0], [10.0, 14.0]]),
+        (valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
+    )
+    # For alpha=.25 and df=1 the t quantile is exactly 1. Original standard
+    # errors are 1/sqrt(2) and 2/sqrt(2); no synthetic bound sample count exists.
+    shift_lower = 1 / sqrt(2)
+    shift_upper = 2 / sqrt(2)
+    supports = valid.calc_mavm_over_epis_bounds(
+        valid.find_ecdf_epis_bounds(sim), valid.find_ecdf_epis_bounds(exp), alpha=0.25
+    )
+    expected_shift = 32 + shift_upper  # mean upper confidence support minus -20.
+    np.testing.assert_allclose(
+        supports.upper, [-20 + expected_shift, -20 + expected_shift], rtol=0, atol=1e-10
+    )
+    assert supports.metric_outputs is not None
+    np.testing.assert_allclose(
+        supports.metric_outputs[valid.EMetricOutput.D_PLUS][0],
+        [21 - shift_lower, 32 + shift_upper],
+        rtol=0,
+        atol=1e-10,
+    )
+
+
+def test_bounds_route_and_original_scenario_route_are_distinct() -> None:
+    case = create_epistemic_case(
+        np.array([[[0.0, 100.0], [40.0, 60.0]]]), np.array([[[100.0]]])
+    )
+    result = valid.ValidEngine([valid.MetricMAVM(alpha=0.5)]).run(case)
+    direct = valid.find_metric_epis_supports(
+        case, result, "length", valid.EMetricType.MAVM
+    )
+    bounded = valid.calc_mavm_over_epis_bounds(
+        valid.find_ecdf_epis_bounds(case.sim["length"]),
+        valid.find_ecdf_epis_bounds(case.exp["length"]),
+        alpha=0.5,
+    )
+    np.testing.assert_allclose(direct.upper[0, 0, 0], [90.0, 150.0], rtol=0, atol=1e-12)
+    np.testing.assert_allclose(bounded.upper, [70.0, 130.0], rtol=0, atol=1e-12)
+
+
+def test_nuisance_profiles_preserve_transferable_axes_and_original_arg_indices() -> (
+    None
+):
+    sim = np.array([[0.0, 10.0], [2.0, 12.0]])[..., None] + np.array([0.0, 2.0])
+    exp = np.array([[1.0, 4.0], [3.0, 6.0]])[..., None] + np.array([0.0, 2.0])
+    case = create_epistemic_case(sim, exp)
+    result = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM(alpha=0.5)]).run(
+        case
+    )
+    extrema = valid.profile_epis_nuisance_extrema(
+        result, "length", valid.EMetricType.AVM
+    )
+    assert extrema.axes == (
+        valid.EValidResAxis.POINT,
+        valid.EValidResAxis.COMPONENT,
+        valid.EValidResAxis.TIME,
+        valid.EValidResAxis.SIM_TRANS,
+        valid.EValidResAxis.EXP_TRANS,
+    )
+    assert extrema.reduced_axes == (
+        valid.EValidResAxis.SIM_NUIS,
+        valid.EValidResAxis.EXP_NUIS,
+    )
+    np.testing.assert_allclose(
+        extrema.minimum[valid.EMetricOutput.DISTANCE][0, 0, 0], [[1.0, 3.0], [1.0, 1.0]]
+    )
+    np.testing.assert_allclose(
+        extrema.maximum[valid.EMetricOutput.DISTANCE][0, 0, 0],
+        [[9.0, 7.0], [11.0, 9.0]],
+    )
+    np.testing.assert_array_equal(
+        extrema.maximum_indices[valid.EMetricOutput.DISTANCE][0, 0, 0],
+        np.tile([1, 0], (2, 2, 1)),
+    )
+    mavm_extrema = valid.profile_epis_nuisance_extrema(
+        result, "length", valid.EMetricType.MAVM
+    )
+    np.testing.assert_allclose(
+        mavm_extrema.maximum[valid.EMetricOutput.D_PLUS][0, 0, 0],
+        [[4.0, 6.0], [2.0, 4.0]],
+    )
+    np.testing.assert_allclose(
+        mavm_extrema.maximum[valid.EMetricOutput.D_MINUS][0, 0, 0],
+        [[9.0, 7.0], [11.0, 9.0]],
+    )
+    supports = valid.profile_epis_nuisance_supports(
+        case, result, "length", valid.EMetricType.MAVM
+    )
+    assert supports.axes == extrema.axes
+    np.testing.assert_allclose(
+        supports.lower[0, 0, 0, :, :, 0], [[0.0, 0.0], [1.0, 2.0]]
+    )
+    np.testing.assert_allclose(
+        supports.upper[0, 0, 0, :, :, 1], [[12.0, 12.0], [14.0, 14.0]]
+    )
+    # For Ts=0 the largest d+=4 is on an interior curve. It adds no extension
+    # beyond the original upper nuisance envelope [10,12].
+    np.testing.assert_allclose(
+        supports.upper[0, 0, 0, 0, 0], supports.sim_upper[0, 0, 0, 0, 0]
+    )
+
+
+@pytest.mark.parametrize(
+    "metric",
+    [
+        valid.MetricAVM(),
+        valid.MetricKS(),
+        valid.MetricCVM(),
+        valid.MetricRMSE(),
+        valid.MetricRelErr(),
+    ],
+)
+def test_other_metric_nuisance_extrema_match_hand_calculated_shift_cases(
+    metric: valid.IValidMetric,
+) -> None:
+    # Same-sized paired two-point samples: residual shifts are 0 and 2.
+    case = create_epistemic_case(
+        np.array([[[0.0, 2.0], [2.0, 4.0]]]), np.array([[[0.0, 2.0]]])
+    )
+    result = valid.ValidEngine([metric]).run(case)
+    profile = valid.profile_epis_nuisance_extrema(result, "length", metric.get_kind())
+    output = metric.get_outputs()[0]
+    expected_max = {
+        valid.EMetricType.AVM: 2.0,
+        valid.EMetricType.KS: 0.5,
+        valid.EMetricType.CVM: 3 / 16,
+        valid.EMetricType.RMSE: 2.0,
+        valid.EMetricType.RELATIVE_ERROR: 1.0,
+    }[metric.get_kind()]
+    np.testing.assert_allclose(profile.minimum[output], 0.0, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(
+        profile.maximum[output], expected_max, rtol=0, atol=1e-12
+    )
+    if metric.get_kind() not in (valid.EMetricType.AVM, valid.EMetricType.MAVM):
+        with pytest.raises(ValueError, match="only for AVM and MAVM"):
+            valid.profile_epis_nuisance_supports(
+                case, result, "length", metric.get_kind()
+            )
+
+
+def test_nuisance_profiles_keep_missing_cells_and_offset_selections() -> None:
+    case = create_epistemic_case(
+        np.array([[[0.0, 2.0], [np.nan, np.nan]]]), np.array([[[3.0, 5.0]]])
+    )
+    case.exp["length"].offsets = valid.EpistemicOffsets(1.0, 2.0)
+    result = valid.ValidEngine([valid.MetricMAVM(alpha=0.5)]).run(case)
+    extrema = valid.profile_epis_nuisance_extrema(
+        result, "length", valid.EMetricType.MAVM
+    )
+    assert valid.EValidResAxis.EXP_OFFSET in extrema.axes
+    np.testing.assert_allclose(
+        extrema.maximum[valid.EMetricOutput.D_PLUS][0, 0, 0], [3.0, 2.0, 5.0]
+    )
+    supports = valid.profile_epis_nuisance_supports(
+        case,
+        result,
+        "length",
+        valid.EMetricType.MAVM,
+        selectors={valid.EValidResAxis.EXP_OFFSET: valid.EEpisOffset.UPPER},
+    )
+    np.testing.assert_allclose(supports.upper[0, 0, 0], [5.0, 7.0])
+    # Explicitly selecting the missing original nuisance case leaves missing bounds.
+    missing = valid.find_metric_epis_supports(
+        case,
+        result,
+        "length",
+        valid.EMetricType.MAVM,
+        selectors={valid.EValidResAxis.SIM_NUIS: 1},
+    )
+    assert np.all(np.isnan(missing.lower)) and np.all(missing.lower_indices == -1)
+    missing_values = valid.find_metric_epis_extrema(
+        result,
+        "length",
+        valid.EMetricType.MAVM,
+        selectors={valid.EValidResAxis.SIM_NUIS: 1},
+    )
+    assert np.all(np.isnan(missing_values.maximum[valid.EMetricOutput.D_PLUS]))
+
+
+def test_ranked_nuisance_cases_are_coherent_and_use_explicit_width_scores() -> None:
+    probabilities = np.array([0.5, 1.0])
+    shifted_width = np.array([[3.0, 10.0], [4.0, 8.0]])
+    original_width = np.array([[1.0, 8.0], [1.0, 2.0]])
+    upper = np.repeat(shifted_width[..., None], 2, axis=-1)
+    sim_upper = np.repeat(original_width[..., None], 2, axis=-1)
+    origin = np.empty((*upper.shape, 0), dtype=int)
+    supports = valid.ValidSupportBounds(
+        (valid.EValidResAxis.SIM_NUIS, valid.EValidResAxis.EXP_NUIS),
+        probabilities,
+        np.zeros_like(upper),
+        upper,
+        np.zeros_like(upper),
+        sim_upper,
+        (),
+        origin,
+        origin,
+        {},
+    )
+    total = valid.rank_epis_nuisance_cases(supports)
+    added = valid.rank_epis_nuisance_cases(
+        supports, score=valid.EValidNuisanceScore.ADDED_WIDTH
+    )
+    np.testing.assert_array_equal(total.cases, [[0, 0], [0, 1], [1, 0], [1, 1]])
+    np.testing.assert_allclose(total.scores, [3.0, 10.0, 4.0, 8.0])
+    np.testing.assert_array_equal(total.order, [0, 2, 3, 1])
+    np.testing.assert_allclose(added.scores, [2.0, 2.0, 3.0, 6.0])
+    np.testing.assert_array_equal(added.order, [0, 1, 2, 3])  # Stable tie order.
+    assert total.valid_counts == 4
+    # Minimum/median/maximum-ranked cases refer to rows in cases, not a curve
+    # assembled from different cases at different cumulative probabilities.
+    np.testing.assert_array_equal(
+        total.cases[total.order[[0, 1, -1]]], [[0, 0], [1, 0], [0, 1]]
+    )
+    supports.upper[1, 1] = np.nan
+    missing = valid.rank_epis_nuisance_cases(supports)
+    assert missing.valid_counts == 3
+    np.testing.assert_array_equal(missing.order, [0, 2, 1, -1])
+
+
+@pytest.mark.parametrize("case", ANALYTIC_CASES, ids=CASE_IDS)
+def test_bounds_and_profiles_cover_the_full_analytic_sample_count_matrix(
+    case: AnalyticCase,
+) -> None:
+    sim = valid.ValidArray(
+        2.0 * np.arange(case.sim_count), (valid.EValidAxis.ALEATORY,)
+    )
+    exp = valid.ValidArray(
+        1.0 + 2.0 * np.arange(case.exp_count), (valid.EValidAxis.ALEATORY,)
+    )
+    sim_bounds = valid.find_ecdf_epis_bounds(sim)
+    exp_bounds = valid.find_ecdf_epis_bounds(exp)
+    avm = valid.calc_avm_over_epis_bounds(sim_bounds, exp_bounds)
+    mavm = valid.calc_mavm_over_epis_bounds(sim_bounds, exp_bounds, alpha=0.5)
+    assert avm.metric_outputs is not None and mavm.metric_outputs is not None
+    np.testing.assert_allclose(
+        avm.metric_outputs[valid.EMetricOutput.DISTANCE], case.avm, rtol=0, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        mavm.metric_outputs[valid.EMetricOutput.D_PLUS], case.d_plus, rtol=0, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        mavm.metric_outputs[valid.EMetricOutput.D_MINUS],
+        case.d_minus,
+        rtol=0,
+        atol=1e-12,
+    )
+    assert avm.lower[0] == pytest.approx(-case.avm, rel=0, abs=1e-12)
+    assert avm.upper[-1] == pytest.approx(
+        2 * (case.sim_count - 1) + case.avm, rel=0, abs=1e-12
+    )
+    assert mavm.lower[0] == pytest.approx(-case.d_minus, rel=0, abs=1e-12)
+    assert mavm.upper[-1] == pytest.approx(
+        2 * (case.sim_count - 1) + case.d_plus, rel=0, abs=1e-12
+    )
+    observable = valid.ValidObservable(
+        components=("length",), geometry=valid.EValidGeometry.GLOBAL
+    )
+    valid_case = valid.ValidCase(
+        {"length": observable}, {"length": sim}, {"length": exp}
+    )
+    result = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM(alpha=0.5)]).run(
+        valid_case
+    )
+    profile = valid.profile_epis_nuisance_extrema(
+        result, "length", valid.EMetricType.AVM
+    )
+    assert profile.reduced_axes == ()  # Singleton/absent epistemic axes are valid.
+    np.testing.assert_allclose(
+        profile.minimum[valid.EMetricOutput.DISTANCE], case.avm, rtol=0, atol=1e-12
+    )
+    supports = valid.find_metric_epis_supports(
+        valid_case, result, "length", valid.EMetricType.MAVM
+    )
+    assert supports.lower[0, 0, 0, 0] == pytest.approx(-case.d_minus, rel=0, abs=1e-12)
+    assert supports.upper[0, 0, 0, -1] == pytest.approx(
+        2 * (case.sim_count - 1) + case.d_plus, rel=0, abs=1e-12
+    )
+
+
+def test_mavm_confidence_preserves_original_counts_before_nuisance_mean() -> None:
+    sim = valid.ValidArray(np.array([0.0]), (valid.EValidAxis.ALEATORY,))
+    exp = valid.ValidArray(
+        np.array([[0.0, 2.0, np.nan], [10.0, 12.0, 14.0]]),
+        (valid.EValidAxis.EPISTEMIC_NUIS, valid.EValidAxis.ALEATORY),
+    )
+    exp_bounds = valid.find_ecdf_epis_bounds(
+        exp, nuis_reduce=valid.EValidECDFReduce.MEAN
+    )
+    # The mean quantile curve is [5,6,7,8] on intervals [1/3,1/6,1/6,1/3],
+    # giving mean 6.5. Confidence shifts use the original counts two and three,
+    # not four pseudo-observations reconstructed from this curve's vertices.
+    confidence = (1 / sqrt(2) + 4 / (3 * sqrt(3))) / 2
+    supports = valid.calc_mavm_over_epis_bounds(
+        valid.find_ecdf_epis_bounds(sim), exp_bounds, alpha=0.25
+    )
+    assert supports.metric_outputs is not None
+    np.testing.assert_allclose(
+        supports.metric_outputs[valid.EMetricOutput.D_PLUS][0],
+        [6.5 - confidence, 6.5 + confidence],
+        rtol=0,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(supports.upper, 6.5 + confidence, rtol=0, atol=1e-10)
+
+
+def test_spatial_and_temporal_bias_survives_nuisance_profiling_and_cell_selection() -> (
+    None
+):
+    positions = np.arange(3.0)
+    times = np.arange(2.0)
+    baseline = 10 * positions[:, None] + times
+    bias = 3 * positions[:, None] + 2 * times
+    aleatory = np.array([0.0, 1.0])
+    sim_samples = (
+        baseline[:, None, :, None, None]
+        + np.array([0.0, 2.0])[None, None, None, :, None]
+        + aleatory
+    )
+    exp_samples = baseline[:, None, :, None] + bias[:, None, :, None] + aleatory
+    observable = valid.ValidObservable(
+        components=("length",),
+        geometry=valid.EValidGeometry.POINT,
+        coords=np.column_stack((positions, np.zeros(3), np.zeros(3))),
+        times=times,
+        phys_units="m",
+    )
+    case = valid.ValidCase(
+        {"length": observable},
+        {
+            "length": valid.ValidArray(
+                sim_samples,
+                (
+                    valid.EValidAxis.POINT,
+                    valid.EValidAxis.COMPONENT,
+                    valid.EValidAxis.TIME,
+                    valid.EValidAxis.EPISTEMIC_NUIS,
+                    valid.EValidAxis.ALEATORY,
+                ),
+            )
+        },
+        {
+            "length": valid.ValidArray(
+                exp_samples,
+                (
+                    valid.EValidAxis.POINT,
+                    valid.EValidAxis.COMPONENT,
+                    valid.EValidAxis.TIME,
+                    valid.EValidAxis.ALEATORY,
+                ),
+            )
+        },
+    )
+    result = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM(alpha=0.5)]).run(
+        case
+    )
+    values = valid.profile_epis_nuisance_extrema(
+        result, "length", valid.EMetricType.AVM
+    )
+    np.testing.assert_allclose(
+        values.minimum[valid.EMetricOutput.DISTANCE][:, 0],
+        [[0.0, 0.0], [1.0, 3.0], [4.0, 6.0]],
+    )
+    np.testing.assert_allclose(
+        values.maximum[valid.EMetricOutput.DISTANCE][:, 0],
+        [[2.0, 2.0], [3.0, 5.0], [6.0, 8.0]],
+    )
+    supports = valid.profile_epis_nuisance_supports(
+        case, result, "length", valid.EMetricType.MAVM
+    )
+    np.testing.assert_allclose(supports.lower[:, 0, :, 0], baseline)
+    np.testing.assert_allclose(
+        supports.upper[:, 0, :, -1], baseline + np.maximum(2.0, bias) + 1
+    )
+    selected = valid.profile_epis_nuisance_supports(
+        case,
+        result,
+        "length",
+        valid.EMetricType.MAVM,
+        selectors={valid.EValidResAxis.POINT: 2, valid.EValidResAxis.TIME: 1},
+    )
+    assert selected.axes == (valid.EValidResAxis.COMPONENT,)
+    np.testing.assert_allclose(selected.lower[0], [21.0, 22.0])
+    np.testing.assert_allclose(selected.upper[0], [29.0, 30.0])
+    np.testing.assert_array_equal(
+        selected.upper_indices[0], [[2, 0, 1, 0], [2, 0, 1, 0]]
+    )

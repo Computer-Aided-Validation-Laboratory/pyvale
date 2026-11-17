@@ -141,13 +141,14 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 point_idxs = tuple(range(len(coords)))
 fig: Figure
 axes: np.ndarray
-fig, axes = validplot.plot_sim_exp_cdfs(
+ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
     valid_case,
     temperature_tag,
     point_idxs=point_idxs,
     time_idx=4,
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
+fig, axes = ecdf_plot.figure, ecdf_plot.axes
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
 # %%
@@ -175,8 +176,8 @@ sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
 assert sim_data.time is not None
 background_time_idx = sim_data.time.size - 1
-# Show the MAVM d- output directly, with a nonnegative colour scale.
-# The d+ output is stored separately and can be selected in the same way.
+# Show both directional MAVM outputs in separate figures with nonnegative
+# colour scales, keeping the same explicit scenario selectors for each.
 for metric_output, direction in (
     (valid.EMetricOutput.D_PLUS, "d_plus"),
     (valid.EMetricOutput.D_MINUS, "d_minus"),

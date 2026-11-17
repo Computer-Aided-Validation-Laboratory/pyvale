@@ -115,16 +115,61 @@ for metric_type, metric_field in metrics.items():
 # are plotted separately below; the ECDF comparison needs no metric result.
 fig: Figure
 axes: np.ndarray
-fig, axes = validplot.plot_sim_exp_cdfs(
+ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
     valid_case,
     observable_tag,
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Observable [unit]"),
 )
+fig, axes = ecdf_plot.figure, ecdf_plot.axes
 fig.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")
 
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the
 # complete analysis in its own directory prevents clashes with other examples.
+# The context also supports ordinary Matplotlib access and metric annotations.
+for metric in (
+    valid.MetricAVM(),
+    valid.MetricKS(),
+    valid.MetricCVM(),
+    valid.MetricRMSE(),
+    valid.MetricRelErr(),
+):
+    overlay_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+        valid_case, observable_tag
+    )
+    validplot.add_metric_overlay(overlay_plot, metric)
+    if metric.get_kind() is valid.EMetricType.AVM:
+        validplot.add_normalised_ecdf_axis(overlay_plot, 2.0)
+    overlay_plot.figure.savefig(
+        output_path / f"{metric.get_kind().name.lower()}_overlay.png",
+        bbox_inches="tight",
+    )
+    if not SHOW_PLOTS:
+        plt.close(overlay_plot.figure)
+
+# U-pooling uses one model CDF per observation and its own probability axis.
+model_cdf: valid.ValidECDF = valid.calc_ecdf(sim_data)
+fig, pooling_ax = validplot.plot_u_pooling_cdf([model_cdf] * exp.size, exp)
+fig.savefig(output_path / "u_pooling.png", bbox_inches="tight")
+if not SHOW_PLOTS:
+    plt.close(fig)
+
+# Plot each directional metric on its own figure. Histograms retain the spread
+# across physical cells and selected epistemic comparisons, without pooling data.
+for metric_output, direction in (
+    (valid.EMetricOutput.D_PLUS, "d_plus"),
+    (valid.EMetricOutput.D_MINUS, "d_minus"),
+):
+    fig, metric_ax = validplot.plot_valid_metric_distribution(
+        valid_result,
+        observable_tag,
+        valid.EMetricType.MAVM,
+        output=metric_output,
+    )
+    fig.savefig(output_path / f"mavm_{direction}_distribution.png", bbox_inches="tight")
+    if not SHOW_PLOTS:
+        plt.close(fig)
+
 if SHOW_PLOTS:
     plt.show()
 else:

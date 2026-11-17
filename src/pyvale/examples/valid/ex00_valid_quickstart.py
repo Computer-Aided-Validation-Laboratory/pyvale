@@ -133,25 +133,26 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 point_idxs = tuple(range(len(coords)))
 fig: Figure
 axes: np.ndarray
-fig, axes = validplot.plot_sim_exp_cdfs(
+ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
     valid_case,
     temperature_tag,
     point_idxs=point_idxs,
     time_idx=4,
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
+fig, axes = ecdf_plot.figure, ecdf_plot.axes
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
 # %%
-fig, axes = validplot.plot_sim_ecdfs(
+ecdf_plot: validplot.ValidECDFPlot = validplot.plot_exp_ecdfs(
     valid_case,
     temperature_tag,
-    source=valid.EValidSource.EXP,
     time_idx=4,
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
     point_idxs=None,
     offset=None,
 )
+fig, axes = ecdf_plot.figure, ecdf_plot.axes
 fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 
 # %%

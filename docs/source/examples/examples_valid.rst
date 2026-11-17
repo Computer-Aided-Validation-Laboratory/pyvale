@@ -28,3 +28,4 @@ the Pulse25X analysis from
    valid/ex08_valid_cube_tensor
    valid/ex09_valid_cube_sweep
    valid/ex10_valid_pulse25x
+   valid/ex11_valid_epistemic_axes

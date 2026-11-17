@@ -164,7 +164,8 @@ def test_crossing_scenarios_form_pointwise_bounds_not_two_selected_scenarios() -
         components=("length",), geometry=valid.EValidGeometry.GLOBAL
     )
     case = valid.ValidCase({"length": obs}, {"length": quantity}, {"length": quantity})
-    fig, axes = validplot.plot_sim_ecdfs(case, "length")
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_ecdfs(case, "length")
+    (fig, axes) = ecdf_plot.figure, ecdf_plot.axes
     ax = axes[0, 0]
     np.testing.assert_array_equal(ax.lines[0].get_xdata()[1:], [0.0, 6.0])
     np.testing.assert_array_equal(ax.lines[1].get_xdata()[1:], [4.0, 10.0])
@@ -205,7 +206,10 @@ def test_centre_curves_and_selected_scenarios_can_be_combined(
     centre: valid.EValidECDFCentre, expected: list[float]
 ) -> None:
     view = valid.ValidECDFView(centre=centre, scenario_idxs=((0, 0), (2, 2)))
-    fig, axes = validplot.plot_sim_ecdfs(create_epistemic_case(), "length", view=view)
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_ecdfs(
+        create_epistemic_case(), "length", view=view
+    )
+    (fig, axes) = ecdf_plot.figure, ecdf_plot.axes
     ax = axes[0, 0]
     assert len(ax.lines) == 5  # Two bounds, one centre, two original curves.
     np.testing.assert_allclose(ax.lines[2].get_xdata()[1:], expected)
@@ -219,11 +223,12 @@ def test_independent_sim_exp_views_and_single_scenario_have_no_duplicate_shading
     None
 ):
     case = create_epistemic_case()
-    fig, axes = validplot.plot_sim_exp_cdfs(
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
         case,
         "length",
         sim_view=valid.ValidECDFView(nuis_reduce=valid.EValidECDFReduce.MEDIAN),
     )
+    (fig, axes) = ecdf_plot.figure, ecdf_plot.axes
     ax = axes[0, 0]
     assert len(ax.lines) == 3
     np.testing.assert_array_equal(ax.lines[0].get_xdata()[1:], [3.0, 5.0])
@@ -232,9 +237,10 @@ def test_independent_sim_exp_views_and_single_scenario_have_no_duplicate_shading
     assert len(ax.collections) == 1
     assert "d+=" not in ax.get_title()
     plt.close(fig)
-    fig, axes = validplot.plot_exp_ecdfs(
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_exp_ecdfs(
         case, "length", view=valid.ValidECDFView(scenario_idxs=None)
     )
+    (fig, axes) = ecdf_plot.figure, ecdf_plot.axes
     assert len(axes[0, 0].lines) == 1
     assert not axes[0, 0].collections
     plt.close(fig)
@@ -249,7 +255,10 @@ def test_many_scenarios_default_to_two_bounds_and_honour_style_controls() -> Non
     options = validplot.ValidPlotOpts(
         sim_color="purple", bounds_color="red", bounds_alpha=0.37, lower_linestyle="-."
     )
-    fig, axes = validplot.plot_sim_ecdfs(case, "length", valid_plot_opts=options)
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_ecdfs(
+        case, "length", valid_plot_opts=options
+    )
+    (fig, axes) = ecdf_plot.figure, ecdf_plot.axes
     ax = axes[0, 0]
     assert len(ax.lines) == 2
     assert ax.lines[0].get_color() == "purple"
@@ -265,7 +274,7 @@ def test_panels_preserve_point_order_and_general_figure_options() -> None:
     options = validplot.ValidPlotOpts(
         resolution=120, lw=2.5, font_ax_size=13, x_label="Temperature [degC]"
     )
-    fig, axes = validplot.plot_sim_exp_cdfs(
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
         case,
         "temperature",
         point_idxs=(5, 0, 11),
@@ -273,6 +282,7 @@ def test_panels_preserve_point_order_and_general_figure_options() -> None:
         time_idx=4,
         valid_plot_opts=options,
     )
+    (fig, axes) = ecdf_plot.figure, ecdf_plot.axes
     assert axes.shape == (2, 2)
     assert not axes[1, 1].get_visible()
     assert fig.dpi == 120
@@ -288,9 +298,10 @@ def test_panels_preserve_point_order_and_general_figure_options() -> None:
             ax.lines[0].get_xdata()[1:], np.min(curves.quantiles, axis=(0, 1, 2))
         )
     plt.close(fig)
-    fig, axes = validplot.plot_exp_ecdfs(
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_exp_ecdfs(
         case, "temperature", point_idxs=None, time_idx=4
     )
+    (fig, axes) = ecdf_plot.figure, ecdf_plot.axes
     assert axes.size == 12
     plt.close(fig)
 
@@ -337,7 +348,10 @@ def test_invalid_views_fail_before_plotting(
 
 def test_existing_axes_support_composition_but_reject_multiple_points() -> None:
     fig, ax = plt.subplots()
-    returned, axes = validplot.plot_sim_ecdfs(create_epistemic_case(), "length", ax=ax)
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_ecdfs(
+        create_epistemic_case(), "length", ax=ax
+    )
+    (returned, axes) = ecdf_plot.figure, ecdf_plot.axes
     assert returned is fig and axes[0, 0] is ax
     with pytest.raises(ValueError, match="one point"):
         validplot.plot_sim_ecdfs(

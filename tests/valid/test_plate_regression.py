@@ -178,12 +178,13 @@ def test_global_and_sensor_sim_extraction(
 def test_diagnostic_plots_show_units_and_registered_axes() -> None:
     valid_case = load_plate_case(transient=True)
     result = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM()]).run(valid_case)
-    fig_cdf, axes_cdf = validplot.plot_sim_exp_cdfs(
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
         valid_case,
         "temperature",
         point_idxs=(5,),
         time_idx=4,
     )
+    (fig_cdf, axes_cdf) = ecdf_plot.figure, ecdf_plot.axes
     assert "degC" in axes_cdf[0, 0].get_xlabel()
     assert len(axes_cdf[0, 0].lines) == 2
     pv_plot = validvis.plot_valid_metric_on_sim(

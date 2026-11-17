@@ -150,12 +150,13 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 
 point_idxs = tuple(range(len(coords)))
 
-fig, axes = validplot.plot_sim_exp_cdfs(
+ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
     valid_case,
     temperature_tag,
     point_idxs=point_idxs,
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
+fig, axes = ecdf_plot.figure, ecdf_plot.axes
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
 # %%
@@ -197,6 +198,22 @@ pv_plot.close()
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the
 # complete analysis in its own directory prevents clashes with other examples.
+# Plot each directional metric on its own figure. Histograms retain the spread
+# across physical cells and selected epistemic comparisons, without pooling data.
+for metric_output, direction in (
+    (valid.EMetricOutput.D_PLUS, "d_plus"),
+    (valid.EMetricOutput.D_MINUS, "d_minus"),
+):
+    fig, metric_ax = validplot.plot_valid_metric_distribution(
+        valid_result,
+        temperature_tag,
+        valid.EMetricType.MAVM,
+        output=metric_output,
+    )
+    fig.savefig(output_path / f"mavm_{direction}_distribution.png", bbox_inches="tight")
+    if not SHOW_PLOTS:
+        plt.close(fig)
+
 if SHOW_PLOTS:
     plt.show()
 else:

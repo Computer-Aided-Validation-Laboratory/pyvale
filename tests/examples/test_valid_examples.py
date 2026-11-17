@@ -22,9 +22,10 @@ CUBE_OUTPUTS = tuple(
         "strain_xz",
         "strain_yz",
     )
-    for diagnostic in ("cdfs", "d_minus_time")
+    for diagnostic in ("cdfs", "d_plus_time", "d_minus_time")
 ) + tuple(
-    f"strain_xx_d_minus_on_{background}.png"
+    f"strain_xx_{direction}_on_{background}.png"
+    for direction in ("d_plus", "d_minus")
     for background in (
         "temperature",
         "strain_xx",
@@ -61,6 +62,11 @@ PULSE25X_OUTPUTS = (
             "4_dextremes_simcdfsonly",
         )
     )
+    + tuple(
+        f"mavm_{direction}_{channel}.png"
+        for direction in ("d_plus", "d_minus")
+        for channel in ("TC2", "TC3", "TC5", "TC6", "TC8", "TC9", "TC10", "CV")
+    )
     + ("pointsensors_mavm.csv", "channel_status.csv", "parity.json", "axis_limits.json")
 )
 
@@ -73,14 +79,35 @@ EXAMPLES = (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
             "temperature_d_plus_time.png",
+            "temperature_d_minus_time.png",
             "temperature_mavm_d_minus_on_sim.png",
+            "temperature_mavm_d_plus_on_sim.png",
         ),
     ),
-    ("ex01_valid_metric", "valid_ex1_metric", ("observable_cdfs.png",)),
+    (
+        "ex01_valid_metric",
+        "valid_ex1_metric",
+        (
+            "observable_cdfs.png",
+            "mavm_d_plus_distribution.png",
+            "mavm_d_minus_distribution.png",
+            "avm_overlay.png",
+            "ks_overlay.png",
+            "cvm_overlay.png",
+            "rmse_overlay.png",
+            "relative_error_overlay.png",
+            "u_pooling.png",
+        ),
+    ),
     (
         "ex02_valid_steady",
         "valid_ex2_steady",
-        ("temperature_cdfs.png", "temperature_avm_on_sim.png"),
+        (
+            "temperature_cdfs.png",
+            "temperature_avm_on_sim.png",
+            "mavm_d_plus_distribution.png",
+            "mavm_d_minus_distribution.png",
+        ),
     ),
     (
         "ex03_valid_epistemic",
@@ -89,6 +116,7 @@ EXAMPLES = (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
             "temperature_mavm_d_minus_on_sim.png",
+            "temperature_mavm_d_plus_on_sim.png",
         ),
     ),
     (
@@ -98,6 +126,7 @@ EXAMPLES = (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
             "temperature_mavm_d_minus_on_sim.png",
+            "temperature_mavm_d_plus_on_sim.png",
         ),
     ),
     (
@@ -106,7 +135,9 @@ EXAMPLES = (
         (
             "temperature_cdfs.png",
             "temperature_d_plus_time.png",
+            "temperature_d_minus_time.png",
             "temperature_mavm_d_minus_on_sim.png",
+            "temperature_mavm_d_plus_on_sim.png",
         ),
     ),
     (
@@ -116,13 +147,16 @@ EXAMPLES = (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
             "temperature_d_plus_time.png",
+            "temperature_d_minus_time.png",
             "temperature_mavm_d_minus_on_sim.png",
+            "temperature_mavm_d_plus_on_sim.png",
             "conditional_cdf_families.png",
             "mavm_distributions.png",
             "mavm_comparisons.png",
             "mavm_correction.png",
             "mavm_model_correction.png",
-            "directional_metric_distributions.png",
+            "mavm_d_plus_distribution.png",
+            "mavm_d_minus_distribution.png",
         ),
     ),
     (
@@ -130,6 +164,8 @@ EXAMPLES = (
         "valid_ex7_field",
         (
             "strain_xx_avm_on_sim.png",
+            "mavm_d_plus_distribution.png",
+            "mavm_d_minus_distribution.png",
             "temperature_avm_time.png",
             "temperature_cdfs.png",
         ),
@@ -146,6 +182,28 @@ EXAMPLES = (
         ),
     ),
     ("ex10_valid_pulse25x", "valid_ex10_pulse25x", PULSE25X_OUTPUTS),
+    (
+        "ex11_valid_epistemic_axes",
+        "valid_ex11_epistemic_axes",
+        (
+            "outer_outer.png",
+            "median_nuisance.png",
+            "mean_curves.png",
+            "median_curves.png",
+            "selected_scenarios.png",
+            "independent_views.png",
+            "sim_median_nuisance.png",
+            "exp_offsets.png",
+            "avm_normalised_support.png",
+            "ks_bound_distances.png",
+            "mavm_d_plus_support.png",
+            "mavm_d_minus_support.png",
+            "mavm_d_plus_area.png",
+            "mavm_d_minus_area.png",
+            "mavm_d_plus_time.png",
+            "mavm_d_minus_time.png",
+        ),
+    ),
 )
 
 

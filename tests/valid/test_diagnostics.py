@@ -112,9 +112,10 @@ def test_family_plot_preserves_conditional_ecdf_probability_mass() -> None:
     case = valid.ValidCase(
         {"response": observable}, {"response": quantity}, {"response": quantity}
     )
-    fig, axes = validplot.plot_sim_ecdfs(
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_ecdfs(
         case, "response", view=valid.ValidECDFView(bounds=False, scenario_idxs=None)
     )
+    (fig, axes) = ecdf_plot.figure, ecdf_plot.axes
     # The union grid preserves repeated-observation mass in both conditional CDFs.
     np.testing.assert_allclose(axes[0, 0].lines[0].get_xdata(), [0.0, 0.0, 0.0, 2.0])
     np.testing.assert_allclose(axes[0, 0].lines[1].get_xdata(), [1.0, 1.0, 3.0, 3.0])

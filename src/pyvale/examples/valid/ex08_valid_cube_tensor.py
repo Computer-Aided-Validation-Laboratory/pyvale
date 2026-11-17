@@ -166,7 +166,7 @@ point_idxs = tuple(range(len(coords)))
 for component_idx, component_key in enumerate(component_keys):
     fig: Figure
     axes: np.ndarray
-    fig, axes = validplot.plot_sim_exp_cdfs(
+    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
         valid_case,
         strain_tag,
         point_idxs=point_idxs,
@@ -174,6 +174,7 @@ for component_idx, component_key in enumerate(component_keys):
         time_idx=4,
         valid_plot_opts=validplot.ValidPlotOpts(x_label=f"{component_key} [1]"),
     )
+    fig, axes = ecdf_plot.figure, ecdf_plot.axes
     fig.savefig(output_path / f"{component_key}_cdfs.png", bbox_inches="tight")
     for metric_output, direction in (
         (valid.EMetricOutput.D_PLUS, "d_plus"),

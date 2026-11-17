@@ -21,3 +21,6 @@ plotting is opt-in.
 9. MOOSE cube parameter sweep with 10% perturbations.
 10. Pulse25X paper reproduction, including frozen numerical parity checks:
     Horne-Jones et al. (2026), https://arxiv.org/abs/2605.11886.
+
+11. Both epistemic axes: nuisance reductions, composable metric layers and
+    physical/reference-quantile horizontal axes.

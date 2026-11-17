@@ -393,6 +393,7 @@ class EValidECDFReduce(Enum):
     KEEP = auto()
     MEAN = auto()
     MEDIAN = auto()
+    QUANTILE = auto()
 
 
 class EValidECDFCentre(Enum):
@@ -413,6 +414,8 @@ class ValidECDFView:
 
     trans_reduce: EValidECDFReduce = EValidECDFReduce.KEEP
     nuis_reduce: EValidECDFReduce = EValidECDFReduce.KEEP
+    trans_quantile: float | None = None
+    nuis_quantile: float | None = None
     trans_idxs: tuple[int, ...] | None = None
     nuis_idxs: tuple[int, ...] | None = None
     bounds: bool = True
@@ -433,6 +436,27 @@ class ValidECDFViewData:
     quantiles: np.ndarray
     scenario_quantiles: np.ndarray
     scenarios: tuple[tuple[int, int, EEpisOffset], ...]
+    original_quantiles: np.ndarray
+    original_scenarios: tuple[tuple[int, int, EEpisOffset], ...]
+    samples: tuple[np.ndarray, ...]
+
+
+@dataclass(slots=True)
+class ValidECDFBounds:
+    """Pointwise quantile limits with original samples and reduction provenance.
+
+    Scenario index arrays have columns (transferable, nuisance, offset).
+    -1 identifies a synthetic mean/median/quantile axis rather than an original
+    scenario. data and view retain the information needed for confidence bounds.
+    """
+
+    probabilities: np.ndarray
+    lower: np.ndarray
+    upper: np.ndarray
+    lower_indices: np.ndarray
+    upper_indices: np.ndarray
+    data: ValidECDFViewData
+    view: ValidECDFView
 
 
 class EValidECDFBounds(Enum):
@@ -577,6 +601,75 @@ def resolve_metric_output(
     if output not in field.outputs:
         raise ValueError(f"Metric field has no {output.name} output.")
     return output
+
+
+class EValidBoundAxis(Enum):
+    SIM_BOUND = auto()
+    EXP_BOUND = auto()
+
+
+class EValidNuisanceScore(Enum):
+    TOTAL_WIDTH = auto()
+    ADDED_WIDTH = auto()
+
+
+@dataclass(slots=True)
+class ValidMetricExtrema:
+    """Extrema over reduced axes; index arrays append one column per reduced axis.
+
+    All-missing cells contain NaN and index -1. Ties choose the first original
+    index in canonical result-axis order. Selected singleton axes are omitted.
+    """
+
+    axes: tuple[EValidResAxis, ...]
+    reduced_axes: tuple[EValidResAxis, ...]
+    minimum: dict[EMetricOutput, np.ndarray]
+    maximum: dict[EMetricOutput, np.ndarray]
+    minimum_indices: dict[EMetricOutput, np.ndarray]
+    maximum_indices: dict[EMetricOutput, np.ndarray]
+    selectors: dict[EValidResAxis, int]
+
+
+@dataclass(slots=True)
+class ValidSupportBounds:
+    """Shifted quantile limits, with controlling original comparison indices.
+
+    lower/upper and unshifted limits have shape (*retained_axes, probability).
+    Origin indices append an index_axes dimension; NaN limits have index -1.
+    Probability grids exclude zero: the first quantile also applies down to zero.
+    """
+
+    axes: tuple[EValidResAxis, ...]
+    probabilities: np.ndarray
+    lower: np.ndarray
+    upper: np.ndarray
+    sim_lower: np.ndarray
+    sim_upper: np.ndarray
+    index_axes: tuple[EValidResAxis | EValidBoundAxis, ...]
+    lower_indices: np.ndarray
+    upper_indices: np.ndarray
+    selectors: dict[EValidResAxis, int]
+    metric_outputs: dict[EMetricOutput, np.ndarray] | None = None
+
+
+@dataclass(slots=True)
+class ValidNuisanceRanking:
+    """Whole-case ranking; widths never splice different nuisance cases together.
+
+    case_axes identifies columns in cases. Scores and order have shape
+    (*retained_axes, n_cases). order contains row indices into cases, with -1
+    for missing ranks at the end. valid_counts gives the usable rank count per
+    retained cell. Equal scores preserve canonical case order.
+    """
+
+    axes: tuple[EValidResAxis, ...]
+    case_axes: tuple[EValidResAxis, ...]
+    cases: np.ndarray
+    scores: np.ndarray
+    order: np.ndarray
+    valid_counts: np.ndarray
+    score: EValidNuisanceScore
+    selectors: dict[EValidResAxis, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
