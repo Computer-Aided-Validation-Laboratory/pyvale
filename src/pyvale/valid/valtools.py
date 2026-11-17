@@ -12,7 +12,11 @@ import numpy as np
 from scipy import stats
 
 from pyvale.valid.constants import MAVM_AREA_TOLERANCE
-from pyvale.valid.inputvalidation import validate_finite_sample, validate_real_array
+from pyvale.valid.inputvalidation import (
+    validate_ecdf,
+    validate_finite_sample,
+    validate_real_array,
+)
 from pyvale.valid.metrics import calc_mavm_1d
 from pyvale.valid.metricstrategy import EMetricType
 from pyvale.valid.valengine import EValResAxis, ValMetricField, resolve_metric_output
@@ -69,8 +73,6 @@ def calc_ecdf_envelope(
     if not samples:
         raise ValueError("At least one sample scenario is required.")
     clean = [np.sort(validate_finite_sample(sample, "sample")) for sample in samples]
-    if any(len(s) == 0 for s in clean):
-        raise ValueError("Each ECDF scenario needs a finite observation.")
     support = np.unique(np.concatenate(clean))
     cdfs = np.stack([np.searchsorted(s, support, side="right") / len(s) for s in clean])
     return support, np.min(cdfs, axis=0), np.max(cdfs, axis=0)
@@ -220,11 +222,16 @@ def create_metric_label(metric: EMetricType, output: EMetricOutput) -> str:
 
 def evaluate_ecdf_quantiles(cdf: ValECDF, probabilities: np.ndarray) -> np.ndarray:
     """Evaluate the inverse ECDF using the first support reaching each probability."""
+    validate_ecdf(cdf)
     probabilities = validate_real_array(probabilities, "probabilities", allow_nan=False)
     if probabilities.ndim != 1:
         raise ValueError("Probabilities must be a finite one-dimensional array.")
     if np.any(probabilities < 0.0) or np.any(probabilities > 1.0):
         raise ValueError("Probabilities must lie in [0, 1].")
+    return _evaluate_ecdf_quantiles(cdf, probabilities)
+
+
+def _evaluate_ecdf_quantiles(cdf: ValECDF, probabilities: np.ndarray) -> np.ndarray:
     return cdf.quantiles[np.searchsorted(cdf.probabilities, probabilities, side="left")]
 
 
@@ -254,7 +261,7 @@ def calc_ecdf_summary(
         lower_idx = int(np.argmin(support_sums))
         upper_idx = int(np.argmax(support_sums))
     for selection_idx, cdf in enumerate(cdfs):
-        quantiles = evaluate_ecdf_quantiles(cdf, probabilities)
+        quantiles = _evaluate_ecdf_quantiles(cdf, probabilities)
         nominal += quantiles
         if bounds is EValECDFBounds.POINTWISE:
             np.minimum(lower, quantiles, out=lower)

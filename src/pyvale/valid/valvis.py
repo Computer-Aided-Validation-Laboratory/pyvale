@@ -116,10 +116,8 @@ def plot_val_metric_on_sim(
     values = extract_metric_values(field, selectors=selectors, output=output)
     observable_data = result.observables[observable]
     coords = observable_data.coords
-    if coords is None or not np.all(np.isfinite(coords)):
+    if coords is None:
         raise ValueError("Metric visualisation needs finite xyz point coordinates.")
-    if np.any(np.isinf(values)):
-        raise ValueError("Metric values cannot contain infinity.")
     if (
         not np.isfinite(metric_options.mesh_opacity)
         or not 0 <= metric_options.mesh_opacity <= 1

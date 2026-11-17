@@ -25,7 +25,11 @@ from pyvale.valid.cython.mavm import (
     cyth_calc_mavm_1d,
     cyth_calc_mavm_pbox_1d,
 )
-from pyvale.valid.inputvalidation import validate_finite_sample, validate_real_array
+from pyvale.valid.inputvalidation import (
+    validate_ecdf,
+    validate_finite_sample,
+    validate_real_array,
+)
 from pyvale.valid.valtypes import EMAVMDuplicates, MAVMResult, ValECDF
 
 
@@ -266,12 +270,11 @@ def calc_u_pooling_1d(model_cdfs: list[ValECDF], exp_obs: np.ndarray) -> float:
         raise ValueError("U-pooling needs nonempty paired 1D observations.")
     if len(model_cdfs) != len(observations):
         raise ValueError("One model CDF is required per observation.")
-    if any(not isinstance(cdf, ValECDF) for cdf in model_cdfs):
-        raise TypeError("Model CDFs must be ValECDF records.")
     transformed = np.empty(len(observations), dtype=np.float64)
     for index, (cdf, observation) in enumerate(
         zip(model_cdfs, observations, strict=True)
     ):
+        validate_ecdf(cdf)
         support_index = np.searchsorted(cdf.quantiles, observation, side="right") - 1
         transformed[index] = (
             0.0 if support_index < 0 else cdf.probabilities[support_index]

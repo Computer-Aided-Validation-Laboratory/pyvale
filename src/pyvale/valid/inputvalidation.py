@@ -15,7 +15,7 @@ import numpy as np
 from pyvale.valid.constants import MAVM_DUPLICATE_TOLERANCE
 
 if TYPE_CHECKING:
-    from pyvale.valid.valtypes import EMAVMDuplicates
+    from pyvale.valid.valtypes import EMAVMDuplicates, ValECDF
 
 
 def validate_real_array(
@@ -76,4 +76,32 @@ def validate_unique_sample(values: np.ndarray, data_label: str) -> None:
             f"REJECT MAVM duplicates requires unique {data_label} observations within "
             f"MAVM_DUPLICATE_TOLERANCE={MAVM_DUPLICATE_TOLERANCE}. "
             "Use duplicates=EMAVMDuplicates.INCLUDE for repeated observations."
+        )
+
+
+def validate_ecdf(cdf: ValECDF) -> None:
+    from pyvale.valid.valtypes import ValECDF
+
+    if not isinstance(cdf, ValECDF):
+        raise TypeError("Model CDFs must be ValECDF records.")
+    validate_real_array(cdf.quantiles, "quantiles", allow_nan=False)
+    validate_real_array(cdf.probabilities, "probabilities", allow_nan=False)
+    if (
+        cdf.quantiles.ndim != 1
+        or not len(cdf.quantiles)
+        or cdf.quantiles.shape != cdf.probabilities.shape
+    ):
+        raise ValueError(
+            "ECDF support and probabilities need matching nonempty 1D shapes."
+        )
+    if np.any(cdf.quantiles[1:] <= cdf.quantiles[:-1]):
+        raise ValueError("ECDF support must increase strictly.")
+    if (
+        np.any(cdf.probabilities <= 0)
+        or np.any(cdf.probabilities > 1)
+        or np.any(cdf.probabilities[1:] <= cdf.probabilities[:-1])
+        or cdf.probabilities[-1] != 1
+    ):
+        raise ValueError(
+            "ECDF probabilities must increase strictly in (0, 1] and end at one."
         )

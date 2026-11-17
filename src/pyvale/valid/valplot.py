@@ -24,11 +24,11 @@ from pyvale.valid.valengine import (
     resolve_metric_output,
 )
 from pyvale.valid.valtools import (
+    _evaluate_ecdf_quantiles,
     build_metric_selection,
     calc_ecdf,
     calc_ecdf_summary,
     create_metric_label,
-    evaluate_ecdf_quantiles,
     extract_aleatory_scenarios,
     extract_ecdf_envelope,
     extract_metric_values,
@@ -775,8 +775,8 @@ def plot_val_mavm_diagnostic(
         probabilities = np.unique(
             np.r_[lower_cdf.probabilities, upper_cdf.probabilities]
         )
-        lower = evaluate_ecdf_quantiles(lower_cdf, probabilities)
-        upper = evaluate_ecdf_quantiles(upper_cdf, probabilities)
+        lower = _evaluate_ecdf_quantiles(lower_cdf, probabilities)
+        upper = _evaluate_ecdf_quantiles(upper_cdf, probabilities)
         ax.fill_betweenx(
             np.r_[0.0, probabilities],
             np.r_[lower[0], lower],

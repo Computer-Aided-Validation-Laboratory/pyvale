@@ -9,6 +9,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import cast
 
 import numpy as np
 from scipy import stats
@@ -44,12 +45,6 @@ class EMetricType(Enum):
 class ScalarMetricResult:
     kind: EMetricType
     value: float
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.kind, EMetricType):
-            raise TypeError("Metric kind must be an EMetricType.")
-        if self.kind is EMetricType.MAVM:
-            raise ValueError("MAVM requires directional result fields.")
 
 
 MetricResult = ScalarMetricResult | MAVMResult
@@ -103,9 +98,8 @@ class MetricMAVM(IValMetric):
         )
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
-        if not isinstance(result, MAVMResult):
-            raise TypeError("MAVM requires MAVMResult.")
-        return result.d_plus, result.d_minus
+        mavm_result = cast(MAVMResult, result)
+        return mavm_result.d_plus, mavm_result.d_minus
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> MAVMResult:
         return calc_mavm_1d(
@@ -123,12 +117,7 @@ class MetricAVM(IValMetric):
         return (EMetricOutput.DISTANCE,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
-        if (
-            not isinstance(result, ScalarMetricResult)
-            or result.kind is not self.get_kind()
-        ):
-            raise TypeError("Result must match the metric kind.")
-        return (result.value,)
+        return (cast(ScalarMetricResult, result).value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         return ScalarMetricResult(EMetricType.AVM, calc_avm_1d(sim, exp))
@@ -144,12 +133,7 @@ class MetricKS(IValMetric):
         return (EMetricOutput.STATISTIC,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
-        if (
-            not isinstance(result, ScalarMetricResult)
-            or result.kind is not self.get_kind()
-        ):
-            raise TypeError("Result must match the metric kind.")
-        return (result.value,)
+        return (cast(ScalarMetricResult, result).value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         return ScalarMetricResult(EMetricType.KS, calc_ks_1d(sim, exp))
@@ -165,12 +149,7 @@ class MetricCVM(IValMetric):
         return (EMetricOutput.STATISTIC,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
-        if (
-            not isinstance(result, ScalarMetricResult)
-            or result.kind is not self.get_kind()
-        ):
-            raise TypeError("Result must match the metric kind.")
-        return (result.value,)
+        return (cast(ScalarMetricResult, result).value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         return ScalarMetricResult(EMetricType.CVM, calc_cvm_1d(sim, exp))
@@ -186,12 +165,7 @@ class MetricRMSE(IValMetric):
         return (EMetricOutput.ERROR,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
-        if (
-            not isinstance(result, ScalarMetricResult)
-            or result.kind is not self.get_kind()
-        ):
-            raise TypeError("Result must match the metric kind.")
-        return (result.value,)
+        return (cast(ScalarMetricResult, result).value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         sim_values, exp_values = validate_paired_samples(sim, exp)
@@ -224,12 +198,7 @@ class MetricRelErr(IValMetric):
         return (EMetricOutput.ERROR,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
-        if (
-            not isinstance(result, ScalarMetricResult)
-            or result.kind is not self.get_kind()
-        ):
-            raise TypeError("Result must match the metric kind.")
-        return (result.value,)
+        return (cast(ScalarMetricResult, result).value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
         simulation, experiment = validate_paired_samples(sim, exp)

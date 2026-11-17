@@ -145,6 +145,10 @@ def test_combine_cases_preserves_transient_run_pairing() -> None:
         for i in (1.0, 2.0)
     ]
     joined = valconvert.combine_val_cases(*cases)
+    assert joined.sim is cases[0].sim
+    for case in cases:
+        assert case.exp["temperature"].axes == axes
+        assert case.exp["temperature"].data.shape == (1, 1, 2)
     np.testing.assert_array_equal(
         joined.exp["temperature"].data, [[[[1.0, 2.0], [11.0, 12.0]]]]
     )
@@ -163,6 +167,9 @@ def test_combine_cases_preserves_parameter_provenance() -> None:
         exp = {"temperature": val.ValArray(np.array([[parameter]]), axes)}
         cases.append(val.ValCase(observables, sim, exp, exp_inputs=inputs))
     joined = valconvert.combine_val_cases(*cases)
+    for case in cases:
+        assert case.exp_inputs.parameters["loading"].axes == ()
+        assert case.exp_inputs.parameters["loading"].data.shape == ()
     np.testing.assert_array_equal(
         joined.exp_inputs.parameters["loading"].data, [10.0, 20.0]
     )

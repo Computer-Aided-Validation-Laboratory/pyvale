@@ -106,8 +106,11 @@ def test_u_pooling_multiple_sample_oracle() -> None:
     ],
 )
 def test_invalid_ecdf(support: list[float], probabilities: list[float]) -> None:
+    cdf = val.ValECDF(np.array(support), np.array(probabilities))
     with pytest.raises(ValueError):
-        val.ValECDF(np.array(support), np.array(probabilities))
+        val.evaluate_ecdf_quantiles(cdf, np.array([0.5]))
+    with pytest.raises(ValueError):
+        val.calc_u_pooling_1d([cdf], np.array([0.5]))
 
 
 @pytest.mark.parametrize(
@@ -217,18 +220,8 @@ def test_offset_and_borrowing_contract() -> None:
             quantity.select_aleatory(0, 0, 0, offset=invalid)
 
 
-def test_metric_field_structure_and_selectors() -> None:
+def test_metric_field_selectors() -> None:
     axes = (val.EValResAxis.POINT, val.EValResAxis.COMPONENT, val.EValResAxis.TIME)
-    with pytest.raises(ValueError):
-        val.ValMetricField(axes, {val.EMetricOutput.ERROR: np.zeros((2, 1))})
-    with pytest.raises(ValueError):
-        val.ValMetricField(
-            axes,
-            {
-                val.EMetricOutput.D_PLUS: np.zeros((2, 1, 1)),
-                val.EMetricOutput.D_MINUS: np.zeros((3, 1, 1)),
-            },
-        )
     field = val.ValMetricField(axes, {val.EMetricOutput.ERROR: np.zeros((2, 1, 1))})
     for index in (-1, 2, True, 0.0):
         with pytest.raises((TypeError, IndexError)):
@@ -248,8 +241,11 @@ def test_geometry_rejects_nonfinite_and_complex(coordinates: np.ndarray) -> None
 
 
 def test_unsigned_support_must_be_ordered() -> None:
+    cdf = val.ValECDF(np.array([1, 0], dtype=np.uint64), np.array([0.5, 1.0]))
     with pytest.raises(ValueError, match="increase"):
-        val.ValECDF(np.array([1, 0], dtype=np.uint64), np.array([0.5, 1.0]))
+        val.evaluate_ecdf_quantiles(cdf, np.array([0.5]))
+    with pytest.raises(ValueError, match="increase"):
+        val.calc_u_pooling_1d([cdf], np.array([0.5]))
 
 
 @pytest.mark.parametrize("selector", [-1, 1, True, 0.0])
@@ -409,3 +405,34 @@ def test_multiple_outputs_require_explicit_selection(metric: val.IValMetric) -> 
     with pytest.raises(ValueError, match="output explicitly"):
         valplot.plot_val_metric_distribution(result, "scalar", metric.get_kind())
     assert plt.get_fignums() == figures
+
+
+class MetricInvalidOutputs(val.IValMetric):
+    def get_kind(self) -> val.EMetricType:
+        return val.EMetricType.AVM
+
+    def get_outputs(self) -> tuple[val.EMetricOutput, ...]:
+        return (val.EMetricOutput.DISTANCE, val.EMetricOutput.ERROR)
+
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> val.MetricResult:
+        return val.ScalarMetricResult(self.get_kind(), 1.0)
+
+    def extract_outputs(self, result: val.MetricResult) -> tuple[float, ...]:
+        return (1.0,)
+
+
+@pytest.mark.parametrize("workers", [1, 2])
+def test_custom_metric_output_count_is_checked(workers: int) -> None:
+    observations = val.ValArray(
+        np.array([[1.0, 2.0], [3.0, 4.0]]),
+        (val.EValAxis.EPISTEMIC_TRANS, val.EValAxis.ALEATORY),
+    )
+    case = val.ValCase(
+        create_case(np.array([1.0, 2.0])).observables,
+        {"scalar": observations},
+        {"scalar": observations},
+    )
+    with pytest.raises(ValueError, match="Calculated outputs must match"):
+        val.ValidationEngine(
+            [MetricInvalidOutputs()], opts=val.ValEngineOpts(workers=workers)
+        ).run(case)

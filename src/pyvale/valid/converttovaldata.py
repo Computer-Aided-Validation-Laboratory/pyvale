@@ -7,6 +7,7 @@
 """Convert simulation and acquisition data to tagged validation arrays."""
 
 from collections.abc import Callable, Iterable
+from copy import copy
 from dataclasses import dataclass
 
 import numpy as np
@@ -425,9 +426,9 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
                     raise ValueError(f"{name}: experimental axes differ.")
                 pieces.append(quantity.data[..., None])
         axes = (*base_axes, EValAxis.ALEATORY)
-        combined[name] = ValArray(
-            np.concatenate(pieces, axis=-1), axes, reference.offsets
-        )
+        combined[name] = copy(reference)
+        combined[name].data = np.concatenate(pieces, axis=-1)
+        combined[name].axes = axes
     parameter_keys = set(
         (first.exp_inputs.parameters or {}) if first.exp_inputs is not None else {}
     )
@@ -464,17 +465,15 @@ def combine_val_cases(*cases: ValCase) -> ValCase:
                         parameter.data[..., None], len(run_ids[case_idx]), axis=-1
                     )
                 )
-        parameters[key] = ValArray(
-            np.concatenate(pieces, axis=-1), (*base_axes, EValAxis.ALEATORY)
-        )
+        parameters[key] = copy(reference_parameter)
+        parameters[key].data = np.concatenate(pieces, axis=-1)
+        parameters[key].axes = (*base_axes, EValAxis.ALEATORY)
+        parameters[key].offsets = None
     inputs = ValSampleInputs(
         parameters=parameters or None,
         run_ids=ValArray(np.concatenate(run_ids), (EValAxis.ALEATORY,)),
     )
-    return ValCase(
-        first.observables,
-        first.sim,
-        combined,
-        sim_inputs=first.sim_inputs,
-        exp_inputs=inputs,
-    )
+    combined_case = copy(first)
+    combined_case.exp = combined
+    combined_case.exp_inputs = inputs
+    return combined_case

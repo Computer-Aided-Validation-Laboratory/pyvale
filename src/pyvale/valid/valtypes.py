@@ -372,7 +372,7 @@ class MAVMResult:
 
 @dataclass(slots=True)
 class ValECDF:
-    """Borrow validated support/probabilities, each shaped (n_support,).
+    """Borrow support/probabilities, each shaped (n_support,).
 
     Support and cumulative probabilities increase strictly; probabilities end
     at one. Arrays must remain unchanged while the ECDF is in use.
@@ -380,29 +380,6 @@ class ValECDF:
 
     quantiles: np.ndarray
     probabilities: np.ndarray
-
-    def __post_init__(self) -> None:
-        validate_real_array(self.quantiles, "quantiles", allow_nan=False)
-        validate_real_array(self.probabilities, "probabilities", allow_nan=False)
-        if (
-            self.quantiles.ndim != 1
-            or not len(self.quantiles)
-            or self.quantiles.shape != self.probabilities.shape
-        ):
-            raise ValueError(
-                "ECDF support and probabilities need matching nonempty 1D shapes."
-            )
-        if np.any(self.quantiles[1:] <= self.quantiles[:-1]):
-            raise ValueError("ECDF support must increase strictly.")
-        if (
-            np.any(self.probabilities <= 0)
-            or np.any(self.probabilities > 1)
-            or np.any(self.probabilities[1:] <= self.probabilities[:-1])
-            or self.probabilities[-1] != 1
-        ):
-            raise ValueError(
-                "ECDF probabilities must increase strictly in (0, 1] and end at one."
-            )
 
 
 class EValECDFBounds(Enum):

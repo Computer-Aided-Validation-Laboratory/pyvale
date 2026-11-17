@@ -6,7 +6,7 @@
 
 """Run standalone metrics over shared physical and uncertainty axes."""
 
-from copy import deepcopy
+from copy import copy, deepcopy
 from dataclasses import dataclass
 from enum import StrEnum
 from math import prod
@@ -27,6 +27,9 @@ from pyvale.valid.metrics import validate_relative_error_config
 from pyvale.valid.metricstrategy import (
     EMetricType,
     IValMetric,
+    MetricAVM,
+    MetricCVM,
+    MetricKS,
     MetricMAVM,
     MetricRelErr,
     MetricRMSE,
@@ -36,7 +39,6 @@ from pyvale.valid.valtypes import (
     EEpisOffset,
     EMAVMDuplicates,
     EMetricOutput,
-    EpistemicOffsets,
     EValAxis,
     ValArray,
     ValCase,
@@ -74,50 +76,6 @@ class ValMetricField:
     axes: tuple[EValResAxis, ...]
     outputs: dict[EMetricOutput, np.ndarray]
     scenarios: dict[EValResAxis, tuple[EEpisOffset, ...]] | None = None
-
-    def __post_init__(self) -> None:
-        if any(not isinstance(axis, EValResAxis) for axis in self.axes):
-            raise TypeError("Result axes must be EValResAxis.")
-
-        if (
-            len(set(self.axes)) != len(self.axes)
-            or tuple(sorted(self.axes, key=VAL_RES_AXES.index)) != self.axes
-        ):
-            raise ValueError("Result axes must be unique and canonical.")
-
-        if not self.outputs:
-            raise ValueError("Metric fields require at least one output.")
-        shape = next(iter(self.outputs.values())).shape
-        for output, array in self.outputs.items():
-            if not isinstance(output, EMetricOutput):
-                raise TypeError("Metric outputs must be EMetricOutput.")
-            if (
-                self.axes[:3] != VAL_RES_AXES[:3]
-                or array.ndim != len(self.axes)
-                or any(size == 0 for size in array.shape)
-                or array.shape != shape
-            ):
-                raise ValueError(
-                    "Output shape must match nonempty axes and other outputs."
-                )
-            if array.dtype.kind not in "iuf":
-                raise TypeError("Metric arrays must contain real numbers.")
-
-        for axis, scenarios in (self.scenarios or {}).items():
-            if (
-                not isinstance(axis, EValResAxis)
-                or axis not in (EValResAxis.SIM_OFFSET, EValResAxis.EXP_OFFSET)
-                or axis not in self.axes
-            ):
-                raise ValueError("Scenarios must describe stored offset axes.")
-            if (
-                len(scenarios) != shape[self.axes.index(axis)]
-                or len(set(scenarios)) != len(scenarios)
-                or any(not isinstance(scenario, EEpisOffset) for scenario in scenarios)
-            ):
-                raise ValueError(
-                    "Offset scenarios must match the axis and use unique EEpisOffset values."
-                )
 
 
 def resolve_metric_output(
@@ -379,18 +337,24 @@ def _slice_points(quantity: ValArray, start: int, stop: int) -> ValArray:
             slice(start, stop) if axis is EValAxis.POINT else slice(None)
             for axis in offsets.axes
         )
-        offsets = EpistemicOffsets(
-            np.asarray(offsets.lower)[offset_selection],
-            np.asarray(offsets.upper)[offset_selection],
-            offsets.axes,
-        )
-    return ValArray(quantity.data[selection], quantity.axes, offsets)
+        offsets = copy(offsets)
+        offsets.lower = np.asarray(offsets.lower)[offset_selection]
+        offsets.upper = np.asarray(offsets.upper)[offset_selection]
+    sliced = copy(quantity)
+    sliced.data = quantity.data[selection]
+    sliced.offsets = offsets
+    return sliced
 
 
 def _calculate_partition(
     workloads: list[_Workload], metrics: tuple[IValMetric, ...]
 ) -> list[tuple[str, int, np.ndarray]]:
     calculated_workloads: list[tuple[str, int, np.ndarray]] = []
+    check_output_count = tuple(
+        type(metric)
+        not in (MetricMAVM, MetricAVM, MetricKS, MetricCVM, MetricRMSE, MetricRelErr)
+        for metric in metrics
+    )
     for workload in workloads:
         sim, exp, shape = workload.sim, workload.exp, workload.shape
         start = workload.start % prod(shape[1:])
@@ -440,7 +404,9 @@ def _calculate_partition(
                 paired_simulation = np.asarray(sim_samples[paired], dtype=np.float64)
                 paired_experiment = np.asarray(exp_samples[paired], dtype=np.float64)
             output_start = 0
-            for metric, outputs in zip(metrics, metric_outputs, strict=True):
+            for metric, outputs, check_count in zip(
+                metrics, metric_outputs, check_output_count, strict=True
+            ):
                 if type(metric) is MetricMAVM:
                     model_key = (point, component, time, sim_trans, sim_nuis, sim_off)
                     experimental_key = (
@@ -476,7 +442,7 @@ def _calculate_partition(
                     )
                 output_stop = output_start + len(outputs)
                 output_values = metric.extract_outputs(metric_result)
-                if len(output_values) != len(outputs):
+                if check_count and len(output_values) != len(outputs):
                     raise ValueError(
                         "Calculated outputs must match the metric declaration."
                     )
