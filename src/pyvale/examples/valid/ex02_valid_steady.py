@@ -18,6 +18,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
+from matplotlib.figure import Figure
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -44,8 +45,8 @@ output_path.mkdir(parents=True, exist_ok=True)
 # y=10..40 mm, z=0. Each site has a thermocouple (one temperature component)
 # and an in-plane strain rosette (xx, yy, xy). Six virtual repeat experiments
 # supply aleatory samples at the final simulation state.
-# The second simulation has conductivity and thermal expansion reduced by 10%.
-# We treat its noisy measurements as the experiment to expose model discrepancy.
+# Exp. is constructed from the sim aleatory grid plus a known spatial bias.
+# The random-looking discrepancy in the archive is deliberately not used.
 # Prepared arrays already follow the validation axis order declared below.
 # Temperature has one component; strain has three components (xx, yy, xy).
 
@@ -54,9 +55,18 @@ with np.load(
 ) as saved:
     coords: np.ndarray = saved["coords"].copy()
     sim_temp: np.ndarray = saved["sim_temp"].copy()  # (12, 1, 6)
-    exp_temp: np.ndarray = saved["exp_temp"].copy()  # (12, 1, 6)
     sim_strain: np.ndarray = saved["sim_strain"].copy()  # (12, 3, 6)
-    exp_strain: np.ndarray = saved["exp_strain"].copy()  # (12, 3, 6)
+
+# Add 0..3 degC from the left sensor edge to the right. Reusing the sim sample
+# grid makes the AVM exactly this bias, so the spatial map has an interpretable
+# gradient. The strain components have a smaller, signed synthetic edge bias.
+x_fraction = (coords[:, 0] - np.min(coords[:, 0])) / np.ptp(coords[:, 0])
+temperature_bias = 3.0 * x_fraction
+exp_temp = sim_temp + temperature_bias[:, None, None]
+exp_strain = (
+    sim_strain
+    + x_fraction[:, None, None] * np.array([20.0e-6, -10.0e-6, 5.0e-6])[None, :, None]
+)
 
 # %%
 # A shared observables dictionary registers units, component order and physical
@@ -124,6 +134,28 @@ valid_result: valid.ValidResult = valid.ValidEngine(
     [valid.MetricAVM(), valid.MetricMAVM()]
 ).run(valid_case)
 
+avm_field: valid.ValidMetricField = valid_result.metrics[temperature_tag][
+    valid.EMetricType.AVM
+]
+np.testing.assert_allclose(
+    avm_field.outputs[valid.EMetricOutput.DISTANCE][:, 0, 0],
+    temperature_bias,
+    atol=1.0e-10,
+)
+np.savetxt(
+    output_path / "bias_reference.csv",
+    np.column_stack(
+        (
+            coords[:, 0],
+            temperature_bias,
+            avm_field.outputs[valid.EMetricOutput.DISTANCE][:, 0, 0],
+        )
+    ),
+    delimiter=",",
+    header="x_mm,imposed_bias,avm",
+    comments="",
+)
+
 # %%
 # 3. Post-processing and inspect data structures
 # ----------------------------------------------
@@ -148,6 +180,8 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 # agree with sensor figures. Each panel compares the full selected sim and exp
 # epistemic envelopes, or one ECDF when only one scenario is available.
 
+fig: Figure
+axes: np.ndarray
 point_idxs = tuple(range(len(coords)))
 
 ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(

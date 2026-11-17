@@ -4,12 +4,12 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Coherent epistemic measurement offsets
+"""Transient plate validation
 ================================================================================
 
-Extend the steady epistemic comparison with asymmetric calibration bounds.
-Learn how coherent offsets describe uncertainty shared by every repeat at a
-measurement location, and how to select nominal, lower and upper comparisons.
+Introduce physical time as a separate comparison axis. The same 12 sensors
+observe temperature and strain at five times, with six repeats at each time.
+Learn to follow metric histories and select a matching simulation snapshot.
 """
 
 from pathlib import Path
@@ -34,7 +34,7 @@ matplotlib.use("Agg")
 SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
-output_path = Path.cwd() / "pyvale-output" / "valid_ex4_bounds"
+output_path = Path.cwd() / "pyvale-output" / "valid_ex3_transient"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
@@ -43,17 +43,26 @@ output_path.mkdir(parents=True, exist_ok=True)
 # The plate has 12 sensor locations on a 4 by 3 grid: x=10..90 mm,
 # y=10..40 mm, z=0. Each site has a thermocouple (one temperature component)
 # and an in-plane strain rosette (xx, yy, xy). Six virtual repeat experiments
-# supply aleatory samples at the final simulation state.
-# The second simulation has conductivity and thermal expansion reduced by 10%.
-# We treat its noisy measurements as the experiment to expose model discrepancy.
+# supply aleatory samples at five common physical times.
+# Exp. is constructed below from the same aleatory grid plus a known bias.
+# This isolates systematic model discrepancy from Monte Carlo sampling noise.
 # Prepared arrays already follow the validation axis order declared below.
 # Temperature has one component; strain has three components (xx, yy, xy).
-with np.load(dataset.valid_data_dir() / "plate_validation_2d_steady.npz") as saved:
+with np.load(dataset.valid_data_dir() / "plate_validation_2d_nominal.npz") as saved:
     coords: np.ndarray = saved["coords"].copy()
-    sim_temp: np.ndarray = saved["sim_temp"].copy()  # (12, 1, 2, 6)
-    exp_temp: np.ndarray = saved["exp_temp"].copy()  # (12, 1, 6)
+    times: np.ndarray = saved["times"].copy()
+    sim_temp: np.ndarray = saved["sim_temp"].copy()  # (12, 1, 5, 6)
     sim_strain: np.ndarray = saved["sim_strain"].copy()
-    exp_strain: np.ndarray = saved["exp_strain"].copy()
+
+# Controlled synthetic discrepancy: zero initially, growing towards the right
+# edge. At the final time the left sensors differ by 2 degC and the right by
+# 5 degC. These are new in-memory arrays; no packaged data are changed.
+x_fraction = (coords[:, 0] - np.min(coords[:, 0])) / np.ptp(coords[:, 0])
+time_fraction = (times - times[0]) / (times[-1] - times[0])
+temperature_bias = (2.0 + 3.0 * x_fraction[:, None]) * time_fraction
+exp_temp = sim_temp + temperature_bias[:, None, :, None]
+strain_bias = (20.0e-6 * x_fraction[:, None] + 10.0e-6) * time_fraction
+exp_strain = sim_strain + strain_bias[:, None, :, None]
 
 # %%
 # A shared observables registers units, component order and physical coordinates.
@@ -66,31 +75,34 @@ observables = {
         components=("temperature",),
         geometry=valid.EValidGeometry.POINT,
         coords=coords,
+        times=times,
         phys_units="degC",
         coord_units="mm",
+        time_units="s",
     ),
     strain_tag: valid.ValidObservable(
         components=("strain_xx", "strain_yy", "strain_xy"),
         geometry=valid.EValidGeometry.POINT,
         coords=coords,
+        times=times,
         phys_units="1",
         coord_units="mm",
+        time_units="s",
     ),
 }
 
-# EPISTEMIC_TRANS holds two alternative model parameter settings: nominal
-# then perturbed. Each setting contains its own six aleatory observations.
 # Physical axes identify each comparison cell; ALEATORY holds its repeated
 # observations. The declared axis order matches the arrays in the archive.
 sim_axes = (
     valid.EValidAxis.POINT,
     valid.EValidAxis.COMPONENT,
-    valid.EValidAxis.EPISTEMIC_TRANS,
+    valid.EValidAxis.TIME,
     valid.EValidAxis.ALEATORY,
 )
 exp_axes = (
     valid.EValidAxis.POINT,
     valid.EValidAxis.COMPONENT,
+    valid.EValidAxis.TIME,
     valid.EValidAxis.ALEATORY,
 )
 sim_arrays: dict[str, valid.ValidArray] = {}
@@ -99,20 +111,8 @@ for observable_tag, sim_values, exp_values in (
     (temperature_tag, sim_temp, exp_temp),
     (strain_tag, sim_strain, exp_strain),
 ):
-    # Lower and upper magnitudes describe a coherent calibration shift in
-    # observable units, shared by every repeat at a physical comparison cell.
-    magnitude = 0.5 if observable_tag == temperature_tag else 4.0e-6
-    if observable_tag == temperature_tag:
-        spatial = coords[:, 0] / 100.0  # (12 points,)
-        bound = valid.EpistemicOffsets(
-            lower=magnitude * (1.0 + 0.2 * spatial),
-            upper=1.5 * magnitude * (1.0 + 0.1 * spatial),
-            axes=(valid.EValidAxis.POINT,),
-        )
-    else:
-        bound = valid.EpistemicOffsets(lower=magnitude, upper=1.5 * magnitude)
     sim_arrays[observable_tag] = valid.ValidArray(sim_values, sim_axes)
-    exp_arrays[observable_tag] = valid.ValidArray(exp_values, exp_axes, offsets=bound)
+    exp_arrays[observable_tag] = valid.ValidArray(exp_values, exp_axes)
 
 valid_case = valid.ValidCase(observables, sim_arrays, exp_arrays)
 
@@ -124,6 +124,31 @@ valid_case = valid.ValidCase(observables, sim_arrays, exp_arrays)
 valid_result: valid.ValidResult = valid.ValidEngine(
     [valid.MetricAVM(), valid.MetricMAVM()]
 ).run(valid_case)
+
+# A pure translation of an empirical distribution has AVM equal to its shift.
+avm_field: valid.ValidMetricField = valid_result.metrics[temperature_tag][
+    valid.EMetricType.AVM
+]
+np.testing.assert_allclose(
+    avm_field.outputs[valid.EMetricOutput.DISTANCE][:, 0],
+    temperature_bias,
+    atol=1.0e-10,
+)
+point_grid, time_grid = np.meshgrid(np.arange(coords.shape[0]), times, indexing="ij")
+np.savetxt(
+    output_path / "bias_reference.csv",
+    np.column_stack(
+        (
+            point_grid.ravel(),
+            time_grid.ravel(),
+            temperature_bias.ravel(),
+            avm_field.outputs[valid.EMetricOutput.DISTANCE][:, 0].ravel(),
+        )
+    ),
+    delimiter=",",
+    header="point,time,imposed_bias,avm",
+    comments="",
+)
 
 # %%
 # 3. Post-processing and inspect data structures
@@ -153,23 +178,34 @@ ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
     valid_case,
     temperature_tag,
     point_idxs=point_idxs,
+    time_idx=4,
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
 fig, axes = ecdf_plot.figure, ecdf_plot.axes
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
-# %%
-# Envelopes describe all retained scenarios at a site. They are pointwise ECDF
-# bounds over the conditional distributions. Show every plate sensor.
-ecdf_plot: validplot.ValidECDFPlot = validplot.plot_exp_ecdfs(
-    valid_case,
-    temperature_tag,
-    valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
-    point_idxs=None,
-    offset=None,
+# AVM histories recover the imposed linear drift directly; compare these with
+# the separate MAVM directions, which additionally include confidence shifts.
+fig, axes = validplot.plot_valid_metric_time_points(
+    valid_result, temperature_tag, valid.EMetricType.AVM, point_idxs=point_idxs
 )
-fig, axes = ecdf_plot.figure, ecdf_plot.axes
-fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
+fig.savefig(output_path / "temperature_avm_time.png", bbox_inches="tight")
+
+# %%
+# Each panel follows one physical sensor through time. Explicit selectors fix
+# any remaining epistemic scenario; d+ identifies the directional MAVM quantity.
+for metric_output, direction in (
+    (valid.EMetricOutput.D_PLUS, "d_plus"),
+    (valid.EMetricOutput.D_MINUS, "d_minus"),
+):
+    fig, axes = validplot.plot_valid_metric_time_points(
+        valid_result,
+        temperature_tag,
+        valid.EMetricType.MAVM,
+        point_idxs=point_idxs,
+        output=metric_output,
+    )
+    fig.savefig(output_path / f"temperature_{direction}_time.png", bbox_inches="tight")
 
 # %%
 # Overlay validation points on the nominal model in its original xyz geometry.
@@ -191,8 +227,7 @@ for metric_output, direction in (
         temperature_tag,
         valid.EMetricType.MAVM,
         selectors={
-            valid.EValidResAxis.SIM_TRANS: 0,
-            valid.EValidResAxis.EXP_OFFSET: valid.EEpisOffset.UPPER,
+            valid.EValidResAxis.TIME: 4,
         },
         output=metric_output,
         sim_data=sim_data,

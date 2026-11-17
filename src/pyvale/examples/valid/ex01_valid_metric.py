@@ -11,6 +11,7 @@ Build a validation case from three scalar observations, then inspect its
 metrics and empirical distributions. Introduces the validation data model.
 """
 
+import json
 from pathlib import Path
 
 import matplotlib
@@ -90,9 +91,48 @@ valid_result: valid.ValidResult = valid.ValidEngine(
         valid.MetricKS(),
         valid.MetricCVM(),
         valid.MetricRMSE(),
+        valid.MetricRelErr(),
         valid.MetricMAVM(),
     ]
 ).run(valid_case)
+
+# A distribution comparison permits unequal counts; paired errors do not.
+# Singleton CvM is undefined. The analytic tests cover every parity combination;
+# this small table exposes the practical deterministic/aleatory cases directly.
+sample_cases: dict[str, tuple[np.ndarray, np.ndarray]] = {
+    "deterministic": (np.array([1.0]), np.array([3.0])),
+    "det_sim": (np.array([1.0]), np.array([2.0, 3.0, 4.0, 5.0])),
+    "det_exp": (np.array([0.0, 1.0, 2.0]), np.array([3.0])),
+    "more_sim": (np.array([0.0, 1.0, 2.0, 3.0]), np.array([2.0, 3.0, 4.0])),
+    "more_exp": (np.array([0.0, 1.0, 2.0]), np.array([2.0, 3.0, 4.0, 5.0])),
+}
+comparison_table: list[dict[str, str | int | float | None]] = []
+for name, (sim_samples, exp_samples) in sample_cases.items():
+    comparison_table.append(
+        {
+            "case": name,
+            "sim_count": sim_samples.size,
+            "exp_count": exp_samples.size,
+            "avm": valid.calc_avm_1d(sim_samples, exp_samples),
+            "ks": valid.calc_ks_1d(sim_samples, exp_samples),
+            "cvm": valid.calc_cvm_1d(sim_samples, exp_samples)
+            if min(sim_samples.size, exp_samples.size) > 1
+            else None,
+            "rmse": valid.MetricRMSE().calc(sim_samples, exp_samples).value
+            if sim_samples.size == exp_samples.size
+            else None,
+        }
+    )
+(output_path / "sample_counts.json").write_text(json.dumps(comparison_table, indent=2))
+for metric in (
+    valid.MetricAVM(),
+    valid.MetricKS(),
+    valid.MetricCVM(),
+    valid.MetricRMSE(),
+    valid.MetricRelErr(),
+    valid.MetricMAVM(),
+):
+    print(metric.get_kind().name, metric.get_scale().name, metric.get_comparison().name)
 
 # %%
 # 3. Post-processing and inspect data structures
@@ -146,6 +186,33 @@ for metric in (
     )
     if not SHOW_PLOTS:
         plt.close(overlay_plot.figure)
+
+# The same conditional ECDFs can instead show the actual integration regions.
+area_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+    valid_case, observable_tag
+)
+validplot.add_metric_overlay(
+    area_plot, valid.MetricAVM(), display=validplot.EValidMetricDisplay.INTEGRATION_AREA
+)
+area_plot.figure.savefig(output_path / "avm_area.png", bbox_inches="tight")
+if not SHOW_PLOTS:
+    plt.close(area_plot.figure)
+for metric_output, direction in (
+    (valid.EMetricOutput.D_PLUS, "d_plus"),
+    (valid.EMetricOutput.D_MINUS, "d_minus"),
+):
+    area_plot = validplot.plot_sim_exp_cdfs(valid_case, observable_tag)
+    validplot.add_metric_overlay(
+        area_plot,
+        valid.MetricMAVM(),
+        output=metric_output,
+        display=validplot.EValidMetricDisplay.INTEGRATION_AREA,
+    )
+    area_plot.figure.savefig(
+        output_path / f"mavm_{direction}_area.png", bbox_inches="tight"
+    )
+    if not SHOW_PLOTS:
+        plt.close(area_plot.figure)
 
 # U-pooling uses one model CDF per observation and its own probability axis.
 model_cdf: valid.ValidECDF = valid.calc_ecdf(sim_data)

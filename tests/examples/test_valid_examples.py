@@ -10,6 +10,7 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 CUBE_OUTPUTS = tuple(
@@ -89,14 +90,18 @@ EXAMPLES = (
         "valid_ex1_metric",
         (
             "observable_cdfs.png",
-            "mavm_d_plus_distribution.png",
-            "mavm_d_minus_distribution.png",
+            "sample_counts.json",
             "avm_overlay.png",
+            "avm_area.png",
             "ks_overlay.png",
             "cvm_overlay.png",
             "rmse_overlay.png",
             "relative_error_overlay.png",
             "u_pooling.png",
+            "mavm_d_plus_area.png",
+            "mavm_d_minus_area.png",
+            "mavm_d_plus_distribution.png",
+            "mavm_d_minus_distribution.png",
         ),
     ),
     (
@@ -105,105 +110,155 @@ EXAMPLES = (
         (
             "temperature_cdfs.png",
             "temperature_avm_on_sim.png",
+            "bias_reference.csv",
             "mavm_d_plus_distribution.png",
             "mavm_d_minus_distribution.png",
         ),
     ),
     (
-        "ex03_valid_epistemic",
-        "valid_ex3_epistemic",
+        "ex03_valid_transient",
+        "valid_ex3_transient",
         (
             "temperature_cdfs.png",
-            "temperature_envelopes.png",
-            "temperature_mavm_d_minus_on_sim.png",
-            "temperature_mavm_d_plus_on_sim.png",
-        ),
-    ),
-    (
-        "ex04_valid_bounds",
-        "valid_ex4_bounds",
-        (
-            "temperature_cdfs.png",
-            "temperature_envelopes.png",
-            "temperature_mavm_d_minus_on_sim.png",
-            "temperature_mavm_d_plus_on_sim.png",
-        ),
-    ),
-    (
-        "ex05_valid_transient",
-        "valid_ex5_transient",
-        (
-            "temperature_cdfs.png",
-            "temperature_d_plus_time.png",
-            "temperature_d_minus_time.png",
-            "temperature_mavm_d_minus_on_sim.png",
-            "temperature_mavm_d_plus_on_sim.png",
-        ),
-    ),
-    (
-        "ex06_valid_diagnostics",
-        "valid_ex6_diagnostics",
-        (
-            "temperature_cdfs.png",
-            "temperature_envelopes.png",
-            "temperature_d_plus_time.png",
-            "temperature_d_minus_time.png",
-            "temperature_mavm_d_minus_on_sim.png",
-            "temperature_mavm_d_plus_on_sim.png",
-            "conditional_cdf_families.png",
-            "mavm_distributions.png",
-            "mavm_comparisons.png",
-            "mavm_correction.png",
-            "mavm_model_correction.png",
-            "mavm_d_plus_distribution.png",
-            "mavm_d_minus_distribution.png",
-        ),
-    ),
-    (
-        "ex07_valid_field",
-        "valid_ex7_field",
-        (
-            "strain_xx_avm_on_sim.png",
-            "mavm_d_plus_distribution.png",
-            "mavm_d_minus_distribution.png",
             "temperature_avm_time.png",
-            "temperature_cdfs.png",
+            "temperature_d_plus_time.png",
+            "temperature_d_minus_time.png",
+            "temperature_mavm_d_plus_on_sim.png",
+            "temperature_mavm_d_minus_on_sim.png",
+            "bias_reference.csv",
         ),
     ),
-    ("ex08_valid_cube_tensor", "valid_ex8_cube_tensor", CUBE_OUTPUTS),
+    (
+        "ex04_valid_transferable_bounds",
+        "valid_ex4_transferable_bounds",
+        (
+            "comparison.json",
+            "avm_bounds.png",
+            "avm_original.png",
+            "mavm_d_plus_bounds.png",
+            "mavm_d_minus_bounds.png",
+            "mavm_d_plus_original.png",
+            "mavm_d_minus_original.png",
+        ),
+    ),
+    (
+        "ex05_valid_epistemic_axes",
+        "valid_ex5_epistemic_axes",
+        (
+            "outer_outer.png",
+            "fixed_nuisance.png",
+            "subset.png",
+            "median_nuisance.png",
+            "lower_quartile.png",
+            "upper_quartile.png",
+            "mean_curves.png",
+            "median_curves.png",
+            "selected_scenarios.png",
+            "independent_views.png",
+            "sim_median_nuisance.png",
+            "exp_envelopes.png",
+            "avm_normalised_p0.5.png",
+            "avm_normalised_p0.9.png",
+            "ks_bound_distances.png",
+            "mavm_d_plus_support.png",
+            "mavm_d_minus_support.png",
+            "mavm_d_plus_area.png",
+            "mavm_d_minus_area.png",
+            "all_bounds.csv",
+            "mean_bounds.csv",
+            "median_bounds.csv",
+            "minimum_bounds.csv",
+            "lower_quartile_bounds.csv",
+            "upper_quartile_bounds.csv",
+            "maximum_bounds.csv",
+        ),
+    ),
+    (
+        "ex06_valid_nuisance_profiles",
+        "valid_ex6_nuisance_profiles",
+        (
+            "profiling.json",
+            "avm_original_support.png",
+            "mavm_d_plus_nuisance_support.png",
+            "mavm_d_minus_nuisance_support.png",
+            "avm_distance_profile.png",
+            "avm_distance_profile.csv",
+            "ks_statistic_profile.png",
+            "ks_statistic_profile.csv",
+            "cvm_statistic_profile.png",
+            "cvm_statistic_profile.csv",
+            "rmse_error_profile.png",
+            "rmse_error_profile.csv",
+            "relative_error_error_profile.png",
+            "relative_error_error_profile.csv",
+            "mavm_d_plus_profile.png",
+            "mavm_d_plus_profile.csv",
+            "mavm_d_minus_profile.png",
+            "mavm_d_minus_profile.csv",
+            "total_width_minimum_d_plus.png",
+            "total_width_minimum_d_minus.png",
+            "total_width_median_d_plus.png",
+            "total_width_median_d_minus.png",
+            "total_width_maximum_d_plus.png",
+            "total_width_maximum_d_minus.png",
+            "added_width_minimum_d_plus.png",
+            "added_width_minimum_d_minus.png",
+            "added_width_median_d_plus.png",
+            "added_width_median_d_minus.png",
+            "added_width_maximum_d_plus.png",
+            "added_width_maximum_d_minus.png",
+        ),
+    ),
+    (
+        "ex07_valid_offsets",
+        "valid_ex7_offsets",
+        (
+            "exp_offset_envelopes.png",
+            "confidence_supports.json",
+            "mavm_d_plus_time.png",
+            "mavm_d_minus_time.png",
+            "mavm_d_plus_confidence_support.png",
+            "mavm_d_minus_confidence_support.png",
+            "mavm_nominal_d_plus_area.png",
+            "mavm_nominal_d_minus_area.png",
+            "mavm_lower_d_plus_area.png",
+            "mavm_lower_d_minus_area.png",
+            "mavm_upper_d_plus_area.png",
+            "mavm_upper_d_minus_area.png",
+        ),
+    ),
+    (
+        "ex08_valid_sampling",
+        "valid_ex8_sampling",
+        (
+            "sampling_bias.csv",
+            "temperature_average_cdfs.png",
+            "displacement_local_cdfs.png",
+            "strain_local_cdfs.png",
+            "temperature_average_d_plus_time.png",
+            "temperature_average_d_minus_time.png",
+            "displacement_local_d_plus_time.png",
+            "displacement_local_d_minus_time.png",
+            "strain_local_d_plus_time.png",
+            "strain_local_d_minus_time.png",
+            "strain_local_d_plus_on_temperature.png",
+            "strain_local_d_plus_on_equivalent_strain.png",
+            "strain_local_d_minus_on_temperature.png",
+            "strain_local_d_minus_on_equivalent_strain.png",
+        ),
+    ),
     (
         "ex09_valid_cube_sweep",
         "valid_ex9_cube_sweep",
         CUBE_OUTPUTS
         + (
+            "parameter_sets.json",
             "nominal_avm_time.png",
             "heat_flux_plus_10pct_avm_time.png",
             "thermal_expansion_plus_10pct_avm_time.png",
         ),
     ),
     ("ex10_valid_pulse25x", "valid_ex10_pulse25x", PULSE25X_OUTPUTS),
-    (
-        "ex11_valid_epistemic_axes",
-        "valid_ex11_epistemic_axes",
-        (
-            "outer_outer.png",
-            "median_nuisance.png",
-            "mean_curves.png",
-            "median_curves.png",
-            "selected_scenarios.png",
-            "independent_views.png",
-            "sim_median_nuisance.png",
-            "exp_offsets.png",
-            "avm_normalised_support.png",
-            "ks_bound_distances.png",
-            "mavm_d_plus_support.png",
-            "mavm_d_minus_support.png",
-            "mavm_d_plus_area.png",
-            "mavm_d_minus_area.png",
-            "mavm_d_plus_time.png",
-            "mavm_d_minus_time.png",
-        ),
-    ),
 )
 
 
@@ -230,6 +285,49 @@ def test_valid_example(
     for output in expected_outputs:
         assert (work_dir / output).stat().st_size > 0
 
+    output_root = work_dir / "pyvale-output" / output_directory
+    if example in (
+        "valid/ex02_valid_steady.py",
+        "valid/ex03_valid_transient.py",
+        "valid/ex08_valid_sampling.py",
+    ):
+        reference = np.loadtxt(
+            output_root
+            / ("sampling_bias.csv" if "sampling" in example else "bias_reference.csv"),
+            delimiter=",",
+            skiprows=1,
+        )
+        np.testing.assert_allclose(
+            reference[:, -1], reference[:, -2], rtol=0, atol=1.0e-10
+        )
+        if "steady" in example:
+            expected = (
+                3
+                * (reference[:, 0] - np.min(reference[:, 0]))
+                / np.ptp(reference[:, 0])
+            )
+            np.testing.assert_allclose(reference[:, 1], expected, rtol=0, atol=1.0e-10)
+        elif "transient" in example:
+            final = reference[reference[:, 1] == np.max(reference[:, 1]), 2]
+            assert np.min(final) == pytest.approx(2.0)
+            assert np.max(final) == pytest.approx(5.0)
+            assert np.all(reference[reference[:, 1] == np.min(reference[:, 1]), 2] == 0)
+        else:
+            np.testing.assert_allclose(np.unique(reference[:, 1]), [1.0, 2.0])
+    if example == "valid/ex04_valid_transferable_bounds.py":
+        comparison = json.loads((output_root / "comparison.json").read_text())
+        np.testing.assert_allclose(comparison["bounds_upper"], [75.0, 135.0])
+        np.testing.assert_allclose(comparison["original_upper"], [95.0, 155.0])
+    if example == "valid/ex06_valid_nuisance_profiles.py":
+        profiling = json.loads((output_root / "profiling.json").read_text())
+        assert "sim_trans" in profiling["MAVM"]["retained_axes"]
+        assert "sim_nuis" not in profiling["MAVM"]["retained_axes"]
+        for score in ("total_width", "added_width"):
+            ranking = profiling[score]
+            scores = np.asarray(ranking["scores"])
+            order = np.asarray(ranking["order"])
+            assert np.all(np.diff(scores[order]) >= -1.0e-12)
+            assert len(ranking["cases"]) == 9
     if example == "valid/ex10_valid_pulse25x.py":
         with (
             work_dir / "pyvale-output" / output_directory / "parity.json"
@@ -237,3 +335,11 @@ def test_valid_example(
             parity = json.load(stream)
         assert parity["compared_values"] == 64
         assert parity["maximum_absolute_difference"] < 1e-12
+
+
+def test_valid_gallery_contains_exactly_the_documented_eleven_examples() -> None:
+    examples_root = Path(__file__).resolve().parents[2] / "src/pyvale/examples/valid"
+    assert sorted(path.stem for path in examples_root.glob("ex*.py")) == sorted(
+        name for name, _, _ in EXAMPLES
+    )
+    assert len(EXAMPLES) == 11

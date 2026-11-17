@@ -12,6 +12,7 @@ Synthetic measurements provide a controlled numerical experiment for learning
 three-dimensional validation and tensor-component comparisons.
 """
 
+import json
 from pathlib import Path
 
 import matplotlib
@@ -65,6 +66,10 @@ for name, parameters in parameter_sets.items():
 nominal_sim: io.SimData = sims["nominal"]
 exp_sim: io.SimData = sims["heat_flux_plus_10pct"]
 
+# Record the physical source of each transferable alternative. Parameter changes
+# occur only in generated solver inputs; packaged datasets remain unchanged.
+(output_path / "parameter_sets.json").write_text(json.dumps(parameter_sets, indent=2))
+
 # %%
 # Six strain rosettes sit at the centres of the xz, xy and yz face pairs.
 # All tensors use the global Cartesian frame with aligned sensor axes. Model
@@ -102,11 +107,12 @@ strain_sensors: sens.SensorsPoint = sens.SensorFactory.tensor_point(
         components=("xx", "yy", "zz", "xy", "xz", "yz"),
     ),
 )
-# Small additive strain noise keeps zero shear components meaningful too.
+# Small additive strain noise is well below the parameter-induced strain
+# differences, so the spatial/time pattern comes from the solver perturbation.
 # The seed fixes this teaching example's repeat measurements for reproducibility.
 strain_sensors.set_error_chain(
     [
-        sens.ErrRandGen(sens.GenNormal(std=1.0e-5, seed=42)),
+        sens.ErrRandGen(sens.GenNormal(std=1.0e-7, seed=42)),
     ]
 )
 measurements = np.stack(
@@ -129,7 +135,8 @@ observables = {
     )
 }
 # Keep all three solved parameter settings as separate transferable epistemic
-# alternatives. Each retains a separate conditional aleatory distribution.
+# alternatives. Each contributes one deterministic sample per physical cell;
+# the exp source below contains six repeats.
 model: dict[str, valid.ValidArray] = validprep.sample_sim_sweep(
     {strain_tag: sens.FieldTensor(nominal_sim, norm_keys, dev_keys, sens.EDim.THREED)},
     observables,
@@ -148,11 +155,30 @@ exp = {
         ),
     )
 }
-valid_case = valid.ValidCase(observables, model, exp)
+# Preserve parameter/run identity on the transferable axis for later selections
+# and provenance joins. These are sample metadata, not additional observations.
+parameter_axes = (valid.EValidAxis.EPISTEMIC_TRANS,)
+sim_run_ids = valid.ValidArray(np.arange(len(parameter_sets)), parameter_axes)
+sim_inputs = valid.ValidSampleInputs(
+    parameters={
+        key: valid.ValidArray(
+            np.array(
+                [overrides.get(key, nominal) for overrides in parameter_sets.values()]
+            ),
+            parameter_axes,
+        )
+        for key, nominal in (("surfHeatFlux", 4.67e6), ("ThermExp", 17.8e-6))
+    },
+    run_ids=sim_run_ids,
+)
+valid_case = valid.ValidCase(observables, model, exp, sim_inputs=sim_inputs)
+print("Transferable run IDs:", sim_run_ids.data, tuple(parameter_sets))
 
 # %%
 # 2. Run validation analysis
 # --------------------------
+# Keep this small tutorial serial. scripts/perf_valid.py demonstrates guarded
+# parallel engine execution and measures scaling for larger comparisons.
 # The model is deterministic within each selected parameter scenario, while
 # the experiment has six repeat observations. INCLUDE handles repeated supports.
 valid_result: valid.ValidResult = valid.ValidEngine(
