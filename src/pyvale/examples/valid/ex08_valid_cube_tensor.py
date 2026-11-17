@@ -160,33 +160,37 @@ print(
 # %%
 # 4. Analysis and visualisation
 # ------------------------------
-# Show all six face sites for every tensor component. The nominal model is
-# selected explicitly in a parameter sweep, so these panels compare like cells.
+# Show all six face sites for every tensor component. The ECDF envelope
+# includes every retained epistemic parameter setting without pooling samples.
 point_idxs = tuple(range(len(coords)))
 for component_idx, component_key in enumerate(component_keys):
     fig: Figure
     axes: np.ndarray
-    fig, axes = validplot.plot_valid_cdfs_points(
+    fig, axes = validplot.plot_sim_exp_cdfs(
         valid_case,
-        valid_result,
         strain_tag,
         point_idxs=point_idxs,
         component_idx=component_idx,
         time_idx=4,
-        metric=valid.MetricMAVM(),
         valid_plot_opts=validplot.ValidPlotOpts(x_label=f"{component_key} [1]"),
     )
     fig.savefig(output_path / f"{component_key}_cdfs.png", bbox_inches="tight")
-    fig, axes = validplot.plot_valid_metric_time_points(
-        valid_result,
-        strain_tag,
-        valid.EMetricType.MAVM,
-        point_idxs=point_idxs,
-        selectors={valid.EValidResAxis.COMPONENT: component_idx},
-        output=valid.EMetricOutput.D_MINUS,
-        valid_plot_opts=validplot.ValidPlotOpts(title=component_key),
-    )
-    fig.savefig(output_path / f"{component_key}_d_minus_time.png", bbox_inches="tight")
+    for metric_output, direction in (
+        (valid.EMetricOutput.D_PLUS, "d_plus"),
+        (valid.EMetricOutput.D_MINUS, "d_minus"),
+    ):
+        fig, axes = validplot.plot_valid_metric_time_points(
+            valid_result,
+            strain_tag,
+            valid.EMetricType.MAVM,
+            point_idxs=point_idxs,
+            selectors={valid.EValidResAxis.COMPONENT: component_idx},
+            output=metric_output,
+            valid_plot_opts=validplot.ValidPlotOpts(title=component_key),
+        )
+        fig.savefig(
+            output_path / f"{component_key}_{direction}_time.png", bbox_inches="tight"
+        )
     if not SHOW_PLOTS:
         plt.close("all")
 # %%
@@ -236,29 +240,35 @@ background_fields: dict[str, tuple[str | np.ndarray, sens.SensorDescriptor]] = {
 }
 # Show all face tags through the translucent mesh, including the far faces.
 for background_name, (background_field, descriptor) in background_fields.items():
-    pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
-        valid_result,
-        strain_tag,
-        valid.EMetricType.MAVM,
-        selectors={
-            valid.EValidResAxis.COMPONENT: 0,
-            valid.EValidResAxis.TIME: 4,
-        },
-        output=valid.EMetricOutput.D_MINUS,
-        sim_data=nominal_sim,
-        sim_field=background_field,
-        sim_time_idx=background_time_idx,
-        descriptor=descriptor,
-        sim_coord_units="mm",
-        vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
-        metric_opts=validvis.ValidMetricVisOpts(
-            mesh_opacity=0.4, labels_always_visible=True
-        ),
-    )
-    pv_plot.screenshot(output_path / f"strain_xx_d_minus_on_{background_name}.png")
-    if SHOW_PLOTS:
-        pv_plot.show()
-    pv_plot.close()
+    for metric_output, direction in (
+        (valid.EMetricOutput.D_PLUS, "d_plus"),
+        (valid.EMetricOutput.D_MINUS, "d_minus"),
+    ):
+        pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
+            valid_result,
+            strain_tag,
+            valid.EMetricType.MAVM,
+            selectors={
+                valid.EValidResAxis.COMPONENT: 0,
+                valid.EValidResAxis.TIME: 4,
+            },
+            output=metric_output,
+            sim_data=nominal_sim,
+            sim_field=background_field,
+            sim_time_idx=background_time_idx,
+            descriptor=descriptor,
+            sim_coord_units="mm",
+            vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
+            metric_opts=validvis.ValidMetricVisOpts(
+                mesh_opacity=0.4, labels_always_visible=True
+            ),
+        )
+        pv_plot.screenshot(
+            output_path / f"strain_xx_{direction}_on_{background_name}.png"
+        )
+        if SHOW_PLOTS:
+            pv_plot.show()
+        pv_plot.close()
 
 if SHOW_PLOTS:
     plt.show()

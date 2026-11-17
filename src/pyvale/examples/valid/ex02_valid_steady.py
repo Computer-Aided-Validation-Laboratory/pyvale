@@ -145,17 +145,15 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 # 4. Analysis and visualisation
 # ------------------------------
 # Use the SensorSim appearance options so fonts, resolution and line styles
-# agree with sensor figures. Each CDF panel overlays simulation and experiment;
-# dashed curves show the experimental MAVM confidence bounds.
+# agree with sensor figures. Each panel compares the full selected sim and exp
+# epistemic envelopes, or one ECDF when only one scenario is available.
 
 point_idxs = tuple(range(len(coords)))
 
-fig, axes = validplot.plot_valid_cdfs_points(
+fig, axes = validplot.plot_sim_exp_cdfs(
     valid_case,
-    valid_result,
     temperature_tag,
     point_idxs=point_idxs,
-    metric=valid.MetricMAVM(),
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")

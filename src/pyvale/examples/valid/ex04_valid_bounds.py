@@ -144,17 +144,15 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 # 4. Analysis and visualisation
 # ------------------------------
 # Use the SensorSim appearance options so fonts, resolution and line styles
-# agree with sensor figures. Each CDF panel overlays simulation and experiment;
-# dashed curves show the experimental MAVM confidence bounds.
+# agree with sensor figures. Each panel compares the full selected sim and exp
+# epistemic envelopes, or one ECDF when only one scenario is available.
 point_idxs = tuple(range(len(coords)))
 fig: Figure
 axes: np.ndarray
-fig, axes = validplot.plot_valid_cdfs_points(
+fig, axes = validplot.plot_sim_exp_cdfs(
     valid_case,
-    valid_result,
     temperature_tag,
     point_idxs=point_idxs,
-    metric=valid.MetricMAVM(),
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
@@ -162,11 +160,13 @@ fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 # %%
 # Envelopes describe all retained scenarios at a site. They are pointwise ECDF
 # bounds over the conditional distributions. Show every plate sensor.
-fig, axes = validplot.plot_valid_cdf_envelope_points(
+fig, axes = validplot.plot_sim_ecdfs(
     valid_case,
     temperature_tag,
     source=valid.EValidSource.EXP,
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
+    point_idxs=None,
+    offset=None,
 )
 fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 
@@ -181,29 +181,33 @@ assert sim_data.time is not None
 background_time_idx = sim_data.time.size - 1
 # Show the MAVM d- output directly, with a nonnegative colour scale.
 # The d+ output is stored separately and can be selected in the same way.
-pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
-    valid_result,
-    temperature_tag,
-    valid.EMetricType.MAVM,
-    selectors={
-        valid.EValidResAxis.SIM_TRANS: 0,
-        valid.EValidResAxis.EXP_OFFSET: valid.EEpisOffset.UPPER,
-    },
-    output=valid.EMetricOutput.D_MINUS,
-    sim_data=sim_data,
-    sim_field="temperature",
-    sim_time_idx=background_time_idx,
-    descriptor=sens.SensorDescriptor(
-        name="Temperature", symbol=r"T", units="degC", tag="TC"
-    ),
-    sim_coord_units="mm",
-    vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
-    metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
-)
-pv_plot.screenshot(output_path / "temperature_mavm_d_minus_on_sim.png")
-if SHOW_PLOTS:
-    pv_plot.show()
-pv_plot.close()
+for metric_output, direction in (
+    (valid.EMetricOutput.D_PLUS, "d_plus"),
+    (valid.EMetricOutput.D_MINUS, "d_minus"),
+):
+    pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
+        valid_result,
+        temperature_tag,
+        valid.EMetricType.MAVM,
+        selectors={
+            valid.EValidResAxis.SIM_TRANS: 0,
+            valid.EValidResAxis.EXP_OFFSET: valid.EEpisOffset.UPPER,
+        },
+        output=metric_output,
+        sim_data=sim_data,
+        sim_field="temperature",
+        sim_time_idx=background_time_idx,
+        descriptor=sens.SensorDescriptor(
+            name="Temperature", symbol=r"T", units="degC", tag="TC"
+        ),
+        sim_coord_units="mm",
+        vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
+        metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
+    )
+    pv_plot.screenshot(output_path / f"temperature_mavm_{direction}_on_sim.png")
+    if SHOW_PLOTS:
+        pv_plot.show()
+    pv_plot.close()
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the
 # complete analysis in its own directory prevents clashes with other examples.

@@ -52,7 +52,9 @@ def scene() -> tuple[valid.ValidResult, io.SimData]:
         {valid.EMetricOutput.D_PLUS: plus, valid.EMetricOutput.D_MINUS: minus},
     )
     result = valid.ValidResult(
-        observables, {"temperature": {valid.EMetricType.MAVM: field}}, {}
+        observables,
+        {"temperature": {valid.EMetricType.MAVM: field}},
+        {valid.EMetricType.MAVM: valid.MetricMAVM()},
     )
     sim_data = io.SimData(
         coords=coords.copy(),

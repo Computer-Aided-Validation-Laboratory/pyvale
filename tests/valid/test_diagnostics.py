@@ -106,9 +106,21 @@ def test_family_plot_preserves_conditional_ecdf_probability_mass() -> None:
         np.array([[0.0, 0.0, 2.0], [1.0, 3.0, 3.0]]),
         (valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
     )
-    fig, ax = validplot.plot_valid_ecdf_family(quantity)
-    np.testing.assert_allclose(ax.lines[0].get_ydata(), [0.0, 2.0 / 3.0, 1.0])
-    np.testing.assert_allclose(ax.lines[1].get_ydata(), [0.0, 1.0 / 3.0, 1.0])
+    observable = valid.ValidObservable(
+        components=("response",), geometry=valid.EValidGeometry.GLOBAL
+    )
+    case = valid.ValidCase(
+        {"response": observable}, {"response": quantity}, {"response": quantity}
+    )
+    fig, axes = validplot.plot_sim_ecdfs(
+        case, "response", view=valid.ValidECDFView(bounds=False, scenario_idxs=None)
+    )
+    # The union grid preserves repeated-observation mass in both conditional CDFs.
+    np.testing.assert_allclose(axes[0, 0].lines[0].get_xdata(), [0.0, 0.0, 0.0, 2.0])
+    np.testing.assert_allclose(axes[0, 0].lines[1].get_xdata(), [1.0, 1.0, 3.0, 3.0])
+    np.testing.assert_allclose(
+        axes[0, 0].lines[0].get_ydata(), [0.0, 1 / 3, 2 / 3, 1.0]
+    )
     plt.close(fig)
 
 

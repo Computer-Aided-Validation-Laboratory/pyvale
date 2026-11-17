@@ -389,6 +389,52 @@ class ValidECDF:
     probabilities: np.ndarray
 
 
+class EValidECDFReduce(Enum):
+    KEEP = auto()
+    MEAN = auto()
+    MEDIAN = auto()
+
+
+class EValidECDFCentre(Enum):
+    NONE = auto()
+    MEAN = auto()
+    MEDIAN = auto()
+
+
+@dataclass(slots=True)
+class ValidECDFView:
+    """Select scenarios before nuisance-first, then transferable quantile reduction.
+
+    None index selections retain every index. scenario_idxs overlays original
+    (transferable, nuisance) pairs: () draws none, None draws all selected pairs.
+    Bounds and centre summarise the reduced family, never pooled observations.
+    Offsets are selected separately by the plotting/calculation function.
+    """
+
+    trans_reduce: EValidECDFReduce = EValidECDFReduce.KEEP
+    nuis_reduce: EValidECDFReduce = EValidECDFReduce.KEEP
+    trans_idxs: tuple[int, ...] | None = None
+    nuis_idxs: tuple[int, ...] | None = None
+    bounds: bool = True
+    centre: EValidECDFCentre = EValidECDFCentre.NONE
+    scenario_idxs: tuple[tuple[int, int], ...] | None = ()
+
+
+@dataclass(slots=True)
+class ValidECDFViewData:
+    """Quantiles on a shared probability grid, retaining singleton reduced axes.
+
+    quantiles has axes (transferable, nuisance, offset, probability).
+    scenario_quantiles has axes (selected original scenario, probability).
+    scenarios preserves original joint indices and coherent offset labels.
+    """
+
+    probabilities: np.ndarray
+    quantiles: np.ndarray
+    scenario_quantiles: np.ndarray
+    scenarios: tuple[tuple[int, int, EEpisOffset], ...]
+
+
 class EValidECDFBounds(Enum):
     POINTWISE = auto()
     SUPPORT_SUM = auto()

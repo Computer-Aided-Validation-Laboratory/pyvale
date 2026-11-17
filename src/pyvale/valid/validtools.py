@@ -24,11 +24,15 @@ from pyvale.valid.validtypes import (
     EMetricOutput,
     EValidAxis,
     EValidECDFBounds,
+    EValidECDFCentre,
+    EValidECDFReduce,
     EValidResAxis,
     MAVMCorrection,
     ValidArray,
     ValidECDF,
     ValidECDFSummary,
+    ValidECDFView,
+    ValidECDFViewData,
     ValidMetricField,
     resolve_metric_output,
     validate_ecdf,
@@ -314,4 +318,130 @@ def calc_mavm_correction(
         (comparisons[0], comparisons[1], comparisons[2], comparisons[3]),
         lower_exp_idx,
         upper_exp_idx,
+    )
+
+
+def calc_ecdf_view(
+    quantity: ValidArray,
+    *,
+    view: ValidECDFView | None = None,
+    point_idx: int = 0,
+    component_idx: int = 0,
+    time_idx: int = 0,
+    offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+) -> ValidECDFViewData:
+    """Calculate conditional quantile curves without pooling epistemic samples.
+
+    Select each axis first, then reduce nuisance before transferable uncertainty.
+    Mean/median are pointwise quantile operations with equal scenario weights;
+    they do not assign probabilities to epistemic uncertainty. Original scenario
+    overlays remain unchanged by reductions. None offset explicitly spans every
+    available coherent offset; the default retains nominal values only.
+    """
+    selected_view = ValidECDFView() if view is None else view
+    if not isinstance(selected_view, ValidECDFView):
+        raise TypeError("ECDF view must be ValidECDFView.")
+    if not isinstance(selected_view.centre, EValidECDFCentre):
+        raise TypeError("ECDF centre must be EValidECDFCentre.")
+    axis_indices: list[tuple[int, ...]] = []
+    for axis, indices, reduction in (
+        (
+            EValidAxis.EPISTEMIC_TRANS,
+            selected_view.trans_idxs,
+            selected_view.trans_reduce,
+        ),
+        (EValidAxis.EPISTEMIC_NUIS, selected_view.nuis_idxs, selected_view.nuis_reduce),
+    ):
+        if not isinstance(reduction, EValidECDFReduce):
+            raise TypeError("ECDF reduction must be EValidECDFReduce.")
+        size = (
+            quantity.data.shape[quantity.axes.index(axis)]
+            if axis in quantity.axes
+            else 1
+        )
+        if indices is None:
+            indices = tuple(range(size))
+        if not isinstance(indices, tuple) or not indices:
+            raise ValueError("Epistemic index selections must be nonempty tuples.")
+        if any(
+            isinstance(index, (bool, np.bool_))
+            or not isinstance(index, (int, np.integer))
+            for index in indices
+        ):
+            raise TypeError("Epistemic indices must be integers.")
+        if any(index < 0 or index >= size for index in indices):
+            raise IndexError("Epistemic index is outside the selected axis.")
+        if len(set(indices)) != len(indices):
+            raise ValueError("Epistemic index selections must be unique.")
+        axis_indices.append(indices)
+    trans_indices, nuis_indices = axis_indices
+    if offset is not None and not isinstance(offset, EEpisOffset):
+        raise TypeError("Offset must be EEpisOffset or None.")
+    offsets = (
+        (tuple(EEpisOffset) if quantity.offsets is not None else (EEpisOffset.NOMINAL,))
+        if offset is None
+        else (offset,)
+    )
+    scenario_pairs = selected_view.scenario_idxs
+    if scenario_pairs is None:
+        scenario_pairs = tuple(product(trans_indices, nuis_indices))
+    if not isinstance(scenario_pairs, tuple):
+        raise TypeError("Scenario selections must be a tuple of joint index pairs.")
+    for pair in scenario_pairs:
+        if not isinstance(pair, tuple) or len(pair) != 2:
+            raise ValueError("Select scenarios using (transferable, nuisance) pairs.")
+        if any(
+            isinstance(index, (bool, np.bool_))
+            or not isinstance(index, (int, np.integer))
+            for index in pair
+        ):
+            raise TypeError("Scenario indices must be integers.")
+        if pair[0] not in trans_indices or pair[1] not in nuis_indices:
+            raise IndexError("Scenario pair is outside the selected epistemic indices.")
+    if len(set(scenario_pairs)) != len(scenario_pairs):
+        raise ValueError("Scenario pairs must be unique.")
+    scenarios = tuple(product(trans_indices, nuis_indices, offsets))
+    cdfs = []
+    for trans_idx, nuis_idx, selected_offset in scenarios:
+        samples = quantity.select_aleatory(
+            point_idx,
+            component_idx,
+            time_idx,
+            epis_trans_idx=trans_idx,
+            epis_nuis_idx=nuis_idx,
+            offset=selected_offset,
+        )
+        cdfs.append(calc_ecdf(samples))
+    probabilities = np.unique(np.concatenate([cdf.probabilities for cdf in cdfs]))
+    original_quantiles = np.stack(
+        [_evaluate_ecdf_quantiles(cdf, probabilities) for cdf in cdfs]
+    )
+    quantiles = original_quantiles.reshape(
+        len(trans_indices), len(nuis_indices), len(offsets), probabilities.size
+    )
+    for axis, reduction in (
+        (1, selected_view.nuis_reduce),
+        (0, selected_view.trans_reduce),
+    ):
+        if reduction is EValidECDFReduce.MEAN:
+            quantiles = np.mean(quantiles, axis=axis, keepdims=True)
+        elif reduction is EValidECDFReduce.MEDIAN:
+            quantiles = np.median(quantiles, axis=axis, keepdims=True)
+    selected_scenarios = tuple(
+        (trans_idx, nuis_idx, selected_offset)
+        for trans_idx, nuis_idx in scenario_pairs
+        for selected_offset in offsets
+    )
+    scenario_positions = {scenario: index for index, scenario in enumerate(scenarios)}
+    overlay_indices = [scenario_positions[scenario] for scenario in selected_scenarios]
+    overlay_quantiles = original_quantiles[overlay_indices]
+    if (
+        np.prod(quantiles.shape[:-1]) > 1
+        and not selected_view.bounds
+        and selected_view.centre is EValidECDFCentre.NONE
+        and not selected_scenarios
+    ):
+        raise ValueError("Select bounds, a centre curve or scenario overlays.")
+    return ValidECDFViewData(
+        probabilities, quantiles, overlay_quantiles, selected_scenarios
     )

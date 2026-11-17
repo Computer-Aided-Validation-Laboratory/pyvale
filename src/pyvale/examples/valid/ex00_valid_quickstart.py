@@ -133,40 +133,44 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 point_idxs = tuple(range(len(coords)))
 fig: Figure
 axes: np.ndarray
-fig, axes = validplot.plot_valid_cdfs_points(
+fig, axes = validplot.plot_sim_exp_cdfs(
     valid_case,
-    valid_result,
     temperature_tag,
     point_idxs=point_idxs,
     time_idx=4,
-    metric=valid.MetricMAVM(),
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
 # %%
-fig, axes = validplot.plot_valid_cdf_envelope_points(
+fig, axes = validplot.plot_sim_ecdfs(
     valid_case,
     temperature_tag,
     source=valid.EValidSource.EXP,
     time_idx=4,
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
+    point_idxs=None,
+    offset=None,
 )
 fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 
 # %%
-fig, axes = validplot.plot_valid_metric_time_points(
-    valid_result,
-    temperature_tag,
-    valid.EMetricType.MAVM,
-    point_idxs=point_idxs,
-    selectors={
-        valid.EValidResAxis.SIM_TRANS: 0,
-        valid.EValidResAxis.EXP_OFFSET: valid.EEpisOffset.UPPER,
-    },
-    output=valid.EMetricOutput.D_PLUS,
-)
-fig.savefig(output_path / "temperature_d_plus_time.png", bbox_inches="tight")
+for metric_output, direction in (
+    (valid.EMetricOutput.D_PLUS, "d_plus"),
+    (valid.EMetricOutput.D_MINUS, "d_minus"),
+):
+    fig, axes = validplot.plot_valid_metric_time_points(
+        valid_result,
+        temperature_tag,
+        valid.EMetricType.MAVM,
+        point_idxs=point_idxs,
+        selectors={
+            valid.EValidResAxis.SIM_TRANS: 0,
+            valid.EValidResAxis.EXP_OFFSET: valid.EEpisOffset.UPPER,
+        },
+        output=metric_output,
+    )
+    fig.savefig(output_path / f"temperature_{direction}_time.png", bbox_inches="tight")
 
 # %%
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
@@ -177,34 +181,37 @@ assert sim_data.time is not None
 background_time_idx = sim_data.time.size - 1
 
 
-pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
-    valid_result,
-    temperature_tag,
-    valid.EMetricType.MAVM,
-    selectors={
-        valid.EValidResAxis.SIM_TRANS: 0,
-        valid.EValidResAxis.TIME: 4,
-        valid.EValidResAxis.EXP_OFFSET: valid.EEpisOffset.UPPER,
-    },
-    output=valid.EMetricOutput.D_MINUS,
-    sim_data=sim_data,
-    sim_field="temperature",
-    sim_time_idx=background_time_idx,
-    descriptor=sens.SensorDescriptor(
-        name="Temperature", symbol=r"T", units="degC", tag="TC"
-    ),
-    sim_coord_units="mm",
-    vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
-    metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
-)
-pv_plot.screenshot(output_path / "temperature_mavm_d_minus_on_sim.png")
+for metric_output, direction in (
+    (valid.EMetricOutput.D_PLUS, "d_plus"),
+    (valid.EMetricOutput.D_MINUS, "d_minus"),
+):
+    pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
+        valid_result,
+        temperature_tag,
+        valid.EMetricType.MAVM,
+        selectors={
+            valid.EValidResAxis.SIM_TRANS: 0,
+            valid.EValidResAxis.TIME: 4,
+            valid.EValidResAxis.EXP_OFFSET: valid.EEpisOffset.UPPER,
+        },
+        output=metric_output,
+        sim_data=sim_data,
+        sim_field="temperature",
+        sim_time_idx=background_time_idx,
+        descriptor=sens.SensorDescriptor(
+            name="Temperature", symbol=r"T", units="degC", tag="TC"
+        ),
+        sim_coord_units="mm",
+        vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
+        metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
+    )
+    pv_plot.screenshot(output_path / f"temperature_mavm_{direction}_on_sim.png")
 
+    # %%
+    if SHOW_PLOTS:
+        pv_plot.show()
+        plt.show()
+    else:
+        plt.close("all")
 
-# %%
-if SHOW_PLOTS:
-    pv_plot.show()
-    plt.show()
-else:
-    plt.close("all")
-
-pv_plot.close()
+    pv_plot.close()

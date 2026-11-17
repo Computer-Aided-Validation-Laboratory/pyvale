@@ -27,13 +27,13 @@ import pyvale.sensorsim as sens
 from pyvale import valid
 from pyvale.valid import validplot, validvis
 
+# %%
 matplotlib.use("Agg")
 
-# %%
-# Console inspection is printed below. Enable interactive windows with SHOW_PLOTS.
 SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
+
 output_path = Path.cwd() / "pyvale-output" / "valid_ex3_epistemic"
 output_path.mkdir(parents=True, exist_ok=True)
 
@@ -82,19 +82,23 @@ observables = {
 # then perturbed. Each setting contains its own six aleatory observations.
 # Physical axes identify each comparison cell; ALEATORY holds its repeated
 # observations. The declared axis order matches the arrays in the archive.
+
 sim_axes = (
     valid.EValidAxis.POINT,
     valid.EValidAxis.COMPONENT,
     valid.EValidAxis.EPISTEMIC_TRANS,
     valid.EValidAxis.ALEATORY,
 )
+
 exp_axes = (
     valid.EValidAxis.POINT,
     valid.EValidAxis.COMPONENT,
     valid.EValidAxis.ALEATORY,
 )
+
 sim_arrays: dict[str, valid.ValidArray] = {}
 exp_arrays: dict[str, valid.ValidArray] = {}
+
 for observable_tag, sim_values, exp_values in (
     (temperature_tag, sim_temp, exp_temp),
     (strain_tag, sim_strain, exp_strain),
@@ -132,17 +136,15 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 # 4. Analysis and visualisation
 # ------------------------------
 # Use the SensorSim appearance options so fonts, resolution and line styles
-# agree with sensor figures. Each CDF panel overlays simulation and experiment;
-# dashed curves show the experimental MAVM confidence bounds.
+# agree with sensor figures. Each panel compares the full selected sim and exp
+# epistemic envelopes, or one ECDF when only one scenario is available.
 point_idxs = tuple(range(len(coords)))
 fig: Figure
 axes: np.ndarray
-fig, axes = validplot.plot_valid_cdfs_points(
+fig, axes = validplot.plot_sim_exp_cdfs(
     valid_case,
-    valid_result,
     temperature_tag,
     point_idxs=point_idxs,
-    metric=valid.MetricMAVM(),
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
@@ -152,10 +154,12 @@ fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 # bounds over the conditional distributions. Show every plate sensor.
 # point_idxs=None plots every sensor. Supply a tuple to choose points in order,
 # and set rows and/or columns to control the automatically sized landscape grid.
-fig, axes = validplot.plot_valid_cdf_envelope_points(
+fig, axes = validplot.plot_sim_ecdfs(
     valid_case,
     temperature_tag,
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
+    point_idxs=None,
+    offset=None,
 )
 fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 
@@ -173,28 +177,32 @@ assert sim_data.time is not None
 background_time_idx = sim_data.time.size - 1
 # Show the MAVM d- output directly, with a nonnegative colour scale.
 # The d+ output is stored separately and can be selected in the same way.
-pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
-    valid_result,
-    temperature_tag,
-    valid.EMetricType.MAVM,
-    selectors={
-        valid.EValidResAxis.SIM_TRANS: 0,
-    },
-    output=valid.EMetricOutput.D_MINUS,
-    sim_data=sim_data,
-    sim_field="temperature",
-    sim_time_idx=background_time_idx,
-    descriptor=sens.SensorDescriptor(
-        name="Temperature", symbol=r"T", units="degC", tag="TC"
-    ),
-    sim_coord_units="mm",
-    vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
-    metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
-)
-pv_plot.screenshot(output_path / "temperature_mavm_d_minus_on_sim.png")
-if SHOW_PLOTS:
-    pv_plot.show()
-pv_plot.close()
+for metric_output, direction in (
+    (valid.EMetricOutput.D_PLUS, "d_plus"),
+    (valid.EMetricOutput.D_MINUS, "d_minus"),
+):
+    pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
+        valid_result,
+        temperature_tag,
+        valid.EMetricType.MAVM,
+        selectors={
+            valid.EValidResAxis.SIM_TRANS: 0,
+        },
+        output=metric_output,
+        sim_data=sim_data,
+        sim_field="temperature",
+        sim_time_idx=background_time_idx,
+        descriptor=sens.SensorDescriptor(
+            name="Temperature", symbol=r"T", units="degC", tag="TC"
+        ),
+        sim_coord_units="mm",
+        vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
+        metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
+    )
+    pv_plot.screenshot(output_path / f"temperature_mavm_{direction}_on_sim.png")
+    if SHOW_PLOTS:
+        pv_plot.show()
+    pv_plot.close()
 
 
 # %%

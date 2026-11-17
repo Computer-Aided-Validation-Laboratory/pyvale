@@ -16,7 +16,7 @@ from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_vis
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.visualopts import VisOptsSimSensors
 from pyvale.sensorsim.visualtools import create_pv_plotter
-from pyvale.valid.metricstrategy import EMetricType
+from pyvale.valid.metricstrategy import EMetricScale, EMetricType
 from pyvale.valid.validchecks import validate_real_array
 from pyvale.valid.validtools import create_metric_label, extract_metric_values
 from pyvale.valid.validtypes import (
@@ -235,7 +235,7 @@ def plot_valid_metric_on_sim(
     point_mesh.point_data["validation_point_id"] = point_idxs.copy()
     units = (
         "1"
-        if metric in (EMetricType.KS, EMetricType.CVM, EMetricType.RELATIVE_ERROR)
+        if result.metric_configs[metric].get_scale() is not EMetricScale.PHYSICAL
         else observable_data.phys_units
     )
     metric_label = metric_options.metric_label or create_metric_label(metric, output)

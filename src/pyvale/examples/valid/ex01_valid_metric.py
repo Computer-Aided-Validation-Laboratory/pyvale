@@ -16,7 +16,6 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from pyvale import valid
@@ -112,15 +111,13 @@ for metric_type, metric_field in metrics.items():
 # %%
 # 4. Analysis and visualisation
 # ------------------------------
-# Both source distributions appear in the legend. The title identifies the two
-# directional distances d+ and d- as separate numerical outputs.
+# Both source distributions appear in the legend. Directional MAVM distances
+# are plotted separately below; the ECDF comparison needs no metric result.
 fig: Figure
-ax: Axes
-fig, ax = validplot.plot_valid_cdfs(
+axes: np.ndarray
+fig, axes = validplot.plot_sim_exp_cdfs(
     valid_case,
-    valid_result,
     observable_tag,
-    metric=valid.MetricMAVM(),
     valid_plot_opts=validplot.ValidPlotOpts(x_label="Observable [unit]"),
 )
 fig.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")

@@ -4,9 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Plot controls and physical point selection for validation diagnostics."""
+"""Conditional ECDF views, physical selection and metric figure controls."""
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -14,48 +13,6 @@ from plate_fixture import load_plate_case
 
 from pyvale import valid
 from pyvale.valid import validplot
-
-matplotlib.use("Agg")
-
-
-def test_cdf_panels_identify_sources_and_preserve_point_selection() -> None:
-    valid_case = load_plate_case(transient=True)
-    result = valid.ValidEngine([valid.MetricMAVM()]).run(valid_case)
-    options = validplot.ValidPlotOpts(
-        resolution=120,
-        lw=2.5,
-        font_ax_size=13,
-        x_label="Thermocouple temperature [degC]",
-        sim_label="Nominal model",
-        exp_label="Synthetic measurements",
-    )
-    fig, axes = validplot.plot_valid_cdfs_points(
-        valid_case,
-        result,
-        "temperature",
-        point_idxs=(5, 0, 11),
-        columns=2,
-        time_idx=4,
-        metric=valid.MetricMAVM(),
-        valid_plot_opts=options,
-    )
-    assert axes.shape == (2, 2)
-    assert not axes[1, 1].get_visible()
-    assert fig.dpi == 120
-    for point, ax in zip((5, 0, 11), axes.flat, strict=False):
-        observations = valid_case.sim["temperature"].select_aleatory(point, 0, 4)
-        np.testing.assert_allclose(ax.lines[0].get_xdata()[1:], np.unique(observations))
-        assert f"Point {point}" in ax.get_title()
-        assert "d+=" in ax.get_title() and "d-=" in ax.get_title()
-        assert ax.get_xlabel() == options.x_label
-        assert ax.title.get_fontsize() == options.font_head_size
-        assert ax.xaxis.label.get_fontsize() == 13
-        assert ax.lines[0].get_linewidth() == 2.5
-        assert [text.get_text() for text in ax.get_legend().get_texts()][:2] == [
-            options.sim_label,
-            options.exp_label,
-        ]
-    plt.close(fig)
 
 
 def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
@@ -81,153 +38,6 @@ def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
         )
         assert ax.get_ylabel() == "MAVM d− [degC]"
     assert valid.EValidResAxis.POINT not in selectors
-    plt.close(fig)
-
-
-def test_envelope_identifies_exp_source() -> None:
-    valid_case = load_plate_case()
-    fig, ax = validplot.plot_valid_cdf_envelope(
-        valid_case,
-        "temperature",
-        source=valid.EValidSource.EXP,
-    )
-    assert all("Exp" in line.get_label() for line in ax.lines)
-    plt.close(fig)
-
-
-@pytest.mark.parametrize("points, columns", [((), 2), ((0,), 0)])
-def test_point_panels_reject_empty_or_invalid_layout(
-    points: tuple[int, ...],
-    columns: int,
-) -> None:
-    valid_case = load_plate_case()
-    result = valid.ValidEngine([valid.MetricAVM()]).run(valid_case)
-    with pytest.raises(ValueError, match="point"):
-        validplot.plot_valid_cdfs_points(
-            valid_case,
-            result,
-            "temperature",
-            point_idxs=points,
-            columns=columns,
-        )
-
-
-def test_envelope_grid_defaults_to_every_point_with_plot_options() -> None:
-    valid_case = load_plate_case(transient=True, epistemic=True, offsets=True)
-    options = validplot.ValidPlotOpts(
-        resolution=110,
-        lw=2.0,
-        font_head_size=11,
-        title="Calibration envelope",
-        x_label="Temperature [degC]",
-        exp_label="Measured temperatures",
-    )
-    fig, axes = validplot.plot_valid_cdf_envelope_points(
-        valid_case,
-        "temperature",
-        source=valid.EValidSource.EXP,
-        time_idx=4,
-        valid_plot_opts=options,
-    )
-    assert axes.shape == (3, 4)
-    assert fig.dpi == 110
-    assert fig.get_figwidth() > fig.get_figheight()
-    width, height = options.single_fig_size_landscape
-    np.testing.assert_allclose(fig.get_size_inches(), (width * 4, height * 3))
-    for point, ax in enumerate(axes.flat):
-        assert f"Point {point}: temperature, t=200 s" in ax.get_title()
-        assert "Calibration envelope" in ax.get_title()
-        assert ax.title.get_fontsize() == 11
-        assert ax.get_xlabel() == options.x_label
-        assert ax.lines[0].get_linewidth() == 2.0
-        assert "Measured temperatures" in ax.lines[0].get_label()
-        support, lower, upper = valid.extract_ecdf_envelope(
-            valid_case.exp["temperature"],
-            point_idx=point,
-            time_idx=4,
-        )
-        np.testing.assert_array_equal(ax.lines[0].get_xdata()[1:], support)
-        np.testing.assert_array_equal(ax.lines[0].get_ydata()[1:], lower)
-        np.testing.assert_array_equal(ax.lines[1].get_ydata()[1:], upper)
-    plt.close(fig)
-
-
-@pytest.mark.parametrize(
-    ("rows", "columns", "shape"),
-    ((None, None, (2, 2)), (1, None, (1, 3)), (None, 2, (2, 2)), (2, 3, (2, 3))),
-)
-def test_envelope_grid_preserves_point_order_and_scenario_selection(
-    rows: int | None,
-    columns: int | None,
-    shape: tuple[int, int],
-) -> None:
-    valid_case = load_plate_case(epistemic=True)
-    fig, axes = validplot.plot_valid_cdf_envelope_points(
-        valid_case,
-        "temperature",
-        point_idxs=(11, 0, 5),
-        epis_trans_idx=1,
-        rows=rows,
-        columns=columns,
-    )
-    assert axes.shape == shape
-    for point, ax in zip((11, 0, 5), axes.flat, strict=False):
-        expected = valid_case.sim["temperature"].select_aleatory(
-            point, 0, 0, epis_trans_idx=1
-        )
-        np.testing.assert_array_equal(ax.lines[0].get_xdata()[1:], np.unique(expected))
-        assert f"Point {point}:" in ax.get_title()
-    assert all(not ax.get_visible() for ax in axes.flat[3:])
-    plt.close(fig)
-
-
-@pytest.mark.parametrize(
-    ("points", "rows", "columns"),
-    (
-        ((), None, None),
-        ((-1,), None, None),
-        ((12,), None, None),
-        ((0, 1), 1, 1),
-        ((0,), 0, None),
-        ((0,), None, -1),
-    ),
-)
-def test_envelope_grid_rejects_invalid_points_and_layout(
-    points: tuple[int, ...],
-    rows: int | None,
-    columns: int | None,
-) -> None:
-    with pytest.raises(ValueError, match="[Pp]oint"):
-        validplot.plot_valid_cdf_envelope_points(
-            load_plate_case(),
-            "temperature",
-            point_idxs=points,
-            rows=rows,
-            columns=columns,
-        )
-
-
-def test_envelope_grid_supports_a_single_global_observable() -> None:
-    observable_tag = "response"
-    observables = {
-        observable_tag: valid.ValidObservable(
-            components=("response",),
-            geometry=valid.EValidGeometry.GLOBAL,
-            coords=None,
-            phys_units="unit",
-        )
-    }
-    samples = {
-        observable_tag: valid.ValidArray(
-            np.array([0.0, 1.0, 2.0]), (valid.EValidAxis.ALEATORY,)
-        )
-    }
-    fig, axes = validplot.plot_valid_cdf_envelope_points(
-        valid.ValidCase(observables, samples, samples),
-        observable_tag,
-    )
-    assert axes.shape == (1, 1)
-    assert "Point 0: response, steady" == axes[0, 0].get_title()
     plt.close(fig)
 
 
@@ -261,47 +71,276 @@ def test_directional_outputs_can_share_time_axes() -> None:
     plt.close(fig)
 
 
-def test_source_defaults_and_confidence_shading_are_configurable() -> None:
-    valid_case = load_plate_case()
-    result = valid.ValidEngine([valid.MetricMAVM()]).run(valid_case)
-    options = validplot.ValidPlotOpts(
-        sim_color="purple",
-        exp_color="green",
-        sim_linestyle="--",
-        exp_linestyle=":",
-        bounds_color="red",
-        bounds_alpha=0.37,
+def create_epistemic_case() -> valid.ValidCase:
+    # Nuisance medians are [8,3,5]; their transferable median is 5.
+    # Reversing reduction order would give median([2,6,7])=6 instead.
+    shifts = np.array([[1.0, 9.0, 8.0], [2.0, 3.0, 7.0], [4.0, 6.0, 5.0]])
+    samples = shifts[..., None] + np.array([0.0, 2.0])
+    quantity = valid.ValidArray(
+        samples,
+        (
+            valid.EValidAxis.EPISTEMIC_TRANS,
+            valid.EValidAxis.EPISTEMIC_NUIS,
+            valid.EValidAxis.ALEATORY,
+        ),
     )
-    fig, ax = validplot.plot_valid_cdfs(
-        valid_case,
-        result,
-        "temperature",
-        metric=valid.MetricMAVM(),
-        valid_plot_opts=options,
+    observable = valid.ValidObservable(
+        components=("length",), geometry=valid.EValidGeometry.GLOBAL, phys_units="m"
     )
-    assert [line.get_label() for line in ax.lines] == [
-        "Sim.",
-        "Exp.",
-        "Exp. conf. lower",
-        "Exp. conf. upper",
-    ]
-    assert ax.lines[0].get_color() == "purple"
-    assert ax.lines[0].get_linestyle() == "--"
-    assert ax.lines[1].get_color() == "green"
-    assert ax.lines[1].get_linestyle() == ":"
+    exp = valid.ValidArray(np.array([2.0, 5.0, 8.0]), (valid.EValidAxis.ALEATORY,))
+    return valid.ValidCase(
+        {"length": observable}, {"length": quantity}, {"length": exp}
+    )
+
+
+def test_quantile_reductions_preserve_axes_and_use_nuisance_first() -> None:
+    case = create_epistemic_case()
+    quantity = case.sim["length"]
+    curves = valid.calc_ecdf_view(quantity)
+    assert curves.quantiles.shape == (3, 3, 1, 2)
+    np.testing.assert_array_equal(curves.probabilities, [0.5, 1.0])
+    np.testing.assert_array_equal(curves.quantiles[..., 0, :], quantity.data)
+    median_nuis = valid.calc_ecdf_view(
+        quantity, view=valid.ValidECDFView(nuis_reduce=valid.EValidECDFReduce.MEDIAN)
+    )
+    np.testing.assert_array_equal(
+        median_nuis.quantiles[:, 0, 0], [[8.0, 10.0], [3.0, 5.0], [5.0, 7.0]]
+    )
+    median_both = valid.calc_ecdf_view(
+        quantity,
+        view=valid.ValidECDFView(
+            nuis_reduce=valid.EValidECDFReduce.MEDIAN,
+            trans_reduce=valid.EValidECDFReduce.MEDIAN,
+        ),
+    )
+    np.testing.assert_array_equal(median_both.quantiles, [[[[5.0, 7.0]]]])
+    mean_both = valid.calc_ecdf_view(
+        quantity,
+        view=valid.ValidECDFView(
+            nuis_reduce=valid.EValidECDFReduce.MEAN,
+            trans_reduce=valid.EValidECDFReduce.MEAN,
+        ),
+    )
+    np.testing.assert_allclose(mean_both.quantiles, [[[[5.0, 7.0]]]])
+
+
+def test_selection_precedes_reduction_and_original_joint_overlays_are_preserved() -> (
+    None
+):
+    quantity = create_epistemic_case().sim["length"]
+    view = valid.ValidECDFView(
+        trans_idxs=(2, 0),
+        nuis_idxs=(1, 2),
+        nuis_reduce=valid.EValidECDFReduce.MEAN,
+        scenario_idxs=((0, 2), (2, 1)),
+    )
+    curves = valid.calc_ecdf_view(quantity, view=view)
+    np.testing.assert_array_equal(curves.quantiles[:, 0, 0], [[5.5, 7.5], [8.5, 10.5]])
+    assert curves.scenarios == (
+        (0, 2, valid.EEpisOffset.NOMINAL),
+        (2, 1, valid.EEpisOffset.NOMINAL),
+    )
+    np.testing.assert_array_equal(curves.scenario_quantiles, [[8.0, 10.0], [6.0, 8.0]])
+
+
+def test_unequal_aleatory_counts_use_the_union_probability_grid() -> None:
+    quantity = valid.ValidArray(
+        np.array([[0.0, 10.0, np.nan], [2.0, 3.0, 20.0]]),
+        (valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
+    )
+    curves = valid.calc_ecdf_view(quantity)
+    np.testing.assert_allclose(curves.probabilities, [1 / 3, 0.5, 2 / 3, 1.0])
+    np.testing.assert_array_equal(
+        curves.quantiles[:, 0, 0], [[0.0, 0.0, 10.0, 10.0], [2.0, 3.0, 3.0, 20.0]]
+    )
+
+
+def test_crossing_scenarios_form_pointwise_bounds_not_two_selected_scenarios() -> None:
+    quantity = valid.ValidArray(
+        np.array([[0.0, 10.0], [4.0, 6.0]]),
+        (valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
+    )
+    obs = valid.ValidObservable(
+        components=("length",), geometry=valid.EValidGeometry.GLOBAL
+    )
+    case = valid.ValidCase({"length": obs}, {"length": quantity}, {"length": quantity})
+    fig, axes = validplot.plot_sim_ecdfs(case, "length")
+    ax = axes[0, 0]
+    np.testing.assert_array_equal(ax.lines[0].get_xdata()[1:], [0.0, 6.0])
+    np.testing.assert_array_equal(ax.lines[1].get_xdata()[1:], [4.0, 10.0])
     assert len(ax.collections) == 1
-    assert ax.collections[0].get_alpha() == 0.37
+    assert "confidence" not in " ".join(line.get_label() for line in ax.lines)
+    plt.close(fig)
+
+
+def test_offsets_are_explicit_and_retained_as_coherent_scenarios() -> None:
+    quantity = valid.ValidArray(
+        np.array([1.0, 3.0]),
+        (valid.EValidAxis.ALEATORY,),
+        valid.EpistemicOffsets(0.5, 2.0),
+    )
+    nominal = valid.calc_ecdf_view(quantity)
+    assert nominal.quantiles.shape == (1, 1, 1, 2)
+    np.testing.assert_array_equal(nominal.quantiles[0, 0, 0], [1.0, 3.0])
+    all_offsets = valid.calc_ecdf_view(
+        quantity, offset=None, view=valid.ValidECDFView(scenario_idxs=None)
+    )
+    assert all_offsets.quantiles.shape == (1, 1, 3, 2)
+    np.testing.assert_array_equal(
+        all_offsets.quantiles[0, 0], [[1.0, 3.0], [0.5, 2.5], [3.0, 5.0]]
+    )
+    assert tuple(scenario[2] for scenario in all_offsets.scenarios) == tuple(
+        valid.EEpisOffset
+    )
+
+
+@pytest.mark.parametrize(
+    "centre, expected",
+    [
+        (valid.EValidECDFCentre.MEAN, [5.0, 7.0]),
+        (valid.EValidECDFCentre.MEDIAN, [5.0, 7.0]),
+    ],
+)
+def test_centre_curves_and_selected_scenarios_can_be_combined(
+    centre: valid.EValidECDFCentre, expected: list[float]
+) -> None:
+    view = valid.ValidECDFView(centre=centre, scenario_idxs=((0, 0), (2, 2)))
+    fig, axes = validplot.plot_sim_ecdfs(create_epistemic_case(), "length", view=view)
+    ax = axes[0, 0]
+    assert len(ax.lines) == 5  # Two bounds, one centre, two original curves.
+    np.testing.assert_allclose(ax.lines[2].get_xdata()[1:], expected)
+    assert ax.lines[2].get_label() == f"Sim. {centre.name.lower()} quantile"
+    np.testing.assert_array_equal(ax.lines[3].get_xdata()[1:], [1.0, 3.0])
+    np.testing.assert_array_equal(ax.lines[4].get_xdata()[1:], [5.0, 7.0])
+    plt.close(fig)
+
+
+def test_independent_sim_exp_views_and_single_scenario_have_no_duplicate_shading() -> (
+    None
+):
+    case = create_epistemic_case()
+    fig, axes = validplot.plot_sim_exp_cdfs(
+        case,
+        "length",
+        sim_view=valid.ValidECDFView(nuis_reduce=valid.EValidECDFReduce.MEDIAN),
+    )
+    ax = axes[0, 0]
+    assert len(ax.lines) == 3
+    np.testing.assert_array_equal(ax.lines[0].get_xdata()[1:], [3.0, 5.0])
+    np.testing.assert_array_equal(ax.lines[1].get_xdata()[1:], [8.0, 10.0])
+    assert ax.lines[2].get_label() == "Exp."
+    assert len(ax.collections) == 1
+    assert "d+=" not in ax.get_title()
+    plt.close(fig)
+    fig, axes = validplot.plot_exp_ecdfs(
+        case, "length", view=valid.ValidECDFView(scenario_idxs=None)
+    )
+    assert len(axes[0, 0].lines) == 1
+    assert not axes[0, 0].collections
+    plt.close(fig)
+
+
+def test_many_scenarios_default_to_two_bounds_and_honour_style_controls() -> None:
+    case = create_epistemic_case()
+    case.sim["length"] = valid.ValidArray(
+        np.arange(1000.0)[:, None] + np.array([0.0, 1.0]),
+        (valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
+    )
+    options = validplot.ValidPlotOpts(
+        sim_color="purple", bounds_color="red", bounds_alpha=0.37, lower_linestyle="-."
+    )
+    fig, axes = validplot.plot_sim_ecdfs(case, "length", valid_plot_opts=options)
+    ax = axes[0, 0]
+    assert len(ax.lines) == 2
+    assert ax.lines[0].get_color() == "purple"
+    assert ax.lines[0].get_linestyle() == "-."
     np.testing.assert_allclose(
-        ax.collections[0].get_facecolor()[0], (1.0, 0.0, 0.0, 0.37)
+        ax.collections[0].get_facecolor()[0], [1.0, 0.0, 0.0, 0.37]
     )
     plt.close(fig)
-    options.shade_bounds = False
-    fig, ax = validplot.plot_valid_cdf_envelope(
-        valid_case,
+
+
+def test_panels_preserve_point_order_and_general_figure_options() -> None:
+    case = load_plate_case(transient=True, epistemic=True)
+    options = validplot.ValidPlotOpts(
+        resolution=120, lw=2.5, font_ax_size=13, x_label="Temperature [degC]"
+    )
+    fig, axes = validplot.plot_sim_exp_cdfs(
+        case,
         "temperature",
-        source=valid.EValidSource.EXP,
+        point_idxs=(5, 0, 11),
+        columns=2,
+        time_idx=4,
         valid_plot_opts=options,
     )
-    assert not ax.collections
-    assert all(line.get_color() == "green" for line in ax.lines)
+    assert axes.shape == (2, 2)
+    assert not axes[1, 1].get_visible()
+    assert fig.dpi == 120
+    for point, ax in zip((5, 0, 11), axes.flat, strict=False):
+        assert f"Point {point}" in ax.get_title()
+        assert ax.get_xlabel() == options.x_label
+        assert ax.xaxis.label.get_fontsize() == 13
+        assert ax.lines[0].get_linewidth() == 2.5
+        curves = valid.calc_ecdf_view(
+            case.sim["temperature"], point_idx=point, time_idx=4
+        )
+        np.testing.assert_allclose(
+            ax.lines[0].get_xdata()[1:], np.min(curves.quantiles, axis=(0, 1, 2))
+        )
+    plt.close(fig)
+    fig, axes = validplot.plot_exp_ecdfs(
+        case, "temperature", point_idxs=None, time_idx=4
+    )
+    assert axes.size == 12
+    plt.close(fig)
+
+
+@pytest.mark.parametrize(
+    "points, exception",
+    [
+        ((), ValueError),
+        ((-1,), IndexError),
+        ((12,), IndexError),
+        ((True,), TypeError),
+        ((0.5,), TypeError),
+    ],
+)
+def test_invalid_points_do_not_create_figures(
+    points: tuple[int, ...], exception: type[Exception]
+) -> None:
+    figures = plt.get_fignums()
+    with pytest.raises(exception):
+        validplot.plot_sim_ecdfs(load_plate_case(), "temperature", point_idxs=points)
+    assert plt.get_fignums() == figures
+
+
+@pytest.mark.parametrize(
+    "view, exception",
+    [
+        (valid.ValidECDFView(trans_idxs=()), ValueError),
+        (valid.ValidECDFView(trans_idxs=(3,)), IndexError),
+        (valid.ValidECDFView(trans_idxs=(0, 0)), ValueError),
+        (valid.ValidECDFView(trans_idxs=(True,)), TypeError),
+        (valid.ValidECDFView(scenario_idxs=((0, 3),)), IndexError),
+        (valid.ValidECDFView(scenario_idxs=((0, 0), (0, 0))), ValueError),
+        (valid.ValidECDFView(bounds=False), ValueError),
+    ],
+)
+def test_invalid_views_fail_before_plotting(
+    view: valid.ValidECDFView, exception: type[Exception]
+) -> None:
+    figures = plt.get_fignums()
+    with pytest.raises(exception):
+        validplot.plot_sim_ecdfs(create_epistemic_case(), "length", view=view)
+    assert plt.get_fignums() == figures
+
+
+def test_existing_axes_support_composition_but_reject_multiple_points() -> None:
+    fig, ax = plt.subplots()
+    returned, axes = validplot.plot_sim_ecdfs(create_epistemic_case(), "length", ax=ax)
+    assert returned is fig and axes[0, 0] is ax
+    with pytest.raises(ValueError, match="one point"):
+        validplot.plot_sim_ecdfs(
+            load_plate_case(), "temperature", point_idxs=(0, 1), ax=ax
+        )
     plt.close(fig)

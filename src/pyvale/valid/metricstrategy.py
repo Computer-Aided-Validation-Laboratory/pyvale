@@ -36,6 +36,18 @@ from pyvale.valid.validtypes import (
 )
 
 
+class EMetricScale(Enum):
+    PHYSICAL = auto()
+    DIMENSIONLESS = auto()
+    DIMENSIONLESS_01 = auto()
+
+
+class EMetricComparison(Enum):
+    PAIRED = auto()
+    DISTRIBUTIONAL = auto()
+    CALIBRATION = auto()
+
+
 class EMetricType(Enum):
     MAVM = auto()
     AVM = auto()
@@ -64,6 +76,14 @@ class IValidMetric(ABC):
     @abstractmethod
     def get_kind(self) -> EMetricType:
         """Return the metric tag without calculating a result."""
+
+    @abstractmethod
+    def get_scale(self) -> EMetricScale:
+        """Declare the numerical scale of the metric outputs."""
+
+    @abstractmethod
+    def get_comparison(self) -> EMetricComparison:
+        """Declare how the metric compares sim and exp observations."""
 
     @abstractmethod
     def get_outputs(self) -> tuple[EMetricOutput, ...]:
@@ -95,6 +115,12 @@ class MetricMAVM(IValidMetric):
     def get_kind(self) -> EMetricType:
         return EMetricType.MAVM
 
+    def get_scale(self) -> EMetricScale:
+        return EMetricScale.PHYSICAL
+
+    def get_comparison(self) -> EMetricComparison:
+        return EMetricComparison.DISTRIBUTIONAL
+
     def get_outputs(self) -> tuple[EMetricOutput, ...]:
         return (
             EMetricOutput.D_PLUS,
@@ -117,6 +143,12 @@ class MetricAVM(IValidMetric):
     def get_kind(self) -> EMetricType:
         return EMetricType.AVM
 
+    def get_scale(self) -> EMetricScale:
+        return EMetricScale.PHYSICAL
+
+    def get_comparison(self) -> EMetricComparison:
+        return EMetricComparison.DISTRIBUTIONAL
+
     def get_outputs(self) -> tuple[EMetricOutput, ...]:
         return (EMetricOutput.DISTANCE,)
 
@@ -132,6 +164,12 @@ class MetricKS(IValidMetric):
 
     def get_kind(self) -> EMetricType:
         return EMetricType.KS
+
+    def get_scale(self) -> EMetricScale:
+        return EMetricScale.DIMENSIONLESS_01
+
+    def get_comparison(self) -> EMetricComparison:
+        return EMetricComparison.DISTRIBUTIONAL
 
     def get_outputs(self) -> tuple[EMetricOutput, ...]:
         return (EMetricOutput.STATISTIC,)
@@ -149,6 +187,12 @@ class MetricCVM(IValidMetric):
     def get_kind(self) -> EMetricType:
         return EMetricType.CVM
 
+    def get_scale(self) -> EMetricScale:
+        return EMetricScale.DIMENSIONLESS
+
+    def get_comparison(self) -> EMetricComparison:
+        return EMetricComparison.DISTRIBUTIONAL
+
     def get_outputs(self) -> tuple[EMetricOutput, ...]:
         return (EMetricOutput.STATISTIC,)
 
@@ -164,6 +208,12 @@ class MetricRMSE(IValidMetric):
 
     def get_kind(self) -> EMetricType:
         return EMetricType.RMSE
+
+    def get_scale(self) -> EMetricScale:
+        return EMetricScale.PHYSICAL
+
+    def get_comparison(self) -> EMetricComparison:
+        return EMetricComparison.PAIRED
 
     def get_outputs(self) -> tuple[EMetricOutput, ...]:
         return (EMetricOutput.ERROR,)
@@ -197,6 +247,12 @@ class MetricRelErr(IValidMetric):
 
     def get_kind(self) -> EMetricType:
         return EMetricType.RELATIVE_ERROR
+
+    def get_scale(self) -> EMetricScale:
+        return EMetricScale.DIMENSIONLESS
+
+    def get_comparison(self) -> EMetricComparison:
+        return EMetricComparison.PAIRED
 
     def get_outputs(self) -> tuple[EMetricOutput, ...]:
         return (EMetricOutput.ERROR,)

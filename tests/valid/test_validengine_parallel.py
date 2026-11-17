@@ -93,6 +93,12 @@ def test_parallel_metrics_match_serial(workers: int) -> None:
 
 
 class FailingMetric(valid.IValidMetric):
+    def get_scale(self) -> valid.EMetricScale:
+        return valid.EMetricScale.PHYSICAL
+
+    def get_comparison(self) -> valid.EMetricComparison:
+        return valid.EMetricComparison.DISTRIBUTIONAL
+
     def get_outputs(self) -> tuple[valid.EMetricOutput, ...]:
         return (valid.EMetricOutput.DISTANCE,)
 

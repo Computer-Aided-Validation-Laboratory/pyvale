@@ -194,13 +194,8 @@ fig, axes = validplot.plot_valid_metric_time_points(
     point_idxs=point_idxs,
 )
 fig.savefig(output_path / "temperature_avm_time.png", bbox_inches="tight")
-fig, axes = validplot.plot_valid_cdfs_points(
-    valid_case,
-    valid_result,
-    temperature_tag,
-    point_idxs=point_idxs,
-    time_idx=4,
-    metric=valid.MetricMAVM(),
+fig, axes = validplot.plot_sim_exp_cdfs(
+    valid_case, temperature_tag, point_idxs=point_idxs, time_idx=4
 )
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 if SHOW_PLOTS:

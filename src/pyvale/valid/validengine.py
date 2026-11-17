@@ -23,6 +23,7 @@ from pyvale.valid.cython.mavm import (
 )
 from pyvale.valid.metrics import validate_relative_error_config
 from pyvale.valid.metricstrategy import (
+    EMetricComparison,
     EMetricType,
     IValidMetric,
     MetricAVM,
@@ -111,7 +112,7 @@ class ValidEngine:
         for name in valid_case.observables:
             sim, exp = valid_case.sim[name], valid_case.exp[name]
             requires_pairs = any(
-                metric.get_kind() in (EMetricType.RMSE, EMetricType.RELATIVE_ERROR)
+                metric.get_comparison() is EMetricComparison.PAIRED
                 for metric in self.metrics
             )
             if requires_pairs and _get_axis_size(
@@ -283,13 +284,14 @@ def _calculate_partition(
         not in (MetricMAVM, MetricAVM, MetricKS, MetricCVM, MetricRMSE, MetricRelErr)
         for metric in metrics
     )
+    paired_metrics = tuple(
+        metric.get_comparison() is EMetricComparison.PAIRED for metric in metrics
+    )
+    requires_pairs = any(paired_metrics)
     for workload in workloads:
         sim_array, exp_array, shape = workload.sim, workload.exp, workload.shape
         start = workload.start % prod(shape[1:])
         stop = start + workload.stop - workload.start
-        requires_pairs = any(
-            type(metric) in (MetricRMSE, MetricRelErr) for metric in metrics
-        )
         model_distributions: dict[tuple[int, ...], _PreparedECDF] = {}
         exp_distributions: dict[tuple[int, ...], _PreparedMAVMExp] = {}
         metric_outputs = tuple(metric.get_outputs() for metric in metrics)
@@ -332,8 +334,8 @@ def _calculate_partition(
                 paired_sim = np.asarray(sim_samples[paired], dtype=np.float64)
                 paired_exp = np.asarray(exp_samples[paired], dtype=np.float64)
             output_start = 0
-            for metric, outputs, check_count in zip(
-                metrics, metric_outputs, check_output_count, strict=True
+            for metric, outputs, check_count, paired_metric in zip(
+                metrics, metric_outputs, check_output_count, paired_metrics, strict=True
             ):
                 if type(metric) is MetricMAVM:
                     model_key = (point, component, time, sim_trans, sim_nuis, sim_off)
@@ -358,7 +360,7 @@ def _calculate_partition(
                         metric.duplicates,
                         metric.tol,
                     )
-                elif type(metric) in (MetricRMSE, MetricRelErr):
+                elif paired_metric:
                     metric_result = calculate_trusted_metric(
                         metric, paired_sim, paired_exp
                     )

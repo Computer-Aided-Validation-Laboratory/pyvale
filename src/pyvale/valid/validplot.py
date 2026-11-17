@@ -16,16 +16,12 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
 from pyvale.sensorsim.visualopts import PlotOptsGeneral
-from pyvale.valid.metrics import calc_mavm_1d
-from pyvale.valid.metricstrategy import EMetricType, MetricMAVM
+from pyvale.valid.metricstrategy import EMetricScale, EMetricType
 from pyvale.valid.validtools import (
     _evaluate_ecdf_quantiles,
     build_metric_selection,
-    calc_ecdf,
-    calc_ecdf_summary,
+    calc_ecdf_view,
     create_metric_label,
-    extract_aleatory_scenarios,
-    extract_ecdf_envelope,
     extract_metric_values,
     select_metric_output,
 )
@@ -33,14 +29,17 @@ from pyvale.valid.validtypes import (
     EEpisOffset,
     EMetricOutput,
     EValidECDFBounds,
+    EValidECDFCentre,
+    EValidECDFReduce,
     EValidMAVMDiagnostic,
     EValidResAxis,
     EValidSource,
     MAVMCorrection,
-    ValidArray,
     ValidCase,
     ValidECDF,
     ValidECDFSummary,
+    ValidECDFView,
+    ValidECDFViewData,
     ValidResult,
     resolve_metric_output,
 )
@@ -126,194 +125,285 @@ def _create_axes(
 
 
 def _metric_units(result: ValidResult, observable: str, metric: EMetricType) -> str:
-    if metric in (EMetricType.KS, EMetricType.CVM, EMetricType.RELATIVE_ERROR):
+    if result.metric_configs[metric].get_scale() is not EMetricScale.PHYSICAL:
         return "1"
     return result.observables[observable].phys_units
 
 
-def plot_valid_cdfs(
-    valid_case: ValidCase,
-    result: ValidResult,
-    observable: str,
-    *,
-    point_idx: int = 0,
-    component_idx: int = 0,
-    time_idx: int = 0,
-    sim_trans_idx: int = 0,
-    sim_nuis_idx: int = 0,
-    exp_trans_idx: int = 0,
-    exp_nuis_idx: int = 0,
-    sim_offset: EEpisOffset = EEpisOffset.NOMINAL,
-    exp_offset: EEpisOffset = EEpisOffset.NOMINAL,
-    metric: MetricMAVM | None = None,
-    valid_plot_opts: ValidPlotOpts | None = None,
-    ax: Axes | None = None,
-) -> tuple[Figure, Axes]:
-    """Show the exact conditional samples compared at one physical cell."""
-    if observable not in result.metrics:
-        raise KeyError(observable)
-    sim = valid_case.sim[observable].select_aleatory(
-        point_idx,
-        component_idx,
-        time_idx,
-        epis_trans_idx=sim_trans_idx,
-        epis_nuis_idx=sim_nuis_idx,
-        offset=sim_offset,
-    )
-    exp = valid_case.exp[observable].select_aleatory(
-        point_idx,
-        component_idx,
-        time_idx,
-        epis_trans_idx=exp_trans_idx,
-        epis_nuis_idx=exp_nuis_idx,
-        offset=exp_offset,
-    )
-    sim = sim[np.isfinite(sim)]
-    exp = exp[np.isfinite(exp)]
-    if len(sim) == 0 or len(exp) == 0:
-        raise ValueError("Selected cell has no finite observations.")
-    raw = None
-    support_min = min(np.min(sim), np.min(exp))
-    support_max = max(np.max(sim), np.max(exp))
-    if metric is not None:
-        raw = calc_mavm_1d(
-            sim, exp, alpha=metric.alpha, duplicates=metric.duplicates, tol=metric.tol
-        )
-        support_min = min(support_min, np.min(raw.exp_conf_lower))
-        support_max = max(support_max, np.max(raw.exp_conf_upper))
-    margin = max((support_max - support_min) * 0.02, 1.0e-12)
-    left = support_min - margin
-    fig, ax = _create_axes(ax, valid_plot_opts)
-    source_labels = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
-    options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
-    for samples, label, color, linestyle in (
-        (sim, source_labels.sim_label, options.sim_color, options.sim_linestyle),
-        (exp, source_labels.exp_label, options.exp_color, options.exp_linestyle),
-    ):
-        cdf = calc_ecdf(samples)
-        ax.step(
-            np.r_[left, cdf.quantiles],
-            np.r_[0.0, cdf.probabilities],
-            where="post",
-            label=label,
-            color=color,
-            linestyle=linestyle,
-        )
-    if raw is not None:
-        ax.step(
-            np.r_[left, raw.exp_conf_lower],
-            np.r_[0.0, raw.exp_probs],
-            where="post",
-            ls=options.lower_linestyle,
-            color=options.exp_color,
-            label=source_labels.exp_conf_lower,
-        )
-        ax.step(
-            np.r_[left, raw.exp_conf_upper],
-            np.r_[0.0, raw.exp_probs],
-            where="post",
-            ls=options.upper_linestyle,
-            color=options.exp_color,
-            label=source_labels.exp_conf_upper,
-        )
-        if options.shade_bounds:
-            ax.fill_betweenx(
-                np.r_[0.0, raw.exp_probs],
-                np.r_[raw.exp_conf_lower[0], raw.exp_conf_lower],
-                np.r_[raw.exp_conf_upper[0], raw.exp_conf_upper],
-                step="pre",
-                color=options.bounds_color or options.exp_color,
-                alpha=options.bounds_alpha,
-            )
-        ax.set_title(f"MAVM: d+={raw.d_plus:.4g}, d-={raw.d_minus:.4g}")
-    units = valid_case.observables[observable].phys_units
-    ax.set_xlabel(f"{observable} [{units}]")
-    ax.set_ylabel("Cumulative probability")
-    ax.set_ylim(0.0, 1.02)
-    ax.grid(alpha=0.3)
-    ax.legend()
-    _apply_plot_options(fig, ax, valid_plot_opts)
-    return fig, ax
-
-
-def plot_valid_cdf_envelope(
+def plot_sim_ecdfs(
     valid_case: ValidCase,
     observable: str,
     *,
-    source: EValidSource = EValidSource.SIM,
-    point_idx: int = 0,
+    view: ValidECDFView | None = None,
+    offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+    point_idxs: tuple[int, ...] | None = (0,),
     component_idx: int = 0,
     time_idx: int = 0,
-    epis_trans_idx: int | None = None,
-    epis_nuis_idx: int | None = None,
-    offset: EEpisOffset | None = None,
+    rows: int | None = None,
+    columns: int | None = None,
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
-) -> tuple[Figure, Axes]:
-    """Plot pointwise envelope of complete conditional CDF scenarios."""
-    if not isinstance(source, EValidSource):
-        raise TypeError("Source must be EValidSource.SIM or EValidSource.EXP.")
-    quantity = (valid_case.sim if source is EValidSource.SIM else valid_case.exp)[
-        observable
-    ]
-    support, lower, upper = extract_ecdf_envelope(
-        quantity,
-        point_idx=point_idx,
+) -> tuple[Figure, np.ndarray]:
+    """Plot sim conditional ECDFs or epistemic summaries; return a 2D axes array.
+
+    Default to the outer envelope over both epistemic axes at point zero.
+    point_idxs=None explicitly selects every physical point. An existing ax
+    accepts one point only. No metric calculation or result is required.
+    """
+    return _plot_ecdf_sources(
+        valid_case,
+        observable,
+        ((EValidSource.SIM, view, offset),),
+        point_idxs=point_idxs,
         component_idx=component_idx,
         time_idx=time_idx,
-        epis_trans_idx=epis_trans_idx,
-        epis_nuis_idx=epis_nuis_idx,
-        offset=offset,
+        rows=rows,
+        columns=columns,
+        valid_plot_opts=valid_plot_opts,
+        ax=ax,
     )
-    margin = max((support[-1] - support[0]) * 0.02, 1.0e-12)
-    support = np.r_[support[0] - margin, support]
-    lower = np.r_[0.0, lower]
-    upper = np.r_[0.0, upper]
-    fig, ax = _create_axes(ax, valid_plot_opts)
-    source_labels = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
-    options = source_labels
+
+
+def plot_exp_ecdfs(
+    valid_case: ValidCase,
+    observable: str,
+    *,
+    view: ValidECDFView | None = None,
+    offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+    point_idxs: tuple[int, ...] | None = (0,),
+    component_idx: int = 0,
+    time_idx: int = 0,
+    rows: int | None = None,
+    columns: int | None = None,
+    valid_plot_opts: ValidPlotOpts | None = None,
+    ax: Axes | None = None,
+) -> tuple[Figure, np.ndarray]:
+    """Plot exp ECDFs with independently selected epistemic summaries and offsets."""
+    return _plot_ecdf_sources(
+        valid_case,
+        observable,
+        ((EValidSource.EXP, view, offset),),
+        point_idxs=point_idxs,
+        component_idx=component_idx,
+        time_idx=time_idx,
+        rows=rows,
+        columns=columns,
+        valid_plot_opts=valid_plot_opts,
+        ax=ax,
+    )
+
+
+def plot_sim_exp_cdfs(
+    valid_case: ValidCase,
+    observable: str,
+    *,
+    sim_view: ValidECDFView | None = None,
+    exp_view: ValidECDFView | None = None,
+    sim_offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+    exp_offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+    point_idxs: tuple[int, ...] | None = (0,),
+    component_idx: int = 0,
+    time_idx: int = 0,
+    rows: int | None = None,
+    columns: int | None = None,
+    valid_plot_opts: ValidPlotOpts | None = None,
+    ax: Axes | None = None,
+) -> tuple[Figure, np.ndarray]:
+    """Compare sim and exp families without pooling or selecting a hidden scenario.
+
+    Each source defaults to a shaded pointwise epistemic envelope, or one ECDF
+    when only one scenario remains. Epistemic envelopes are not confidence
+    intervals. Keep MAVM confidence/support diagnostics in their dedicated plots.
+    """
+    return _plot_ecdf_sources(
+        valid_case,
+        observable,
+        (
+            (EValidSource.SIM, sim_view, sim_offset),
+            (EValidSource.EXP, exp_view, exp_offset),
+        ),
+        point_idxs=point_idxs,
+        component_idx=component_idx,
+        time_idx=time_idx,
+        rows=rows,
+        columns=columns,
+        valid_plot_opts=valid_plot_opts,
+        ax=ax,
+    )
+
+
+def _plot_ecdf_sources(
+    valid_case: ValidCase,
+    observable: str,
+    sources: tuple[tuple[EValidSource, ValidECDFView | None, EEpisOffset | None], ...],
+    *,
+    point_idxs: tuple[int, ...] | None,
+    component_idx: int,
+    time_idx: int,
+    rows: int | None,
+    columns: int | None,
+    valid_plot_opts: ValidPlotOpts | None,
+    ax: Axes | None,
+) -> tuple[Figure, np.ndarray]:
+    observable_data = valid_case.observables[observable]
+    point_count = (
+        1 if observable_data.coords is None else observable_data.coords.shape[0]
+    )
+    selected_points = tuple(range(point_count)) if point_idxs is None else point_idxs
+    if not isinstance(selected_points, tuple) or not selected_points:
+        raise ValueError("Supply a nonempty tuple of point indices.")
+    if any(
+        isinstance(index, (bool, np.bool_)) or not isinstance(index, (int, np.integer))
+        for index in selected_points
+    ):
+        raise TypeError("Point indices must be integers.")
+    if any(index < 0 or index >= point_count for index in selected_points):
+        raise IndexError("Point index is outside the observable.")
+    if ax is not None and (
+        len(selected_points) != 1 or rows is not None or columns is not None
+    ):
+        raise ValueError("An existing axes accepts one point and no grid layout.")
+    # Prepare before creating any figure, so invalid selections leave no figures behind.
+    prepared: list[list[tuple[EValidSource, ValidECDFView, ValidECDFViewData]]] = []
+    for point in selected_points:
+        point_sources = []
+        for source, view, offset in sources:
+            selected_view = ValidECDFView() if view is None else view
+            quantity = (
+                valid_case.sim if source is EValidSource.SIM else valid_case.exp
+            )[observable]
+            curves = calc_ecdf_view(
+                quantity,
+                view=selected_view,
+                point_idx=point,
+                component_idx=component_idx,
+                time_idx=time_idx,
+                offset=offset,
+            )
+            point_sources.append((source, selected_view, curves))
+        prepared.append(point_sources)
+    options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
+    if ax is None:
+        fig, axes = create_valid_plot_grid(
+            len(selected_points), rows=rows, columns=columns, valid_plot_opts=options
+        )
+    else:
+        fig, ax = _create_axes(ax, options)
+        axes = np.array([[ax]], dtype=object)
+    for point, point_sources, panel in zip(
+        selected_points, prepared, axes.flat, strict=False
+    ):
+        for source, view, curves in point_sources:
+            _plot_ecdf_view(panel, source, view, curves, options)
+        time_label = (
+            "steady"
+            if observable_data.times is None
+            else f"t={observable_data.times[time_idx]:g} {observable_data.time_units}"
+        )
+        panel.set_title(
+            f"Point {point}: {observable_data.components[component_idx]}, {time_label}"
+        )
+        panel.set_xlabel(f"{observable} [{observable_data.phys_units}]")
+        panel.set_ylabel("Cumulative probability")
+        panel.set_ylim(0.0, 1.02)
+        panel.grid(alpha=0.3)
+        panel.legend()
+        _apply_plot_options(fig, panel, options)
+    return fig, axes
+
+
+def _plot_ecdf_view(
+    ax: Axes,
+    source: EValidSource,
+    view: ValidECDFView,
+    curves: ValidECDFViewData,
+    options: ValidPlotOpts,
+) -> None:
+    label = options.sim_label if source is EValidSource.SIM else options.exp_label
     color = options.sim_color if source is EValidSource.SIM else options.exp_color
     linestyle = (
         options.sim_linestyle if source is EValidSource.SIM else options.exp_linestyle
     )
-    source_label = (
-        source_labels.sim_label
-        if source is EValidSource.SIM
-        else source_labels.exp_label
-    )
-    ax.step(
-        support,
-        lower,
-        where="post",
-        label=f"{source_label}: pointwise lower",
-        color=color,
-        linestyle=linestyle,
-    )
-    ax.step(
-        support,
-        upper,
-        where="post",
-        label=f"{source_label}: pointwise upper",
-        color=color,
-        linestyle=linestyle,
-    )
-    if options.shade_bounds:
-        ax.fill_between(
-            support,
-            lower,
-            upper,
-            step="post",
-            color=options.bounds_color or color,
-            alpha=options.bounds_alpha,
+    quantiles = curves.quantiles.reshape(-1, curves.probabilities.size)
+    single = quantiles.shape[0] == 1
+    reduction_labels = []
+    for name, reduction in (("nuis.", view.nuis_reduce), ("trans.", view.trans_reduce)):
+        if reduction is not EValidECDFReduce.KEEP:
+            reduction_labels.append(f"{reduction.name.lower()} {name}")
+    if single:
+        curve_label = label
+        if reduction_labels:
+            curve_label += " " + " / ".join(reduction_labels) + " quantile"
+        _plot_quantile_curve(
+            ax,
+            quantiles[0],
+            curves.probabilities,
+            color=color,
+            label=curve_label,
+            linestyle=linestyle,
         )
-    units = valid_case.observables[observable].phys_units
-    ax.set_xlabel(f"{observable} [{units}]")
-    ax.set_ylabel("Cumulative probability")
-    ax.set_ylim(0.0, 1.02)
-    ax.grid(alpha=0.3)
-    ax.legend()
-    _apply_plot_options(fig, ax, valid_plot_opts)
-    return fig, ax
+    else:
+        if view.bounds:
+            lower = np.min(quantiles, axis=0)
+            upper = np.max(quantiles, axis=0)
+            _plot_quantile_curve(
+                ax,
+                lower,
+                curves.probabilities,
+                color=color,
+                label=f"{label} lower envelope",
+                linestyle=options.lower_linestyle,
+            )
+            _plot_quantile_curve(
+                ax,
+                upper,
+                curves.probabilities,
+                color=color,
+                label=f"{label} upper envelope",
+                linestyle=options.upper_linestyle,
+            )
+            if options.shade_bounds and not np.array_equal(lower, upper):
+                ax.fill_betweenx(
+                    np.r_[0.0, curves.probabilities],
+                    np.r_[lower[0], lower],
+                    np.r_[upper[0], upper],
+                    step="pre",
+                    color=options.bounds_color or color,
+                    alpha=options.bounds_alpha,
+                )
+        if view.centre is not EValidECDFCentre.NONE:
+            centre = (
+                np.mean(quantiles, axis=0)
+                if view.centre is EValidECDFCentre.MEAN
+                else np.median(quantiles, axis=0)
+            )
+            centre_label = f"{label} {view.centre.name.lower()} quantile"
+            _plot_quantile_curve(
+                ax,
+                centre,
+                curves.probabilities,
+                color=color,
+                label=centre_label,
+                linestyle=linestyle,
+            )
+    # A sole original ECDF is already drawn above. Reduced single curves can
+    # still be shown alongside their original selected scenario overlays.
+    original_single = single and not reduction_labels and len(curves.scenarios) == 1
+    if not original_single:
+        for quantiles, (trans_idx, nuis_idx, offset) in zip(
+            curves.scenario_quantiles, curves.scenarios, strict=True
+        ):
+            scenario_label = f"{label} trans. {trans_idx}, nuis. {nuis_idx}"
+            if offset is not EEpisOffset.NOMINAL:
+                scenario_label += f", {offset.name.lower()} offset"
+            _plot_quantile_curve(
+                ax,
+                quantiles,
+                curves.probabilities,
+                color=color,
+                label=scenario_label,
+                linestyle=linestyle,
+            )
 
 
 def plot_valid_metric_time(
@@ -433,168 +523,6 @@ def create_valid_plot_grid(
     return fig, axes
 
 
-def plot_valid_cdf_envelope_points(
-    valid_case: ValidCase,
-    observable: str,
-    *,
-    point_idxs: tuple[int, ...] | None = None,
-    source: EValidSource = EValidSource.SIM,
-    component_idx: int = 0,
-    time_idx: int = 0,
-    epis_trans_idx: int | None = None,
-    epis_nuis_idx: int | None = None,
-    offset: EEpisOffset | None = None,
-    rows: int | None = None,
-    columns: int | None = None,
-    valid_plot_opts: ValidPlotOpts | None = None,
-) -> tuple[Figure, np.ndarray]:
-    """Plot conditional ECDF envelopes for selected physical observation points.
-
-    ``point_idxs=None`` selects every point in observables order; an explicit tuple keeps
-    its supplied order. Automatic layout uses a nearly square panel grid with
-    landscape panels sized by ValidPlotOpts. Specify rows, columns or both
-    to control the layout. Axes always have shape (rows, columns), with spare
-    panels hidden. Scenario selectors apply independently at every point.
-    """
-    if not isinstance(source, EValidSource):
-        raise TypeError("Source must be EValidSource.SIM or EValidSource.EXP.")
-    observable_data = valid_case.observables[observable]
-    coords = observable_data.coords
-    point_count = 1 if coords is None else len(coords)
-    selected_point_idxs = (
-        tuple(range(point_count)) if point_idxs is None else point_idxs
-    )
-    if any(
-        isinstance(point_idx, (bool, np.bool_))
-        or not isinstance(point_idx, (int, np.integer))
-        or point_idx < 0
-        or point_idx >= point_count
-        for point_idx in selected_point_idxs
-    ):
-        raise ValueError(
-            "Point indices must identify points in the observable observables."
-        )
-    quantity = (valid_case.sim if source is EValidSource.SIM else valid_case.exp)[
-        observable
-    ]
-    for point_idx in selected_point_idxs:
-        samples = extract_aleatory_scenarios(
-            quantity,
-            point_idx=point_idx,
-            component_idx=component_idx,
-            time_idx=time_idx,
-            epis_trans_idx=epis_trans_idx,
-            epis_nuis_idx=epis_nuis_idx,
-            offset=offset,
-        )
-        if any(not np.any(np.isfinite(sample)) for sample in samples):
-            raise ValueError("Each ECDF scenario needs a finite observation.")
-    options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
-    fig, axes = create_valid_plot_grid(
-        len(selected_point_idxs), columns=columns, valid_plot_opts=options, rows=rows
-    )
-    time_label = (
-        "steady"
-        if observable_data.times is None
-        else f"t={observable_data.times[time_idx]:g} {observable_data.time_units}"
-    )
-    for point_idx, ax in zip(selected_point_idxs, axes.flat, strict=False):
-        plot_valid_cdf_envelope(
-            valid_case,
-            observable,
-            point_idx=point_idx,
-            source=source,
-            component_idx=component_idx,
-            time_idx=time_idx,
-            epis_trans_idx=epis_trans_idx,
-            epis_nuis_idx=epis_nuis_idx,
-            offset=offset,
-            valid_plot_opts=options,
-            ax=ax,
-        )
-        heading = ax.get_title()
-        ax.set_title(
-            f"Point {point_idx}: {observable_data.components[component_idx]}, "
-            f"{time_label}" + (f"\n{heading}" if heading else ""),
-            fontsize=options.font_head_size,
-        )
-    return fig, axes
-
-
-def plot_valid_cdfs_points(
-    valid_case: ValidCase,
-    result: ValidResult,
-    observable: str,
-    *,
-    point_idxs: tuple[int, ...],
-    component_idx: int = 0,
-    time_idx: int = 0,
-    sim_trans_idx: int = 0,
-    sim_nuis_idx: int = 0,
-    exp_trans_idx: int = 0,
-    exp_nuis_idx: int = 0,
-    sim_offset: EEpisOffset = EEpisOffset.NOMINAL,
-    exp_offset: EEpisOffset = EEpisOffset.NOMINAL,
-    metric: MetricMAVM | None = None,
-    columns: int = 3,
-    valid_plot_opts: ValidPlotOpts | None = None,
-) -> tuple[Figure, np.ndarray]:
-    """Compare simulation and experiment at each point in a subplot grid.
-
-    The returned axes array always has shape (rows, columns). Unused panels are
-    hidden. Each panel identifies its point, component and physical time.
-    """
-    for point_idx in point_idxs:
-        for quantity, trans, nuisance, offset in (
-            (valid_case.sim[observable], sim_trans_idx, sim_nuis_idx, sim_offset),
-            (valid_case.exp[observable], exp_trans_idx, exp_nuis_idx, exp_offset),
-        ):
-            samples = quantity.select_aleatory(
-                point_idx,
-                component_idx,
-                time_idx,
-                epis_trans_idx=trans,
-                epis_nuis_idx=nuisance,
-                offset=offset,
-            )
-            if not np.any(np.isfinite(samples)):
-                raise ValueError("Selected cell has no finite observations.")
-    fig, axes = create_valid_plot_grid(
-        len(point_idxs), columns=columns, valid_plot_opts=valid_plot_opts
-    )
-    observable_data = valid_case.observables[observable]
-    time_label = (
-        "steady"
-        if observable_data.times is None
-        else (f"t={observable_data.times[time_idx]:g} {observable_data.time_units}")
-    )
-    for point_idx, ax in zip(point_idxs, axes.flat, strict=False):
-        plot_valid_cdfs(
-            valid_case,
-            result,
-            observable,
-            point_idx=point_idx,
-            component_idx=component_idx,
-            time_idx=time_idx,
-            sim_trans_idx=sim_trans_idx,
-            sim_nuis_idx=sim_nuis_idx,
-            exp_trans_idx=exp_trans_idx,
-            exp_nuis_idx=exp_nuis_idx,
-            sim_offset=sim_offset,
-            exp_offset=exp_offset,
-            metric=metric,
-            valid_plot_opts=valid_plot_opts,
-            ax=ax,
-        )
-        heading = ax.get_title()
-        ax.set_title(
-            f"Point {point_idx}: {observable_data.components[component_idx]}, "
-            f"{time_label}" + (f"\n{heading}" if heading else ""),
-            fontsize=(valid_plot_opts or ValidPlotOpts()).font_head_size,
-        )
-    return fig, axes
-
-
 def plot_valid_metric_time_points(
     result: ValidResult,
     observable: str,
@@ -708,56 +636,6 @@ def _plot_distribution_summary(
             color=options.bounds_color or color,
             alpha=options.bounds_alpha,
         )
-
-
-def plot_valid_ecdf_family(
-    quantity: ValidArray,
-    *,
-    point_idx: int = 0,
-    component_idx: int = 0,
-    time_idx: int = 0,
-    epis_trans_idx: int | None = None,
-    epis_nuis_idx: int | None = None,
-    offset: EEpisOffset | None = EEpisOffset.NOMINAL,
-    bounds: EValidECDFBounds = EValidECDFBounds.POINTWISE,
-    valid_plot_opts: ValidPlotOpts | None = None,
-    ax: Axes | None = None,
-) -> tuple[Figure, Axes]:
-    """Show all conditional ECDFs, their mean quantile curve and selected bounds."""
-    samples = extract_aleatory_scenarios(
-        quantity,
-        point_idx=point_idx,
-        component_idx=component_idx,
-        time_idx=time_idx,
-        epis_trans_idx=epis_trans_idx,
-        epis_nuis_idx=epis_nuis_idx,
-        offset=offset,
-    )
-    summary = calc_ecdf_summary(samples, bounds=bounds)
-    fig, ax = _create_axes(ax, valid_plot_opts)
-    color = (valid_plot_opts or ValidPlotOpts()).sim_color
-    for selection_idx, sample in enumerate(samples):
-        cdf = calc_ecdf(sample)
-        _plot_quantile_curve(
-            ax,
-            cdf.quantiles,
-            cdf.probabilities,
-            color=color,
-            alpha=0.25,
-            label="Conditional ECDFs" if selection_idx == 0 else None,
-        )
-    _plot_distribution_summary(
-        ax,
-        summary,
-        color="black",
-        label="Scenario summary",
-        options=valid_plot_opts or ValidPlotOpts(),
-    )
-    ax.set_ylabel("Cumulative probability")
-    ax.set_ylim(0.0, 1.02)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
-    _apply_plot_options(fig, ax, valid_plot_opts)
-    return fig, ax
 
 
 def plot_valid_mavm_diagnostic(

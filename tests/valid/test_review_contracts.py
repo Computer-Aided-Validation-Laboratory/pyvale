@@ -275,7 +275,7 @@ def test_plot_selectors_fail_without_creating_figures(selector: float) -> None:
             output=valid.EMetricOutput.DISTANCE,
         )
     with pytest.raises((TypeError, IndexError)):
-        validplot.plot_valid_cdfs_points(case, result, "scalar", point_idxs=(selector,))
+        validplot.plot_sim_exp_cdfs(case, "scalar", point_idxs=(selector,))
     assert plt.get_fignums() == figures
 
 
@@ -296,6 +296,12 @@ def test_unknown_histogram_axis_fails_without_creating_figure() -> None:
 
 class MetricSampleMeans(valid.IValidMetric):
     """Exercise custom output ordering independently of built-in dispatch."""
+
+    def get_scale(self) -> valid.EMetricScale:
+        return valid.EMetricScale.PHYSICAL
+
+    def get_comparison(self) -> valid.EMetricComparison:
+        return valid.EMetricComparison.DISTRIBUTIONAL
 
     def get_kind(self) -> valid.EMetricType:
         return valid.EMetricType.AVM
@@ -420,6 +426,12 @@ def test_multiple_outputs_require_explicit_selection(
 
 
 class MetricInvalidOutputs(valid.IValidMetric):
+    def get_scale(self) -> valid.EMetricScale:
+        return valid.EMetricScale.PHYSICAL
+
+    def get_comparison(self) -> valid.EMetricComparison:
+        return valid.EMetricComparison.DISTRIBUTIONAL
+
     def get_kind(self) -> valid.EMetricType:
         return valid.EMetricType.AVM
 

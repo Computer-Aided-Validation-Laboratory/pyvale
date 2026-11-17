@@ -184,14 +184,17 @@ for channel in measurements:
     labels = validplot.ValidPlotOpts(title=channel, x_label=axis_label)
     fig: Figure
     ax: Axes
-    fig, ax = validplot.plot_valid_ecdf_family(
-        sim_arrays[channel],
-        bounds=valid.EValidECDFBounds.SUPPORT_SUM,
+    fig, axes = validplot.plot_sim_ecdfs(
+        valid_case,
+        channel,
         valid_plot_opts=labels,
+        view=valid.ValidECDFView(
+            scenario_idxs=None, centre=valid.EValidECDFCentre.MEAN
+        ),
     )
     figure_name = f"0_sim_allcdfs_{channel}.png"
     fig.savefig(output_path / figure_name, bbox_inches="tight")
-    axis_limits[figure_name] = ax.get_xlim()
+    axis_limits[figure_name] = axes[0, 0].get_xlim()
     if not SHOW_PLOTS:
         plt.close(fig)
     if np.any(np.isnan(exp_arrays[channel].data)):
@@ -277,7 +280,7 @@ for channel in measurements:
         )
         figure_name = f"{figure_prefix}_{channel}.png"
         fig.savefig(output_path / figure_name, bbox_inches="tight")
-        axis_limits[figure_name] = ax.get_xlim()
+        axis_limits[figure_name] = axes[0, 0].get_xlim()
         if not SHOW_PLOTS:
             plt.close(fig)
 
