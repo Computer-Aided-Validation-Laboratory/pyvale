@@ -59,7 +59,7 @@ bool should_update_ref(const int img_num_def_l,
         case util::EIncrementalCond::COST:
             if (results.cost.empty()) return false;
             return std::accumulate(results.cost.begin(), results.cost.end(), 0.0)
-                / results.cost.size() > conf.incremental_update_val;
+                / results.cost.size() < conf.incremental_update_val;
 
         default:
             throw std::runtime_error(

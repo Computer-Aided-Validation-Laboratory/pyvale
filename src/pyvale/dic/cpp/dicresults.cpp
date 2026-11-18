@@ -385,16 +385,16 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             // displacement magnitude
             double mag = std::sqrt(out_u*out_u+out_v*out_v);
 
-            outfile << ss_x << delimiter;
-            outfile << ss_y << delimiter;
-            outfile << out_u << delimiter;
-            outfile << out_v << delimiter;
-            outfile << mag << delimiter;
-            outfile << static_cast<int>(conv[i]) << delimiter;
-            outfile << out_cost << delimiter;
-            outfile << out_ftol << delimiter;
-            outfile << out_xtol << delimiter;
-            outfile << niter[i];
+            csv.field(ss_x);
+            csv.field(ss_y);
+            csv.field(out_u);
+            csv.field(out_v);
+            csv.field(mag);
+            csv.field(static_cast<int>(conv[i]));
+            csv.field(out_cost);
+            csv.field(out_ftol);
+            csv.field(out_xtol);
+            csv.field(niter[i], true);
 
             // if (saveconf.shape_params) {
             //     for (int pp = 0; pp < num_params; pp++){
