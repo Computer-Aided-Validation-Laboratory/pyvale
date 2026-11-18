@@ -30,8 +30,18 @@ from math import sqrt
 
 import numpy as np
 import pytest
+from scipy import stats
 
+import pyvale.sensorsim as sens
+import pyvale.valid.validpreparation as validprep
 from pyvale import valid
+from pyvale.dataio.simdata import SimData
+from pyvale.valid.metrics import (
+    EMAVMDuplicates,
+    calc_avm_1d,
+    calc_deterministic_metrics_1d,
+    calc_mavm_1d,
+)
 
 
 @dataclass(slots=True)
@@ -784,3 +794,379 @@ def test_spatial_and_temporal_bias_survives_nuisance_profiling_and_cell_selectio
     np.testing.assert_array_equal(
         selected.upper_indices[0], [[2, 0, 1, 0], [2, 0, 1, 0]]
     )
+
+
+@pytest.mark.parametrize("reference", [0.0, 1e-15, -1e-15])
+def test_relative_error_zero_and_near_zero(reference: float) -> None:
+    sim_data, exp = (np.array([1.0]), np.array([reference]))
+    standalone = valid.calc_deterministic_metrics_1d(sim_data, exp)
+    strategy = valid.MetricRelErr().calc(sim_data, exp).value
+    if reference == 0:
+        assert np.isnan(standalone.relative_error) and np.isnan(strategy)
+    else:
+        assert standalone.relative_error == pytest.approx(
+            abs(1 - reference) / abs(reference)
+        )
+        assert strategy == standalone.relative_error
+    assert np.isnan(standalone.nmse)
+
+
+def test_u_pooling_multiple_sample_oracle() -> None:
+    cdf = valid.ValidECDF(np.array([0.0]), np.array([1.0]))
+    assert valid.calc_u_pooling_1d([cdf, cdf], np.array([-1.0, 1.0])) == pytest.approx(
+        0.25
+    )
+    with pytest.raises(ValueError):
+        valid.calc_u_pooling_1d([], np.array([]))
+    with pytest.raises(ValueError):
+        valid.calc_u_pooling_1d([], np.array([1.0]))
+
+
+def test_mavm_frequency_sensitive_legacy_confidence() -> None:
+    model = np.array([0.0, 2.0])
+    unique = np.array([0.0, 2.0])
+    repeated = np.array([0.0, 0.0, 0.0, 2.0])
+    first = valid.calc_mavm_1d(model, unique, duplicates=valid.EMAVMDuplicates.INCLUDE)
+    second = valid.calc_mavm_1d(
+        model, repeated, duplicates=valid.EMAVMDuplicates.INCLUDE
+    )
+    expected_half_width = stats.t.ppf(0.95, 1) / np.sqrt(2)
+    np.testing.assert_allclose(first.exp_conf_upper - unique, expected_half_width)
+    np.testing.assert_array_equal(first.exp_conf_upper, second.exp_conf_upper)
+    np.testing.assert_allclose(second.exp_probs, [0.75, 1.0])
+    assert second.d_plus == pytest.approx(first.d_plus - 0.5)
+    assert second.d_minus == pytest.approx(first.d_minus + 0.5)
+
+
+def test_cvm_dimensionless_statistic_is_not_bounded_by_one() -> None:
+    sim = np.arange(10.0)
+    exp = sim + 20.0
+    assert valid.MetricCVM().calc(sim, exp).value == pytest.approx(201 / 120)
+
+
+def test_deterministic_metrics() -> None:
+    """Deterministic error metric calculations (RMSE, Rel Err)."""
+    sim = np.array([10.0, 20.0, 30.0])
+    exp = np.array([10.0, 22.0, 28.0])
+    res = calc_deterministic_metrics_1d(sim, exp)
+    assert res.absolute_error == pytest.approx(4.0 / 3.0)
+    assert res.rmse == pytest.approx(np.sqrt(8.0 / 3.0))
+
+
+def calculate_rectangle_signed_areas(
+    model_quantiles: np.ndarray,
+    model_probs: np.ndarray,
+    exp_quantiles: np.ndarray,
+    exp_probs: np.ndarray,
+) -> tuple[float, float]:
+    """Integrate quantile-function differences as finite rectangles.
+
+    Merging the two empirical-CDF probability grids gives a direct,
+    independent area calculation for the MAVM integration loop.
+    """
+    model_idx = 0
+    exp_idx = 0
+    prob = 0.0
+    d_plus = 0.0
+    d_minus = 0.0
+    while model_idx < len(model_quantiles) and exp_idx < len(exp_quantiles):
+        next_prob = min(model_probs[model_idx], exp_probs[exp_idx])
+        area = (exp_quantiles[exp_idx] - model_quantiles[model_idx]) * (
+            next_prob - prob
+        )
+        if area > 0.0:
+            d_plus += area
+        else:
+            d_minus -= area
+        prob = next_prob
+        if np.isclose(prob, model_probs[model_idx]):
+            model_idx += 1
+        if np.isclose(prob, exp_probs[exp_idx]):
+            exp_idx += 1
+    return (d_plus, d_minus)
+
+
+def calculate_rectangle_mavm_areas(
+    model_data: np.ndarray, exp_data: np.ndarray, alpha: float = 0.05
+) -> tuple[float, float]:
+    """Calculate MAVM using only merged empirical-CDF rectangles."""
+    model_cdf = stats.ecdf(model_data).cdf
+    exp_cdf = stats.ecdf(exp_data).cdf
+    model_quantiles = model_cdf.quantiles
+    model_probs = model_cdf.probabilities
+    exp_quantiles = exp_cdf.quantiles
+    exp_probs = exp_cdf.probabilities
+    t_value = stats.t.ppf(1.0 - alpha, len(exp_quantiles) - 1)
+    standard_error = np.std(exp_quantiles) / np.sqrt(len(exp_quantiles))
+    lower = calculate_rectangle_signed_areas(
+        model_quantiles,
+        model_probs,
+        exp_quantiles - t_value * standard_error,
+        exp_probs,
+    )
+    upper = calculate_rectangle_signed_areas(
+        model_quantiles,
+        model_probs,
+        exp_quantiles + t_value * standard_error,
+        exp_probs,
+    )
+    return (max(lower[0], upper[0]), max(lower[1], upper[1]))
+
+
+@pytest.mark.parametrize(
+    ("model_data", "exp_data"),
+    [
+        (np.array([0.0, 2.0]), np.array([0.0, 2.0])),
+        (np.array([2.0, 4.0]), np.array([0.0, 2.0])),
+        (np.array([0.0, 2.0]), np.array([2.0, 4.0])),
+        (np.array([0.0, 4.0]), np.array([1.0, 2.0, 3.0])),
+        (np.array([0.0, 2.0, 4.0]), np.array([1.0, 3.0])),
+        (np.array([0.0, 0.0, 2.0]), np.array([1.0, 1.0, 3.0, 3.0])),
+        (np.array([0.0, 0.0, 2.0]), np.array([1.0, 3.0, 3.0, 3.0])),
+        (np.array([0.0, 2.0, 4.0, 6.0, 8.0]), np.array([1.0, 5.0, 9.0])),
+    ],
+)
+def test_mavm_matches_independent_rectangle_integration(
+    model_data: np.ndarray, exp_data: np.ndarray
+) -> None:
+    """Cover odd/even, unequal-size, and repeated-value ECDF cases."""
+    expected_d_plus, expected_d_minus = calculate_rectangle_mavm_areas(
+        model_data, exp_data
+    )
+    result = calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDuplicates.INCLUDE)
+    assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-12)
+    assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("model_data", "exp_data", "expected_area"),
+    [
+        (np.array([-1.0, 1.0]), np.array([-1.0, 1.0]), 0.0),
+        (np.array([1.0, 3.0]), np.array([0.0, 2.0]), 1.0),
+        (np.array([0.0, 4.0]), np.array([1.0, 2.0, 3.0]), 4.0 / 3.0),
+        (np.array([0.0, 2.0, 4.0]), np.array([1.0, 3.0]), 1.0),
+        (np.array([0.0, 0.0, 2.0]), np.array([1.0, 3.0, 3.0, 3.0]), 11.0 / 6.0),
+    ],
+)
+def test_avm_matches_hand_calculated_ecdf_rectangles(
+    model_data: np.ndarray, exp_data: np.ndarray, expected_area: float
+) -> None:
+    """Verify AVM against manually summed empirical-CDF rectangles."""
+    assert calc_avm_1d(model_data, exp_data) == pytest.approx(expected_area, abs=1e-12)
+
+
+def test_crossing_cdfs_distinguish_pointwise_from_support_sum_bounds() -> None:
+    scenarios = [np.array([0.0, 10.0]), np.array([4.0, 5.0])]
+    pointwise = valid.calc_ecdf_summary(scenarios)
+    selected = valid.calc_ecdf_summary(
+        scenarios, bounds=valid.EValidECDFBounds.SUPPORT_SUM
+    )
+    np.testing.assert_allclose(pointwise.probabilities, [0.5, 1.0])
+    np.testing.assert_allclose(pointwise.lower, [0.0, 5.0])
+    np.testing.assert_allclose(pointwise.upper, [4.0, 10.0])
+    np.testing.assert_allclose(pointwise.nominal, [2.0, 7.5])
+    assert pointwise.lower_idx is None
+    assert pointwise.upper_idx is None
+    assert selected.lower_idx == 1
+    assert selected.upper_idx == 0
+    np.testing.assert_allclose(selected.lower, [4.0, 5.0])
+    np.testing.assert_allclose(selected.upper, [0.0, 10.0])
+
+
+def test_quantile_summary_preserves_duplicate_mass_and_unequal_counts() -> None:
+    samples = [np.array([0.0, 0.0, 2.0]), np.array([1.0, 3.0])]
+    summary = valid.calc_ecdf_summary(samples)
+    np.testing.assert_allclose(summary.probabilities, [0.5, 2.0 / 3.0, 1.0])
+    np.testing.assert_allclose(summary.lower, [0.0, 0.0, 2.0])
+    np.testing.assert_allclose(summary.upper, [1.0, 3.0, 3.0])
+    np.testing.assert_allclose(summary.nominal, [0.5, 1.5, 2.5])
+    cdf = valid.calc_ecdf(samples[0])
+    np.testing.assert_allclose(
+        valid.evaluate_ecdf_quantiles(cdf, np.array([0.0, 2.0 / 3.0, 1.0])),
+        [0.0, 0.0, 2.0],
+    )
+
+
+def test_endpoint_corrections_are_anchored_to_model_limits() -> None:
+    correction = valid.calc_mavm_correction(
+        np.array([0.0]), np.array([10.0]), np.array([-2.0]), np.array([13.0])
+    )
+    assert correction.lower.d_minus == pytest.approx(2.0)
+    assert correction.upper.d_plus == pytest.approx(3.0)
+    assert correction.lower_exp_idx == 0
+    assert correction.upper_exp_idx == 1
+    assert correction.comparisons[2].d_plus == pytest.approx(13.0)
+    np.testing.assert_allclose(
+        correction.lower.model_quantiles - correction.lower.d_minus, [-2.0]
+    )
+    np.testing.assert_allclose(
+        correction.upper.model_quantiles + correction.upper.d_plus, [13.0]
+    )
+
+
+def create_plot_epistemic_case() -> valid.ValidCase:
+    shifts = np.array([[1.0, 9.0, 8.0], [2.0, 3.0, 7.0], [4.0, 6.0, 5.0]])
+    samples = shifts[..., None] + np.array([0.0, 2.0])
+    quantity = valid.ValidArray(
+        samples,
+        (
+            valid.EValidAxis.EPISTEMIC_TRANS,
+            valid.EValidAxis.EPISTEMIC_NUIS,
+            valid.EValidAxis.ALEATORY,
+        ),
+    )
+    observable = valid.ValidObservable(
+        components=("length",), geometry=valid.EValidGeometry.GLOBAL, phys_units="m"
+    )
+    exp = valid.ValidArray(np.array([2.0, 5.0, 8.0]), (valid.EValidAxis.ALEATORY,))
+    return valid.ValidCase(
+        {"length": observable}, {"length": quantity}, {"length": exp}
+    )
+
+
+def test_quantile_reductions_preserve_axes_and_use_nuisance_first() -> None:
+    case = create_plot_epistemic_case()
+    quantity = case.sim["length"]
+    curves = valid.calc_ecdf_view(quantity)
+    assert curves.quantiles.shape == (3, 3, 1, 2)
+    np.testing.assert_array_equal(curves.probabilities, [0.5, 1.0])
+    np.testing.assert_array_equal(curves.quantiles[..., 0, :], quantity.data)
+    median_nuis = valid.calc_ecdf_view(
+        quantity, view=valid.ValidECDFView(nuis_reduce=valid.EValidECDFReduce.MEDIAN)
+    )
+    np.testing.assert_array_equal(
+        median_nuis.quantiles[:, 0, 0], [[8.0, 10.0], [3.0, 5.0], [5.0, 7.0]]
+    )
+    median_both = valid.calc_ecdf_view(
+        quantity,
+        view=valid.ValidECDFView(
+            nuis_reduce=valid.EValidECDFReduce.MEDIAN,
+            trans_reduce=valid.EValidECDFReduce.MEDIAN,
+        ),
+    )
+    np.testing.assert_array_equal(median_both.quantiles, [[[[5.0, 7.0]]]])
+    mean_both = valid.calc_ecdf_view(
+        quantity,
+        view=valid.ValidECDFView(
+            nuis_reduce=valid.EValidECDFReduce.MEAN,
+            trans_reduce=valid.EValidECDFReduce.MEAN,
+        ),
+    )
+    np.testing.assert_allclose(mean_both.quantiles, [[[[5.0, 7.0]]]])
+
+
+def test_selection_precedes_reduction_and_original_joint_overlays_are_preserved() -> (
+    None
+):
+    quantity = create_plot_epistemic_case().sim["length"]
+    view = valid.ValidECDFView(
+        trans_idxs=(2, 0),
+        nuis_idxs=(1, 2),
+        nuis_reduce=valid.EValidECDFReduce.MEAN,
+        scenario_idxs=((0, 2), (2, 1)),
+    )
+    curves = valid.calc_ecdf_view(quantity, view=view)
+    np.testing.assert_array_equal(curves.quantiles[:, 0, 0], [[5.5, 7.5], [8.5, 10.5]])
+    assert curves.scenarios == (
+        (0, 2, valid.EEpisOffset.NOMINAL),
+        (2, 1, valid.EEpisOffset.NOMINAL),
+    )
+    np.testing.assert_array_equal(curves.scenario_quantiles, [[8.0, 10.0], [6.0, 8.0]])
+
+
+def test_pointwise_ecdf_envelope_handles_crossing_distributions() -> None:
+    support, lower, upper = valid.calc_ecdf_envelope(
+        [np.array([0.0, 3.0]), np.array([1.0, 2.0])]
+    )
+    np.testing.assert_array_equal(support, [0.0, 1.0, 2.0, 3.0])
+    np.testing.assert_allclose(lower, [0.0, 0.5, 0.5, 1.0])
+    np.testing.assert_allclose(upper, [0.5, 0.5, 1.0, 1.0])
+
+
+def create_linear_sim(shift: float = 0.0) -> SimData:
+    coords = np.array(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]
+    )
+    times = np.array([0.0, 1.0])
+    temperature = coords[:, :1] + 2 * coords[:, 1:2] + 3 * times + shift
+    return SimData(
+        num_spat_dims=2,
+        coords=coords,
+        time=times,
+        node_vars={"temperature": temperature},
+        glob_vars={"mean_temperature": 1.5 + 3 * times + shift},
+    )
+
+
+def test_sample_bound_field_matches_linear_space_and_time() -> None:
+    sim_data = create_linear_sim()
+    field = sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD)
+    observable = valid.ValidObservable(
+        components=("temperature",),
+        geometry=valid.EValidGeometry.POINT,
+        coords=np.array([[0.25, 0.5, 0.0], [0.75, 0.25, 0.0]]),
+        times=np.array([0.25, 0.75]),
+    )
+    sampled = validprep.sample_field_for_valid(field, observable)
+    expected = np.array([[2.0, 3.5], [2.0, 3.5]])[:, None, :]
+    assert sampled.axes == (
+        valid.EValidAxis.POINT,
+        valid.EValidAxis.COMPONENT,
+        valid.EValidAxis.TIME,
+    )
+    np.testing.assert_allclose(sampled.data, expected, rtol=0, atol=1e-12)
+
+
+def test_sample_sweep_reuses_field_and_preserves_named_axes_and_globals() -> None:
+    field = sens.FieldScalar(create_linear_sim(), "temperature", sens.EDim.TWOD)
+    times = np.array([0.25, 0.75])
+    observables = {
+        "temperature": valid.ValidObservable(
+            components=("temperature",),
+            geometry=valid.EValidGeometry.POINT,
+            coords=np.array([[0.25, 0.5, 0.0]]),
+            times=times,
+        ),
+        "mean_temperature": valid.ValidObservable(
+            components=("mean_temperature",),
+            geometry=valid.EValidGeometry.GLOBAL,
+            times=times,
+        ),
+    }
+    indices = ((1, 2), (0, 1), (1, 0), (0, 2), (1, 1), (0, 0))
+    runs = ((index, create_linear_sim(10 * index[0] + index[1])) for index in indices)
+    sampled = validprep.sample_sim_sweep(
+        {"temperature": field},
+        observables,
+        runs,
+        sample_axes=(valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
+        sample_shape=(2, 3),
+    )
+    shifts = 10 * np.arange(2)[:, None] + np.arange(3)
+    expected = np.array([2.0, 3.5])[:, None, None] + shifts
+    np.testing.assert_allclose(sampled["temperature"].data[0, 0], expected, atol=1e-12)
+    np.testing.assert_allclose(
+        sampled["mean_temperature"].data[0, 0], expected + 0.25, atol=1e-12
+    )
+    assert sampled["temperature"].axes[-2:] == (
+        valid.EValidAxis.EPISTEMIC_TRANS,
+        valid.EValidAxis.ALEATORY,
+    )
+    np.testing.assert_array_equal(
+        field.get_sim_data().node_vars["temperature"],
+        create_linear_sim().node_vars["temperature"],
+    )
+
+
+@pytest.mark.parametrize("duplicates", list(valid.EMAVMDuplicates))
+def test_mavm_pbox_has_closed_form_endpoint_distances(
+    duplicates: valid.EMAVMDuplicates,
+) -> None:
+    """A deterministic observation lies five units from either p-box anchor."""
+    result = valid.calc_mavm_pbox_1d(
+        np.array([0.0]), np.array([10.0]), np.array([5.0]), duplicates=duplicates
+    )
+    assert result.d_plus == pytest.approx(5.0, rel=0, abs=1e-12)
+    assert result.d_minus == pytest.approx(5.0, rel=0, abs=1e-12)
+    np.testing.assert_array_equal(result.exp_conf_lower, [5.0])
+    np.testing.assert_array_equal(result.exp_conf_upper, [5.0])
