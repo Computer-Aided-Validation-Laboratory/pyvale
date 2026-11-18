@@ -39,8 +39,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 import pyvale.data as dataset
-from pyvale import valid
-from pyvale.valid import validplot
+import pyvale.validation as vl
 
 matplotlib.use("Agg")
 
@@ -91,20 +90,20 @@ uncertainty_columns = (*sensor_tags[:-1], "Coil RMS Voltage")
 uncertainties = summary.loc[summary.index[-1], list(uncertainty_columns)].to_numpy(
     dtype=float
 )
-observables: dict[str, valid.ValidObservable] = {}
-sim_arrays: dict[str, valid.ValidArray] = {}
-exp_arrays: dict[str, valid.ValidArray] = {}
+observables: dict[str, vl.ValidObservable] = {}
+sim_arrays: dict[str, vl.ValidArray] = {}
+exp_arrays: dict[str, vl.ValidArray] = {}
 channel_status = []
 for index, (channel, observations) in enumerate(measurements.items()):
     units = "V" if channel == "CV" else "degC"
-    observables[channel] = valid.ValidObservable(
+    observables[channel] = vl.ValidObservable(
         components=(channel,),
-        geometry=valid.EValidGeometry.GLOBAL,
+        geometry=vl.EValidGeometry.GLOBAL,
         phys_units=units,
     )
-    sim_arrays[channel] = valid.ValidArray(
+    sim_arrays[channel] = vl.ValidArray(
         sim_data[sensor_tags.index(channel)],
-        (valid.EValidAxis.EPISTEMIC_TRANS, valid.EValidAxis.ALEATORY),
+        (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY),
     )
     missing = bool(np.any(np.isnan(observations)))
     # TC2 and CV have repeated readings. The legacy integration discards their
@@ -112,10 +111,10 @@ for index, (channel, observations) in enumerate(measurements.items()):
     # PyVale INCLUDE mode otherwise retains empirical duplicate probability mass.
     exp_support = np.array([np.nan]) if missing else np.unique(observations)
     magnitude = uncertainties[index]
-    exp_arrays[channel] = valid.ValidArray(
+    exp_arrays[channel] = vl.ValidArray(
         exp_support,
-        (valid.EValidAxis.ALEATORY,),
-        offsets=valid.EpistemicOffsets(lower=magnitude, upper=magnitude),
+        (vl.EValidAxis.ALEATORY,),
+        offsets=vl.EpistemicOffsets(lower=magnitude, upper=magnitude),
     )
     channel_status.append(
         {
@@ -128,7 +127,7 @@ for index, (channel, observations) in enumerate(measurements.items()):
             "offset_magnitude": magnitude,
         }
     )
-valid_case = valid.ValidCase(observables, sim_arrays, exp_arrays)
+valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 pd.DataFrame(channel_status).to_csv(output_path / "channel_status.csv", index=False)
 
 # %%
@@ -139,12 +138,12 @@ pd.DataFrame(channel_status).to_csv(output_path / "channel_status.csv", index=Fa
 # sim_trans=250, exp_offset=3). Missing TC1, TC4 and TC7 retain NaN results.
 # The reference uses t.ppf(0.95, n_unique-1), matching alpha=0.05 here. Its
 # symmetric bounds use the 95th Student-t percentile for each support shift.
-valid_result: valid.ValidResult = valid.ValidEngine(
-    [valid.MetricMAVM(alpha=0.05, duplicates=valid.EMAVMDuplicates.REJECT)]
+valid_result: vl.ValidResult = vl.ValidEngine(
+    [vl.MetricMAVM(alpha=0.05, duplicates=vl.EMAVMDuplicates.REJECT)]
 ).run(valid_case)
 print("Simulation:", sim_data.shape, "(channel, epis_trans, aleatory)")
 print(pd.DataFrame(channel_status))
-print("TC3 result axes:", valid_result.metrics["TC3"][valid.EMetricType.MAVM].axes)
+print("TC3 result axes:", valid_result.metrics["TC3"][vl.EMetricType.MAVM].axes)
 
 # %%
 # 3. Post-processing and inspect data structures
@@ -165,11 +164,11 @@ axis_limits: dict[str, tuple[float, float]] = {}
 for channel in measurements:
     units = observables[channel].phys_units
     axis_label = "Coil RMS voltage [V]" if channel == "CV" else "Temperature [degC]"
-    model_scenarios: list[np.ndarray] = valid.extract_aleatory_scenarios(
+    model_scenarios: list[np.ndarray] = vl.extract_aleatory_scenarios(
         sim_arrays[channel]
     )
-    model_summary: valid.ValidECDFSummary = valid.calc_ecdf_summary(
-        model_scenarios, bounds=valid.EValidECDFBounds.SUPPORT_SUM
+    model_summary: vl.ValidECDFSummary = vl.calc_ecdf_summary(
+        model_scenarios, bounds=vl.EValidECDFBounds.SUPPORT_SUM
     )
     selected_scenarios[channel] = {
         "lower": cast(int, model_summary.lower_idx),
@@ -181,15 +180,15 @@ for channel in measurements:
     # ------------------------------
     # Family plots retain the 250 conditional model ECDFs for every channel.
     # Available experimental readings retain their individual measurement spread.
-    labels = validplot.ValidPlotOpts(title=channel, x_label=axis_label)
+    labels = vl.ValidPlotOpts(title=channel, x_label=axis_label)
     fig: Figure
     ax: Axes
-    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_ecdfs(
+    ecdf_plot: vl.ECDFPlot = vl.plot_sim_ecdfs(
         valid_case,
         channel,
         valid_plot_opts=labels,
-        view=valid.ValidECDFView(
-            scenario_idxs=None, centre=valid.EValidECDFCentre.MEAN
+        view=vl.ValidECDFView(
+            scenario_idxs=None, centre=vl.EValidECDFCentre.MEAN
         ),
     )
     fig, axes = ecdf_plot.figure, ecdf_plot.axes
@@ -201,41 +200,43 @@ for channel in measurements:
     if np.any(np.isnan(exp_arrays[channel].data)):
         continue
 
-    # Keep directional metric magnitudes in separate figures for each channel.
+    supports = vl.find_metric_epis_supports(
+        valid_case, valid_result, channel, vl.EMetricType.MAVM
+    )
     for metric_output, direction in (
-        (valid.EMetricOutput.D_PLUS, "d_plus"),
-        (valid.EMetricOutput.D_MINUS, "d_minus"),
+        (vl.EMetricOut.D_PLUS, "d_plus"),
+        (vl.EMetricOut.D_MINUS, "d_minus"),
     ):
-        metric_fig, metric_ax = validplot.plot_valid_metric_distribution(
-            valid_result, channel, valid.EMetricType.MAVM, output=metric_output
-        )
-        metric_fig.savefig(
-            output_path / f"mavm_{direction}_{channel}.png", bbox_inches="tight"
+        limiting_plot = vl.plot_sim_exp_cdfs(valid_case, channel, valid_plot_opts=labels)
+        vl.add_support_overlay(limiting_plot, supports, output=metric_output)
+        limiting_plot.figure.savefig(
+            output_path / f"mavm_{direction}_limiting_ecdf_{channel}.png",
+            bbox_inches="tight",
         )
         if not SHOW_PLOTS:
-            plt.close(metric_fig)
+            plt.close(limiting_plot.figure)
 
-    exp_scenarios: list[np.ndarray] = valid.extract_aleatory_scenarios(
+    exp_scenarios: list[np.ndarray] = vl.extract_aleatory_scenarios(
         exp_arrays[channel], offset=None
     )
-    exp_summary: valid.ValidECDFSummary = valid.calc_ecdf_summary(
+    exp_summary: vl.ValidECDFSummary = vl.calc_ecdf_summary(
         exp_scenarios,
-        bounds=valid.EValidECDFBounds.SUPPORT_SUM,
+        bounds=vl.EValidECDFBounds.SUPPORT_SUM,
     )
     model_lower = model_scenarios[cast(int, model_summary.lower_idx)]
     model_upper = model_scenarios[cast(int, model_summary.upper_idx)]
     exp_lower: np.ndarray = exp_arrays[channel].select_aleatory(
-        0, 0, 0, offset=valid.EEpisOffset.LOWER
+        0, 0, 0, offset=vl.EEpisOffset.LOWER
     )
     exp_upper: np.ndarray = exp_arrays[channel].select_aleatory(
-        0, 0, 0, offset=valid.EEpisOffset.UPPER
+        0, 0, 0, offset=vl.EEpisOffset.UPPER
     )
-    correction: valid.MAVMCorrection = valid.calc_mavm_correction(
+    correction: vl.MAVMCorrection = vl.calc_mavm_correction(
         model_lower,
         model_upper,
         exp_lower,
         exp_upper,
-        duplicates=valid.EMAVMDuplicates.REJECT,
+        duplicates=vl.EMAVMDuplicates.REJECT,
     )
 
     expected_correction = provenance["reference_selected_corrections"][channel]
@@ -249,11 +250,11 @@ for channel in measurements:
     # %%
     # Export the original four endpoint comparisons using the engine arrays.
     # These are distinct from the worst MAVM over every retained scenario.
-    metric_field: valid.ValidMetricField = valid_result.metrics[channel][
-        valid.EMetricType.MAVM
+    metric_field: vl.MetricField = valid_result.metrics[channel][
+        vl.EMetricType.MAVM
     ]
     distances = []
-    for offset in (valid.EEpisOffset.LOWER, valid.EEpisOffset.UPPER):
+    for offset in (vl.EEpisOffset.LOWER, vl.EEpisOffset.UPPER):
         for model_idx in (
             cast(int, model_summary.lower_idx),
             cast(int, model_summary.upper_idx),
@@ -261,12 +262,12 @@ for channel in measurements:
             distances.extend(
                 [
                     float(
-                        metric_field.outputs[valid.EMetricOutput.D_PLUS][
+                        metric_field.outputs[vl.EMetricOut.D_PLUS][
                             0, 0, 0, model_idx, offset
                         ]
                     ),
                     float(
-                        metric_field.outputs[valid.EMetricOutput.D_MINUS][
+                        metric_field.outputs[vl.EMetricOut.D_MINUS][
                             0, 0, 0, model_idx, offset
                         ]
                     ),
@@ -280,13 +281,13 @@ for channel in measurements:
     # experiment visible; and model-only uncertainty/correction for a clean view.
     # Gray fill shows the MAVM-corrected model support envelope.
     diagnostic_views = (
-        ("1_exp-sim-cdfs", valid.EValidMAVMDiagnostic.DISTRIBUTIONS),
-        ("2_dextremes_wcdfs", valid.EValidMAVMDiagnostic.COMPARISONS),
-        ("3_dextremes_wexpcdfs", valid.EValidMAVMDiagnostic.CORRECTION),
-        ("4_dextremes_simcdfsonly", valid.EValidMAVMDiagnostic.MODEL_CORRECTION),
+        ("1_exp-sim-cdfs", vl.EValidMAVMDiagnostic.DISTRIBUTIONS),
+        ("2_dextremes_wcdfs", vl.EValidMAVMDiagnostic.COMPARISONS),
+        ("3_dextremes_wexpcdfs", vl.EValidMAVMDiagnostic.CORRECTION),
+        ("4_dextremes_simcdfsonly", vl.EValidMAVMDiagnostic.MODEL_CORRECTION),
     )
     for figure_prefix, view in diagnostic_views:
-        fig, ax = validplot.plot_valid_mavm_diagnostic(
+        fig, ax = vl.plot_valid_mavm_diagnostic(
             model_summary,
             exp_summary,
             correction=correction,

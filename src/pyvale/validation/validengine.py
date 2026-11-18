@@ -14,15 +14,15 @@ from os import cpu_count
 
 import numpy as np
 
-from pyvale.valid.cython.mavm import (
+from pyvale.validation.cython.mavm import (
     _calculate_prepared_mavm,
     _prepare_mavm_distribution,
     _prepare_mavm_exp,
     _PreparedECDF,
     _PreparedMAVMExp,
 )
-from pyvale.valid.metrics import validate_relative_error_config
-from pyvale.valid.metricstrategy import (
+from pyvale.validation.metrics import validate_relative_error_config
+from pyvale.validation.metricstrategy import (
     EMetricComparison,
     EMetricType,
     IValidMetric,
@@ -34,18 +34,18 @@ from pyvale.valid.metricstrategy import (
     MetricRMSE,
     calculate_trusted_metric,
 )
-from pyvale.valid.validchecks import validate_unique_sample
-from pyvale.valid.validecdf import extract_aleatory_scenarios
-from pyvale.valid.validtypes import (
+from pyvale.validation.validchecks import validate_unique_sample
+from pyvale.validation.validecdf import extract_aleatory_scenarios
+from pyvale.validation.validtypes import (
     VALID_RES_AXES,
     EEpisOffset,
     EMAVMDuplicates,
-    EMetricOutput,
+    EMetricOut,
     EValidAxis,
     EValidResAxis,
     ValidArray,
     ValidCase,
-    ValidMetricField,
+    MetricField,
     ValidResult,
     validate_mavm_config,
 )
@@ -96,8 +96,8 @@ class ValidEngine:
             outputs = metric.get_outputs()
             if not outputs or len(set(outputs)) != len(outputs):
                 raise ValueError("Metric outputs must be nonempty and unique.")
-            if any(not isinstance(output, EMetricOutput) for output in outputs):
-                raise TypeError("Metric outputs must be EMetricOutput.")
+            if any(not isinstance(output, EMetricOut) for output in outputs):
+                raise TypeError("Metric outputs must be EMetricOut.")
         self.metrics = tuple(deepcopy(metrics))
         self.opts = (
             ValidEngineOpts() if opts is None else ValidEngineOpts(workers=opts.workers)
@@ -145,7 +145,7 @@ class ValidEngine:
                                 samples[np.isfinite(samples)], "engine"
                             )
 
-        results: dict[str, dict[EMetricType, ValidMetricField]] = {}
+        results: dict[str, dict[EMetricType, MetricField]] = {}
         workloads: list[_Workload] = []
 
         for name, observable in valid_case.observables.items():
@@ -185,7 +185,7 @@ class ValidEngine:
                     scenarios[axis] = tuple(EEpisOffset)
             metric_fields = {}
             for metric in self.metrics:
-                metric_fields[metric.get_kind()] = ValidMetricField(
+                metric_fields[metric.get_kind()] = MetricField(
                     axes=axes,
                     outputs={
                         output: np.full(shape, np.nan)
@@ -379,7 +379,7 @@ def _calculate_partition(
 
 
 def _store_chunk(
-    metric_fields: dict[EMetricType, ValidMetricField],
+    metric_fields: dict[EMetricType, MetricField],
     metrics: tuple[IValidMetric, ...],
     start: int,
     calculated: np.ndarray,

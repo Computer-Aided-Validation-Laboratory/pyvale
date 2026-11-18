@@ -17,23 +17,23 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
 from pyvale.sensorsim.visualopts import PlotOptsGeneral
-from pyvale.valid.metrics import calc_u_pooling_1d
-from pyvale.valid.metricstrategy import (
+from pyvale.validation.metrics import calc_u_pooling_1d
+from pyvale.validation.metricstrategy import (
     EMetricScale,
     EMetricType,
     IValidMetric,
     MetricMAVM,
 )
-from pyvale.valid.validecdf import _evaluate_ecdf_quantiles, calc_ecdf, calc_ecdf_view
-from pyvale.valid.validtools import (
+from pyvale.validation.validecdf import _evaluate_ecdf_quantiles, calc_ecdf, calc_ecdf_view
+from pyvale.validation.validtools import (
     build_metric_selection,
     create_metric_label,
     extract_metric_values,
     select_metric_output,
 )
-from pyvale.valid.validtypes import (
+from pyvale.validation.validtypes import (
     EEpisOffset,
-    EMetricOutput,
+    EMetricOut,
     EValidECDFBounds,
     EValidECDFCentre,
     EValidECDFReduce,
@@ -90,7 +90,7 @@ class ValidPlotOpts:
     ms: float = 3.2
 
 
-class EValidMetricDisplay(Enum):
+class EMetricDisp(Enum):
     SUPPORT_SHIFT = auto()
     INTEGRATION_AREA = auto()
     CDF_DIFFERENCE = auto()
@@ -118,7 +118,7 @@ class ValidECDFComparison:
 
 
 @dataclass(slots=True)
-class ValidECDFPlot:
+class ECDFPlot:
     """Composable figure and the exact source selections used in each panel.
 
     Created by the source plotting functions. Source arrays are borrowed and
@@ -192,8 +192,9 @@ def _create_axes(
 
 def _metric_units(result: ValidResult, observable: str, metric: EMetricType) -> str:
     if result.metric_configs[metric].get_scale() is not EMetricScale.PHYSICAL:
-        return "1"
-    return result.observables[observable].phys_units
+        return "-"
+    units = result.observables[observable].phys_units
+    return "-" if units in ("1", "") else units
 
 
 def plot_sim_ecdfs(
@@ -209,7 +210,7 @@ def plot_sim_ecdfs(
     columns: int | None = None,
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
-) -> ValidECDFPlot:
+) -> ECDFPlot:
     """Plot sim conditional ECDFs or epistemic summaries; return a composable figure.
 
     Default to the outer envelope over both epistemic axes at point zero.
@@ -243,7 +244,7 @@ def plot_exp_ecdfs(
     columns: int | None = None,
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
-) -> ValidECDFPlot:
+) -> ECDFPlot:
     """Plot exp ECDFs with independently selected epistemic summaries and offsets."""
     return _plot_ecdf_sources(
         valid_case,
@@ -274,7 +275,7 @@ def plot_sim_exp_cdfs(
     columns: int | None = None,
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
-) -> ValidECDFPlot:
+) -> ECDFPlot:
     """Compare sim and exp families without pooling or selecting a hidden scenario.
 
     Each source defaults to a shaded pointwise epistemic envelope, or one ECDF
@@ -310,7 +311,7 @@ def _plot_ecdf_sources(
     columns: int | None,
     valid_plot_opts: ValidPlotOpts | None,
     ax: Axes | None,
-) -> ValidECDFPlot:
+) -> ECDFPlot:
     observable_data = valid_case.observables[observable]
     point_count = (
         1 if observable_data.coords is None else observable_data.coords.shape[0]
@@ -369,13 +370,15 @@ def _plot_ecdf_sources(
         panel.set_title(
             f"Point {point}: {observable_data.components[component_idx]}, {time_label}"
         )
-        panel.set_xlabel(f"{observable} [{observable_data.phys_units}]")
+        units = observable_data.phys_units
+        units = "-" if units in ("1", "") else units
+        panel.set_xlabel(f"{observable} [{units}]")
         panel.set_ylabel("Cumulative probability")
         panel.set_ylim(0.0, 1.02)
         panel.grid(alpha=0.3)
         panel.legend()
         _apply_plot_options(fig, panel, options)
-    return ValidECDFPlot(
+    return ECDFPlot(
         fig,
         axes,
         valid_case,
@@ -494,10 +497,10 @@ def _plot_ecdf_view(
 
 
 def add_support_overlay(
-    plot: ValidECDFPlot,
+    plot: ECDFPlot,
     supports: ValidSupportBounds,
     *,
-    output: EMetricOutput | None = None,
+    output: EMetricOut | None = None,
     selectors: dict[EValidResAxis, int] | None = None,
     label: str = "Profiled shifted support",
 ) -> None:
@@ -510,9 +513,9 @@ def add_support_overlay(
     """
     if output not in (
         None,
-        EMetricOutput.D_PLUS,
-        EMetricOutput.D_MINUS,
-        EMetricOutput.DISTANCE,
+        EMetricOut.D_PLUS,
+        EMetricOut.D_MINUS,
+        EMetricOut.DISTANCE,
     ):
         raise ValueError("Support overlays require distance or directional outputs.")
     selected = selectors or {}
@@ -558,12 +561,12 @@ def add_support_overlay(
         selection = tuple(indices)
         lower = (
             supports.sim_lower[selection]
-            if output is EMetricOutput.D_PLUS
+            if output is EMetricOut.D_PLUS
             else supports.lower[selection]
         )
         upper = (
             supports.sim_upper[selection]
-            if output is EMetricOutput.D_MINUS
+            if output is EMetricOut.D_MINUS
             else supports.upper[selection]
         )
         if not np.all(np.isfinite(lower)) or not np.all(np.isfinite(upper)):
@@ -600,7 +603,7 @@ def add_support_overlay(
 
 
 def add_normalised_ecdf_axis(
-    plot: ValidECDFPlot,
+    plot: ECDFPlot,
     reference: float | ValidECDFReference,
 ) -> None:
     """Add a secondary x/c axis using one constant per physical panel.
@@ -630,17 +633,12 @@ def add_normalised_ecdf_axis(
             mean_quantiles = np.mean(curves.quantiles, axis=(0, 1, 2))
             index = np.searchsorted(curves.probabilities, probability, side="left")
             constants.append(float(mean_quantiles[index]))
-        label = (
-            f"{plot.observable} / mean {reference.source.value} Q({probability:g}) [1]"
-        )
     else:
         if isinstance(reference, (bool, np.bool_)) or not isinstance(
             reference, (int, float, np.integer, np.floating)
         ):
             raise TypeError("Reference must be a constant or ValidECDFReference.")
         constants = [float(reference)] * len(plot.point_idxs)
-        units = plot.valid_case.observables[plot.observable].phys_units
-        label = f"{plot.observable} / ({reference:g} {units}) [1]"
     if any(not np.isfinite(constant) or constant == 0 for constant in constants):
         raise ValueError("Normalisation constants must be finite and nonzero.")
     for ax, constant in zip(plot.axes.flat, constants, strict=False):
@@ -651,18 +649,20 @@ def add_normalised_ecdf_axis(
                 lambda positions, scale=constant: positions * scale,
             ),
         )
-        secondary.set_xlabel(label, fontsize=plot.options.font_ax_size)
+        secondary.set_xlabel(
+            f"{plot.observable} norm. [-]", fontsize=plot.options.font_ax_size
+        )
         secondary.xaxis.label.set_fontname(plot.options.font_name)
         secondary.tick_params(labelsize=plot.options.font_tick_size)
     plot.normalisation = tuple(constants)
 
 
 def add_metric_overlay(
-    plot: ValidECDFPlot,
+    plot: ECDFPlot,
     metric: IValidMetric,
     *,
-    output: EMetricOutput | None = None,
-    display: EValidMetricDisplay | None = None,
+    output: EMetricOut | None = None,
+    display: EMetricDisp | None = None,
     comparison: ValidECDFComparison | None = None,
 ) -> None:
     """Compose a metric illustration with the exact selected conditional samples.
@@ -685,19 +685,19 @@ def add_metric_overlay(
         raise ValueError("The selected metric does not declare that output.")
     if display is None:
         if kind in (EMetricType.AVM, EMetricType.MAVM):
-            display = EValidMetricDisplay.SUPPORT_SHIFT
+            display = EMetricDisp.SUPPORT_SHIFT
         elif kind is EMetricType.KS:
-            display = EValidMetricDisplay.CDF_DIFFERENCE
+            display = EMetricDisp.CDF_DIFFERENCE
         else:
-            display = EValidMetricDisplay.ANNOTATION
-    if not isinstance(display, EValidMetricDisplay):
-        raise TypeError("Metric display must be EValidMetricDisplay.")
+            display = EMetricDisp.ANNOTATION
+    if not isinstance(display, EMetricDisp):
+        raise TypeError("Metric display must be EMetricDisp.")
     if display in (
-        EValidMetricDisplay.SUPPORT_SHIFT,
-        EValidMetricDisplay.INTEGRATION_AREA,
+        EMetricDisp.SUPPORT_SHIFT,
+        EMetricDisp.INTEGRATION_AREA,
     ) and kind not in (EMetricType.AVM, EMetricType.MAVM):
         raise ValueError("Support shifts and integration areas require AVM or MAVM.")
-    if display is EValidMetricDisplay.CDF_DIFFERENCE and kind is not EMetricType.KS:
+    if display is EMetricDisp.CDF_DIFFERENCE and kind is not EMetricType.KS:
         raise ValueError("Vertical CDF differences require KS.")
     if comparison is not None:
         if not isinstance(comparison, ValidECDFComparison):
@@ -747,24 +747,24 @@ def add_metric_overlay(
                 )
             sim_indices = (sim.original_scenarios.index(sim_key),)
             exp_indices = (exp.original_scenarios.index(exp_key),)
-        if display is EValidMetricDisplay.INTEGRATION_AREA and (
+        if display is EMetricDisp.INTEGRATION_AREA and (
             len(sim_indices) != 1 or len(exp_indices) != 1
         ):
             raise ValueError(
                 "Integration shading requires an explicit original scenario comparison."
             )
         value_columns = (
-            1 if display is EValidMetricDisplay.SUPPORT_SHIFT else len(exp_indices)
+            1 if display is EMetricDisp.SUPPORT_SHIFT else len(exp_indices)
         )
         values = np.full((len(sim_indices), value_columns), np.nan)
         # KS envelope geometry is calculated directly from displayed bounds;
         # it is not claimed to be the maximum KS over original scenario pairs.
-        if display is not EValidMetricDisplay.CDF_DIFFERENCE:
+        if display is not EMetricDisp.CDF_DIFFERENCE:
             for row, sim_index in enumerate(sim_indices):
                 for column, exp_index in enumerate(exp_indices):
                     result = metric.calc(sim.samples[sim_index], exp.samples[exp_index])
                     value = metric.extract_outputs(result)[output_index]
-                    if display is EValidMetricDisplay.SUPPORT_SHIFT:
+                    if display is EMetricDisp.SUPPORT_SHIFT:
                         values[row, 0] = (
                             value
                             if np.isnan(values[row, 0])
@@ -778,14 +778,14 @@ def add_metric_overlay(
     for ax, (sim, exp, sim_indices, exp_indices, values) in zip(
         plot.axes.flat, prepared, strict=False
     ):
-        if display is EValidMetricDisplay.SUPPORT_SHIFT:
+        if display is EMetricDisp.SUPPORT_SHIFT:
             quantiles = sim.original_quantiles[list(sim_indices)]
             largest_per_sim = np.max(values, axis=1)
             lower = np.min(quantiles, axis=0)
             upper = np.max(quantiles, axis=0)
-            if kind is EMetricType.AVM or output is EMetricOutput.D_PLUS:
+            if kind is EMetricType.AVM or output is EMetricOut.D_PLUS:
                 upper = np.max(quantiles + largest_per_sim[:, None], axis=0)
-            if kind is EMetricType.AVM or output is EMetricOutput.D_MINUS:
+            if kind is EMetricType.AVM or output is EMetricOut.D_MINUS:
                 lower = np.min(quantiles - largest_per_sim[:, None], axis=0)
             label = f"{metric_label} outer support shift"
             if kind is EMetricType.AVM:
@@ -814,7 +814,7 @@ def add_metric_overlay(
                 color=options.metric_color,
                 linestyle=options.metric_linestyle,
             )
-        elif display is EValidMetricDisplay.INTEGRATION_AREA:
+        elif display is EMetricDisp.INTEGRATION_AREA:
             sim_cdf = calc_ecdf(sim.samples[sim_indices[0]])
             exp_cdf = calc_ecdf(exp.samples[exp_indices[0]])
             if kind is EMetricType.MAVM:
@@ -825,7 +825,7 @@ def add_metric_overlay(
                 )
                 exp_bound = (
                     mavm.exp_conf_upper
-                    if output is EMetricOutput.D_PLUS
+                    if output is EMetricOut.D_PLUS
                     else mavm.exp_conf_lower
                 )
                 exp_cdf = ValidECDF(exp_bound, mavm.exp_probs)
@@ -853,7 +853,7 @@ def add_metric_overlay(
             lower = np.minimum(sim_quantiles, exp_quantiles)
             upper = np.maximum(sim_quantiles, exp_quantiles)
             if kind is EMetricType.MAVM:
-                if output is EMetricOutput.D_PLUS:
+                if output is EMetricOut.D_PLUS:
                     lower = sim_quantiles
                 else:
                     upper = sim_quantiles
@@ -866,7 +866,7 @@ def add_metric_overlay(
                 alpha=options.metric_alpha,
                 label=f"{metric_label} integration area = {values[0, 0]:.4g}",
             )
-        elif display is EValidMetricDisplay.CDF_DIFFERENCE:
+        elif display is EMetricDisp.CDF_DIFFERENCE:
             if comparison is not None or len(sim_indices) == len(exp_indices) == 1:
                 curve_pairs = (
                     (
@@ -919,8 +919,9 @@ def add_metric_overlay(
             units = (
                 plot.valid_case.observables[plot.observable].phys_units
                 if metric.get_scale() is EMetricScale.PHYSICAL
-                else "1"
+                else "-"
             )
+            units = "-" if units in ("1", "") else units
             # Place later annotations below earlier ones, preserving composability.
             ax.text(
                 0.02,
@@ -971,7 +972,7 @@ def plot_u_pooling_cdf(
     )
     ax.set_xlim(0.0, 1.0)
     ax.set_ylim(0.0, 1.0)
-    ax.set_xlabel("Transformed observation [1]")
+    ax.set_xlabel("Transformed observation [-]")
     ax.set_ylabel("Cumulative probability")
     ax.legend()
     _apply_plot_options(fig, ax, options)
@@ -984,7 +985,7 @@ def plot_valid_metric_time(
     metric: EMetricType,
     *,
     selectors: dict[EValidResAxis, int] | None = None,
-    output: EMetricOutput | None = None,
+    output: EMetricOut | None = None,
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
@@ -1015,12 +1016,12 @@ def plot_valid_metric_time(
     return fig, ax
 
 
-def plot_valid_metric_distribution(
+def plot_metric_dist(
     result: ValidResult,
     observable: str,
     metric: EMetricType,
     *,
-    output: EMetricOutput | None = None,
+    output: EMetricOut | None = None,
     selectors: dict[EValidResAxis, int] | None = None,
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
@@ -1095,14 +1096,14 @@ def create_valid_plot_grid(
     return fig, axes
 
 
-def plot_valid_metric_time_points(
+def plot_metric_time_points(
     result: ValidResult,
     observable: str,
     metric: EMetricType,
     *,
     point_idxs: tuple[int, ...],
     selectors: dict[EValidResAxis, int] | None = None,
-    output: EMetricOutput | None = None,
+    output: EMetricOut | None = None,
     columns: int = 3,
     valid_plot_opts: ValidPlotOpts | None = None,
 ) -> tuple[Figure, np.ndarray]:

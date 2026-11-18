@@ -12,7 +12,7 @@ from time import perf_counter
 
 import numpy as np
 
-from pyvale import valid
+import pyvale.validation as vl
 
 
 def main() -> None:
@@ -28,9 +28,9 @@ def main() -> None:
     xx, yy = np.meshgrid(axis, axis, indexing="xy")
     coords = np.column_stack((xx.ravel(), yy.ravel(), np.zeros(points)))
     observables = {
-        "strain": valid.ValidObservable(
+        "strain": vl.ValidObservable(
             components=("strain_xx",),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=coords,
             times=None,
             phys_units="1",
@@ -38,9 +38,9 @@ def main() -> None:
     }
     shape = (points, 1, args.samples)
     axes = (
-        valid.EValidAxis.POINT,
-        valid.EValidAxis.COMPONENT,
-        valid.EValidAxis.ALEATORY,
+        vl.EValidAxis.POINT,
+        vl.EValidAxis.COMPONENT,
+        vl.EValidAxis.ALEATORY,
     )
     with TemporaryDirectory() as temporary:
         sim_file = np.memmap(
@@ -54,25 +54,25 @@ def main() -> None:
             samples = rng.normal(size=args.samples)
             sim_file[point, 0] = samples
             exp_file[point, 0] = samples + 0.1
-        valid_case = valid.ValidCase(
+        valid_case = vl.ValidCase(
             observables,
-            {"strain": valid.ValidArray(sim_file, axes)},
-            {"strain": valid.ValidArray(exp_file, axes)},
+            {"strain": vl.ValidArray(sim_file, axes)},
+            {"strain": vl.ValidArray(exp_file, axes)},
         )
         start = perf_counter()
         field = (
-            valid.ValidEngine([valid.MetricAVM()])
+            vl.ValidEngine([vl.MetricAVM()])
             .run(valid_case)
-            .metrics["strain"][valid.EMetricType.AVM]
+            .metrics["strain"][vl.EMetricType.AVM]
         )
         elapsed = perf_counter() - start
         if not np.allclose(
-            field.outputs[valid.EMetricOutput.DISTANCE], 0.1, atol=1.0e-12
+            field.outputs[vl.EMetricOut.DISTANCE], 0.1, atol=1.0e-12
         ):
             raise AssertionError("AVM shift sanity check failed.")
         print(f"points={points}, samples={args.samples}, seconds={elapsed:.3f}")
         print(f"input_bytes={sim_file.nbytes + exp_file.nbytes}")
-        print(f"output_bytes={field.outputs[valid.EMetricOutput.DISTANCE].nbytes}")
+        print(f"output_bytes={field.outputs[vl.EMetricOut.DISTANCE].nbytes}")
 
 
 if __name__ == "__main__":

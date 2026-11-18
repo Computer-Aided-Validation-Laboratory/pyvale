@@ -12,8 +12,8 @@ from itertools import product
 import numpy as np
 from scipy import stats
 
-from pyvale.valid.validchecks import validate_finite_sample, validate_real_array
-from pyvale.valid.validtypes import (
+from pyvale.validation.validchecks import validate_finite_sample, validate_real_array
+from pyvale.validation.validtypes import (
     EEpisOffset,
     EValidAxis,
     EValidECDFBounds,

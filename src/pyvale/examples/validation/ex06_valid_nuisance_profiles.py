@@ -20,8 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 
-from pyvale import valid
-from pyvale.valid import validplot
+import pyvale.validation as vl
 
 matplotlib.use("Agg")
 SHOW_PLOTS = False
@@ -50,18 +49,18 @@ exp_samples = (
     + np.array([0.4, 0.8, 1.2])[None, None, None, None, :, None] * quantile_grid
 )
 axes = (
-    valid.EValidAxis.POINT,
-    valid.EValidAxis.COMPONENT,
-    valid.EValidAxis.TIME,
-    valid.EValidAxis.EPISTEMIC_TRANS,
-    valid.EValidAxis.EPISTEMIC_NUIS,
-    valid.EValidAxis.ALEATORY,
+    vl.EValidAxis.POINT,
+    vl.EValidAxis.COMPONENT,
+    vl.EValidAxis.TIME,
+    vl.EValidAxis.EPISTEMIC_TRANS,
+    vl.EValidAxis.EPISTEMIC_NUIS,
+    vl.EValidAxis.ALEATORY,
 )
 observable_tag = "temperature"
 observables = {
-    observable_tag: valid.ValidObservable(
+    observable_tag: vl.ValidObservable(
         components=("temperature",),
-        geometry=valid.EValidGeometry.POINT,
+        geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
         phys_units="degC",
@@ -69,19 +68,19 @@ observables = {
         time_units="s",
     )
 }
-valid_case = valid.ValidCase(
+valid_case = vl.ValidCase(
     observables,
-    {observable_tag: valid.ValidArray(sim_samples, axes)},
-    {observable_tag: valid.ValidArray(exp_samples, axes)},
+    {observable_tag: vl.ValidArray(sim_samples, axes)},
+    {observable_tag: vl.ValidArray(exp_samples, axes)},
 )
-valid_result: valid.ValidResult = valid.ValidEngine(
+valid_result: vl.ValidResult = vl.ValidEngine(
     [
-        valid.MetricAVM(),
-        valid.MetricKS(),
-        valid.MetricCVM(),
-        valid.MetricRMSE(),
-        valid.MetricRelErr(),
-        valid.MetricMAVM(),
+        vl.MetricAVM(),
+        vl.MetricKS(),
+        vl.MetricCVM(),
+        vl.MetricRMSE(),
+        vl.MetricRelErr(),
+        vl.MetricMAVM(),
     ]
 ).run(valid_case)
 
@@ -92,10 +91,10 @@ valid_result: valid.ValidResult = valid.ValidEngine(
 # comparisons; they can differ between outputs and physical cells.
 summary: dict[str, object] = {}
 for metric_type, field in valid_result.metrics[observable_tag].items():
-    profile: valid.ValidMetricExtrema = valid.profile_epis_nuisance_extrema(
+    profile: vl.ValidMetricExtrema = vl.profile_epis_nuisance_extrema(
         valid_result, observable_tag, metric_type
     )
-    all_extrema: valid.ValidMetricExtrema = valid.find_metric_epis_extrema(
+    all_extrema: vl.ValidMetricExtrema = vl.find_metric_epis_extrema(
         valid_result, observable_tag, metric_type
     )
     summary[metric_type.name] = {
@@ -104,20 +103,20 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
     }
     # Reuse generic metric plotting with profiled fields. The profiles do not
     # calculate metrics again; both fields borrow their already reduced arrays.
-    maximum_result = valid.ValidResult(
+    maximum_result = vl.ValidResult(
         observables,
         {
             observable_tag: {
-                metric_type: valid.ValidMetricField(profile.axes, profile.maximum)
+                metric_type: vl.MetricField(profile.axes, profile.maximum)
             }
         },
         valid_result.metric_configs,
     )
-    minimum_result = valid.ValidResult(
+    minimum_result = vl.ValidResult(
         observables,
         {
             observable_tag: {
-                metric_type: valid.ValidMetricField(profile.axes, profile.minimum)
+                metric_type: vl.MetricField(profile.axes, profile.minimum)
             }
         },
         valid_result.metric_configs,
@@ -126,28 +125,28 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
         name = f"{metric_type.name.lower()}_{output.name.lower()}"
         fig: Figure
         plot_axes: np.ndarray
-        fig, plot_axes = validplot.plot_valid_metric_time_points(
+        fig, plot_axes = vl.plot_metric_time_points(
             maximum_result,
             observable_tag,
             metric_type,
             point_idxs=(0, 1),
             selectors={
-                valid.EValidResAxis.SIM_TRANS: 0,
-                valid.EValidResAxis.EXP_TRANS: 0,
+                vl.EValidResAxis.SIM_TRANS: 0,
+                vl.EValidResAxis.EXP_TRANS: 0,
             },
             output=output,
         )
         for point, ax in enumerate(plot_axes.flat):
             heading = ax.get_title()
             ax.lines[0].set_label("Maximum over nuisance")
-            validplot.plot_valid_metric_time(
+            vl.plot_valid_metric_time(
                 minimum_result,
                 observable_tag,
                 metric_type,
                 selectors={
-                    valid.EValidResAxis.POINT: point,
-                    valid.EValidResAxis.SIM_TRANS: 0,
-                    valid.EValidResAxis.EXP_TRANS: 0,
+                    vl.EValidResAxis.POINT: point,
+                    vl.EValidResAxis.SIM_TRANS: 0,
+                    vl.EValidResAxis.EXP_TRANS: 0,
                 },
                 output=output,
                 ax=ax,
@@ -177,41 +176,41 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
 # %%
 # 3. Support profiling asks which ECDF +/- its own d reaches furthest. This is
 # not a globally largest d added to the sim envelope. Origins may change along p.
-supports: valid.ValidSupportBounds = valid.profile_epis_nuisance_supports(
-    valid_case, valid_result, observable_tag, valid.EMetricType.MAVM
+supports: vl.ValidSupportBounds = vl.profile_epis_nuisance_supports(
+    valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
 summary["support_index_axes"] = [axis.value for axis in supports.index_axes]
 summary["upper_origin_at_point0_time2"] = supports.upper_indices[0, 0, 2, 0, 0].tolist()
 for metric_output, direction in (
-    (valid.EMetricOutput.D_PLUS, "d_plus"),
-    (valid.EMetricOutput.D_MINUS, "d_minus"),
+    (vl.EMetricOut.D_PLUS, "d_plus"),
+    (vl.EMetricOut.D_MINUS, "d_minus"),
 ):
-    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+    ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case,
         observable_tag,
         point_idxs=None,
         time_idx=2,
-        sim_view=valid.ValidECDFView(trans_idxs=(0,)),
-        exp_view=valid.ValidECDFView(trans_idxs=(0,)),
+        sim_view=vl.ValidECDFView(trans_idxs=(0,)),
+        exp_view=vl.ValidECDFView(trans_idxs=(0,)),
     )
-    validplot.add_support_overlay(
+    vl.add_support_overlay(
         ecdf_plot,
         supports,
         output=metric_output,
-        selectors={valid.EValidResAxis.SIM_TRANS: 0, valid.EValidResAxis.EXP_TRANS: 0},
+        selectors={vl.EValidResAxis.SIM_TRANS: 0, vl.EValidResAxis.EXP_TRANS: 0},
     )
     ecdf_plot.figure.savefig(
         output_path / f"mavm_{direction}_nuisance_support.png", bbox_inches="tight"
     )
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
-avm_supports: valid.ValidSupportBounds = valid.find_metric_epis_supports(
-    valid_case, valid_result, observable_tag, valid.EMetricType.AVM
+avm_supports: vl.ValidSupportBounds = vl.find_metric_epis_supports(
+    valid_case, valid_result, observable_tag, vl.EMetricType.AVM
 )
-ecdf_plot = validplot.plot_sim_exp_cdfs(
+ecdf_plot = vl.plot_sim_exp_cdfs(
     valid_case, observable_tag, point_idxs=None, time_idx=2
 )
-validplot.add_support_overlay(
+vl.add_support_overlay(
     ecdf_plot, avm_supports, label="AVM symmetric magnitude envelope"
 )
 ecdf_plot.figure.savefig(output_path / "avm_original_support.png", bbox_inches="tight")
@@ -223,15 +222,15 @@ if not SHOW_PLOTS:
 # retaining nuisance axes. Total width and additional outward extension answer
 # different questions. A median-ranked case is actual data, unlike ex05's
 # synthetic pointwise nuisance median. Stable ties retain canonical index order.
-by_case: valid.ValidSupportBounds = valid.find_metric_epis_supports(
+by_case: vl.ValidSupportBounds = vl.find_metric_epis_supports(
     valid_case,
     valid_result,
     observable_tag,
-    valid.EMetricType.MAVM,
-    reduce_axes=(valid.EValidResAxis.SIM_TRANS, valid.EValidResAxis.EXP_TRANS),
+    vl.EMetricType.MAVM,
+    reduce_axes=(vl.EValidResAxis.SIM_TRANS, vl.EValidResAxis.EXP_TRANS),
 )
-for score in valid.EValidNuisanceScore:
-    ranking: valid.ValidNuisanceRanking = valid.rank_epis_nuisance_cases(
+for score in vl.EValidNuisanceScore:
+    ranking: vl.ValidNuisanceRanking = vl.rank_epis_nuisance_cases(
         by_case, score=score
     )
     score_name = score.name.lower()
@@ -253,23 +252,23 @@ for score in valid.EValidNuisanceScore:
     ):
         sim_nuis, exp_nuis = (int(index) for index in ranking.cases[row])
         for metric_output, direction in (
-            (valid.EMetricOutput.D_PLUS, "d_plus"),
-            (valid.EMetricOutput.D_MINUS, "d_minus"),
+            (vl.EMetricOut.D_PLUS, "d_plus"),
+            (vl.EMetricOut.D_MINUS, "d_minus"),
         ):
-            ecdf_plot = validplot.plot_sim_exp_cdfs(
+            ecdf_plot = vl.plot_sim_exp_cdfs(
                 valid_case,
                 observable_tag,
                 time_idx=2,
-                sim_view=valid.ValidECDFView(nuis_idxs=(sim_nuis,)),
-                exp_view=valid.ValidECDFView(nuis_idxs=(exp_nuis,)),
+                sim_view=vl.ValidECDFView(nuis_idxs=(sim_nuis,)),
+                exp_view=vl.ValidECDFView(nuis_idxs=(exp_nuis,)),
             )
-            validplot.add_support_overlay(
+            vl.add_support_overlay(
                 ecdf_plot,
                 by_case,
                 output=metric_output,
                 selectors={
-                    valid.EValidResAxis.SIM_NUIS: sim_nuis,
-                    valid.EValidResAxis.EXP_NUIS: exp_nuis,
+                    vl.EValidResAxis.SIM_NUIS: sim_nuis,
+                    vl.EValidResAxis.EXP_NUIS: exp_nuis,
                 },
                 label=f"{rank_name} {score_name}: nuisance ({sim_nuis}, {exp_nuis})",
             )

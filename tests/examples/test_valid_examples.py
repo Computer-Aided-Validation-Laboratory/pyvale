@@ -64,7 +64,7 @@ PULSE25X_OUTPUTS = (
         )
     )
     + tuple(
-        f"mavm_{direction}_{channel}.png"
+        f"mavm_{direction}_limiting_ecdf_{channel}.png"
         for direction in ("d_plus", "d_minus")
         for channel in ("TC2", "TC3", "TC5", "TC6", "TC8", "TC9", "TC10", "CV")
     )
@@ -90,7 +90,6 @@ EXAMPLES = (
         "valid_ex1_metric",
         (
             "observable_cdfs.png",
-            "sample_counts.json",
             "avm_overlay.png",
             "avm_area.png",
             "ks_overlay.png",
@@ -100,8 +99,8 @@ EXAMPLES = (
             "u_pooling.png",
             "mavm_d_plus_area.png",
             "mavm_d_minus_area.png",
-            "mavm_d_plus_distribution.png",
-            "mavm_d_minus_distribution.png",
+            "mavm_d_plus_limiting_ecdf.png",
+            "mavm_d_minus_limiting_ecdf.png",
         ),
     ),
     (
@@ -111,8 +110,8 @@ EXAMPLES = (
             "temperature_cdfs.png",
             "temperature_avm_on_sim.png",
             "bias_reference.csv",
-            "mavm_d_plus_distribution.png",
-            "mavm_d_minus_distribution.png",
+            "mavm_d_plus_limiting_ecdf.png",
+            "mavm_d_minus_limiting_ecdf.png",
         ),
     ),
     (
@@ -265,7 +264,7 @@ EXAMPLES = (
 @pytest.mark.example
 @pytest.mark.parametrize(
     ("example", "output_directory", "outputs"),
-    [(f"valid/{name}.py", directory, outputs) for name, directory, outputs in EXAMPLES],
+    [(f"validation/{name}.py", directory, outputs) for name, directory, outputs in EXAMPLES],
 )
 def test_valid_example(
     run_example: Callable[..., Path],
@@ -287,9 +286,9 @@ def test_valid_example(
 
     output_root = work_dir / "pyvale-output" / output_directory
     if example in (
-        "valid/ex02_valid_steady.py",
-        "valid/ex03_valid_transient.py",
-        "valid/ex08_valid_sampling.py",
+        "validation/ex02_valid_steady.py",
+        "validation/ex03_valid_transient.py",
+        "validation/ex08_valid_sampling.py",
     ):
         reference = np.loadtxt(
             output_root
@@ -314,11 +313,11 @@ def test_valid_example(
             assert np.all(reference[reference[:, 1] == np.min(reference[:, 1]), 2] == 0)
         else:
             np.testing.assert_allclose(np.unique(reference[:, 1]), [1.0, 2.0])
-    if example == "valid/ex04_valid_transferable_bounds.py":
+    if example == "validation/ex04_valid_transferable_bounds.py":
         comparison = json.loads((output_root / "comparison.json").read_text())
         np.testing.assert_allclose(comparison["bounds_upper"], [75.0, 135.0])
         np.testing.assert_allclose(comparison["original_upper"], [95.0, 155.0])
-    if example == "valid/ex06_valid_nuisance_profiles.py":
+    if example == "validation/ex06_valid_nuisance_profiles.py":
         profiling = json.loads((output_root / "profiling.json").read_text())
         assert "sim_trans" in profiling["MAVM"]["retained_axes"]
         assert "sim_nuis" not in profiling["MAVM"]["retained_axes"]
@@ -328,7 +327,7 @@ def test_valid_example(
             order = np.asarray(ranking["order"])
             assert np.all(np.diff(scores[order]) >= -1.0e-12)
             assert len(ranking["cases"]) == 9
-    if example == "valid/ex10_valid_pulse25x.py":
+    if example == "validation/ex10_valid_pulse25x.py":
         with (
             work_dir / "pyvale-output" / output_directory / "parity.json"
         ).open() as stream:
@@ -338,7 +337,7 @@ def test_valid_example(
 
 
 def test_valid_gallery_contains_exactly_the_documented_eleven_examples() -> None:
-    examples_root = Path(__file__).resolve().parents[2] / "src/pyvale/examples/valid"
+    examples_root = Path(__file__).resolve().parents[2] / "src/pyvale/examples/validation"
     assert sorted(path.stem for path in examples_root.glob("ex*.py")) == sorted(
         name for name, _, _ in EXAMPLES
     )

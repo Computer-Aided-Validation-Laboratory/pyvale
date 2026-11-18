@@ -15,13 +15,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pyvale.valid.validchecks import validate_real_array
+from pyvale.validation.validchecks import validate_real_array
 
 if TYPE_CHECKING:
-    from pyvale.valid.metricstrategy import EMetricType, IValidMetric
+    from pyvale.validation.metricstrategy import EMetricType, IValidMetric
 
 
-class EMetricOutput(Enum):
+class EMetricOut(Enum):
     D_PLUS = auto()
     D_MINUS = auto()
     DISTANCE = auto()
@@ -572,7 +572,7 @@ VALID_RES_AXES = tuple(EValidResAxis)
 
 
 @dataclass(slots=True)
-class ValidMetricField:
+class MetricField:
     """Metric arrays in canonical result-axis order.
 
     Axes are point, component, time, simulation transferable/nuisance epistemic,
@@ -584,20 +584,20 @@ class ValidMetricField:
     """
 
     axes: tuple[EValidResAxis, ...]
-    outputs: dict[EMetricOutput, np.ndarray]
+    outputs: dict[EMetricOut, np.ndarray]
     scenarios: dict[EValidResAxis, tuple[EEpisOffset, ...]] | None = None
 
 
 def resolve_metric_output(
-    field: ValidMetricField, output: EMetricOutput | None
-) -> EMetricOutput:
+    field: MetricField, output: EMetricOut | None
+) -> EMetricOut:
     """Select the sole output or require an explicit choice for multiple outputs."""
     if output is None:
         if len(field.outputs) != 1:
             raise ValueError("Select an output explicitly for a multi-output metric.")
         return next(iter(field.outputs))
-    if not isinstance(output, EMetricOutput):
-        raise TypeError("Metric output must be EMetricOutput.")
+    if not isinstance(output, EMetricOut):
+        raise TypeError("Metric output must be EMetricOut.")
     if output not in field.outputs:
         raise ValueError(f"Metric field has no {output.name} output.")
     return output
@@ -623,10 +623,10 @@ class ValidMetricExtrema:
 
     axes: tuple[EValidResAxis, ...]
     reduced_axes: tuple[EValidResAxis, ...]
-    minimum: dict[EMetricOutput, np.ndarray]
-    maximum: dict[EMetricOutput, np.ndarray]
-    minimum_indices: dict[EMetricOutput, np.ndarray]
-    maximum_indices: dict[EMetricOutput, np.ndarray]
+    minimum: dict[EMetricOut, np.ndarray]
+    maximum: dict[EMetricOut, np.ndarray]
+    minimum_indices: dict[EMetricOut, np.ndarray]
+    maximum_indices: dict[EMetricOut, np.ndarray]
     selectors: dict[EValidResAxis, int]
 
 
@@ -649,7 +649,7 @@ class ValidSupportBounds:
     lower_indices: np.ndarray
     upper_indices: np.ndarray
     selectors: dict[EValidResAxis, int]
-    metric_outputs: dict[EMetricOutput, np.ndarray] | None = None
+    metric_outputs: dict[EMetricOut, np.ndarray] | None = None
 
 
 @dataclass(slots=True)
@@ -677,7 +677,7 @@ class ValidResult:
     """Borrow observables/field arrays and snapshot metric configurations."""
 
     observables: dict[str, ValidObservable]
-    metrics: dict[str, dict[EMetricType, ValidMetricField]]
+    metrics: dict[str, dict[EMetricType, MetricField]]
     metric_configs: dict[EMetricType, IValidMetric]
 
     def __post_init__(self) -> None:
@@ -688,7 +688,7 @@ class ValidResult:
         observable: str,
         metric: EMetricType,
         *,
-        output: EMetricOutput | None = None,
+        output: EMetricOut | None = None,
         maximum: bool = True,
     ) -> tuple[float, dict[EValidResAxis, int]]:
         """Locate a finite extreme without reducing the stored result field."""

@@ -17,8 +17,8 @@ from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
 from pyvale.sensorsim.sensordata import SensorData
-from pyvale.valid.validchecks import validate_real_array
-from pyvale.valid.validtypes import (
+from pyvale.validation.validchecks import validate_real_array
+from pyvale.validation.validtypes import (
     EValidAxis,
     EValidGeometry,
     ValidArray,

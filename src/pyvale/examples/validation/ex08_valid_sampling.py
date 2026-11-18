@@ -25,9 +25,8 @@ import pyvale.data as dataset
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-from pyvale import valid
-from pyvale.valid import validplot, validvis
-from pyvale.valid import validpreparation as validprep
+import pyvale.validation as vl
+from pyvale.validation import validpreparation as validprep
 
 matplotlib.use("Agg")
 SHOW_PLOTS = False
@@ -68,36 +67,36 @@ sensor_data = sens.SensorData(
     spatial_dims=np.array([0.4, 0.4, 0.0]),
 )
 observables = {
-    "temperature_average": valid.ValidObservable(
+    "temperature_average": vl.ValidObservable(
         components=("temperature",),
-        geometry=valid.EValidGeometry.POINT,
+        geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
         phys_units="degC",
         coord_units="mm",
         time_units="s",
     ),
-    "displacement_local": valid.ValidObservable(
+    "displacement_local": vl.ValidObservable(
         components=("disp_x", "disp_y", "disp_z"),
-        geometry=valid.EValidGeometry.POINT,
+        geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
         phys_units="mm",
         coord_units="mm",
         time_units="s",
     ),
-    "strain_local": valid.ValidObservable(
+    "strain_local": vl.ValidObservable(
         components=(*normal_keys, *shear_keys),
-        geometry=valid.EValidGeometry.POINT,
+        geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
         phys_units="1",
         coord_units="mm",
         time_units="s",
     ),
-    "mean_temperature": valid.ValidObservable(
+    "mean_temperature": vl.ValidObservable(
         components=("nodal_mean_temperature",),
-        geometry=valid.EValidGeometry.GLOBAL,
+        geometry=vl.EValidGeometry.GLOBAL,
         times=times,
         phys_units="degC",
         time_units="s",
@@ -117,18 +116,18 @@ fields: dict[str, sens.IField] = {
 # 2. A single bound IField can be sampled directly. Sweeps reuse and rebind the
 # field objects in place, leaving them on the final run (one run here; ex09 has
 # three transferable runs). Global observables need no field dictionary entry.
-single: valid.ValidArray = validprep.sample_field_for_valid(
+single: vl.ValidArray = validprep.sample_field_for_valid(
     fields["temperature_average"],
     observables["temperature_average"],
     sensor_data=sensor_data,
 )
-sim_arrays: dict[str, valid.ValidArray] = validprep.sample_sim_sweep(
+sim_arrays: dict[str, vl.ValidArray] = validprep.sample_sim_sweep(
     fields,
     observables,
     [((), sim_data)],
     sensor_data={tag: sensor_data for tag in fields},
 )
-global_samples: valid.ValidArray = validprep.sample_sim_globals(
+global_samples: vl.ValidArray = validprep.sample_sim_globals(
     sim_data, observables["mean_temperature"]
 )
 np.testing.assert_allclose(single.data, sim_arrays["temperature_average"].data)
@@ -154,9 +153,9 @@ acquisitions: list[dict[str, io.ExpData]] = validprep.extract_exp_sim_data(
         "temperature_average": validprep.SensorOutputSelection("temperature", 0, coords)
     },
 )
-cases: list[valid.ValidCase] = []
+cases: list[vl.ValidCase] = []
 for repeat, acquisition in enumerate(acquisitions):
-    exp_arrays: dict[str, valid.ValidArray] = validprep.assemble_exp_arrays(
+    exp_arrays: dict[str, vl.ValidArray] = validprep.assemble_exp_arrays(
         acquisition, {"temperature_average": observables["temperature_average"]}
     )
     # Multi-component acquisitions can already be supplied as ValidArray.
@@ -165,24 +164,24 @@ for repeat, acquisition in enumerate(acquisitions):
     tensor_bias = (
         20.0e-6 * drift * np.array([1.0, -0.5, 0.25, 0.1, -0.1, 0.2])[None, :, None]
     )
-    exp_arrays["displacement_local"] = valid.ValidArray(
+    exp_arrays["displacement_local"] = vl.ValidArray(
         sim_arrays["displacement_local"].data
         + vector_bias
         + repeat_offsets[repeat] * 1.0e-4,
         sim_arrays["displacement_local"].axes,
     )
-    exp_arrays["strain_local"] = valid.ValidArray(
+    exp_arrays["strain_local"] = vl.ValidArray(
         sim_arrays["strain_local"].data + tensor_bias + repeat_offsets[repeat] * 1.0e-6,
         sim_arrays["strain_local"].axes,
     )
-    exp_arrays["mean_temperature"] = valid.ValidArray(
+    exp_arrays["mean_temperature"] = vl.ValidArray(
         global_samples.data + time_fraction[None, None, :] + repeat_offsets[repeat],
         global_samples.axes,
     )
-    cases.append(valid.ValidCase(observables, sim_arrays, exp_arrays))
-valid_case: valid.ValidCase = validprep.concatenate_valid_cases(*cases)
-valid_result: valid.ValidResult = valid.ValidEngine(
-    [valid.MetricAVM(), valid.MetricMAVM()]
+    cases.append(vl.ValidCase(observables, sim_arrays, exp_arrays))
+valid_case: vl.ValidCase = validprep.concatenate_valid_cases(*cases)
+valid_result: vl.ValidResult = vl.ValidEngine(
+    [vl.MetricAVM(), vl.MetricMAVM()]
 ).run(valid_case)
 print("Sampled axes:", {tag: array.axes for tag, array in sim_arrays.items()})
 print("Exp. repeat axis:", valid_case.exp["temperature_average"].axes)
@@ -196,22 +195,22 @@ for tag, component in (
     ("displacement_local", 0),
     ("strain_local", 0),
 ):
-    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+    ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case, tag, point_idxs=None, component_idx=component, time_idx=4
     )
     ecdf_plot.figure.savefig(output_path / f"{tag}_cdfs.png", bbox_inches="tight")
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
     for metric_output, direction in (
-        (valid.EMetricOutput.D_PLUS, "d_plus"),
-        (valid.EMetricOutput.D_MINUS, "d_minus"),
+        (vl.EMetricOut.D_PLUS, "d_plus"),
+        (vl.EMetricOut.D_MINUS, "d_minus"),
     ):
-        fig, axes = validplot.plot_valid_metric_time_points(
+        fig, axes = vl.plot_metric_time_points(
             valid_result,
             tag,
-            valid.EMetricType.MAVM,
+            vl.EMetricType.MAVM,
             point_idxs=(0, 1, 2, 3),
-            selectors={valid.EValidResAxis.COMPONENT: component},
+            selectors={vl.EValidResAxis.COMPONENT: component},
             output=metric_output,
         )
         fig.savefig(output_path / f"{tag}_{direction}_time.png", bbox_inches="tight")
@@ -220,8 +219,8 @@ for tag, component in (
 # Time/component selectors absent from a stored field must be omitted. The scalar
 # temperature field has only physical axes; its non-singleton time is selected.
 np.testing.assert_allclose(
-    valid_result.metrics["temperature_average"][valid.EMetricType.AVM].outputs[
-        valid.EMetricOutput.DISTANCE
+    valid_result.metrics["temperature_average"][vl.EMetricType.AVM].outputs[
+        vl.EMetricOut.DISTANCE
     ][:, 0, -1],
     drift[:, 0, -1],
     atol=1.0e-10,
@@ -232,8 +231,8 @@ np.savetxt(
         (
             coords[:, 0],
             drift[:, 0, -1],
-            valid_result.metrics["temperature_average"][valid.EMetricType.AVM].outputs[
-                valid.EMetricOutput.DISTANCE
+            valid_result.metrics["temperature_average"][vl.EMetricType.AVM].outputs[
+                vl.EMetricOut.DISTANCE
             ][:, 0, -1],
         )
     ),
@@ -262,22 +261,22 @@ for background_name, background in (
     ("equivalent_strain", equivalent),
 ):
     for metric_output, direction in (
-        (valid.EMetricOutput.D_PLUS, "d_plus"),
-        (valid.EMetricOutput.D_MINUS, "d_minus"),
+        (vl.EMetricOut.D_PLUS, "d_plus"),
+        (vl.EMetricOut.D_MINUS, "d_minus"),
     ):
-        plotter: pv.Plotter = validvis.plot_valid_metric_on_sim(
+        plotter: pv.Plotter = vl.plot_metric_on_sim(
             valid_result,
             "strain_local",
-            valid.EMetricType.MAVM,
-            selectors={valid.EValidResAxis.COMPONENT: 0, valid.EValidResAxis.TIME: 4},
+            vl.EMetricType.MAVM,
+            selectors={vl.EValidResAxis.COMPONENT: 0, vl.EValidResAxis.TIME: 4},
             output=metric_output,
             sim_data=sim_data,
             sim_field=background,
             sim_time_idx=background_index,
             sim_coord_units="mm",
             descriptor=sens.SensorDescriptor(name=background_name, tag="S"),
-            metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
-            vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
+            metric_opts=vl.MetricVisOpts(labels_always_visible=True),
+            vis_opts=vl.create_valid_scene_opts(interactive=SHOW_PLOTS),
         )
         plotter.screenshot(
             output_path / f"strain_local_{direction}_on_{background_name}.png"

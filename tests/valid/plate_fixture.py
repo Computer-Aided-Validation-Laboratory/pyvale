@@ -7,7 +7,7 @@
 import numpy as np
 
 import pyvale.data as dataset
-from pyvale import valid
+import pyvale.validation as vl
 
 
 def load_plate_case(
@@ -15,7 +15,7 @@ def load_plate_case(
     transient: bool = False,
     epistemic: bool = False,
     offsets: bool = False,
-) -> valid.ValidCase:
+) -> vl.ValidCase:
     """Load prepared SensorSim thermocouple and strain-gauge arrays.
 
     The packaged 2D plate simulations differ in conductivity and thermal
@@ -43,9 +43,9 @@ def load_plate_case(
 
     evaluation_times = times if transient else None
     observables = {
-        "temperature": valid.ValidObservable(
+        "temperature": vl.ValidObservable(
             components=("temperature",),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=coords,
             times=evaluation_times,
             phys_units="degC",
@@ -53,9 +53,9 @@ def load_plate_case(
             coord_frame="plate",
             time_units="s" if transient else "",
         ),
-        "strain": valid.ValidObservable(
+        "strain": vl.ValidObservable(
             components=("strain_xx", "strain_yy", "strain_xy"),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=coords,
             times=evaluation_times,
             phys_units="1",
@@ -70,12 +70,12 @@ def load_plate_case(
         ("temperature", sim_temp, exp_temp),
         ("strain", sim_strain, exp_strain),
     ):
-        axes = (valid.EValidAxis.POINT, valid.EValidAxis.COMPONENT)
+        axes = (vl.EValidAxis.POINT, vl.EValidAxis.COMPONENT)
         if transient:
-            axes = (*axes, valid.EValidAxis.TIME)
+            axes = (*axes, vl.EValidAxis.TIME)
         if epistemic:
-            axes = (*axes, valid.EValidAxis.EPISTEMIC_TRANS)
-        axes = (*axes, valid.EValidAxis.ALEATORY)
+            axes = (*axes, vl.EValidAxis.EPISTEMIC_TRANS)
+        axes = (*axes, vl.EValidAxis.ALEATORY)
         bound = None
         if offsets:
             magnitude = 0.5 if name == "temperature" else 4.0e-6
@@ -85,18 +85,18 @@ def load_plate_case(
                 temporal = times[None, :] / times[-1]
                 lower = magnitude * (1.0 + 0.2 * spatial + 0.2 * temporal)
                 upper = 1.5 * magnitude * (1.0 + 0.1 * spatial + 0.3 * temporal)
-                bound = valid.EpistemicOffsets(
+                bound = vl.EpistemicOffsets(
                     lower=lower,
                     upper=upper,
-                    axes=(valid.EValidAxis.POINT, valid.EValidAxis.TIME),
+                    axes=(vl.EValidAxis.POINT, vl.EValidAxis.TIME),
                 )
             else:
-                bound = valid.EpistemicOffsets(lower=magnitude, upper=1.5 * magnitude)
-        exp_axes = (valid.EValidAxis.POINT, valid.EValidAxis.COMPONENT)
+                bound = vl.EpistemicOffsets(lower=magnitude, upper=1.5 * magnitude)
+        exp_axes = (vl.EValidAxis.POINT, vl.EValidAxis.COMPONENT)
         if transient:
-            exp_axes = (*exp_axes, valid.EValidAxis.TIME)
-        exp_axes = (*exp_axes, valid.EValidAxis.ALEATORY)
-        sim_arrays[name] = valid.ValidArray(sim_values, axes)
-        exp_arrays[name] = valid.ValidArray(exp_values, exp_axes, bound)
+            exp_axes = (*exp_axes, vl.EValidAxis.TIME)
+        exp_axes = (*exp_axes, vl.EValidAxis.ALEATORY)
+        sim_arrays[name] = vl.ValidArray(sim_values, axes)
+        exp_arrays[name] = vl.ValidArray(exp_values, exp_axes, bound)
 
-    return valid.ValidCase(observables, sim_arrays, exp_arrays)
+    return vl.ValidCase(observables, sim_arrays, exp_arrays)

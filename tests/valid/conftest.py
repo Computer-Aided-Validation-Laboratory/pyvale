@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 
 import pyvale.dataio as io
-from pyvale import valid
+import pyvale.validation as vl
 
 
 @pytest.fixture
-def ecdf_quantity() -> valid.ValidArray:
-    return valid.ValidArray(
+def ecdf_quantity() -> vl.ValidArray:
+    return vl.ValidArray(
         np.array(
             [
                 [[0.0, 0.0, 2.0], [2.0, 2.0, 4.0]],
@@ -17,23 +17,23 @@ def ecdf_quantity() -> valid.ValidArray:
             ]
         ),
         (
-            valid.EValidAxis.EPISTEMIC_TRANS,
-            valid.EValidAxis.EPISTEMIC_NUIS,
-            valid.EValidAxis.ALEATORY,
+            vl.EValidAxis.EPISTEMIC_TRANS,
+            vl.EValidAxis.EPISTEMIC_NUIS,
+            vl.EValidAxis.ALEATORY,
         ),
-        offsets=valid.EpistemicOffsets(lower=1.0, upper=2.0),
+        offsets=vl.EpistemicOffsets(lower=1.0, upper=2.0),
     )
 
 
 @pytest.fixture
-def metric_scene() -> tuple[valid.ValidResult, io.SimData]:
+def metric_scene() -> tuple[vl.ValidResult, io.SimData]:
     coords = np.array(
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     )
     observables = {
-        "temperature": valid.ValidObservable(
+        "temperature": vl.ValidObservable(
             components=("temperature",),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=coords,
             times=np.array([0.0, 1.0]),
             phys_units="degC",
@@ -49,19 +49,19 @@ def metric_scene() -> tuple[valid.ValidResult, io.SimData]:
     minus = np.broadcast_to(
         np.array([0.0, 3.0, 1.0, np.nan])[:, None, None, None], shape
     ).copy()
-    field = valid.ValidMetricField(
+    field = vl.MetricField(
         (
-            valid.EValidResAxis.POINT,
-            valid.EValidResAxis.COMPONENT,
-            valid.EValidResAxis.TIME,
-            valid.EValidResAxis.SIM_TRANS,
+            vl.EValidResAxis.POINT,
+            vl.EValidResAxis.COMPONENT,
+            vl.EValidResAxis.TIME,
+            vl.EValidResAxis.SIM_TRANS,
         ),
-        {valid.EMetricOutput.D_PLUS: plus, valid.EMetricOutput.D_MINUS: minus},
+        {vl.EMetricOut.D_PLUS: plus, vl.EMetricOut.D_MINUS: minus},
     )
-    result = valid.ValidResult(
+    result = vl.ValidResult(
         observables,
-        {"temperature": {valid.EMetricType.MAVM: field}},
-        {valid.EMetricType.MAVM: valid.MetricMAVM()},
+        {"temperature": {vl.EMetricType.MAVM: field}},
+        {vl.EMetricType.MAVM: vl.MetricMAVM()},
     )
     sim_data = io.SimData(
         coords=coords.copy(),

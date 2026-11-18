@@ -11,7 +11,7 @@ compiles them into extension modules, while source checkouts retain the same
 public API through their Python fallback.
 """
 
-from pyvale.valid.cython.mavm import (
+from pyvale.validation.cython.mavm import (
     cyth_calc_mavm_1d,
     cyth_calc_mavm_pbox_1d,
 )

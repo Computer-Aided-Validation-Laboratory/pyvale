@@ -8,7 +8,7 @@
 
 This is Cython pure-Python syntax: it is executable without compilation and is
 compiled into an extension module in packaged builds. Public metric functions
-in :mod:`pyvale.valid.metrics` forward to this implementation.
+in :mod:`pyvale.validation.metrics` forward to this implementation.
 """
 
 from __future__ import annotations
@@ -18,15 +18,15 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import stats
 
-from pyvale.valid.constants import (
+from pyvale.validation.constants import (
     MAVM_AREA_TOLERANCE,
     MAVM_DUPLICATE_TOLERANCE,
     MAVM_PROBABILITY_TOLERANCE,
 )
-from pyvale.valid.validchecks import (
+from pyvale.validation.validchecks import (
     validate_finite_sample,
 )
-from pyvale.valid.validtypes import (
+from pyvale.validation.validtypes import (
     EMAVMDuplicates,
     MAVMResult,
     validate_mavm_config,
@@ -229,7 +229,7 @@ def cyth_calc_mavm_1d(
     """Calculate MAVM using compiled loops when this module is compiled.
 
     This has the same input contract and return type as
-    :func:`pyvale.valid.metrics.calc_mavm_1d`.
+    :func:`pyvale.validation.metrics.calc_mavm_1d`.
     """
     validate_mavm_config(alpha, duplicates, tol)
     model_clean = validate_finite_sample(model_data, "model_data")

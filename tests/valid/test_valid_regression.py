@@ -16,9 +16,9 @@ from scipy import stats
 import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.valid.validpreparation as validprep
-from pyvale import valid
-from pyvale.valid.metrics import EMAVMDuplicates, calc_mavm_1d
+import pyvale.validation.validpreparation as validprep
+import pyvale.validation as vl
+from pyvale.validation.metrics import EMAVMDuplicates, calc_mavm_1d
 
 
 def create_fullfield_reference_cases() -> dict[str, tuple[np.ndarray, np.ndarray]]:
@@ -110,28 +110,28 @@ def test_engine_matches_standalone_uncertainty_products(workers: int) -> None:
     sim_data[..., 0, 0, 0] = np.nan
     exp[..., 1, 0, :] = np.nan
     exp[..., 0, 1, 0] = np.nan
-    axes = tuple(valid.EValidAxis)
-    simulated = valid.ValidArray(sim_data, axes, valid.EpistemicOffsets(0.25, 0.5))
-    observed = valid.ValidArray(exp, axes, valid.EpistemicOffsets(0.4, 0.6))
+    axes = tuple(vl.EValidAxis)
+    simulated = vl.ValidArray(sim_data, axes, vl.EpistemicOffsets(0.25, 0.5))
+    observed = vl.ValidArray(exp, axes, vl.EpistemicOffsets(0.4, 0.6))
     observables = {
-        "response": valid.ValidObservable(
+        "response": vl.ValidObservable(
             components=("response",),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=np.zeros((1, 3)),
             times=np.array([0.0]),
         )
     }
     metrics = [
-        valid.MetricMAVM(),
-        valid.MetricAVM(),
-        valid.MetricKS(),
-        valid.MetricCVM(),
+        vl.MetricMAVM(),
+        vl.MetricAVM(),
+        vl.MetricKS(),
+        vl.MetricCVM(),
     ]
-    result = valid.ValidEngine(
-        metrics, opts=valid.ValidEngineOpts(workers=workers)
-    ).run(valid.ValidCase(observables, {"response": simulated}, {"response": observed}))
+    result = vl.ValidEngine(
+        metrics, opts=vl.ValidEngineOpts(workers=workers)
+    ).run(vl.ValidCase(observables, {"response": simulated}, {"response": observed}))
     for sim_trans, sim_nuis, exp_trans, exp_nuis, sim_offset, exp_offset in product(
-        range(2), range(2), range(2), range(2), valid.EEpisOffset, valid.EEpisOffset
+        range(2), range(2), range(2), range(2), vl.EEpisOffset, vl.EEpisOffset
     ):
         sim_samples = simulated.select_aleatory(
             0, 0, 0, epis_trans_idx=sim_trans, epis_nuis_idx=sim_nuis, offset=sim_offset
@@ -185,32 +185,32 @@ def test_distribution_statistics_match_scipy(
         (np.zeros(sim_count), np.zeros(exp_count)),
         (np.zeros(sim_count), np.ones(exp_count)),
     ):
-        assert valid.calc_ks_1d(sim_samples, exp_samples) == pytest.approx(
+        assert vl.calc_ks_1d(sim_samples, exp_samples) == pytest.approx(
             stats.ks_2samp(sim_samples, exp_samples).statistic, rel=1e-13, abs=1e-14
         )
-        assert valid.calc_cvm_1d(sim_samples, exp_samples) == pytest.approx(
+        assert vl.calc_cvm_1d(sim_samples, exp_samples) == pytest.approx(
             stats.cramervonmises_2samp(sim_samples, exp_samples).statistic,
             rel=1e-13,
             abs=1e-14,
         )
 
 
-@pytest.mark.parametrize("duplicates", list(valid.EMAVMDuplicates))
-def test_native_and_interpreted_mavm_agree(duplicates: valid.EMAVMDuplicates) -> None:
-    source = Path(__file__).resolve().parents[2] / "src/pyvale/valid/cython/mavm.py"
+@pytest.mark.parametrize("duplicates", list(vl.EMAVMDuplicates))
+def test_native_and_interpreted_mavm_agree(duplicates: vl.EMAVMDuplicates) -> None:
+    source = Path(__file__).resolve().parents[2] / "src/pyvale/validation/cython/mavm.py"
     interpreted = cast(
-        Callable[..., valid.MAVMResult],
+        Callable[..., vl.MAVMResult],
         runpy.run_path(str(source))["cyth_calc_mavm_1d"],
     )
     generator = np.random.default_rng(2751)
     sim_data = generator.normal(size=64)
     exp = generator.normal(size=8)
-    if duplicates is valid.EMAVMDuplicates.INCLUDE:
+    if duplicates is vl.EMAVMDuplicates.INCLUDE:
         sim_data = np.round(sim_data)
         exp = np.round(exp)
     sim_data[0] = np.nan
     exp[0] = np.nan
-    native = valid.calc_mavm_1d(sim_data, exp, duplicates=duplicates)
+    native = vl.calc_mavm_1d(sim_data, exp, duplicates=duplicates)
     reference = interpreted(sim_data, exp, duplicates=duplicates)
     np.testing.assert_allclose(
         [native.d_plus, native.d_minus],
@@ -227,22 +227,22 @@ def test_native_and_interpreted_mavm_agree(duplicates: valid.EMAVMDuplicates) ->
 def test_prepared_plate_gold_metrics() -> None:
     """Track the saved SensorSim fixture and selected metric diagnostics."""
     valid_case = load_plate_case()
-    result = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM()]).run(valid_case)
-    assert result.metrics["temperature"][valid.EMetricType.AVM].outputs[
-        valid.EMetricOutput.DISTANCE
+    result = vl.ValidEngine([vl.MetricAVM(), vl.MetricMAVM()]).run(valid_case)
+    assert result.metrics["temperature"][vl.EMetricType.AVM].outputs[
+        vl.EMetricOut.DISTANCE
     ][5, 0, 0] == pytest.approx(0.26243433506330643, abs=1e-10)
-    assert result.metrics["temperature"][valid.EMetricType.MAVM].outputs[
-        valid.EMetricOutput.D_PLUS
-    ][5, 0, 0] + result.metrics["temperature"][valid.EMetricType.MAVM].outputs[
-        valid.EMetricOutput.D_MINUS
+    assert result.metrics["temperature"][vl.EMetricType.MAVM].outputs[
+        vl.EMetricOut.D_PLUS
+    ][5, 0, 0] + result.metrics["temperature"][vl.EMetricType.MAVM].outputs[
+        vl.EMetricOut.D_MINUS
     ][5, 0, 0] == pytest.approx(0.4891546824953229, abs=1e-10)
-    assert result.metrics["strain"][valid.EMetricType.AVM].outputs[
-        valid.EMetricOutput.DISTANCE
+    assert result.metrics["strain"][vl.EMetricType.AVM].outputs[
+        vl.EMetricOut.DISTANCE
     ][5, 0, 0] == pytest.approx(1.2018068336589567e-06, abs=1e-12)
-    assert result.metrics["strain"][valid.EMetricType.MAVM].outputs[
-        valid.EMetricOutput.D_PLUS
-    ][5, 2, 0] + result.metrics["strain"][valid.EMetricType.MAVM].outputs[
-        valid.EMetricOutput.D_MINUS
+    assert result.metrics["strain"][vl.EMetricType.MAVM].outputs[
+        vl.EMetricOut.D_PLUS
+    ][5, 2, 0] + result.metrics["strain"][vl.EMetricType.MAVM].outputs[
+        vl.EMetricOut.D_MINUS
     ][5, 2, 0] == pytest.approx(3.368761032966909e-06, abs=1e-12)
 
 
@@ -253,9 +253,9 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
         times = saved["times"].copy()
         measured = saved["exp_temp"].copy()
     observables = {
-        "temperature": valid.ValidObservable(
+        "temperature": vl.ValidObservable(
             components=("temperature",),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=coords,
             times=times,
             phys_units="degC",
@@ -279,36 +279,36 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
         selections={"temperature": validprep.SensorOutputSelection("temp", 0, coords)},
     )
     cases = [
-        valid.ValidCase(
+        vl.ValidCase(
             observables, sim, validprep.assemble_exp_arrays(run, observables)
         )
         for run in acquisitions
     ]
     converted = validprep.concatenate_valid_cases(*cases)
     direct_sim = {
-        "temperature": valid.ValidArray(
+        "temperature": vl.ValidArray(
             sim["temperature"].data, sim["temperature"].axes
         )
     }
     direct_exp = {
-        "temperature": valid.ValidArray(
+        "temperature": vl.ValidArray(
             np.moveaxis(measured, 0, -1),
             (
-                valid.EValidAxis.POINT,
-                valid.EValidAxis.COMPONENT,
-                valid.EValidAxis.TIME,
-                valid.EValidAxis.ALEATORY,
+                vl.EValidAxis.POINT,
+                vl.EValidAxis.COMPONENT,
+                vl.EValidAxis.TIME,
+                vl.EValidAxis.ALEATORY,
             ),
         )
     }
-    direct = valid.ValidCase(observables, direct_sim, direct_exp)
+    direct = vl.ValidCase(observables, direct_sim, direct_exp)
     np.testing.assert_array_equal(
         converted.exp["temperature"].data, direct.exp["temperature"].data
     )
-    engine = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM()])
+    engine = vl.ValidEngine([vl.MetricAVM(), vl.MetricMAVM()])
     converted_result = engine.run(converted)
     direct_result = engine.run(direct)
-    for metric in (valid.EMetricType.AVM, valid.EMetricType.MAVM):
+    for metric in (vl.EMetricType.AVM, vl.EMetricType.MAVM):
         expected = direct_result.metrics["temperature"][metric]
         actual = converted_result.metrics["temperature"][metric]
         for output in expected.outputs:
@@ -334,16 +334,16 @@ def test_global_and_sensor_sim_extraction(
         spatial_dims=np.array([5.0, 5.0, 0.0]),
     )
     observables = {
-        "temperature_average": valid.ValidObservable(
+        "temperature_average": vl.ValidObservable(
             components=("temperature",),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=coords,
             times=times,
             phys_units="degC",
         ),
-        "global_temperature": valid.ValidObservable(
+        "global_temperature": vl.ValidObservable(
             components=("temp_avg",),
-            geometry=valid.EValidGeometry.GLOBAL,
+            geometry=vl.EValidGeometry.GLOBAL,
             coords=None,
             times=times,
             phys_units="degC",
@@ -371,10 +371,10 @@ def test_global_and_sensor_sim_extraction(
 def test_spatial_temporal_offset_is_applied_per_conditional_cdf() -> None:
     valid_case = load_plate_case(transient=True, epistemic=True, offsets=True)
     quantity = valid_case.exp["temperature"]
-    assert quantity.offsets.axes == (valid.EValidAxis.POINT, valid.EValidAxis.TIME)
+    assert quantity.offsets.axes == (vl.EValidAxis.POINT, vl.EValidAxis.TIME)
     nominal = quantity.select_aleatory(5, 0, 0)
-    lower_early = quantity.select_aleatory(5, 0, 0, offset=valid.EEpisOffset.LOWER)
-    lower_late = quantity.select_aleatory(5, 0, 4, offset=valid.EEpisOffset.LOWER)
+    lower_early = quantity.select_aleatory(5, 0, 0, offset=vl.EEpisOffset.LOWER)
+    lower_late = quantity.select_aleatory(5, 0, 4, offset=vl.EEpisOffset.LOWER)
     late_nominal = quantity.select_aleatory(5, 0, 4)
     assert np.allclose(nominal - lower_early, quantity.offsets.lower[5, 0])
     assert np.allclose(late_nominal - lower_late, quantity.offsets.lower[5, 4])
@@ -488,8 +488,8 @@ def test_all_paper_endpoint_distances_match_independent_reference(
     for exp_name, sign in (("min", -1.0), ("max", 1.0)):
         exp = exp_support + sign * pulse_reference.offsets[channel]
         for sim_name, index in (("min", lower_idx), ("max", upper_idx)):
-            calculated = valid.calc_mavm_1d(
-                scenarios[index], exp, duplicates=valid.EMAVMDuplicates.REJECT
+            calculated = vl.calc_mavm_1d(
+                scenarios[index], exp, duplicates=vl.EMAVMDuplicates.REJECT
             )
             for direction, distance in (
                 ("d+", calculated.d_plus),
@@ -499,12 +499,12 @@ def test_all_paper_endpoint_distances_match_independent_reference(
                 assert distance == pytest.approx(
                     pulse_reference.expected.loc[row, channel], rel=1e-12, abs=1e-12
                 )
-    correction = valid.calc_mavm_correction(
+    correction = vl.calc_mavm_correction(
         scenarios[lower_idx],
         scenarios[upper_idx],
         exp_support - pulse_reference.offsets[channel],
         exp_support + pulse_reference.offsets[channel],
-        duplicates=valid.EMAVMDuplicates.REJECT,
+        duplicates=vl.EMAVMDuplicates.REJECT,
     )
     expected_lower = max(
         pulse_reference.expected.loc[f"sim-min_exp-{exp_name}-d-", channel]

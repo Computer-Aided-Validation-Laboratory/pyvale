@@ -6,7 +6,7 @@
 
 """Validation of common physical observables and uncertainty scenarios."""
 
-from pyvale.valid.metrics import (
+from pyvale.validation.metrics import (
     DeterministicMetricResult,
     ERelErrNorm,
     calc_avm_1d,
@@ -17,7 +17,7 @@ from pyvale.valid.metrics import (
     calc_mavm_pbox_1d,
     calc_u_pooling_1d,
 )
-from pyvale.valid.metricstrategy import (
+from pyvale.validation.metricstrategy import (
     EMetricComparison,
     EMetricScale,
     EMetricType,
@@ -26,12 +26,12 @@ from pyvale.valid.metricstrategy import (
     MetricCVM,
     MetricKS,
     MetricMAVM,
+    MetricRMSE,
     MetricRelErr,
     MetricResult,
-    MetricRMSE,
     ScalarMetricResult,
 )
-from pyvale.valid.validecdf import (
+from pyvale.validation.validecdf import (
     calc_ecdf,
     calc_ecdf_envelope,
     calc_ecdf_summary,
@@ -42,11 +42,30 @@ from pyvale.valid.validecdf import (
     extract_ecdf_envelope,
     find_ecdf_epis_bounds,
 )
-from pyvale.valid.validengine import (
+from pyvale.validation.validengine import (
     ValidEngine,
     ValidEngineOpts,
 )
-from pyvale.valid.validprofile import (
+from pyvale.validation.validplot import (
+    ECDFPlot,
+    EMetricDisp,
+    ValidECDFComparison,
+    ValidECDFReference,
+    ValidPlotOpts,
+    add_metric_overlay,
+    add_normalised_ecdf_axis,
+    add_support_overlay,
+    create_valid_plot_grid,
+    plot_exp_ecdfs,
+    plot_metric_dist,
+    plot_metric_time_points,
+    plot_sim_ecdfs,
+    plot_sim_exp_cdfs,
+    plot_u_pooling_cdf,
+    plot_valid_mavm_diagnostic,
+    plot_valid_metric_time,
+)
+from pyvale.validation.validprofile import (
     calc_avm_over_epis_bounds,
     calc_mavm_correction,
     calc_mavm_over_epis_bounds,
@@ -56,12 +75,14 @@ from pyvale.valid.validprofile import (
     profile_epis_nuisance_supports,
     rank_epis_nuisance_cases,
 )
-from pyvale.valid.validtools import extract_metric_values, select_metric_output
-from pyvale.valid.validtypes import (
+from pyvale.validation.validtools import (
+    extract_metric_values,
+    select_metric_output,
+)
+from pyvale.validation.validtypes import (
     EEpisOffset,
     EMAVMDuplicates,
-    EMetricOutput,
-    EpistemicOffsets,
+    EMetricOut,
     EValidAxis,
     EValidBoundAxis,
     EValidECDFBounds,
@@ -72,8 +93,10 @@ from pyvale.valid.validtypes import (
     EValidNuisanceScore,
     EValidResAxis,
     EValidSource,
+    EpistemicOffsets,
     MAVMCorrection,
     MAVMResult,
+    MetricField,
     ValidArray,
     ValidCase,
     ValidECDF,
@@ -82,20 +105,26 @@ from pyvale.valid.validtypes import (
     ValidECDFView,
     ValidECDFViewData,
     ValidMetricExtrema,
-    ValidMetricField,
     ValidNuisanceRanking,
     ValidObservable,
     ValidResult,
     ValidSampleInputs,
     ValidSupportBounds,
 )
+from pyvale.validation.validvis import (
+    MetricVisOpts,
+    create_valid_scene_opts,
+    plot_metric_on_sim,
+)
 
 __all__ = [
     "DeterministicMetricResult",
+    "ECDFPlot",
     "EEpisOffset",
     "EMAVMDuplicates",
     "EMetricComparison",
-    "EMetricOutput",
+    "EMetricDisp",
+    "EMetricOut",
     "EMetricScale",
     "EMetricType",
     "ERelErrNorm",
@@ -115,28 +144,35 @@ __all__ = [
     "MAVMResult",
     "MetricAVM",
     "MetricCVM",
+    "MetricField",
     "MetricKS",
     "MetricMAVM",
     "MetricRMSE",
     "MetricRelErr",
     "MetricResult",
+    "MetricVisOpts",
     "ScalarMetricResult",
     "ValidArray",
     "ValidCase",
     "ValidECDF",
     "ValidECDFBounds",
+    "ValidECDFComparison",
+    "ValidECDFReference",
     "ValidECDFSummary",
     "ValidECDFView",
     "ValidECDFViewData",
     "ValidEngine",
     "ValidEngineOpts",
     "ValidMetricExtrema",
-    "ValidMetricField",
     "ValidNuisanceRanking",
     "ValidObservable",
+    "ValidPlotOpts",
     "ValidResult",
     "ValidSampleInputs",
     "ValidSupportBounds",
+    "add_metric_overlay",
+    "add_normalised_ecdf_axis",
+    "add_support_overlay",
     "calc_avm_1d",
     "calc_avm_over_epis_bounds",
     "calc_cvm_1d",
@@ -151,6 +187,8 @@ __all__ = [
     "calc_mavm_over_epis_bounds",
     "calc_mavm_pbox_1d",
     "calc_u_pooling_1d",
+    "create_valid_plot_grid",
+    "create_valid_scene_opts",
     "evaluate_ecdf_quantiles",
     "extract_aleatory_scenarios",
     "extract_ecdf",
@@ -159,6 +197,15 @@ __all__ = [
     "find_ecdf_epis_bounds",
     "find_metric_epis_extrema",
     "find_metric_epis_supports",
+    "plot_exp_ecdfs",
+    "plot_metric_dist",
+    "plot_metric_on_sim",
+    "plot_metric_time_points",
+    "plot_sim_ecdfs",
+    "plot_sim_exp_cdfs",
+    "plot_u_pooling_cdf",
+    "plot_valid_mavm_diagnostic",
+    "plot_valid_metric_time",
     "profile_epis_nuisance_extrema",
     "profile_epis_nuisance_supports",
     "rank_epis_nuisance_cases",

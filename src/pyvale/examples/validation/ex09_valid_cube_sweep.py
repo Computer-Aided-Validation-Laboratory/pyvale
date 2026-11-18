@@ -25,9 +25,8 @@ import pyvale.data as dataset
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.valid.validpreparation as validprep
-from pyvale import valid
-from pyvale.valid import validplot, validvis
+import pyvale.validation as vl
+import pyvale.validation.validpreparation as validprep
 
 matplotlib.use("Agg")
 
@@ -124,9 +123,9 @@ measurements = np.stack(
 # IField component keys explicitly preserve xx, yy, zz, xy, xz, yz ordering.
 strain_tag = "cube_strain"
 observables = {
-    strain_tag: valid.ValidObservable(
+    strain_tag: vl.ValidObservable(
         components=component_keys,
-        geometry=valid.EValidGeometry.POINT,
+        geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
         phys_units="1",
@@ -137,31 +136,31 @@ observables = {
 # Keep all three solved parameter settings as separate transferable epistemic
 # alternatives. Each contributes one deterministic sample per physical cell;
 # the exp source below contains six repeats.
-model: dict[str, valid.ValidArray] = validprep.sample_sim_sweep(
+model: dict[str, vl.ValidArray] = validprep.sample_sim_sweep(
     {strain_tag: sens.FieldTensor(nominal_sim, norm_keys, dev_keys, sens.EDim.THREED)},
     observables,
     [((index,), sim_data) for index, sim_data in enumerate(sims.values())],
-    sample_axes=(valid.EValidAxis.EPISTEMIC_TRANS,),
+    sample_axes=(vl.EValidAxis.EPISTEMIC_TRANS,),
     sample_shape=(3,),
 )
 exp = {
-    strain_tag: valid.ValidArray(
+    strain_tag: vl.ValidArray(
         measurements,
         (
-            valid.EValidAxis.POINT,
-            valid.EValidAxis.COMPONENT,
-            valid.EValidAxis.TIME,
-            valid.EValidAxis.ALEATORY,
+            vl.EValidAxis.POINT,
+            vl.EValidAxis.COMPONENT,
+            vl.EValidAxis.TIME,
+            vl.EValidAxis.ALEATORY,
         ),
     )
 }
 # Preserve parameter/run identity on the transferable axis for later selections
 # and provenance joins. These are sample metadata, not additional observations.
-parameter_axes = (valid.EValidAxis.EPISTEMIC_TRANS,)
-sim_run_ids = valid.ValidArray(np.arange(len(parameter_sets)), parameter_axes)
-sim_inputs = valid.ValidSampleInputs(
+parameter_axes = (vl.EValidAxis.EPISTEMIC_TRANS,)
+sim_run_ids = vl.ValidArray(np.arange(len(parameter_sets)), parameter_axes)
+sim_inputs = vl.ValidSampleInputs(
     parameters={
-        key: valid.ValidArray(
+        key: vl.ValidArray(
             np.array(
                 [overrides.get(key, nominal) for overrides in parameter_sets.values()]
             ),
@@ -171,7 +170,7 @@ sim_inputs = valid.ValidSampleInputs(
     },
     run_ids=sim_run_ids,
 )
-valid_case = valid.ValidCase(observables, model, exp, sim_inputs=sim_inputs)
+valid_case = vl.ValidCase(observables, model, exp, sim_inputs=sim_inputs)
 print("Transferable run IDs:", sim_run_ids.data, tuple(parameter_sets))
 
 # %%
@@ -181,8 +180,8 @@ print("Transferable run IDs:", sim_run_ids.data, tuple(parameter_sets))
 # parallel engine execution and measures scaling for larger comparisons.
 # The model is deterministic within each selected parameter scenario, while
 # the experiment has six repeat observations. INCLUDE handles repeated supports.
-valid_result: valid.ValidResult = valid.ValidEngine(
-    [valid.MetricAVM(), valid.MetricMAVM()]
+valid_result: vl.ValidResult = vl.ValidEngine(
+    [vl.MetricAVM(), vl.MetricMAVM()]
 ).run(valid_case)
 
 # %%
@@ -190,8 +189,8 @@ valid_result: valid.ValidResult = valid.ValidEngine(
 # ----------------------------------------------
 # No tensor component is flattened into the observation axis. Result axes start
 # (6 points, 6 components, 5 times), followed by retained parameter scenarios.
-metric_field: valid.ValidMetricField = valid_result.metrics[strain_tag][
-    valid.EMetricType.MAVM
+metric_field: vl.MetricField = valid_result.metrics[strain_tag][
+    vl.EMetricType.MAVM
 ]
 print(
     "Model axes/shape:",
@@ -202,7 +201,7 @@ print("Experiment shape:", measurements.shape)
 print(
     "Result axes/shape:",
     metric_field.axes,
-    metric_field.outputs[valid.EMetricOutput.D_PLUS].shape,
+    metric_field.outputs[vl.EMetricOut.D_PLUS].shape,
 )
 
 # %%
@@ -214,31 +213,31 @@ point_idxs = tuple(range(len(coords)))
 for component_idx, component_key in enumerate(component_keys):
     fig: Figure
     axes: np.ndarray
-    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+    ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case,
         strain_tag,
         point_idxs=point_idxs,
         component_idx=component_idx,
         time_idx=4,
-        valid_plot_opts=validplot.ValidPlotOpts(x_label=f"{component_key} [1]"),
+        valid_plot_opts=vl.ValidPlotOpts(x_label=f"{component_key} [-]"),
     )
     fig, axes = ecdf_plot.figure, ecdf_plot.axes
     fig.savefig(output_path / f"{component_key}_cdfs.png", bbox_inches="tight")
     for metric_output, direction in (
-        (valid.EMetricOutput.D_PLUS, "d_plus"),
-        (valid.EMetricOutput.D_MINUS, "d_minus"),
+        (vl.EMetricOut.D_PLUS, "d_plus"),
+        (vl.EMetricOut.D_MINUS, "d_minus"),
     ):
-        fig, axes = validplot.plot_valid_metric_time_points(
+        fig, axes = vl.plot_metric_time_points(
             valid_result,
             strain_tag,
-            valid.EMetricType.MAVM,
+            vl.EMetricType.MAVM,
             point_idxs=point_idxs,
             selectors={
-                valid.EValidResAxis.COMPONENT: component_idx,
-                valid.EValidResAxis.SIM_TRANS: 0,
+                vl.EValidResAxis.COMPONENT: component_idx,
+                vl.EValidResAxis.SIM_TRANS: 0,
             },
             output=metric_output,
-            valid_plot_opts=validplot.ValidPlotOpts(title=component_key),
+            valid_plot_opts=vl.ValidPlotOpts(title=component_key),
         )
         fig.savefig(
             output_path / f"{component_key}_{direction}_time.png", bbox_inches="tight"
@@ -250,16 +249,16 @@ for component_idx, component_key in enumerate(component_keys):
 # Compare the parameter alternatives while retaining their result axis.
 # The filenames identify the physical perturbation; y labels identify AVM distance.
 for scenario, scenario_name in enumerate(parameter_sets):
-    fig, axes = validplot.plot_valid_metric_time_points(
+    fig, axes = vl.plot_metric_time_points(
         valid_result,
         strain_tag,
-        valid.EMetricType.AVM,
+        vl.EMetricType.AVM,
         point_idxs=point_idxs,
         selectors={
-            valid.EValidResAxis.COMPONENT: 0,
-            valid.EValidResAxis.SIM_TRANS: scenario,
+            vl.EValidResAxis.COMPONENT: 0,
+            vl.EValidResAxis.SIM_TRANS: scenario,
         },
-        valid_plot_opts=validplot.ValidPlotOpts(title=f"strain_xx: {scenario_name}"),
+        valid_plot_opts=vl.ValidPlotOpts(title=f"strain_xx: {scenario_name}"),
     )
     fig.savefig(output_path / f"{scenario_name}_avm_time.png", bbox_inches="tight")
 # %%
@@ -310,17 +309,17 @@ background_fields: dict[str, tuple[str | np.ndarray, sens.SensorDescriptor]] = {
 # Show all face tags through the translucent mesh, including the far faces.
 for background_name, (background_field, descriptor) in background_fields.items():
     for metric_output, direction in (
-        (valid.EMetricOutput.D_PLUS, "d_plus"),
-        (valid.EMetricOutput.D_MINUS, "d_minus"),
+        (vl.EMetricOut.D_PLUS, "d_plus"),
+        (vl.EMetricOut.D_MINUS, "d_minus"),
     ):
-        pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
+        pv_plot: pv.Plotter = vl.plot_metric_on_sim(
             valid_result,
             strain_tag,
-            valid.EMetricType.MAVM,
+            vl.EMetricType.MAVM,
             selectors={
-                valid.EValidResAxis.COMPONENT: 0,
-                valid.EValidResAxis.TIME: 4,
-                valid.EValidResAxis.SIM_TRANS: 0,
+                vl.EValidResAxis.COMPONENT: 0,
+                vl.EValidResAxis.TIME: 4,
+                vl.EValidResAxis.SIM_TRANS: 0,
             },
             output=metric_output,
             sim_data=nominal_sim,
@@ -328,8 +327,8 @@ for background_name, (background_field, descriptor) in background_fields.items()
             sim_time_idx=background_time_idx,
             descriptor=descriptor,
             sim_coord_units="mm",
-            vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
-            metric_opts=validvis.ValidMetricVisOpts(
+            vis_opts=vl.create_valid_scene_opts(interactive=SHOW_PLOTS),
+            metric_opts=vl.MetricVisOpts(
                 mesh_opacity=0.4, labels_always_visible=True
             ),
         )

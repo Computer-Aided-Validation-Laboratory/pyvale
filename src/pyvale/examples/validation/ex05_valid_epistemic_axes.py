@@ -18,8 +18,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pyvale import valid
-from pyvale.valid import validplot
+import pyvale.validation as vl
 
 matplotlib.use("Agg")
 SHOW_PLOTS = False
@@ -46,45 +45,45 @@ exp_samples = (
     + np.array([-0.8, -0.2, 0.2, 0.8])
 )
 axes = (
-    valid.EValidAxis.POINT,
-    valid.EValidAxis.COMPONENT,
-    valid.EValidAxis.EPISTEMIC_TRANS,
-    valid.EValidAxis.EPISTEMIC_NUIS,
-    valid.EValidAxis.ALEATORY,
+    vl.EValidAxis.POINT,
+    vl.EValidAxis.COMPONENT,
+    vl.EValidAxis.EPISTEMIC_TRANS,
+    vl.EValidAxis.EPISTEMIC_NUIS,
+    vl.EValidAxis.ALEATORY,
 )
 observable_tag = "temperature"
-valid_case = valid.ValidCase(
+valid_case = vl.ValidCase(
     {
-        observable_tag: valid.ValidObservable(
+        observable_tag: vl.ValidObservable(
             components=("temperature",),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=coords,
             phys_units="degC",
             coord_units="m",
         )
     },
-    {observable_tag: valid.ValidArray(sim_samples, axes)},
-    {observable_tag: valid.ValidArray(exp_samples, axes)},
+    {observable_tag: vl.ValidArray(sim_samples, axes)},
+    {observable_tag: vl.ValidArray(exp_samples, axes)},
 )
-valid_result: valid.ValidResult = valid.ValidEngine(
-    [valid.MetricAVM(), valid.MetricMAVM()]
+valid_result: vl.ValidResult = vl.ValidEngine(
+    [vl.MetricAVM(), vl.MetricMAVM()]
 ).run(valid_case)
-print("Result axes:", valid_result.metrics[observable_tag][valid.EMetricType.MAVM].axes)
+print("Result axes:", valid_result.metrics[observable_tag][vl.EMetricType.MAVM].axes)
 
 # %%
 # 2. Numerical bounds resolve nuisance first, then envelope transferable cases.
 # KEEP envelopes every original joint case. A singleton nuis_idxs conditions on
 # an actual sample; MEAN/MEDIAN/QUANTILE form synthetic quantile curves.
 for name, reduction, probability in (
-    ("all", valid.EValidECDFReduce.KEEP, None),
-    ("mean", valid.EValidECDFReduce.MEAN, None),
-    ("median", valid.EValidECDFReduce.MEDIAN, None),
-    ("minimum", valid.EValidECDFReduce.QUANTILE, 0.0),
-    ("lower_quartile", valid.EValidECDFReduce.QUANTILE, 0.25),
-    ("upper_quartile", valid.EValidECDFReduce.QUANTILE, 0.75),
-    ("maximum", valid.EValidECDFReduce.QUANTILE, 1.0),
+    ("all", vl.EValidECDFReduce.KEEP, None),
+    ("mean", vl.EValidECDFReduce.MEAN, None),
+    ("median", vl.EValidECDFReduce.MEDIAN, None),
+    ("minimum", vl.EValidECDFReduce.QUANTILE, 0.0),
+    ("lower_quartile", vl.EValidECDFReduce.QUANTILE, 0.25),
+    ("upper_quartile", vl.EValidECDFReduce.QUANTILE, 0.75),
+    ("maximum", vl.EValidECDFReduce.QUANTILE, 1.0),
 ):
-    bounds: valid.ValidECDFBounds = valid.find_ecdf_epis_bounds(
+    bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
         valid_case.sim[observable_tag], nuis_reduce=reduction, nuis_quantile=probability
     )
     np.savetxt(
@@ -99,78 +98,78 @@ for name, reduction, probability in (
 # envelopes can switch controlling cases along p; they need not be two actual
 # scenario ECDFs. The default uses all cases on both axes, without pooling.
 views = (
-    ("outer_outer", valid.ValidECDFView(), valid.ValidECDFView()),
+    ("outer_outer", vl.ValidECDFView(), vl.ValidECDFView()),
     (
         "fixed_nuisance",
-        valid.ValidECDFView(nuis_idxs=(1,)),
-        valid.ValidECDFView(nuis_idxs=(1,)),
+        vl.ValidECDFView(nuis_idxs=(1,)),
+        vl.ValidECDFView(nuis_idxs=(1,)),
     ),
     (
         "subset",
-        valid.ValidECDFView(trans_idxs=(0, 2), nuis_idxs=(0, 2)),
-        valid.ValidECDFView(trans_idxs=(0,), nuis_idxs=(0, 2)),
+        vl.ValidECDFView(trans_idxs=(0, 2), nuis_idxs=(0, 2)),
+        vl.ValidECDFView(trans_idxs=(0,), nuis_idxs=(0, 2)),
     ),
     (
         "median_nuisance",
-        valid.ValidECDFView(nuis_reduce=valid.EValidECDFReduce.MEDIAN),
-        valid.ValidECDFView(nuis_reduce=valid.EValidECDFReduce.MEDIAN),
+        vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN),
+        vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN),
     ),
     (
         "lower_quartile",
-        valid.ValidECDFView(
-            nuis_reduce=valid.EValidECDFReduce.QUANTILE, nuis_quantile=0.25
+        vl.ValidECDFView(
+            nuis_reduce=vl.EValidECDFReduce.QUANTILE, nuis_quantile=0.25
         ),
-        valid.ValidECDFView(
-            nuis_reduce=valid.EValidECDFReduce.QUANTILE, nuis_quantile=0.25
+        vl.ValidECDFView(
+            nuis_reduce=vl.EValidECDFReduce.QUANTILE, nuis_quantile=0.25
         ),
     ),
     (
         "upper_quartile",
-        valid.ValidECDFView(
-            nuis_reduce=valid.EValidECDFReduce.QUANTILE, nuis_quantile=0.75
+        vl.ValidECDFView(
+            nuis_reduce=vl.EValidECDFReduce.QUANTILE, nuis_quantile=0.75
         ),
-        valid.ValidECDFView(
-            nuis_reduce=valid.EValidECDFReduce.QUANTILE, nuis_quantile=0.75
+        vl.ValidECDFView(
+            nuis_reduce=vl.EValidECDFReduce.QUANTILE, nuis_quantile=0.75
         ),
     ),
     (
         "mean_curves",
-        valid.ValidECDFView(
-            nuis_reduce=valid.EValidECDFReduce.MEAN,
-            trans_reduce=valid.EValidECDFReduce.MEAN,
+        vl.ValidECDFView(
+            nuis_reduce=vl.EValidECDFReduce.MEAN,
+            trans_reduce=vl.EValidECDFReduce.MEAN,
         ),
-        valid.ValidECDFView(
-            nuis_reduce=valid.EValidECDFReduce.MEAN,
-            trans_reduce=valid.EValidECDFReduce.MEAN,
+        vl.ValidECDFView(
+            nuis_reduce=vl.EValidECDFReduce.MEAN,
+            trans_reduce=vl.EValidECDFReduce.MEAN,
         ),
     ),
     (
         "median_curves",
-        valid.ValidECDFView(
-            nuis_reduce=valid.EValidECDFReduce.MEDIAN,
-            trans_reduce=valid.EValidECDFReduce.MEDIAN,
+        vl.ValidECDFView(
+            nuis_reduce=vl.EValidECDFReduce.MEDIAN,
+            trans_reduce=vl.EValidECDFReduce.MEDIAN,
         ),
-        valid.ValidECDFView(
-            nuis_reduce=valid.EValidECDFReduce.MEDIAN,
-            trans_reduce=valid.EValidECDFReduce.MEDIAN,
+        vl.ValidECDFView(
+            nuis_reduce=vl.EValidECDFReduce.MEDIAN,
+            trans_reduce=vl.EValidECDFReduce.MEDIAN,
         ),
     ),
     (
         "selected_scenarios",
-        valid.ValidECDFView(bounds=False, scenario_idxs=((0, 0), (2, 2))),
-        valid.ValidECDFView(bounds=False, scenario_idxs=((0, 1), (1, 2))),
+        vl.ValidECDFView(bounds=False, scenario_idxs=((0, 0), (2, 2))),
+        vl.ValidECDFView(bounds=False, scenario_idxs=((0, 1), (1, 2))),
     ),
     (
         "independent_views",
-        valid.ValidECDFView(nuis_reduce=valid.EValidECDFReduce.MEDIAN),
-        valid.ValidECDFView(
-            nuis_reduce=valid.EValidECDFReduce.MEAN,
-            trans_reduce=valid.EValidECDFReduce.MEDIAN,
+        vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN),
+        vl.ValidECDFView(
+            nuis_reduce=vl.EValidECDFReduce.MEAN,
+            trans_reduce=vl.EValidECDFReduce.MEDIAN,
         ),
     ),
 )
 for name, sim_view, exp_view in views:
-    ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+    ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case,
         observable_tag,
         point_idxs=None,
@@ -180,14 +179,14 @@ for name, sim_view, exp_view in views:
     ecdf_plot.figure.savefig(output_path / f"{name}.png", bbox_inches="tight")
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
-sim_plot: validplot.ValidECDFPlot = validplot.plot_sim_ecdfs(
+sim_plot: vl.ECDFPlot = vl.plot_sim_ecdfs(
     valid_case,
     observable_tag,
     point_idxs=None,
-    view=valid.ValidECDFView(nuis_reduce=valid.EValidECDFReduce.MEDIAN),
+    view=vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN),
 )
 sim_plot.figure.savefig(output_path / "sim_median_nuisance.png", bbox_inches="tight")
-exp_plot: validplot.ValidECDFPlot = validplot.plot_exp_ecdfs(
+exp_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
     valid_case, observable_tag, point_idxs=None
 )
 exp_plot.figure.savefig(output_path / "exp_envelopes.png", bbox_inches="tight")
@@ -197,47 +196,47 @@ exp_plot.figure.savefig(output_path / "exp_envelopes.png", bbox_inches="tight")
 # at p=.5 or p=.9. The physical axis remains below; the dimensionless axis above
 # is x/reference, not a probability-dependent displacement of each curve.
 for probability in (0.5, 0.9):
-    ecdf_plot = validplot.plot_sim_exp_cdfs(valid_case, observable_tag, point_idxs=None)
-    validplot.add_normalised_ecdf_axis(
-        ecdf_plot, validplot.ValidECDFReference(probability=probability)
+    ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag, point_idxs=None)
+    vl.add_normalised_ecdf_axis(
+        ecdf_plot, vl.ValidECDFReference(probability=probability)
     )
-    validplot.add_metric_overlay(ecdf_plot, valid.MetricAVM())
+    vl.add_metric_overlay(ecdf_plot, vl.MetricAVM())
     ecdf_plot.figure.savefig(
         output_path / f"avm_normalised_p{probability:g}.png", bbox_inches="tight"
     )
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
-ks_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+ks_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case, observable_tag, point_idxs=None
 )
-validplot.add_metric_overlay(ks_plot, valid.MetricKS())
+vl.add_metric_overlay(ks_plot, vl.MetricKS())
 ks_plot.figure.savefig(output_path / "ks_bound_distances.png", bbox_inches="tight")
 
 # Support shifts search original conditional comparisons. Integration areas
 # require selecting an actual sim/exp pair; summaries are not pseudo-observations.
 for metric_output, direction in (
-    (valid.EMetricOutput.D_PLUS, "d_plus"),
-    (valid.EMetricOutput.D_MINUS, "d_minus"),
+    (vl.EMetricOut.D_PLUS, "d_plus"),
+    (vl.EMetricOut.D_MINUS, "d_minus"),
 ):
-    support_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+    support_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case, observable_tag, point_idxs=None
     )
-    validplot.add_metric_overlay(support_plot, valid.MetricMAVM(), output=metric_output)
+    vl.add_metric_overlay(support_plot, vl.MetricMAVM(), output=metric_output)
     support_plot.figure.savefig(
         output_path / f"mavm_{direction}_support.png", bbox_inches="tight"
     )
-    area_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+    area_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case,
         observable_tag,
         point_idxs=None,
-        sim_view=valid.ValidECDFView(trans_idxs=(1,), nuis_idxs=(1,)),
-        exp_view=valid.ValidECDFView(trans_idxs=(0,), nuis_idxs=(1,)),
+        sim_view=vl.ValidECDFView(trans_idxs=(1,), nuis_idxs=(1,)),
+        exp_view=vl.ValidECDFView(trans_idxs=(0,), nuis_idxs=(1,)),
     )
-    validplot.add_metric_overlay(
+    vl.add_metric_overlay(
         area_plot,
-        valid.MetricMAVM(),
+        vl.MetricMAVM(),
         output=metric_output,
-        display=validplot.EValidMetricDisplay.INTEGRATION_AREA,
+        display=vl.EMetricDisp.INTEGRATION_AREA,
     )
     area_plot.figure.savefig(
         output_path / f"mavm_{direction}_area.png", bbox_inches="tight"

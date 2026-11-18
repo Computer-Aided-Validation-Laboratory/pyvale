@@ -23,9 +23,9 @@ import scipy
 import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-from pyvale import valid
-from pyvale.valid import validengine
-from pyvale.valid.cython import mavm
+import pyvale.validation as vl
+from pyvale.validation import validengine
+from pyvale.validation.cython import mavm
 
 CAMERA_WIDTH = 4
 CAMERA_HEIGHT = 4
@@ -57,8 +57,8 @@ REPORT_PATH = (
 @dataclass(slots=True)
 class BenchmarkCase:
     name: str
-    distribution: valid.ValidCase
-    paired: valid.ValidCase
+    distribution: vl.ValidCase
+    paired: vl.ValidCase
 
 
 def create_grid(width: int, height: int) -> np.ndarray:
@@ -113,13 +113,13 @@ def prepare_cases(
         ),
     )
     sim_axes = (
-        valid.EValidAxis.POINT,
-        valid.EValidAxis.COMPONENT,
-        valid.EValidAxis.TIME,
-        valid.EValidAxis.EPISTEMIC_TRANS,
-        valid.EValidAxis.ALEATORY,
+        vl.EValidAxis.POINT,
+        vl.EValidAxis.COMPONENT,
+        vl.EValidAxis.TIME,
+        vl.EValidAxis.EPISTEMIC_TRANS,
+        vl.EValidAxis.ALEATORY,
     )
-    exp_axes = sim_axes[:3] + (valid.EValidAxis.ALEATORY,)
+    exp_axes = sim_axes[:3] + (vl.EValidAxis.ALEATORY,)
     generator = np.random.default_rng(RANDOM_SEED)
     cases = []
     for name, grid, components, units, noise_std in specifications:
@@ -152,18 +152,18 @@ def prepare_cases(
             0.0, noise_std, (*physical_shape, EXP_ALEATORY_SAMPLES)
         )
         exp_samples += biased_observations[..., None]
-        exp = valid.ValidArray(
+        exp = vl.ValidArray(
             exp_samples,
             exp_axes,
-            valid.EpistemicOffsets(
+            vl.EpistemicOffsets(
                 noise_std * EXP_OFFSET_NOISE_MULTIPLIER,
                 noise_std * EXP_OFFSET_NOISE_MULTIPLIER,
             ),
         )
         observables = {
-            name: valid.ValidObservable(
+            name: vl.ValidObservable(
                 components=components,
-                geometry=valid.EValidGeometry.POINT,
+                geometry=vl.EValidGeometry.POINT,
                 coords=coords,
                 times=times,
                 phys_units=units,
@@ -172,22 +172,22 @@ def prepare_cases(
                 time_units="s",
             )
         }
-        distribution = valid.ValidCase(
+        distribution = vl.ValidCase(
             observables,
-            {name: valid.ValidArray(sim_samples, sim_axes)},
+            {name: vl.ValidArray(sim_samples, sim_axes)},
             {name: exp},
         )
         # Explicit first-N pairing, retaining all epistemic/offset scenarios.
-        paired = valid.ValidCase(
+        paired = vl.ValidCase(
             observables,
-            {name: valid.ValidArray(sim_samples[..., :EXP_ALEATORY_SAMPLES], sim_axes)},
+            {name: vl.ValidArray(sim_samples[..., :EXP_ALEATORY_SAMPLES], sim_axes)},
             {name: exp},
         )
         cases.append(BenchmarkCase(name, distribution, paired))
     return cases, times
 
 
-def check_outputs(result: valid.ValidResult) -> tuple[float, ...]:
+def check_outputs(result: vl.ValidResult) -> tuple[float, ...]:
     checksums = []
     for metrics in result.metrics.values():
         for field in metrics.values():
@@ -313,22 +313,22 @@ def main() -> None:
         + "Timing run in progress; optimisation decisions are recorded separately.\n",
         encoding="utf-8",
     )
-    distribution_engine = valid.ValidEngine(
+    distribution_engine = vl.ValidEngine(
         [
-            valid.MetricMAVM(alpha=MAVM_ALPHA),
-            valid.MetricAVM(),
-            valid.MetricKS(),
-            valid.MetricCVM(),
+            vl.MetricMAVM(alpha=MAVM_ALPHA),
+            vl.MetricAVM(),
+            vl.MetricKS(),
+            vl.MetricCVM(),
         ],
-        opts=valid.ValidEngineOpts(workers=arguments.workers),
+        opts=vl.ValidEngineOpts(workers=arguments.workers),
     )
     # A fixed positive scale avoids singular relative error at initial zero fields.
     paired_engines = {
-        case.name: valid.ValidEngine(
+        case.name: vl.ValidEngine(
             [
-                valid.MetricRMSE(),
-                valid.MetricRelErr(
-                    normalisation=valid.ERelErrNorm.CONSTANT,
+                vl.MetricRMSE(),
+                vl.MetricRelErr(
+                    normalisation=vl.ERelErrNorm.CONSTANT,
                     constant={
                         "strain_gauges": STRAIN_NOISE_STD,
                         "thermocouples": TEMPERATURE_NOISE_STD,
@@ -337,11 +337,11 @@ def main() -> None:
                     }[case.name],
                 ),
             ],
-            opts=valid.ValidEngineOpts(workers=arguments.workers),
+            opts=vl.ValidEngineOpts(workers=arguments.workers),
         )
         for case in cases
     }
-    distribution_case = valid.ValidCase(
+    distribution_case = vl.ValidCase(
         {case.name: case.distribution.observables[case.name] for case in cases},
         {case.name: case.distribution.sim[case.name] for case in cases},
         {case.name: case.distribution.exp[case.name] for case in cases},

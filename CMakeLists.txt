@@ -159,7 +159,7 @@ execute_process(
     COMMAND_ERROR_IS_FATAL ANY
 )
 
-set(MAVM_CYTHON_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/pyvale/valid/cython/mavm.py)
+set(MAVM_CYTHON_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/pyvale/validation/cython/mavm.py)
 set(MAVM_CYTHON_GENERATED ${CMAKE_CURRENT_BINARY_DIR}/mavm_cython.c)
 
 add_custom_command(
@@ -167,7 +167,7 @@ add_custom_command(
     COMMAND ${Python_EXECUTABLE} -m cython -3 -o ${MAVM_CYTHON_GENERATED}
             ${MAVM_CYTHON_SOURCE}
     DEPENDS ${MAVM_CYTHON_SOURCE}
-    COMMENT "Generating C source for pyvale.valid.cython.mavm"
+    COMMENT "Generating C source for pyvale.validation.cython.mavm"
     VERBATIM
 )
 
@@ -175,6 +175,6 @@ Python_add_library(mavm MODULE WITH_SOABI ${MAVM_CYTHON_GENERATED})
 target_include_directories(mavm PRIVATE ${NUMPY_INCLUDE_DIR})
 install(
     TARGETS mavm
-    LIBRARY DESTINATION pyvale/valid/cython
-    RUNTIME DESTINATION pyvale/valid/cython
+    LIBRARY DESTINATION pyvale/validation/cython
+    RUNTIME DESTINATION pyvale/validation/cython
 )

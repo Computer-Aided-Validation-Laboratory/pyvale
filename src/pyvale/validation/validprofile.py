@@ -12,20 +12,20 @@ from math import prod
 import numpy as np
 from scipy import stats
 
-from pyvale.valid.constants import MAVM_AREA_TOLERANCE
-from pyvale.valid.metrics import calc_mavm_1d
-from pyvale.valid.metricstrategy import EMetricType
-from pyvale.valid.validecdf import (
+from pyvale.validation.constants import MAVM_AREA_TOLERANCE
+from pyvale.validation.metrics import calc_mavm_1d
+from pyvale.validation.metricstrategy import EMetricType
+from pyvale.validation.validecdf import (
     _evaluate_ecdf_quantiles,
     _find_quantile_limits,
     _reduce_ecdf_quantiles,
     calc_ecdf,
 )
-from pyvale.valid.validtools import build_metric_selection
-from pyvale.valid.validtypes import (
+from pyvale.validation.validtools import build_metric_selection
+from pyvale.validation.validtypes import (
     EEpisOffset,
     EMAVMDuplicates,
-    EMetricOutput,
+    EMetricOut,
     EValidBoundAxis,
     EValidNuisanceScore,
     EValidResAxis,
@@ -34,7 +34,7 @@ from pyvale.valid.validtypes import (
     ValidECDF,
     ValidECDFBounds,
     ValidMetricExtrema,
-    ValidMetricField,
+    MetricField,
     ValidNuisanceRanking,
     ValidResult,
     ValidSupportBounds,
@@ -50,7 +50,7 @@ NUIS_AXES = (EValidResAxis.SIM_NUIS, EValidResAxis.EXP_NUIS)
 
 
 def _select_profile_field(
-    field: ValidMetricField,
+    field: MetricField,
     reduce_axes: tuple[EValidResAxis, ...],
     selectors: dict[EValidResAxis, int] | None,
 ) -> tuple[
@@ -156,7 +156,7 @@ def profile_epis_nuisance_extrema(
 
 
 def _iterate_profile_cells(
-    field: ValidMetricField,
+    field: MetricField,
     selection: tuple[int | slice, ...],
 ) -> Iterator[tuple[tuple[int, ...], tuple[int, ...]]]:
     shape = next(iter(field.outputs.values())).shape
@@ -203,10 +203,10 @@ def find_metric_epis_supports(
     )
     retained_positions = tuple(selected_axes.index(axis) for axis in retained)
     plus = field.outputs[
-        EMetricOutput.D_PLUS if metric is EMetricType.MAVM else EMetricOutput.DISTANCE
+        EMetricOut.D_PLUS if metric is EMetricType.MAVM else EMetricOut.DISTANCE
     ]
     minus = field.outputs[
-        EMetricOutput.D_MINUS if metric is EMetricType.MAVM else EMetricOutput.DISTANCE
+        EMetricOut.D_MINUS if metric is EMetricType.MAVM else EMetricOut.DISTANCE
     ]
     cdfs: dict[tuple[int, ...], ValidECDF] = {}
     # One ECDF per original sim cell, irrespective of how many exp cases use it.
@@ -392,9 +392,9 @@ def _calc_metric_over_bounds(
     probability_indices = np.arange(probabilities.size)
     pair_indices = np.asarray(tuple(np.ndindex(2, 2)))
     outputs = (
-        {EMetricOutput.D_PLUS: plus, EMetricOutput.D_MINUS: minus}
+        {EMetricOut.D_PLUS: plus, EMetricOut.D_MINUS: minus}
         if directional
-        else {EMetricOutput.DISTANCE: plus}
+        else {EMetricOut.DISTANCE: plus}
     )
     return ValidSupportBounds(
         (),

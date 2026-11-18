@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from pyvale.valid.constants import MAVM_DUPLICATE_TOLERANCE
+from pyvale.validation.constants import MAVM_DUPLICATE_TOLERANCE
 
 
 def validate_real_array(

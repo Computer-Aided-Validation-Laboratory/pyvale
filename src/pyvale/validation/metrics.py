@@ -17,19 +17,19 @@ from enum import Enum, auto
 import numpy as np
 from scipy import stats
 
-from pyvale.valid.constants import (
+from pyvale.validation.constants import (
     MAVM_AREA_TOLERANCE,
     METRIC_ZERO_TOLERANCE,
 )
-from pyvale.valid.cython.mavm import (
+from pyvale.validation.cython.mavm import (
     cyth_calc_mavm_1d,
     cyth_calc_mavm_pbox_1d,
 )
-from pyvale.valid.validchecks import (
+from pyvale.validation.validchecks import (
     validate_finite_sample,
     validate_real_array,
 )
-from pyvale.valid.validtypes import (
+from pyvale.validation.validtypes import (
     EMAVMDuplicates,
     MAVMResult,
     ValidECDF,

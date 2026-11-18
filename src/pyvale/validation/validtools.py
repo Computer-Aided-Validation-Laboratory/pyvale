@@ -8,18 +8,18 @@
 
 import numpy as np
 
-from pyvale.valid.metricstrategy import EMetricType
-from pyvale.valid.validtypes import (
-    EMetricOutput,
+from pyvale.validation.metricstrategy import EMetricType
+from pyvale.validation.validtypes import (
+    EMetricOut,
     EValidResAxis,
-    ValidMetricField,
+    MetricField,
     resolve_metric_output,
 )
 
 
 def select_metric_output(
-    field: ValidMetricField,
-    output: EMetricOutput | None = None,
+    field: MetricField,
+    output: EMetricOut | None = None,
     *,
     selection_idxs: tuple[int | slice, ...] = (),
 ) -> np.ndarray:
@@ -28,11 +28,11 @@ def select_metric_output(
 
 
 def extract_metric_values(
-    field: ValidMetricField,
+    field: MetricField,
     *,
     keep: EValidResAxis = EValidResAxis.POINT,
     selectors: dict[EValidResAxis, int] | None = None,
-    output: EMetricOutput | None = None,
+    output: EMetricOut | None = None,
 ) -> np.ndarray:
     """Retain one axis and select every other non-singleton result axis."""
     if not isinstance(keep, EValidResAxis) or keep not in field.axes:
@@ -45,7 +45,7 @@ def extract_metric_values(
 
 
 def build_metric_selection(
-    field: ValidMetricField,
+    field: MetricField,
     selectors: dict[EValidResAxis, int] | None,
     *,
     keep: EValidResAxis | None = None,
@@ -74,12 +74,12 @@ def build_metric_selection(
     return tuple(selection)
 
 
-def create_metric_label(metric: EMetricType, output: EMetricOutput) -> str:
+def create_metric_label(metric: EMetricType, output: EMetricOut) -> str:
     output_label = {
-        EMetricOutput.D_PLUS: "d+",
-        EMetricOutput.D_MINUS: "d−",
-        EMetricOutput.DISTANCE: "distance",
-        EMetricOutput.STATISTIC: "statistic",
-        EMetricOutput.ERROR: "error",
+        EMetricOut.D_PLUS: "d+",
+        EMetricOut.D_MINUS: "d−",
+        EMetricOut.DISTANCE: "distance",
+        EMetricOut.STATISTIC: "statistic",
+        EMetricOut.ERROR: "error",
     }[output]
     return f"{metric.name} {output_label}"

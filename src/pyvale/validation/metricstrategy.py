@@ -14,9 +14,9 @@ from typing import cast
 import numpy as np
 from scipy import stats
 
-from pyvale.valid.constants import MAVM_AREA_TOLERANCE
-from pyvale.valid.cython.mavm import _calculate_mavm
-from pyvale.valid.metrics import (
+from pyvale.validation.constants import MAVM_AREA_TOLERANCE
+from pyvale.validation.cython.mavm import _calculate_mavm
+from pyvale.validation.metrics import (
     ERelErrNorm,
     _calculate_cvm_statistic,
     _calculate_ks_statistic,
@@ -28,9 +28,9 @@ from pyvale.valid.metrics import (
     validate_paired_samples,
     validate_relative_error_config,
 )
-from pyvale.valid.validtypes import (
+from pyvale.validation.validtypes import (
     EMAVMDuplicates,
-    EMetricOutput,
+    EMetricOut,
     MAVMResult,
     validate_mavm_config,
 )
@@ -86,7 +86,7 @@ class IValidMetric(ABC):
         """Declare how the metric compares sim and exp observations."""
 
     @abstractmethod
-    def get_outputs(self) -> tuple[EMetricOutput, ...]:
+    def get_outputs(self) -> tuple[EMetricOut, ...]:
         """Declare outputs in the order returned by extract_outputs."""
 
     @abstractmethod
@@ -121,10 +121,10 @@ class MetricMAVM(IValidMetric):
     def get_comparison(self) -> EMetricComparison:
         return EMetricComparison.DISTRIBUTIONAL
 
-    def get_outputs(self) -> tuple[EMetricOutput, ...]:
+    def get_outputs(self) -> tuple[EMetricOut, ...]:
         return (
-            EMetricOutput.D_PLUS,
-            EMetricOutput.D_MINUS,
+            EMetricOut.D_PLUS,
+            EMetricOut.D_MINUS,
         )
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
@@ -149,8 +149,8 @@ class MetricAVM(IValidMetric):
     def get_comparison(self) -> EMetricComparison:
         return EMetricComparison.DISTRIBUTIONAL
 
-    def get_outputs(self) -> tuple[EMetricOutput, ...]:
-        return (EMetricOutput.DISTANCE,)
+    def get_outputs(self) -> tuple[EMetricOut, ...]:
+        return (EMetricOut.DISTANCE,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
         return (cast(ScalarMetricResult, result).value,)
@@ -171,8 +171,8 @@ class MetricKS(IValidMetric):
     def get_comparison(self) -> EMetricComparison:
         return EMetricComparison.DISTRIBUTIONAL
 
-    def get_outputs(self) -> tuple[EMetricOutput, ...]:
-        return (EMetricOutput.STATISTIC,)
+    def get_outputs(self) -> tuple[EMetricOut, ...]:
+        return (EMetricOut.STATISTIC,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
         return (cast(ScalarMetricResult, result).value,)
@@ -193,8 +193,8 @@ class MetricCVM(IValidMetric):
     def get_comparison(self) -> EMetricComparison:
         return EMetricComparison.DISTRIBUTIONAL
 
-    def get_outputs(self) -> tuple[EMetricOutput, ...]:
-        return (EMetricOutput.STATISTIC,)
+    def get_outputs(self) -> tuple[EMetricOut, ...]:
+        return (EMetricOut.STATISTIC,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
         return (cast(ScalarMetricResult, result).value,)
@@ -215,8 +215,8 @@ class MetricRMSE(IValidMetric):
     def get_comparison(self) -> EMetricComparison:
         return EMetricComparison.PAIRED
 
-    def get_outputs(self) -> tuple[EMetricOutput, ...]:
-        return (EMetricOutput.ERROR,)
+    def get_outputs(self) -> tuple[EMetricOut, ...]:
+        return (EMetricOut.ERROR,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
         return (cast(ScalarMetricResult, result).value,)
@@ -254,8 +254,8 @@ class MetricRelErr(IValidMetric):
     def get_comparison(self) -> EMetricComparison:
         return EMetricComparison.PAIRED
 
-    def get_outputs(self) -> tuple[EMetricOutput, ...]:
-        return (EMetricOutput.ERROR,)
+    def get_outputs(self) -> tuple[EMetricOut, ...]:
+        return (EMetricOut.ERROR,)
 
     def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
         return (cast(ScalarMetricResult, result).value,)

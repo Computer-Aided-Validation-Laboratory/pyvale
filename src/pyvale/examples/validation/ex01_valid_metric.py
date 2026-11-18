@@ -11,7 +11,6 @@ Build a validation case from three scalar observations, then inspect its
 metrics and empirical distributions. Introduces the validation data model.
 """
 
-import json
 from pathlib import Path
 
 import matplotlib
@@ -19,8 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 
-from pyvale import valid
-from pyvale.valid import validplot
+import pyvale.validation as vl
 
 matplotlib.use("Agg")
 
@@ -48,9 +46,9 @@ exp = sim_data + 2.0
 # ValidObservable records geometry, component order, physical times and units.
 # Use an observable tag that identifies the measurement being compared.
 # Here we have one scalar component at one state.
-scalar_observable = valid.ValidObservable(
+scalar_observable = vl.ValidObservable(
     components=("scalar",),
-    geometry=valid.EValidGeometry.GLOBAL,
+    geometry=vl.EValidGeometry.GLOBAL,
     phys_units="unit",
 )
 
@@ -64,9 +62,9 @@ observables = {observable_tag: scalar_observable}
 # ValidArray associates numerical samples with named axes. This separates the
 # physical comparison cells from the uncertainty samples within each cell.
 # Omitted physical axes have length one; the sample arrays here have shape (3,).
-sample_axes = (valid.EValidAxis.ALEATORY,)
-sim_response = valid.ValidArray(sim_data, sample_axes)
-exp_response = valid.ValidArray(exp, sample_axes)
+sample_axes = (vl.EValidAxis.ALEATORY,)
+sim_response = vl.ValidArray(sim_data, sample_axes)
+exp_response = vl.ValidArray(exp, sample_axes)
 
 # Dictionaries collect each source's ValidArray quantities by observable tag. Keeping
 # source samples separate from the shared observables lets each source have its own
@@ -78,59 +76,31 @@ exp_arrays = {observable_tag: exp_response}
 # physical axis lengths. Prepare source values in the observables's component order,
 # physical locations, times and units. The engine uses this SAME tag to find
 # each observable in observables, sim and exp.
-valid_case = valid.ValidCase(observables, sim_arrays, exp_arrays)
+valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 
 # %%
 # 2. Run validation analysis
 # --------------------------
 # AVM is 2 units, KS is 2/3 (one support value overlaps), and paired RMSE is 2.
 # MAVM also accounts for experimental confidence bounds and reports d+ and d−.
-valid_result: valid.ValidResult = valid.ValidEngine(
+valid_result: vl.ValidResult = vl.ValidEngine(
     [
-        valid.MetricAVM(),
-        valid.MetricKS(),
-        valid.MetricCVM(),
-        valid.MetricRMSE(),
-        valid.MetricRelErr(),
-        valid.MetricMAVM(),
+        vl.MetricAVM(),
+        vl.MetricKS(),
+        vl.MetricCVM(),
+        vl.MetricRMSE(),
+        vl.MetricRelErr(),
+        vl.MetricMAVM(),
     ]
 ).run(valid_case)
 
-# A distribution comparison permits unequal counts; paired errors do not.
-# Singleton CvM is undefined. The analytic tests cover every parity combination;
-# this small table exposes the practical deterministic/aleatory cases directly.
-sample_cases: dict[str, tuple[np.ndarray, np.ndarray]] = {
-    "deterministic": (np.array([1.0]), np.array([3.0])),
-    "det_sim": (np.array([1.0]), np.array([2.0, 3.0, 4.0, 5.0])),
-    "det_exp": (np.array([0.0, 1.0, 2.0]), np.array([3.0])),
-    "more_sim": (np.array([0.0, 1.0, 2.0, 3.0]), np.array([2.0, 3.0, 4.0])),
-    "more_exp": (np.array([0.0, 1.0, 2.0]), np.array([2.0, 3.0, 4.0, 5.0])),
-}
-comparison_table: list[dict[str, str | int | float | None]] = []
-for name, (sim_samples, exp_samples) in sample_cases.items():
-    comparison_table.append(
-        {
-            "case": name,
-            "sim_count": sim_samples.size,
-            "exp_count": exp_samples.size,
-            "avm": valid.calc_avm_1d(sim_samples, exp_samples),
-            "ks": valid.calc_ks_1d(sim_samples, exp_samples),
-            "cvm": valid.calc_cvm_1d(sim_samples, exp_samples)
-            if min(sim_samples.size, exp_samples.size) > 1
-            else None,
-            "rmse": valid.MetricRMSE().calc(sim_samples, exp_samples).value
-            if sim_samples.size == exp_samples.size
-            else None,
-        }
-    )
-(output_path / "sample_counts.json").write_text(json.dumps(comparison_table, indent=2))
 for metric in (
-    valid.MetricAVM(),
-    valid.MetricKS(),
-    valid.MetricCVM(),
-    valid.MetricRMSE(),
-    valid.MetricRelErr(),
-    valid.MetricMAVM(),
+    vl.MetricAVM(),
+    vl.MetricKS(),
+    vl.MetricCVM(),
+    vl.MetricRMSE(),
+    vl.MetricRelErr(),
+    vl.MetricMAVM(),
 ):
     print(metric.get_kind().name, metric.get_scale().name, metric.get_comparison().name)
 
@@ -139,7 +109,7 @@ for metric in (
 # ----------------------------------------------
 # Engine arrays have shape (1 point, 1 component, 1 time). Select by metric
 # type. The three input entries remain independent observations for one point.
-metrics: dict[valid.EMetricType, valid.ValidMetricField] = valid_result.metrics[
+metrics: dict[vl.EMetricType, vl.MetricField] = valid_result.metrics[
     observable_tag
 ]
 print("Observable tags:", tuple(observables))
@@ -155,10 +125,10 @@ for metric_type, metric_field in metrics.items():
 # are plotted separately below; the ECDF comparison needs no metric result.
 fig: Figure
 axes: np.ndarray
-ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case,
     observable_tag,
-    valid_plot_opts=validplot.ValidPlotOpts(x_label="Observable [unit]"),
+    valid_plot_opts=vl.ValidPlotOpts(x_label="Observable [unit]"),
 )
 fig, axes = ecdf_plot.figure, ecdf_plot.axes
 fig.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")
@@ -168,18 +138,18 @@ fig.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")
 # complete analysis in its own directory prevents clashes with other examples.
 # The context also supports ordinary Matplotlib access and metric annotations.
 for metric in (
-    valid.MetricAVM(),
-    valid.MetricKS(),
-    valid.MetricCVM(),
-    valid.MetricRMSE(),
-    valid.MetricRelErr(),
+    vl.MetricAVM(),
+    vl.MetricKS(),
+    vl.MetricCVM(),
+    vl.MetricRMSE(),
+    vl.MetricRelErr(),
 ):
-    overlay_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+    overlay_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case, observable_tag
     )
-    validplot.add_metric_overlay(overlay_plot, metric)
-    if metric.get_kind() is valid.EMetricType.AVM:
-        validplot.add_normalised_ecdf_axis(overlay_plot, 2.0)
+    vl.add_metric_overlay(overlay_plot, metric)
+    if metric.get_kind() is vl.EMetricType.AVM:
+        vl.add_normalised_ecdf_axis(overlay_plot, 2.0)
     overlay_plot.figure.savefig(
         output_path / f"{metric.get_kind().name.lower()}_overlay.png",
         bbox_inches="tight",
@@ -188,25 +158,26 @@ for metric in (
         plt.close(overlay_plot.figure)
 
 # The same conditional ECDFs can instead show the actual integration regions.
-area_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+area_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case, observable_tag
 )
-validplot.add_metric_overlay(
-    area_plot, valid.MetricAVM(), display=validplot.EValidMetricDisplay.INTEGRATION_AREA
+vl.add_metric_overlay(
+    area_plot, vl.MetricAVM(), display=vl.EMetricDisp.INTEGRATION_AREA
 )
 area_plot.figure.savefig(output_path / "avm_area.png", bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(area_plot.figure)
+
 for metric_output, direction in (
-    (valid.EMetricOutput.D_PLUS, "d_plus"),
-    (valid.EMetricOutput.D_MINUS, "d_minus"),
+    (vl.EMetricOut.D_PLUS, "d_plus"),
+    (vl.EMetricOut.D_MINUS, "d_minus"),
 ):
-    area_plot = validplot.plot_sim_exp_cdfs(valid_case, observable_tag)
-    validplot.add_metric_overlay(
+    area_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
+    vl.add_metric_overlay(
         area_plot,
-        valid.MetricMAVM(),
+        vl.MetricMAVM(),
         output=metric_output,
-        display=validplot.EValidMetricDisplay.INTEGRATION_AREA,
+        display=vl.EMetricDisp.INTEGRATION_AREA,
     )
     area_plot.figure.savefig(
         output_path / f"mavm_{direction}_area.png", bbox_inches="tight"
@@ -215,27 +186,27 @@ for metric_output, direction in (
         plt.close(area_plot.figure)
 
 # U-pooling uses one model CDF per observation and its own probability axis.
-model_cdf: valid.ValidECDF = valid.calc_ecdf(sim_data)
-fig, pooling_ax = validplot.plot_u_pooling_cdf([model_cdf] * exp.size, exp)
+model_cdf: vl.ValidECDF = vl.calc_ecdf(sim_data)
+fig, pooling_ax = vl.plot_u_pooling_cdf([model_cdf] * exp.size, exp)
 fig.savefig(output_path / "u_pooling.png", bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(fig)
 
-# Plot each directional metric on its own figure. Histograms retain the spread
-# across physical cells and selected epistemic comparisons, without pooling data.
+# Show the limiting shifted ECDF supports for each MAVM direction.
+supports = vl.find_metric_epis_supports(
+    valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
+)
 for metric_output, direction in (
-    (valid.EMetricOutput.D_PLUS, "d_plus"),
-    (valid.EMetricOutput.D_MINUS, "d_minus"),
+    (vl.EMetricOut.D_PLUS, "d_plus"),
+    (vl.EMetricOut.D_MINUS, "d_minus"),
 ):
-    fig, metric_ax = validplot.plot_valid_metric_distribution(
-        valid_result,
-        observable_tag,
-        valid.EMetricType.MAVM,
-        output=metric_output,
+    ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
+    vl.add_support_overlay(ecdf_plot, supports, output=metric_output)
+    ecdf_plot.figure.savefig(
+        output_path / f"mavm_{direction}_limiting_ecdf.png", bbox_inches="tight"
     )
-    fig.savefig(output_path / f"mavm_{direction}_distribution.png", bbox_inches="tight")
     if not SHOW_PLOTS:
-        plt.close(fig)
+        plt.close(ecdf_plot.figure)
 
 if SHOW_PLOTS:
     plt.show()

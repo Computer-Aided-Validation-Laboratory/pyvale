@@ -5,68 +5,68 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from pyvale import valid
+import pyvale.validation as vl
 
 
-def create_parallel_case() -> valid.ValidCase:
+def create_parallel_case() -> vl.ValidCase:
     generator = np.random.default_rng(42)
     observables = {}
     sims = {}
     experiments = {}
     for name, points in (("camera", 7), ("gauge", 1)):
-        observables[name] = valid.ValidObservable(
+        observables[name] = vl.ValidObservable(
             components=("temperature",),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=np.zeros((points, 3)),
             times=np.array([0.0, 1.0]),
         )
         samples = generator.normal(size=(points, 1, 2, 2, 20))[..., ::2]
         samples[0, 0, 0, 0] = np.nan
-        sims[name] = valid.ValidArray(
+        sims[name] = vl.ValidArray(
             samples,
             (
-                valid.EValidAxis.POINT,
-                valid.EValidAxis.COMPONENT,
-                valid.EValidAxis.TIME,
-                valid.EValidAxis.EPISTEMIC_TRANS,
-                valid.EValidAxis.ALEATORY,
+                vl.EValidAxis.POINT,
+                vl.EValidAxis.COMPONENT,
+                vl.EValidAxis.TIME,
+                vl.EValidAxis.EPISTEMIC_TRANS,
+                vl.EValidAxis.ALEATORY,
             ),
-            valid.EpistemicOffsets(0.05, 0.1),
+            vl.EpistemicOffsets(0.05, 0.1),
         )
-        experiments[name] = valid.ValidArray(
+        experiments[name] = vl.ValidArray(
             generator.normal(size=(points, 1, 2, 10)),
             (
-                valid.EValidAxis.POINT,
-                valid.EValidAxis.COMPONENT,
-                valid.EValidAxis.TIME,
-                valid.EValidAxis.ALEATORY,
+                vl.EValidAxis.POINT,
+                vl.EValidAxis.COMPONENT,
+                vl.EValidAxis.TIME,
+                vl.EValidAxis.ALEATORY,
             ),
-            valid.EpistemicOffsets(
-                np.full(points, 0.1), np.full(points, 0.2), (valid.EValidAxis.POINT,)
+            vl.EpistemicOffsets(
+                np.full(points, 0.1), np.full(points, 0.2), (vl.EValidAxis.POINT,)
             ),
         )
-    return valid.ValidCase(observables, sims, experiments)
+    return vl.ValidCase(observables, sims, experiments)
 
 
 @pytest.mark.parametrize("workers", [2])
 def test_parallel_metrics_match_serial(workers: int) -> None:
     case = create_parallel_case()
     metrics = [
-        valid.MetricMAVM(),
-        valid.MetricAVM(),
-        valid.MetricKS(),
-        valid.MetricCVM(),
+        vl.MetricMAVM(),
+        vl.MetricAVM(),
+        vl.MetricKS(),
+        vl.MetricCVM(),
     ]
-    serial = valid.ValidEngine(metrics).run(case)
-    parallel = valid.ValidEngine(
-        metrics, opts=valid.ValidEngineOpts(workers=workers)
+    serial = vl.ValidEngine(metrics).run(case)
+    parallel = vl.ValidEngine(
+        metrics, opts=vl.ValidEngineOpts(workers=workers)
     ).run(case)
     assert parallel.observables is case.observables
     assert parallel.metric_configs.keys() == serial.metric_configs.keys()
-    serial_mavm = serial.metric_configs[valid.EMetricType.MAVM]
-    parallel_mavm = parallel.metric_configs[valid.EMetricType.MAVM]
-    assert isinstance(serial_mavm, valid.MetricMAVM)
-    assert isinstance(parallel_mavm, valid.MetricMAVM)
+    serial_mavm = serial.metric_configs[vl.EMetricType.MAVM]
+    parallel_mavm = parallel.metric_configs[vl.EMetricType.MAVM]
+    assert isinstance(serial_mavm, vl.MetricMAVM)
+    assert isinstance(parallel_mavm, vl.MetricMAVM)
     assert (parallel_mavm.alpha, parallel_mavm.duplicates, parallel_mavm.tol) == (
         serial_mavm.alpha,
         serial_mavm.duplicates,
@@ -91,36 +91,36 @@ def test_parallel_metrics_match_serial(workers: int) -> None:
     assert np.isnan(case.sim["camera"].data[0, 0, 0, 0]).all()
 
 
-class FailingMetric(valid.IValidMetric):
-    def get_scale(self) -> valid.EMetricScale:
-        return valid.EMetricScale.PHYSICAL
+class FailingMetric(vl.IValidMetric):
+    def get_scale(self) -> vl.EMetricScale:
+        return vl.EMetricScale.PHYSICAL
 
-    def get_comparison(self) -> valid.EMetricComparison:
-        return valid.EMetricComparison.DISTRIBUTIONAL
+    def get_comparison(self) -> vl.EMetricComparison:
+        return vl.EMetricComparison.DISTRIBUTIONAL
 
-    def get_outputs(self) -> tuple[valid.EMetricOutput, ...]:
-        return (valid.EMetricOutput.DISTANCE,)
+    def get_outputs(self) -> tuple[vl.EMetricOut, ...]:
+        return (vl.EMetricOut.DISTANCE,)
 
-    def extract_outputs(self, result: valid.MetricResult) -> tuple[float, ...]:
+    def extract_outputs(self, result: vl.MetricResult) -> tuple[float, ...]:
         raise AssertionError("Failed calculations cannot produce outputs.")
 
-    def get_kind(self) -> valid.EMetricType:
-        return valid.EMetricType.AVM
+    def get_kind(self) -> vl.EMetricType:
+        return vl.EMetricType.AVM
 
-    def calc(self, sim: np.ndarray, exp: np.ndarray) -> valid.MetricResult:
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.MetricResult:
         raise ValueError("Deliberate worker failure.")
 
 
 def test_worker_failure_propagates_and_engine_can_run_again() -> None:
     case = create_parallel_case()
-    engine = valid.ValidEngine([FailingMetric()], opts=valid.ValidEngineOpts(workers=2))
+    engine = vl.ValidEngine([FailingMetric()], opts=vl.ValidEngineOpts(workers=2))
     with pytest.raises(ValueError, match="Deliberate worker failure"):
         engine.run(case)
-    engine.metrics = (valid.MetricAVM(),)
+    engine.metrics = (vl.MetricAVM(),)
     assert np.isfinite(
         engine.run(case)
-        .metrics["camera"][valid.EMetricType.AVM]
-        .outputs[valid.EMetricOutput.DISTANCE]
+        .metrics["camera"][vl.EMetricType.AVM]
+        .outputs[vl.EMetricOut.DISTANCE]
     ).any()
 
 
@@ -139,49 +139,49 @@ def test_uneven_partitions_preserve_physical_offsets(workers: int) -> None:
     exp = physical[..., None, None] + exp_scenarios[:, None] + samples
     model_lower = np.arange(point_count)[:, None] * 0.1 + np.arange(time_count) * 0.05
     exp_lower = np.full(physical.shape, 0.3)
-    observable = valid.ValidObservable(
+    observable = vl.ValidObservable(
         components=("x", "y"),
-        geometry=valid.EValidGeometry.POINT,
+        geometry=vl.EValidGeometry.POINT,
         coords=np.zeros((point_count, 3)),
         times=np.arange(float(time_count)),
     )
     physical_axes = (
-        valid.EValidAxis.POINT,
-        valid.EValidAxis.COMPONENT,
-        valid.EValidAxis.TIME,
+        vl.EValidAxis.POINT,
+        vl.EValidAxis.COMPONENT,
+        vl.EValidAxis.TIME,
     )
-    case = valid.ValidCase(
+    case = vl.ValidCase(
         {"response": observable},
         {
-            "response": valid.ValidArray(
+            "response": vl.ValidArray(
                 model,
                 (
                     *physical_axes,
-                    valid.EValidAxis.EPISTEMIC_TRANS,
-                    valid.EValidAxis.ALEATORY,
+                    vl.EValidAxis.EPISTEMIC_TRANS,
+                    vl.EValidAxis.ALEATORY,
                 ),
-                valid.EpistemicOffsets(
+                vl.EpistemicOffsets(
                     model_lower,
                     2 * model_lower,
-                    (valid.EValidAxis.POINT, valid.EValidAxis.TIME),
+                    (vl.EValidAxis.POINT, vl.EValidAxis.TIME),
                 ),
             )
         },
         {
-            "response": valid.ValidArray(
+            "response": vl.ValidArray(
                 exp,
                 (
                     *physical_axes,
-                    valid.EValidAxis.EPISTEMIC_NUIS,
-                    valid.EValidAxis.ALEATORY,
+                    vl.EValidAxis.EPISTEMIC_NUIS,
+                    vl.EValidAxis.ALEATORY,
                 ),
-                valid.EpistemicOffsets(exp_lower, 2 * exp_lower, physical_axes),
+                vl.EpistemicOffsets(exp_lower, 2 * exp_lower, physical_axes),
             )
         },
     )
-    result = valid.ValidEngine(
-        [valid.MetricAVM(), valid.MetricRMSE()],
-        opts=valid.ValidEngineOpts(workers=workers),
+    result = vl.ValidEngine(
+        [vl.MetricAVM(), vl.MetricRMSE()],
+        opts=vl.ValidEngineOpts(workers=workers),
     ).run(case)
     model_shifts = np.stack(
         (np.zeros_like(model_lower), -model_lower, 2 * model_lower), axis=-1
@@ -196,8 +196,8 @@ def test_uneven_partitions_preserve_physical_offsets(workers: int) -> None:
         - exp_shifts[:, :, :, None, None, None, :]
     )
     for metric, output in (
-        (valid.EMetricType.AVM, valid.EMetricOutput.DISTANCE),
-        (valid.EMetricType.RMSE, valid.EMetricOutput.ERROR),
+        (vl.EMetricType.AVM, vl.EMetricOut.DISTANCE),
+        (vl.EMetricType.RMSE, vl.EMetricOut.ERROR),
     ):
         np.testing.assert_allclose(
             result.metrics["response"][metric].outputs[output],
@@ -209,31 +209,31 @@ def test_uneven_partitions_preserve_physical_offsets(workers: int) -> None:
 
 def test_small_workload_with_worker_cap_matches_analytic_shift() -> None:
     observables = {
-        "response": valid.ValidObservable(
+        "response": vl.ValidObservable(
             components=("response",),
-            geometry=valid.EValidGeometry.POINT,
+            geometry=vl.EValidGeometry.POINT,
             coords=np.zeros((1, 3)),
         )
     }
     axes = (
-        valid.EValidAxis.POINT,
-        valid.EValidAxis.COMPONENT,
-        valid.EValidAxis.ALEATORY,
+        vl.EValidAxis.POINT,
+        vl.EValidAxis.COMPONENT,
+        vl.EValidAxis.ALEATORY,
     )
     sim_data = np.array([[[0.0, 1.0]]])
-    case = valid.ValidCase(
+    case = vl.ValidCase(
         observables,
-        {"response": valid.ValidArray(sim_data, axes)},
-        {"response": valid.ValidArray(sim_data + 0.125, axes)},
+        {"response": vl.ValidArray(sim_data, axes)},
+        {"response": vl.ValidArray(sim_data + 0.125, axes)},
     )
     metrics = [
-        valid.MetricAVM(),
-        valid.MetricRMSE(),
-        valid.MetricRelErr(normalisation=valid.ERelErrNorm.CONSTANT, constant=1.0),
+        vl.MetricAVM(),
+        vl.MetricRMSE(),
+        vl.MetricRelErr(normalisation=vl.ERelErrNorm.CONSTANT, constant=1.0),
     ]
     for workers in (1, 4):
-        result = valid.ValidEngine(
-            metrics, opts=valid.ValidEngineOpts(workers=workers)
+        result = vl.ValidEngine(
+            metrics, opts=vl.ValidEngineOpts(workers=workers)
         ).run(case)
         for metric in metrics:
             assert (
@@ -244,53 +244,53 @@ def test_small_workload_with_worker_cap_matches_analytic_shift() -> None:
             )
 
 
-def create_scalar_case(observations: np.ndarray) -> valid.ValidCase:
+def create_scalar_case(observations: np.ndarray) -> vl.ValidCase:
     observables = {
-        "scalar": valid.ValidObservable(
-            components=("scalar",), geometry=valid.EValidGeometry.GLOBAL, coords=None
+        "scalar": vl.ValidObservable(
+            components=("scalar",), geometry=vl.EValidGeometry.GLOBAL, coords=None
         )
     }
-    quantity = valid.ValidArray(observations, (valid.EValidAxis.ALEATORY,))
-    return valid.ValidCase(observables, {"scalar": quantity}, {"scalar": quantity})
+    quantity = vl.ValidArray(observations, (vl.EValidAxis.ALEATORY,))
+    return vl.ValidCase(observables, {"scalar": quantity}, {"scalar": quantity})
 
 
 def test_engine_snapshots_and_all_nan_configuration() -> None:
-    metric = valid.MetricMAVM(alpha=0.1)
+    metric = vl.MetricMAVM(alpha=0.1)
     metrics = [metric]
-    options = valid.ValidEngineOpts(workers=1)
-    engine = valid.ValidEngine(metrics, opts=options)
+    options = vl.ValidEngineOpts(workers=1)
+    engine = vl.ValidEngine(metrics, opts=options)
     metric.alpha = 0.2
     metrics.clear()
     options.workers = 0
     result = engine.run(create_scalar_case(np.array([1.0, 2.0])))
     engine.metrics[0].alpha = 0.3
-    assert result.metric_configs[valid.EMetricType.MAVM].alpha == 0.1
+    assert result.metric_configs[vl.EMetricType.MAVM].alpha == 0.1
     assert engine.opts.workers == 1
     engine.metrics[0].tol = -1.0
     with pytest.raises(ValueError, match="tolerance"):
         engine.run(create_scalar_case(np.array([np.nan])))
 
 
-class MetricSampleMeans(valid.IValidMetric):
+class MetricSampleMeans(vl.IValidMetric):
     """Exercise custom output ordering independently of built-in dispatch."""
 
-    def get_scale(self) -> valid.EMetricScale:
-        return valid.EMetricScale.PHYSICAL
+    def get_scale(self) -> vl.EMetricScale:
+        return vl.EMetricScale.PHYSICAL
 
-    def get_comparison(self) -> valid.EMetricComparison:
-        return valid.EMetricComparison.DISTRIBUTIONAL
+    def get_comparison(self) -> vl.EMetricComparison:
+        return vl.EMetricComparison.DISTRIBUTIONAL
 
-    def get_kind(self) -> valid.EMetricType:
-        return valid.EMetricType.AVM
+    def get_kind(self) -> vl.EMetricType:
+        return vl.EMetricType.AVM
 
-    def get_outputs(self) -> tuple[valid.EMetricOutput, ...]:
-        return (valid.EMetricOutput.ERROR, valid.EMetricOutput.DISTANCE)
+    def get_outputs(self) -> tuple[vl.EMetricOut, ...]:
+        return (vl.EMetricOut.ERROR, vl.EMetricOut.DISTANCE)
 
-    def calc(self, sim: np.ndarray, exp: np.ndarray) -> valid.MetricResult:
-        return valid.ScalarMetricResult(self.get_kind(), float(np.mean(sim)))
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.MetricResult:
+        return vl.ScalarMetricResult(self.get_kind(), float(np.mean(sim)))
 
-    def extract_outputs(self, result: valid.MetricResult) -> tuple[float, ...]:
-        assert isinstance(result, valid.ScalarMetricResult)
+    def extract_outputs(self, result: vl.MetricResult) -> tuple[float, ...]:
+        assert isinstance(result, vl.ScalarMetricResult)
         return (result.value, result.value + 1.0)
 
 
@@ -299,92 +299,92 @@ def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
     workers: int,
 ) -> None:
     observations = np.array([[1.0, 3.0], [np.nan, np.nan], [4.0, 6.0]])
-    observable = valid.ValidObservable(
+    observable = vl.ValidObservable(
         components=("scalar",),
-        geometry=valid.EValidGeometry.POINT,
+        geometry=vl.EValidGeometry.POINT,
         coords=np.zeros((3, 3)),
     )
-    quantity = valid.ValidArray(
-        observations, (valid.EValidAxis.POINT, valid.EValidAxis.ALEATORY)
+    quantity = vl.ValidArray(
+        observations, (vl.EValidAxis.POINT, vl.EValidAxis.ALEATORY)
     )
-    case = valid.ValidCase(
+    case = vl.ValidCase(
         {"scalar": observable}, {"scalar": quantity}, {"scalar": quantity}
     )
-    result = valid.ValidEngine(
-        [MetricSampleMeans(), valid.MetricKS()],
-        opts=valid.ValidEngineOpts(workers=workers),
+    result = vl.ValidEngine(
+        [MetricSampleMeans(), vl.MetricKS()],
+        opts=vl.ValidEngineOpts(workers=workers),
     ).run(case)
-    field = result.metrics["scalar"][valid.EMetricType.AVM]
+    field = result.metrics["scalar"][vl.EMetricType.AVM]
     assert tuple(field.outputs) == (
-        valid.EMetricOutput.ERROR,
-        valid.EMetricOutput.DISTANCE,
+        vl.EMetricOut.ERROR,
+        vl.EMetricOut.DISTANCE,
     )
     for output, expected in (
-        (valid.EMetricOutput.ERROR, [2.0, np.nan, 5.0]),
-        (valid.EMetricOutput.DISTANCE, [3.0, np.nan, 6.0]),
+        (vl.EMetricOut.ERROR, [2.0, np.nan, 5.0]),
+        (vl.EMetricOut.DISTANCE, [3.0, np.nan, 6.0]),
     ):
         assert field.outputs[output].shape == (3, 1, 1)
         np.testing.assert_allclose(
-            valid.extract_metric_values(field, output=output), expected
+            vl.extract_metric_values(field, output=output), expected
         )
-        selected = valid.select_metric_output(field, output)
+        selected = vl.select_metric_output(field, output)
         assert np.shares_memory(selected, field.outputs[output])
-    statistic = result.metrics["scalar"][valid.EMetricType.KS].outputs[
-        valid.EMetricOutput.STATISTIC
+    statistic = result.metrics["scalar"][vl.EMetricType.KS].outputs[
+        vl.EMetricOut.STATISTIC
     ]
     np.testing.assert_allclose(statistic[:, 0, 0], [0.0, np.nan, 0.0])
     maximum, selection = result.find_extreme(
-        "scalar", valid.EMetricType.AVM, output=valid.EMetricOutput.ERROR
+        "scalar", vl.EMetricType.AVM, output=vl.EMetricOut.ERROR
     )
     assert maximum == 5.0
-    assert selection[valid.EValidResAxis.POINT] == 2
+    assert selection[vl.EValidResAxis.POINT] == 2
 
 
 @dataclass(slots=True)
-class MetricSampleDifference(valid.IValidMetric):
+class MetricSampleDifference(vl.IValidMetric):
     """Custom implementation whose metadata deliberately differs from its KS tag."""
 
-    comparison: valid.EMetricComparison
-    scale: valid.EMetricScale = valid.EMetricScale.PHYSICAL
+    comparison: vl.EMetricComparison
+    scale: vl.EMetricScale = vl.EMetricScale.PHYSICAL
 
-    def get_kind(self) -> valid.EMetricType:
-        return valid.EMetricType.KS
+    def get_kind(self) -> vl.EMetricType:
+        return vl.EMetricType.KS
 
-    def get_scale(self) -> valid.EMetricScale:
+    def get_scale(self) -> vl.EMetricScale:
         return self.scale
 
-    def get_comparison(self) -> valid.EMetricComparison:
+    def get_comparison(self) -> vl.EMetricComparison:
         return self.comparison
 
-    def get_outputs(self) -> tuple[valid.EMetricOutput, ...]:
-        return (valid.EMetricOutput.STATISTIC,)
+    def get_outputs(self) -> tuple[vl.EMetricOut, ...]:
+        return (vl.EMetricOut.STATISTIC,)
 
-    def calc(self, sim: np.ndarray, exp: np.ndarray) -> valid.ScalarMetricResult:
-        return valid.ScalarMetricResult(
+    def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.ScalarMetricResult:
+        return vl.ScalarMetricResult(
             self.get_kind(), float(np.sum(sim) - np.sum(exp))
         )
 
-    def extract_outputs(self, result: valid.MetricResult) -> tuple[float, ...]:
-        assert isinstance(result, valid.ScalarMetricResult)
+    def extract_outputs(self, result: vl.MetricResult) -> tuple[float, ...]:
+        assert isinstance(result, vl.ScalarMetricResult)
         return (result.value,)
 
 
 def test_custom_paired_classification_uses_joint_missing_observation_mask() -> None:
-    axes = (valid.EValidAxis.ALEATORY,)
-    valid_case = valid.ValidCase(
+    axes = (vl.EValidAxis.ALEATORY,)
+    valid_case = vl.ValidCase(
         {
-            "length": valid.ValidObservable(
+            "length": vl.ValidObservable(
                 components=("length",),
-                geometry=valid.EValidGeometry.GLOBAL,
+                geometry=vl.EValidGeometry.GLOBAL,
                 phys_units="m",
             )
         },
-        {"length": valid.ValidArray(np.array([1.0, np.nan, 3.0]), axes)},
-        {"length": valid.ValidArray(np.array([0.0, 20.0, np.nan]), axes)},
+        {"length": vl.ValidArray(np.array([1.0, np.nan, 3.0]), axes)},
+        {"length": vl.ValidArray(np.array([0.0, 20.0, np.nan]), axes)},
     )
-    metric = MetricSampleDifference(valid.EMetricComparison.PAIRED)
-    result = valid.ValidEngine([metric]).run(valid_case)
-    field = result.metrics["length"][valid.EMetricType.KS]
+    metric = MetricSampleDifference(vl.EMetricComparison.PAIRED)
+    result = vl.ValidEngine([metric]).run(valid_case)
+    field = result.metrics["length"][vl.EMetricType.KS]
     np.testing.assert_array_equal(
-        field.outputs[valid.EMetricOutput.STATISTIC], [[[1.0]]]
+        field.outputs[vl.EMetricOut.STATISTIC], [[[1.0]]]
     )

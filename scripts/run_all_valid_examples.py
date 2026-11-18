@@ -28,7 +28,7 @@ def main() -> int:
     arguments = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
-    examples = sorted((repo_root / "src/pyvale/examples/valid").glob("ex*.py"))
+    examples = sorted((repo_root / "src/pyvale/examples/validation").glob("ex*.py"))
     if not examples:
         parser.error("No validation examples found in this checkout.")
     output_root = repo_root / "pyvale-output"

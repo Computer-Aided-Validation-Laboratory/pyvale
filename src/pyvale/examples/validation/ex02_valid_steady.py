@@ -24,8 +24,7 @@ import pyvale.data as dataset
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-from pyvale import valid
-from pyvale.valid import validplot, validvis
+import pyvale.validation as vl
 
 matplotlib.use("Agg")
 
@@ -81,16 +80,16 @@ temperature_tag = "plate_temperature"
 strain_tag = "plate_strain"
 
 observables = {
-    temperature_tag: valid.ValidObservable(
+    temperature_tag: vl.ValidObservable(
         components=("temperature",),
-        geometry=valid.EValidGeometry.POINT,
+        geometry=vl.EValidGeometry.POINT,
         coords=coords,
         phys_units="degC",
         coord_units="mm",
     ),
-    strain_tag: valid.ValidObservable(
+    strain_tag: vl.ValidObservable(
         components=("strain_xx", "strain_yy", "strain_xy"),
-        geometry=valid.EValidGeometry.POINT,
+        geometry=vl.EValidGeometry.POINT,
         coords=coords,
         phys_units="1",
         coord_units="mm",
@@ -102,27 +101,27 @@ observables = {
 # observations. The declared axis order matches the arrays in the archive.
 
 sim_axes = (
-    valid.EValidAxis.POINT,
-    valid.EValidAxis.COMPONENT,
-    valid.EValidAxis.ALEATORY,
+    vl.EValidAxis.POINT,
+    vl.EValidAxis.COMPONENT,
+    vl.EValidAxis.ALEATORY,
 )
 exp_axes = (
-    valid.EValidAxis.POINT,
-    valid.EValidAxis.COMPONENT,
-    valid.EValidAxis.ALEATORY,
+    vl.EValidAxis.POINT,
+    vl.EValidAxis.COMPONENT,
+    vl.EValidAxis.ALEATORY,
 )
 
-sim_arrays: dict[str, valid.ValidArray] = {}
-exp_arrays: dict[str, valid.ValidArray] = {}
+sim_arrays: dict[str, vl.ValidArray] = {}
+exp_arrays: dict[str, vl.ValidArray] = {}
 
 for observable_tag, sim_values, exp_values in (
     (temperature_tag, sim_temp, exp_temp),
     (strain_tag, sim_strain, exp_strain),
 ):
-    sim_arrays[observable_tag] = valid.ValidArray(sim_values, sim_axes)
-    exp_arrays[observable_tag] = valid.ValidArray(exp_values, exp_axes)
+    sim_arrays[observable_tag] = vl.ValidArray(sim_values, sim_axes)
+    exp_arrays[observable_tag] = vl.ValidArray(exp_values, exp_axes)
 
-valid_case = valid.ValidCase(observables, sim_arrays, exp_arrays)
+valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 
 # %%
 # 2. Run validation analysis
@@ -130,15 +129,15 @@ valid_case = valid.ValidCase(observables, sim_arrays, exp_arrays)
 # AVM gives a distance in the observable's units. MAVM additionally separates
 # positive and negative support mismatch; INCLUDE retains repeated observations.
 
-valid_result: valid.ValidResult = valid.ValidEngine(
-    [valid.MetricAVM(), valid.MetricMAVM()]
+valid_result: vl.ValidResult = vl.ValidEngine(
+    [vl.MetricAVM(), vl.MetricMAVM()]
 ).run(valid_case)
 
-avm_field: valid.ValidMetricField = valid_result.metrics[temperature_tag][
-    valid.EMetricType.AVM
+avm_field: vl.MetricField = valid_result.metrics[temperature_tag][
+    vl.EMetricType.AVM
 ]
 np.testing.assert_allclose(
-    avm_field.outputs[valid.EMetricOutput.DISTANCE][:, 0, 0],
+    avm_field.outputs[vl.EMetricOut.DISTANCE][:, 0, 0],
     temperature_bias,
     atol=1.0e-10,
 )
@@ -148,7 +147,7 @@ np.savetxt(
         (
             coords[:, 0],
             temperature_bias,
-            avm_field.outputs[valid.EMetricOutput.DISTANCE][:, 0, 0],
+            avm_field.outputs[vl.EMetricOut.DISTANCE][:, 0, 0],
         )
     ),
     delimiter=",",
@@ -163,10 +162,10 @@ np.savetxt(
 # (point, component, time), including singleton time for steady comparisons.
 # Non-singleton epistemic/offset axes follow in the engine's canonical order.
 
-metric_field: valid.ValidMetricField = valid_result.metrics[temperature_tag][
-    valid.EMetricType.MAVM
+metric_field: vl.MetricField = valid_result.metrics[temperature_tag][
+    vl.EMetricType.MAVM
 ]
-metric_shape = metric_field.outputs[valid.EMetricOutput.D_PLUS].shape
+metric_shape = metric_field.outputs[vl.EMetricOut.D_PLUS].shape
 metric_axes = metric_field.axes
 
 print("Simulation axes:", sim_arrays[temperature_tag].axes)
@@ -184,11 +183,11 @@ fig: Figure
 axes: np.ndarray
 point_idxs = tuple(range(len(coords)))
 
-ecdf_plot: validplot.ValidECDFPlot = validplot.plot_sim_exp_cdfs(
+ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case,
     temperature_tag,
     point_idxs=point_idxs,
-    valid_plot_opts=validplot.ValidPlotOpts(x_label="Temperature [degC]"),
+    valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
 fig, axes = ecdf_plot.figure, ecdf_plot.axes
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
@@ -207,10 +206,10 @@ sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
 assert sim_data.time is not None
 background_time_idx = sim_data.time.size - 1
 
-pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
+pv_plot: pv.Plotter = vl.plot_metric_on_sim(
     valid_result,
     temperature_tag,
-    valid.EMetricType.AVM,
+    vl.EMetricType.AVM,
     sim_data=sim_data,
     sim_field="temperature",
     sim_time_idx=background_time_idx,
@@ -218,8 +217,8 @@ pv_plot: pv.Plotter = validvis.plot_valid_metric_on_sim(
         name="Temperature", symbol=r"T", units="degC", tag="TC"
     ),
     sim_coord_units="mm",
-    vis_opts=validvis.create_valid_scene_opts(interactive=SHOW_PLOTS),
-    metric_opts=validvis.ValidMetricVisOpts(labels_always_visible=True),
+    vis_opts=vl.create_valid_scene_opts(interactive=SHOW_PLOTS),
+    metric_opts=vl.MetricVisOpts(labels_always_visible=True),
 )
 
 pv_plot.screenshot(output_path / "temperature_avm_on_sim.png")
@@ -232,21 +231,21 @@ pv_plot.close()
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the
 # complete analysis in its own directory prevents clashes with other examples.
-# Plot each directional metric on its own figure. Histograms retain the spread
-# across physical cells and selected epistemic comparisons, without pooling data.
+# Show the limiting shifted ECDF supports for each MAVM direction.
+supports = vl.find_metric_epis_supports(
+    valid_case, valid_result, temperature_tag, vl.EMetricType.MAVM
+)
 for metric_output, direction in (
-    (valid.EMetricOutput.D_PLUS, "d_plus"),
-    (valid.EMetricOutput.D_MINUS, "d_minus"),
+    (vl.EMetricOut.D_PLUS, "d_plus"),
+    (vl.EMetricOut.D_MINUS, "d_minus"),
 ):
-    fig, metric_ax = validplot.plot_valid_metric_distribution(
-        valid_result,
-        temperature_tag,
-        valid.EMetricType.MAVM,
-        output=metric_output,
+    ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, temperature_tag)
+    vl.add_support_overlay(ecdf_plot, supports, output=metric_output)
+    ecdf_plot.figure.savefig(
+        output_path / f"mavm_{direction}_limiting_ecdf.png", bbox_inches="tight"
     )
-    fig.savefig(output_path / f"mavm_{direction}_distribution.png", bbox_inches="tight")
     if not SHOW_PLOTS:
-        plt.close(fig)
+        plt.close(ecdf_plot.figure)
 
 if SHOW_PLOTS:
     plt.show()
