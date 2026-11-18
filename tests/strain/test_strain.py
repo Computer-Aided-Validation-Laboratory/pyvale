@@ -293,7 +293,7 @@ def test_principal_strains(tmp_path: Path):
     assert np.all(result.eps1 >= result.eps2)
 
 
-def run_strain_test(window_element: int, output_path: Path):
+def run_strain_test(window_element: int, optimizer: str, output_path: Path):
     ref0 = dataset.dic_plate_with_hole_cam0_ref()
     ref1 = dataset.dic_plate_with_hole_cam1_ref()
     def0 = dataset.dic_plate_with_hole_cam0_def()
@@ -319,6 +319,7 @@ def run_strain_test(window_element: int, output_path: Path):
         reference=ref0,
         deformed=def0,
         output_prefix="dic_2d_",
+        optimizer=optimizer,
         **common,
     )
 
@@ -337,6 +338,7 @@ def run_strain_test(window_element: int, output_path: Path):
         deformed=[def0, def1],
         calibration=calibration,
         output_prefix="dic_3d_",
+        optimizer=optimizer,
         **common,
     )
 
@@ -357,14 +359,16 @@ def run_strain_test(window_element: int, output_path: Path):
 
 
 @pytest.mark.parametrize("window_element", [4, 9])
-def test_strain_3d(window_element: int, tmp_path: Path):
-    _, strain_3d = run_strain_test(window_element, tmp_path)
+@pytest.mark.parametrize("optimizer", ["FALM", "ICGN"])
+def test_strain_3d(window_element: int, optimizer: str, tmp_path: Path):
+    _, strain_3d = run_strain_test(window_element, optimizer, tmp_path)
 
-    gold_path = (
-        Path(__file__).parent
-        / "gold"
-        / f"strain_3d_q{window_element}.npz"
-    )
+    if optimizer == "FALM":
+        gold_name = f"strain_3d_q{window_element}.npz"
+    else:
+        gold_name = f"strain_3d_{optimizer.lower()}_q{window_element}.npz"
+
+    gold_path = Path(__file__).parent / "gold" / gold_name
     assert gold_path.is_file(), f"Missing gold file: {gold_path}"
 
     gold = np.load(gold_path)

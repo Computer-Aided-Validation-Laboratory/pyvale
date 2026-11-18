@@ -110,6 +110,11 @@ def dic_temp_dir(tmp_path: Path) -> Generator[Path, None, None]:
     _clean_dir_contents(tmp_path)
 
 
+@pytest.fixture(params=["FALM", "ICGN"])
+def optimizer(request: pytest.FixtureRequest) -> str:
+    return request.param
+
+
 @pytest.fixture(autouse=True)
 def clean_repo_dic_dir() -> Generator[None, None, None]:
     """Purge any stale CSV outputs in tests/dic before and after every test."""
@@ -223,7 +228,9 @@ def validate_hydro(
         )
 
 
-def test_2d_returned_results_match_saved_text_results(dic_temp_dir: Path) -> None:
+def test_2d_returned_results_match_saved_text_results(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     """The in-memory result should contain the same values as text output."""
     output_prefix = "test_in_memory_"
 
@@ -242,6 +249,7 @@ def test_2d_returned_results_match_saved_text_results(dic_temp_dir: Path) -> Non
         output_prefix=output_prefix,
         output_below_threshold=True,
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
     dic.calculate_2d(**common_args, output_results=False)
     returned = dic.calculate_2d(
@@ -273,7 +281,7 @@ def test_2d_returned_results_match_saved_text_results(dic_temp_dir: Path) -> Non
 # SSD
 # ------------------------------------------------------------------------------
 
-def test_2d_ssd_rigid(dic_temp_dir: Path) -> None:
+def test_2d_ssd_rigid(dic_temp_dir: Path, optimizer: str) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -288,6 +296,7 @@ def test_2d_ssd_rigid(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_ssd_rigid_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     output_files = dic_temp_dir / "test_ssd_rigid_*.csv"
@@ -298,7 +307,7 @@ def test_2d_ssd_rigid(dic_temp_dir: Path) -> None:
 # NSSD
 # ------------------------------------------------------------------------------
 
-def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path) -> None:
+def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path, optimizer: str) -> None:
     dic.calculate_2d(
         reference=ref_arr,
         deformed=def_arr_scaled,
@@ -313,6 +322,7 @@ def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_nssd_scaled_image_rigid_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     output_file = (
@@ -329,6 +339,7 @@ def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path) -> None:
 
 def test_2d_znssd_scaled_offset_image_rigid(
     dic_temp_dir: Path,
+    optimizer: str,
 ) -> None:
     dic.calculate_2d(
         reference=ref_arr,
@@ -344,6 +355,7 @@ def test_2d_znssd_scaled_offset_image_rigid(
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_znssd_scaled_offset_image_rigid_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     output_file = (
@@ -358,7 +370,9 @@ def test_2d_znssd_scaled_offset_image_rigid(
 # Raster ZNSSD Affine
 # ------------------------------------------------------------------------------
 
-def test_2d_image_scan_znssd_affine(dic_temp_dir: Path) -> None:
+def test_2d_image_scan_znssd_affine(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -373,6 +387,7 @@ def test_2d_image_scan_znssd_affine(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_znssd_affine_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -386,7 +401,9 @@ def test_2d_image_scan_znssd_affine(dic_temp_dir: Path) -> None:
 # Raster ZNSSD Rigid
 # ------------------------------------------------------------------------------
 
-def test_2d_image_scan_znssd_rigid(dic_temp_dir: Path) -> None:
+def test_2d_image_scan_znssd_rigid(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -401,6 +418,7 @@ def test_2d_image_scan_znssd_rigid(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_znssd_rigid_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -414,7 +432,9 @@ def test_2d_image_scan_znssd_rigid(dic_temp_dir: Path) -> None:
 # Raster NSSD
 # ------------------------------------------------------------------------------
 
-def test_2d_image_scan_nssd_affine(dic_temp_dir: Path) -> None:
+def test_2d_image_scan_nssd_affine(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -429,6 +449,7 @@ def test_2d_image_scan_nssd_affine(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_image_scan_nssd_affine_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -442,7 +463,7 @@ def test_2d_image_scan_nssd_affine(dic_temp_dir: Path) -> None:
 # Multiwindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_rg_znssd_affine(dic_temp_dir: Path) -> None:
+def test_2d_rg_znssd_affine(dic_temp_dir: Path, optimizer: str) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -457,6 +478,7 @@ def test_2d_rg_znssd_affine(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_affine_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -469,7 +491,7 @@ def test_2d_rg_znssd_affine(dic_temp_dir: Path) -> None:
 # Multiwindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_rg_znssd_quad(dic_temp_dir: Path) -> None:
+def test_2d_rg_znssd_quad(dic_temp_dir: Path, optimizer: str) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -484,6 +506,7 @@ def test_2d_rg_znssd_quad(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_quad_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -496,7 +519,9 @@ def test_2d_rg_znssd_quad(dic_temp_dir: Path) -> None:
 # singlewindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_singlewindow_znssd_affine(dic_temp_dir: Path) -> None:
+def test_2d_singlewindow_znssd_affine(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def0,
@@ -511,6 +536,7 @@ def test_2d_singlewindow_znssd_affine(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_2d_rg_znssd_affine_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -523,7 +549,7 @@ def test_2d_singlewindow_znssd_affine(dic_temp_dir: Path) -> None:
 # Large displacement FFT with mutlwindow
 # ------------------------------------------------------------------------------
 
-def test_2d_multiwindow_fft_large(dic_temp_dir: Path) -> None:
+def test_2d_multiwindow_fft_large(dic_temp_dir: Path, optimizer: str) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def_large,
@@ -538,6 +564,7 @@ def test_2d_multiwindow_fft_large(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     outputs = [
@@ -553,7 +580,9 @@ def test_2d_multiwindow_fft_large(dic_temp_dir: Path) -> None:
 # Large displacement FFT with mutlwindow
 # ------------------------------------------------------------------------------
 
-def test_2d_multiwindow_rg_fft_large(dic_temp_dir: Path) -> None:
+def test_2d_multiwindow_rg_fft_large(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def_large,
@@ -568,6 +597,7 @@ def test_2d_multiwindow_rg_fft_large(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     outputs = [
@@ -583,7 +613,9 @@ def test_2d_multiwindow_rg_fft_large(dic_temp_dir: Path) -> None:
 # Large displacement FFT with singlewindow
 # ------------------------------------------------------------------------------
 
-def test_2d_singlewindow_fft_large(dic_temp_dir: Path) -> None:
+def test_2d_singlewindow_fft_large(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     dic.calculate_2d(
         reference=ref0,
         deformed=def_large,
@@ -598,6 +630,7 @@ def test_2d_singlewindow_fft_large(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_fft_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     outputs = [
@@ -614,7 +647,9 @@ def test_2d_singlewindow_fft_large(dic_temp_dir: Path) -> None:
 # Multiwindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_hydro_rg_znssd_affine(dic_temp_dir: Path) -> None:
+def test_2d_hydro_rg_znssd_affine(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     dic.calculate_2d(
         reference=ref0_hydro,
         deformed=def0_hydro,
@@ -629,6 +664,7 @@ def test_2d_hydro_rg_znssd_affine(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_hydro_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate_hydro(
@@ -641,7 +677,9 @@ def test_2d_hydro_rg_znssd_affine(dic_temp_dir: Path) -> None:
 # Multiwindow RG
 # ------------------------------------------------------------------------------
 
-def test_2d_hydro_rg_znssd_quad(dic_temp_dir: Path) -> None:
+def test_2d_hydro_rg_znssd_quad(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     dic.calculate_2d(
         reference=ref0_hydro,
         deformed=def0_hydro,
@@ -656,6 +694,7 @@ def test_2d_hydro_rg_znssd_quad(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_hydro_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate_hydro(
@@ -668,7 +707,7 @@ def test_2d_hydro_rg_znssd_quad(dic_temp_dir: Path) -> None:
 # STEREO
 # ------------------------------------------------------------------------------
 
-def test_3d_rg_znssd_affine(dic_temp_dir: Path) -> None:
+def test_3d_rg_znssd_affine(dic_temp_dir: Path, optimizer: str) -> None:
     dic.calculate_3d(
         reference=[ref0, ref1],
         deformed=[def0, def1],
@@ -684,6 +723,7 @@ def test_3d_rg_znssd_affine(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_affine_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -695,7 +735,9 @@ def test_3d_rg_znssd_affine(dic_temp_dir: Path) -> None:
     )
 
 
-def test_3d_rg_znssd_affine_incremental(dic_temp_dir: Path) -> None:
+def test_3d_rg_znssd_affine_incremental(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
     dic.calculate_3d(
         reference=[ref0, ref1],
         deformed=[def0, def1],
@@ -713,6 +755,7 @@ def test_3d_rg_znssd_affine_incremental(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_incremental_affine_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -724,7 +767,7 @@ def test_3d_rg_znssd_affine_incremental(dic_temp_dir: Path) -> None:
     )
 
 
-def test_3d_rg_znssd_quad(dic_temp_dir: Path) -> None:
+def test_3d_rg_znssd_quad(dic_temp_dir: Path, optimizer: str) -> None:
     dic.calculate_3d(
         reference=[ref0, ref1],
         deformed=[def0, def1],
@@ -740,6 +783,7 @@ def test_3d_rg_znssd_quad(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_3d_rg_znssd_quad_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -751,7 +795,7 @@ def test_3d_rg_znssd_quad(dic_temp_dir: Path) -> None:
     )
 
 
-def test_f32_support(dic_temp_dir: Path) -> None:
+def test_f32_support(dic_temp_dir: Path, optimizer: str) -> None:
     np.random.seed(100)
     ref_arr = np.random.uniform(0, 200, size=(400, 400)).astype(np.float32)
     def_arr = np.roll(ref_arr, 1, axis=1)
@@ -771,6 +815,7 @@ def test_f32_support(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_f32_support_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -786,6 +831,7 @@ def test_f32_support(dic_temp_dir: Path) -> None:
 def test_f64_support_with_filter(
     dic_temp_dir: Path,
     interpolation_routine: str,
+    optimizer: str,
 ) -> None:
     np.random.seed(100)
     ref_arr = np.random.uniform(0, 200, size=(400, 400)).astype(np.float64)
@@ -808,6 +854,7 @@ def test_f64_support_with_filter(
         output_basepath=dic_temp_dir,
         output_prefix=f"test_f64_{interpolation_routine.lower()}_filter_",
         image_filter_kernel=5,
+        optimizer=optimizer,
     )
 
     validate(
@@ -823,6 +870,7 @@ def test_f64_support_with_filter(
 def test_f64_support_with_fft(
     dic_temp_dir: Path,
     fft_precision: str,
+    optimizer: str,
 ) -> None:
     np.random.seed(100)
     ref_arr = np.random.uniform(0, 200, size=(400, 400)).astype(np.float64)
@@ -845,6 +893,7 @@ def test_f64_support_with_fft(
         output_basepath=dic_temp_dir,
         output_prefix=f"test_f64_fft_{fft_precision.lower()}_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
@@ -856,7 +905,7 @@ def test_f64_support_with_fft(
     )
 
 
-def test_f64_stereo_support(dic_temp_dir: Path) -> None:
+def test_f64_stereo_support(dic_temp_dir: Path, optimizer: str) -> None:
     reference = [
         np.asarray(Image.open(path), dtype=np.float64)
         for path in (ref0, ref1)
@@ -881,6 +930,7 @@ def test_f64_stereo_support(dic_temp_dir: Path) -> None:
         output_basepath=dic_temp_dir,
         output_prefix="test_f64_stereo_",
         image_filter_kernel=1,
+        optimizer=optimizer,
     )
 
     validate(
