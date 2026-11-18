@@ -85,8 +85,10 @@ coords = np.array(
 )  # (6 points, 3 Cartesian coordinates), mm
 for sim_data in sims.values():
     sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y", "disp_z"))
-assert nominal_sim.time is not None
-assert nominal_sim.node_vars is not None
+if nominal_sim.time is None:
+    raise ValueError("Simulation must contain time.")
+if nominal_sim.node_vars is None:
+    raise ValueError("Simulation must contain node_vars.")
 times = np.linspace(nominal_sim.time[0], nominal_sim.time[-1], 5)
 norm_keys = ("strain_xx", "strain_yy", "strain_zz")
 dev_keys = ("strain_xy", "strain_xz", "strain_yz")

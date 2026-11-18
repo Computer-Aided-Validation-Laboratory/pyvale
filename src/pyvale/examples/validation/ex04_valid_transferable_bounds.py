@@ -11,7 +11,6 @@ has no nuisance uncertainty and needs no downloaded data. Bounds remain curves
 with empirical probability mass, rather than synthetic equally weighted samples.
 """
 
-import json
 from pathlib import Path
 
 import matplotlib
@@ -75,37 +74,6 @@ avm_original: vl.ValidSupportBounds = vl.find_metric_epis_supports(
 mavm_original: vl.ValidSupportBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
-extrema: vl.ValidMetricExtrema = vl.find_metric_epis_extrema(
-    valid_result, observable_tag, vl.EMetricType.MAVM
-)
-# Explicit analytic answers: original scenario shifts reach [-55,5] and [95,155].
-# The synthetic boundary comparisons instead reach [-35,25] and [75,135].
-np.testing.assert_allclose(mavm_original.lower[0, 0, 0], [-55.0, 5.0], atol=1.0e-12)
-np.testing.assert_allclose(mavm_original.upper[0, 0, 0], [95.0, 155.0], atol=1.0e-12)
-np.testing.assert_allclose(mavm_bounds.lower, [-35.0, 25.0], atol=1.0e-12)
-np.testing.assert_allclose(mavm_bounds.upper, [75.0, 135.0], atol=1.0e-12)
-(output_path / "comparison.json").write_text(
-    json.dumps(
-        {
-            "sim_lower_origins": sim_bounds.lower_indices.tolist(),
-            "sim_upper_origins": sim_bounds.upper_indices.tolist(),
-            "original_index_axes": [axis.name for axis in mavm_original.index_axes],
-            "original_upper_origins": mavm_original.upper_indices[0, 0, 0].tolist(),
-            "bounds_lower": mavm_bounds.lower.tolist(),
-            "bounds_upper": mavm_bounds.upper.tolist(),
-            "original_lower": mavm_original.lower[0, 0, 0].tolist(),
-            "original_upper": mavm_original.upper[0, 0, 0].tolist(),
-            "maximum_d_plus": float(
-                extrema.maximum[vl.EMetricOut.D_PLUS][0, 0, 0]
-            ),
-            "maximum_d_minus": float(
-                extrema.maximum[vl.EMetricOut.D_MINUS][0, 0, 0]
-            ),
-        },
-        indent=2,
-    )
-)
-
 # %%
 # 4. Compare the two definitions on separate figures, with the same original
 # scenario curves available for context. Neither route is relabelled as the other.

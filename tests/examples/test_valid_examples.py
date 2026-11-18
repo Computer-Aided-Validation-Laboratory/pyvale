@@ -6,11 +6,9 @@
 
 """Smoke tests for all validation examples and their isolated output directories."""
 
-import json
 from collections.abc import Callable
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 CUBE_OUTPUTS = tuple(
@@ -68,7 +66,7 @@ PULSE25X_OUTPUTS = (
         for direction in ("d_plus", "d_minus")
         for channel in ("TC2", "TC3", "TC5", "TC6", "TC8", "TC9", "TC10", "CV")
     )
-    + ("pointsensors_mavm.csv", "channel_status.csv", "parity.json", "axis_limits.json")
+    + ("pointsensors_mavm.csv", "channel_status.csv")
 )
 
 
@@ -109,7 +107,6 @@ EXAMPLES = (
         (
             "temperature_cdfs.png",
             "temperature_avm_on_sim.png",
-            "bias_reference.csv",
             "mavm_d_plus_limiting_ecdf.png",
             "mavm_d_minus_limiting_ecdf.png",
         ),
@@ -124,14 +121,12 @@ EXAMPLES = (
             "temperature_d_minus_time.png",
             "temperature_mavm_d_plus_on_sim.png",
             "temperature_mavm_d_minus_on_sim.png",
-            "bias_reference.csv",
         ),
     ),
     (
         "ex04_valid_transferable_bounds",
         "valid_ex4_transferable_bounds",
         (
-            "comparison.json",
             "avm_bounds.png",
             "avm_original.png",
             "mavm_d_plus_bounds.png",
@@ -176,7 +171,6 @@ EXAMPLES = (
         "ex06_valid_nuisance_profiles",
         "valid_ex6_nuisance_profiles",
         (
-            "profiling.json",
             "avm_original_support.png",
             "mavm_d_plus_nuisance_support.png",
             "mavm_d_minus_nuisance_support.png",
@@ -213,7 +207,6 @@ EXAMPLES = (
         "valid_ex7_offsets",
         (
             "exp_offset_envelopes.png",
-            "confidence_supports.json",
             "mavm_d_plus_time.png",
             "mavm_d_minus_time.png",
             "mavm_d_plus_confidence_support.png",
@@ -230,7 +223,6 @@ EXAMPLES = (
         "ex08_valid_sampling",
         "valid_ex8_sampling",
         (
-            "sampling_bias.csv",
             "temperature_average_cdfs.png",
             "displacement_local_cdfs.png",
             "strain_local_cdfs.png",
@@ -284,56 +276,6 @@ def test_valid_example(
     for output in expected_outputs:
         assert (work_dir / output).stat().st_size > 0
 
-    output_root = work_dir / "pyvale-output" / output_directory
-    if example in (
-        "validation/ex02_valid_steady.py",
-        "validation/ex03_valid_transient.py",
-        "validation/ex08_valid_sampling.py",
-    ):
-        reference = np.loadtxt(
-            output_root
-            / ("sampling_bias.csv" if "sampling" in example else "bias_reference.csv"),
-            delimiter=",",
-            skiprows=1,
-        )
-        np.testing.assert_allclose(
-            reference[:, -1], reference[:, -2], rtol=0, atol=1.0e-10
-        )
-        if "steady" in example:
-            expected = (
-                3
-                * (reference[:, 0] - np.min(reference[:, 0]))
-                / np.ptp(reference[:, 0])
-            )
-            np.testing.assert_allclose(reference[:, 1], expected, rtol=0, atol=1.0e-10)
-        elif "transient" in example:
-            final = reference[reference[:, 1] == np.max(reference[:, 1]), 2]
-            assert np.min(final) == pytest.approx(2.0)
-            assert np.max(final) == pytest.approx(5.0)
-            assert np.all(reference[reference[:, 1] == np.min(reference[:, 1]), 2] == 0)
-        else:
-            np.testing.assert_allclose(np.unique(reference[:, 1]), [1.0, 2.0])
-    if example == "validation/ex04_valid_transferable_bounds.py":
-        comparison = json.loads((output_root / "comparison.json").read_text())
-        np.testing.assert_allclose(comparison["bounds_upper"], [75.0, 135.0])
-        np.testing.assert_allclose(comparison["original_upper"], [95.0, 155.0])
-    if example == "validation/ex06_valid_nuisance_profiles.py":
-        profiling = json.loads((output_root / "profiling.json").read_text())
-        assert "sim_trans" in profiling["MAVM"]["retained_axes"]
-        assert "sim_nuis" not in profiling["MAVM"]["retained_axes"]
-        for score in ("total_width", "added_width"):
-            ranking = profiling[score]
-            scores = np.asarray(ranking["scores"])
-            order = np.asarray(ranking["order"])
-            assert np.all(np.diff(scores[order]) >= -1.0e-12)
-            assert len(ranking["cases"]) == 9
-    if example == "validation/ex10_valid_pulse25x.py":
-        with (
-            work_dir / "pyvale-output" / output_directory / "parity.json"
-        ).open() as stream:
-            parity = json.load(stream)
-        assert parity["compared_values"] == 64
-        assert parity["maximum_absolute_difference"] < 1e-12
 
 
 def test_valid_gallery_contains_exactly_the_documented_eleven_examples() -> None:

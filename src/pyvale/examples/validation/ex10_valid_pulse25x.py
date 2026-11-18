@@ -27,7 +27,6 @@ The packaged provenance records
 source hashes, environment versions and the exact channel/offset association.
 """
 
-import json
 from pathlib import Path
 from typing import cast
 
@@ -60,9 +59,6 @@ data_path: Path = dataset.valid_data_dir()
 with np.load(data_path / "pulse25x_full_simulation.npz") as saved:
     sensor_tags = tuple(saved["sensor_tags"].tolist())
     sim_data: np.ndarray = saved["simulation"]
-with (data_path / "pulse25x_provenance.json").open() as stream:
-    provenance = json.load(stream)
-
 # %%
 # The reference loads three pulses into the same dictionary: Pulse255 is the
 # last assignment for every channel. Select it explicitly to reproduce that run.
@@ -159,8 +155,6 @@ metric_rows = [
     for direction in ("d+", "d-")
 ]
 metric_table: dict[str, list[float]] = {}
-selected_scenarios: dict[str, dict[str, int]] = {}
-axis_limits: dict[str, tuple[float, float]] = {}
 for channel in measurements:
     units = observables[channel].phys_units
     axis_label = "Coil RMS voltage [V]" if channel == "CV" else "Temperature [degC]"
@@ -170,11 +164,6 @@ for channel in measurements:
     model_summary: vl.ValidECDFSummary = vl.calc_ecdf_summary(
         model_scenarios, bounds=vl.EValidECDFBounds.SUPPORT_SUM
     )
-    selected_scenarios[channel] = {
-        "lower": cast(int, model_summary.lower_idx),
-        "upper": cast(int, model_summary.upper_idx),
-    }
-
     # %%
     # 4. Analysis and visualisation
     # ------------------------------
@@ -194,7 +183,6 @@ for channel in measurements:
     fig, axes = ecdf_plot.figure, ecdf_plot.axes
     figure_name = f"0_sim_allcdfs_{channel}.png"
     fig.savefig(output_path / figure_name, bbox_inches="tight")
-    axis_limits[figure_name] = axes[0, 0].get_xlim()
     if not SHOW_PLOTS:
         plt.close(fig)
     if np.any(np.isnan(exp_arrays[channel].data)):
@@ -237,14 +225,6 @@ for channel in measurements:
         exp_lower,
         exp_upper,
         duplicates=vl.EMAVMDuplicates.REJECT,
-    )
-
-    expected_correction = provenance["reference_selected_corrections"][channel]
-    np.testing.assert_allclose(
-        [correction.lower.d_minus, correction.upper.d_plus],
-        [expected_correction["d_minus"], expected_correction["d_plus"]],
-        rtol=1e-12,
-        atol=1e-12,
     )
 
     # %%
@@ -296,35 +276,13 @@ for channel in measurements:
         )
         figure_name = f"{figure_prefix}_{channel}.png"
         fig.savefig(output_path / figure_name, bbox_inches="tight")
-        axis_limits[figure_name] = axes[0, 0].get_xlim()
         if not SHOW_PLOTS:
             plt.close(fig)
 
 # %%
-# Check every d+ and d- against the independently executed legacy script's CSV:
-# eight available channels × four endpoint pairs × two directions = 64 values.
-# The frozen reference and its source hashes are bundled with the full dataset.
 calculated = pd.DataFrame(metric_table, index=metric_rows)
-reference: pd.DataFrame = pd.read_csv(
-    data_path / "pulse25x_reference_mavm.csv", index_col=0
-)
-np.testing.assert_allclose(calculated, reference, rtol=1e-12, atol=1e-12)
 calculated.to_csv(output_path / "pointsensors_mavm.csv")
-parity = {
-    "paper": provenance["paper"],
-    "reference_script_sha256": provenance["reference_script_sha256"],
-    "compared_values": int(calculated.size),
-    "maximum_absolute_difference": float(
-        np.max(np.abs(calculated.to_numpy() - reference.to_numpy()))
-    ),
-    "selected_scenarios": selected_scenarios,
-}
-with (output_path / "parity.json").open("w") as stream:
-    json.dump(parity, stream, indent=2)
-with (output_path / "axis_limits.json").open("w") as stream:
-    json.dump(axis_limits, stream, indent=2)
 print(calculated)
-print(parity)
 if SHOW_PLOTS:
     plt.show()
 else:

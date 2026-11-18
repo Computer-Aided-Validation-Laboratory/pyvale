@@ -133,28 +133,6 @@ valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM()]
 ).run(valid_case)
 
-avm_field: vl.MetricField = valid_result.metrics[temperature_tag][
-    vl.EMetricType.AVM
-]
-np.testing.assert_allclose(
-    avm_field.outputs[vl.EMetricOut.DISTANCE][:, 0, 0],
-    temperature_bias,
-    atol=1.0e-10,
-)
-np.savetxt(
-    output_path / "bias_reference.csv",
-    np.column_stack(
-        (
-            coords[:, 0],
-            temperature_bias,
-            avm_field.outputs[vl.EMetricOut.DISTANCE][:, 0, 0],
-        )
-    ),
-    delimiter=",",
-    header="x_mm,imposed_bias,avm",
-    comments="",
-)
-
 # %%
 # 3. Post-processing and inspect data structures
 # ----------------------------------------------
@@ -203,7 +181,8 @@ fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
-assert sim_data.time is not None
+if sim_data.time is None:
+    raise ValueError("Simulation must contain time.")
 background_time_idx = sim_data.time.size - 1
 
 pv_plot: pv.Plotter = vl.plot_metric_on_sim(

@@ -1170,3 +1170,37 @@ def test_mavm_pbox_has_closed_form_endpoint_distances(
     assert result.d_minus == pytest.approx(5.0, rel=0, abs=1e-12)
     np.testing.assert_array_equal(result.exp_conf_lower, [5.0])
     np.testing.assert_array_equal(result.exp_conf_upper, [5.0])
+
+
+def test_crossing_transferable_supports_have_exact_analytic_limits() -> None:
+    axes = (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY)
+    case = vl.ValidCase(
+        {
+            "response": vl.ValidObservable(
+                components=("response",), geometry=vl.EValidGeometry.GLOBAL
+            )
+        },
+        {"response": vl.ValidArray(np.array([[0.0, 100.0], [40.0, 60.0]]), axes)},
+        {"response": vl.ValidArray(np.array([[-10.0, 0.0], [100.0, 110.0]]), axes)},
+    )
+    sim_bounds = vl.find_ecdf_epis_bounds(case.sim["response"])
+    exp_bounds = vl.find_ecdf_epis_bounds(case.exp["response"])
+    boundary_supports = vl.calc_mavm_over_epis_bounds(
+        sim_bounds, exp_bounds, alpha=0.5
+    )
+    result = vl.ValidEngine([vl.MetricMAVM(alpha=0.5)]).run(case)
+    original_supports = vl.find_metric_epis_supports(
+        case, result, "response", vl.EMetricType.MAVM
+    )
+    np.testing.assert_allclose(
+        original_supports.lower[0, 0, 0], [-55.0, 5.0], rtol=0, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        original_supports.upper[0, 0, 0], [95.0, 155.0], rtol=0, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        boundary_supports.lower, [-35.0, 25.0], rtol=0, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        boundary_supports.upper, [75.0, 135.0], rtol=0, atol=1e-12
+    )

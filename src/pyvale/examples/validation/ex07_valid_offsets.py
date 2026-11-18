@@ -11,7 +11,6 @@ conditional distribution, whereas MAVM confidence depends on its observations.
 These are distinct from the epistemic scenario envelope shown in ex04-ex06.
 """
 
-import json
 from pathlib import Path
 
 import matplotlib
@@ -99,17 +98,6 @@ exp_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
 confidence_supports: vl.ValidSupportBounds = vl.calc_mavm_over_epis_bounds(
     sim_bounds, exp_bounds
 )
-(output_path / "confidence_supports.json").write_text(
-    json.dumps(
-        {
-            "probabilities": confidence_supports.probabilities.tolist(),
-            "lower": confidence_supports.lower.tolist(),
-            "upper": confidence_supports.upper.tolist(),
-        },
-        indent=2,
-    )
-)
-
 # %%
 # 3. Directional integration figures identify the experimental confidence bounds.
 # Select one offset at a time; each time history remains a conditional result.

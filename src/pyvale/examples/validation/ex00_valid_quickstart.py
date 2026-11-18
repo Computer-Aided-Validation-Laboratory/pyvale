@@ -177,7 +177,8 @@ sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
 
-assert sim_data.time is not None
+if sim_data.time is None:
+    raise ValueError("Simulation must contain time.")
 background_time_idx = sim_data.time.size - 1
 
 

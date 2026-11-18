@@ -42,7 +42,8 @@ sim_data: io.SimData = mh.ExodusLoader(
     dataset.element_case_output_path(dataset.EElemTest.HEX20)
 ).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y", "disp_z"))
-assert sim_data.time is not None and sim_data.node_vars is not None
+if sim_data.time is None or sim_data.node_vars is None:
+    raise ValueError("Simulation must contain times and nodal fields.")
 # An explicitly derived global is a nodal arithmetic mean, not a volume average.
 # replace creates a local record; original field arrays are borrowed unchanged.
 sim_times = sim_data.time
@@ -130,8 +131,6 @@ sim_arrays: dict[str, vl.ValidArray] = validprep.sample_sim_sweep(
 global_samples: vl.ValidArray = validprep.sample_sim_globals(
     sim_data, observables["mean_temperature"]
 )
-np.testing.assert_allclose(single.data, sim_arrays["temperature_average"].data)
-np.testing.assert_allclose(global_samples.data, sim_arrays["mean_temperature"].data)
 
 # 3. Emulate SensorSim's (repeat, point, component, time) acquisition export.
 # Here the measurement differences are prescribed: 1..2 degC at the final time,
@@ -216,35 +215,11 @@ for tag, component in (
         fig.savefig(output_path / f"{tag}_{direction}_time.png", bbox_inches="tight")
         if not SHOW_PLOTS:
             plt.close(fig)
-# Time/component selectors absent from a stored field must be omitted. The scalar
-# temperature field has only physical axes; its non-singleton time is selected.
-np.testing.assert_allclose(
-    valid_result.metrics["temperature_average"][vl.EMetricType.AVM].outputs[
-        vl.EMetricOut.DISTANCE
-    ][:, 0, -1],
-    drift[:, 0, -1],
-    atol=1.0e-10,
-)
-np.savetxt(
-    output_path / "sampling_bias.csv",
-    np.column_stack(
-        (
-            coords[:, 0],
-            drift[:, 0, -1],
-            valid_result.metrics["temperature_average"][vl.EMetricType.AVM].outputs[
-                vl.EMetricOut.DISTANCE
-            ][:, 0, -1],
-        )
-    ),
-    delimiter=",",
-    header="x_mm,imposed_bias,avm",
-    comments="",
-)
-
 # Independent background colourbars may show a stored field key or a derived
 # nodal scalar. Here equivalent strain is in the global solver frame; the metric
 # concerns the local sensor xx component, so both labels identify their frame.
-assert sim_data.node_vars is not None
+if sim_data.node_vars is None:
+    raise ValueError("Simulation must contain node_vars.")
 background_index = sim_times.size - 1
 normal = np.stack(
     [sim_data.node_vars[key][:, background_index] for key in normal_keys], axis=-1

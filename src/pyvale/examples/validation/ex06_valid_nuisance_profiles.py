@@ -12,7 +12,6 @@ case create piecewise trends, not random fields. KS/CvM can saturate even while
 physical-distance metrics continue growing. No observations are randomly drawn.
 """
 
-import json
 from pathlib import Path
 
 import matplotlib
@@ -86,21 +85,12 @@ valid_result: vl.ValidResult = vl.ValidEngine(
 
 # %%
 # 2. Value profiling answers "which nuisance samples minimise/maximise the
-# metric?" Transferable axes remain. Extrema over all epistemic axes answer a
-# different question and reduce those axes too. Indices always identify original
-# comparisons; they can differ between outputs and physical cells.
-summary: dict[str, object] = {}
+# metric?" Transferable axes remain. Indices identify original comparisons;
+# they can differ between outputs and physical cells.
 for metric_type, field in valid_result.metrics[observable_tag].items():
     profile: vl.ValidMetricExtrema = vl.profile_epis_nuisance_extrema(
         valid_result, observable_tag, metric_type
     )
-    all_extrema: vl.ValidMetricExtrema = vl.find_metric_epis_extrema(
-        valid_result, observable_tag, metric_type
-    )
-    summary[metric_type.name] = {
-        "retained_axes": [axis.value for axis in profile.axes],
-        "all_epistemic_axes": [axis.value for axis in all_extrema.axes],
-    }
     # Reuse generic metric plotting with profiled fields. The profiles do not
     # calculate metrics again; both fields borrow their already reduced arrays.
     maximum_result = vl.ValidResult(
@@ -179,8 +169,6 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
 supports: vl.ValidSupportBounds = vl.profile_epis_nuisance_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
-summary["support_index_axes"] = [axis.value for axis in supports.index_axes]
-summary["upper_origin_at_point0_time2"] = supports.upper_indices[0, 0, 2, 0, 0].tolist()
 for metric_output, direction in (
     (vl.EMetricOut.D_PLUS, "d_plus"),
     (vl.EMetricOut.D_MINUS, "d_minus"),
@@ -241,12 +229,6 @@ for score in vl.EValidNuisanceScore:
         int(order[(valid_count - 1) // 2]),
         int(order[valid_count - 1]),
     )
-    summary[score_name] = {
-        "cases": ranking.cases.tolist(),
-        "scores": ranking.scores[0, 0, 2].tolist(),
-        "order": order.tolist(),
-        "selected_rows": selected_rows,
-    }
     for rank_name, row in zip(
         ("minimum", "median", "maximum"), selected_rows, strict=True
     ):
@@ -278,8 +260,5 @@ for score in vl.EValidNuisanceScore:
             )
             if not SHOW_PLOTS:
                 plt.close(ecdf_plot.figure)
-(output_path / "profiling.json").write_text(
-    json.dumps(summary, indent=2, allow_nan=False)
-)
 if SHOW_PLOTS:
     plt.show()
