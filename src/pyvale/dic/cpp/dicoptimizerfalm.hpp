@@ -43,6 +43,7 @@ class OptimizerFALM : public OptimizerBase {
         util::ECorrCrit criteria;
         double costp;
         double costpdp;
+        bool cost_valid;
         std::vector<double> g;          // Gradient
         std::vector<double> dfdp;       // Derivative of shape function wrt parameters
         std::vector<double> dfdx;       // Derivative of shape function wrt parameters

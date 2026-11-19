@@ -37,6 +37,7 @@ OptimizerFALM::OptimizerFALM(util::EShapeFunc shape_func,
         lambda(0.01),
         costp(0.0),
         costpdp(0.0),
+        cost_valid(true),
         g(num_params, 0.0),
         dfdp(num_params, 0.0),
         dfdx(num_px),
@@ -64,6 +65,7 @@ OptResult OptimizerFALM::solve(const double cx,
     double ftol = 0;
     double xtol = 0;
     lambda = 0.01;
+    cost_valid = true;
     uint8_t converged = false;
     const double eps = 1e-10;
 
@@ -76,6 +78,7 @@ OptResult OptimizerFALM::solve(const double cx,
 
         // perform the optimization
         (this->*optimize_cost)(ss_ref, ss_def, interp_def, cx, cy);
+        if (!cost_valid) break;
 
         // set new damping value
         update_lambda(costp, costpdp, p, pdp, lambda, num_params);
@@ -114,7 +117,7 @@ OptResult OptimizerFALM::solve(const double cx,
                            std::abs(res.v) <= static_cast<double>(interp_def.px_vert);
 
 
-    res.valid_match = in_bounds && res.cost >= threshold;
+    res.valid_match = cost_valid && in_bounds && res.cost >= threshold;
 
     // debugging
     //if (iter == max_iter) {
@@ -239,6 +242,13 @@ void OptimizerFALM::nssd(const Subset<double> &ss_ref,
         sum_squared_ref += ss_ref.vals[i] * ss_ref.vals[i];
     }
 
+    if (sum_squared_def <= 1e-12 || sum_squared_ref <= 1e-12) {
+        costp = 2.0;
+        costpdp = 2.0;
+        cost_valid = false;
+        return;
+    }
+
     inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
     inv_sum_squared_ref = 1.0 / sqrt(sum_squared_ref);
 
@@ -284,6 +294,12 @@ void OptimizerFALM::nssd(const Subset<double> &ss_ref,
         get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], pdp);
         ss_def.vals[i] = interp_def.eval(cx, cy, ss_def.x[i]+cx, ss_def.y[i]+cy);
         sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
+    }
+
+    if (sum_squared_def <= 1e-12) {
+        costpdp = 2.0;
+        cost_valid = false;
+        return;
     }
 
     inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
@@ -355,6 +371,7 @@ void OptimizerFALM::znssd(const Subset<double> &ss_ref,
     if (sum_squared_def < 1e-12 || sum_squared_ref < 1e-12) {
         costp   = 2.0;  // max possible ZNSSD value, signals failure
         costpdp = 2.0;
+        cost_valid = false;
         return;
     }
 
@@ -410,6 +427,12 @@ void OptimizerFALM::znssd(const Subset<double> &ss_ref,
     sum_squared_def = 0.0;
     for (int i = 0; i < num_px; ++i) {
         sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
+    }
+
+    if (sum_squared_def <= 1e-12) {
+        costpdp = 2.0;
+        cost_valid = false;
+        return;
     }
 
     inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);

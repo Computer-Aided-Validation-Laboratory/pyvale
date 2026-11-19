@@ -140,7 +140,7 @@ bool OptimizerICGN::calculate_current_cost(const Subset<double> &ss_ref,
     cost = 0.0;
     if (norm_ref <= 1e-12 || norm_def <= 1e-12) {
         cost = 2.0;
-        return true;
+        return false;
     }
     for (int i = 0; i < ss_def.num_px; ++i) {
         const double ref = criteria == util::ECorrCrit::SSD ? ss_ref.vals[i] : normalized_value(ss_ref.vals[i], mean_ref, norm_ref);
