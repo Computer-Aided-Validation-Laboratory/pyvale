@@ -119,12 +119,6 @@ bool OptimizerICGN::calculate_current_cost(const Subset<double> &ss_ref,
         get_pixel(ss_def.x[i], ss_def.y[i], ss_ref.x[i], ss_ref.y[i], p);
         const double x = cx + ss_def.x[i];
         const double y = cy + ss_def.y[i];
-        if (!std::isfinite(x) || !std::isfinite(y) ||
-            x < 0.0 || x > static_cast<double>(interp_def.px_hori - 1) ||
-            y < 0.0 || y > static_cast<double>(interp_def.px_vert - 1)) {
-            cost = std::numeric_limits<double>::infinity();
-            return false;
-        }
         ss_def.vals[i] = interp_def.eval(cx, cy, x, y);
     }
 

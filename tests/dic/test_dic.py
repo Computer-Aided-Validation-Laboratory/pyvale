@@ -50,7 +50,7 @@ def_large = [def0_25px, def0_50px]
 
 roi_rigid = dic.RegionOfInterest(ref_image=ref0)
 roi_hydro = dic.RegionOfInterest(ref_image=ref0)
-roi_rigid.rect_boundary(left=0,right=100,bottom=100,top=0)
+roi_rigid.rect_boundary(left=5,right=100,bottom=100,top=5)
 roi_hydro.rect_boundary(left=10,right=10,bottom=10,top=10)
 
 seed = [50,200]
