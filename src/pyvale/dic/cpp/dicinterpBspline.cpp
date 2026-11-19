@@ -161,11 +161,13 @@ double Bspline::eval(const int ss_x, const int ss_y, const double subpx_x, const
 }
 
 double Bspline::eval_dx(const int ss_x, const int ss_y, const double subpx_x, double subpx_y) const {
-    int ix = (int)floor(subpx_x);
-    int iy = (int)floor(subpx_y);
+    const double x = std::clamp(subpx_x, 0.0, static_cast<double>(px_hori - 1));
+    const double y = std::clamp(subpx_y, 0.0, static_cast<double>(px_vert - 1));
+    const int ix = static_cast<int>(x) + 2;
+    const int iy = static_cast<int>(y) + 2;
 
-    double tx = subpx_x - ix;
-    double ty = subpx_y - iy;
+    const double tx = x - (ix - 2);
+    const double ty = y - (iy - 2);
 
     double By[4], dBx[4];
     basis(ty, By);
@@ -173,10 +175,10 @@ double Bspline::eval_dx(const int ss_x, const int ss_y, const double subpx_x, do
 
     double dfdx = 0.0;
     for (int j = 0; j < 4; j++) {
-        int yy = std::clamp(iy + j - 1, 0, px_vert-1);
+        const int yy = iy + j - 1;
         for (int i = 0; i < 4; i++) {
-            int xx = std::clamp(ix + i - 1, 0, px_hori-1);
-            double c = coeff[yy*px_hori + xx];
+            const int xx = ix + i - 1;
+            const double c = coeff_padded[yy * padded_hori + xx];
             dfdx += c * dBx[i] * By[j];
         }
     }
@@ -185,11 +187,13 @@ double Bspline::eval_dx(const int ss_x, const int ss_y, const double subpx_x, do
 
 
 double Bspline::eval_dy(const int ss_x, const int ss_y, const double subpx_x, double subpx_y) const {
-    int ix = (int)floor(subpx_x);
-    int iy = (int)floor(subpx_y);
+    const double x = std::clamp(subpx_x, 0.0, static_cast<double>(px_hori - 1));
+    const double y = std::clamp(subpx_y, 0.0, static_cast<double>(px_vert - 1));
+    const int ix = static_cast<int>(x) + 2;
+    const int iy = static_cast<int>(y) + 2;
 
-    double tx = subpx_x - ix;
-    double ty = subpx_y - iy;
+    const double tx = x - (ix - 2);
+    const double ty = y - (iy - 2);
 
     double Bx[4], dBy[4];
     basis(tx, Bx);
@@ -197,10 +201,10 @@ double Bspline::eval_dy(const int ss_x, const int ss_y, const double subpx_x, do
 
     double dfdy = 0.0;
     for (int j = 0; j < 4; j++) {
-        int yy = std::clamp(iy + j - 1, 0, px_vert-1);
+        const int yy = iy + j - 1;
         for (int i = 0; i < 4; i++) {
-            int xx = std::clamp(ix + i - 1, 0, px_hori-1);
-            double c = coeff[yy*px_hori + xx];
+            const int xx = ix + i - 1;
+            const double c = coeff_padded[yy * padded_hori + xx];
             dfdy += c * Bx[i] * dBy[j];
         }
     }

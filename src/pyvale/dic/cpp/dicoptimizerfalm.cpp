@@ -54,8 +54,11 @@ OptResult OptimizerFALM::solve(const double cx,
                            const double cy,
                         Subset<double> &ss_ref,
                         Subset<double> &ss_def,
+                        const Interpolator &interp_ref,
                         const Interpolator &interp_def,
                         const bool check_on_thresh){
+
+    (void)interp_ref;
 
     int iter = 0;
     double ftol = 0;

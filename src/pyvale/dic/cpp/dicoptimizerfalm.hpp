@@ -34,6 +34,7 @@ class OptimizerFALM : public OptimizerBase {
                   const double cy, 
                   Subset<double> &ss_ref, 
                   Subset<double> &ss_def, 
+                        const Interpolator &interp_ref,
                   const Interpolator &interp_def,
                   const bool check_on_thresh=false) override;
         

@@ -135,7 +135,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
                 ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
                 ss_ref.shift_to_local_coordinates(cx, cy);
 
-                OptResult seed_res = opt->solve(cx, cy, ss_ref, ss_def, interp_def, true);
+                OptResult seed_res = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def, true);
 
                 if (!rg::check_convergence(seed_x, seed_y, seed_res, error_message)) {
                     error_flag.store(true);
@@ -181,7 +181,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
                                                idx);
 
                     // perform optimization for seed point neighbours
-                    OptResult nres = opt->solve(cx, cy, ss_ref, ss_def, interp_def, true);
+                    OptResult nres = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def, true);
 
                     if (!rg::check_convergence(seed_x, seed_y, nres, error_message, true)) {
                         error_flag.store(true);
@@ -265,7 +265,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
                         opt->copy_params_from_fft(nidx, pyramid.back().u, pyramid.back().v);
 
                     // optimize
-                    if (ss_ref.sum!=0) nres = opt->solve(cx, cy, ss_ref, ss_def, interp_def);
+                    if (ss_ref.sum!=0) nres = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def);
 
                         nres.u += results_ref.u[nidx];
                         nres.v += results_ref.v[nidx];

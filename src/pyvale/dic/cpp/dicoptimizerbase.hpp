@@ -31,6 +31,7 @@ public:
                             double cy,
                             Subset<double> &ss_ref,
                             Subset<double> &ss_def,
+                            const Interpolator &interp_ref,
                             const Interpolator &interp_def,
                             bool check_on_thresh = false) = 0;
 

@@ -27,19 +27,21 @@ OptimizerICGN::OptimizerICGN(util::EShapeFunc shape_func,
       hessian_valid(false) {
 }
 
-void OptimizerICGN::calculate_reference_gradients(const Subset<double> &ss_ref) {
+void OptimizerICGN::calculate_reference_gradients(
+    const Subset<double> &ss_ref,
+    const Interpolator &interp_ref,
+    const double cx,
+    const double cy) {
 
     for (int y = 0; y < ss_ref.size_y; ++y) {
         for (int x = 0; x < ss_ref.size_x; ++x) {
 
             const int i = y * ss_ref.size_x + x;
-            if (x == 0) dfdx_ref[i] = ss_ref.vals[i + 1] - ss_ref.vals[i];
-            else if (x == ss_ref.size_x - 1) dfdx_ref[i] = ss_ref.vals[i] - ss_ref.vals[i - 1];
-            else dfdx_ref[i] = 0.5 * (ss_ref.vals[i + 1] - ss_ref.vals[i - 1]);
+            const double global_x = cx + ss_ref.x[i];
+            const double global_y = cy + ss_ref.y[i];
 
-            if (y == 0) dfdy_ref[i] = ss_ref.vals[i + ss_ref.size_x] - ss_ref.vals[i];
-            else if (y == ss_ref.size_y - 1) dfdy_ref[i] = ss_ref.vals[i] - ss_ref.vals[i - ss_ref.size_x];
-            else dfdy_ref[i] = 0.5 * (ss_ref.vals[i + ss_ref.size_x] - ss_ref.vals[i - ss_ref.size_x]);
+            dfdx_ref[i] = interp_ref.eval_dx(0, 0, global_x, global_y);
+            dfdy_ref[i] = interp_ref.eval_dy(0, 0, global_x, global_y);
         }
     }
 }
@@ -60,8 +62,11 @@ double OptimizerICGN::normalized_value(double value, double mean, double norm) c
     return (value - mean) / norm;
 }
 
-void OptimizerICGN::precompute_hessian(const Subset<double> &ss_ref) {
-    calculate_reference_gradients(ss_ref);
+void OptimizerICGN::precompute_hessian(const Subset<double> &ss_ref,
+                                       const Interpolator &interp_ref,
+                                       const double cx,
+                                       const double cy) {
+    calculate_reference_gradients(ss_ref, interp_ref, cx, cy);
     std::fill(H.begin(), H.end(), 0.0);
 
     double mean_ref = 0.0;
@@ -75,7 +80,7 @@ void OptimizerICGN::precompute_hessian(const Subset<double> &ss_ref) {
         norm_ref = std::sqrt(sum);
     }
 
-    hessian_valid = norm_ref > 1e-12;
+    hessian_valid = norm_ref > 1e-16;
     if (!hessian_valid) {
         std::fill(invH.begin(), invH.end(), 0.0);
         return;
@@ -205,9 +210,12 @@ void OptimizerICGN::calculate_gradient(const Subset<double> &ss_ref,
 OptResult OptimizerICGN::solve(const double cx, const double cy,
                                Subset<double> &ss_ref,
                                Subset<double> &ss_def,
+                               const Interpolator &interp_ref,
                                const Interpolator &interp_def,
                                const bool check_on_thresh) {
-    precompute_hessian(ss_ref);
+    precompute_hessian(ss_ref, interp_ref, cx, cy);
+
+    //if (cx == 15 && cy ==120) std::cout << cx << " " << cy << " " << hessian_valid << std::endl;
 
     int iter = 0;
     double ftol = 0.0;
@@ -263,6 +271,18 @@ OptResult OptimizerICGN::solve(const double cx, const double cy,
             break;
     }
 
+
+    // if (cx == 15 && cy ==120) {
+    //   std::cout << "converged: " << converged << std::endl;
+    //   std::cout << "cost: " << cost << std::endl;
+    //   std::cout << "p: ";
+    //   for (int i = 0; i < p.size(); i++){
+    //     std::cout << p[i] << " ";
+    //   }
+    //   std::cout << std::endl;
+    // }
+
+
     OptResult result(num_params);
 
     get_displacement(result.u, result.v, 0.0, 0.0, p);
@@ -280,6 +300,12 @@ OptResult OptimizerICGN::solve(const double cx, const double cy,
 
     result.valid_match = in_bounds && result.cost >= threshold;
 
+    // if (cx == 15 && cy ==120) {
+    // std::cout << "result.cost: " << result.cost << std::endl;
+    //   std::cout << "in_bounds: " << in_bounds << std::endl;
+    //   std::cout << "valid_match: " << static_cast<int>(result.valid_match) << std::endl;
+    //   exit(0);
+    // }
     return result;
 }
 

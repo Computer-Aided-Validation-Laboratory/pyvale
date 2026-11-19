@@ -133,7 +133,7 @@ void matching(const Image &img_l,
                     get_initial_guess(opt->p, cx_def_l, cy_def_l, false);
 
                     // run optimizer
-                    OptResult seed_res = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r, true);
+                    OptResult seed_res = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_l, interp_r, true);
             
                     if (!rg::check_convergence(cx_ref_l, cy_ref_l, seed_res, error_message)) {
                         error_flag.store(true);
@@ -194,7 +194,7 @@ void matching(const Image &img_l,
                         // perform optimization for seed point neighbours
                         opt->copy_params_from_neigh(results_r.p, idx);
 
-                        OptResult nres = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r, true);
+                        OptResult nres = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_l, interp_r, true);
 
                         if (!rg::check_convergence(cx_def_l, cy_def_l, nres, error_message, true)) {
                             error_flag.store(true);
@@ -297,7 +297,7 @@ void matching(const Image &img_l,
                             get_initial_guess(opt->p, cx_def_l, cy_def_l, false);
 
                         // optimize
-                            OptResult nres = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r);
+                            OptResult nres = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_l, interp_r);
 
                         // add deformation from reference image to new results
                         if (nres.valid_match){

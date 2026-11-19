@@ -178,7 +178,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
 
 
                 // run optimizer
-                OptResult seed_res = opt->solve(cx, cy, ss_ref, ss_def, interp_def, true);
+                OptResult seed_res = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def, true);
 
                 if (!rg::check_convergence(seed_x, seed_y, seed_res, error_message)) {
                     error_flag.store(true);
@@ -228,7 +228,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
                                                ss_grid.neigh[nidx],
                                                idx);
 
-                    OptResult nres = opt->solve(cx, cy, ss_ref, ss_def, interp_def, true);
+                    OptResult nres = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def, true);
 
                     if (!rg::check_convergence(seed_x, seed_y, nres, error_message, true)) {
                         error_flag.store(true);
@@ -314,7 +314,7 @@ void singlewindow_rg(const Interpolator &interp_ref,
                                                    results_def.valid_match,
                                                    ss_grid.neigh[nidx],
                                                    current.idx);
-                        if (ss_ref.sum!=0) nres = opt->solve(cx, cy, ss_ref, ss_def, interp_def, false);
+                        if (ss_ref.sum!=0) nres = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def, false);
                     }
 
                     // add deformation from reference image to new results

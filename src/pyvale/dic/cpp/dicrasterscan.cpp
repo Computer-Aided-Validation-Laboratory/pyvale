@@ -86,7 +86,7 @@ void raster(const Interpolator &interp_ref,
             
             // if the reference subset is empty, then skip the optimization and set results to nan
             OptResult res(opt->num_params);
-            if (ss_ref.sum!=0) res = opt->solve(cx, cy, ss_ref, ss_def, interp_def);
+            if (ss_ref.sum!=0) res = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def);
 
             // append the results for the current subset to result vectors
             result_arrays.append(res, ss);

@@ -22,6 +22,7 @@ public:
                     const double cy,
                     Subset<double> &ss_ref,
                     Subset<double> &ss_def,
+                    const Interpolator &interp_ref,
                     const Interpolator &interp_def,
                     bool check_on_thresh = false) override;
 
@@ -41,8 +42,14 @@ private:
 
     bool hessian_valid;
 
-    void calculate_reference_gradients(const Subset<double> &ss_ref);
-    void precompute_hessian(const Subset<double> &ss_ref);
+    void calculate_reference_gradients(const Subset<double> &ss_ref,
+                                       const Interpolator &interp_ref,
+                                       double cx,
+                                       double cy);
+    void precompute_hessian(const Subset<double> &ss_ref,
+                            const Interpolator &interp_ref,
+                            double cx,
+                            double cy);
     bool calculate_current_cost(const Subset<double> &ss_ref,
                                 Subset<double> &ss_def,
                                 const Interpolator &interp_def,

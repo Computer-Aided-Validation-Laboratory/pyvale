@@ -194,7 +194,7 @@ void retry_bad_points(const Interpolator &interp_ref,
                                                ss_grid.neigh[idx]);
                 OptResult retry_res(opt->num_params);
                 if (ss_ref.sum != 0) {
-                    retry_res = opt->solve(cx, cy, ss_ref, ss_def, interp_def);
+                    retry_res = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def);
                 }
 
                 if (retry_res.cost > results_def.cost[idx]) {

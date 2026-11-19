@@ -26,8 +26,6 @@ class Bspline : public Interpolator {
 
 private:
 
-    std::vector<double> coeff;
-
     // Recursive spline prefilter
     void prefilter_x();
     void prefilter_y();
