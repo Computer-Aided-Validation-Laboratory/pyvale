@@ -39,16 +39,16 @@ py::array_t<T> result_view(const std::vector<T> &data,
                            const std::size_t points,
                            const py::object &owner) {
     return py::array_t<T>(
-        {static_cast<ssize_t>(frames), static_cast<ssize_t>(points)},
-        {static_cast<ssize_t>(points * sizeof(T)), static_cast<ssize_t>(sizeof(T))},
+        {static_cast<py::ssize_t>(frames), static_cast<py::ssize_t>(points)},
+        {static_cast<py::ssize_t>(points * sizeof(T)), static_cast<py::ssize_t>(sizeof(T))},
         data.data(), owner);
 }
 
 template <typename T>
 py::array_t<T> point_view(const std::vector<T> &data, const py::object &owner) {
     return py::array_t<T>(
-        {static_cast<ssize_t>(data.size())},
-        {static_cast<ssize_t>(sizeof(T))}, data.data(), owner);
+        {static_cast<py::ssize_t>(data.size())},
+        {static_cast<py::ssize_t>(sizeof(T))}, data.data(), owner);
 }
 
 template <typename T>
