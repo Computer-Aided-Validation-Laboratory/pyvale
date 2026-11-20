@@ -9,6 +9,8 @@
 
 // STD Library header files
 #include <iostream>
+#include <functional>
+#include <memory>
 #include <vector>
 
 // Pybind11 Header Files
@@ -29,20 +31,14 @@
 namespace py = pybind11;
 
 /**
- * @brief Run DIC on the image files selected by the configuration.
+<<<<<<< HEAD
+ * @brief Runs DIC using images loaded from the configured file paths.
  *
- * @param img_roi_arr C-contiguous NumPy bool array of shape (height, width).
- * @param calib Camera calibration used for stereo reconstruction.
- * @param conf Correlation settings, image paths, dimensions and seed positions.
- * @param multiwindowconf FFT window sizes and search settings.
- * @param saveconf Output paths, filenames and file-format settings.
- *
- * @details The ROI buffer is borrowed for the synchronous call and is not
- * retained. The engine owns the image buffers it loads and its working arrays.
- * Subset coordinates and displacement in the 2D correlation are in pixels;
- * calibrated stereo coordinates use the calibration's length unit.
- * Results are written to files according to saveconf; no output array is
- * returned through this function.
+ * @param img_roi_arr Boolean ROI mask.
+ * @param calib Stereo calibration data.
+ * @param conf DIC and image configuration.
+ * @param multiwindowconf Multiwindow pyramid configuration.
+ * @param saveconf Output configuration.
  */
 void engine(const py::array_t<bool>& img_roi_arr,
             const Calib &calib,
@@ -51,14 +47,15 @@ void engine(const py::array_t<bool>& img_roi_arr,
             const common_util::SaveConfig& saveconf);
 
 /**
- * @brief Run DIC on image buffers already loaded into native Image objects.
+<<<<<<< HEAD
+ * @brief Runs DIC using images supplied in memory.
  *
- * @details Each Image owns its row-major pixel buffer. Supported pixel types
- * are uint8, uint16, uint32 and float32. This function borrows the Image vector
- * and the C-contiguous bool ROI for the duration of the call; no caller buffer
- * pointer is retained. The Python binding copies supplied image arrays into
- * owned Image storage before calling this entry point. Configuration, units
- * and file output follow engine().
+ * @param images Reference and deformed images.
+ * @param img_roi_arr Boolean ROI mask.
+ * @param calib Stereo calibration data.
+ * @param conf DIC and image configuration.
+ * @param multiwindowconf Multiwindow pyramid configuration.
+ * @param saveconf Output configuration.
  */
 void engine_images(const std::vector<Image>& images,
                    const py::array_t<bool>& img_roi_arr,
@@ -67,11 +64,39 @@ void engine_images(const std::vector<Image>& images,
                    const MultiwindowConfig &multiwindowconf,
                    const common_util::SaveConfig& saveconf);
 
-void build_info();
+std::shared_ptr<InMemoryResults> engine_results(
+    const py::array_t<bool>& img_roi_arr,
+    const Calib &calib,
+    const util::Config& conf,
+    const MultiwindowConfig &multiwindowconf,
+    const common_util::SaveConfig& saveconf);
 
+std::shared_ptr<InMemoryResults> engine_images_results(
+    const std::vector<Image>& images,
+    const py::array_t<bool>& img_roi_arr,
+    const Calib &calib,
+    const util::Config& conf,
+    const MultiwindowConfig &multiwindowconf,
+    const common_util::SaveConfig& saveconf);
 
-
-bool should_update_ref(const int img_num_def_l, const ResultArrays& results, const util::Config& conf);
+/**
+ * @brief Shared implementation used by both public engine entry points.
+ *
+ * @param img_roi_arr Boolean ROI mask.
+ * @param calib Stereo calibration data.
+ * @param conf DIC and image configuration.
+ * @param mwconf Multiwindow pyramid configuration.
+ * @param saveconf Output configuration.
+ * @param interp_factory Creates an interpolator for a requested image index.
+ */
+void engine_impl(const py::array_t<bool>& img_roi_arr,
+                 const Calib &calib,
+                 const util::Config &conf,
+                 const MultiwindowConfig &mwconf,
+                 const common_util::SaveConfig &saveconf,
+                 const std::function<std::unique_ptr<Interpolator>(int)> &interp_factory,
+                 std::shared_ptr<InMemoryResults> *memory_results = nullptr,
+                 bool write_to_disk = true);
 
 
 

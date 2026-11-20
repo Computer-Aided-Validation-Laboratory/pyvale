@@ -18,7 +18,7 @@
 
 // Program Header files
 #include "./dicinterp.hpp"
-#include "./dicoptimizer.hpp"
+#include "./dicoptimizerfalm.hpp"
 #include "./dicshapefunc.hpp"
 #include "./dicresults.hpp"
 #include "./dicsubset.hpp"
@@ -26,90 +26,46 @@
 
 
 // Constructor
-Optimizer::Optimizer(util::EShapeFunc shape_func, 
+OptimizerFALM::OptimizerFALM(util::EShapeFunc shape_func,
                         util::ECorrCrit cost_func,
                         int max_iter_,
                         double precision_,
                         double threshold_,
                         int num_px)
 
-    : num_params(get_num_params(shape_func)),
+    : OptimizerBase(shape_func, max_iter_, num_px),
         lambda(0.01),
         costp(0.0),
         costpdp(0.0),
+        cost_valid(true),
         g(num_params, 0.0),
         dfdp(num_params, 0.0),
         dfdx(num_px),
         dfdy(num_px),
         H(num_params * num_params, 0.0),
         invH(num_params * num_params, 0.0),
-        p(num_params, 0.0),
-        dp(num_params, 0.0),
-        pdp(num_params, 0.0),
         augmented(num_params * num_params * 2, 0.0),
-        max_iter(max_iter_),
         precision(precision_),
         threshold(threshold_),
-        optimize_cost(nullptr),
-        get_pixel(nullptr),
-        get_dfdp(nullptr),
-        get_displacement(nullptr) {
-    
-    set_shape(shape_func);
+        optimize_cost(nullptr) {
     set_cost_function(cost_func);
 }
 
-// Get number of parameters from shape function name
-int Optimizer::get_num_params(util::EShapeFunc shape_func) {
-    switch (shape_func) {
-        case util::EShapeFunc::RIGID:
-            return Rigid::num_params;
-        case util::EShapeFunc::AFFINE:
-            return Affine::num_params;
-        case util::EShapeFunc::QUAD:
-            return Quad::num_params;
-    }
-    throw std::invalid_argument("Unknown shape function");
-}
-
-// Set shape function
-void Optimizer::set_shape(util::EShapeFunc shape_func) {
-    switch (shape_func) {
-        case util::EShapeFunc::AFFINE:
-            get_pixel = &Affine::get_pixel;
-            get_dfdp = &Affine::get_dshape_dp;
-            get_displacement = &Affine::get_displacement;
-            break;
-        case util::EShapeFunc::RIGID:
-            get_pixel = &Rigid::get_pixel;
-            get_dfdp = &Rigid::get_dshape_dp;
-            get_displacement = &Rigid::get_displacement;
-            break;
-        case util::EShapeFunc::QUAD:
-            get_pixel = &Quad::get_pixel;
-            get_dfdp = &Quad::get_dshape_dp;
-            get_displacement = &Quad::get_displacement;
-            break;
-    }
-}
-
-void Optimizer::set_rigid_displacement(double dx, double dy) {
-    std::fill(p.begin(), p.end(), 0.0);
-    p[0] = dx;
-    p[1] = dy;
-}
-
-OptResult Optimizer::solve(const double cx, 
+OptResult OptimizerFALM::solve(const double cx,
                            const double cy,
-                        subset::Pixels &ss_ref,
-                        subset::Pixels &ss_def,
+                        Subset<double> &ss_ref,
+                        Subset<double> &ss_def,
+                        const Interpolator &interp_ref,
                         const Interpolator &interp_def,
                         const bool check_on_thresh){
+
+    (void)interp_ref;
 
     int iter = 0;
     double ftol = 0;
     double xtol = 0;
     lambda = 0.01;
+    cost_valid = true;
     uint8_t converged = false;
     const double eps = 1e-10;
 
@@ -122,6 +78,7 @@ OptResult Optimizer::solve(const double cx,
 
         // perform the optimization
         (this->*optimize_cost)(ss_ref, ss_def, interp_def, cx, cy);
+        if (!cost_valid) break;
 
         // set new damping value
         update_lambda(costp, costpdp, p, pdp, lambda, num_params);
@@ -146,49 +103,21 @@ OptResult Optimizer::solve(const double cx,
     }
 
 
-    // calculate zncc value
-    double zncc = 0.0;
-    double mean_def = 0.0;
-    double mean_ref = 0.0;
-
-    for (int i = 0; i < ss_def.num_px; ++i) {
-        mean_ref += ss_ref.vals[i];
-        mean_def += ss_def.vals[i];
-    }
-
-    mean_ref /= ss_ref.num_px;
-    mean_def /= ss_def.num_px;
-
-    double sum_squared_ref = 0.0;
-    double sum_squared_def = 0.0;
-    for (int i = 0; i < ss_def.num_px; ++i) {
-        sum_squared_ref += (ss_ref.vals[i] - mean_ref) * (ss_ref.vals[i] - mean_ref);
-        sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
-    }
-
-    // Bail out if either subset is degenerate (uniform/zero intensity)
-    if (sum_squared_def < 1e-12 || sum_squared_ref < 1e-12) {
-        zncc = 0.0;
-    }
-    else {
-        const double inv_sum_squared = 1.0 / sqrt(sum_squared_ref*sum_squared_def);
-
-        for (int i = 0; i < ss_def.num_px; ++i) {
-            const double def_norm = (ss_def.vals[i] - mean_def);
-            const double ref_norm = (ss_ref.vals[i] - mean_ref);
-            zncc += ref_norm*def_norm; 
-        }
-        zncc *= inv_sum_squared;
-    }
     OptResult res(num_params);
     get_displacement(res.u, res.v, 0.0, 0.0, p);
     res.iter = iter;
     res.ftol = ftol;
     res.xtol = xtol;
     res.p = p;
-    res.cost = zncc;
+    res.cost = calculate_zncc(ss_ref, ss_def);
     res.converged = converged;
-    if (zncc >= threshold) res.above_thresh = true;
+
+    const bool in_bounds = std::isfinite(res.u) && std::isfinite(res.v) &&
+                           std::abs(res.u) <= static_cast<double>(interp_def.px_hori) &&
+                           std::abs(res.v) <= static_cast<double>(interp_def.px_vert);
+
+
+    res.valid_match = cost_valid && in_bounds && res.cost >= threshold;
 
     // debugging
     //if (iter == max_iter) {
@@ -198,8 +127,8 @@ OptResult Optimizer::solve(const double cx,
     return res;
 }
 
-void Optimizer::ssd(const subset::Pixels &ss_ref,
-            subset::Pixels &ss_def,
+void OptimizerFALM::ssd(const Subset<double> &ss_ref,
+            Subset<double> &ss_def,
             const Interpolator &interp_def,
             const double cx,
             const double cy){
@@ -275,8 +204,8 @@ void Optimizer::ssd(const subset::Pixels &ss_ref,
 }
 
 
-void Optimizer::nssd(const subset::Pixels &ss_ref,
-                        subset::Pixels &ss_def,
+void OptimizerFALM::nssd(const Subset<double> &ss_ref,
+                        Subset<double> &ss_def,
                         const Interpolator &interp_def,
                         const double cx,
                         const double cy){
@@ -311,6 +240,13 @@ void Optimizer::nssd(const subset::Pixels &ss_ref,
         dfdy[i] = interp_vals.dfdy;
         sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
         sum_squared_ref += ss_ref.vals[i] * ss_ref.vals[i];
+    }
+
+    if (sum_squared_def <= 1e-12 || sum_squared_ref <= 1e-12) {
+        costp = 2.0;
+        costpdp = 2.0;
+        cost_valid = false;
+        return;
     }
 
     inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
@@ -360,6 +296,12 @@ void Optimizer::nssd(const subset::Pixels &ss_ref,
         sum_squared_def += ss_def.vals[i] * ss_def.vals[i];
     }
 
+    if (sum_squared_def <= 1e-12) {
+        costpdp = 2.0;
+        cost_valid = false;
+        return;
+    }
+
     inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
 
     for (int i = 0; i < num_px; ++i) {
@@ -371,8 +313,8 @@ void Optimizer::nssd(const subset::Pixels &ss_ref,
 }
 
 
-void Optimizer::znssd(const subset::Pixels &ss_ref,
-                        subset::Pixels &ss_def,
+void OptimizerFALM::znssd(const Subset<double> &ss_ref,
+                        Subset<double> &ss_def,
                         const Interpolator &interp_def,
                         const double cx,
                         const double cy){
@@ -429,6 +371,7 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
     if (sum_squared_def < 1e-12 || sum_squared_ref < 1e-12) {
         costp   = 2.0;  // max possible ZNSSD value, signals failure
         costpdp = 2.0;
+        cost_valid = false;
         return;
     }
 
@@ -486,6 +429,12 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
         sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
     }
 
+    if (sum_squared_def <= 1e-12) {
+        costpdp = 2.0;
+        cost_valid = false;
+        return;
+    }
+
     inv_sum_squared_def = 1.0 / sqrt(sum_squared_def);
 
 
@@ -498,7 +447,7 @@ void Optimizer::znssd(const subset::Pixels &ss_ref,
 }
 
 // Inv matrix using Gauss Elim.
-bool Optimizer::invert_matrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params) {
+bool OptimizerFALM::invert_matrix(const std::vector<double>& matrix, std::vector<double>& inverse, std::vector<double>& augmented, int num_params) {
 
     const int n = num_params;
     
@@ -567,7 +516,7 @@ bool Optimizer::invert_matrix(const std::vector<double>& matrix, std::vector<dou
     return true;
 }
 
-void Optimizer::populate_hessian_lower_tri(std::vector<double> &H, double lambda, int num_params){
+void OptimizerFALM::populate_hessian_lower_tri(std::vector<double> &H, double lambda, int num_params){
     for (int row = 0; row < num_params; row++) {
         for (int col = row + 1; col < num_params; col++) {
             H[col * num_params + row] = H[row * num_params + col];
@@ -576,7 +525,7 @@ void Optimizer::populate_hessian_lower_tri(std::vector<double> &H, double lambda
     }
 }
 
-void Optimizer::update_lambda(double costp, double costpdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda, int num_params){
+void OptimizerFALM::update_lambda(double costp, double costpdp, std::vector<double> &p, std::vector<double> &pdp, double &lambda, int num_params){
 
     if (costp < costpdp){
         lambda *= 2.0;
@@ -589,7 +538,7 @@ void Optimizer::update_lambda(double costp, double costpdp, std::vector<double> 
     }
 }
 
-void Optimizer::update_shapefunc_parameters(std::vector<double> &pdp, std::vector<double> &p, std::vector<double> &dp, std::vector<double> &invH, std::vector<double> &g, int num_params){
+void OptimizerFALM::update_shapefunc_parameters(std::vector<double> &pdp, std::vector<double> &p, std::vector<double> &dp, std::vector<double> &invH, std::vector<double> &g, int num_params){
 
     // multiply inverse with gradient
     for (int i = 0; i < num_params; ++i) {
@@ -606,16 +555,16 @@ void Optimizer::update_shapefunc_parameters(std::vector<double> &pdp, std::vecto
 }
 
 
-void Optimizer::set_cost_function(util::ECorrCrit corr_crit) {
+void OptimizerFALM::set_cost_function(util::ECorrCrit corr_crit) {
     switch (corr_crit) {
         case util::ECorrCrit::SSD:
-            optimize_cost = &Optimizer::ssd;
+            optimize_cost = &OptimizerFALM::ssd;
             break;
         case util::ECorrCrit::NSSD:
-            optimize_cost = &Optimizer::nssd;
+            optimize_cost = &OptimizerFALM::nssd;
             break;
         case util::ECorrCrit::ZNSSD:
-            optimize_cost = &Optimizer::znssd;
+            optimize_cost = &OptimizerFALM::znssd;
             break;
     }
     criteria = corr_crit;
@@ -623,7 +572,7 @@ void Optimizer::set_cost_function(util::ECorrCrit corr_crit) {
 
 
 
-void Optimizer::debug_print(const int ss_x, const int ss_y, int iter, double costp, double ftol, double xtol) {
+void OptimizerFALM::debug_print(const int ss_x, const int ss_y, int iter, double costp, double ftol, double xtol) {
         #pragma omp critical
         {
             std::cout << omp_get_thread_num() << " ";
@@ -635,81 +584,3 @@ void Optimizer::debug_print(const int ss_x, const int ss_y, int iter, double cos
             std::cout << std::endl;
         }
     }
-void Optimizer::copy_params_from_fft(const int idx,
-                          const std::vector<double> &shift_x,
-                          const std::vector<double> &shift_y) {
-    std::fill(p.begin(), p.end(), 0.0);
-    p[0] = shift_x[idx];
-    p[1] = shift_y[idx];
-}
-
-void Optimizer::copy_params_from_neigh(const std::vector<double> &results_p,
-                            const int idx) {
-    const int idx_p = idx*num_params;
-    for (int i = 0; i < p.size(); i++)
-        p[i] = results_p[idx_p+i];
-}
-
-void Optimizer::copy_params_from_neigh(const std::vector<double> &results_p,
-                            const std::vector<double> &results_cost,
-                            const std::vector<uint8_t> &results_above_thresh,
-                            const std::vector<int> &neigh,
-                            const int fallback_idx) {
-    std::fill(p.begin(), p.end(), 0.0);
-
-    double weight_sum = 0.0;
-    int count = 0;
-
-    for (int nidx : neigh) {
-        if (count == 4) break;
-        if (!results_above_thresh[nidx]) continue;
-
-        const double weight = results_cost[nidx];
-        if (weight <= 0.0) continue;
-
-        const int idx_p = nidx * num_params;
-        for (int i = 0; i < static_cast<int>(p.size()); i++) {
-            p[i] += weight * results_p[idx_p + i];
-        }
-
-        weight_sum += weight;
-        count++;
-    }
-
-    if (weight_sum <= 0.0) {
-        copy_params_from_neigh(results_p, fallback_idx);
-        return;
-    }
-
-    for (int i = 0; i < static_cast<int>(p.size()); i++) {
-        p[i] /= weight_sum;
-    }
-}
-
-int Optimizer::average_params_from_neigh(
-                            const std::vector<double> &results_p,
-                            const std::vector<uint8_t> &successful,
-                            const std::vector<int> &neigh) {
-    std::fill(p.begin(), p.end(), 0.0);
-
-    int count = 0;
-    for (int nidx : neigh) {
-        if (!successful[nidx]) continue;
-
-        const int idx_p = nidx * num_params;
-        for (int i = 0; i < static_cast<int>(p.size()); i++) {
-            p[i] += results_p[idx_p + i];
-        }
-        count++;
-    }
-
-    if (count > 0) {
-        for (double &param : p) param /= count;
-    }
-    return count;
-}
-
-// Reset parameters to zero
-void Optimizer::reset_params() {
-    std::fill(p.begin(), p.end(), 0.0);
-}

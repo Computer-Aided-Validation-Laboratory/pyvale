@@ -12,7 +12,7 @@
  */
 void raster(const Interpolator &interp_ref, 
             const Interpolator &interp_def,
-            const subset::Grid &ss_grid,
+            const SubsetGrid &ss_grid,
             const util::Config &conf,
             const int img_num_ref,
             const int img_num_def,

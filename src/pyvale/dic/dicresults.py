@@ -7,6 +7,7 @@
 
 from dataclasses import dataclass
 import numpy as np
+from pyvale.dic.dicenum import ELayout
 
 
 @dataclass(slots=True)
@@ -118,3 +119,85 @@ class Results:
 
     stereo: StereoResults | None = None
     """Optional field to store stereo DIC results if available."""
+
+
+def from_in_memory(raw,
+    layout: ELayout | str = ELayout.COLUMN,
+                   filenames: list[str] | None = None) -> Results:
+
+    """Adapt a C++ ``InMemoryResults`` object to the public result dataclasses.
+
+    Numeric floating-point fields remain NumPy views over the owning C++ result
+    object. The convergence flags are converted from uint8 to NumPy bool.
+    """
+
+    layout = ELayout(layout)
+    if layout not in {ELayout.COLUMN, ELayout.MATRIX}:
+        raise ValueError("layout must be 'COLUMN' or 'MATRIX'")
+
+    nimg = int(raw.num_frames)
+    if filenames is None:
+        filenames = [f"dic_data_{frame:04d}" for frame in range(nimg)]
+    elif len(filenames) != nimg:
+        raise ValueError(
+            f"Expected {nimg} filenames for in-memory results, got {len(filenames)}"
+        )
+
+    ss_x = np.asarray(raw.ss_x())
+    ss_y = np.asarray(raw.ss_y())
+
+    if layout == ELayout.COLUMN:
+        ss_x_out = ss_x
+        ss_y_out = ss_y
+
+        def frames(values):
+            return np.asarray(values).reshape(nimg, -1)
+    else:
+        # C++ stores only the valid ROI subsets. Recreate the same compact
+        # rectangular matrix layout as import_2d/import_3d.
+        x_unique = np.unique(ss_x)
+        y_unique = np.unique(ss_y)
+        x_indices = np.searchsorted(x_unique, ss_x)
+        y_indices = np.searchsorted(y_unique, ss_y)
+        shape = (nimg, len(y_unique), len(x_unique))
+        ss_x_out, ss_y_out = np.meshgrid(x_unique, y_unique)
+
+        def frames(values):
+            grid = np.full(shape, np.nan)
+            grid[:, y_indices, x_indices] = np.asarray(values).reshape(nimg, -1)
+            return grid
+
+    result = Results(
+        ss_x=ss_x_out,
+        ss_y=ss_y_out,
+        u_px=frames(raw.u()),
+        v_px=frames(raw.v()),
+        mag_px=frames(raw.mag()),
+        converged=frames(raw.converged()).astype(bool),
+        cost=frames(raw.cost()),
+        ftol=frames(raw.ftol()),
+        xtol=frames(raw.xtol()),
+        niter=frames(raw.niter()),
+        filenames=list(filenames),
+    )
+
+    if raw.stereo:
+        result.stereo = StereoResults(
+            disparity_u_px=frames(raw.disparity_u()),
+            disparity_v_px=frames(raw.disparity_v()),
+            mag_px=frames(raw.disparity_mag()),
+            u_mm=frames(raw.u_mm()),
+            v_mm=frames(raw.v_mm()),
+            w_mm=frames(raw.w_mm()),
+            x_mm=frames(raw.x_mm()),
+            y_mm=frames(raw.y_mm()),
+            z_mm=frames(raw.z_mm()),
+            converged=frames(raw.stereo_converged()).astype(bool),
+            cost=frames(raw.stereo_cost()),
+            ftol=frames(raw.stereo_ftol()),
+            xtol=frames(raw.stereo_xtol()),
+            niter=frames(raw.stereo_niter()),
+            epi_dist_px=frames(raw.epi_dist_px()),
+        )
+
+    return result

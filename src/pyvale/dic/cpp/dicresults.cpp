@@ -11,12 +11,16 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 // commoncpp header files
 #include "../../commoncpp/util.hpp"
+#include "../../commoncpp/csvbuffer.hpp"
 
 // DIC Header files
 #include "./dicresults.hpp"
+
+
 
 
 
@@ -38,7 +42,7 @@ ResultArrays::ResultArrays(int num_ss,
     xtol.resize(num_ss, 0.0);
     cost.resize(num_ss, 0.0);
     conv.resize(num_ss, 0.0);
-    above_thresh.resize(num_ss);
+    valid_match.resize(num_ss);
 
 
     // incremental tracking
@@ -71,7 +75,7 @@ void ResultArrays::append(OptResult &res, const int i) {
     xtol[i] = res.xtol;
     cost[i] = res.cost;
     conv[i] = res.converged;
-    above_thresh[i] = res.above_thresh;
+    valid_match[i] = res.valid_match;
     for (size_t i = 0; i < num_params; i++){
         p[pp+i] = res.p[i];
     }
@@ -86,7 +90,7 @@ void ResultArrays::append(OptResult &res, const int i) {
     std::fill(xtol.begin(), xtol.end(), 0.0);
     std::fill(cost.begin(), cost.end(), 0.0);
     std::fill(conv.begin(), conv.end(), false);
-    std::fill(above_thresh.begin(), above_thresh.end(), false);
+    std::fill(valid_match.begin(), valid_match.end(), false);
 
     if (stereo) {
         const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -100,6 +104,98 @@ void ResultArrays::append(OptResult &res, const int i) {
     }
   }
 
+InMemoryResults::InMemoryResults(const std::size_t frames,
+                                 const std::size_t points,
+                                 const bool is_stereo)
+    : num_frames(frames), num_ss(points), stereo(is_stereo),
+      ss_x(points), ss_y(points),
+      u(frames * points), v(frames * points), mag(frames * points),
+      cost(frames * points), ftol(frames * points), xtol(frames * points),
+      niter(frames * points), converged(frames * points) {
+    if (stereo) {
+        disparity_u.resize(frames * points);
+        disparity_v.resize(frames * points);
+        disparity_mag.resize(frames * points);
+        x_mm.resize(frames * points);
+        y_mm.resize(frames * points);
+        z_mm.resize(frames * points);
+        u_mm.resize(frames * points);
+        v_mm.resize(frames * points);
+        w_mm.resize(frames * points);
+        stereo_converged.resize(frames * points);
+        stereo_cost.resize(frames * points);
+        stereo_ftol.resize(frames * points);
+        stereo_xtol.resize(frames * points);
+        stereo_niter.resize(frames * points);
+        epi_dist_px.resize(frames * points);
+    }
+}
+
+void InMemoryResults::set_coordinates(const SubsetGrid &grid) {
+    num_ss_x = static_cast<std::size_t>(grid.num_ss_x);
+    num_ss_y = static_cast<std::size_t>(grid.num_ss_y);
+    for (std::size_t i = 0; i < num_ss; ++i) {
+        ss_x[i] = static_cast<int32_t>(grid.coords[2*i]);
+        ss_y[i] = static_cast<int32_t>(grid.coords[2*i + 1]);
+    }
+}
+
+void InMemoryResults::store_frame(const std::size_t frame,
+                                  const ResultArrays &source,
+                                  const SubsetGrid &grid,
+                                  const common_util::SaveConfig &saveconf) {
+    if (frame >= num_frames || source.num_ss != static_cast<int>(num_ss))
+        throw std::invalid_argument("In-memory result frame size mismatch");
+    if (frame == 0)
+        set_coordinates(grid);
+
+    const std::size_t offset = frame * num_ss;
+    for (std::size_t i = 0; i < num_ss; ++i) {
+        const bool valid = saveconf.output_below_threshold || source.valid_match[i];
+        const double out_u = valid ? source.u[i] : NAN;
+        const double out_v = valid ? source.v[i] : NAN;
+        u[offset+i] = out_u;
+        v[offset+i] = out_v;
+        mag[offset+i] = std::sqrt(out_u*out_u + out_v*out_v);
+        converged[offset+i] = source.conv[i];
+        cost[offset+i] = valid ? source.cost[i] : NAN;
+        ftol[offset+i] = valid ? source.ftol[i] : NAN;
+        xtol[offset+i] = valid ? source.xtol[i] : NAN;
+        niter[offset+i] = source.niter[i];
+    }
+}
+
+void InMemoryResults::store_stereo_frame(
+    const std::size_t frame,
+    const ResultArrays &temporal,
+    const ResultArrays &stereo_results,
+    const SubsetGrid &grid,
+    const common_util::SaveConfig &saveconf) {
+    store_frame(frame, temporal, grid, saveconf);
+    const std::size_t offset = frame * num_ss;
+    for (std::size_t i = 0; i < num_ss; ++i) {
+        const bool temporal_valid = saveconf.output_below_threshold || temporal.valid_match[i];
+        const bool stereo_valid = saveconf.output_below_threshold || stereo_results.valid_match[i];
+        const double out_u = temporal_valid ? stereo_results.u[i] : NAN;
+        const double out_v = temporal_valid ? stereo_results.v[i] : NAN;
+        disparity_u[offset+i] = out_u;
+        disparity_v[offset+i] = out_v;
+        disparity_mag[offset+i] = std::sqrt(out_u*out_u + out_v*out_v);
+        u_mm[offset+i] = temporal_valid ? stereo_results.u_world[i] : NAN;
+        v_mm[offset+i] = temporal_valid ? stereo_results.v_world[i] : NAN;
+        w_mm[offset+i] = temporal_valid ? stereo_results.w_world[i] : NAN;
+        x_mm[offset+i] = stereo_valid ? stereo_results.x_world[i] : NAN;
+        y_mm[offset+i] = stereo_valid ? stereo_results.y_world[i] : NAN;
+        z_mm[offset+i] = stereo_valid ? stereo_results.z_world[i] : NAN;
+        stereo_converged[offset+i] = stereo_results.conv[i];
+        stereo_cost[offset+i] = stereo_valid ? stereo_results.cost[i] : NAN;
+        stereo_ftol[offset+i] = stereo_valid ? stereo_results.ftol[i] : NAN;
+        stereo_xtol[offset+i] = stereo_valid ? stereo_results.xtol[i] : NAN;
+        stereo_niter[offset+i] = stereo_results.niter[i];
+        epi_dist_px[offset+i] = stereo_results.epi_dist_px[i];
+    }
+}
+
 // void ResultArrays::get_latest_matches(const ResultArrays &results_def, const int img_num_def) {
 //
 //     // Naive check that that results_ref and results_def are the same size
@@ -112,7 +208,7 @@ void ResultArrays::append(OptResult &res, const int i) {
 //         xtol.resize(num_ss, 0.0);
 //         cost.resize(num_ss, 0.0);
 //         conv.resize(num_ss, 0.0);
-//         above_thresh.resize(num_ss);
+//         valid_match.resize(num_ss);
 //
 //
 //         // incremental tracking
@@ -135,7 +231,7 @@ void ResultArrays::append(OptResult &res, const int i) {
 //
 //     for (int i = 0; i < u.size(); i++){
 //
-//         if (results_def.above_thresh[i]){
+//         if (results_def.valid_match[i]){
 //
 //             if (has_good_history[i]){
 //
@@ -155,7 +251,7 @@ void ResultArrays::append(OptResult &res, const int i) {
 //             u[i] = results_def.u[i];
 //             v[i] = results_def.v[i];
 //             p[i] = results_def.p[i];
-//             above_thresh[i] = 1;
+//             valid_match[i] = 1;
 //         }
 //     }
 // }
@@ -174,7 +270,7 @@ void ResultArrays::append(OptResult &res, const int i) {
 
 
 void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
-                                    const subset::Grid &ss_grid,
+                                    const SubsetGrid &ss_grid,
                                     const std::string &filename){
 
 
@@ -211,7 +307,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
 
         for (int i = 0; i < ss_grid.num; ++i) {
 
-            const bool valid = saveconf.output_below_threshold || above_thresh[i];
+            const bool valid = saveconf.output_below_threshold || valid_match[i];
             const double out_u = valid ? u[i] : NAN;
             const double out_v = valid ? v[i] : NAN;
             const double out_cost = valid ? cost[i] : NAN;
@@ -249,6 +345,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
     else {
 
         outfile.open(outfile_str.str());
+        common_util::CsvBuffer csv(outfile, delimiter, saveconf.precision);
 
         // column headers
         outfile << "\"subset_x\"" <<  delimiter;
@@ -262,7 +359,6 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
         outfile << "\"xtol\"" <<  delimiter;
         outfile << "\"num_iter\"" << delimiter;
 
-        // column headers for shape parameters
         // if (saveconf.shape_params) {
         //     for (int p = 0; p < num_params; p++){
         //         outfile << "\"shape_p\"" <<  p;
@@ -279,7 +375,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             double ss_x = ss_grid.coords[2*i  ];
             double ss_y = ss_grid.coords[2*i+1];
 
-            const bool valid = saveconf.output_below_threshold || above_thresh[i];
+            const bool valid = saveconf.output_below_threshold || valid_match[i];
             const double out_u = valid ? u[i] : NAN;
             const double out_v = valid ? v[i] : NAN;
             const double out_cost = valid ? cost[i] : NAN;
@@ -289,18 +385,17 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             // displacement magnitude
             double mag = std::sqrt(out_u*out_u+out_v*out_v);
 
-            outfile << ss_x << delimiter;
-            outfile << ss_y << delimiter;
-            outfile << out_u << delimiter;
-            outfile << out_v << delimiter;
-            outfile << mag << delimiter;
-            outfile << static_cast<int>(conv[i]) << delimiter;
-            outfile << out_cost << delimiter;
-            outfile << out_ftol << delimiter;
-            outfile << out_xtol << delimiter;
-            outfile << niter[i];
+            csv.field(ss_x);
+            csv.field(ss_y);
+            csv.field(out_u);
+            csv.field(out_v);
+            csv.field(mag);
+            csv.field(static_cast<int>(conv[i]));
+            csv.field(out_cost);
+            csv.field(out_ftol);
+            csv.field(out_xtol);
+            csv.field(niter[i], true);
 
-            // write shape parameters if requested
             // if (saveconf.shape_params) {
             //     for (int pp = 0; pp < num_params; pp++){
             //         outfile << delimiter;
@@ -309,10 +404,11 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
             // }
 
             // newline after each subset
-            outfile << "\n";
+            csv.newline();
 
 
         }
+        csv.flush();
         outfile.close();
     }
 }
@@ -321,7 +417,7 @@ void ResultArrays::write_to_disk_2d(const common_util::SaveConfig &saveconf,
 
 void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
                                         const common_util::SaveConfig &saveconf,
-                                        const subset::Grid &ss_grid,
+                                        const SubsetGrid &ss_grid,
                                         const std::string &filename){
 
     const std::string delimiter = saveconf.delimiter;
@@ -355,8 +451,8 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
 
         for (int i = 0; i < ss_grid.num; ++i) {
 
-            const bool temporal_valid = saveconf.output_below_threshold || above_thresh[i];
-            const bool stereo_valid = saveconf.output_below_threshold || stereo.above_thresh[i];
+            const bool temporal_valid = saveconf.output_below_threshold || valid_match[i];
+            const bool stereo_valid = saveconf.output_below_threshold || stereo.valid_match[i];
             const double out_u = temporal_valid ? u[i] : NAN;
             const double out_v = temporal_valid ? v[i] : NAN;
             const double out_cost = temporal_valid ? cost[i] : NAN;
@@ -423,6 +519,7 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
     else {
 
         outfile.open(outfile_str.str());
+        common_util::CsvBuffer csv(outfile, delimiter, saveconf.precision);
 
         // column headers
         outfile << "\"subset_x\"" <<  delimiter;
@@ -450,7 +547,6 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
         outfile << "\"stereo_xtol\"" <<  delimiter;
         outfile << "\"stereo_num_iter\"" << delimiter;
         outfile << "\"epi_dist_px\"";
-        // column headers for shape parameters
         // if (saveconf.shape_params) {
         //     for (int p = 0; p < num_params; p++){
         //         outfile << "\"shape_p\"" <<  p;
@@ -476,8 +572,8 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
             double ss_y = ss_grid.coords[2*i+1];
 
             // if the subset has not met threshold, set values to nan
-                        const bool temporal_valid = saveconf.output_below_threshold || above_thresh[i];
-            const bool stereo_valid = saveconf.output_below_threshold || stereo.above_thresh[i];
+                        const bool temporal_valid = saveconf.output_below_threshold || valid_match[i];
+            const bool stereo_valid = saveconf.output_below_threshold || stereo.valid_match[i];
             const double out_u = temporal_valid ? u[i] : NAN;
             const double out_v = temporal_valid ? v[i] : NAN;
             const double out_cost = temporal_valid ? cost[i] : NAN;
@@ -500,33 +596,32 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
             double mag_stereo = std::sqrt(out_stereo_u*out_stereo_u+out_stereo_v*out_stereo_v);
 
 
-            outfile << ss_x << delimiter;
-            outfile << ss_y << delimiter;
-            outfile << out_u << delimiter;
-            outfile << out_v << delimiter;
-            outfile << mag_<< delimiter;
-            outfile << static_cast<int>(conv[i]) << delimiter;
-            outfile << out_cost << delimiter;
-            outfile << out_ftol << delimiter;
-            outfile << out_xtol << delimiter;
-            outfile << niter[i] << delimiter;
-            outfile << out_stereo_u << delimiter;
-            outfile << out_stereo_v << delimiter;
-            outfile << mag_stereo << delimiter;
-            outfile << out_u_world << delimiter;
-            outfile << out_v_world << delimiter;
-            outfile << out_w_world << delimiter;
-            outfile << out_x_world << delimiter;
-            outfile << out_y_world << delimiter;
-            outfile << out_z_world << delimiter;
-            outfile << static_cast<int>(stereo.conv[i]) << delimiter;
-            outfile << out_stereo_cost << delimiter;
-            outfile << out_stereo_ftol << delimiter;
-            outfile << out_stereo_xtol << delimiter;
-            outfile << stereo.niter[i] << delimiter;
-            outfile << stereo.epi_dist_px[i];
+            csv.field(ss_x);
+            csv.field(ss_y);
+            csv.field(out_u);
+            csv.field(out_v);
+            csv.field(mag_);
+            csv.field(static_cast<int>(conv[i]));
+            csv.field(out_cost);
+            csv.field(out_ftol);
+            csv.field(out_xtol);
+            csv.field(niter[i]);
+            csv.field(out_stereo_u);
+            csv.field(out_stereo_v);
+            csv.field(mag_stereo);
+            csv.field(out_u_world);
+            csv.field(out_v_world);
+            csv.field(out_w_world);
+            csv.field(out_x_world);
+            csv.field(out_y_world);
+            csv.field(out_z_world);
+            csv.field(static_cast<int>(stereo.conv[i]));
+            csv.field(out_stereo_cost);
+            csv.field(out_stereo_ftol);
+            csv.field(out_stereo_xtol);
+            csv.field(stereo.niter[i]);
+            csv.field(stereo.epi_dist_px[i], true);
 
-            // write shape parameters if requested
             // if (saveconf.shape_params) {
             //     for (int pp = 0; pp < num_params; pp++){
             //         outfile << delimiter;
@@ -535,10 +630,11 @@ void ResultArrays::write_to_disk_stereo(const ResultArrays &stereo,
             // }
 
             // newline after each subset
-            outfile << "\n";
+            csv.newline();
 
 
         }
+        csv.flush();
         outfile.close();
     }
 }

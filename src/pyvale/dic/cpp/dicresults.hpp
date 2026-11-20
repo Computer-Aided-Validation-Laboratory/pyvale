@@ -10,13 +10,14 @@
 // STD library Header files
 #include <vector>
 #include <cstdint>
+#include <cstddef>
 
 // commoncpp Header files
 #include "../../commoncpp/util.hpp"
 
 // DIC Header files
 #include "./dicsubset.hpp"
-#include "./dicoptimizer.hpp"
+#include "./dicoptimizerbase.hpp"
 
 
 class ResultArrays {
@@ -39,7 +40,7 @@ class ResultArrays {
         std::vector<double> xtol;
         std::vector<double> cost;
         std::vector<uint8_t> conv;
-        std::vector<uint8_t> above_thresh;
+        std::vector<uint8_t> valid_match;
 
         // incremental tracking;
         // std::vector<double> u_last_good;
@@ -74,16 +75,50 @@ class ResultArrays {
         //void get_latest_matches(const ResultArrays &results_def, const int img_num_def);
 
         void write_to_disk_2d(const common_util::SaveConfig &saveconf,
-                              const subset::Grid &ss_grid,
+                              const SubsetGrid &ss_grid,
                               const std::string &filename);
 
 
         void write_to_disk_stereo(const ResultArrays &stereo,
                                   const common_util::SaveConfig &saveconf,
-                                  const subset::Grid &ss_grid,
+                                  const SubsetGrid &ss_grid,
                                   const std::string &filename);
 
 
+};
+
+
+/** Owning frame-major result storage exposed through zero-copy NumPy views. */
+class InMemoryResults {
+public:
+    std::size_t num_frames = 0;
+    std::size_t num_ss = 0;
+    std::size_t num_ss_x = 0;
+    std::size_t num_ss_y = 0;
+    bool stereo = false;
+
+    std::vector<int32_t> ss_x;
+    std::vector<int32_t> ss_y;
+    std::vector<double> u, v, mag, cost, ftol, xtol;
+    std::vector<int32_t> niter;
+    std::vector<uint8_t> converged;
+
+    std::vector<double> disparity_u, disparity_v, disparity_mag;
+    std::vector<double> x_mm, y_mm, z_mm, u_mm, v_mm, w_mm;
+    std::vector<uint8_t> stereo_converged;
+    std::vector<double> stereo_cost, stereo_ftol, stereo_xtol, epi_dist_px;
+    std::vector<int32_t> stereo_niter;
+
+    InMemoryResults(std::size_t frames, std::size_t points, bool is_stereo);
+    void set_coordinates(const SubsetGrid &grid);
+    void store_frame(std::size_t frame, const ResultArrays &source,
+                     const SubsetGrid &grid,
+                     const common_util::SaveConfig &saveconf);
+    void store_stereo_frame(std::size_t frame,
+                            const ResultArrays &temporal,
+                            const ResultArrays &stereo_results,
+                            const SubsetGrid &grid,
+                            const common_util::SaveConfig &saveconf);
 };
 
 

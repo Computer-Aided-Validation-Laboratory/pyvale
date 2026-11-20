@@ -100,7 +100,7 @@ Dependencies
 ============
 
 Apple has disabled OpenMP for the default C/C++ compilers shipped with Xcode. 
-Therefore, it's reccomended you install either ``gcc`` OR``llvm`` AND ``libomp`` using the homebrew (`https://brew.sh/`_) package manager. 
+Therefore, it's reccomended you install either ``gcc`` OR ``llvm`` + ``libomp`` using the homebrew (`https://brew.sh/`_) package manager. 
 You'll also need to install `libtiff <https://libtiff.gitlab.io/libtiff/>`_ as a dependency for ``pyvale``.
 For ``gcc`` you can install it via homebrew with the command:
 
@@ -116,8 +116,8 @@ used during the build process:
    export CC=$(brew --prefix gcc)/bin/gcc-15
    export CXX=$(brew --prefix gcc)/bin/g++-15
 
-You might need to change the number at the end depending on which version of
-``gcc`` you have installed.
+**You may need to change the number at the end depending on which version of
+``gcc`` you have installed.**
 
 Alternatively, if you want to use ``llvm`` and ``libomp`` you can install them
 with
