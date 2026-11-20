@@ -62,7 +62,7 @@ mesh = render.meshes3d_from_simdata(
         riley.EElemType.TRI3, riley.EConnectAxis.ROW, 0,
         riley.ENodeOrder.RILEY,
     )},
-    shaders={"connect": shader},
+    shaders={"connect": riley.MeshShaderSet(mono=shader)},
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )["connect"]
 
@@ -126,12 +126,19 @@ camera_0, camera_1 = riley.load_stereo_pair(str(output_dir), stereo_file_name)
 # 5. Configure and build the renderer
 # ------------------------------------------------------------
 
+for cam in (camera_0, camera_1):
+    cam.output_files = (riley.ImageSaveOpts(
+        format=riley.ImageFormat.bmp, file_bits=8,
+        scaling=riley.ScaleStrategy.auto,
+    ),)
+
 config = riley.RasterConfig(
     parallel=4,
     save_strategy=riley.SaveStrategy.disk,
-    save_scaling=riley.ScaleStrategy.auto,
+
 )
-config.background_value = 128.0
+for cam in (camera_0, camera_1):
+    cam.background_value = 128.0
 
 renderer = render.Riley(config, output_dir)
 

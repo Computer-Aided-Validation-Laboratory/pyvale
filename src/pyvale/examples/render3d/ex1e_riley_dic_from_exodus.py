@@ -59,7 +59,7 @@ uvs = render.uv_project_planar_centered(
     span=0.8,
     plane=uv_plane,
 )
-surface_mesh.shader = riley.TextureShader(uvs=uvs, texture=texture)
+surface_mesh.shader = riley.MeshShaderSet(mono=riley.TextureShader(uvs=uvs, texture=texture))
 
 # To save time we only render the first and last frame. If you want to render
 # all frames comment this out.
@@ -134,9 +134,9 @@ config = riley.RasterConfig(
     save_strategy=riley.SaveStrategy.disk,
 )
 
-config.background_value = 128.0
+for cam in cameras:
+    cam.background_value = 128.0
 config.tile_size_max = 128
-config.save_scaling = riley.ScaleStrategy.none
 
 output_dir = (
     Path.cwd() / "pyvale-output"

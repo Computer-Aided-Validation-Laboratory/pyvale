@@ -77,10 +77,10 @@ textured_mesh = render.Mesh3D(
     element_type=oriented_mesh.element_type,
     coords=oriented_mesh.coords,
     connectivity=oriented_mesh.connectivity,
-    shader=riley.TextureShader(
+    shader=riley.MeshShaderSet(mono=riley.TextureShader(
         uvs=mapping.uvs,
         texture=mapping.texture[None, :, :],
-    ),
+    )),
 )
 
 # %%

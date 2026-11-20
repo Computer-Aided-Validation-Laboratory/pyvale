@@ -23,7 +23,7 @@ def render_uv_example(
         parallel=4,
         save_strategy=riley.SaveStrategy.disk,
     )
-    config.background_value = 128.0
+    camera.background_value = 128.0
     renderer = render.Riley(config, output_dir)
     scene = render.Scene3D(meshes=[mesh], cameras=[camera])
     return renderer.render(scene)

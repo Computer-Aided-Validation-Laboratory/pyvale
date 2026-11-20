@@ -109,7 +109,7 @@ for orientation_name, mesh in (
             element_type=mesh.element_type,
             coords=mesh.coords,
             connectivity=mesh.connectivity,
-            shader=riley.TextureShader(uvs=uvs, texture=texture),
+            shader=riley.MeshShaderSet(mono=riley.TextureShader(uvs=uvs, texture=texture)),
         )
 
         render_uv_example(
@@ -141,10 +141,10 @@ physical_mesh = render.Mesh3D(
     element_type=rotated_mesh.element_type,
     coords=rotated_mesh.coords,
     connectivity=rotated_mesh.connectivity,
-    shader=riley.TextureShader(
+    shader=riley.MeshShaderSet(mono=riley.TextureShader(
         uvs=physical_mapping.uvs,
         texture=physical_mapping.texture[None, :, :],
-    ),
+    )),
 )
 
 physical_camera = render.Camera(

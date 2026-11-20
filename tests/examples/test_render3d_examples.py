@@ -17,6 +17,10 @@ from pyvale import render
 
 _RILEY_EXAMPLES = (
     pytest.param(
+        "render3d/ex1i_riley_shader_pipeline.py",
+        "pyvale-output/render3d_ex1i_riley_shader_pipeline/rgb/cam0_frame0_field0.bmp",
+    ),
+    pytest.param(
         "render3d/ex1a_riley_quickstart.py",
         "pyvale-output/render3d_ex1a_riley_quickstart/"
         "cam0_frame0_field0.bmp",

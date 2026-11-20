@@ -96,13 +96,6 @@ def make_shader(
     texture: np.ndarray,
 ) -> riley.Shader:
     """Build a shader for a specific case index."""
-    normal_modes = (
-        riley.NormalType.none,
-        riley.NormalType.exact,
-        riley.NormalType.averaged,
-    )
-    normal_type = normal_modes[case_index % len(normal_modes)]
-
     if case_index in (0, 2):
         sample = (
             riley.TextureSample.cubic_catmull_rom
@@ -121,7 +114,6 @@ def make_shader(
             sample_mode=sample_mode,
             bits=bits,
             scaling_type=riley.ScaleStrategy.auto,
-            normal_type=normal_type,
         )
 
     if case_index in (1, 5):
@@ -140,7 +132,6 @@ def make_shader(
                 if case_index == 1
                 else riley.ScaleOver.within_frames
             ),
-            normal_type=normal_type,
         )
 
     builtin = (
@@ -166,7 +157,6 @@ def make_shader(
         channels=channels,
         bits=bits,
         scaling_type=riley.ScaleStrategy.auto,
-        normal_type=normal_type,
     )
 
 
@@ -273,12 +263,24 @@ def build_meshes(channels: int, bits: int) -> list[render.Mesh3D]:
                 simulation,
                 {"surface": convention},
                 mesh_types={"surface": mesh_type},
-                shaders={"surface": shader},
+                shaders={
+                    "surface": riley.MeshShaderSet(mono=shader)
+                    if channels == 1
+                    else riley.MeshShaderSet(rgb=shader),
+                },
                 displacement_keys=("disp_x", "disp_y", "disp_z")
                 if index % 2
                 else None,
             )["surface"]
         )
+
+    normal_modes = (
+        riley.NormalType.none,
+        riley.NormalType.exact,
+        riley.NormalType.averaged,
+    )
+    for index, mesh in enumerate(meshes):
+        mesh.normal_type = normal_modes[index % len(normal_modes)]
 
     plate = meshes[5]
     plate_x = np.array(plate.coords[:, 0], copy=True)
@@ -304,17 +306,20 @@ def render_case(channels: int, bits: int) -> None:
         parallel=4,
         save_strategy=riley.SaveStrategy.disk,
     )
-    config.image_save_mode = (
-        riley.ImageSaveMode.grey
-        if channels == 1
-        else riley.ImageSaveMode.rgb
-    )
-    config.save_bits = bits
-    config.save_format = (
-        riley.ImageFormat.bmp if bits == 8 else riley.ImageFormat.tiff
-    )
-    config.save_scaling = riley.ScaleStrategy.none
-    config.background_value = 0.5 * (2**bits - 1)
+    for camera in cameras:
+        camera.render_format = (
+            riley.RenderFormat.mono if channels == 1 else riley.RenderFormat.rgb
+        )
+        camera.render_channels = channels
+        camera.background_value = 0.5 * (2**bits - 1)
+        camera.output_files = (riley.ImageSaveOpts(
+            format=(
+                riley.ImageFormat.bmp if bits == 8 else
+                riley.ImageFormat.tiff if channels == 1 else
+                riley.ImageFormat.ppm
+            ),
+            file_bits=bits, scaling=riley.ScaleStrategy.none,
+        ),)
     renderer = render.Riley(config, OUT_DIR / case_name)
     renderer.render(render.Scene3D(native_meshes, cameras))
 
