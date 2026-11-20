@@ -1,79 +1,111 @@
-#===============================================================================
+# ===============================================================================
 # pyvale: the python validation engine
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
-#===============================================================================
+# ===============================================================================
+
+"""Archive/reuse policy, stable identities and exclusive filesystem ownership."""
 
 from pathlib import Path
+
 import pytest
-from pyvale.mooseherder.directorymanager import DirectoryManager
-import tests.mooseherder.herdchecker as hc
+
+import pyvale.mooseherder as mh
 
 
-@pytest.fixture
-def dir_manager() -> DirectoryManager:
-    return DirectoryManager(hc.NUM_DIRS)
+def test_archive_allocations(tmp_path: Path) -> None:
+    manager = mh.DirectoryManager(tmp_path / "runs")
+    with manager.reserve(2) as (sweep, directories):
+        assert sweep.name == "sweep_0001"
+        assert [p.name for p in directories] == ["run_0001", "run_0002"]
+    with manager.reserve(1) as (sweep, _):
+        assert sweep.name == "sweep_0002"
 
 
-@pytest.fixture(autouse=True)
-def setup_teardown(dir_manager: DirectoryManager):
-    dir_manager.clear_dirs()
-    yield
-    dir_manager.clear_dirs()
+def test_reuse_replaces_only_selected_id(tmp_path: Path) -> None:
+    manager = mh.DirectoryManager(tmp_path / "particles", mode=mh.EDirMode.REUSE)
+    with manager.reserve(2, ["particle_1", "particle_7"]) as (_, directories):
+        for directory in directories:
+            (directory / "previous.txt").write_text("old evaluation")
+    with manager.reserve(1, ["particle_7"]) as (_, directories):
+        assert directories[0].name == "particle_7"
+        assert not (directories[0] / "previous.txt").exists()
+        assert (manager.output_dir / "particle_1/previous.txt").is_file()
+    assert not tuple((manager.output_dir / ".reuse_locks").iterdir())
 
 
-def test_init_dir_manager(dir_manager: DirectoryManager) -> None:
-    assert dir_manager is not None
-    assert dir_manager._n_dirs == hc.NUM_DIRS
-    assert dir_manager._base_dir == Path().cwd()
-    assert dir_manager._sub_dir == 'sim-workdir'
-
-
-def test_set_sub_dir_name(dir_manager: DirectoryManager) -> None:
-    new_name = 'new-workdir'
-    dir_manager.set_sub_dir_name(new_name)
-    assert dir_manager._sub_dir == new_name
-
-
-def test_set_base_dir(dir_manager: DirectoryManager) -> None:
-    dir_manager.set_base_dir(hc.BASE_DIR)
-    assert dir_manager._base_dir == hc.BASE_DIR
-
-
-def test_set_base_dir_err(dir_manager: DirectoryManager) -> None:
-    base_dir = Path('no_exist/')
-    with pytest.raises(FileExistsError) as errinfo:
-        dir_manager.set_base_dir(base_dir)
-    msg, = errinfo.value.args
-    assert msg == "Specified base directory does not exist."
-
-
-def test_create_dirs(dir_manager: DirectoryManager) -> None:
-    dir_manager.create_dirs()
-    for dd in range(hc.NUM_DIRS):
-        run_dir = dir_manager._base_dir / (dir_manager._sub_dir+'-'+str(dd+1))
-        assert run_dir.is_dir()
-
-
-def test_clear_dirs(dir_manager: DirectoryManager) -> None:
-    dir_manager.create_dirs()
-    dir_manager.clear_dirs()
-    for dd in range(hc.NUM_DIRS):
-        run_dir = dir_manager._base_dir / (dir_manager._sub_dir+'-'+str(dd+1))
-        assert run_dir.is_dir() == False
+def test_overlapping_reservations_and_cleanup(tmp_path: Path) -> None:
+    first = mh.DirectoryManager(tmp_path / "particles", mode=mh.EDirMode.REUSE)
+    second = mh.DirectoryManager(tmp_path / "particles", mode=mh.EDirMode.REUSE)
+    with first.reserve(1, ["particle_1"]):
+        with (
+            pytest.raises(RuntimeError, match="already reserved"),
+            second.reserve(2, ["particle_7", "particle_1"]),
+        ):
+            pytest.fail("An overlapping batch must not run.")
+        assert not (second.output_dir / "particle_7").exists()
+        # A distinct particle may be evaluated while the first is reserved.
+        with second.reserve(1, ["particle_7"]):
+            pass
+    with second.reserve(1, ["particle_1"]):
+        pass
 
 
 @pytest.mark.parametrize(
-    ('dir_num','expected'),
-    (
-        (-1,0),
-        (0,0),
-        (1,1),
-        (4,0),
-    )
+    "ids",
+    [None, ["a", "a"], ["../escape"], ["/absolute"], ["particle-1"], ["Particle_1"]],
 )
-def test_get_run_dir(dir_num: int,
-                     expected: int,
-                     dir_manager: DirectoryManager) -> None:
-    check_path = dir_manager.get_run_dir(dir_num)
-    assert check_path == dir_manager._run_dirs[expected]
+def test_invalid_ids_rejected_before_allocation(tmp_path: Path, ids) -> None:
+    manager = mh.DirectoryManager(tmp_path / "particles", mode=mh.EDirMode.REUSE)
+    with (
+        pytest.raises(ValueError),
+        manager.reserve(2 if ids == ["a", "a"] else 1, ids),
+    ):
+        pass
+    assert not manager.output_dir.exists()
+
+
+def test_unowned_directory_never_cleared(tmp_path: Path) -> None:
+    manager = mh.DirectoryManager(tmp_path / "particles", mode=mh.EDirMode.REUSE)
+    directory = manager.output_dir / "particle_1"
+    directory.mkdir(parents=True)
+    (directory / "important.txt").write_text("keep")
+    with (
+        pytest.raises(ValueError, match="unowned"),
+        manager.reserve(1, ["particle_1"]),
+    ):
+        pass
+    assert (directory / "important.txt").read_text() == "keep"
+    assert not tuple((manager.output_dir / ".reuse_locks").iterdir())
+
+
+def test_invalid_mode(tmp_path: Path) -> None:
+    with pytest.raises(TypeError, match="EDirMode"):
+        mh.DirectoryManager(tmp_path, mode="reuse")
+
+
+def test_archive_rejects_reuse_ids_before_allocation(tmp_path: Path) -> None:
+    manager = mh.DirectoryManager(tmp_path / "archive")
+    with pytest.raises(ValueError, match="REUSE mode"), manager.reserve(1, ["reuse_1"]):
+        pass
+    assert not manager.output_dir.exists()
+
+
+def test_archive_collision_search_is_bounded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager = mh.DirectoryManager(tmp_path / "archive")
+    manager.output_dir.mkdir()
+    original_mkdir = Path.mkdir
+    attempts = []
+
+    def collide(path, *args, **kwargs):
+        if path.name.startswith("sweep_"):
+            attempts.append(path)
+            raise FileExistsError(path)
+        return original_mkdir(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", collide)
+    with pytest.raises(RuntimeError, match="10000 attempts"), manager.reserve(1):
+        pass
+    assert len(attempts) == 10000

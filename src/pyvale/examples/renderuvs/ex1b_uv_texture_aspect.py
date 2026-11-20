@@ -188,7 +188,7 @@ print(f"Rendered UV fit variants to {output_dir}")
 # right. The target and UV axes coincide, so this row isolates the behaviour of
 # the three aspect preserving fit policies.
 #
-# .. image:: ../../_static/renderuvs_ex1b_uv_texture_aspect_aligned.png
+# .. image:: /_static/renderuvs_ex1b_uv_texture_aspect_aligned.png
 #    :alt: Contain, fit U, and fit V mappings on an axis aligned plate
 #    :width: 1000px
 #    :align: center
@@ -198,7 +198,7 @@ print(f"Rendered UV fit variants to {output_dir}")
 # physical target. The UV projection axes remain fixed in the camera frame, so
 # the grid now exposes the mismatch between target and UV axes.
 #
-# .. image:: ../../_static/renderuvs_ex1b_uv_texture_aspect_rotated.png
+# .. image:: /_static/renderuvs_ex1b_uv_texture_aspect_rotated.png
 #    :alt: Contain, fit U, and fit V mappings on an oblique plate
 #    :width: 1000px
 #    :align: center
@@ -207,7 +207,7 @@ print(f"Rendered UV fit variants to {output_dir}")
 # Finally, the physically scaled mapping fixes the dot pitch instead of fitting
 # the source image to either projected extent.
 #
-# .. image:: ../../_static/renderuvs_ex1b_uv_texture_aspect_physical_pitch.png
+# .. image:: /_static/renderuvs_ex1b_uv_texture_aspect_physical_pitch.png
 #    :alt: Physically pitched calibration texture on an oblique plate
 #    :width: 500px
 #    :align: center

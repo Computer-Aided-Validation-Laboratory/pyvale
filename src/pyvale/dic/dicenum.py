@@ -27,6 +27,10 @@ class ECorrCrit(str, Enum):
     NSSD = "NSSD"
     ZNSSD = "ZNSSD"
 
+class EOptimizer(str, Enum):
+    ICGN = "ICGN"
+    FALM = "FALM"
+
 class EInterp(str, Enum):
     BSPLINE = "BSPLINE"
     HERMITE = "HERMITE"
@@ -36,3 +40,29 @@ class EIncrementalMethod(str, Enum):
     IMAGE = "IMAGE"
     COST = "COST"
     ITER = "ITER"
+
+class ELayout(str, Enum):
+    """Layout used for imported DIC and strain result arrays."""
+
+    COLUMN = "COLUMN"
+    MATRIX = "MATRIX"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if member.value == value.upper():
+                    return member
+        return None
+class EResidualMode(str, Enum):
+    NONE = "NONE"
+    DIRECT = "DIRECT"
+    CORRECTED = "CORRECTED"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if member.value == value.upper():
+                    return member
+        return None

@@ -142,6 +142,25 @@ struct Quad {
     static void compose_inverse(std::vector<double>& p_new, const std::vector<double>& p, const std::vector<double>& dp);
 
     static constexpr int num_params = 12; /**< Number of shape function parameters */
+
+    static void eval_quad(const std::vector<double> &params,
+                          double x,
+                          double y,
+                          double &u,
+                          double &v);
+
+    static bool invert_2x2(const double matrix[2][2], double inverse[2][2]);
+
+    static void transform_quad(const double qxx,
+                               const double qxy,
+                               const double qyy,
+                               const double matrix[2][2],
+                               double coef[3]);
+
+    static void quad_jac(const std::vector<double> &params,
+                         double x,
+                         double y,
+                         double jacobian[2][2]);
 };
 
 /**

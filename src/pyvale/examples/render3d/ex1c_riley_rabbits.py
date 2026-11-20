@@ -170,7 +170,7 @@ print(f"{result.images=}")
 # %%
 # The first rendered frame containing all topology variants is shown below.
 #
-# .. image:: ../../../../_static/render3d_ex1c_riley_rabbits.png
+# .. image:: /_static/render3d_ex1c_riley_rabbits.png
 #    :alt: Riley rabbit meshes rendered with several element topologies
 #    :width: 700px
 #    :align: center

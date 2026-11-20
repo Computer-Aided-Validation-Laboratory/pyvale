@@ -24,7 +24,8 @@
 
 // Program Header files
 #include "./dicinterp.hpp"
-#include "./dicoptimizer.hpp"
+#include "./dicoptimizerfalm.hpp"
+#include "./dicoptimizerfactory.hpp"
 #include "./dicutil.hpp"
 #include "./dicsubset.hpp"
 #include "./dicresults.hpp"
@@ -33,7 +34,7 @@
 
 void raster(const Interpolator &interp_ref,
             const Interpolator &interp_def,
-            const subset::Grid &ss_grid,
+            const SubsetGrid &ss_grid,
             const util::Config &conf,
             const int img_num_ref,
             const int img_num_def,
@@ -55,11 +56,13 @@ void raster(const Interpolator &interp_ref,
     {
 
         // initialise subsets
-        subset::Pixels ss_def(ss_size_x, ss_size_y);
-        subset::Pixels ss_ref(ss_size_x, ss_size_y);
+        Subset<double> ss_def(ss_size_x, ss_size_y);
+        Subset<double> ss_ref(ss_size_x, ss_size_y);
 
         // optimization parameters
-        Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
+        auto opt = make_optimizer(conf.optimizer, conf.shape_func, conf.corr_crit,
+                                  conf.max_iter, conf.precision, conf.threshold,
+                                  ss_size_x * ss_size_y);
 
 
         #pragma omp for
@@ -74,19 +77,16 @@ void raster(const Interpolator &interp_ref,
             double cy = ss_grid.coords[ss*2+1];
 
             // get the reference subset
-            subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-            for (int px = 0; px < ss_ref.num_px; px++) {
-                ss_ref.x[px] -= cx;
-                ss_ref.y[px] -= cy;
-            }
+            ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+            ss_ref.shift_to_local_coordinates(cx, cy);
             
-            for (int i = 0; i < opt.num_params; i++){
-                opt.p[i] = 0.0;
+            for (int i = 0; i < opt->num_params; i++){
+                opt->p[i] = 0.0;
             }
             
             // if the reference subset is empty, then skip the optimization and set results to nan
-            OptResult res(opt.num_params);
-            if (ss_ref.sum!=0) res = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+            OptResult res(opt->num_params);
+            if (ss_ref.sum!=0) res = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def);
 
             // append the results for the current subset to result vectors
             result_arrays.append(res, ss);

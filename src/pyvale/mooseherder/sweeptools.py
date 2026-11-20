@@ -3,74 +3,52 @@
 # License: MIT
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
-from typing import Any
+
+"""Construct Cartesian parameter grids keyed by simulation step name."""
+
 import itertools
 
-
-def _single_sim_param_grid(in_params: dict[str,list[Any]] | None
-                           ) -> list[dict[str,Any]] | None:
-    """Private helper function that unpacks the list inside each dictionary key
-    to find every possible unique combination of variables within each list.
-    This gives a list of dictionaries where the dictionary values are single
-    values not lists.
-
-    Parameters
-    ----------
-    in_params : dict[str,list[Any]] | None
-        Dictionary of lists keyed by the simulation variable name with lists
-        containing the parameters the will form the grid of combinations.
-
-    Returns
-    -------
-    list[dict[str,Any]] | None
-        The list of unique dictionaries that have single values not lists.
-    """
-    if in_params is None:
-        return None
-
-    param_keys = in_params.keys()
-    param_vals = in_params.values()
-    param_combs = itertools.product(*param_vals)
-
-    params = []
-    for cc in param_combs:
-        this_params = dict(zip(param_keys,cc))
-        params.append(this_params)
-
-    return params
+from .simrunner import InputValues
 
 
-def sweep_param_grid(in_params: list[dict[str,list[Any]] | None]
-                          ) -> list[list[dict[str,Any] | None]]:
-    """Helper function for generating grid parameter sweeps for all possible
-    combinations of modified variables in the simulation chain.
+def sweep_param_grid(
+    input_params: dict[str, dict[str, list[InputValues]]],
+) -> list[dict[str, dict[str, InputValues]]]:
+    """Construct a Cartesian product of candidate values for named simulation steps.
 
     Parameters
     ----------
-    in_params : list[dict[str,list[Any]] | None]
-        List of the same length as the simulation input modifier/runner list
-        where each dictionary corresponds to the variables that will be modified
-        for the corresponding simulation tool. The variables should be keyed by
-        their string identigfier in the simulation input file and the list
-        should contain all unique values of the variables to analyse.
+    input_params : dict[str, dict[str, list[InputValues]]]
+        Step names mapped to native parameter names and their candidate values.
+        A vector-valued candidate is itself a list or tuple. An empty step mapping
+        represents an unchanged step.
 
     Returns
     -------
-    list[list[dict[str,Any] | None]]
-        The outer list is for each unique parameter combination. The inner list
-        position corresponds to the simulation input modifier/runner position in
-        the simulation chain. The dictionary is then keyed by the variable name
-        in the corresponding input file and the unique value the variable takes
-        for this combination of parameters.
+    list[dict[str, dict[str, InputValues]]]
+        All candidate combinations in dictionary insertion order, ready for
+        MooseHerd.run. Each case owns its step/parameter dictionaries.
+
+    Raises
+    ------
+    ValueError
+        A parameter has an empty candidate list.
     """
-    param_grids = []
-    for pp in in_params:
-        this_params = _single_sim_param_grid(pp)
 
-        if this_params is None:
-            param_grids.append([None])
-        else:
-            param_grids.append(this_params)
+    coordinates = []
+    candidates = []
+    for step, values in input_params.items():
+        for name, options in values.items():
+            if not options:
+                raise ValueError(f"No candidate values for {step}/{name}.")
+            coordinates.append((step, name))
+            candidates.append(options)
 
-    sweep_params = [list(pp) for pp in itertools.product(*param_grids)]
-    return sweep_params
+    case_input_params = []
+    for combination in itertools.product(*candidates):
+        case: dict[str, dict[str, InputValues]] = {step: {} for step in input_params}
+        for (step, name), value in zip(coordinates, combination):
+            case[step][name] = value
+        case_input_params.append(case)
+
+    return case_input_params

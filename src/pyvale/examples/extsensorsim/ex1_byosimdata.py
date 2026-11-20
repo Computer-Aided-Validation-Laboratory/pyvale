@@ -32,8 +32,9 @@ import pyvale.data as dataset
 # 1. Save existing SimData to csv 
 # --------------------------------
 #
-# We are going to start by loading one the pre-packaged simulation datasets in
-# exodus format that comes with `pyvale`. We are then going to take the
+# We are going to start by loading one of PyVale's demonstration simulation
+# datasets in exodus format. It is downloaded and cached automatically when
+# needed. We are then going to take the
 # `SimData` object and save it to the csv/txt format and numpy array formats
 # that can be loaded into `pyvale` so we can see what structure these files need
 # to be.

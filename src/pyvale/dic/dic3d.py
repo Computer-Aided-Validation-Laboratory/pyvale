@@ -15,8 +15,9 @@ import pyvale.calib.calibcpp as calibcpp
 import pyvale.dic._dicchecks as dicchecks
 import pyvale.common.util as common_util
 from pyvale.calib.calibdataclass import Calib
-from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod
+from pyvale.dic.dicenum import ECorrCrit, EShape, EInterp, EScanMethod, EIncrementalMethod, EOptimizer, ELayout, EResidualMode
 import pyvale.commoncpp.commoncpp as commoncpp
+from pyvale.dic.dicresults import from_in_memory
 
 
 def _reference_pair_index(
@@ -78,6 +79,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  subset_step: int = 10,
                  correlation_criteria: Literal["ZNSSD", "NSSD", "SSD"] | ECorrCrit = ECorrCrit.ZNSSD,
                  shape_function: Literal["AFFINE", "QUAD", "RIGID"] | EShape = EShape.AFFINE,
+                 optimizer: Literal["ICGN", "FALM"] | EOptimizer = EOptimizer.ICGN,
                  interpolation_routine: Literal["BSPLINE", "HERMITE"] | EInterp = EInterp.BSPLINE,
                  max_iterations: int=40,
                  precision: float=0.001,
@@ -98,17 +100,21 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
                  fft_filter_corr_power: float=2.0,
                  fft_save: bool=False,
                  fft_precision: Literal["F64","F32"]="F32",
+                 output_results: bool = True,
+                 output_residual: Literal["NONE", "DIRECT", "CORRECTED"] | EResidualMode = EResidualMode.NONE,
+                 layout: Literal["COLUMN", "MATRIX"] | ELayout = ELayout.COLUMN,
                  output_basepath: Path | str = "./",
                  output_binary: bool=False,
                  output_prefix: str="dic_results_",
                  output_delimiter: str=",",
                  output_below_threshold: bool=False,
                  output_shape_params: bool=False,
+                 output_precision: int = 8,
                  partial_subset: float=1.0,
                  partial_subset_multiwindow: float=0.7,
                  image_filter_kernel: int=5,
                  image_filter_sigma: float=1.0,
-                 print_level: int=2) -> None:
+                 print_level: int=2):
 
     """
     Perform Stereo Digital Image Correlation (DIC) between a reference image and one or more deformed images.
@@ -224,6 +230,8 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
         changed to ``".csv"`` or ``".dic2d"`` depending on whether outputting as a binary.
     output_delimiter : str, optional
         Delimiter used in text output files (default: ``","``).
+    output_precision : int, optional
+        Number of significant digits used when writing floating-point CSV output (default: ``8``).
     output_below_threshold : bool, optional
         If ``True``, subset results with cost values that did not exceed the cost threshold
         will still be present in output (default: ``False``).
@@ -245,8 +253,15 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
 
     Returns
     -------
-    None
-        All outputs are written to files; no values are returned.
+    Results
+        The in-memory ``Results`` dataclass. When ``output_results`` is True,
+        the normal DIC result files are also written to ``output_basepath``.
+
+    output_residual : {"NONE", "DIRECT", "CORRECTED"}, optional
+        ``"NONE"`` disables residual output. ``"DIRECT"`` writes the
+        signed Eq. (7) residual ``f - g``. ``"CORRECTED"`` writes the
+        signed illumination-corrected Eq. (8) residual using interpolated
+        local brightness and contrast fields (default: ``"NONE"``).
 
     Raises
     ------
@@ -270,8 +285,12 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     roi_c = np.ascontiguousarray(roi_mask)
 
     # do checks on vars in python land
-    basenames0, fullpaths0, w0, h0, _, image_arrays0 = dicchecks._check_images(reference[0],deformed[0],roi_mask,print_level)
-    basenames1, fullpaths1, w1, h1, _, image_arrays1 = dicchecks._check_images(reference[1],deformed[1],roi_mask,print_level)
+    basenames0, fullpaths0, w0, h0, _, image_arrays0 = dicchecks._check_images(
+        reference[0], deformed[0], roi_mask, print_level, camera_index=0
+    )
+    basenames1, fullpaths1, w1, h1, _, image_arrays1 = dicchecks._check_images(
+        reference[1], deformed[1], roi_mask, print_level, camera_index=1
+    )
 
     assert(w0 == w1)
     assert(h0 == h1)
@@ -308,8 +327,15 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     method_enum = EScanMethod(method)
     shape_function_enum = EShape(shape_function)
     correlation_criteria_enum = ECorrCrit(correlation_criteria)
+    optimizer_enum = EOptimizer(optimizer)
     interpolation_routine_enum = EInterp(interpolation_routine)
     incremental_update_enum = EIncrementalMethod(incremental_update)
+    if isinstance(output_residual, bool):
+        # Keep compatibility with the earlier boolean switch: True selects
+        # the uncorrected Eq. (7) residual, False disables residual output.
+        residual_mode_enum = EResidualMode.DIRECT if output_residual else EResidualMode.NONE
+    else:
+        residual_mode_enum = EResidualMode(output_residual)
 
     if incremental_update_enum != EIncrementalMethod.OFF:
         dicchecks._check_incremental_update_value(
@@ -346,6 +372,7 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.threshold = threshold
     config.corr_crit = getattr(diccpp.CorrCrit, correlation_criteria_enum.name)
     config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
+    config.optimizer = getattr(diccpp.Optimizer, optimizer_enum.name)
     config.interp_routine = getattr(diccpp.InterpRoutine, interpolation_routine_enum.name)
     config.shape_func = getattr(diccpp.ShapeFunc, shape_function_enum.name)
     config.scan_method = getattr(diccpp.ScanMethod, method_enum.name)
@@ -363,14 +390,10 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     config.rg_seeds = updated_seeds
     config.basenames = basenames
     config.fullpaths = fullpaths
-    config.fft_filter = fft_filter
-    config.fft_filter_threshold = fft_filter_threshold
-    config.fft_filter_radius = fft_filter_radius
-    config.fft_filter_corr_power = fft_filter_corr_power
-    config.fft_save = fft_save
     config.debug_level = print_level
     config.image_filter_kernel = image_filter_kernel
     config.image_filter_sigma = image_filter_sigma
+    config.residual_mode = getattr(diccpp.ResidualMode, residual_mode_enum.name)
     config.epi_search_distance = epi_search_distance
     config.epi_distance_threshold = epi_distance_threshold
     config.max_disp = max_displacement
@@ -387,6 +410,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     multiwindowconf.overlap = mw_overlap
     multiwindowconf.subset_size = mw_subset_size
     multiwindowconf.search_area = mw_search_area
+    multiwindowconf.fft_filter = fft_filter
+    multiwindowconf.fft_filter_threshold = fft_filter_threshold
+    multiwindowconf.fft_filter_radius = fft_filter_radius
+    multiwindowconf.fft_filter_corr_power = fft_filter_corr_power
+    multiwindowconf.fft_save = fft_save
 
     # assigning c++ struct vals for save config
     saveconf = commoncpp.SaveConfig()
@@ -396,6 +424,9 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     saveconf.delimiter = output_delimiter
     saveconf.output_below_threshold = output_below_threshold
     saveconf.shape_params = output_shape_params
+    saveconf.output_residual = residual_mode_enum != EResidualMode.NONE
+    saveconf.output_results = output_results
+    saveconf.precision = output_precision
 
 
     # Convert cam0
@@ -442,6 +473,11 @@ def calculate_3d(reference: list[np.ndarray] | list[str] | list[Path],
     # calling the c++ dic engine
     with diccpp.ostream_redirect(stdout=True, stderr=True):
         if image_arrays is None:
-            diccpp.engine(roi_c, calib, config, multiwindowconf, saveconf)
+            results = diccpp.engine_results(roi_c, calib, config, multiwindowconf, saveconf)
         else:
-            diccpp.engine_images(image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
+            results = diccpp.engine_images_results(
+                image_arrays, roi_c, calib, config, multiwindowconf, saveconf)
+
+    # Stereo in-memory results include the reconstructed reference frame
+    # followed by the left-camera deformed frames.
+    return from_in_memory(results, layout=layout, filenames=basenames0)

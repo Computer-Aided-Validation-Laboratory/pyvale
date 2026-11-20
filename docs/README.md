@@ -5,7 +5,23 @@ install the requirements for the docs:
 pip install -r requirements.txt
 sudo apt install doxygen
 ```
-init the API documentation using the `apidoc.sh` script:
+Regenerate the API documentation using `apidoc.sh` (from this directory or the
+repository root). Use a Python installation containing Sphinx; set `PYTHON` if
+it is not the shell's `python3`:
+
+```bash
+PYTHON=.venv/bin/python bash docs/apidoc.sh  # From the repository root
+```
+
+The script clears only recognised, Git-ignored generated Python API pages before
+regenerating them. Tracked pages (including `pyvale.render.uvtools.rst`), manual
+content, galleries and guides are preserved. Generation is staged and the previous
+API pages are restored if regeneration fails. Newly generated pages carry an
+ownership comment; track a page or remove that comment before maintaining it by
+hand. Native documentation is generated afterward using Doxygen and the current
+header inventory.
+
+With the docs Python installation already on PATH, you can also run from here:
 ```bash
 bash apidoc.sh
 ```
@@ -13,3 +29,69 @@ build the documentation:
 ```bash
 make html
 ```
+
+## Landing-page images
+
+Generate the physics-simulation field and mesh images from PyVale's case18
+Exodus data with the project environment:
+
+```bash
+.venv/bin/python scripts/docs_image_gen.py
+```
+
+Outputs and a dataset/time-selection manifest are written to
+`pyvale-output/docs-images/`. The data API downloads and caches the dataset if
+needed. The field image uses viridis, native coordinates and field units, with
+displacement warping disabled and no sensor overlays. Copy the selected field
+image to `images/physics_simulation_field.png` to update the landing page;
+`docs/source/_static/physics_simulation_field.png` links to it.
+
+The other capability images come from the existing SensorSim, DIC and Render
+examples. The backend logos are copied unchanged from their upstream README
+assets:
+
+- [Riley logo](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/riley-raster/main/images/riley_logo.png)
+- [Rabbit FEM logo](https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/rabbit-fem/main/images/logo_rabbitfem.png)
+
+They are stored in `images/` and linked from `docs/source/_static/`.
+Citation formats for the PyVale DIC and Riley papers live on the separate
+`docs/source/cite.rst` page, available through the documentation sidebar.
+
+## API and example navigation
+
+`source/api_py.rst` is the curated Python API entry point, grouped by user task.
+The API generator omits its redundant package-root index, the unfinished
+validation package and internal native/standalone Blender implementation
+packages. Supported Blender interfaces remain documented under `pyvale.render`;
+verification helpers have their own supporting-reference section.
+
+Sphinx builds run `gallerycleanup` before Sphinx-Gallery. Cleanup removes an
+obsolete example page only when it is untracked, Git-ignored and carries the
+Sphinx-Gallery ownership header. The configured example directories determine
+whether its source still exists. Named companion downloads and cache metadata
+receive the same Git protections; tracked files, symlinks and unrecognised
+manual content are preserved. Track a page or remove its ownership header
+before maintaining generated content by hand.
+
+The example navigation tests compare each public source directory with its
+curated index and check the gallery configuration. Development-only validation,
+analytic-data and visualisation examples remain outside the public gallery.
+
+## Native API generation
+
+`apidoc.sh` requires Doxygen for the native reference. It generates XML, then
+runs `generate_native_apidoc.py`; Doxygen's separate HTML and LaTeX outputs are
+not needed by Sphinx. Header pages and module indexes are derived from current
+headers in the DIC and strain modules, matching the Doxyfile inputs.
+
+Generated native pages carry an ownership comment. Remove that comment before
+maintaining a page by hand. The old bare header/index templates, including
+tracked copies, are recognised for migration; pages with additional authored
+content and symlinks are preserved. Obsolete owned pages are removed, and a
+failed publication restores the previous generated pages.
+
+The stereo matching page renders its function directly, while the stereo utility
+page owns the shared namespace listing. Both sets of symbols remain linkable
+without suppressing duplicate-declaration warnings or disabling indexing.
+The native API landing page documents buffer layout, dtypes, ownership and units;
+Python user workflows remain in the separate Python API reference.

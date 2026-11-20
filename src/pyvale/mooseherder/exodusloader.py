@@ -8,7 +8,7 @@
 # EXODUS READER
 # Used to read output *.e from MOOSE simulations.
 
-# There are several different cases that lead to different MOOSE output formats.
+# There are several different case_input_params that lead to different MOOSE output formats.
 
 # 1) Outputs can have 2 or 3 spatial dimensions for nodal DOFs
 #     (e.g. disp_x, disp_y and possibly disp_z)
@@ -21,66 +21,82 @@
 # Authors: Lloyd Fletcher, Rory Spencer
 # ===============================================================================
 
+from collections.abc import Iterable
 from pathlib import Path
+
 import netCDF4 as nc
 import numpy as np
-from pyvale.dataio.simdata import SimData, SimLoadConfig
+
 from pyvale.dataio.meshconv import enforce_mesh_convention
+from pyvale.dataio.simdata import SimData, SimLoadConfig
 from pyvale.mooseherder.outputloader import IOutputLoader
 
 
 class ExodusLoader(IOutputLoader):
-    """Class to read exodus files output by MOOSE using the netCDF package.
-    This class handles extracting the data from the exodus file and creates
-    a SimData object with the required data. Most used cases are covered with
-    by creating an ExodusReader and then calling either read_sim_data() or
-    read_all_sim_data() specified at the bottom of the class.
+    """Read MOOSE Exodus output into typed in-memory simulation containers.
+
+    Notes
+    -----
+    Use as a context manager to close the underlying NetCDF dataset on normal
+    exit or exceptions. Direct callers must call close(), which is idempotent.
+    Returned SimData arrays remain usable after closure. Nodal arrays have axes
+    (node, time); element arrays have axes (element, time) within each block.
+    Field units are those of the source simulation; this loader does not rescale
+    them. Geometry/topology conventions are normalised when requested.
     """
 
-    __slots__ = ("_exodus_path","_data","_enforce_convention")
+    __slots__ = ("_data", "_enforce_convention", "_exodus_path")
 
-    def __init__(self,
-                 output_file: Path,
-                 enforce_convention: bool = True) -> None:
-        """
+    def __init__(self, output_file: Path, enforce_convention: bool = True) -> None:
+        """Open an Exodus output and select mesh-convention handling.
+
         Parameters
         ----------
         output_file : Path
-            Construct class by reading the exodus file using the
-            netCDF package. The exodus file must exist.
+            Existing Exodus output file to read.
+        enforce_convention : bool, optional
+            Normalise loaded mesh connectivity to PyVale's conventions. Defaults to
+            True. This does not convert coordinate units.
 
         Raises
         ------
         FileNotFoundError
-            The specified exodus file does not exist.
+            The specified output cannot be found.
+        OSError
+            NetCDF cannot open the file as a supported dataset.
         """
 
-        if not output_file.is_file() and output_file.suffix != '.e':
-            raise FileNotFoundError('Exodus file not found at specified path')
+        if not output_file.is_file():
+            raise FileNotFoundError("Exodus file not found at specified path")
 
         self._exodus_path = output_file
         self._data = nc.Dataset(str(self._exodus_path))
         self._enforce_convention = enforce_convention
 
+    def close(self) -> None:
+        """Release the backing NetCDF dataset if it is still open.
+
+        Notes
+        -----
+        This operation is idempotent. Arrays already returned in SimData remain
+        valid after closure. The inherited IOutputLoader context manager calls
+        this method automatically on normal exit and on exceptions.
+        """
+        if self._data.isopen():
+            self._data.close()
 
     def get_names(self, key: str | None) -> np.ndarray | None:
-        """get_names: Extract a list of variable names from the dataset. Useful
-        for getting node/element/sideset/global variables names.
+        """Read decoded variable, boundary or block names from a NetCDF variable.
 
         Parameters
         ----------
         key : str | None
-            string key used to extract a list of names from
-            the dataset e.g. 'node_var_names'. If key is None returns None.
-
+            NetCDF character-array key, such as "name_nod_var". None selects nothing.
 
         Returns
         -------
         np.ndarray | None
-            numpy array of strings representing the names
-            that correspond to the variables in the dataset. Returns None
-            if the specified key does not exist in the dataset.
-
+            One-dimensional string array, or None when the key is absent or None.
         """
         if key not in self._data.variables or key is None:
             return None
@@ -92,26 +108,31 @@ class ExodusLoader(IOutputLoader):
         chars = raw.view(f"S{raw.shape[-1]}").reshape(raw.shape[:-1])
         return np.char.decode(chars, "utf-8")
 
-
-    def get_var(self, key: str, time_inds: np.ndarray | None = None
-                ) -> np.ndarray:
-        """get_var: Extract a numeric variable from the dataset.
+    def get_var(
+        self,
+        key: str,
+        time_inds: np.ndarray | list[int] | tuple[int, ...] | slice | None = None,
+    ) -> np.ndarray:
+        """Read a numeric NetCDF variable and transpose its stored axes.
 
         Parameters
         ----------
         key : str
-            key corresponding to the variable in the dataset. e.g.
-            'time_whole'
-        key: str :
-
-        time_inds: np.ndarray | None :
-             (Default value = None)
+            NetCDF variable key, such as "vals_nod_var1" or "connect1".
+        time_inds : np.ndarray | list[int] | tuple[int, ...] | slice | None, optional
+            Time columns selected after transposition for two-dimensional variables.
+            None reads all entries. Use get_time for the one-dimensional time vector.
 
         Returns
         -------
         np.ndarray
-            numpy numeric array containing the variable data.
+            Independent array with reversed stored axes. Nodal and element fields
+            use (node, time) and (element, time). Missing keys give an empty array.
 
+        Raises
+        ------
+        IndexError
+            Time indices are invalid or supplied for a variable without a time axis.
         """
         if key not in self._data.variables:
             return np.array([])
@@ -121,581 +142,463 @@ class ExodusLoader(IOutputLoader):
         if time_inds is None:
             return data
 
-        return data[:,time_inds]
+        return data[:, time_inds]
 
-
-    def get_key(self,
-                name: str,
-                all_names: np.ndarray,
-                key_tag: str) -> str | None:
-        """get_key: builds the key required to extract a given variable from
-        the exodus dataset.
+    def get_key(self, name: str, all_names: np.ndarray, key_tag: str) -> str | None:
+        """Find the one-based NetCDF variable key for a requested field name.
 
         Parameters
         ----------
-        all_names : np.ndarray
-            all possible name keys extracted using the
-            get names function.
         name : str
-            the specific name key that the user wants to extract
+            Requested field or boundary name.
+        all_names : np.ndarray
+            Ordered names stored in the corresponding NetCDF names array.
         key_tag : str
-            the string tag that is prepended to get the variable
-            from the dataset.
-        name: str :
-
-        all_names: np.ndarray :
-
-        key_tag: str :
-
+            Prefix such as "vals_nod_var" to which the one-based position is appended.
 
         Returns
         -------
         str | None
-            the string key in the dataset to get the variable
-
+            NetCDF key, or None when name is not in all_names.
         """
         inds = np.where(all_names == name)[0]
         if inds.shape[0] == 0:
             return None
 
-        key = f'{key_tag}{inds[0]+1:d}'
+        key = f"{key_tag}{inds[0] + 1:d}"
         return key
 
-
     def get_connectivity_names(self) -> np.ndarray:
-        """get_connectivity_names: gets the connectivity names in the exodus
-        dataset. These are of the form 'connect1', 'connect2' etc.
-
-        Parameters
-        ----------
+        """List connectivity variables for the available element blocks.
 
         Returns
         -------
         np.ndarray
-            array of element connectivity keys as strings of the
-            form connectX where X is an integer of 1 or greater e.g.
-            connect1.
-
+            String keys such as "connect1", ordered by one-based block position.
         """
         names = np.array([])
         for bb in range(self.get_num_elem_blocks()):
-            key = f'connect{bb+1:d}'
+            key = f"connect{bb + 1:d}"
             if key in self._data.variables:
-                names = np.append(names,key)
+                names = np.append(names, key)
 
         return names
 
-
-    def get_connectivity(self) -> dict[str,np.ndarray]:
-        """get_connectivity: returns the connectivity table as a dictionary
-        keyed with the name 'connectX' and the table itseld as numpy array.
-
-        Parameters
-        ----------
+    def get_connectivity(self) -> dict[str, np.ndarray]:
+        """Read the raw Exodus connectivity arrays for each element block.
 
         Returns
         -------
-        dict[str,np.ndarray]
-            dictionary containing the element
-            connectivity tables based on keys related to the subdomain e.g.
-            key 'connect1' returns the element connectivity table for
-            subdomain 1. The table has dimensions N by n_e where N is the
-            total number of nodes in the subdomain and n_e is the number
-            of nodes per element.
+        dict[str, np.ndarray]
+            Keys such as "connect1" map to transposed raw arrays with shape
+            (nodes_per_element, elements_in_block). Node numbers remain one-based.
 
+        Notes
+        -----
+        load_sim_data and load_all_sim_data normalise connectivity when convention
+        handling is enabled. Those SimData tables instead use one element per row
+        and zero-based node indices. This low-level accessor does not normalise.
         """
-        connect = dict({})
+        connect = {}
         for key in self.get_connectivity_names():
             connect[key] = self.get_var(key)
 
         return connect
 
-
     def get_sideset_names(self) -> np.ndarray | None:
-        """get_sideset_names: returns the sideset names as a numpy array of
-        strings.
-
-        Parameters
-        ----------
+        """Read the named boundaries stored in the Exodus file.
 
         Returns
         -------
         np.ndarray | None
-            numpy array of strings corresponding to the
-            sideset names specified in the simulation. Returns None if no
-            sideset names are found.
-
+            Boundary name strings, or None when no boundary names are stored.
         """
-        return self.get_names('ss_names')
+        return self.get_names("ss_names")
 
-
-    def get_sidesets(self, names: np.ndarray | None
-                     ) -> dict[tuple[str,str], np.ndarray] | None:
-        """get_sidesets: returns the sidesets as a dictionary keyed by a tuple
-        of ('sideset_name', 'node' | 'elem'). Gives either the list of node
-        numbers or element numbers based on the specified key.
+    def get_sidesets(
+        self, names: Iterable[str] | None
+    ) -> dict[tuple[str, str], np.ndarray | None] | None:
+        """Read node and element numbers for selected named boundaries.
 
         Parameters
         ----------
-        names : np.ndarray | None
-            numpy array of strings specifying the
-            sideset names to extract from the dataset. If None return None.:
+        names : Iterable[str] | None
+            Boundary names to load. None selects no boundaries.
 
         Returns
         -------
-        dict[tuple[str,str], np.ndarray] | None
-            dictionary of sideset
-            nodes and element sets by name. The key is a tuple with the
-            first string being the sideset name and the second being either
-            'node' or 'elem'. Returns None if no sidesets found.
-
+        dict[tuple[str, str], np.ndarray | None] | None
+            (boundary_name, "node") and (boundary_name, "elem") keys map to
+            one-dimensional arrays of one-based Exodus numbers. A missing entry
+            maps to None; the whole result is None if names or available names
+            are absent. These numbers are not normalised by mesh-convention handling.
         """
         all_names = self.get_sideset_names()
 
         if names is None or all_names is None:
             return None
 
-        node_key_tag = 'node_ns'
-        elem_key_tag = 'elem_ss'
+        node_key_tag = "node_ns"
+        elem_key_tag = "elem_ss"
 
-        side_sets = dict({})
-        for nn in names: # type: ignore
-            node_key = self.get_key(nn,all_names,node_key_tag)
-            elem_key = self.get_key(nn,all_names,elem_key_tag)
+        side_sets = {}
+        for nn in names:  # type: ignore
+            node_key = self.get_key(nn, all_names, node_key_tag)
+            elem_key = self.get_key(nn, all_names, elem_key_tag)
 
             if node_key is None:
-                side_sets[(nn,'node')] = None
+                side_sets[(nn, "node")] = None
             else:
-                side_sets[(nn,'node')] = self.get_var(node_key)
+                side_sets[(nn, "node")] = self.get_var(node_key)
 
             if elem_key is None:
-                side_sets[(nn,'elem')] = None
+                side_sets[(nn, "elem")] = None
             else:
-                side_sets[(nn,'elem')] = self.get_var(elem_key)
+                side_sets[(nn, "elem")] = self.get_var(elem_key)
 
         return side_sets
 
-
-    def get_all_sidesets(self) -> dict[tuple[str,str], np.ndarray] | None:
-        """get_all_sidesets: returns all sidesets as a dictionary keyed by a tuple
-        of ('sideset_name', 'node' | 'elem'). Gives either the list of node
-        numbers or element numbers based on the specified key.
-
-        Parameters
-        ----------
+    def get_all_sidesets(self) -> dict[tuple[str, str], np.ndarray | None] | None:
+        """Read node and element numbers for every named boundary.
 
         Returns
         -------
-        dict[tuple[str,str], np.ndarray] | None
-            dictionary of sideset
-            nodes and element sets by name. The key is a tuple with the
-            first string being the sideset name and the second being either
-            'node' or 'elem'. Returns None if no sidesets found.
-
+        dict[tuple[str, str], np.ndarray | None] | None
+            Boundary entries as returned by get_sidesets, retaining one-based
+            Exodus numbering. None when the file has no boundary names.
         """
 
         return self.get_sidesets(self.get_sideset_names())
 
-
     def get_node_var_names(self) -> np.ndarray | None:
-        """get_node_var_names: gets the nodal variable names as a numpy array
-        of strings e.g. np.array(['disp_x','disp_y'])
-
-        Parameters
-        ----------
+        """Read names of all fields stored at mesh nodes.
 
         Returns
         -------
         np.ndarray | None
-            numpy array of strings containing the nodal
-            variable names. Returns None if no nodal variables are found.
-
+            Names such as "disp_x" and "temperature", or None if absent.
         """
-        return self.get_names('name_nod_var')
+        return self.get_names("name_nod_var")
 
-
-    def get_node_vars(self,
-                      names: np.ndarray | None,
-                      time_inds: np.ndarray | None  = None
-                      ) -> dict[str,np.ndarray] | None:
-        """get_node_vars: gets the specified nodal variables as a dictionary
-        keyed by the variable name (e.g. 'disp_x') where the nodal variable is
-        given as a numpy array of dimensions NxT where N is the number of nodes
-        and T is the number of time steps in the simulation.
+    def get_node_vars(
+        self,
+        names: Iterable[str] | None,
+        time_inds: np.ndarray | list[int] | tuple[int, ...] | slice | None = None,
+    ) -> dict[str, np.ndarray] | None:
+        """Load selected nodal fields in node-by-time order.
 
         Parameters
         ----------
-        names : np.ndarray | None
-            numpy array of strings that are the
-            variables to be extracted from the exodus dataset.
-        time_inds: np.ndarray | None :
-             (Default value = None)
+        names : Iterable[str] | None
+            Existing nodal field names. None selects no nodal fields.
+        time_inds : np.ndarray | list[int] | tuple[int, ...] | slice | None, optional
+            Saved time indices or slice; None loads all saved times.
 
         Returns
         -------
-        dict[str,np.ndarray] | None
-            dictionary of requested nodal
-            variables. Keys are nodal variable names e.g. 'disp_x' and the
-            variable data is given as a numpy array. returns None if no
-            nodal variables are found.
+        dict[str, np.ndarray] | None
+            Field names mapped to arrays with shape (node_count, selected_times).
+            None when names is None. Values retain the simulation's native units.
 
+        Raises
+        ------
+        IndexError
+            A requested name or time index is not present.
         """
         if names is None:
             return None
 
         all_names = self.get_node_var_names()
-        key_tag = 'vals_nod_var'
-        vars = dict({})
+        key_tag = "vals_nod_var"
+        node_vars = {}
 
-        for nn in names: # type: ignore
+        for nn in names:  # type: ignore
             inds = np.where(all_names == nn)[0]
-            key = f'{key_tag}{inds[0]+1:d}'
-            vars[nn] = self.get_var(key,time_inds)
+            key = f"{key_tag}{inds[0] + 1:d}"
+            node_vars[nn] = self.get_var(key, time_inds)
 
-        return vars
-
+        return node_vars
 
     def get_all_node_vars(self) -> dict[str, np.ndarray] | None:
-        """get_all_node_vars: as get_node_vars but returns all nodal variables
-        found in the dataset. Gets all specified nodal variables as a dictionary
-        keyed by the variable name (e.g. 'disp_x') where the nodal variable is
-        given as a numpy array of dimensions NxT where N is the number of nodes
-        and T is the number of time steps in the simulation.
-
-        Parameters
-        ----------
+        """Load every nodal field at every saved time.
 
         Returns
         -------
         dict[str, np.ndarray] | None
-            dictionary of requested nodal
-            variables. Keys are nodal variable names e.g. 'disp_x' and the
-            variable data is given as a numpy array. returns None if no
-            nodal variables are found.
-
+            Field names mapped to (node_count, time_count) arrays in native units,
+            or None when nodal fields are absent.
         """
         return self.get_node_vars(self.get_node_var_names())
 
-
     def get_elem_var_names(self) -> np.ndarray | None:
-        """get_elem_var_names: gets the element variable names as a numpy array
-        of strings if they exist. Note that there are several cases where the
-        element variables may be interpolated to nodes and stored as nodal data
-
-        Parameters
-        ----------
+        """Read names of fields stored per element rather than per node.
 
         Returns
         -------
         np.ndarray | None
-            element variable names as a numpy array of
-            strings. An example variable name is 'strain_xx'. Returns None
-            if no element variable names exist in the dataset.
-
+            Element field names, or None when absent. Material output settings may
+            place quantities such as strain in node_vars instead of elem_vars.
         """
-        return self.get_names('name_elem_var')
-
+        return self.get_names("name_elem_var")
 
     def get_num_elem_blocks(self) -> int:
-        """get_num_elem_blocks: gets the number of element blocks (i.e.
-        sub-domains) in the simulation. These are used to partition the element
-        data.
-
-        Parameters
-        ----------
+        """Count named element blocks (mesh subdomains).
 
         Returns
         -------
         int
-            number of element blocks/sub-domains in the simulation.
-
+            Number of entries in the Exodus element-block names array.
         """
-        return self.get_names('eb_names').shape[0] # type: ignore
+        return self.get_names("eb_names").shape[0]  # type: ignore
 
-
-    def get_elem_var_names_and_blocks(self) -> list[tuple[str,int]] | None:
-        """get_elem_var_names_and_blocks: returns a list of all possible
-        combinations of element variables names and block numbers present in
-        the dataset.
-
-        Parameters
-        ----------
+    def get_elem_var_names_and_blocks(self) -> list[tuple[str, int]] | None:
+        """Enumerate combinations of element field names and block positions.
 
         Returns
         -------
-        list[tuple[str,int]] | None
-            list of tuples containing the element
-            variable names and block numbers. Returns None if there are no
-            element variable name or element blocks.
-
+        list[tuple[str, int]] | None
+            (field_name, one_based_block_position) combinations, or None when
+            element fields are absent. A combination without stored values yields
+            an empty array when loaded.
         """
         if self.get_elem_var_names() is None or self.get_num_elem_blocks() is None:
             return None
 
-        blocks = [ii+1 for ii in range(self.get_num_elem_blocks())] # type: ignore
-        names_blocks = list([])
+        blocks = [ii + 1 for ii in range(self.get_num_elem_blocks())]  # type: ignore
+        names_blocks = []
 
-        for nn in self.get_elem_var_names(): # type: ignore
+        for nn in self.get_elem_var_names():  # type: ignore
             for bb in blocks:
-                names_blocks.append((str(nn),bb))
+                names_blocks.append((str(nn), bb))
 
         return names_blocks
 
-
-    def get_elem_vars(self,
-                      names_blocks: list[tuple[str,int]] | None,
-                      time_inds: np.ndarray | None = None
-                      ) -> dict[tuple[str,int],np.ndarray] | None:
-        """get_elem_vars: gets the element variables as a dictionary keyed by
-        tuples which containg the element variable name and the block number.
-        For example: ('strain_xx',1). The element data is given as a numpy
-        array with dimensions E_bxT where E_b is the number of element in the
-        block and T is the number of time steps.
+    def get_elem_vars(
+        self,
+        names_blocks: list[tuple[str, int]] | None,
+        time_inds: np.ndarray | list[int] | tuple[int, ...] | slice | None = None,
+    ) -> dict[tuple[str, int], np.ndarray] | None:
+        """Load selected element fields by name and one-based block position.
 
         Parameters
         ----------
-        names_blocks : list[tuple[str,int]] | None :
-            list of tuples containing the combination of element variables names
-            and blocks to be extracted from the dataset.
-        time_inds: np.ndarray | None :
-             (Default value = None)
+        names_blocks : list[tuple[str, int]] | None
+            Field/block keys such as ("stress_yy", 1). None selects no element fields.
+        time_inds : np.ndarray | list[int] | tuple[int, ...] | slice | None, optional
+            Saved time indices or slice; None loads all saved times.
 
         Returns
         -------
-        dict[tuple[str,int],np.ndarray] | None
-            contains the variables requested keyed using the input names_blocks
-            with the data given as a numpy array.
+        dict[tuple[str, int], np.ndarray] | None
+            Keys mapped to (elements_in_block, selected_times) arrays in native
+            units. Missing stored combinations give empty arrays. None when no
+            names are selected or the file contains no element fields.
 
+        Raises
+        ------
+        TypeError
+            A requested field name cannot be resolved.
+        IndexError
+            A time index is invalid.
         """
         all_names = self.get_elem_var_names()
 
         if all_names is None or names_blocks is None:
             return None
 
-        key_tag = 'vals_elem_var'
+        key_tag = "vals_elem_var"
 
-        vars = dict({})
+        elem_vars = {}
         for nn in names_blocks:
-            key = self.get_key(nn[0],all_names,key_tag) + f'eb{nn[1]:d}' # type: ignore
-            vars[nn] = self.get_var(key,time_inds)
+            key = self.get_key(nn[0], all_names, key_tag) + f"eb{nn[1]:d}"  # type: ignore
+            elem_vars[nn] = self.get_var(key, time_inds)
 
-        return vars
+        return elem_vars
 
-
-    def get_all_elem_vars(self) -> dict[tuple[str,int], np.ndarray] | None:
-        """get_all_elem_vars: gets all element variables as a dictionary keyed by
-        tuples which containg the element variable name and the block number.
-        For example: ('strain_xx',1). The element data is given as a numpy
-        array with dimensions E_bxT where E_b is the number of element in the
-        block and T is the number of time steps.
-
-        Parameters
-        ----------
+    def get_all_elem_vars(self) -> dict[tuple[str, int], np.ndarray] | None:
+        """Load every element field/block combination at every saved time.
 
         Returns
         -------
-        dict[tuple[str,int], np.ndarray] | None
-            contains the variables requested keyed using the input names_blocks
-            with the data given as a numpy array.
+        dict[tuple[str, int], np.ndarray] | None
+            Field/block keys mapped to (elements_in_block, time_count) arrays in
+            native units, or None when element fields are absent.
         """
 
         return self.get_elem_vars(self.get_elem_var_names_and_blocks())
 
-
     def get_glob_var_names(self) -> np.ndarray | None:
-        """get_glob_var_names: gets the names of all global variables in the
-        dataset. Global variables include the output of all MOOSE post-
-        processors.
-
-        Parameters
-        ----------
+        """Read global variable and postprocessor names.
 
         Returns
         -------
         np.ndarray | None
-            numpy array containing the global variable
-            names as strings.
-
+            Names such as "react_y_top", or None when global fields are absent.
         """
-        return self.get_names('name_glo_var')
+        return self.get_names("name_glo_var")
 
-
-    def get_glob_vars(self,
-                      names: np.ndarray | None,
-                      time_inds: np.ndarray | None  = None
-                      ) -> dict[str, np.ndarray] | None:
-        """get_glob_vars: gets the specified global variables as a dictionary
-        keyed by the variable name specified in the MOOSE input file. The data
-        is given as a numpy array of T dimensions where T is the number of time
-        steps.
+    def get_glob_vars(
+        self,
+        names: Iterable[str] | None,
+        time_inds: np.ndarray | list[int] | tuple[int, ...] | slice | None = None,
+    ) -> dict[str, np.ndarray] | None:
+        """Load selected global fields, including reaction postprocessors.
 
         Parameters
         ----------
-        names : np.ndarray | None
-            numpy array of strings specifying the
-            global variable names to extract from the dataset. If this is
-            None then return None.
-        time_inds: np.ndarray | None :
-             (Default value = None)
+        names : Iterable[str] | None
+            Existing global field names. None selects no global fields.
+        time_inds : np.ndarray | list[int] | tuple[int, ...] | slice | None, optional
+            Saved time indices or slice; None loads all saved times.
 
         Returns
         -------
         dict[str, np.ndarray] | None
-            dictionary keyed with the global
-            variable names requested giving the data as a numpy array.
+            Field names mapped to one-dimensional arrays of selected time values
+            in native units. None when no names are selected or globals are absent.
 
+        Raises
+        ------
+        IndexError
+            A requested name or time index is not present.
         """
         all_names = self.get_glob_var_names()
 
         if all_names is None or names is None:
             return None
 
-        key = 'vals_glo_var'
+        key = "vals_glo_var"
 
-        glob_vars = dict({})
-        for nn in names: # type: ignore
+        glob_vars = {}
+        for nn in names:  # type: ignore
             inds = np.where(all_names == nn)[0]
             if time_inds is None:
-                glob_vars[nn] = np.array(self._data.variables[key][:,inds[0]])
+                glob_vars[nn] = np.array(self._data.variables[key][:, inds[0]])
             else:
-                data = np.array(self._data.variables[key][:,inds[0]])
+                data = np.array(self._data.variables[key][:, inds[0]])
                 data = data[time_inds]
                 glob_vars[nn] = data
 
         return glob_vars
 
-
     def get_all_glob_vars(self) -> dict[str, np.ndarray] | None:
-        """get_all_glob_vars: gets all global variables as a dictionary
-        keyed by the variable name specified in the MOOSE input file. The data
-        is given as a numpy array of T dimensions where T is the number of time
-        steps.
-
-        Parameters
-        ----------
+        """Load every global field at every saved time.
 
         Returns
         -------
         dict[str, np.ndarray] | None
-            dictionary keyed with all global
-            variable names giving the data as numpy arrays.
-
+            Names mapped to (time_count,) arrays in native units, or None when
+            global variables are absent.
         """
         return self.get_glob_vars(self.get_glob_var_names())
 
-
-    def get_coords(self) -> tuple[np.ndarray,int]:
-        """Gets the nodal coordinates in each spatial dimension setting any
-        undefined dimensions to zeros.
-
-        Parameters
-        ----------
+    def get_coords(self) -> tuple[np.ndarray, int]:
+        """Read reference nodal coordinates, padding missing axes with zeros.
 
         Returns
         -------
-        np.array
-            returns the nodal coordinates as an array with shape
-            (N,3) where N is the number of nodes and the three columns
-            are the (x,y,z) spatial dimensions.
+        coords : np.ndarray
+            Shape (node_count, 3), columns x/y/z, in the simulation's length units.
+        num_nodes : int
+            Number of nodes. This is not the number of active spatial dimensions.
 
         Raises
         ------
         RuntimeError
-            no spatial dimensions found.
-
+            No spatial coordinate values are stored.
         """
         # If the problem is not 3D any of these could not exist
-        x = self.get_var('coordx')
-        y = self.get_var('coordy')
-        z = self.get_var('coordz')
+        x = self.get_var("coordx")
+        y = self.get_var("coordy")
+        z = self.get_var("coordz")
 
         # Problem has to be at least 1D in space if not raise an error
-        num_coords = np.max(np.array([x.shape[0],y.shape[0],z.shape[0]]))
+        num_coords = np.max(np.array([x.shape[0], y.shape[0], z.shape[0]]))
         if num_coords == 0:
-            raise RuntimeError("No spatial coordinate dimensions detected, problem must be at least 1D.")
+            raise RuntimeError(
+                "No spatial coordinate dimensions detected, problem must be at least 1D."
+            )
 
         # Any dimensions that do not exist are assumed to be zeros
-        x = self._expand_coord(x,num_coords)
-        y = self._expand_coord(y,num_coords)
-        z = self._expand_coord(z,num_coords)
+        x = self._expand_coord(x, num_coords)
+        y = self._expand_coord(y, num_coords)
+        z = self._expand_coord(z, num_coords)
 
-        return (np.vstack((x,y,z)).T,num_coords)
-
+        return (np.vstack((x, y, z)).T, num_coords)
 
     def _expand_coord(self, coord: np.ndarray, dim: int) -> np.ndarray:
-        """Helper function to create an array of zeros to pad any spatial
-        dimensions that are not defined for the simulation.
+        """Pad a missing coordinate axis without modifying a present axis.
 
         Parameters
         ----------
-        coord : np.array
-            the coordinate array.
+        coord : np.ndarray
+            One-dimensional coordinate vector, possibly empty.
         dim : int
-            the size of the vector of zeros to create if coord is
-            empty.
+            Node count used for the replacement vector when coord is empty.
 
         Returns
         -------
-        np.array
-            returns a vector of zeros with shape (dim,) if the
-            input array is empty, otherwise return the input coord array.
-
+        np.ndarray
+            The original vector when populated, otherwise a zero vector of shape (dim,).
         """
         if coord.shape[0] == 0:
-            return np.zeros([dim,])
+            return np.zeros(
+                [
+                    dim,
+                ]
+            )
 
         return coord
 
-
-    def get_time(self, time_inds: np.ndarray | None = None) -> np.ndarray:
-        """Get a vector of simulation time steps.
+    def get_time(
+        self, time_inds: np.ndarray | list[int] | tuple[int, ...] | slice | None = None
+    ) -> np.ndarray:
+        """Read the saved simulation times in their original units.
 
         Parameters
         ----------
-        time_inds: np.ndarray | None :
-             (Default value = None)
+        time_inds : np.ndarray | list[int] | tuple[int, ...] | slice | None, optional
+            Saved time indices or slice; None loads all saved times.
 
         Returns
         -------
-        np.array
-            returns an array with shape (T,) where T is the number
-            of time steps and the values of the elements are the simulation
-            time and each time step.
+        np.ndarray
+            Shape (selected_times,), or an empty array when time_whole is absent.
 
+        Raises
+        ------
+        IndexError
+            A requested time index is outside the stored time range.
         """
-        time_steps = np.array([]
-                              )
-        if 'time_whole' in self._data.variables:
-            time_steps = np.array(
-                self._data.variables['time_whole'][:]
-            )
+        time_steps = np.array([])
+        if "time_whole" in self._data.variables:
+            time_steps = np.array(self._data.variables["time_whole"][:])
 
             if time_inds is not None:
                 time_steps = time_steps[time_inds]
 
         return time_steps
 
-
     def print_vars(self) -> None:
-        """Prints all variable strings in the exodus file to console."""
+        """Print every raw NetCDF variable key to standard output.
+
+        Notes
+        -----
+        These are storage keys such as vals_nod_var1, not physical field names.
+        Use get_node_var_names, get_elem_var_names and get_glob_var_names for those.
+        """
         for vv in self._data.variables:
             print(vv)
 
     def get_read_config(self) -> SimLoadConfig:
-        """get_read_config: constructs a SimReadConfig object by extracting
-        all the variable names found in the exodus dataset. Useful for creating
-        a mostly populated SimReadConfig and removing variables that are
-        unwanted.
-
-        Parameters
-        ----------
+        """Build a load configuration containing all available variable names.
 
         Returns
         -------
-        SimReadConfig
-            data class containing names of variables to be
-            extracted from the exodus dataset. See mooseherder.simdata.
-
+        SimLoadConfig
+            Configuration for time, geometry, side sets and all available nodal,
+            element and global variables. Callers may remove unwanted fields before
+            passing it to load_sim_data.
         """
         read_config = SimLoadConfig()
 
@@ -706,25 +609,26 @@ class ExodusLoader(IOutputLoader):
 
         return read_config
 
-
-    def load_sim_data(self,
-                      read_config: SimLoadConfig) -> SimData:
-        """read_sim_data: reads the simulation data based on the specified
-        SimReadConfig object.
+    def load_sim_data(self, read_config: SimLoadConfig) -> SimData:
+        """Load selected fields and geometry into an independent SimData container.
 
         Parameters
         ----------
-        read_config : SimReadConfig
-            data class containing the names of
-            the variables that are to be extracted from the exodus dataset.
-        read_config: SimReadConfig :
-
+        read_config : SimLoadConfig
+            Field names, geometry/connectivity selections and time indices to load.
+            Its enforce_convention flag controls mesh normalisation for this call.
 
         Returns
         -------
         SimData
-            data class containing data from the simulation.
+            Selected arrays in the source simulation's units. Nodal fields have axes
+            (node, time); element fields have axes (element, time) per block. The arrays
+            are in memory and remain valid after closing the loader.
 
+        Raises
+        ------
+        RuntimeError
+            The underlying NetCDF dataset has already been closed.
         """
         data = SimData()
 
@@ -734,11 +638,11 @@ class ExodusLoader(IOutputLoader):
             coords, _ = self.get_coords()
             data.coords = coords
             num_spat_dims = 0
-            if self.get_var('coordx').shape[0] > 0:
+            if self.get_var("coordx").shape[0] > 0:
                 num_spat_dims += 1
-            if self.get_var('coordy').shape[0] > 0:
+            if self.get_var("coordy").shape[0] > 0:
                 num_spat_dims += 1
-            if self.get_var('coordz').shape[0] > 0:
+            if self.get_var("coordz").shape[0] > 0:
                 num_spat_dims += 1
             data.num_spat_dims = num_spat_dims
         if read_config.connect:
@@ -746,34 +650,41 @@ class ExodusLoader(IOutputLoader):
 
         data.side_sets = self.get_sidesets(read_config.sidesets)
 
-        data.node_vars = self.get_node_vars(read_config.node_vars,
-                                            read_config.time_inds)
-        data.elem_vars = self.get_elem_vars(read_config.elem_vars,
-                                            read_config.time_inds)
-        data.glob_vars = self.get_glob_vars(read_config.glob_vars,
-                                            read_config.time_inds)
+        data.node_vars = self.get_node_vars(
+            read_config.node_vars, read_config.time_inds
+        )
+        data.elem_vars = self.get_elem_vars(
+            read_config.elem_vars, read_config.time_inds
+        )
+        data.glob_vars = self.get_glob_vars(
+            read_config.glob_vars, read_config.time_inds
+        )
 
-        if (read_config.enforce_convention
+        if (
+            read_config.enforce_convention
             and data.connect is not None
-            and data.coords is not None):
+            and data.coords is not None
+        ):
             data = enforce_mesh_convention(data)
 
         data.refresh_mesh_type()
 
         return data
 
-
     def load_all_sim_data(self) -> SimData:
-        """read_all_sim_data: gets all simulation data from the exodus dataset.
-
-        Parameters
-        ----------
+        """Load all available Exodus fields and geometry.
 
         Returns
         -------
         SimData
-            data class containing the data from the simulation.
+            Available nodal, element and global arrays, geometry, side sets and times.
+            The constructor's enforce_convention setting controls mesh normalisation.
+            Loaded arrays remain usable after the loader is closed.
 
+        Raises
+        ------
+        RuntimeError
+            The underlying NetCDF dataset has already been closed.
         """
         read_config = self.get_read_config()
         read_config.enforce_convention = self._enforce_convention

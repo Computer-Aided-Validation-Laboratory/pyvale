@@ -19,10 +19,10 @@ class InputModifier:
     def __init__(
         self,
         input_file: Path,
-        comment_chars="#",
-        end_chars="",
-        var_start="_*",
-        var_end="**",
+        comment_chars: str = "#",
+        end_chars: str = "",
+        var_start: str = "_*",
+        var_end: str = "**",
     ) -> None:
         """Initialise the class by reading in the input file. Find and read
         any variables that are at the top of the file. Default comment_char
@@ -84,8 +84,9 @@ class InputModifier:
 
         extract_var = var_line.strip()
         extract_var = extract_var.replace(self._end_chars, "")
-        extract_var = extract_var.split(self._comment_chars)[0]  # Remove trailing comments should they exist
-
+        # Remove trailing comments should they exist
+        extract_var = extract_var.split(self._comment_chars)[0]  
+        
         var_key = ""
         var_val = ""
         if extract_var and extract_var.find("=") >= 0:
@@ -121,7 +122,7 @@ class InputModifier:
         """Find what lines the variables are defined on."""
 
         # TODO: this needs to be made more robust to multiple occurences of variable block characters.
-        # Also need to handle cases when the start and end block characters are the same
+        # Also need to handle case_input_params when the start and end block characters are the same
 
         start_string = self._comment_chars + self._var_start_str
         end_string = self._comment_chars + self._var_end_str

@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import ast
 import subprocess
 from pathlib import Path
 
@@ -53,6 +54,31 @@ def test_example_group_navigation_order() -> None:
     documented = get_toctree_entries(landing_page, "examples_")
     expected = tuple(group_name for group_name, _ in GROUPS)
     assert documented == expected
+
+
+def test_gallery_configuration_matches_curated_groups() -> None:
+    """Configured gallery sources and destinations match the public inventory."""
+    tree = ast.parse((REPO_ROOT / "docs/source/conf.py").read_text(encoding="utf-8"))
+    configuration = next(
+        node.value
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "sphinx_gallery_conf"
+            for target in node.targets
+        )
+    )
+    assert isinstance(configuration, ast.Dict)
+    directories = {
+        key.value: ast.literal_eval(value)
+        for key, value in zip(configuration.keys, configuration.values, strict=True)
+        if isinstance(key, ast.Constant)
+        and key.value in ("examples_dirs", "gallery_dirs")
+    }
+    expected_names = [name for _, name in GROUPS]
+    assert [Path(path).name for path in directories["examples_dirs"]] == expected_names
+    expected_galleries = [f"examples/{name}" for name in expected_names]
+    assert directories["gallery_dirs"] == expected_galleries
 
 
 def test_development_example_families_are_not_public() -> None:
