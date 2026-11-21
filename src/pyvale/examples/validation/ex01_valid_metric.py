@@ -94,6 +94,7 @@ valid_result: vl.ValidResult = vl.ValidEngine(
     ]
 ).run(valid_case)
 
+print(80*"-")
 for metric in (
     vl.MetricAVM(),
     vl.MetricKS(),
@@ -103,20 +104,25 @@ for metric in (
     vl.MetricMAVM(),
 ):
     print(metric.get_kind().name, metric.get_scale().name, metric.get_comparison().name)
+print(80*"-")
 
 # %%
 # 3. Post-processing and inspect data structures
 # ----------------------------------------------
 # Engine arrays have shape (1 point, 1 component, 1 time). Select by metric
 # type. The three input entries remain independent observations for one point.
+
 metrics: dict[vl.EMetricType, vl.MetricField] = valid_result.metrics[
     observable_tag
 ]
+
 print("Observable tags:", tuple(observables))
 print("Simulation axes and shape:", sim_response.axes, sim_response.data.shape)
 print("Experiment axes and shape:", exp_response.axes, exp_response.data.shape)
+print(80*"-")
 for metric_type, metric_field in metrics.items():
     print(metric_type.name, metric_field.axes, metric_field.outputs)
+print(80*"-")
 
 # %%
 # 4. Analysis and visualisation

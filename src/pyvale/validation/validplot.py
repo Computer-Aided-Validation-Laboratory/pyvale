@@ -34,7 +34,6 @@ from pyvale.validation.validtools import (
 from pyvale.validation.validtypes import (
     EEpisOffset,
     EMetricOut,
-    EValidECDFBounds,
     EValidECDFCentre,
     EValidECDFReduce,
     EValidMAVMDiagnostic,
@@ -61,17 +60,13 @@ class ValidPlotOpts:
     y_label: str | None = None
     sim_label: str = "Sim."
     exp_label: str = "Exp."
-    exp_conf_lower: str = "Exp. conf. lower"
-    exp_conf_upper: str = "Exp. conf. upper"
     sim_color: str = "tab:blue"
     exp_color: str = "tab:orange"
-    sim_linestyle: str = "-"
+    sim_linestyle: str | tuple[float, tuple[float, ...]] = (0, (8, 3))
     exp_linestyle: str = "-"
     lower_linestyle: str = "--"
     upper_linestyle: str = ":"
     shade_bounds: bool = True
-    bounds_alpha: float = 0.2
-    bounds_color: str | None = None
     metric_color: str = "grey"
     metric_alpha: float = 0.25
     metric_linestyle: str = "-."
@@ -286,8 +281,8 @@ def plot_sim_exp_cdfs(
         valid_case,
         observable,
         (
-            (EValidSource.SIM, sim_view, sim_offset),
             (EValidSource.EXP, exp_view, exp_offset),
+            (EValidSource.SIM, sim_view, sim_offset),
         ),
         point_idxs=point_idxs,
         component_idx=component_idx,
@@ -376,7 +371,8 @@ def _plot_ecdf_sources(
         panel.set_ylabel("Cumulative probability")
         panel.set_ylim(0.0, 1.02)
         panel.grid(alpha=0.3)
-        panel.legend()
+        if panel.get_legend_handles_labels()[1]:
+            panel.legend()
         _apply_plot_options(fig, panel, options)
     return ECDFPlot(
         fig,
@@ -416,9 +412,11 @@ def _plot_ecdf_view(
         elif reduction is not EValidECDFReduce.KEEP:
             reduction_labels.append(f"{reduction.name.lower()} {name}")
     if single:
-        curve_label = label
-        if reduction_labels:
-            curve_label += " " + " / ".join(reduction_labels) + " quantile"
+        curve_label = (
+            f"{label} {' / '.join(reduction_labels)} quantile"
+            if reduction_labels
+            else None
+        )
         _plot_quantile_curve(
             ax,
             quantiles[0],
@@ -436,7 +434,6 @@ def _plot_ecdf_view(
                 lower,
                 curves.probabilities,
                 color=color,
-                label=f"{label} lower envelope",
                 linestyle=options.lower_linestyle,
             )
             _plot_quantile_curve(
@@ -444,7 +441,6 @@ def _plot_ecdf_view(
                 upper,
                 curves.probabilities,
                 color=color,
-                label=f"{label} upper envelope",
                 linestyle=options.upper_linestyle,
             )
             if options.shade_bounds and not np.array_equal(lower, upper):
@@ -453,8 +449,8 @@ def _plot_ecdf_view(
                     np.r_[lower[0], lower],
                     np.r_[upper[0], upper],
                     step="pre",
-                    color=options.bounds_color or color,
-                    alpha=options.bounds_alpha,
+                    color=color,
+                    zorder=0.4,
                 )
         if view.centre is not EValidECDFCentre.NONE:
             centre = (
@@ -560,12 +556,12 @@ def add_support_overlay(
             indices.append(index)
         selection = tuple(indices)
         lower = (
-            supports.sim_lower[selection]
+            supports.sim_upper[selection]
             if output is EMetricOut.D_PLUS
             else supports.lower[selection]
         )
         upper = (
-            supports.sim_upper[selection]
+            supports.sim_lower[selection]
             if output is EMetricOut.D_MINUS
             else supports.upper[selection]
         )
@@ -574,6 +570,8 @@ def add_support_overlay(
         prepared.append((lower, upper))
     options = plot.options
     for ax, (lower, upper) in zip(plot.axes.flat, prepared, strict=False):
+        if np.array_equal(lower, upper):
+            continue
         ax.fill_betweenx(
             np.r_[0.0, supports.probabilities],
             np.r_[lower[0], lower],
@@ -787,6 +785,13 @@ def add_metric_overlay(
                 upper = np.max(quantiles + largest_per_sim[:, None], axis=0)
             if kind is EMetricType.AVM or output is EMetricOut.D_MINUS:
                 lower = np.min(quantiles - largest_per_sim[:, None], axis=0)
+            if kind is EMetricType.MAVM:
+                if output is EMetricOut.D_PLUS:
+                    lower = np.max(quantiles, axis=0)
+                else:
+                    upper = np.min(quantiles, axis=0)
+            if np.array_equal(lower, upper):
+                continue
             label = f"{metric_label} outer support shift"
             if kind is EMetricType.AVM:
                 label += " (symmetric)"
@@ -834,7 +839,6 @@ def add_metric_overlay(
                     mavm.exp_conf_lower,
                     mavm.exp_probs,
                     color=options.exp_color,
-                    label=options.exp_conf_lower,
                     linestyle=options.lower_linestyle,
                 )
                 _plot_quantile_curve(
@@ -842,7 +846,6 @@ def add_metric_overlay(
                     mavm.exp_conf_upper,
                     mavm.exp_probs,
                     color=options.exp_color,
-                    label=options.exp_conf_upper,
                     linestyle=options.upper_linestyle,
                 )
             probabilities = np.unique(
@@ -1149,7 +1152,7 @@ def _plot_quantile_curve(
     *,
     color: str,
     label: str | None = None,
-    linestyle: str = "-",
+    linestyle: str | tuple[float, tuple[float, ...]] = "-",
     alpha: float = 1.0,
 ) -> None:
     ax.step(
@@ -1168,22 +1171,15 @@ def _plot_distribution_summary(
     summary: ValidECDFSummary,
     *,
     color: str,
-    label: str,
     options: ValidPlotOpts,
-    linestyle: str = "-",
+    linestyle: str | tuple[float, tuple[float, ...]] = "-",
 ) -> None:
     _plot_quantile_curve(
         ax,
         summary.nominal,
         summary.probabilities,
         color=color,
-        label=f"{label}: mean quantile",
         linestyle=linestyle,
-    )
-    limit_label = (
-        "pointwise bounds"
-        if summary.bounds is EValidECDFBounds.POINTWISE
-        else "selected scenarios"
     )
     _plot_quantile_curve(
         ax,
@@ -1191,7 +1187,6 @@ def _plot_distribution_summary(
         summary.probabilities,
         color=color,
         linestyle=options.lower_linestyle,
-        label=f"{label}: {limit_label}",
     )
     _plot_quantile_curve(
         ax,
@@ -1200,14 +1195,14 @@ def _plot_distribution_summary(
         color=color,
         linestyle=options.upper_linestyle,
     )
-    if options.shade_bounds:
+    if options.shade_bounds and not np.array_equal(summary.lower, summary.upper):
         ax.fill_betweenx(
             np.r_[0.0, summary.probabilities],
             np.r_[summary.lower[0], summary.lower],
             np.r_[summary.upper[0], summary.upper],
             step="pre",
-            color=options.bounds_color or color,
-            alpha=options.bounds_alpha,
+            color=color,
+            zorder=0.4,
         )
 
 
@@ -1231,24 +1226,21 @@ def plot_valid_mavm_diagnostic(
         raise ValueError("Selected diagnostic needs a MAVM correction.")
     fig, ax = _create_axes(ax, valid_plot_opts)
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
-    source_labels = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
-    _plot_distribution_summary(
-        ax,
-        sim,
-        color=options.sim_color,
-        label=source_labels.sim_label,
-        options=options,
-        linestyle=options.sim_linestyle,
-    )
     if exp is not None and view is not EValidMAVMDiagnostic.MODEL_CORRECTION:
         _plot_distribution_summary(
             ax,
             exp,
             color=options.exp_color,
-            label=source_labels.exp_label,
             options=options,
             linestyle=options.exp_linestyle,
         )
+    _plot_distribution_summary(
+        ax,
+        sim,
+        color=options.sim_color,
+        options=options,
+        linestyle=options.sim_linestyle,
+    )
     if correction is not None and view is EValidMAVMDiagnostic.COMPARISONS:
         for comparison, color, label in (
             (correction.upper, "tab:green", "Upper-support case"),
@@ -1293,8 +1285,9 @@ def plot_valid_mavm_diagnostic(
                 np.r_[lower[0], lower],
                 np.r_[upper[0], upper],
                 step="pre",
-                color=options.bounds_color or "grey",
-                alpha=options.bounds_alpha,
+                color=options.metric_color,
+                alpha=options.metric_alpha,
+                zorder=0.5,
                 label="Outer MAVM support-shift band",
             )
         _plot_quantile_curve(
@@ -1315,6 +1308,7 @@ def plot_valid_mavm_diagnostic(
         )
     ax.set_ylabel("Cumulative probability")
     ax.set_ylim(0.0, 1.02)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
+    if ax.get_legend_handles_labels()[1]:
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
     _apply_plot_options(fig, ax, valid_plot_opts)
     return fig, ax

@@ -59,52 +59,190 @@ class AnalyticCase:
 # Counts: deterministic/deterministic; each deterministic/aleatory orientation;
 # equal even/even and odd/odd; then all four parities in each unequal direction.
 ANALYTIC_CASES = (
-    AnalyticCase(1, 1, 1, 1, np.nan, 1, 0, 1 / 2),
-    AnalyticCase(1, 2, 2, 1, np.nan, 2, 0, 1 / 2),
-    AnalyticCase(1, 3, 3, 1, np.nan, 3, 0, 1 / 2),
-    AnalyticCase(2, 1, 1, 1 / 2, np.nan, 1 / 2, 1 / 2, 1 / 4),
-    AnalyticCase(3, 1, 5 / 3, 2 / 3, np.nan, 1 / 3, 4 / 3, 5 / 18),
-    AnalyticCase(2, 2, 1, 1 / 2, 1 / 8, 1, 0, 1 / 4),
-    AnalyticCase(3, 3, 1, 1 / 3, 1 / 12, 1, 0, 1 / 6),
-    AnalyticCase(4, 2, 3 / 2, 1 / 2, 7 / 72, 1 / 4, 5 / 4, 3 / 16),
-    AnalyticCase(4, 3, 1, 1 / 4, 1 / 21, 1 / 2, 1 / 2, 7 / 72),
-    AnalyticCase(5, 2, 12 / 5, 3 / 5, 1 / 7, 1 / 5, 11 / 5, 6 / 25),
-    AnalyticCase(5, 3, 23 / 15, 2 / 5, 19 / 240, 4 / 15, 19 / 15, 13 / 90),
-    AnalyticCase(2, 4, 3, 3 / 4, 19 / 72, 3, 0, 3 / 8),
-    AnalyticCase(3, 4, 2, 1 / 2, 13 / 84, 2, 0, 1 / 4),
-    AnalyticCase(2, 5, 4, 4 / 5, 11 / 35, 4, 0, 2 / 5),
-    AnalyticCase(3, 5, 3, 3 / 5, 11 / 48, 3, 0, 3 / 10),
+    AnalyticCase(
+        sim_count=1,
+        exp_count=1,
+        avm=1,
+        ks=1,
+        cvm=np.nan,
+        d_plus=1,
+        d_minus=0,
+        u_pooling=1 / 2,
+    ),
+    AnalyticCase(
+        sim_count=1,
+        exp_count=2,
+        avm=2,
+        ks=1,
+        cvm=np.nan,
+        d_plus=2,
+        d_minus=0,
+        u_pooling=1 / 2,
+    ),
+    AnalyticCase(
+        sim_count=1,
+        exp_count=3,
+        avm=3,
+        ks=1,
+        cvm=np.nan,
+        d_plus=3,
+        d_minus=0,
+        u_pooling=1 / 2,
+    ),
+    AnalyticCase(
+        sim_count=2,
+        exp_count=1,
+        avm=1,
+        ks=1 / 2,
+        cvm=np.nan,
+        d_plus=1 / 2,
+        d_minus=1 / 2,
+        u_pooling=1 / 4,
+    ),
+    AnalyticCase(
+        sim_count=3,
+        exp_count=1,
+        avm=5 / 3,
+        ks=2 / 3,
+        cvm=np.nan,
+        d_plus=1 / 3,
+        d_minus=4 / 3,
+        u_pooling=5 / 18,
+    ),
+    AnalyticCase(
+        sim_count=2,
+        exp_count=2,
+        avm=1,
+        ks=1 / 2,
+        cvm=1 / 8,
+        d_plus=1,
+        d_minus=0,
+        u_pooling=1 / 4,
+    ),
+    AnalyticCase(
+        sim_count=3,
+        exp_count=3,
+        avm=1,
+        ks=1 / 3,
+        cvm=1 / 12,
+        d_plus=1,
+        d_minus=0,
+        u_pooling=1 / 6,
+    ),
+    AnalyticCase(
+        sim_count=4,
+        exp_count=2,
+        avm=3 / 2,
+        ks=1 / 2,
+        cvm=7 / 72,
+        d_plus=1 / 4,
+        d_minus=5 / 4,
+        u_pooling=3 / 16,
+    ),
+    AnalyticCase(
+        sim_count=4,
+        exp_count=3,
+        avm=1,
+        ks=1 / 4,
+        cvm=1 / 21,
+        d_plus=1 / 2,
+        d_minus=1 / 2,
+        u_pooling=7 / 72,
+    ),
+    AnalyticCase(
+        sim_count=5,
+        exp_count=2,
+        avm=12 / 5,
+        ks=3 / 5,
+        cvm=1 / 7,
+        d_plus=1 / 5,
+        d_minus=11 / 5,
+        u_pooling=6 / 25,
+    ),
+    AnalyticCase(
+        sim_count=5,
+        exp_count=3,
+        avm=23 / 15,
+        ks=2 / 5,
+        cvm=19 / 240,
+        d_plus=4 / 15,
+        d_minus=19 / 15,
+        u_pooling=13 / 90,
+    ),
+    AnalyticCase(
+        sim_count=2,
+        exp_count=4,
+        avm=3,
+        ks=3 / 4,
+        cvm=19 / 72,
+        d_plus=3,
+        d_minus=0,
+        u_pooling=3 / 8,
+    ),
+    AnalyticCase(
+        sim_count=3,
+        exp_count=4,
+        avm=2,
+        ks=1 / 2,
+        cvm=13 / 84,
+        d_plus=2,
+        d_minus=0,
+        u_pooling=1 / 4,
+    ),
+    AnalyticCase(
+        sim_count=2,
+        exp_count=5,
+        avm=4,
+        ks=4 / 5,
+        cvm=11 / 35,
+        d_plus=4,
+        d_minus=0,
+        u_pooling=2 / 5,
+    ),
+    AnalyticCase(
+        sim_count=3,
+        exp_count=5,
+        avm=3,
+        ks=3 / 5,
+        cvm=11 / 48,
+        d_plus=3,
+        d_minus=0,
+        u_pooling=3 / 10,
+    ),
 )
 CASE_IDS = tuple(
-    f"sim-{case.sim_count}_exp-{case.exp_count}" for case in ANALYTIC_CASES
+    f"sim-{test_case.sim_count}_exp-{test_case.exp_count}"
+    for test_case in ANALYTIC_CASES
 )
 
 
-@pytest.mark.parametrize("case", ANALYTIC_CASES, ids=CASE_IDS)
+@pytest.mark.parametrize("test_case", ANALYTIC_CASES, ids=CASE_IDS)
 def test_interleaved_distribution_metrics_have_exact_answers(
-    case: AnalyticCase,
+    test_case: AnalyticCase,
 ) -> None:
-    sim = 2.0 * np.arange(case.sim_count)
-    exp = 1.0 + 2.0 * np.arange(case.exp_count)
-    assert vl.calc_avm_1d(sim, exp) == pytest.approx(case.avm, rel=0, abs=1e-12)
-    assert vl.calc_ks_1d(sim, exp) == pytest.approx(case.ks, rel=0, abs=1e-12)
-    if np.isnan(case.cvm):
+    sim = 2.0 * np.arange(test_case.sim_count)
+    exp = 1.0 + 2.0 * np.arange(test_case.exp_count)
+    assert vl.calc_avm_1d(sim, exp) == pytest.approx(test_case.avm, rel=0, abs=1e-12)
+    assert vl.calc_ks_1d(sim, exp) == pytest.approx(test_case.ks, rel=0, abs=1e-12)
+    if np.isnan(test_case.cvm):
         with pytest.warns(RuntimeWarning, match="sample arguments is too small"):
             cvm = vl.calc_cvm_1d(sim, exp)
         assert np.isnan(cvm)
     else:
         cvm = vl.calc_cvm_1d(sim, exp)
-        assert cvm == pytest.approx(case.cvm, rel=0, abs=1e-12)
+        assert cvm == pytest.approx(test_case.cvm, rel=0, abs=1e-12)
     mavm = vl.calc_mavm_1d(sim, exp, alpha=0.5)
-    assert mavm.d_plus == pytest.approx(case.d_plus, rel=0, abs=1e-12)
-    assert mavm.d_minus == pytest.approx(case.d_minus, rel=0, abs=1e-12)
+    assert mavm.d_plus == pytest.approx(test_case.d_plus, rel=0, abs=1e-12)
+    assert mavm.d_minus == pytest.approx(test_case.d_minus, rel=0, abs=1e-12)
     np.testing.assert_allclose(mavm.exp_conf_lower, exp, rtol=0, atol=1e-12)
     np.testing.assert_allclose(mavm.exp_conf_upper, exp, rtol=0, atol=1e-12)
 
     # Explicit ECDF construction keeps the pooling reference independent of calc_ecdf.
-    sim_cdf = vl.ValidECDF(sim, np.arange(1, case.sim_count + 1) / case.sim_count)
-    assert vl.calc_u_pooling_1d([sim_cdf] * case.exp_count, exp) == pytest.approx(
-        case.u_pooling, rel=0, abs=1e-12
+    sim_cdf = vl.ValidECDF(
+        sim, np.arange(1, test_case.sim_count + 1) / test_case.sim_count
+    )
+    assert vl.calc_u_pooling_1d([sim_cdf] * test_case.exp_count, exp) == pytest.approx(
+        test_case.u_pooling, rel=0, abs=1e-12
     )
 
 
@@ -121,30 +259,30 @@ STUDENT_T_95 = (
 )
 
 
-@pytest.mark.parametrize("case", ANALYTIC_CASES, ids=CASE_IDS)
+@pytest.mark.parametrize("test_case", ANALYTIC_CASES, ids=CASE_IDS)
 @pytest.mark.parametrize("sim_shift", (-20.0, 20.0), ids=("sim-below", "sim-above"))
 def test_separated_metrics_and_mavm_confidence_have_closed_form_answers(
-    case: AnalyticCase,
+    test_case: AnalyticCase,
     sim_shift: float,
 ) -> None:
-    sim = sim_shift + 2.0 * np.arange(case.sim_count)
-    exp = 1.0 + 2.0 * np.arange(case.exp_count)
+    sim = sim_shift + 2.0 * np.arange(test_case.sim_count)
+    exp = 1.0 + 2.0 * np.arange(test_case.exp_count)
     # Entire distributions, including confidence bounds, are strictly separated.
-    mean_gap = case.exp_count - (sim_shift + case.sim_count - 1)
-    confidence_shift = STUDENT_T_95[case.exp_count - 1] * sqrt(
-        (case.exp_count**2 - 1) / (3 * case.exp_count)
+    mean_gap = test_case.exp_count - (sim_shift + test_case.sim_count - 1)
+    confidence_shift = STUDENT_T_95[test_case.exp_count - 1] * sqrt(
+        (test_case.exp_count**2 - 1) / (3 * test_case.exp_count)
     )
     assert vl.calc_avm_1d(sim, exp) == pytest.approx(abs(mean_gap), rel=0, abs=1e-12)
     assert vl.calc_ks_1d(sim, exp) == pytest.approx(1.0, rel=0, abs=1e-12)
-    if min(case.sim_count, case.exp_count) == 1:
+    if min(test_case.sim_count, test_case.exp_count) == 1:
         with pytest.warns(RuntimeWarning, match="sample arguments is too small"):
             cvm = vl.calc_cvm_1d(sim, exp)
         assert np.isnan(cvm)
     else:
         cvm = vl.calc_cvm_1d(sim, exp)
         # Disjoint pooled ranks reduce the rank statistic to this expression.
-        expected_cvm = (2 * case.sim_count * case.exp_count + 1) / (
-            6 * (case.sim_count + case.exp_count)
+        expected_cvm = (2 * test_case.sim_count * test_case.exp_count + 1) / (
+            6 * (test_case.sim_count + test_case.exp_count)
         )
         assert cvm == pytest.approx(expected_cvm, rel=0, abs=1e-12)
     mavm = vl.calc_mavm_1d(sim, exp)
@@ -162,17 +300,21 @@ def test_separated_metrics_and_mavm_confidence_have_closed_form_answers(
     pbox = vl.calc_mavm_pbox_1d(sim, sim, exp)
     assert pbox.d_plus == pytest.approx(expected_d_plus, rel=0, abs=1e-10)
     assert pbox.d_minus == pytest.approx(expected_d_minus, rel=0, abs=1e-10)
-    sim_cdf = vl.ValidECDF(sim, np.arange(1, case.sim_count + 1) / case.sim_count)
-    assert vl.calc_u_pooling_1d([sim_cdf] * case.exp_count, exp) == pytest.approx(
+    sim_cdf = vl.ValidECDF(
+        sim, np.arange(1, test_case.sim_count + 1) / test_case.sim_count
+    )
+    assert vl.calc_u_pooling_1d([sim_cdf] * test_case.exp_count, exp) == pytest.approx(
         1 / 2, rel=0, abs=1e-12
     )
 
 
-@pytest.mark.parametrize("case", ANALYTIC_CASES, ids=CASE_IDS)
-def test_paired_metrics_use_pairs_and_reject_unequal_counts(case: AnalyticCase) -> None:
-    sim = 2.0 * np.arange(case.sim_count)
-    exp = 1.0 + 3.0 * np.arange(case.exp_count)
-    if case.sim_count != case.exp_count:
+@pytest.mark.parametrize("test_case", ANALYTIC_CASES, ids=CASE_IDS)
+def test_paired_metrics_use_pairs_and_reject_unequal_counts(
+    test_case: AnalyticCase,
+) -> None:
+    sim = 2.0 * np.arange(test_case.sim_count)
+    exp = 1.0 + 3.0 * np.arange(test_case.exp_count)
+    if test_case.sim_count != test_case.exp_count:
         with pytest.raises(ValueError, match="paired"):
             vl.MetricRMSE().calc(sim, exp)
         with pytest.raises(ValueError, match="paired"):
@@ -181,7 +323,7 @@ def test_paired_metrics_use_pairs_and_reject_unequal_counts(case: AnalyticCase) 
             vl.calc_deterministic_metrics_1d(sim, exp)
         return
     # Residual magnitudes are 1,2,...,n, with known first and second moments.
-    count = case.sim_count
+    count = test_case.sim_count
     mean_absolute_error = (count + 1) / 2
     mean_square_error = (count + 1) * (2 * count + 1) / 6
     exp_variance = 3 * (count**2 - 1) / 4
@@ -222,10 +364,12 @@ def test_paired_metrics_use_pairs_and_reject_unequal_counts(case: AnalyticCase) 
             assert errors.relative_error == pytest.approx(expected, rel=0, abs=1e-12)
 
 
-@pytest.mark.parametrize("case", ANALYTIC_CASES, ids=CASE_IDS)
-def test_engine_outputs_match_analytic_sample_count_cases(case: AnalyticCase) -> None:
-    sim = 2.0 * np.arange(case.sim_count)
-    exp = 1.0 + 2.0 * np.arange(case.exp_count)
+@pytest.mark.parametrize("test_case", ANALYTIC_CASES, ids=CASE_IDS)
+def test_engine_outputs_match_analytic_sample_count_cases(
+    test_case: AnalyticCase,
+) -> None:
+    sim = 2.0 * np.arange(test_case.sim_count)
+    exp = 1.0 + 2.0 * np.arange(test_case.exp_count)
     axes = (
         vl.EValidAxis.POINT,
         vl.EValidAxis.COMPONENT,
@@ -247,19 +391,19 @@ def test_engine_outputs_match_analytic_sample_count_cases(case: AnalyticCase) ->
         vl.MetricCVM(),
         vl.MetricMAVM(alpha=0.5),
     ]
-    if case.sim_count == case.exp_count:
+    if test_case.sim_count == test_case.exp_count:
         metrics.extend([vl.MetricRMSE(), vl.MetricRelErr()])
-    if np.isnan(case.cvm):
+    if np.isnan(test_case.cvm):
         with pytest.warns(RuntimeWarning, match="sample arguments is too small"):
             result = vl.ValidEngine(metrics).run(valid_case)
     else:
         result = vl.ValidEngine(metrics).run(valid_case)
     expected_outputs = (
-        (vl.EMetricType.AVM, vl.EMetricOut.DISTANCE, case.avm),
-        (vl.EMetricType.KS, vl.EMetricOut.STATISTIC, case.ks),
-        (vl.EMetricType.CVM, vl.EMetricOut.STATISTIC, case.cvm),
-        (vl.EMetricType.MAVM, vl.EMetricOut.D_PLUS, case.d_plus),
-        (vl.EMetricType.MAVM, vl.EMetricOut.D_MINUS, case.d_minus),
+        (vl.EMetricType.AVM, vl.EMetricOut.DISTANCE, test_case.avm),
+        (vl.EMetricType.KS, vl.EMetricOut.STATISTIC, test_case.ks),
+        (vl.EMetricType.CVM, vl.EMetricOut.STATISTIC, test_case.cvm),
+        (vl.EMetricType.MAVM, vl.EMetricOut.D_PLUS, test_case.d_plus),
+        (vl.EMetricType.MAVM, vl.EMetricOut.D_MINUS, test_case.d_minus),
     )
     for metric_type, output, expected in expected_outputs:
         field = result.metrics["response"][metric_type]
@@ -274,13 +418,13 @@ def test_engine_outputs_match_analytic_sample_count_cases(case: AnalyticCase) ->
             assert np.isnan(actual)
         else:
             assert actual == pytest.approx(expected, rel=0, abs=1e-12)
-    if case.sim_count == case.exp_count:
+    if test_case.sim_count == test_case.exp_count:
         assert result.metrics["response"][vl.EMetricType.RMSE].outputs[
             vl.EMetricOut.ERROR
         ][0, 0, 0] == pytest.approx(1.0, rel=0, abs=1e-12)
         assert result.metrics["response"][vl.EMetricType.RELATIVE_ERROR].outputs[
             vl.EMetricOut.ERROR
-        ][0, 0, 0] == pytest.approx(1 / (2 * case.exp_count - 1), rel=0, abs=1e-12)
+        ][0, 0, 0] == pytest.approx(1 / (2 * test_case.exp_count - 1), rel=0, abs=1e-12)
     else:
         for metric in (vl.MetricRMSE(), vl.MetricRelErr()):
             with pytest.raises(ValueError, match="equal aleatory counts"):
@@ -432,16 +576,16 @@ def test_mavm_confidence_is_constructed_before_enveloping_original_exp_cases() -
 
 
 def test_bounds_route_and_original_scenario_route_are_distinct() -> None:
-    case = create_epistemic_case(
+    test_case = create_epistemic_case(
         np.array([[[0.0, 100.0], [40.0, 60.0]]]), np.array([[[100.0]]])
     )
-    result = vl.ValidEngine([vl.MetricMAVM(alpha=0.5)]).run(case)
+    result = vl.ValidEngine([vl.MetricMAVM(alpha=0.5)]).run(test_case)
     direct = vl.find_metric_epis_supports(
-        case, result, "length", vl.EMetricType.MAVM
+        test_case, result, "length", vl.EMetricType.MAVM
     )
     bounded = vl.calc_mavm_over_epis_bounds(
-        vl.find_ecdf_epis_bounds(case.sim["length"]),
-        vl.find_ecdf_epis_bounds(case.exp["length"]),
+        vl.find_ecdf_epis_bounds(test_case.sim["length"]),
+        vl.find_ecdf_epis_bounds(test_case.exp["length"]),
         alpha=0.5,
     )
     np.testing.assert_allclose(direct.upper[0, 0, 0], [90.0, 150.0], rtol=0, atol=1e-12)
@@ -453,9 +597,9 @@ def test_nuisance_profiles_preserve_transferable_axes_and_original_arg_indices()
 ):
     sim = np.array([[0.0, 10.0], [2.0, 12.0]])[..., None] + np.array([0.0, 2.0])
     exp = np.array([[1.0, 4.0], [3.0, 6.0]])[..., None] + np.array([0.0, 2.0])
-    case = create_epistemic_case(sim, exp)
+    test_case = create_epistemic_case(sim, exp)
     result = vl.ValidEngine([vl.MetricAVM(), vl.MetricMAVM(alpha=0.5)]).run(
-        case
+        test_case
     )
     extrema = vl.profile_epis_nuisance_extrema(
         result, "length", vl.EMetricType.AVM
@@ -494,7 +638,7 @@ def test_nuisance_profiles_preserve_transferable_axes_and_original_arg_indices()
         [[9.0, 7.0], [11.0, 9.0]],
     )
     supports = vl.profile_epis_nuisance_supports(
-        case, result, "length", vl.EMetricType.MAVM
+        test_case, result, "length", vl.EMetricType.MAVM
     )
     assert supports.axes == extrema.axes
     np.testing.assert_allclose(
@@ -524,10 +668,10 @@ def test_other_metric_nuisance_extrema_match_hand_calculated_shift_cases(
     metric: vl.IValidMetric,
 ) -> None:
     # Same-sized paired two-point samples: residual shifts are 0 and 2.
-    case = create_epistemic_case(
+    test_case = create_epistemic_case(
         np.array([[[0.0, 2.0], [2.0, 4.0]]]), np.array([[[0.0, 2.0]]])
     )
-    result = vl.ValidEngine([metric]).run(case)
+    result = vl.ValidEngine([metric]).run(test_case)
     profile = vl.profile_epis_nuisance_extrema(result, "length", metric.get_kind())
     output = metric.get_outputs()[0]
     expected_max = {
@@ -544,16 +688,16 @@ def test_other_metric_nuisance_extrema_match_hand_calculated_shift_cases(
     if metric.get_kind() not in (vl.EMetricType.AVM, vl.EMetricType.MAVM):
         with pytest.raises(ValueError, match="only for AVM and MAVM"):
             vl.profile_epis_nuisance_supports(
-                case, result, "length", metric.get_kind()
+                test_case, result, "length", metric.get_kind()
             )
 
 
 def test_nuisance_profiles_keep_missing_cells_and_offset_selections() -> None:
-    case = create_epistemic_case(
+    test_case = create_epistemic_case(
         np.array([[[0.0, 2.0], [np.nan, np.nan]]]), np.array([[[3.0, 5.0]]])
     )
-    case.exp["length"].offsets = vl.EpistemicOffsets(1.0, 2.0)
-    result = vl.ValidEngine([vl.MetricMAVM(alpha=0.5)]).run(case)
+    test_case.exp["length"].offsets = vl.EpistemicOffsets(1.0, 2.0)
+    result = vl.ValidEngine([vl.MetricMAVM(alpha=0.5)]).run(test_case)
     extrema = vl.profile_epis_nuisance_extrema(
         result, "length", vl.EMetricType.MAVM
     )
@@ -562,7 +706,7 @@ def test_nuisance_profiles_keep_missing_cells_and_offset_selections() -> None:
         extrema.maximum[vl.EMetricOut.D_PLUS][0, 0, 0], [3.0, 2.0, 5.0]
     )
     supports = vl.profile_epis_nuisance_supports(
-        case,
+        test_case,
         result,
         "length",
         vl.EMetricType.MAVM,
@@ -571,7 +715,7 @@ def test_nuisance_profiles_keep_missing_cells_and_offset_selections() -> None:
     np.testing.assert_allclose(supports.upper[0, 0, 0], [5.0, 7.0])
     # Explicitly selecting the missing original nuisance case leaves missing bounds.
     missing = vl.find_metric_epis_supports(
-        case,
+        test_case,
         result,
         "length",
         vl.EMetricType.MAVM,
@@ -627,15 +771,15 @@ def test_ranked_nuisance_cases_are_coherent_and_use_explicit_width_scores() -> N
     np.testing.assert_array_equal(missing.order, [0, 2, 1, -1])
 
 
-@pytest.mark.parametrize("case", ANALYTIC_CASES, ids=CASE_IDS)
+@pytest.mark.parametrize("test_case", ANALYTIC_CASES, ids=CASE_IDS)
 def test_bounds_and_profiles_cover_the_full_analytic_sample_count_matrix(
-    case: AnalyticCase,
+    test_case: AnalyticCase,
 ) -> None:
     sim = vl.ValidArray(
-        2.0 * np.arange(case.sim_count), (vl.EValidAxis.ALEATORY,)
+        2.0 * np.arange(test_case.sim_count), (vl.EValidAxis.ALEATORY,)
     )
     exp = vl.ValidArray(
-        1.0 + 2.0 * np.arange(case.exp_count), (vl.EValidAxis.ALEATORY,)
+        1.0 + 2.0 * np.arange(test_case.exp_count), (vl.EValidAxis.ALEATORY,)
     )
     sim_bounds = vl.find_ecdf_epis_bounds(sim)
     exp_bounds = vl.find_ecdf_epis_bounds(exp)
@@ -643,24 +787,24 @@ def test_bounds_and_profiles_cover_the_full_analytic_sample_count_matrix(
     mavm = vl.calc_mavm_over_epis_bounds(sim_bounds, exp_bounds, alpha=0.5)
     assert avm.metric_outputs is not None and mavm.metric_outputs is not None
     np.testing.assert_allclose(
-        avm.metric_outputs[vl.EMetricOut.DISTANCE], case.avm, rtol=0, atol=1e-12
+        avm.metric_outputs[vl.EMetricOut.DISTANCE], test_case.avm, rtol=0, atol=1e-12
     )
     np.testing.assert_allclose(
-        mavm.metric_outputs[vl.EMetricOut.D_PLUS], case.d_plus, rtol=0, atol=1e-12
+        mavm.metric_outputs[vl.EMetricOut.D_PLUS], test_case.d_plus, rtol=0, atol=1e-12
     )
     np.testing.assert_allclose(
         mavm.metric_outputs[vl.EMetricOut.D_MINUS],
-        case.d_minus,
+        test_case.d_minus,
         rtol=0,
         atol=1e-12,
     )
-    assert avm.lower[0] == pytest.approx(-case.avm, rel=0, abs=1e-12)
+    assert avm.lower[0] == pytest.approx(-test_case.avm, rel=0, abs=1e-12)
     assert avm.upper[-1] == pytest.approx(
-        2 * (case.sim_count - 1) + case.avm, rel=0, abs=1e-12
+        2 * (test_case.sim_count - 1) + test_case.avm, rel=0, abs=1e-12
     )
-    assert mavm.lower[0] == pytest.approx(-case.d_minus, rel=0, abs=1e-12)
+    assert mavm.lower[0] == pytest.approx(-test_case.d_minus, rel=0, abs=1e-12)
     assert mavm.upper[-1] == pytest.approx(
-        2 * (case.sim_count - 1) + case.d_plus, rel=0, abs=1e-12
+        2 * (test_case.sim_count - 1) + test_case.d_plus, rel=0, abs=1e-12
     )
     observable = vl.ValidObservable(
         components=("length",), geometry=vl.EValidGeometry.GLOBAL
@@ -676,14 +820,16 @@ def test_bounds_and_profiles_cover_the_full_analytic_sample_count_matrix(
     )
     assert profile.reduced_axes == ()  # Singleton/absent epistemic axes are valid.
     np.testing.assert_allclose(
-        profile.minimum[vl.EMetricOut.DISTANCE], case.avm, rtol=0, atol=1e-12
+        profile.minimum[vl.EMetricOut.DISTANCE], test_case.avm, rtol=0, atol=1e-12
     )
     supports = vl.find_metric_epis_supports(
         valid_case, result, "length", vl.EMetricType.MAVM
     )
-    assert supports.lower[0, 0, 0, 0] == pytest.approx(-case.d_minus, rel=0, abs=1e-12)
+    assert supports.lower[0, 0, 0, 0] == pytest.approx(
+        -test_case.d_minus, rel=0, abs=1e-12
+    )
     assert supports.upper[0, 0, 0, -1] == pytest.approx(
-        2 * (case.sim_count - 1) + case.d_plus, rel=0, abs=1e-12
+        2 * (test_case.sim_count - 1) + test_case.d_plus, rel=0, abs=1e-12
     )
 
 
@@ -734,7 +880,7 @@ def test_spatial_and_temporal_bias_survives_nuisance_profiling_and_cell_selectio
         times=times,
         phys_units="m",
     )
-    case = vl.ValidCase(
+    test_case = vl.ValidCase(
         {"length": observable},
         {
             "length": vl.ValidArray(
@@ -761,7 +907,7 @@ def test_spatial_and_temporal_bias_survives_nuisance_profiling_and_cell_selectio
         },
     )
     result = vl.ValidEngine([vl.MetricAVM(), vl.MetricMAVM(alpha=0.5)]).run(
-        case
+        test_case
     )
     values = vl.profile_epis_nuisance_extrema(
         result, "length", vl.EMetricType.AVM
@@ -775,14 +921,14 @@ def test_spatial_and_temporal_bias_survives_nuisance_profiling_and_cell_selectio
         [[2.0, 2.0], [3.0, 5.0], [6.0, 8.0]],
     )
     supports = vl.profile_epis_nuisance_supports(
-        case, result, "length", vl.EMetricType.MAVM
+        test_case, result, "length", vl.EMetricType.MAVM
     )
     np.testing.assert_allclose(supports.lower[:, 0, :, 0], baseline)
     np.testing.assert_allclose(
         supports.upper[:, 0, :, -1], baseline + np.maximum(2.0, bias) + 1
     )
     selected = vl.profile_epis_nuisance_supports(
-        case,
+        test_case,
         result,
         "length",
         vl.EMetricType.MAVM,
@@ -1025,8 +1171,8 @@ def create_plot_epistemic_case() -> vl.ValidCase:
 
 
 def test_quantile_reductions_preserve_axes_and_use_nuisance_first() -> None:
-    case = create_plot_epistemic_case()
-    quantity = case.sim["length"]
+    test_case = create_plot_epistemic_case()
+    quantity = test_case.sim["length"]
     curves = vl.calc_ecdf_view(quantity)
     assert curves.quantiles.shape == (3, 3, 1, 2)
     np.testing.assert_array_equal(curves.probabilities, [0.5, 1.0])
@@ -1174,7 +1320,7 @@ def test_mavm_pbox_has_closed_form_endpoint_distances(
 
 def test_crossing_transferable_supports_have_exact_analytic_limits() -> None:
     axes = (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY)
-    case = vl.ValidCase(
+    test_case = vl.ValidCase(
         {
             "response": vl.ValidObservable(
                 components=("response",), geometry=vl.EValidGeometry.GLOBAL
@@ -1183,14 +1329,14 @@ def test_crossing_transferable_supports_have_exact_analytic_limits() -> None:
         {"response": vl.ValidArray(np.array([[0.0, 100.0], [40.0, 60.0]]), axes)},
         {"response": vl.ValidArray(np.array([[-10.0, 0.0], [100.0, 110.0]]), axes)},
     )
-    sim_bounds = vl.find_ecdf_epis_bounds(case.sim["response"])
-    exp_bounds = vl.find_ecdf_epis_bounds(case.exp["response"])
+    sim_bounds = vl.find_ecdf_epis_bounds(test_case.sim["response"])
+    exp_bounds = vl.find_ecdf_epis_bounds(test_case.exp["response"])
     boundary_supports = vl.calc_mavm_over_epis_bounds(
         sim_bounds, exp_bounds, alpha=0.5
     )
-    result = vl.ValidEngine([vl.MetricMAVM(alpha=0.5)]).run(case)
+    result = vl.ValidEngine([vl.MetricMAVM(alpha=0.5)]).run(test_case)
     original_supports = vl.find_metric_epis_supports(
-        case, result, "response", vl.EMetricType.MAVM
+        test_case, result, "response", vl.EMetricType.MAVM
     )
     np.testing.assert_allclose(
         original_supports.lower[0, 0, 0], [-55.0, 5.0], rtol=0, atol=1e-12

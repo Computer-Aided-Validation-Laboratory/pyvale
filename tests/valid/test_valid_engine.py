@@ -50,18 +50,18 @@ def create_parallel_case() -> vl.ValidCase:
 
 @pytest.mark.parametrize("workers", [2])
 def test_parallel_metrics_match_serial(workers: int) -> None:
-    case = create_parallel_case()
+    test_case = create_parallel_case()
     metrics = [
         vl.MetricMAVM(),
         vl.MetricAVM(),
         vl.MetricKS(),
         vl.MetricCVM(),
     ]
-    serial = vl.ValidEngine(metrics).run(case)
+    serial = vl.ValidEngine(metrics).run(test_case)
     parallel = vl.ValidEngine(
         metrics, opts=vl.ValidEngineOpts(workers=workers)
-    ).run(case)
-    assert parallel.observables is case.observables
+    ).run(test_case)
+    assert parallel.observables is test_case.observables
     assert parallel.metric_configs.keys() == serial.metric_configs.keys()
     serial_mavm = serial.metric_configs[vl.EMetricType.MAVM]
     parallel_mavm = parallel.metric_configs[vl.EMetricType.MAVM]
@@ -73,7 +73,7 @@ def test_parallel_metrics_match_serial(workers: int) -> None:
         serial_mavm.tol,
     )
     assert parallel_mavm is not serial_mavm
-    for name in case.observables:
+    for name in test_case.observables:
         for metric in metrics:
             expected = serial.metrics[name][metric.get_kind()]
             actual = parallel.metrics[name][metric.get_kind()]
@@ -88,7 +88,7 @@ def test_parallel_metrics_match_serial(workers: int) -> None:
                     atol=0,
                     equal_nan=True,
                 )
-    assert np.isnan(case.sim["camera"].data[0, 0, 0, 0]).all()
+    assert np.isnan(test_case.sim["camera"].data[0, 0, 0, 0]).all()
 
 
 class FailingMetric(vl.IValidMetric):
@@ -112,13 +112,13 @@ class FailingMetric(vl.IValidMetric):
 
 
 def test_worker_failure_propagates_and_engine_can_run_again() -> None:
-    case = create_parallel_case()
+    test_case = create_parallel_case()
     engine = vl.ValidEngine([FailingMetric()], opts=vl.ValidEngineOpts(workers=2))
     with pytest.raises(ValueError, match="Deliberate worker failure"):
-        engine.run(case)
+        engine.run(test_case)
     engine.metrics = (vl.MetricAVM(),)
     assert np.isfinite(
-        engine.run(case)
+        engine.run(test_case)
         .metrics["camera"][vl.EMetricType.AVM]
         .outputs[vl.EMetricOut.DISTANCE]
     ).any()
@@ -150,7 +150,7 @@ def test_uneven_partitions_preserve_physical_offsets(workers: int) -> None:
         vl.EValidAxis.COMPONENT,
         vl.EValidAxis.TIME,
     )
-    case = vl.ValidCase(
+    test_case = vl.ValidCase(
         {"response": observable},
         {
             "response": vl.ValidArray(
@@ -182,7 +182,7 @@ def test_uneven_partitions_preserve_physical_offsets(workers: int) -> None:
     result = vl.ValidEngine(
         [vl.MetricAVM(), vl.MetricRMSE()],
         opts=vl.ValidEngineOpts(workers=workers),
-    ).run(case)
+    ).run(test_case)
     model_shifts = np.stack(
         (np.zeros_like(model_lower), -model_lower, 2 * model_lower), axis=-1
     )
@@ -221,7 +221,7 @@ def test_small_workload_with_worker_cap_matches_analytic_shift() -> None:
         vl.EValidAxis.ALEATORY,
     )
     sim_data = np.array([[[0.0, 1.0]]])
-    case = vl.ValidCase(
+    test_case = vl.ValidCase(
         observables,
         {"response": vl.ValidArray(sim_data, axes)},
         {"response": vl.ValidArray(sim_data + 0.125, axes)},
@@ -234,7 +234,7 @@ def test_small_workload_with_worker_cap_matches_analytic_shift() -> None:
     for workers in (1, 4):
         result = vl.ValidEngine(
             metrics, opts=vl.ValidEngineOpts(workers=workers)
-        ).run(case)
+        ).run(test_case)
         for metric in metrics:
             assert (
                 result.metrics["response"][metric.get_kind()]
@@ -307,13 +307,13 @@ def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
     quantity = vl.ValidArray(
         observations, (vl.EValidAxis.POINT, vl.EValidAxis.ALEATORY)
     )
-    case = vl.ValidCase(
+    test_case = vl.ValidCase(
         {"scalar": observable}, {"scalar": quantity}, {"scalar": quantity}
     )
     result = vl.ValidEngine(
         [MetricSampleMeans(), vl.MetricKS()],
         opts=vl.ValidEngineOpts(workers=workers),
-    ).run(case)
+    ).run(test_case)
     field = result.metrics["scalar"][vl.EMetricType.AVM]
     assert tuple(field.outputs) == (
         vl.EMetricOut.ERROR,

@@ -24,10 +24,10 @@ from pyvale.validation.validtools import build_metric_selection
 
 
 def test_invalid_observations_fail_when_case_is_initialized() -> None:
-    case = create_scalar_case(np.array([1.0, 2.0]))
-    case.sim["scalar"].data[0] = np.inf
+    test_case = create_scalar_case(np.array([1.0, 2.0]))
+    test_case.sim["scalar"].data[0] = np.inf
     with pytest.raises(ValueError, match="infinite"):
-        vl.ValidCase(case.observables, case.sim, case.exp)
+        vl.ValidCase(test_case.observables, test_case.sim, test_case.exp)
 
 
 @pytest.mark.parametrize("value", [0, -1, True, 1.5])
@@ -179,8 +179,8 @@ def test_unsigned_support_must_be_ordered() -> None:
 
 @pytest.mark.parametrize("selector", [-1, 1, True, 0.0])
 def test_plot_selectors_fail_without_creating_figures(selector: float) -> None:
-    case = create_scalar_case(np.array([0.0, 1.0]))
-    result = vl.ValidEngine([vl.MetricAVM()]).run(case)
+    test_case = create_scalar_case(np.array([0.0, 1.0]))
+    result = vl.ValidEngine([vl.MetricAVM()]).run(test_case)
     figures = plt.get_fignums()
     with pytest.raises((TypeError, IndexError)):
         validplot.plot_metric_dist(
@@ -191,7 +191,7 @@ def test_plot_selectors_fail_without_creating_figures(selector: float) -> None:
             output=vl.EMetricOut.DISTANCE,
         )
     with pytest.raises((TypeError, IndexError)):
-        validplot.plot_sim_exp_cdfs(case, "scalar", point_idxs=(selector,))
+        validplot.plot_sim_exp_cdfs(test_case, "scalar", point_idxs=(selector,))
     assert plt.get_fignums() == figures
 
 
@@ -297,7 +297,7 @@ def test_custom_metric_output_count_is_checked(workers: int) -> None:
         np.array([[1.0, 2.0], [3.0, 4.0]]),
         (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY),
     )
-    case = vl.ValidCase(
+    test_case = vl.ValidCase(
         create_scalar_case(np.array([1.0, 2.0])).observables,
         {"scalar": observations},
         {"scalar": observations},
@@ -306,7 +306,7 @@ def test_custom_metric_output_count_is_checked(workers: int) -> None:
         vl.ValidEngine(
             [MetricInvalidOutputs()],
             opts=vl.ValidEngineOpts(workers=workers),
-        ).run(case)
+        ).run(test_case)
 
 
 def create_ecdf_case(sim: np.ndarray, exp: np.ndarray) -> vl.ValidCase:
@@ -728,8 +728,10 @@ def test_case_validates_sample_input_dimensions_for_each_source() -> None:
 
 
 def test_multi_scenario_integration_requires_an_explicit_original_comparison() -> None:
-    case = create_ecdf_case(np.array([[0.0, 2.0], [10.0, 12.0]]), np.array([1.0, 3.0]))
-    plot = validplot.plot_sim_exp_cdfs(case, "length")
+    test_case = create_ecdf_case(
+        np.array([[0.0, 2.0], [10.0, 12.0]]), np.array([1.0, 3.0])
+    )
+    plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     with pytest.raises(ValueError, match="explicit original"):
         validplot.add_metric_overlay(
             plot,

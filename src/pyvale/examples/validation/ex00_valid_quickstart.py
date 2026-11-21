@@ -50,7 +50,6 @@ with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
 temperature_tag = "plate_temperature"
 strain_tag = "plate_strain"
 
-
 observables = {
     temperature_tag: vl.ValidObservable(
         components=("temperature",),
@@ -130,8 +129,6 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 # ------------------------------------------------------------
 
 point_idxs = tuple(range(len(coords)))
-fig: Figure
-axes: np.ndarray
 ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case,
     temperature_tag,
@@ -141,7 +138,7 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
 )
 fig, axes = ecdf_plot.figure, ecdf_plot.axes
 fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
-
+ 
 # %%
 ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
     valid_case,
@@ -177,10 +174,7 @@ sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
 
-if sim_data.time is None:
-    raise ValueError("Simulation must contain time.")
 background_time_idx = sim_data.time.size - 1
-
 
 for metric_output, direction in (
     (vl.EMetricOut.D_PLUS, "d_plus"),
@@ -208,11 +202,11 @@ for metric_output, direction in (
     )
     pv_plot.screenshot(output_path / f"temperature_mavm_{direction}_on_sim.png")
 
-    # %%
-    if SHOW_PLOTS:
-        pv_plot.show()
-        plt.show()
-    else:
-        plt.close("all")
+# %%
+if SHOW_PLOTS:
+    pv_plot.show()
+    plt.show()
+else:
+    plt.close("all")
 
-    pv_plot.close()
+pv_plot.close()

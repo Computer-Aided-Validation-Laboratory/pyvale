@@ -149,9 +149,9 @@ def test_combine_cases_preserves_transient_run_pairing() -> None:
     ]
     joined = validprep.concatenate_valid_cases(*cases)
     assert joined.sim is cases[0].sim
-    for case in cases:
-        assert case.exp["temperature"].axes == axes
-        assert case.exp["temperature"].data.shape == (1, 1, 2)
+    for test_case in cases:
+        assert test_case.exp["temperature"].axes == axes
+        assert test_case.exp["temperature"].data.shape == (1, 1, 2)
     np.testing.assert_array_equal(
         joined.exp["temperature"].data, [[[[1.0, 2.0], [11.0, 12.0]]]]
     )
@@ -170,9 +170,9 @@ def test_combine_cases_preserves_parameter_provenance() -> None:
         exp = {"temperature": vl.ValidArray(np.array([[parameter]]), axes)}
         cases.append(vl.ValidCase(observables, sim, exp, exp_inputs=inputs))
     joined = validprep.concatenate_valid_cases(*cases)
-    for case in cases:
-        assert case.exp_inputs.parameters["loading"].axes == ()
-        assert case.exp_inputs.parameters["loading"].data.shape == ()
+    for test_case in cases:
+        assert test_case.exp_inputs.parameters["loading"].axes == ()
+        assert test_case.exp_inputs.parameters["loading"].data.shape == ()
     np.testing.assert_array_equal(
         joined.exp_inputs.parameters["loading"].data, [10.0, 20.0]
     )
@@ -282,8 +282,8 @@ def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
 
 
 def test_directional_outputs_can_share_time_axes() -> None:
-    case = load_plate_case(transient=True)
-    result = vl.ValidEngine([vl.MetricMAVM()]).run(case)
+    test_case = load_plate_case(transient=True)
+    result = vl.ValidEngine([vl.MetricMAVM()]).run(test_case)
     fig, ax = validplot.plot_valid_metric_time(
         result,
         "temperature",
@@ -353,12 +353,12 @@ def test_offsets_are_explicit_and_retained_as_coherent_scenarios() -> None:
 
 
 def test_many_scenarios_default_to_two_bounds() -> None:
-    case = create_plot_epistemic_case()
-    case.sim["length"] = vl.ValidArray(
+    test_case = create_plot_epistemic_case()
+    test_case.sim["length"] = vl.ValidArray(
         np.arange(64.0)[:, None] + np.array([0.0, 1.0]),
         (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY),
     )
-    plot = validplot.plot_sim_ecdfs(case, "length")
+    plot = validplot.plot_sim_ecdfs(test_case, "length")
     try:
         axis = plot.axes[0, 0]
         assert len(axis.lines) == 2
@@ -403,8 +403,10 @@ def create_ecdf_case(sim: np.ndarray, exp: np.ndarray) -> vl.ValidCase:
 def test_reference_quantile_normalisation_is_a_constant_secondary_axis(
     probability: float, expected: float
 ) -> None:
-    case = create_ecdf_case(np.array([[0.0, 2.0], [10.0, 12.0]]), np.array([1.0, 3.0]))
-    plot = validplot.plot_sim_exp_cdfs(case, "length")
+    test_case = create_ecdf_case(
+        np.array([[0.0, 2.0], [10.0, 12.0]]), np.array([1.0, 3.0])
+    )
+    plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     original_quantiles = plot.axes[0, 0].lines[0].get_xdata().copy()
     validplot.add_normalised_ecdf_axis(
         plot, validplot.ValidECDFReference(probability=probability)
@@ -425,14 +427,14 @@ def test_reference_quantile_normalisation_is_a_constant_secondary_axis(
 
 
 def test_constant_and_exp_reference_scalings_are_explicit() -> None:
-    case = create_ecdf_case(np.array([2.0, 4.0]), np.array([10.0, 20.0]))
-    plot = validplot.plot_sim_exp_cdfs(case, "length")
+    test_case = create_ecdf_case(np.array([2.0, 4.0]), np.array([10.0, 20.0]))
+    plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     validplot.add_normalised_ecdf_axis(
         plot, validplot.ValidECDFReference(source=vl.EValidSource.EXP)
     )
     assert plot.normalisation == (10.0,)
     plt.close(plot.figure)
-    plot = validplot.plot_sim_ecdfs(case, "length")
+    plot = validplot.plot_sim_ecdfs(test_case, "length")
     validplot.add_normalised_ecdf_axis(plot, 4.0)
     assert plot.normalisation == (4.0,)
     plt.close(plot.figure)
@@ -448,8 +450,8 @@ def test_constant_and_exp_reference_scalings_are_explicit() -> None:
 def test_mavm_support_uses_outer_shifted_ecdfs_not_global_largest_distance(
     output: vl.EMetricOut, exp: np.ndarray, expected: np.ndarray
 ) -> None:
-    case = create_ecdf_case(np.array([[0.0, 2.0], [10.0, 12.0]]), exp)
-    plot = validplot.plot_sim_exp_cdfs(case, "length")
+    test_case = create_ecdf_case(np.array([[0.0, 2.0], [10.0, 12.0]]), exp)
+    plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     validplot.add_metric_overlay(plot, vl.MetricMAVM(alpha=0.5), output=output)
     ax = plot.axes[0, 0]
     shifted_line = (
@@ -575,8 +577,8 @@ def test_shift_bounds_can_switch_controlling_scenario_with_both_epistemic_axes(
     observable = vl.ValidObservable(
         components=("length",), geometry=vl.EValidGeometry.GLOBAL
     )
-    case = vl.ValidCase({"length": observable}, {"length": sim}, {"length": exp})
-    plot = validplot.plot_sim_exp_cdfs(case, "length")
+    test_case = vl.ValidCase({"length": observable}, {"length": sim}, {"length": exp})
+    plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     validplot.add_metric_overlay(plot, vl.MetricMAVM(alpha=0.5), output=output)
     line = (
         plot.axes[0, 0].lines[-1]
@@ -600,16 +602,55 @@ def test_avm_shift_is_a_symmetric_magnitude_about_each_original_curve() -> None:
 
 
 def test_precomputed_support_profiles_compose_without_metric_recalculation() -> None:
-    case = create_ecdf_case(
+    test_case = create_ecdf_case(
         np.array([[0.0, 2.0], [10.0, 12.0]]), np.array([11.0, 13.0])
     )
-    result = vl.ValidEngine([vl.MetricMAVM(alpha=0.5)]).run(case)
+    result = vl.ValidEngine([vl.MetricMAVM(alpha=0.5)]).run(test_case)
     supports = vl.find_metric_epis_supports(
-        case, result, "length", vl.EMetricType.MAVM
+        test_case, result, "length", vl.EMetricType.MAVM
     )
-    plot = validplot.plot_sim_exp_cdfs(case, "length")
+    plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     validplot.add_support_overlay(plot, supports, output=vl.EMetricOut.D_PLUS)
     np.testing.assert_allclose(plot.axes[0, 0].lines[-1].get_xdata()[1:], [11.0, 13.0])
+    plt.close(plot.figure)
+
+
+def test_ecdf_bands_use_opaque_source_colors_without_legend() -> None:
+    from matplotlib.colors import to_rgba
+
+    sim = np.array([[0.0, 1.0], [2.0, 3.0]])
+    plot = validplot.plot_sim_exp_cdfs(create_ecdf_case(sim, sim + 1), "length")
+    axis = plot.axes[0, 0]
+    for band, color in zip(
+        axis.collections, (plot.options.exp_color, plot.options.sim_color), strict=True
+    ):
+        np.testing.assert_array_equal(band.get_facecolor()[0], to_rgba(color))
+    assert axis.get_legend() is None
+    plt.close(plot.figure)
+
+
+@pytest.mark.parametrize("sim", [np.arange(6.0), np.array([[0.0, 1.0], [2.0, 3.0]])])
+def test_zero_mavm_minus_adds_no_support_shading(sim: np.ndarray) -> None:
+    exp = sim if sim.ndim == 1 else np.array([4.0, 5.0])
+    test_case = create_ecdf_case(sim, exp)
+    metric = vl.MetricMAVM(alpha=0.5)
+    result = vl.ValidEngine([metric]).run(test_case)
+    supports = vl.find_metric_epis_supports(
+        test_case, result, "length", vl.EMetricType.MAVM
+    )
+    plot = validplot.plot_sim_exp_cdfs(test_case, "length")
+    axis = plot.axes[0, 0]
+    if sim.ndim == 1:
+        exp_line, sim_line = axis.lines
+        assert exp_line.get_color() == plot.options.exp_color
+        assert not exp_line.is_dashed()
+        assert sim_line.get_color() == plot.options.sim_color
+        assert sim_line.is_dashed()
+        np.testing.assert_array_equal(exp_line.get_xdata(), sim_line.get_xdata())
+    collection_count = len(axis.collections)
+    validplot.add_support_overlay(plot, supports, output=vl.EMetricOut.D_MINUS)
+    validplot.add_metric_overlay(plot, metric, output=vl.EMetricOut.D_MINUS)
+    assert len(axis.collections) == collection_count
     plt.close(plot.figure)
 
 
@@ -729,14 +770,14 @@ def test_composition_preserves_existing_plotter_camera(
 
 @pytest.mark.parametrize("units", ("", "1", "-"))
 def test_unitless_ecdf_and_metric_axes_use_dash(units: str) -> None:
-    case = create_ecdf_case(np.array([[0.0, 2.0]]), np.array([1.0, 3.0]))
-    case.observables["length"].phys_units = units
-    plot = vl.plot_sim_exp_cdfs(case, "length")
+    test_case = create_ecdf_case(np.array([[0.0, 2.0]]), np.array([1.0, 3.0]))
+    test_case.observables["length"].phys_units = units
+    plot = vl.plot_sim_exp_cdfs(test_case, "length")
     assert plot.axes[0, 0].get_xlabel() == "length [-]"
     vl.add_normalised_ecdf_axis(plot, 2.0)
     assert plot.axes[0, 0].child_axes[0].get_xlabel() == "length norm. [-]"
     plt.close(plot.figure)
-    result = vl.ValidEngine([vl.MetricAVM()]).run(case)
+    result = vl.ValidEngine([vl.MetricAVM()]).run(test_case)
     figure, axis = vl.plot_metric_dist(result, "length", vl.EMetricType.AVM)
     assert axis.get_xlabel().endswith("[-]")
     plt.close(figure)
