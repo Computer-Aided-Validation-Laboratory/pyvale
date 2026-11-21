@@ -53,8 +53,7 @@ PULSE25X_OUTPUTS = (
         )
     )
     + tuple(
-        f"mavm_{direction}_limiting_ecdf_{channel}.png"
-        for direction in ("d_plus", "d_minus")
+        f"mavm_support_envelope_{channel}.png"
         for channel in ("TC2", "TC3", "TC5", "TC6", "TC8", "TC9", "TC10", "CV")
     )
     + ("pointsensors_mavm.csv", "channel_status.csv")
@@ -87,8 +86,7 @@ EXAMPLES = (
             "u_pooling.png",
             "mavm_d_plus_area.png",
             "mavm_d_minus_area.png",
-            "mavm_d_plus_limiting_ecdf.png",
-            "mavm_d_minus_limiting_ecdf.png",
+            "mavm_support_envelope.png",
         ),
     ),
     (
@@ -97,8 +95,7 @@ EXAMPLES = (
         (
             "temperature_cdfs.png",
             "temperature_avm_on_sim.png",
-            "mavm_d_plus_limiting_ecdf.png",
-            "mavm_d_minus_limiting_ecdf.png",
+            "mavm_support_envelope.png",
         ),
     ),
     (
@@ -116,42 +113,22 @@ EXAMPLES = (
         (
             "avm_bounds.png",
             "avm_original.png",
-            "mavm_d_plus_bounds.png",
-            "mavm_d_minus_bounds.png",
-            "mavm_d_plus_original.png",
-            "mavm_d_minus_original.png",
+            "mavm_support_envelope_bounds.png",
+            "mavm_support_envelope_original.png",
         ),
     ),
     (
         "ex05_valid_epistemic_axes",
         "valid_ex5_epistemic_axes",
         (
-            "outer_outer.png",
-            "fixed_nuisance.png",
-            "subset.png",
-            "median_nuisance.png",
-            "lower_quartile.png",
-            "upper_quartile.png",
-            "mean_curves.png",
-            "median_curves.png",
-            "selected_scenarios.png",
-            "independent_views.png",
-            "sim_median_nuisance.png",
-            "exp_envelopes.png",
-            "avm_normalised_p0.5.png",
-            "avm_normalised_p0.9.png",
-            "ks_bound_distances.png",
-            "mavm_d_plus_support.png",
-            "mavm_d_minus_support.png",
-            "mavm_d_plus_area.png",
-            "mavm_d_minus_area.png",
-            "all_bounds.csv",
-            "mean_bounds.csv",
-            "median_bounds.csv",
-            "minimum_bounds.csv",
-            "lower_quartile_bounds.csv",
-            "upper_quartile_bounds.csv",
-            "maximum_bounds.csv",
+            "ecdf_sim_nuis_envelope_vs_prof_median.png",
+            "ecdf_exp_nuis_envelope_vs_prof_median.png",
+            "ecdf_sim_exp_nuis_envelope_vs_prof_median.png",
+            "ecdf_sim_exp_nuis_envelope_vs_prof_mean.png",
+            "ecdf_sim_exp_nuis_envelope_vs_prof_q25.png",
+            "ks_nuis_envelope_gap.png",
+            "ks_nuis_prof_median_gap.png",
+            "mavm_support_envelope_original_pairs.png",
         ),
     ),
     (
@@ -159,8 +136,7 @@ EXAMPLES = (
         "valid_ex6_nuisance_profiles",
         (
             "avm_original_support.png",
-            "mavm_d_plus_nuisance_support.png",
-            "mavm_d_minus_nuisance_support.png",
+            "mavm_nuisance_support_envelope.png",
             "avm_distance_profile.png",
             "avm_distance_profile.csv",
             "ks_statistic_profile.png",
@@ -174,18 +150,12 @@ EXAMPLES = (
             "mavm_profile.png",
             "mavm_d_plus_profile.csv",
             "mavm_d_minus_profile.csv",
-            "total_width_minimum_d_plus.png",
-            "total_width_minimum_d_minus.png",
-            "total_width_median_d_plus.png",
-            "total_width_median_d_minus.png",
-            "total_width_maximum_d_plus.png",
-            "total_width_maximum_d_minus.png",
-            "added_width_minimum_d_plus.png",
-            "added_width_minimum_d_minus.png",
-            "added_width_median_d_plus.png",
-            "added_width_median_d_minus.png",
-            "added_width_maximum_d_plus.png",
-            "added_width_maximum_d_minus.png",
+            "total_width_minimum_support_envelope.png",
+            "total_width_median_support_envelope.png",
+            "total_width_maximum_support_envelope.png",
+            "added_width_minimum_support_envelope.png",
+            "added_width_median_support_envelope.png",
+            "added_width_maximum_support_envelope.png",
         ),
     ),
     (
@@ -194,8 +164,7 @@ EXAMPLES = (
         (
             "exp_offset_envelopes.png",
             "mavm_time.png",
-            "mavm_d_plus_confidence_support.png",
-            "mavm_d_minus_confidence_support.png",
+            "mavm_confidence_support_envelope.png",
             "mavm_nominal_d_plus_area.png",
             "mavm_nominal_d_minus_area.png",
             "mavm_lower_d_plus_area.png",

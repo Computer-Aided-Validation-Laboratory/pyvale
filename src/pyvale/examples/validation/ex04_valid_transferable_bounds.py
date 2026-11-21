@@ -100,20 +100,16 @@ for route, avm, mavm in (
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
 
-    for metric_output, direction in (
-        (vl.EMetricOut.D_PLUS, "d_plus"),
-        (vl.EMetricOut.D_MINUS, "d_minus"),
-    ):
-        ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
-        vl.add_support_overlay(
-            ecdf_plot, mavm, output=metric_output
-        )
-        ecdf_plot.figure.savefig(
-            output_path / f"mavm_{direction}_{route}.png", bbox_inches="tight"
-        )
+    ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
+    vl.add_support_overlay(
+        ecdf_plot, mavm
+    )
+    ecdf_plot.figure.savefig(
+        output_path / f"mavm_support_envelope_{route}.png", bbox_inches="tight"
+    )
 
-        if not SHOW_PLOTS:
-            plt.close(ecdf_plot.figure)
+    if not SHOW_PLOTS:
+        plt.close(ecdf_plot.figure)
 
 if SHOW_PLOTS:
     plt.show()

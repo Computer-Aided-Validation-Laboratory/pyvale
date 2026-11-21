@@ -337,6 +337,33 @@ def create_plot_epistemic_case() -> vl.ValidCase:
     )
 
 
+def test_nuisance_median_profiles_are_drawn_inside_source_envelopes() -> None:
+    test_case = create_plot_epistemic_case()
+    sim = test_case.sim["length"]
+    test_case.exp["length"] = vl.ValidArray(sim.data + 10.0, sim.axes)
+    plot = validplot.plot_sim_exp_cdfs(
+        test_case, "length", nuisance_profile=vl.EValidECDFReduce.MEDIAN
+    )
+    axis = plot.axes[0, 0]
+    assert axis.get_legend_handles_labels()[1] == [
+        "Exp. Nuis. Envelope",
+        "Sim. Nuis. Envelope",
+        "Exp. Nuis. Prof. (median)",
+        "Sim. Nuis. Prof. (median)",
+    ]
+    for lines, shift, color in (
+        (axis.lines[4:6], 10.0, plot.options.exp_profile_color),
+        (axis.lines[6:8], 0.0, plot.options.sim_profile_color),
+    ):
+        for line, expected in zip(lines, ([3.0, 5.0], [8.0, 10.0]), strict=True):
+            assert line.get_color() == color
+            np.testing.assert_array_equal(
+                line.get_xdata()[1:], np.array(expected) + shift
+            )
+    assert all(curves.quantiles.shape[1] == 3 for curves in plot.data[0].values())
+    plt.close(plot.figure)
+
+
 def test_offsets_are_explicit_and_retained_as_coherent_scenarios() -> None:
     quantity = vl.ValidArray(
         np.array([1.0, 3.0]),
@@ -603,6 +630,30 @@ def test_avm_shift_is_a_symmetric_magnitude_about_each_original_curve() -> None:
     np.testing.assert_allclose(plot.axes[0, 0].lines[-2].get_xdata()[1:], [-11.0, -9.0])
     np.testing.assert_allclose(plot.axes[0, 0].lines[-1].get_xdata()[1:], [11.0, 13.0])
     assert plot.axes[0, 0].collections[-1].get_label() == "AVM"
+    plt.close(plot.figure)
+
+
+@pytest.mark.parametrize("precompute", [False, True])
+def test_mavm_defaults_to_full_support_envelope(precompute: bool) -> None:
+    test_case = create_ecdf_case(
+        np.array([[0.0, 2.0], [10.0, 12.0]]),
+        np.array([[-1.0, 1.0], [11.0, 13.0]]),
+    )
+    metric = vl.MetricMAVM(alpha=0.5)
+    plot = validplot.plot_sim_exp_cdfs(test_case, "length")
+    if precompute:
+        result = vl.ValidEngine([metric]).run(test_case)
+        supports = vl.find_metric_epis_supports(
+            test_case, result, "length", vl.EMetricType.MAVM
+        )
+        validplot.add_support_overlay(plot, supports)
+    else:
+        validplot.add_metric_overlay(plot, metric)
+
+    axis = plot.axes[0, 0]
+    assert axis.collections[-1].get_label() == "MAVM support envelope"
+    np.testing.assert_allclose(axis.lines[-2].get_xdata()[1:], [-1.0, 1.0])
+    np.testing.assert_allclose(axis.lines[-1].get_xdata()[1:], [11.0, 13.0])
     plt.close(plot.figure)
 
 

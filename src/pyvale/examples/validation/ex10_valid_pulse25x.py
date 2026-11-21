@@ -191,18 +191,14 @@ for channel in measurements:
         vl.EMetricType.MAVM,
         selectors={vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.NOMINAL},
     )
-    for metric_output, direction in (
-        (vl.EMetricOut.D_PLUS, "d_plus"),
-        (vl.EMetricOut.D_MINUS, "d_minus"),
-    ):
-        limiting_plot = vl.plot_sim_exp_cdfs(valid_case, channel, valid_plot_opts=labels)
-        vl.add_support_overlay(limiting_plot, supports, output=metric_output)
-        limiting_plot.figure.savefig(
-            output_path / f"mavm_{direction}_limiting_ecdf_{channel}.png",
-            bbox_inches="tight",
-        )
-        if not SHOW_PLOTS:
-            plt.close(limiting_plot.figure)
+    limiting_plot = vl.plot_sim_exp_cdfs(valid_case, channel, valid_plot_opts=labels)
+    vl.add_support_overlay(limiting_plot, supports)
+    limiting_plot.figure.savefig(
+        output_path / f"mavm_support_envelope_{channel}.png",
+        bbox_inches="tight",
+    )
+    if not SHOW_PLOTS:
+        plt.close(limiting_plot.figure)
 
     exp_scenarios: list[np.ndarray] = vl.extract_aleatory_scenarios(
         exp_arrays[channel], offset=None

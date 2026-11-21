@@ -23,9 +23,11 @@ import numpy as np
 import pyvale.validation as vl
 
 matplotlib.use("Agg")
+
 SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
+
 output_path = Path.cwd() / "pyvale-output" / "valid_ex6_nuisance_profiles"
 output_path.mkdir(parents=True, exist_ok=True)
 
@@ -169,29 +171,24 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
 supports: vl.ValidSupportBounds = vl.profile_epis_nuisance_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
-for metric_output, direction in (
-    (vl.EMetricOut.D_PLUS, "d_plus"),
-    (vl.EMetricOut.D_MINUS, "d_minus"),
-):
-    ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
-        valid_case,
-        observable_tag,
-        point_idxs=None,
-        time_idx=2,
-        sim_view=vl.ValidECDFView(trans_idxs=(0,)),
-        exp_view=vl.ValidECDFView(trans_idxs=(0,)),
-    )
-    vl.add_support_overlay(
-        ecdf_plot,
-        supports,
-        output=metric_output,
-        selectors={vl.EValidResAxis.SIM_TRANS: 0, vl.EValidResAxis.EXP_TRANS: 0},
-    )
-    ecdf_plot.figure.savefig(
-        output_path / f"mavm_{direction}_nuisance_support.png", bbox_inches="tight"
-    )
-    if not SHOW_PLOTS:
-        plt.close(ecdf_plot.figure)
+ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
+    valid_case,
+    observable_tag,
+    point_idxs=None,
+    time_idx=2,
+    sim_view=vl.ValidECDFView(trans_idxs=(0,)),
+    exp_view=vl.ValidECDFView(trans_idxs=(0,)),
+)
+vl.add_support_overlay(
+    ecdf_plot,
+    supports,
+    selectors={vl.EValidResAxis.SIM_TRANS: 0, vl.EValidResAxis.EXP_TRANS: 0},
+)
+ecdf_plot.figure.savefig(
+    output_path / "mavm_nuisance_support_envelope.png", bbox_inches="tight"
+)
+if not SHOW_PLOTS:
+    plt.close(ecdf_plot.figure)
 avm_supports: vl.ValidSupportBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.AVM
 )
@@ -233,31 +230,26 @@ for score in vl.EValidNuisanceScore:
         ("minimum", "median", "maximum"), selected_rows, strict=True
     ):
         sim_nuis, exp_nuis = (int(index) for index in ranking.cases[row])
-        for metric_output, direction in (
-            (vl.EMetricOut.D_PLUS, "d_plus"),
-            (vl.EMetricOut.D_MINUS, "d_minus"),
-        ):
-            ecdf_plot = vl.plot_sim_exp_cdfs(
-                valid_case,
-                observable_tag,
-                time_idx=2,
-                sim_view=vl.ValidECDFView(nuis_idxs=(sim_nuis,)),
-                exp_view=vl.ValidECDFView(nuis_idxs=(exp_nuis,)),
-            )
-            vl.add_support_overlay(
-                ecdf_plot,
-                by_case,
-                output=metric_output,
-                selectors={
-                    vl.EValidResAxis.SIM_NUIS: sim_nuis,
-                    vl.EValidResAxis.EXP_NUIS: exp_nuis,
-                },
-            )
-            ecdf_plot.figure.savefig(
-                output_path / f"{score_name}_{rank_name}_{direction}.png",
-                bbox_inches="tight",
-            )
-            if not SHOW_PLOTS:
-                plt.close(ecdf_plot.figure)
+        ecdf_plot = vl.plot_sim_exp_cdfs(
+            valid_case,
+            observable_tag,
+            time_idx=2,
+            sim_view=vl.ValidECDFView(nuis_idxs=(sim_nuis,)),
+            exp_view=vl.ValidECDFView(nuis_idxs=(exp_nuis,)),
+        )
+        vl.add_support_overlay(
+            ecdf_plot,
+            by_case,
+            selectors={
+                vl.EValidResAxis.SIM_NUIS: sim_nuis,
+                vl.EValidResAxis.EXP_NUIS: exp_nuis,
+            },
+        )
+        ecdf_plot.figure.savefig(
+            output_path / f"{score_name}_{rank_name}_support_envelope.png",
+            bbox_inches="tight",
+        )
+        if not SHOW_PLOTS:
+            plt.close(ecdf_plot.figure)
 if SHOW_PLOTS:
     plt.show()

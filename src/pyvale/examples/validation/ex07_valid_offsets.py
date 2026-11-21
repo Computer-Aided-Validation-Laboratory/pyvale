@@ -134,23 +134,18 @@ fig.savefig(output_path / "mavm_time.png", bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(fig)
 
-for metric_output, direction in (
-    (vl.EMetricOut.D_PLUS, "d_plus"),
-    (vl.EMetricOut.D_MINUS, "d_minus"),
-):
-    ecdf_plot = vl.plot_sim_exp_cdfs(
-        valid_case, observable_tag, time_idx=2, exp_offset=None
-    )
-    vl.add_support_overlay(
-        ecdf_plot,
-        confidence_supports,
-        output=metric_output,
-    )
-    ecdf_plot.figure.savefig(
-        output_path / f"mavm_{direction}_confidence_support.png", bbox_inches="tight"
-    )
-    if not SHOW_PLOTS:
-        plt.close(ecdf_plot.figure)
+ecdf_plot = vl.plot_sim_exp_cdfs(
+    valid_case, observable_tag, time_idx=2, exp_offset=None
+)
+vl.add_support_overlay(
+    ecdf_plot,
+    confidence_supports,
+)
+ecdf_plot.figure.savefig(
+    output_path / "mavm_confidence_support_envelope.png", bbox_inches="tight"
+)
+if not SHOW_PLOTS:
+    plt.close(ecdf_plot.figure)
 
 if SHOW_PLOTS:
     plt.show()

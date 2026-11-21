@@ -6,7 +6,7 @@
 
 """Diagnostic plots for validation samples and labelled metric fields."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum, auto
 from math import ceil, sqrt
 
@@ -24,7 +24,12 @@ from pyvale.validation.metricstrategy import (
     IValidMetric,
     MetricMAVM,
 )
-from pyvale.validation.validecdf import _evaluate_ecdf_quantiles, calc_ecdf, calc_ecdf_view
+from pyvale.validation.validecdf import (
+    _evaluate_ecdf_quantiles,
+    _reduce_ecdf_quantiles,
+    calc_ecdf,
+    calc_ecdf_view,
+)
 from pyvale.validation.validtools import (
     build_metric_selection,
     create_metric_label,
@@ -65,6 +70,8 @@ class ValidPlotOpts:
     exp_label: str = "Exp."
     sim_color: str = "tab:blue"
     exp_color: str = "tab:orange"
+    sim_profile_color: str = "#008b95"
+    exp_profile_color: str = "#a65316"
     sim_linestyle: _LineStyle = (0, (8, 3))
     exp_linestyle: _LineStyle = "-"
     sim_bounds_linestyle: _LineStyle = "-"
@@ -209,6 +216,8 @@ def plot_sim_ecdfs(
     *,
     view: ValidECDFView | None = None,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+    nuisance_profile: EValidECDFReduce | None = None,
+    nuisance_profile_quantile: float | None = None,
     point_idxs: tuple[int, ...] | None = (0,),
     component_idx: int = 0,
     time_idx: int = 0,
@@ -221,12 +230,15 @@ def plot_sim_ecdfs(
 
     Default to the outer envelope over both epistemic axes at point zero.
     point_idxs=None explicitly selects every physical point. An existing ax
-    accepts one point only. No metric calculation or result is required.
+    accepts one point only. Set nuisance_profile to overlay a nuisance reduction
+    within the selected envelope.
     """
     return _plot_ecdf_sources(
         valid_case,
         observable,
         ((EValidSource.SIM, view, offset),),
+        nuisance_profile=nuisance_profile,
+        nuisance_profile_quantile=nuisance_profile_quantile,
         point_idxs=point_idxs,
         component_idx=component_idx,
         time_idx=time_idx,
@@ -243,6 +255,8 @@ def plot_exp_ecdfs(
     *,
     view: ValidECDFView | None = None,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+    nuisance_profile: EValidECDFReduce | None = None,
+    nuisance_profile_quantile: float | None = None,
     point_idxs: tuple[int, ...] | None = (0,),
     component_idx: int = 0,
     time_idx: int = 0,
@@ -251,11 +265,13 @@ def plot_exp_ecdfs(
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
 ) -> ECDFPlot:
-    """Plot exp ECDFs with independently selected epistemic summaries and offsets."""
+    """Plot exp ECDFs, optionally overlaying a nuisance profile on the envelope."""
     return _plot_ecdf_sources(
         valid_case,
         observable,
         ((EValidSource.EXP, view, offset),),
+        nuisance_profile=nuisance_profile,
+        nuisance_profile_quantile=nuisance_profile_quantile,
         point_idxs=point_idxs,
         component_idx=component_idx,
         time_idx=time_idx,
@@ -274,6 +290,8 @@ def plot_sim_exp_cdfs(
     exp_view: ValidECDFView | None = None,
     sim_offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     exp_offset: EEpisOffset | None = EEpisOffset.NOMINAL,
+    nuisance_profile: EValidECDFReduce | None = None,
+    nuisance_profile_quantile: float | None = None,
     point_idxs: tuple[int, ...] | None = (0,),
     component_idx: int = 0,
     time_idx: int = 0,
@@ -285,8 +303,9 @@ def plot_sim_exp_cdfs(
     """Compare sim and exp families without pooling or selecting a hidden scenario.
 
     Each source defaults to a shaded pointwise epistemic envelope, or one ECDF
-    when only one scenario remains. Epistemic envelopes are not confidence
-    intervals. Keep MAVM confidence/support diagnostics in their dedicated plots.
+    when only one scenario remains. Set nuisance_profile to overlay a pointwise
+    nuisance reduction within each transferable case. QUANTILE also requires
+    nuisance_profile_quantile. Metric overlays use the original plot selections.
     """
     return _plot_ecdf_sources(
         valid_case,
@@ -295,6 +314,8 @@ def plot_sim_exp_cdfs(
             (EValidSource.EXP, exp_view, exp_offset),
             (EValidSource.SIM, sim_view, sim_offset),
         ),
+        nuisance_profile=nuisance_profile,
+        nuisance_profile_quantile=nuisance_profile_quantile,
         point_idxs=point_idxs,
         component_idx=component_idx,
         time_idx=time_idx,
@@ -310,6 +331,8 @@ def _plot_ecdf_sources(
     observable: str,
     sources: tuple[tuple[EValidSource, ValidECDFView | None, EEpisOffset | None], ...],
     *,
+    nuisance_profile: EValidECDFReduce | None,
+    nuisance_profile_quantile: float | None,
     point_idxs: tuple[int, ...] | None,
     component_idx: int,
     time_idx: int,
@@ -318,6 +341,22 @@ def _plot_ecdf_sources(
     valid_plot_opts: ValidPlotOpts | None,
     ax: Axes | None,
 ) -> ECDFPlot:
+    if nuisance_profile is not None:
+        if not isinstance(nuisance_profile, EValidECDFReduce):
+            raise TypeError("Nuisance profile must be EValidECDFReduce.")
+        if nuisance_profile is EValidECDFReduce.KEEP:
+            raise ValueError("Nuisance profile requires mean, median or quantile.")
+    if nuisance_profile is EValidECDFReduce.QUANTILE:
+        if (
+            isinstance(nuisance_profile_quantile, (bool, np.bool_))
+            or not isinstance(
+                nuisance_profile_quantile, (int, float, np.integer, np.floating)
+            )
+            or not 0 <= nuisance_profile_quantile <= 1
+        ):
+            raise ValueError("Nuisance profile probability must be in [0, 1].")
+    elif nuisance_profile_quantile is not None:
+        raise ValueError("A nuisance profile probability requires QUANTILE reduction.")
     observable_data = valid_case.observables[observable]
     point_count = (
         1 if observable_data.coords is None else observable_data.coords.shape[0]
@@ -338,8 +377,10 @@ def _plot_ecdf_sources(
         raise ValueError("An existing axes accepts one point and no grid layout.")
     # Prepare before creating any figure, so invalid selections leave no figures behind.
     prepared: list[list[tuple[EValidSource, ValidECDFView, ValidECDFViewData]]] = []
+    profiles: list[list[tuple[EValidSource, ValidECDFView, ValidECDFViewData]]] = []
     for point in selected_points:
         point_sources = []
+        point_profiles = []
         for source, view, offset in sources:
             selected_view = ValidECDFView() if view is None else view
             quantity = (
@@ -354,7 +395,31 @@ def _plot_ecdf_sources(
                 offset=offset,
             )
             point_sources.append((source, selected_view, curves))
+            if nuisance_profile is not None:
+                if (
+                    not selected_view.bounds
+                    or selected_view.nuis_reduce is not EValidECDFReduce.KEEP
+                    or selected_view.trans_reduce is not EValidECDFReduce.KEEP
+                ):
+                    raise ValueError("Nuisance profiles require an unreduced envelope.")
+                if curves.quantiles.shape[1] == 1:
+                    continue
+                profile_view = replace(
+                    selected_view,
+                    nuis_reduce=nuisance_profile,
+                    nuis_quantile=nuisance_profile_quantile,
+                    centre=EValidECDFCentre.NONE,
+                    scenario_idxs=(),
+                )
+                profile_curves = replace(
+                    curves,
+                    quantiles=_reduce_ecdf_quantiles(curves.quantiles, profile_view),
+                    scenarios=(),
+                    scenario_quantiles=curves.scenario_quantiles[:0],
+                )
+                point_profiles.append((source, profile_view, profile_curves))
         prepared.append(point_sources)
+        profiles.append(point_profiles)
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
     if ax is None:
         fig, axes = create_valid_plot_grid(
@@ -363,11 +428,26 @@ def _plot_ecdf_sources(
     else:
         fig, ax = _create_axes(ax, options)
         axes = np.array([[ax]], dtype=object)
-    for point, point_sources, panel in zip(
-        selected_points, prepared, axes.flat, strict=False
+    for point, point_sources, point_profiles, panel in zip(
+        selected_points, prepared, profiles, axes.flat, strict=False
     ):
+        profile_sources = {source for source, _, _ in point_profiles}
         for source, view, curves in point_sources:
-            _plot_ecdf_view(panel, source, view, curves, options)
+            _plot_ecdf_view(
+                panel, source, view, curves, options,
+                label_suffix=" Nuis. Envelope" if source in profile_sources else "",
+            )
+        for source, view, curves in point_profiles:
+            method = (
+                f"q={view.nuis_quantile:g}"
+                if view.nuis_quantile is not None
+                else view.nuis_reduce.name.lower()
+            )
+            _plot_ecdf_view(
+                panel, source, view, curves, options,
+                label_suffix=f" Nuis. Prof. ({method})",
+                profile=True,
+            )
         time_label = (
             "steady"
             if observable_data.times is None
@@ -407,11 +487,23 @@ def _plot_ecdf_view(
     view: ValidECDFView,
     curves: ValidECDFViewData,
     options: ValidPlotOpts,
+    *,
+    label_suffix: str = "",
+    profile: bool = False,
 ) -> None:
-    label = options.sim_label if source is EValidSource.SIM else options.exp_label
-    color = options.sim_color if source is EValidSource.SIM else options.exp_color
+    is_sim = source is EValidSource.SIM
+    label = (options.sim_label if is_sim else options.exp_label) + label_suffix
+    if profile:
+        color = options.sim_profile_color if is_sim else options.exp_profile_color
+    else:
+        color = options.sim_color if is_sim else options.exp_color
+    bounds_linestyle = (
+        options.sim_bounds_linestyle if is_sim else options.exp_bounds_linestyle
+    )
     linestyle = (
-        options.sim_linestyle if source is EValidSource.SIM else options.exp_linestyle
+        bounds_linestyle
+        if profile
+        else (options.sim_linestyle if is_sim else options.exp_linestyle)
     )
     quantiles = curves.quantiles.reshape(-1, curves.probabilities.size)
     single = quantiles.shape[0] == 1
@@ -430,11 +522,6 @@ def _plot_ecdf_view(
         )
     else:
         if view.bounds:
-            bounds_linestyle = (
-                options.sim_bounds_linestyle
-                if source is EValidSource.SIM
-                else options.exp_bounds_linestyle
-            )
             lower = np.min(quantiles, axis=0)
             upper = np.max(quantiles, axis=0)
             _plot_quantile_curve(
@@ -519,7 +606,8 @@ def add_support_overlay(
     Select unresolved transferable or offset axes explicitly. Physical axes
     follow the plot panels; fixed physical selectors in the numerical profile
     must match. D_PLUS/D_MINUS show the corresponding extension separately.
-    Bounds-based results with no physical axes are for a single-panel plot.
+    Omit output for the full support envelope. Bounds-based results with no
+    physical axes are for a single-panel plot.
     """
     if output not in (
         None,
@@ -584,7 +672,10 @@ def add_support_overlay(
         prepared.append((lower, upper))
     options = plot.options
     if label is None:
-        label = supports.metric.name if supports.metric is not None else "Support"
+        if supports.metric is EMetricType.MAVM and output is None:
+            label = "MAVM support envelope"
+        else:
+            label = supports.metric.name if supports.metric is not None else "Support"
     for ax, (lower, upper) in zip(plot.axes.flat, prepared, strict=False):
         if np.array_equal(lower, upper):
             continue
@@ -683,6 +774,7 @@ def add_metric_overlay(
 
     Support shifts default to outer limits over original sim/exp comparisons,
     including when the displayed ECDF view contains mean/median summaries.
+    MAVM shows the full support envelope unless a direction is selected.
     They never shift an envelope by a global maximum distance. Integration areas
     require a sole original pair or an explicit comparison. KS defaults to two
     vertical distances between the displayed lower/upper support envelopes.
@@ -691,12 +783,6 @@ def add_metric_overlay(
     """
     kind = metric.get_kind()
     outputs = metric.get_outputs()
-    if output is None:
-        if len(outputs) != 1:
-            raise ValueError("Select D_PLUS or D_MINUS for a MAVM overlay.")
-        output = outputs[0]
-    if output not in outputs:
-        raise ValueError("The selected metric does not declare that output.")
     if display is None:
         if kind in (EMetricType.AVM, EMetricType.MAVM):
             display = EMetricDisp.SUPPORT_SHIFT
@@ -713,6 +799,23 @@ def add_metric_overlay(
         raise ValueError("Support shifts and integration areas require AVM or MAVM.")
     if display is EMetricDisp.CDF_DIFFERENCE and kind is not EMetricType.KS:
         raise ValueError("Vertical CDF differences require KS.")
+    full_support = (
+        kind is EMetricType.MAVM
+        and display is EMetricDisp.SUPPORT_SHIFT
+        and output is None
+    )
+    if full_support:
+        output_indices = (
+            outputs.index(EMetricOut.D_PLUS), outputs.index(EMetricOut.D_MINUS)
+        )
+    else:
+        if output is None:
+            if len(outputs) != 1:
+                raise ValueError("Select D_PLUS or D_MINUS for this MAVM overlay.")
+            output = outputs[0]
+        if output not in outputs:
+            raise ValueError("The selected metric does not declare that output.")
+        output_indices = (outputs.index(output),)
     if comparison is not None:
         if not isinstance(comparison, ValidECDFComparison):
             raise TypeError("Comparison must be ValidECDFComparison.")
@@ -731,7 +834,6 @@ def add_metric_overlay(
         ):
             raise TypeError("Comparison offsets must be EEpisOffset.")
     prepared = []
-    output_index = outputs.index(output)
     for data in plot.data:
         if EValidSource.SIM not in data or EValidSource.EXP not in data:
             raise ValueError(
@@ -768,7 +870,9 @@ def add_metric_overlay(
                 "Integration shading requires an explicit original scenario comparison."
             )
         value_columns = (
-            1 if display is EMetricDisp.SUPPORT_SHIFT else len(exp_indices)
+            len(output_indices)
+            if display is EMetricDisp.SUPPORT_SHIFT
+            else len(exp_indices)
         )
         values = np.full((len(sim_indices), value_columns), np.nan)
         # KS envelope geometry is calculated directly from displayed bounds;
@@ -777,35 +881,36 @@ def add_metric_overlay(
             for row, sim_index in enumerate(sim_indices):
                 for column, exp_index in enumerate(exp_indices):
                     result = metric.calc(sim.samples[sim_index], exp.samples[exp_index])
-                    value = metric.extract_outputs(result)[output_index]
+                    metric_values = metric.extract_outputs(result)
                     if display is EMetricDisp.SUPPORT_SHIFT:
-                        values[row, 0] = (
-                            value
-                            if np.isnan(values[row, 0])
-                            else max(values[row, 0], value)
-                        )
+                        for direction_idx, output_idx in enumerate(output_indices):
+                            values[row, direction_idx] = np.fmax(
+                                values[row, direction_idx], metric_values[output_idx]
+                            )
                     else:
-                        values[row, column] = value
+                        values[row, column] = metric_values[output_indices[0]]
         prepared.append((sim, exp, sim_indices, exp_indices, values))
     options = plot.options
-    metric_label = create_metric_label(kind, output)
+    metric_label = kind.name if output is None else create_metric_label(kind, output)
     for ax, (sim, exp, sim_indices, exp_indices, values) in zip(
         plot.axes.flat, prepared, strict=False
     ):
         if display is EMetricDisp.SUPPORT_SHIFT:
             quantiles = sim.original_quantiles[list(sim_indices)]
-            largest_per_sim = np.max(values, axis=1)
             lower = np.min(quantiles, axis=0)
             upper = np.max(quantiles, axis=0)
-            if kind is EMetricType.AVM or output is EMetricOut.D_PLUS:
-                upper = np.max(quantiles + largest_per_sim[:, None], axis=0)
-            if kind is EMetricType.AVM or output is EMetricOut.D_MINUS:
-                lower = np.min(quantiles - largest_per_sim[:, None], axis=0)
-            if kind is EMetricType.MAVM:
-                if output is EMetricOut.D_PLUS:
-                    lower = np.max(quantiles, axis=0)
-                else:
-                    upper = np.min(quantiles, axis=0)
+            if full_support:
+                upper = np.max(quantiles + values[:, 0, None], axis=0)
+                lower = np.min(quantiles - values[:, 1, None], axis=0)
+            elif kind is EMetricType.AVM:
+                upper = np.max(quantiles + values[:, 0, None], axis=0)
+                lower = np.min(quantiles - values[:, 0, None], axis=0)
+            elif output is EMetricOut.D_PLUS:
+                lower = upper
+                upper = np.max(quantiles + values[:, 0, None], axis=0)
+            else:
+                upper = lower
+                lower = np.min(quantiles - values[:, 0, None], axis=0)
             if np.array_equal(lower, upper):
                 continue
             ax.fill_betweenx(
@@ -816,7 +921,7 @@ def add_metric_overlay(
                 color=options.metric_color,
                 alpha=options.metric_alpha,
                 zorder=0.5,
-                label=kind.name,
+                label="MAVM support envelope" if full_support else kind.name,
             )
             _plot_quantile_curve(
                 ax,
@@ -1326,7 +1431,7 @@ def plot_valid_mavm_diagnostic(
                 color=options.metric_color,
                 alpha=options.metric_alpha,
                 zorder=0.5,
-                label="MAVM",
+                label="MAVM support envelope",
             )
         _plot_quantile_curve(
             ax,
@@ -1334,7 +1439,7 @@ def plot_valid_mavm_diagnostic(
             probabilities,
             color="black",
             linestyle=options.metric_linestyle,
-            label=None if options.shade_bounds else "MAVM",
+            label=None if options.shade_bounds else "MAVM support envelope",
         )
         _plot_quantile_curve(
             ax,

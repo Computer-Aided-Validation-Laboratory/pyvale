@@ -208,21 +208,17 @@ pv_plot.close()
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the
 # complete analysis in its own directory prevents clashes with other examples.
-# Show the limiting shifted ECDF supports for each MAVM direction.
+# Show the MAVM support envelope across both directions.
 supports = vl.find_metric_epis_supports(
     valid_case, valid_result, temperature_tag, vl.EMetricType.MAVM
 )
-for metric_output, direction in (
-    (vl.EMetricOut.D_PLUS, "d_plus"),
-    (vl.EMetricOut.D_MINUS, "d_minus"),
-):
-    ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, temperature_tag)
-    vl.add_support_overlay(ecdf_plot, supports, output=metric_output)
-    ecdf_plot.figure.savefig(
-        output_path / f"mavm_{direction}_limiting_ecdf.png", bbox_inches="tight"
-    )
-    if not SHOW_PLOTS:
-        plt.close(ecdf_plot.figure)
+ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, temperature_tag)
+vl.add_support_overlay(ecdf_plot, supports)
+ecdf_plot.figure.savefig(
+    output_path / "mavm_support_envelope.png", bbox_inches="tight"
+)
+if not SHOW_PLOTS:
+    plt.close(ecdf_plot.figure)
 
 if SHOW_PLOTS:
     plt.show()
