@@ -24,15 +24,15 @@ from pyvale.validation.metrics import (
     calc_cvm_1d,
     calc_ks_1d,
     calc_mavm_1d,
-    calculate_relative_error,
-    validate_paired_samples,
-    validate_relative_error_config,
+    _calculate_relative_error,
+    _validate_paired_samples,
+    _validate_relative_error_config,
 )
+from pyvale.validation.validchecks import _validate_mavm_config
 from pyvale.validation.validtypes import (
     EMAVMDuplicates,
     EMetricOut,
     MAVMResult,
-    validate_mavm_config,
 )
 
 
@@ -107,7 +107,7 @@ class MetricMAVM(IValidMetric):
         duplicates: EMAVMDuplicates = EMAVMDuplicates.INCLUDE,
         tol: float = MAVM_AREA_TOLERANCE,
     ) -> None:
-        validate_mavm_config(alpha, duplicates, tol)
+        _validate_mavm_config(alpha, duplicates, tol)
         self.alpha = alpha
         self.duplicates = duplicates
         self.tol = tol
@@ -222,7 +222,7 @@ class MetricRMSE(IValidMetric):
         return (cast(ScalarMetricResult, result).value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
-        sim_values, exp_values = validate_paired_samples(sim, exp)
+        sim_values, exp_values = _validate_paired_samples(sim, exp)
         residual = sim_values - exp_values
         return ScalarMetricResult(
             EMetricType.RMSE,
@@ -241,7 +241,7 @@ class MetricRelErr(IValidMetric):
         normalisation: ERelErrNorm = ERelErrNorm.EXP_MAX,
         constant: float | None = None,
     ) -> None:
-        validate_relative_error_config(normalisation, constant)
+        _validate_relative_error_config(normalisation, constant)
         self.normalisation = normalisation
         self.constant = constant
 
@@ -261,14 +261,14 @@ class MetricRelErr(IValidMetric):
         return (cast(ScalarMetricResult, result).value,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
-        sim, exp = validate_paired_samples(sim, exp)
+        sim, exp = _validate_paired_samples(sim, exp)
         return ScalarMetricResult(
             EMetricType.RELATIVE_ERROR,
-            calculate_relative_error(sim, exp, self.normalisation, self.constant),
+            _calculate_relative_error(sim, exp, self.normalisation, self.constant),
         )
 
 
-def calculate_trusted_metric(
+def _calculate_trusted_metric(
     metric: IValidMetric, sim: np.ndarray, exp: np.ndarray
 ) -> MetricResult:
     """Calculate on validated engine arrays, omitting missing observations."""
@@ -277,7 +277,7 @@ def calculate_trusted_metric(
         if not len(sim):
             return ScalarMetricResult(kind, float("nan"))
         if isinstance(metric, MetricRelErr):
-            value = calculate_relative_error(
+            value = _calculate_relative_error(
                 sim, exp, metric.normalisation, metric.constant
             )
         else:

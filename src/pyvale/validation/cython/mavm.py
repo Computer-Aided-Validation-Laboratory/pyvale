@@ -24,12 +24,12 @@ from pyvale.validation.constants import (
     MAVM_PROBABILITY_TOLERANCE,
 )
 from pyvale.validation.validchecks import (
-    validate_finite_sample,
+    _validate_finite_sample,
+    _validate_mavm_config,
 )
 from pyvale.validation.validtypes import (
     EMAVMDuplicates,
     MAVMResult,
-    validate_mavm_config,
 )
 
 try:
@@ -213,13 +213,13 @@ def _integrate_mavm_bound_robust(
     return d_plus, d_minus
 
 
-def convert_contiguous_float64(values: np.ndarray) -> np.ndarray:
+def _convert_contiguous_float64(values: np.ndarray) -> np.ndarray:
     """Return C-contiguous ``float64`` values for typed Cython memoryviews."""
     return np.ascontiguousarray(values, dtype=np.float64)
 
 
 @cython.ccall
-def cyth_calc_mavm_1d(
+def _cyth_calc_mavm_1d(
     model_data: np.ndarray,
     exp_data: np.ndarray,
     alpha: float = 0.05,
@@ -231,9 +231,9 @@ def cyth_calc_mavm_1d(
     This has the same input contract and return type as
     :func:`pyvale.validation.metrics.calc_mavm_1d`.
     """
-    validate_mavm_config(alpha, duplicates, tol)
-    model_clean = validate_finite_sample(model_data, "model_data")
-    exp_clean = validate_finite_sample(exp_data, "exp_data")
+    _validate_mavm_config(alpha, duplicates, tol)
+    model_clean = _validate_finite_sample(model_data, "model_data")
+    exp_clean = _validate_finite_sample(exp_data, "exp_data")
 
     model = _prepare_mavm_distribution(
         model_clean,
@@ -292,8 +292,8 @@ def _prepare_mavm_distribution(
                 "Use duplicates=EMAVMDuplicates.INCLUDE for repeated observations."
             )
     return _PreparedECDF(
-        convert_contiguous_float64(distribution.quantiles),
-        convert_contiguous_float64(distribution.probabilities),
+        _convert_contiguous_float64(distribution.quantiles),
+        _convert_contiguous_float64(distribution.probabilities),
     )
 
 
@@ -308,8 +308,8 @@ def _prepare_mavm_exp(
     standard_error = np.nanstd(quantiles) / np.sqrt(count)
     return _PreparedMAVMExp(
         distribution,
-        convert_contiguous_float64(quantiles - t_value * standard_error),
-        convert_contiguous_float64(quantiles + t_value * standard_error),
+        _convert_contiguous_float64(quantiles - t_value * standard_error),
+        _convert_contiguous_float64(quantiles + t_value * standard_error),
     )
 
 
@@ -379,7 +379,7 @@ def _calculate_prepared_mavm(
 
 
 @cython.ccall
-def cyth_calc_mavm_pbox_1d(
+def _cyth_calc_mavm_pbox_1d(
     model_pbox_min: np.ndarray,
     model_pbox_max: np.ndarray,
     exp_data: np.ndarray,
@@ -387,11 +387,11 @@ def cyth_calc_mavm_pbox_1d(
     duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMResult:
-    """Calculate p-box MAVM using :func:`cyth_calc_mavm_1d` for each bound."""
-    validate_mavm_config(alpha, duplicates, tol)
-    lower_samples = validate_finite_sample(model_pbox_min, "model_pbox_min")
-    upper_samples = validate_finite_sample(model_pbox_max, "model_pbox_max")
-    exp_samples = validate_finite_sample(exp_data, "exp_data")
+    """Calculate p-box MAVM using :func:`_cyth_calc_mavm_1d` for each bound."""
+    _validate_mavm_config(alpha, duplicates, tol)
+    lower_samples = _validate_finite_sample(model_pbox_min, "model_pbox_min")
+    upper_samples = _validate_finite_sample(model_pbox_max, "model_pbox_max")
+    exp_samples = _validate_finite_sample(exp_data, "exp_data")
     lower_model = _prepare_mavm_distribution(
         lower_samples,
         unique_label="lower model" if duplicates is EMAVMDuplicates.REJECT else None,

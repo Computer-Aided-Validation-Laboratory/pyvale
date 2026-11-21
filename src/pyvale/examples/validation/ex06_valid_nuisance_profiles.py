@@ -35,20 +35,33 @@ output_path.mkdir(parents=True, exist_ok=True)
 # 1. Keep all six axes distinct. Equal repeat counts allow paired metrics too.
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
 times = np.array([0.0, 1.0, 2.0])
-base = 10.0 + 2.0 * coords[:, :1] + times
-bias = 1.0 + 2.0 * coords[:, :1] + 0.5 * times
-sim_shift = np.array([[0.0, 1.0, 2.0], [2.0, 4.0, 8.0]])
-exp_shift = np.array([[1.0, 3.0, 5.0], [2.0, 4.0, 7.0]])
-quantile_grid = np.array([-1.0, -1 / 3, 1 / 3, 1.0])
+ground_truth = np.array([100.0, 120.0])[:, None] + 10.0 * times
+exp_bias = np.array([10.0, 30.0])[:, None] + 5.0 * times
+
+# Use the same additive epistemic shifts as ex05, in degC.
+sim_epistemic_trans_shift = np.array([2.0, 4.0, 8.0])
+sim_epistemic_nuis_shift = np.array([0.0, 178.0, 8.0])
+exp_epistemic_trans_shift = np.array([0.0, 6.0])
+exp_epistemic_nuis_shift = np.array([0.0, 2.0, 12.0])
+
+# Four repeats per scenario. The nuisance case also controls their spread.
+aleatory_grid = np.array([-1.0, -1 / 3, 1 / 3, 1.0])
+sim_aleatory_half_width = np.array([2.0, 10.0, 20.0])
+exp_aleatory_half_width = np.array([4.0, 8.0, 12.0])
+sim_aleatory_deviations = sim_aleatory_half_width[:, None] * aleatory_grid
+exp_aleatory_deviations = exp_aleatory_half_width[:, None] * aleatory_grid
+
 sim_samples = (
-    base[:, None, :, None, None, None]
-    + sim_shift[None, None, None, :, :, None]
-    + np.array([0.2, 1.0, 2.0])[None, None, None, None, :, None] * quantile_grid
+    ground_truth[:, None, :, None, None, None]
+    + sim_epistemic_trans_shift[None, None, None, :, None, None]
+    + sim_epistemic_nuis_shift[None, None, None, None, :, None]
+    + sim_aleatory_deviations
 )
 exp_samples = (
-    (base + bias)[:, None, :, None, None, None]
-    + exp_shift[None, None, None, :, :, None]
-    + np.array([0.4, 0.8, 1.2])[None, None, None, None, :, None] * quantile_grid
+    (ground_truth + exp_bias)[:, None, :, None, None, None]
+    + exp_epistemic_trans_shift[None, None, None, :, None, None]
+    + exp_epistemic_nuis_shift[None, None, None, None, :, None]
+    + exp_aleatory_deviations
 )
 axes = (
     vl.EValidAxis.POINT,
@@ -94,53 +107,16 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
     profile: vl.ValidMetricExtrema = vl.profile_epis_nuisance_extrema(
         valid_result, observable_tag, metric_type
     )
-    # Reuse generic metric plotting with profiled fields. The profiles do not
-    # calculate metrics again; both fields borrow their already reduced arrays.
-    maximum_result = vl.ValidResult(
-        observables,
-        {
-            observable_tag: {
-                metric_type: vl.MetricField(profile.axes, profile.maximum)
-            }
-        },
-        valid_result.metric_configs,
-    )
-    minimum_result = vl.ValidResult(
-        observables,
-        {
-            observable_tag: {
-                metric_type: vl.MetricField(profile.axes, profile.minimum)
-            }
-        },
-        valid_result.metric_configs,
-    )
-    selectors = {
-        vl.EValidResAxis.SIM_TRANS: 0,
-        vl.EValidResAxis.EXP_TRANS: 0,
-    }
-    fig, plot_axes = vl.plot_metric_time_points(
-        maximum_result,
+    fig, _ = vl.plot_metric_extrema_time(
+        valid_result,
         observable_tag,
         metric_type,
-        point_idxs=(0, 1),
-        selectors=selectors,
+        profile=profile,
+        selectors={
+            vl.EValidResAxis.SIM_TRANS: 0,
+            vl.EValidResAxis.EXP_TRANS: 0,
+        },
     )
-    for point, ax in enumerate(plot_axes.flat):
-        heading = ax.get_title()
-        for line in ax.lines:
-            line.set_label(f"{line.get_label()} maximum")
-        maximum_count = len(ax.lines)
-        vl.plot_valid_metric_time(
-            minimum_result,
-            observable_tag,
-            metric_type,
-            selectors={**selectors, vl.EValidResAxis.POINT: point},
-            ax=ax,
-        )
-        ax.set_title(heading)
-        for line in ax.lines[maximum_count:]:
-            line.set_label(f"{line.get_label()} minimum")
-        ax.legend(loc="best", ncol=2)
     profile_name = metric_type.name.lower()
     if len(field.outputs) == 1:
         profile_name += f"_{next(iter(field.outputs)).name.lower()}"
@@ -168,7 +144,7 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
 # %%
 # 3. Support profiling asks which ECDF +/- its own d reaches furthest. This is
 # not a globally largest d added to the sim envelope. Origins may change along p.
-supports: vl.ValidSupportBounds = vl.profile_epis_nuisance_supports(
+supports: vl.ECDFSuppBounds = vl.profile_epis_nuisance_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
 ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
@@ -189,7 +165,7 @@ ecdf_plot.figure.savefig(
 )
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
-avm_supports: vl.ValidSupportBounds = vl.find_metric_epis_supports(
+avm_supports: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.AVM
 )
 ecdf_plot = vl.plot_sim_exp_cdfs(
@@ -207,7 +183,7 @@ if not SHOW_PLOTS:
 # retaining nuisance axes. Total width and additional outward extension answer
 # different questions. A median-ranked case is actual data, unlike ex05's
 # synthetic pointwise nuisance median. Stable ties retain canonical index order.
-by_case: vl.ValidSupportBounds = vl.find_metric_epis_supports(
+by_case: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case,
     valid_result,
     observable_tag,
@@ -215,7 +191,7 @@ by_case: vl.ValidSupportBounds = vl.find_metric_epis_supports(
     reduce_axes=(vl.EValidResAxis.SIM_TRANS, vl.EValidResAxis.EXP_TRANS),
 )
 for score in vl.EValidNuisanceScore:
-    ranking: vl.ValidNuisanceRanking = vl.rank_epis_nuisance_cases(
+    ranking: vl.ECDFNuisanceRank = vl.rank_epis_nuisance_cases(
         by_case, score=score
     )
     score_name = score.name.lower()

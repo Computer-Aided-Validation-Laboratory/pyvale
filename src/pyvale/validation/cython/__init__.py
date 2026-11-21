@@ -8,15 +8,5 @@
 
 The modules in this package are valid pure Python source files.  A wheel build
 compiles them into extension modules, while source checkouts retain the same
-public API through their Python fallback.
+implementation through their Python fallback.
 """
-
-from pyvale.validation.cython.mavm import (
-    cyth_calc_mavm_1d,
-    cyth_calc_mavm_pbox_1d,
-)
-
-__all__ = [
-    "cyth_calc_mavm_1d",
-    "cyth_calc_mavm_pbox_1d",
-]

@@ -17,7 +17,7 @@ from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
 from pyvale.sensorsim.sensordata import SensorData
-from pyvale.validation.validchecks import validate_real_array
+from pyvale.validation.arraychecks import _validate_real_array
 from pyvale.validation.validtypes import (
     EValidAxis,
     EValidGeometry,
@@ -262,7 +262,7 @@ class SensorOutputSelection:
             raise TypeError("Component index must be an integer.")
         if self.component < 0:
             raise ValueError("Component index must be nonnegative.")
-        validate_real_array(self.coords, "coords", allow_nan=False)
+        _validate_real_array(self.coords, "coords", allow_nan=False)
         if self.coords.ndim != 2 or self.coords.shape[1] != 3:
             raise ValueError("Sensor coordinates must have shape (point, xyz).")
 

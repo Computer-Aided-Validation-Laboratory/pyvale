@@ -61,13 +61,13 @@ exp_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
     valid_case.exp[observable_tag]
 )
 
-avm_bounds: vl.ValidSupportBounds = vl.calc_avm_over_epis_bounds(
+avm_bounds: vl.ECDFSuppBounds = vl.calc_avm_over_epis_bounds(
     sim_bounds, exp_bounds
 )
 
 # alpha=.5 deliberately removes confidence shifts to isolate epistemic geometry.
 # ex07 demonstrates default MAVM confidence construction and coherent offsets.
-mavm_bounds: vl.ValidSupportBounds = vl.calc_mavm_over_epis_bounds(
+mavm_bounds: vl.ECDFSuppBounds = vl.calc_mavm_over_epis_bounds(
     sim_bounds, exp_bounds, alpha=0.5
 )
 
@@ -76,11 +76,11 @@ valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM(alpha=0.5)]
 ).run(valid_case)
 
-avm_original: vl.ValidSupportBounds = vl.find_metric_epis_supports(
+avm_original: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.AVM
 )
 
-mavm_original: vl.ValidSupportBounds = vl.find_metric_epis_supports(
+mavm_original: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
 # %%

@@ -20,7 +20,7 @@ from pyvale.validation.metrics import (
     calc_mavm_pbox_1d,
 )
 from pyvale.validation.metrics import ERelErrNorm as Normalisation
-from pyvale.validation.validtools import build_metric_selection
+from pyvale.validation.validtools import _build_metric_selection
 
 
 def test_invalid_observations_fail_when_case_is_initialized() -> None:
@@ -698,9 +698,9 @@ def test_metric_field_selectors() -> None:
     )
     for index in (-1, 2, True, 0.0):
         with pytest.raises((TypeError, IndexError)):
-            build_metric_selection(field, {vl.EValidResAxis.POINT: index})
+            _build_metric_selection(field, {vl.EValidResAxis.POINT: index})
     with pytest.raises(ValueError):
-        build_metric_selection(field, {vl.EValidResAxis.SIM_NUIS: 0})
+        _build_metric_selection(field, {vl.EValidResAxis.SIM_NUIS: 0})
 
 
 def test_case_validates_sample_input_dimensions_for_each_source() -> None:

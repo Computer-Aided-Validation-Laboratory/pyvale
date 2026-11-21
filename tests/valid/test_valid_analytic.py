@@ -730,7 +730,7 @@ def test_ranked_nuisance_cases_are_coherent_and_use_explicit_width_scores() -> N
     upper[0, 0] = [1.5, 3.5]  # Weighted width is 3; the unweighted mean is 2.5.
     sim_upper = np.repeat(original_width[..., None], 2, axis=-1)
     origin = np.empty((*upper.shape, 0), dtype=int)
-    supports = vl.ValidSupportBounds(
+    supports = vl.ECDFSuppBounds(
         (vl.EValidResAxis.SIM_NUIS, vl.EValidResAxis.EXP_NUIS),
         probabilities,
         np.zeros_like(upper),
@@ -1150,7 +1150,7 @@ def test_quantile_summary_preserves_duplicate_mass_and_unequal_counts() -> None:
 
 
 def test_endpoint_corrections_are_anchored_to_model_limits() -> None:
-    correction = vl.calc_mavm_correction(
+    correction = vl.calc_mavm_bound_pairs(
         np.array([0.0]), np.array([10.0]), np.array([-2.0]), np.array([13.0])
     )
     assert correction.lower.d_minus == pytest.approx(2.0)

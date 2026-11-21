@@ -8,7 +8,7 @@
 Calibration offsets
 ================================================================================
 
-The imposed exp bias is .4+.5t degC. Calibration offsets shift an entire
+The imposed experimental bias grows from 4 to 14 degC. Calibration offsets shift an entire
 conditional distribution, whereas MAVM confidence depends on its observations.
 These are distinct from the epistemic scenario envelope shown in ex04-ex06.
 """
@@ -32,12 +32,16 @@ output_path.mkdir(parents=True, exist_ok=True)
 # 1. Two points and three times share a deterministic aleatory sampling grid.
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
 times = np.array([0.0, 1.0, 2.0])
-baseline = 10.0 + 2.0 * coords[:, :1] + times
-sim_samples = baseline[:, None, :, None] + np.array([-0.6, -0.2, 0.2, 0.6])
-bias = 0.4 + 0.5 * times
-exp_samples = sim_samples + bias[None, None, :, None]
-lower_offset = 0.15 + 0.1 * coords[:, :1] + 0.05 * times
-upper_offset = 0.4 + 0.2 * coords[:, :1] + 0.1 * times
+ground_truth = np.array([100.0, 120.0])[:, None] + 10.0 * times
+
+aleatory_deviations = np.array([-6.0, -2.0, 2.0, 6.0])
+exp_bias = 4.0 + 5.0 * times
+sim_samples = ground_truth[:, None, :, None] + aleatory_deviations
+exp_samples = (ground_truth + exp_bias)[:, None, :, None] + aleatory_deviations
+
+# Calibration offset magnitudes vary by site and time, in degC.
+exp_calibration_lower_offset = np.array([1.5, 2.5])[:, None] + 0.5 * times
+exp_calibration_upper_offset = np.array([4.0, 6.0])[:, None] + times
 axes = (
     vl.EValidAxis.POINT,
     vl.EValidAxis.COMPONENT,
@@ -63,8 +67,8 @@ valid_case = vl.ValidCase(
             exp_samples,
             axes,
             vl.EpistemicOffsets(
-                lower_offset,
-                upper_offset,
+                exp_calibration_lower_offset,
+                exp_calibration_upper_offset,
                 (vl.EValidAxis.POINT, vl.EValidAxis.TIME),
             ),
         )
@@ -96,7 +100,7 @@ sim_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
 exp_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
     valid_case.exp[observable_tag], time_idx=2, offset=None
 )
-confidence_supports: vl.ValidSupportBounds = vl.calc_mavm_over_epis_bounds(
+confidence_supports: vl.ECDFSuppBounds = vl.calc_mavm_over_epis_bounds(
     sim_bounds, exp_bounds
 )
 # %%

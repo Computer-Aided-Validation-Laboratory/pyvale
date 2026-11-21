@@ -31,28 +31,31 @@ from pyvale.validation.validecdf import (
     calc_ecdf_view,
 )
 from pyvale.validation.validtools import (
-    build_metric_selection,
-    create_metric_label,
+    _build_metric_selection,
+    _create_metric_label,
     extract_metric_values,
     select_metric_output,
 )
-from pyvale.validation.validtypes import (
-    EEpisOffset,
-    EMetricOut,
+from pyvale.validation.ecdftypes import (
     EValidECDFCentre,
     EValidECDFReduce,
-    EValidMAVMDiagnostic,
-    EValidResAxis,
-    EValidSource,
-    MAVMCorrection,
-    ValidCase,
     ValidECDF,
     ValidECDFSummary,
     ValidECDFView,
     ValidECDFViewData,
+    ECDFSuppBounds,
+)
+from pyvale.validation.validtypes import (
+    EEpisOffset,
+    EMetricOut,
+    EValidMAVMDiagnostic,
+    EValidResAxis,
+    EValidSource,
+    MAVMBoundPairs,
+    MetricField,
+    ValidCase,
+    ValidMetricExtrema,
     ValidResult,
-    ValidSupportBounds,
-    resolve_metric_output,
 )
 
 
@@ -595,7 +598,7 @@ def _plot_ecdf_view(
 
 def add_support_overlay(
     plot: ECDFPlot,
-    supports: ValidSupportBounds,
+    supports: ECDFSuppBounds,
     *,
     output: EMetricOut | None = None,
     selectors: dict[EValidResAxis, int] | None = None,
@@ -891,7 +894,7 @@ def add_metric_overlay(
                         values[row, column] = metric_values[output_indices[0]]
         prepared.append((sim, exp, sim_indices, exp_indices, values))
     options = plot.options
-    metric_label = kind.name if output is None else create_metric_label(kind, output)
+    metric_label = kind.name if output is None else _create_metric_label(kind, output)
     for ax, (sim, exp, sim_indices, exp_indices, values) in zip(
         plot.axes.flat, prepared, strict=False
     ):
@@ -1120,7 +1123,7 @@ def plot_valid_metric_time(
     outputs = (
         (EMetricOut.D_PLUS, EMetricOut.D_MINUS)
         if metric is EMetricType.MAVM and output is None
-        else (resolve_metric_output(field, output),)
+        else (field._resolve_output(output),)
     )
     times = result.observables[observable].times
     if times is None:
@@ -1134,7 +1137,7 @@ def plot_valid_metric_time(
     fig, ax = _create_axes(ax, valid_plot_opts)
     for direction, trace in zip(outputs, traces, strict=True):
         trace_label = (
-            create_metric_label(metric, direction)
+            _create_metric_label(metric, direction)
             if metric is EMetricType.MAVM
             else metric.name
         )
@@ -1142,7 +1145,7 @@ def plot_valid_metric_time(
     ax.legend()
     time_units = result.observables[observable].time_units
     ax.set_xlabel(f"Time [{time_units}]" if time_units else "Time")
-    label = "MAVM" if len(outputs) == 2 else create_metric_label(metric, outputs[0])
+    label = "MAVM" if len(outputs) == 2 else _create_metric_label(metric, outputs[0])
     ax.set_ylabel(f"{label} [{_metric_units(result, observable, metric)}]")
     ax.set_title(observable)
     ax.grid(alpha=0.3)
@@ -1162,8 +1165,8 @@ def plot_metric_dist(
 ) -> tuple[Figure, Axes]:
     """Histogram finite metric values over selected physical/scenario cells."""
     field = result.metrics[observable][metric]
-    output = resolve_metric_output(field, output)
-    selection_idx = build_metric_selection(field, selectors)
+    output = field._resolve_output(output)
+    selection_idx = _build_metric_selection(field, selectors)
     selected_field = select_metric_output(field, output, selection_idxs=selection_idx)
     values = selected_field.ravel()
     values = values[np.isfinite(values)]
@@ -1172,7 +1175,7 @@ def plot_metric_dist(
     fig, ax = _create_axes(ax, valid_plot_opts)
     ax.hist(values, bins=min(20, len(values)))
     ax.set_xlabel(
-        f"{create_metric_label(metric, output)} "
+        f"{_create_metric_label(metric, output)} "
         f"[{_metric_units(result, observable, metric)}]"
     )
     ax.set_ylabel("Cell count")
@@ -1246,7 +1249,7 @@ def plot_metric_time_points(
     validation_output = (
         EMetricOut.D_PLUS
         if metric is EMetricType.MAVM and output is None
-        else resolve_metric_output(field, output)
+        else field._resolve_output(output)
     )
     if result.observables[observable].times is None:
         raise ValueError("Time plot requires physical time coordinates.")
@@ -1278,6 +1281,103 @@ def plot_metric_time_points(
             f"Point {point_idx}: {ax.get_title()}",
             fontsize=(valid_plot_opts or ValidPlotOpts()).font_head_size,
         )
+    return fig, axes
+
+
+def plot_metric_extrema_time(
+    result: ValidResult,
+    observable: str,
+    metric: EMetricType,
+    *,
+    profile: ValidMetricExtrema,
+    point_idxs: tuple[int, ...] | None = None,
+    selectors: dict[EValidResAxis, int] | None = None,
+    output: EMetricOut | None = None,
+    columns: int = 3,
+    valid_plot_opts: ValidPlotOpts | None = None,
+) -> tuple[Figure, np.ndarray]:
+    """Plot precomputed minimum and maximum traces in one panel per point.
+
+    Select any remaining non-singleton axes with selectors. By default all
+    profiled points and both MAVM directions are shown.
+    """
+    observable_data = result.observables[observable]
+    times = observable_data.times
+    if times is None or EValidResAxis.TIME not in profile.axes:
+        raise ValueError("Extrema time plots require a retained physical time axis.")
+    selected = dict(selectors or {})
+    if EValidResAxis.TIME in selected or EValidResAxis.POINT in selected:
+        raise ValueError("Use point_idxs to select points and leave time unselected.")
+
+    minimum_field = MetricField(profile.axes, profile.minimum)
+    outputs = (
+        (EMetricOut.D_PLUS, EMetricOut.D_MINUS)
+        if metric is EMetricType.MAVM and output is None
+        else (minimum_field._resolve_output(output),)
+    )
+    point_axis = EValidResAxis.POINT
+    if point_axis in profile.axes:
+        point_count = profile.minimum[outputs[0]].shape[profile.axes.index(point_axis)]
+        available_points = range(point_count)
+    else:
+        available_points = (profile.selectors[point_axis],)
+    points = tuple(available_points) if point_idxs is None else point_idxs
+    if not isinstance(points, tuple) or not points:
+        raise ValueError("Supply a nonempty tuple of point indices.")
+
+    traces = []
+    for point_idx in points:
+        if isinstance(point_idx, (bool, np.bool_)) or not isinstance(
+            point_idx, (int, np.integer)
+        ):
+            raise TypeError("Point indices must be integers.")
+        if point_idx not in available_points:
+            raise IndexError("Point index is outside the extrema profile.")
+        if point_axis in profile.axes:
+            selected[point_axis] = point_idx
+        indices = _build_metric_selection(
+            minimum_field, selected, keep=EValidResAxis.TIME
+        )
+        point_traces = [
+            (profile.minimum[direction][indices], profile.maximum[direction][indices])
+            for direction in outputs
+        ]
+        if any(
+            lower.shape != times.shape or upper.shape != times.shape
+            for lower, upper in point_traces
+        ):
+            raise ValueError("Extrema traces must match the physical time coordinates.")
+        traces.append(point_traces)
+
+    fig, axes = create_valid_plot_grid(
+        len(points), columns=columns, valid_plot_opts=valid_plot_opts
+    )
+    time_units = observable_data.time_units
+    metric_label = (
+        "MAVM" if len(outputs) == 2 else _create_metric_label(metric, outputs[0])
+    )
+    for point_idx, point_traces, ax in zip(points, traces, axes.flat, strict=False):
+        for direction, (lower, upper) in zip(outputs, point_traces, strict=True):
+            label = (
+                _create_metric_label(metric, direction)
+                if metric is EMetricType.MAVM
+                else metric.name
+            )
+            (minimum_line,) = ax.plot(times, lower, marker="o", label=f"{label} min")
+            ax.plot(
+                times,
+                upper,
+                marker="o",
+                linestyle="--",
+                color=minimum_line.get_color(),
+                label=f"{label} max",
+            )
+        ax.set_xlabel(f"Time [{time_units}]" if time_units else "Time")
+        ax.set_ylabel(f"{metric_label} [{_metric_units(result, observable, metric)}]")
+        ax.set_title(f"Point {point_idx}: {observable}")
+        ax.grid(alpha=0.3)
+        ax.legend()
+        _apply_plot_options(fig, ax, valid_plot_opts)
     return fig, axes
 
 
@@ -1350,7 +1450,7 @@ def plot_valid_mavm_diagnostic(
     sim: ValidECDFSummary,
     exp: ValidECDFSummary | None = None,
     *,
-    correction: MAVMCorrection | None = None,
+    correction: MAVMBoundPairs | None = None,
     view: EValidMAVMDiagnostic = EValidMAVMDiagnostic.DISTRIBUTIONS,
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,

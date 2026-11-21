@@ -12,26 +12,31 @@ from itertools import product
 import numpy as np
 from scipy import stats
 
-from pyvale.validation.validchecks import validate_finite_sample, validate_real_array
-from pyvale.validation.validtypes import (
-    EEpisOffset,
-    EValidAxis,
+from pyvale.validation.arraychecks import _validate_real_array
+from pyvale.validation.validchecks import (
+    _validate_ecdf,
+    _validate_finite_sample,
+)
+from pyvale.validation.ecdftypes import (
     EValidECDFBounds,
     EValidECDFCentre,
     EValidECDFReduce,
-    ValidArray,
     ValidECDF,
     ValidECDFBounds,
     ValidECDFSummary,
     ValidECDFView,
     ValidECDFViewData,
-    validate_ecdf,
+)
+from pyvale.validation.validtypes import (
+    EEpisOffset,
+    EValidAxis,
+    ValidArray,
 )
 
 
 def calc_ecdf(samples: np.ndarray) -> ValidECDF:
     """Calculate a 1D ECDF, omitting NaNs and preserving duplicate mass."""
-    observations = validate_finite_sample(samples, "samples")
+    observations = _validate_finite_sample(samples, "samples")
     cdf = stats.ecdf(observations).cdf
     return ValidECDF(cdf.quantiles, cdf.probabilities)
 
@@ -68,7 +73,7 @@ def calc_ecdf_envelope(
     """Pointwise ECDF bounds over coherent, supplied sample scenarios."""
     if not samples:
         raise ValueError("At least one sample scenario is required.")
-    clean = [np.sort(validate_finite_sample(sample, "sample")) for sample in samples]
+    clean = [np.sort(_validate_finite_sample(sample, "sample")) for sample in samples]
     support = np.unique(np.concatenate(clean))
     cdfs = np.stack([np.searchsorted(s, support, side="right") / len(s) for s in clean])
     return support, np.min(cdfs, axis=0), np.max(cdfs, axis=0)
@@ -150,8 +155,8 @@ def extract_aleatory_scenarios(
 
 def evaluate_ecdf_quantiles(cdf: ValidECDF, probabilities: np.ndarray) -> np.ndarray:
     """Evaluate the inverse ECDF using the first support reaching each probability."""
-    validate_ecdf(cdf)
-    probabilities = validate_real_array(probabilities, "probabilities", allow_nan=False)
+    _validate_ecdf(cdf)
+    probabilities = _validate_real_array(probabilities, "probabilities", allow_nan=False)
     if probabilities.ndim != 1:
         raise ValueError("Probabilities must be a finite one-dimensional array.")
     if np.any(probabilities < 0.0) or np.any(probabilities > 1.0):

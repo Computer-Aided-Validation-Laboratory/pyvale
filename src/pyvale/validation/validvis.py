@@ -17,13 +17,12 @@ from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.visualopts import VisOptsSimSensors
 from pyvale.sensorsim.visualtools import create_pv_plotter
 from pyvale.validation.metricstrategy import EMetricScale, EMetricType
-from pyvale.validation.validchecks import validate_real_array
-from pyvale.validation.validtools import create_metric_label, extract_metric_values
+from pyvale.validation.arraychecks import _validate_real_array
+from pyvale.validation.validtools import _create_metric_label, extract_metric_values
 from pyvale.validation.validtypes import (
     EMetricOut,
     EValidResAxis,
     ValidResult,
-    resolve_metric_output,
 )
 
 
@@ -116,7 +115,7 @@ def plot_metric_on_sim(
     options = create_valid_scene_opts() if vis_opts is None else vis_opts
     metric_options = MetricVisOpts() if metric_opts is None else metric_opts
     field = result.metrics[observable][metric]
-    output = resolve_metric_output(field, output)
+    output = field._resolve_output(output)
     values = extract_metric_values(field, selectors=selectors, output=output)
     observable_data = result.observables[observable]
     coords = observable_data.coords
@@ -179,7 +178,7 @@ def plot_metric_on_sim(
                 background_values = sim_data.node_vars[sim_field][:, sim_time_idx]
             else:
                 background_values = sim_field
-            background_values = validate_real_array(
+            background_values = _validate_real_array(
                 background_values, "Background scalar values"
             )
             if background_values.shape != (sim_data.coords.shape[0],):
@@ -239,7 +238,7 @@ def plot_metric_on_sim(
         else observable_data.phys_units
     )
     units = "-" if units in ("1", "") else units
-    metric_label = metric_options.metric_label or create_metric_label(metric, output)
+    metric_label = metric_options.metric_label or _create_metric_label(metric, output)
     bar_label = metric_label
     component_idx = (selectors or {}).get(EValidResAxis.COMPONENT, 0)
     quantity_label = observable_data.components[component_idx]

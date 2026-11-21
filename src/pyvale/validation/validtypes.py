@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pyvale.validation.validchecks import validate_real_array
+from pyvale.validation.arraychecks import _validate_real_array
 
 if TYPE_CHECKING:
     from pyvale.validation.metricstrategy import EMetricType, IValidMetric
@@ -79,7 +79,7 @@ class ValidObservable:
         if not isinstance(self.geometry, EValidGeometry):
             raise TypeError("Geometry kind must be EValidGeometry.")
         if self.coords is not None:
-            validate_real_array(self.coords, "coords", allow_nan=False)
+            _validate_real_array(self.coords, "coords", allow_nan=False)
         if self.geometry is EValidGeometry.GLOBAL:
             if self.coords is not None:
                 raise ValueError("GLOBAL geometry cannot have point coordinates.")
@@ -93,7 +93,7 @@ class ValidObservable:
         if not self.components or len(set(self.components)) != len(self.components):
             raise ValueError("Observable components must be nonempty and unique.")
         if self.times is not None:
-            validate_real_array(self.times, "times", allow_nan=False)
+            _validate_real_array(self.times, "times", allow_nan=False)
             if self.times.ndim != 1 or self.times.shape[0] == 0:
                 raise ValueError("Times must be a nonempty 1D array.")
             if np.any(self.times[1:] <= self.times[:-1]):
@@ -122,7 +122,7 @@ class EpistemicOffsets:
             raise ValueError("Offset axes must be in canonical order.")
 
         for name, value in (("lower", self.lower), ("upper", self.upper)):
-            array = validate_real_array(value, name, allow_nan=False)
+            array = _validate_real_array(value, name, allow_nan=False)
             if array.ndim != len(self.axes):
                 raise ValueError(f"{name} offset rank does not match axes.")
             if np.any(array < 0):
@@ -289,7 +289,7 @@ class ValidCase:
                 (self.exp, self.exp_inputs),
             ):
                 quantity = source[name]
-                validate_real_array(quantity.data, name)
+                _validate_real_array(quantity.data, name)
 
                 for axis, length in lengths.items():
                     if axis in quantity.axes:
@@ -378,93 +378,6 @@ class MAVMResult:
     """Significance level used for the confidence interval (e.g. 0.05)."""
 
 
-@dataclass(slots=True)
-class ValidECDF:
-    """Borrow support/probabilities, each shaped (n_support,).
-
-    Support and cumulative probabilities increase strictly; probabilities end
-    at one. Arrays must remain unchanged while the ECDF is in use.
-    """
-
-    quantiles: np.ndarray
-    probabilities: np.ndarray
-
-
-class EValidECDFReduce(Enum):
-    KEEP = auto()
-    MEAN = auto()
-    MEDIAN = auto()
-    QUANTILE = auto()
-
-
-class EValidECDFCentre(Enum):
-    NONE = auto()
-    MEAN = auto()
-    MEDIAN = auto()
-
-
-@dataclass(slots=True)
-class ValidECDFView:
-    """Select scenarios before nuisance-first, then transferable quantile reduction.
-
-    None index selections retain every index. scenario_idxs overlays original
-    (transferable, nuisance) pairs: () draws none, None draws all selected pairs.
-    Bounds and centre summarise the reduced family, never pooled observations.
-    Offsets are selected separately by the plotting/calculation function.
-    """
-
-    trans_reduce: EValidECDFReduce = EValidECDFReduce.KEEP
-    nuis_reduce: EValidECDFReduce = EValidECDFReduce.KEEP
-    trans_quantile: float | None = None
-    nuis_quantile: float | None = None
-    trans_idxs: tuple[int, ...] | None = None
-    nuis_idxs: tuple[int, ...] | None = None
-    bounds: bool = True
-    centre: EValidECDFCentre = EValidECDFCentre.NONE
-    scenario_idxs: tuple[tuple[int, int], ...] | None = ()
-
-
-@dataclass(slots=True)
-class ValidECDFViewData:
-    """Quantiles on a shared probability grid, retaining singleton reduced axes.
-
-    quantiles has axes (transferable, nuisance, offset, probability).
-    scenario_quantiles has axes (selected original scenario, probability).
-    scenarios preserves original joint indices and coherent offset labels.
-    """
-
-    probabilities: np.ndarray
-    quantiles: np.ndarray
-    scenario_quantiles: np.ndarray
-    scenarios: tuple[tuple[int, int, EEpisOffset], ...]
-    original_quantiles: np.ndarray
-    original_scenarios: tuple[tuple[int, int, EEpisOffset], ...]
-    samples: tuple[np.ndarray, ...]
-
-
-@dataclass(slots=True)
-class ValidECDFBounds:
-    """Pointwise quantile limits with original samples and reduction provenance.
-
-    Scenario index arrays have columns (transferable, nuisance, offset).
-    -1 identifies a synthetic mean/median/quantile axis rather than an original
-    scenario. data and view retain the information needed for confidence bounds.
-    """
-
-    probabilities: np.ndarray
-    lower: np.ndarray
-    upper: np.ndarray
-    lower_indices: np.ndarray
-    upper_indices: np.ndarray
-    data: ValidECDFViewData
-    view: ValidECDFView
-
-
-class EValidECDFBounds(Enum):
-    POINTWISE = auto()
-    SUPPORT_SUM = auto()
-
-
 class EValidMAVMDiagnostic(Enum):
     DISTRIBUTIONS = auto()
     COMPARISONS = auto()
@@ -473,25 +386,7 @@ class EValidMAVMDiagnostic(Enum):
 
 
 @dataclass(slots=True)
-class ValidECDFSummary:
-    """Conditional quantile curves on a shared probability grid, each shaped (n,).
-
-    nominal is the arithmetic mean of conditional quantiles, not a pooled CDF.
-    SUPPORT_SUM selects whole scenarios and does not guarantee pointwise bounds.
-    Indices refer to input scenario order; pointwise bounds have no single index.
-    """
-
-    probabilities: np.ndarray
-    lower: np.ndarray
-    upper: np.ndarray
-    nominal: np.ndarray
-    bounds: EValidECDFBounds
-    lower_idx: int | None
-    upper_idx: int | None
-
-
-@dataclass(slots=True)
-class MAVMCorrection:
+class MAVMBoundPairs:
     """Results defining the lower/upper support shifts and four endpoint comparisons.
 
     Comparison order is model-lower/exp-lower, model-upper/exp-lower,
@@ -504,57 +399,6 @@ class MAVMCorrection:
     comparisons: tuple[MAVMResult, MAVMResult, MAVMResult, MAVMResult]
     lower_exp_idx: int
     upper_exp_idx: int
-
-
-def validate_mavm_config(alpha: float, duplicates: EMAVMDuplicates, tol: float) -> None:
-    if not isinstance(duplicates, EMAVMDuplicates):
-        raise TypeError("MAVM duplicates must be EMAVMDuplicates.")
-
-    if (
-        not isinstance(alpha, (int, float, np.integer, np.floating))
-        or isinstance(alpha, (bool, np.bool_))
-        or not np.isfinite(alpha)
-        or not 0 < alpha < 1
-    ):
-        raise ValueError("MAVM alpha must be between zero and one.")
-
-    if (
-        not isinstance(tol, (int, float, np.integer, np.floating))
-        or isinstance(tol, (bool, np.bool_))
-        or not np.isfinite(tol)
-        or tol < 0
-    ):
-        raise ValueError("MAVM tolerance must be finite and nonnegative.")
-
-
-def validate_ecdf(cdf: ValidECDF) -> None:
-    if not isinstance(cdf, ValidECDF):
-        raise TypeError("Model CDFs must be ValidECDF records.")
-
-    validate_real_array(cdf.quantiles, "quantiles", allow_nan=False)
-    validate_real_array(cdf.probabilities, "probabilities", allow_nan=False)
-
-    if (
-        cdf.quantiles.ndim != 1
-        or not len(cdf.quantiles)
-        or cdf.quantiles.shape != cdf.probabilities.shape
-    ):
-        raise ValueError(
-            "ECDF support and probabilities need matching nonempty 1D shapes."
-        )
-
-    if np.any(cdf.quantiles[1:] <= cdf.quantiles[:-1]):
-        raise ValueError("ECDF support must increase strictly.")
-
-    if (
-        np.any(cdf.probabilities <= 0)
-        or np.any(cdf.probabilities > 1)
-        or np.any(cdf.probabilities[1:] <= cdf.probabilities[:-1])
-        or cdf.probabilities[-1] != 1
-    ):
-        raise ValueError(
-            "ECDF probabilities must increase strictly in (0, 1] and end at one."
-        )
 
 
 class EValidResAxis(StrEnum):
@@ -588,30 +432,17 @@ class MetricField:
     outputs: dict[EMetricOut, np.ndarray]
     scenarios: dict[EValidResAxis, tuple[EEpisOffset, ...]] | None = None
 
-
-def resolve_metric_output(
-    field: MetricField, output: EMetricOut | None
-) -> EMetricOut:
-    """Select the sole output or require an explicit choice for multiple outputs."""
-    if output is None:
-        if len(field.outputs) != 1:
-            raise ValueError("Select an output explicitly for a multi-output metric.")
-        return next(iter(field.outputs))
-    if not isinstance(output, EMetricOut):
-        raise TypeError("Metric output must be EMetricOut.")
-    if output not in field.outputs:
-        raise ValueError(f"Metric field has no {output.name} output.")
-    return output
-
-
-class EValidBoundAxis(Enum):
-    SIM_BOUND = auto()
-    EXP_BOUND = auto()
-
-
-class EValidNuisanceScore(Enum):
-    TOTAL_WIDTH = auto()
-    ADDED_WIDTH = auto()
+    def _resolve_output(self, output: EMetricOut | None) -> EMetricOut:
+        """Select the sole output or require an explicit choice for multiple outputs."""
+        if output is None:
+            if len(self.outputs) != 1:
+                raise ValueError("Select an output explicitly for a multi-output metric.")
+            return next(iter(self.outputs))
+        if not isinstance(output, EMetricOut):
+            raise TypeError("Metric output must be EMetricOut.")
+        if output not in self.outputs:
+            raise ValueError(f"Metric field has no {output.name} output.")
+        return output
 
 
 @dataclass(slots=True)
@@ -629,49 +460,6 @@ class ValidMetricExtrema:
     minimum_indices: dict[EMetricOut, np.ndarray]
     maximum_indices: dict[EMetricOut, np.ndarray]
     selectors: dict[EValidResAxis, int]
-
-
-@dataclass(slots=True)
-class ValidSupportBounds:
-    """Shifted quantile limits, with controlling original comparison indices.
-
-    lower/upper and unshifted limits have shape (*retained_axes, probability).
-    Origin indices append an index_axes dimension; NaN limits have index -1.
-    Probability grids exclude zero: the first quantile also applies down to zero.
-    """
-
-    axes: tuple[EValidResAxis, ...]
-    probabilities: np.ndarray
-    lower: np.ndarray
-    upper: np.ndarray
-    sim_lower: np.ndarray
-    sim_upper: np.ndarray
-    index_axes: tuple[EValidResAxis | EValidBoundAxis, ...]
-    lower_indices: np.ndarray
-    upper_indices: np.ndarray
-    selectors: dict[EValidResAxis, int]
-    metric_outputs: dict[EMetricOut, np.ndarray] | None = None
-    metric: EMetricType | None = None
-
-
-@dataclass(slots=True)
-class ValidNuisanceRanking:
-    """Whole-case ranking; widths never splice different nuisance cases together.
-
-    case_axes identifies columns in cases. Scores and order have shape
-    (*retained_axes, n_cases). order contains row indices into cases, with -1
-    for missing ranks at the end. valid_counts gives the usable rank count per
-    retained cell. Equal scores preserve canonical case order.
-    """
-
-    axes: tuple[EValidResAxis, ...]
-    case_axes: tuple[EValidResAxis, ...]
-    cases: np.ndarray
-    scores: np.ndarray
-    order: np.ndarray
-    valid_counts: np.ndarray
-    score: EValidNuisanceScore
-    selectors: dict[EValidResAxis, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -695,7 +483,7 @@ class ValidResult:
     ) -> tuple[float, dict[EValidResAxis, int]]:
         """Locate a finite extreme without reducing the stored result field."""
         field = self.metrics[observable][metric]
-        values = field.outputs[resolve_metric_output(field, output)]
+        values = field.outputs[field._resolve_output(output)]
         if not np.any(np.isfinite(values)):
             raise ValueError("Metric field contains no finite results.")
         selectable = np.where(

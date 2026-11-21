@@ -215,7 +215,7 @@ for channel in measurements:
     exp_upper: np.ndarray = exp_arrays[channel].select_aleatory(
         0, 0, 0, offset=vl.EEpisOffset.UPPER
     )
-    correction: vl.MAVMCorrection = vl.calc_mavm_correction(
+    correction: vl.MAVMBoundPairs = vl.calc_mavm_bound_pairs(
         model_lower,
         model_upper,
         exp_lower,

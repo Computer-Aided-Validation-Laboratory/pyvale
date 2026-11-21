@@ -21,23 +21,25 @@ from pyvale.validation.validecdf import (
     _reduce_ecdf_quantiles,
     calc_ecdf,
 )
-from pyvale.validation.validtools import build_metric_selection
+from pyvale.validation.validtools import _build_metric_selection
+from pyvale.validation.ecdftypes import (
+    EValidBoundAxis,
+    EValidNuisanceScore,
+    ValidECDF,
+    ValidECDFBounds,
+    ECDFNuisanceRank,
+    ECDFSuppBounds,
+)
 from pyvale.validation.validtypes import (
     EEpisOffset,
     EMAVMDuplicates,
     EMetricOut,
-    EValidBoundAxis,
-    EValidNuisanceScore,
     EValidResAxis,
-    MAVMCorrection,
+    MAVMBoundPairs,
     ValidCase,
-    ValidECDF,
-    ValidECDFBounds,
     ValidMetricExtrema,
     MetricField,
-    ValidNuisanceRanking,
     ValidResult,
-    ValidSupportBounds,
 )
 
 EPIS_AXES = (
@@ -66,7 +68,7 @@ def _select_profile_field(
         )
     if len(set(reduce_axes)) != len(reduce_axes):
         raise ValueError("Reduction axes must be unique.")
-    selection = build_metric_selection(field, selectors)
+    selection = _build_metric_selection(field, selectors)
     selected_axes = tuple(
         axis
         for axis, index in zip(field.axes, selection, strict=True)
@@ -182,7 +184,7 @@ def find_metric_epis_supports(
     *,
     reduce_axes: tuple[EValidResAxis, ...] = EPIS_AXES,
     selectors: dict[EValidResAxis, int] | None = None,
-) -> ValidSupportBounds:
+) -> ECDFSuppBounds:
     """Envelope original simulation quantiles shifted by stored AVM/MAVM values.
 
     MAVM uses Q_sim-d_minus and Q_sim+d_plus. AVM uses symmetric Q_sim+/-distance
@@ -264,7 +266,7 @@ def find_metric_epis_supports(
             upper_indices[group][changed] = full_index
     for array in (lower, upper, sim_lower, sim_upper):
         array[~np.isfinite(array)] = np.nan
-    return ValidSupportBounds(
+    return ECDFSuppBounds(
         retained,
         probabilities,
         lower,
@@ -286,7 +288,7 @@ def profile_epis_nuisance_supports(
     metric: EMetricType,
     *,
     selectors: dict[EValidResAxis, int] | None = None,
-) -> ValidSupportBounds:
+) -> ECDFSuppBounds:
     """Profile shifted supports over nuisance, retaining transferable axes."""
     return find_metric_epis_supports(
         valid_case,
@@ -299,10 +301,10 @@ def profile_epis_nuisance_supports(
 
 
 def rank_epis_nuisance_cases(
-    supports: ValidSupportBounds,
+    supports: ECDFSuppBounds,
     *,
     score: EValidNuisanceScore = EValidNuisanceScore.TOTAL_WIDTH,
-) -> ValidNuisanceRanking:
+) -> ECDFNuisanceRank:
     """Rank coherent nuisance cases after enveloping transferable uncertainty.
 
     Supply supports with nuisance axes retained and transferable axes reduced.
@@ -341,7 +343,7 @@ def rank_epis_nuisance_cases(
     finite = np.isfinite(scores)
     valid_counts = np.asarray(np.count_nonzero(finite, axis=-1))
     order = np.where(np.take_along_axis(finite, order, axis=-1), order, -1)
-    return ValidNuisanceRanking(
+    return ECDFNuisanceRank(
         retained,
         case_axes,
         cases,
@@ -359,7 +361,7 @@ def _calc_metric_over_bounds(
     exp_upper: ValidECDF,
     *,
     directional: bool,
-) -> ValidSupportBounds:
+) -> ECDFSuppBounds:
     probabilities = np.unique(
         np.r_[sim.probabilities, exp_lower.probabilities, exp_upper.probabilities]
     )
@@ -397,7 +399,7 @@ def _calc_metric_over_bounds(
         if directional
         else {EMetricOut.DISTANCE: plus}
     )
-    return ValidSupportBounds(
+    return ECDFSuppBounds(
         (),
         probabilities,
         lower_candidates[lower_origin, probability_indices],
@@ -415,7 +417,7 @@ def _calc_metric_over_bounds(
 
 def calc_avm_over_epis_bounds(
     sim: ValidECDFBounds, exp: ValidECDFBounds
-) -> ValidSupportBounds:
+) -> ECDFSuppBounds:
     """Compare all four bound combinations using exact empirical probability mass."""
     return _calc_metric_over_bounds(
         sim,
@@ -430,7 +432,7 @@ def calc_mavm_over_epis_bounds(
     exp: ValidECDFBounds,
     *,
     alpha: float = 0.05,
-) -> ValidSupportBounds:
+) -> ECDFSuppBounds:
     """Construct experimental confidence bounds before epistemic enveloping.
 
     Each original experimental scenario uses the existing MAVM convention:
@@ -484,7 +486,7 @@ def calc_mavm_over_epis_bounds(
     )
 
 
-def calc_mavm_correction(
+def calc_mavm_bound_pairs(
     model_lower: np.ndarray,
     model_upper: np.ndarray,
     exp_lower: np.ndarray,
@@ -493,7 +495,7 @@ def calc_mavm_correction(
     alpha: float = 0.05,
     duplicates: EMAVMDuplicates = EMAVMDuplicates.INCLUDE,
     tol: float = MAVM_AREA_TOLERANCE,
-) -> MAVMCorrection:
+) -> MAVMBoundPairs:
     """Compare four endpoint pairs and anchor corrections to the supplied model limits.
 
     The largest d_minus on model_lower selects the lower correction; the largest
@@ -507,7 +509,7 @@ def calc_mavm_correction(
     )
     lower_exp_idx = int(np.argmax([comparisons[0].d_minus, comparisons[2].d_minus]))
     upper_exp_idx = int(np.argmax([comparisons[1].d_plus, comparisons[3].d_plus]))
-    return MAVMCorrection(
+    return MAVMBoundPairs(
         comparisons[2 * lower_exp_idx],
         comparisons[2 * upper_exp_idx + 1],
         (comparisons[0], comparisons[1], comparisons[2], comparisons[3]),

@@ -13,7 +13,6 @@ from pyvale.validation.validtypes import (
     EMetricOut,
     EValidResAxis,
     MetricField,
-    resolve_metric_output,
 )
 
 
@@ -24,7 +23,7 @@ def select_metric_output(
     selection_idxs: tuple[int | slice, ...] = (),
 ) -> np.ndarray:
     """Borrow an explicit output, or the sole output when no choice is supplied."""
-    return field.outputs[resolve_metric_output(field, output)][selection_idxs]
+    return field.outputs[field._resolve_output(output)][selection_idxs]
 
 
 def extract_metric_values(
@@ -40,11 +39,11 @@ def extract_metric_values(
     selected = selectors or {}
     if keep in selected:
         raise ValueError("Selectors cannot name the retained axis.")
-    selection_idxs = build_metric_selection(field, selectors, keep=keep)
+    selection_idxs = _build_metric_selection(field, selectors, keep=keep)
     return select_metric_output(field, output, selection_idxs=tuple(selection_idxs))
 
 
-def build_metric_selection(
+def _build_metric_selection(
     field: MetricField,
     selectors: dict[EValidResAxis, int] | None,
     *,
@@ -74,7 +73,7 @@ def build_metric_selection(
     return tuple(selection)
 
 
-def create_metric_label(metric: EMetricType, output: EMetricOut) -> str:
+def _create_metric_label(metric: EMetricType, output: EMetricOut) -> str:
     output_label = {
         EMetricOut.D_PLUS: "d+",
         EMetricOut.D_MINUS: "d−",

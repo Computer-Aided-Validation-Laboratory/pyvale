@@ -21,7 +21,7 @@ from pyvale.validation.cython.mavm import (
     _PreparedECDF,
     _PreparedMAVMExp,
 )
-from pyvale.validation.metrics import validate_relative_error_config
+from pyvale.validation.metrics import _validate_relative_error_config
 from pyvale.validation.metricstrategy import (
     EMetricComparison,
     EMetricType,
@@ -32,9 +32,12 @@ from pyvale.validation.metricstrategy import (
     MetricMAVM,
     MetricRelErr,
     MetricRMSE,
-    calculate_trusted_metric,
+    _calculate_trusted_metric,
 )
-from pyvale.validation.validchecks import validate_unique_sample
+from pyvale.validation.validchecks import (
+    _validate_mavm_config,
+    _validate_unique_sample,
+)
 from pyvale.validation.validecdf import extract_aleatory_scenarios
 from pyvale.validation.validtypes import (
     VALID_RES_AXES,
@@ -47,7 +50,6 @@ from pyvale.validation.validtypes import (
     ValidCase,
     MetricField,
     ValidResult,
-    validate_mavm_config,
 )
 
 
@@ -141,7 +143,7 @@ class ValidEngine:
                             time_idx=time,
                             offset=None,
                         ):
-                            validate_unique_sample(
+                            _validate_unique_sample(
                                 samples[np.isfinite(samples)], "engine"
                             )
 
@@ -361,11 +363,11 @@ def _calculate_partition(
                         metric.tol,
                     )
                 elif paired_metric:
-                    metric_result = calculate_trusted_metric(
+                    metric_result = _calculate_trusted_metric(
                         metric, paired_sim, paired_exp
                     )
                 else:
-                    metric_result = calculate_trusted_metric(metric, sim, exp)
+                    metric_result = _calculate_trusted_metric(metric, sim, exp)
                 output_stop = output_start + len(outputs)
                 output_values = metric.extract_outputs(metric_result)
                 if check_count and len(output_values) != len(outputs):
@@ -396,6 +398,6 @@ def _store_chunk(
 def _validate_metric_configs(metrics: tuple[IValidMetric, ...]) -> None:
     for metric in metrics:
         if isinstance(metric, MetricMAVM):
-            validate_mavm_config(metric.alpha, metric.duplicates, metric.tol)
+            _validate_mavm_config(metric.alpha, metric.duplicates, metric.tol)
         elif isinstance(metric, MetricRelErr):
-            validate_relative_error_config(metric.normalisation, metric.constant)
+            _validate_relative_error_config(metric.normalisation, metric.constant)

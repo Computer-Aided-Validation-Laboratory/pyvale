@@ -200,7 +200,7 @@ def test_native_and_interpreted_mavm_agree(duplicates: vl.EMAVMDuplicates) -> No
     source = Path(__file__).resolve().parents[2] / "src/pyvale/validation/cython/mavm.py"
     interpreted = cast(
         Callable[..., vl.MAVMResult],
-        runpy.run_path(str(source))["cyth_calc_mavm_1d"],
+        runpy.run_path(str(source))["_cyth_calc_mavm_1d"],
     )
     generator = np.random.default_rng(2751)
     sim_data = generator.normal(size=64)
@@ -499,7 +499,7 @@ def test_all_paper_endpoint_distances_match_independent_reference(
                 assert distance == pytest.approx(
                     pulse_reference.expected.loc[row, channel], rel=1e-12, abs=1e-12
                 )
-    correction = vl.calc_mavm_correction(
+    correction = vl.calc_mavm_bound_pairs(
         scenarios[lower_idx],
         scenarios[upper_idx],
         exp_support - pulse_reference.offsets[channel],
