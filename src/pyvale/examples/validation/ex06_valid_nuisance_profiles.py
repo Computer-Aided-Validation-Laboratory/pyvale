@@ -138,7 +138,7 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
         ax.set_title(heading)
         for line in ax.lines[maximum_count:]:
             line.set_label(f"{line.get_label()} minimum")
-        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=2)
+        ax.legend(loc="best", ncol=2)
     profile_name = metric_type.name.lower()
     if len(field.outputs) == 1:
         profile_name += f"_{next(iter(field.outputs)).name.lower()}"

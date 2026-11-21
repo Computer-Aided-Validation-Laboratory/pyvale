@@ -76,7 +76,7 @@ class ValidPlotOpts:
     metric_alpha: float = 0.25
     metric_linestyle: _LineStyle = "-."
     scenario_alpha: float = 0.25
-    legend_outside: bool = True
+    legend_outside: bool = False
     legend_columns: int = 1
     resolution: float = 300.0
     font_tick_size: float = 8.0
@@ -1346,6 +1346,6 @@ def plot_valid_mavm_diagnostic(
     ax.set_ylabel("Cumulative probability")
     ax.set_ylim(0.0, 1.02)
     if ax.get_legend_handles_labels()[1]:
-        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
+        ax.legend()
     _apply_plot_options(fig, ax, valid_plot_opts)
     return fig, ax

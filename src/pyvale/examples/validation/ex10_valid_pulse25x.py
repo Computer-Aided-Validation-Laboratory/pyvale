@@ -185,7 +185,11 @@ for channel in measurements:
         continue
 
     supports = vl.find_metric_epis_supports(
-        valid_case, valid_result, channel, vl.EMetricType.MAVM
+        valid_case,
+        valid_result,
+        channel,
+        vl.EMetricType.MAVM,
+        selectors={vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.NOMINAL},
     )
     for metric_output, direction in (
         (vl.EMetricOut.D_PLUS, "d_plus"),
