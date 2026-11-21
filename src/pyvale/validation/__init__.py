@@ -46,6 +46,14 @@ from pyvale.validation.validengine import (
     ValidEngine,
     ValidEngineOpts,
 )
+from pyvale.validation.validio import (
+    load_metric_extrema,
+    load_valid_case,
+    load_valid_result,
+    save_metric_extrema,
+    save_valid_case,
+    save_valid_result,
+)
 from pyvale.validation.validplot import (
     ECDFPlot,
     EMetricDisp,
@@ -58,6 +66,7 @@ from pyvale.validation.validplot import (
     create_valid_plot_grid,
     plot_exp_ecdfs,
     plot_metric_dist,
+    plot_metric_extrema_ecdfs,
     plot_metric_extrema_time,
     plot_metric_time_points,
     plot_sim_ecdfs,
@@ -200,8 +209,12 @@ __all__ = [
     "find_ecdf_epis_bounds",
     "find_metric_epis_extrema",
     "find_metric_epis_supports",
+    "load_metric_extrema",
+    "load_valid_case",
+    "load_valid_result",
     "plot_exp_ecdfs",
     "plot_metric_dist",
+    "plot_metric_extrema_ecdfs",
     "plot_metric_extrema_time",
     "plot_metric_on_sim",
     "plot_metric_time_points",
@@ -213,5 +226,8 @@ __all__ = [
     "profile_epis_nuisance_extrema",
     "profile_epis_nuisance_supports",
     "rank_epis_nuisance_cases",
+    "save_metric_extrema",
+    "save_valid_case",
+    "save_valid_result",
     "select_metric_output",
 ]

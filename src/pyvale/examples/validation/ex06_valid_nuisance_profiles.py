@@ -88,6 +88,11 @@ valid_case = vl.ValidCase(
     {observable_tag: vl.ValidArray(sim_samples, axes)},
     {observable_tag: vl.ValidArray(exp_samples, axes)},
 )
+# Save the prepared samples so the original ECDFs can be recovered later.
+case_path = output_path / "validation_case.npz"
+vl.save_valid_case(case_path, valid_case)
+valid_case = vl.load_valid_case(case_path)
+
 valid_result: vl.ValidResult = vl.ValidEngine(
     [
         vl.MetricAVM(),
@@ -98,6 +103,11 @@ valid_result: vl.ValidResult = vl.ValidEngine(
         vl.MetricMAVM(),
     ]
 ).run(valid_case)
+
+# Reload the metric arrays for post-processing without rerunning the engine.
+result_path = output_path / "validation_result.npz"
+vl.save_valid_result(result_path, valid_result)
+valid_result = vl.load_valid_result(result_path)
 
 # %%
 # 2. Value profiling answers "which nuisance samples minimise/maximise the
@@ -123,23 +133,26 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
     fig.savefig(output_path / f"{profile_name}_profile.png", bbox_inches="tight")
     if not SHOW_PLOTS:
         plt.close(fig)
-    for output in field.outputs:
-        name = f"{metric_type.name.lower()}_{output.name.lower()}"
-        np.savetxt(
-            output_path / f"{name}_profile.csv",
-            np.column_stack(
-                (
-                    times,
-                    profile.minimum[output][0, 0, :, 0, 0],
-                    profile.maximum[output][0, 0, :, 0, 0],
-                    profile.minimum_indices[output][0, 0, :, 0, 0],
-                    profile.maximum_indices[output][0, 0, :, 0, 0],
-                )
-            ),
-            delimiter=",",
-            header="time,minimum,maximum,min_sim_nuis,min_exp_nuis,max_sim_nuis,max_exp_nuis",
-            comments="",
-        )
+    vl.save_metric_extrema(output_path / f"{profile_name}_profile.npz", profile)
+
+# Reload the profile to recover the original ECDF pairs at the final time.
+mavm_profile = vl.load_metric_extrema(output_path / "mavm_profile.npz")
+fig, _ = vl.plot_metric_extrema_ecdfs(
+    valid_case,
+    observable_tag,
+    vl.EMetricType.MAVM,
+    profile=mavm_profile,
+    output=vl.EMetricOut.D_PLUS,
+    selectors={
+        vl.EValidResAxis.POINT: 0,
+        vl.EValidResAxis.TIME: 2,
+        vl.EValidResAxis.SIM_TRANS: 0,
+        vl.EValidResAxis.EXP_TRANS: 0,
+    },
+)
+fig.savefig(output_path / "mavm_d_plus_extrema_ecdfs.png", bbox_inches="tight")
+if not SHOW_PLOTS:
+    plt.close(fig)
 
 # %%
 # 3. Support profiling asks which ECDF +/- its own d reaches furthest. This is

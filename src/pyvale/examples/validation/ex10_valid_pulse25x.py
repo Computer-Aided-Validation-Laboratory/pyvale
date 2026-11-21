@@ -78,7 +78,7 @@ for source, channels in exp_sources:
 # %%
 # Reproduce the original positional uncertainty association, including its
 # mismatch with channel tags: TC3 receives TC2's magnitude, TC5 receives TC4's,
-# etc. The exported channel_status.csv makes every association reviewable.
+# etc. The packaged provenance lists every association.
 # These are coherent calibration shifts in degC or V, shared by every repeat.
 summary: pd.DataFrame = pd.read_csv(data_path / "pulse25x_uncertainty_summary.csv")
 uncertainty_columns = (*sensor_tags[:-1], "Coil RMS Voltage")
@@ -88,7 +88,6 @@ uncertainties = summary.loc[summary.index[-1], list(uncertainty_columns)].to_num
 observables: dict[str, vl.ValidObservable] = {}
 sim_arrays: dict[str, vl.ValidArray] = {}
 exp_arrays: dict[str, vl.ValidArray] = {}
-channel_status = []
 for index, (channel, observations) in enumerate(measurements.items()):
     units = "V" if channel == "CV" else "degC"
     observables[channel] = vl.ValidObservable(
@@ -111,19 +110,7 @@ for index, (channel, observations) in enumerate(measurements.items()):
         (vl.EValidAxis.ALEATORY,),
         offsets=vl.EpistemicOffsets(lower=magnitude, upper=magnitude),
     )
-    channel_status.append(
-        {
-            "channel": channel,
-            "units": units,
-            "missing": missing,
-            "raw_observations": len(observations),
-            "unique_support": int(np.count_nonzero(np.isfinite(exp_support))),
-            "offset_source": sensor_tags[index],
-            "offset_magnitude": magnitude,
-        }
-    )
 valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
-pd.DataFrame(channel_status).to_csv(output_path / "channel_status.csv", index=False)
 
 # %%
 # 2. Run validation analysis
@@ -137,7 +124,6 @@ valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricMAVM(alpha=0.05, duplicates=vl.EMAVMDuplicates.REJECT)]
 ).run(valid_case)
 print("Simulation:", sim_data.shape, "(channel, epis_trans, aleatory)")
-print(pd.DataFrame(channel_status))
 print("TC3 result axes:", valid_result.metrics["TC3"][vl.EMetricType.MAVM].axes)
 
 # %%
@@ -147,13 +133,6 @@ print("TC3 result axes:", valid_result.metrics["TC3"][vl.EMetricType.MAVM].axes)
 # support values. This is different from pointwise envelope bounds when CDFs
 # cross. The nominal curve is the average of the conditional quantile functions.
 # Both bound rules are available in PyVale; use SUPPORT_SUM for literal parity.
-metric_rows = [
-    f"sim-{sim_name}_exp-{exp_name}-{direction}"
-    for exp_name in ("min", "max")
-    for sim_name in ("min", "max")
-    for direction in ("d+", "d-")
-]
-metric_table: dict[str, list[float]] = {}
 for channel in measurements:
     units = observables[channel].phys_units
     axis_label = "Coil RMS voltage [V]" if channel == "CV" else "Temperature [degC]"
@@ -224,34 +203,6 @@ for channel in measurements:
     )
 
     # %%
-    # Export the original four endpoint comparisons using the engine arrays.
-    # These are distinct from the worst MAVM over every retained scenario.
-    metric_field: vl.MetricField = valid_result.metrics[channel][
-        vl.EMetricType.MAVM
-    ]
-    distances = []
-    for offset in (vl.EEpisOffset.LOWER, vl.EEpisOffset.UPPER):
-        for model_idx in (
-            cast(int, model_summary.lower_idx),
-            cast(int, model_summary.upper_idx),
-        ):
-            distances.extend(
-                [
-                    float(
-                        metric_field.outputs[vl.EMetricOut.D_PLUS][
-                            0, 0, 0, model_idx, offset
-                        ]
-                    ),
-                    float(
-                        metric_field.outputs[vl.EMetricOut.D_MINUS][
-                            0, 0, 0, model_idx, offset
-                        ]
-                    ),
-                ]
-            )
-    metric_table[channel] = distances
-
-    # %%
     # The next four figures reproduce the diagnostic families in the reference:
     # source distributions; endpoint correction cases; the outer correction with
     # experiment visible; and model-only uncertainty/correction for a clean view.
@@ -275,10 +226,6 @@ for channel in measurements:
         if not SHOW_PLOTS:
             plt.close(fig)
 
-# %%
-calculated = pd.DataFrame(metric_table, index=metric_rows)
-calculated.to_csv(output_path / "pointsensors_mavm.csv")
-print(calculated)
 if SHOW_PLOTS:
     plt.show()
 else:

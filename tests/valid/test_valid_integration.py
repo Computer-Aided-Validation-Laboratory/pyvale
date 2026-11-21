@@ -317,6 +317,85 @@ def test_directional_outputs_can_share_time_axes(combine: bool) -> None:
     plt.close(fig)
 
 
+def test_plot_metric_extrema_time_shows_both_mavm_extrema() -> None:
+    times = np.array([0.0, 2.0])
+    observable = vl.ValidObservable(
+        components=("temperature",),
+        geometry=vl.EValidGeometry.GLOBAL,
+        times=times,
+        time_units="s",
+        phys_units="degC",
+    )
+    sim_axes = (
+        vl.EValidAxis.TIME, vl.EValidAxis.EPISTEMIC_NUIS, vl.EValidAxis.ALEATORY
+    )
+    exp_axes = (vl.EValidAxis.TIME, vl.EValidAxis.ALEATORY)
+    sim_samples = np.array([[[0.0], [3.0]], [[0.0], [3.0]]])
+    test_case = vl.ValidCase(
+        {"temperature": observable},
+        {"temperature": vl.ValidArray(sim_samples, sim_axes)},
+        {"temperature": vl.ValidArray(np.array([[1.0], [4.0]]), exp_axes)},
+    )
+    result = vl.ValidEngine([vl.MetricMAVM()]).run(test_case)
+    profile = vl.profile_epis_nuisance_extrema(
+        result, "temperature", vl.EMetricType.MAVM
+    )
+    fig, panels = vl.plot_metric_extrema_time(
+        result, "temperature", vl.EMetricType.MAVM, profile=profile
+    )
+    axis = panels[0, 0]
+    assert axis.get_legend_handles_labels()[1] == [
+        "MAVM d+ min", "MAVM d+ max", "MAVM d− min", "MAVM d− max",
+    ]
+    expected_traces = ([0.0, 1.0], [1.0, 4.0], [0.0, 0.0], [2.0, 0.0])
+    for line, expected in zip(axis.lines, expected_traces, strict=True):
+        np.testing.assert_array_equal(line.get_xdata(), times)
+        np.testing.assert_allclose(line.get_ydata(), expected)
+    assert axis.get_ylabel() == "MAVM [degC]"
+    plt.close(fig)
+
+
+def test_plot_metric_extrema_ecdfs_recovers_original_cases_and_offsets() -> None:
+    observable = vl.ValidObservable(
+        components=("length",), geometry=vl.EValidGeometry.GLOBAL
+    )
+    sim = vl.ValidArray(
+        np.array([[0.0], [3.0]]),
+        (vl.EValidAxis.EPISTEMIC_NUIS, vl.EValidAxis.ALEATORY),
+    )
+    exp = vl.ValidArray(
+        np.array([3.5]),
+        (vl.EValidAxis.ALEATORY,),
+        offsets=vl.EpistemicOffsets(1.0, 2.0),
+    )
+    test_case = vl.ValidCase({"length": observable}, {"length": sim}, {"length": exp})
+    result = vl.ValidEngine([vl.MetricMAVM()]).run(test_case)
+    profile = vl.find_metric_epis_extrema(
+        result,
+        "length",
+        vl.EMetricType.MAVM,
+        reduce_axes=(vl.EValidResAxis.SIM_NUIS, vl.EValidResAxis.EXP_OFFSET),
+    )
+    fig, panels = vl.plot_metric_extrema_ecdfs(
+        test_case, "length", vl.EMetricType.MAVM,
+        profile=profile, output=vl.EMetricOut.D_PLUS,
+    )
+    minimum, maximum = panels[0]
+    assert "Minimum MAVM d+ = 0" in minimum.get_title()
+    assert "Maximum MAVM d+ = 5.5" in maximum.get_title()
+    assert "lower offset" in minimum.get_title()
+    assert "upper offset" in maximum.get_title()
+    for axis, (exp_value, sim_value) in zip(
+        (minimum, maximum), ((2.5, 3.0), (5.5, 0.0)), strict=True
+    ):
+        exp_line, sim_line = axis.lines
+        np.testing.assert_array_equal(exp_line.get_xdata(), [exp_value, exp_value])
+        np.testing.assert_array_equal(sim_line.get_xdata(), [sim_value, sim_value])
+        assert not exp_line.is_dashed()
+        assert sim_line.is_dashed()
+    plt.close(fig)
+
+
 def create_plot_epistemic_case() -> vl.ValidCase:
     shifts = np.array([[1.0, 9.0, 8.0], [2.0, 3.0, 7.0], [4.0, 6.0, 5.0]])
     samples = shifts[..., None] + np.array([0.0, 2.0])

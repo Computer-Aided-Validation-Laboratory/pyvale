@@ -13,7 +13,6 @@ Synthetic measurements provide a controlled numerical experiment for learning
 three-dimensional validation and tensor-component comparisons.
 """
 
-import json
 from pathlib import Path
 
 import matplotlib
@@ -63,10 +62,6 @@ for name, parameters in parameter_sets.items():
     sims[name] = mh.ExodusLoader(solve_result.output_file).load_all_sim_data()
 nominal_sim: io.SimData = sims["nominal"]
 exp_sim: io.SimData = sims["heat_flux_plus_10pct"]
-
-# Record the physical source of each transferable alternative. Parameter changes
-# occur only in generated solver inputs; packaged datasets remain unchanged.
-(output_path / "parameter_sets.json").write_text(json.dumps(parameter_sets, indent=2))
 
 # %%
 # Six strain rosettes sit at the centres of the xz, xy and yz face pairs.

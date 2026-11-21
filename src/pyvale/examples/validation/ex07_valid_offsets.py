@@ -40,8 +40,8 @@ sim_samples = ground_truth[:, None, :, None] + aleatory_deviations
 exp_samples = (ground_truth + exp_bias)[:, None, :, None] + aleatory_deviations
 
 # Calibration offset magnitudes vary by site and time, in degC.
-exp_calibration_lower_offset = np.array([1.5, 2.5])[:, None] + 0.5 * times
-exp_calibration_upper_offset = np.array([4.0, 6.0])[:, None] + times
+exp_epistemic_offset_lower = np.array([1.5, 2.5])[:, None] + 0.5 * times
+exp_epistemic_offset_upper = np.array([4.0, 6.0])[:, None] + times
 axes = (
     vl.EValidAxis.POINT,
     vl.EValidAxis.COMPONENT,
@@ -67,8 +67,8 @@ valid_case = vl.ValidCase(
             exp_samples,
             axes,
             vl.EpistemicOffsets(
-                exp_calibration_lower_offset,
-                exp_calibration_upper_offset,
+                exp_epistemic_offset_lower,
+                exp_epistemic_offset_upper,
                 (vl.EValidAxis.POINT, vl.EValidAxis.TIME),
             ),
         )

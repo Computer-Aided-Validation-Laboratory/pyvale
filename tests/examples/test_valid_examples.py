@@ -56,7 +56,6 @@ PULSE25X_OUTPUTS = (
         f"mavm_support_envelope_{channel}.png"
         for channel in ("TC2", "TC3", "TC5", "TC6", "TC8", "TC9", "TC10", "CV")
     )
-    + ("pointsensors_mavm.csv", "channel_status.csv")
 )
 
 
@@ -135,21 +134,23 @@ EXAMPLES = (
         "ex06_valid_nuisance_profiles",
         "valid_ex6_nuisance_profiles",
         (
+            "validation_case.npz",
+            "validation_result.npz",
             "avm_original_support.png",
             "mavm_nuisance_support_envelope.png",
             "avm_distance_profile.png",
-            "avm_distance_profile.csv",
+            "avm_distance_profile.npz",
             "ks_statistic_profile.png",
-            "ks_statistic_profile.csv",
+            "ks_statistic_profile.npz",
             "cvm_statistic_profile.png",
-            "cvm_statistic_profile.csv",
+            "cvm_statistic_profile.npz",
             "rmse_error_profile.png",
-            "rmse_error_profile.csv",
+            "rmse_error_profile.npz",
             "relative_error_error_profile.png",
-            "relative_error_error_profile.csv",
+            "relative_error_error_profile.npz",
             "mavm_profile.png",
-            "mavm_d_plus_profile.csv",
-            "mavm_d_minus_profile.csv",
+            "mavm_d_plus_extrema_ecdfs.png",
+            "mavm_profile.npz",
             "total_width_minimum_support_envelope.png",
             "total_width_median_support_envelope.png",
             "total_width_maximum_support_envelope.png",
@@ -190,7 +191,6 @@ EXAMPLES = (
         "valid_ex9_cube_sweep",
         CUBE_OUTPUTS
         + (
-            "parameter_sets.json",
             "nominal_avm_time.png",
             "heat_flux_plus_10pct_avm_time.png",
             "thermal_expansion_plus_10pct_avm_time.png",

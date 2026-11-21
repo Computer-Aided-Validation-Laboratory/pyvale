@@ -1381,6 +1381,86 @@ def plot_metric_extrema_time(
     return fig, axes
 
 
+def plot_metric_extrema_ecdfs(
+    valid_case: ValidCase,
+    observable: str,
+    metric: EMetricType,
+    *,
+    profile: ValidMetricExtrema,
+    selectors: dict[EValidResAxis, int] | None = None,
+    output: EMetricOut | None = None,
+    valid_plot_opts: ValidPlotOpts | None = None,
+) -> tuple[Figure, np.ndarray]:
+    """Plot the original ECDF pairs that produced a stored minimum and maximum.
+
+    Select every non-singleton retained axis, including the physical time if
+    present. Multi-output profiles require an explicit metric output.
+    """
+    field = MetricField(profile.axes, profile.minimum)
+    output = field._resolve_output(output)
+    values = profile.minimum[output]
+    missing_selectors = set(selectors or {}) - set(profile.axes)
+    if missing_selectors:
+        raise ValueError("Selectors must name retained profile axes.")
+    selected = dict(selectors or {})
+    for axis, size in zip(profile.axes, values.shape, strict=True):
+        if size == 1:
+            selected.setdefault(axis, 0)
+        elif axis not in selected:
+            raise ValueError(f"Select a {axis.value} index for the extrema ECDFs.")
+    indices = _build_metric_selection(field, selected)
+    cell = {**profile.selectors, **selected}
+    panels = []
+    for bound, scores, origins in (
+        ("Minimum", values, profile.minimum_indices[output]),
+        ("Maximum", profile.maximum[output], profile.maximum_indices[output]),
+    ):
+        score = float(scores[indices])
+        origin = origins[indices]
+        if not np.isfinite(score) or np.any(origin < 0):
+            raise ValueError(f"The selected {bound.lower()} has no finite comparison.")
+        comparison_indices = {
+            **cell,
+            **dict(zip(profile.reduced_axes, map(int, origin), strict=True)),
+        }
+        panels.append((bound, score, comparison_indices))
+
+    fig, axes = create_valid_plot_grid(2, rows=1, valid_plot_opts=valid_plot_opts)
+    for ax, (bound, score, comparison_indices) in zip(axes.flat, panels, strict=True):
+        sim_trans = comparison_indices.get(EValidResAxis.SIM_TRANS, 0)
+        sim_nuis = comparison_indices.get(EValidResAxis.SIM_NUIS, 0)
+        exp_trans = comparison_indices.get(EValidResAxis.EXP_TRANS, 0)
+        exp_nuis = comparison_indices.get(EValidResAxis.EXP_NUIS, 0)
+        sim_offset = EEpisOffset(comparison_indices.get(EValidResAxis.SIM_OFFSET, 0))
+        exp_offset = EEpisOffset(comparison_indices.get(EValidResAxis.EXP_OFFSET, 0))
+        plot_sim_exp_cdfs(
+            valid_case,
+            observable,
+            sim_view=ValidECDFView(trans_idxs=(sim_trans,), nuis_idxs=(sim_nuis,)),
+            exp_view=ValidECDFView(trans_idxs=(exp_trans,), nuis_idxs=(exp_nuis,)),
+            sim_offset=sim_offset,
+            exp_offset=exp_offset,
+            point_idxs=(comparison_indices.get(EValidResAxis.POINT, 0),),
+            component_idx=comparison_indices.get(EValidResAxis.COMPONENT, 0),
+            time_idx=comparison_indices.get(EValidResAxis.TIME, 0),
+            valid_plot_opts=valid_plot_opts,
+            ax=ax,
+        )
+        sim_case = f"Sim. trans. {sim_trans}, nuis. {sim_nuis}"
+        exp_case = f"Exp. trans. {exp_trans}, nuis. {exp_nuis}"
+        if EValidResAxis.SIM_OFFSET in comparison_indices:
+            sim_case += f", {sim_offset.name.lower()} offset"
+        if EValidResAxis.EXP_OFFSET in comparison_indices:
+            exp_case += f", {exp_offset.name.lower()} offset"
+        label = (
+            _create_metric_label(metric, output)
+            if metric is EMetricType.MAVM
+            else metric.name
+        )
+        ax.set_title(f"{bound} {label} = {score:.4g}\n{sim_case}\n{exp_case}")
+    return fig, axes
+
+
 def _plot_quantile_curve(
     ax: Axes,
     quantiles: np.ndarray,
