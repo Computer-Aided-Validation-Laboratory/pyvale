@@ -4,7 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Steady plate validation
+"""
+Steady plate validation
 ================================================================================
 
 Extend ex1 to 12 physical locations and two observables: temperature and
@@ -18,7 +19,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
-from matplotlib.figure import Figure
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -111,15 +111,14 @@ exp_axes = (
     vl.EValidAxis.ALEATORY,
 )
 
-sim_arrays: dict[str, vl.ValidArray] = {}
-exp_arrays: dict[str, vl.ValidArray] = {}
-
-for observable_tag, sim_values, exp_values in (
-    (temperature_tag, sim_temp, exp_temp),
-    (strain_tag, sim_strain, exp_strain),
-):
-    sim_arrays[observable_tag] = vl.ValidArray(sim_values, sim_axes)
-    exp_arrays[observable_tag] = vl.ValidArray(exp_values, exp_axes)
+sim_arrays = {
+    temperature_tag: vl.ValidArray(sim_temp, sim_axes),
+    strain_tag: vl.ValidArray(sim_strain, sim_axes),
+}
+exp_arrays = {
+    temperature_tag: vl.ValidArray(exp_temp, exp_axes),
+    strain_tag: vl.ValidArray(exp_strain, exp_axes),
+}
 
 valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 
@@ -160,8 +159,6 @@ print(80*"-")
 # agree with sensor figures. Each panel compares the full selected sim and exp
 # epistemic envelopes, or one ECDF when only one scenario is available.
 
-fig: Figure
-axes: np.ndarray
 point_idxs = tuple(range(len(coords)))
 
 ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
@@ -170,8 +167,7 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     point_idxs=point_idxs,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
-fig, axes = ecdf_plot.figure, ecdf_plot.axes
-fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
 # %%
 # Compare spatial mismatch at the same final physical time. AVM retains degC

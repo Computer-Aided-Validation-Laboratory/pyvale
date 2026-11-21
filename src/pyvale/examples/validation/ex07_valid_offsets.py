@@ -4,7 +4,9 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Transient coherent offsets, experimental confidence and epistemic envelopes.
+"""
+Calibration offsets
+================================================================================
 
 The imposed exp bias is .4+.5t degC. Calibration offsets shift an entire
 conditional distribution, whereas MAVM confidence depends on its observations.
@@ -16,7 +18,6 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.figure import Figure
 
 import pyvale.validation as vl
 
@@ -122,23 +123,21 @@ for offset in vl.EEpisOffset:
         if not SHOW_PLOTS:
             plt.close(ecdf_plot.figure)
 
+fig, _ = vl.plot_metric_time_points(
+    valid_result,
+    observable_tag,
+    vl.EMetricType.MAVM,
+    point_idxs=(0, 1),
+    selectors={vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.NOMINAL},
+)
+fig.savefig(output_path / "mavm_time.png", bbox_inches="tight")
+if not SHOW_PLOTS:
+    plt.close(fig)
+
 for metric_output, direction in (
     (vl.EMetricOut.D_PLUS, "d_plus"),
     (vl.EMetricOut.D_MINUS, "d_minus"),
 ):
-    fig: Figure
-    metric_axes: np.ndarray
-    fig, metric_axes = vl.plot_metric_time_points(
-        valid_result,
-        observable_tag,
-        vl.EMetricType.MAVM,
-        point_idxs=(0, 1),
-        selectors={vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.NOMINAL},
-        output=metric_output,
-    )
-    fig.savefig(output_path / f"mavm_{direction}_time.png", bbox_inches="tight")
-    if not SHOW_PLOTS:
-        plt.close(fig)
     ecdf_plot = vl.plot_sim_exp_cdfs(
         valid_case, observable_tag, time_idx=2, exp_offset=None
     )
@@ -146,7 +145,6 @@ for metric_output, direction in (
         ecdf_plot,
         confidence_supports,
         output=metric_output,
-        label="Confidence plus offset envelope",
     )
     ecdf_plot.figure.savefig(
         output_path / f"mavm_{direction}_confidence_support.png", bbox_inches="tight"

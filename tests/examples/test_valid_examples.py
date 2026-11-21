@@ -21,16 +21,7 @@ CUBE_OUTPUTS = tuple(
         "strain_xz",
         "strain_yz",
     )
-    for diagnostic in ("cdfs", "d_plus_time", "d_minus_time")
-) + tuple(
-    f"strain_xx_{direction}_on_{background}.png"
-    for direction in ("d_plus", "d_minus")
-    for background in (
-        "temperature",
-        "strain_xx",
-        "equivalent_strain",
-        "first_principal_strain",
-    )
+    for diagnostic in ("cdfs", "mavm_time")
 )
 
 
@@ -77,8 +68,7 @@ EXAMPLES = (
         (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
-            "temperature_d_plus_time.png",
-            "temperature_d_minus_time.png",
+            "temperature_mavm_time.png",
             "temperature_mavm_d_minus_on_sim.png",
             "temperature_mavm_d_plus_on_sim.png",
         ),
@@ -117,10 +107,7 @@ EXAMPLES = (
         (
             "temperature_cdfs.png",
             "temperature_avm_time.png",
-            "temperature_d_plus_time.png",
-            "temperature_d_minus_time.png",
-            "temperature_mavm_d_plus_on_sim.png",
-            "temperature_mavm_d_minus_on_sim.png",
+            "temperature_mavm_time.png",
         ),
     ),
     (
@@ -184,9 +171,8 @@ EXAMPLES = (
             "rmse_error_profile.csv",
             "relative_error_error_profile.png",
             "relative_error_error_profile.csv",
-            "mavm_d_plus_profile.png",
+            "mavm_profile.png",
             "mavm_d_plus_profile.csv",
-            "mavm_d_minus_profile.png",
             "mavm_d_minus_profile.csv",
             "total_width_minimum_d_plus.png",
             "total_width_minimum_d_minus.png",
@@ -207,8 +193,7 @@ EXAMPLES = (
         "valid_ex7_offsets",
         (
             "exp_offset_envelopes.png",
-            "mavm_d_plus_time.png",
-            "mavm_d_minus_time.png",
+            "mavm_time.png",
             "mavm_d_plus_confidence_support.png",
             "mavm_d_minus_confidence_support.png",
             "mavm_nominal_d_plus_area.png",
@@ -226,16 +211,9 @@ EXAMPLES = (
             "temperature_average_cdfs.png",
             "displacement_local_cdfs.png",
             "strain_local_cdfs.png",
-            "temperature_average_d_plus_time.png",
-            "temperature_average_d_minus_time.png",
-            "displacement_local_d_plus_time.png",
-            "displacement_local_d_minus_time.png",
-            "strain_local_d_plus_time.png",
-            "strain_local_d_minus_time.png",
-            "strain_local_d_plus_on_temperature.png",
-            "strain_local_d_plus_on_equivalent_strain.png",
-            "strain_local_d_minus_on_temperature.png",
-            "strain_local_d_minus_on_equivalent_strain.png",
+            "temperature_average_mavm_time.png",
+            "displacement_local_mavm_time.png",
+            "strain_local_mavm_time.png",
         ),
     ),
     (

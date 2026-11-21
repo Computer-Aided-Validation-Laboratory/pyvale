@@ -4,7 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""MOOSE perturbations for 3D tensor validation
+"""
+Cube parameter sweep
 ================================================================================
 
 Follow the six cube-face sensor locations used in extsensorsim/ex3f_tens3d.
@@ -18,8 +19,6 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import pyvista as pv
-from matplotlib.figure import Figure
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -85,10 +84,6 @@ coords = np.array(
 )  # (6 points, 3 Cartesian coordinates), mm
 for sim_data in sims.values():
     sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y", "disp_z"))
-if nominal_sim.time is None:
-    raise ValueError("Simulation must contain time.")
-if nominal_sim.node_vars is None:
-    raise ValueError("Simulation must contain node_vars.")
 times = np.linspace(nominal_sim.time[0], nominal_sim.time[-1], 5)
 norm_keys = ("strain_xx", "strain_yy", "strain_zz")
 dev_keys = ("strain_xy", "strain_xz", "strain_yz")
@@ -213,8 +208,6 @@ print(
 # includes every retained epistemic parameter setting without pooling samples.
 point_idxs = tuple(range(len(coords)))
 for component_idx, component_key in enumerate(component_keys):
-    fig: Figure
-    axes: np.ndarray
     ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case,
         strain_tag,
@@ -223,27 +216,23 @@ for component_idx, component_key in enumerate(component_keys):
         time_idx=4,
         valid_plot_opts=vl.ValidPlotOpts(x_label=f"{component_key} [-]"),
     )
-    fig, axes = ecdf_plot.figure, ecdf_plot.axes
-    fig.savefig(output_path / f"{component_key}_cdfs.png", bbox_inches="tight")
-    for metric_output, direction in (
-        (vl.EMetricOut.D_PLUS, "d_plus"),
-        (vl.EMetricOut.D_MINUS, "d_minus"),
-    ):
-        fig, axes = vl.plot_metric_time_points(
-            valid_result,
-            strain_tag,
-            vl.EMetricType.MAVM,
-            point_idxs=point_idxs,
-            selectors={
-                vl.EValidResAxis.COMPONENT: component_idx,
-                vl.EValidResAxis.SIM_TRANS: 0,
-            },
-            output=metric_output,
-            valid_plot_opts=vl.ValidPlotOpts(title=component_key),
-        )
-        fig.savefig(
-            output_path / f"{component_key}_{direction}_time.png", bbox_inches="tight"
-        )
+    ecdf_plot.figure.savefig(
+        output_path / f"{component_key}_cdfs.png", bbox_inches="tight"
+    )
+    fig, _ = vl.plot_metric_time_points(
+        valid_result,
+        strain_tag,
+        vl.EMetricType.MAVM,
+        point_idxs=point_idxs,
+        selectors={
+            vl.EValidResAxis.COMPONENT: component_idx,
+            vl.EValidResAxis.SIM_TRANS: 0,
+        },
+        valid_plot_opts=vl.ValidPlotOpts(title=component_key),
+    )
+    fig.savefig(
+        output_path / f"{component_key}_mavm_time.png", bbox_inches="tight"
+    )
     if not SHOW_PLOTS:
         plt.close("all")
 
@@ -251,7 +240,7 @@ for component_idx, component_key in enumerate(component_keys):
 # Compare the parameter alternatives while retaining their result axis.
 # The filenames identify the physical perturbation; y labels identify AVM distance.
 for scenario, scenario_name in enumerate(parameter_sets):
-    fig, axes = vl.plot_metric_time_points(
+    fig, _ = vl.plot_metric_time_points(
         valid_result,
         strain_tag,
         vl.EMetricType.AVM,
@@ -263,84 +252,6 @@ for scenario, scenario_name in enumerate(parameter_sets):
         valid_plot_opts=vl.ValidPlotOpts(title=f"strain_xx: {scenario_name}"),
     )
     fig.savefig(output_path / f"{scenario_name}_avm_time.png", bbox_inches="tight")
-# %%
-# Overlay the selected strain_xx metric on several independent background fields.
-# The two colourbars deliberately identify different quantities: model field
-# values on the mesh, and validation discrepancy at the six original face sites.
-# Every field is evaluated at the final simulation step, matching validation t.
-background_time_idx = nominal_sim.time.size - 1
-normal = np.stack(
-    [nominal_sim.node_vars[key][:, background_time_idx] for key in norm_keys], axis=-1
-)  # (n_nodes, 3), normal components xx, yy, zz
-shear = np.stack(
-    [nominal_sim.node_vars[key][:, background_time_idx] for key in dev_keys], axis=-1
-)  # (n_nodes, 3), tensor shear components xy, xz, yz
-strain_tensors: np.ndarray = io.assemble_strain_tensor(
-    normal,
-    shear,
-    shear_convention=io.EStrainShear.TENSOR,
-)  # (n_nodes, 3, 3), symmetric small-strain tensor in global Cartesian axes
-# Equivalent strain is sqrt(2/3 epsilon_dev:epsilon_dev): volumetric strain is
-# excluded. Principal strains are descending; index zero is the first principal.
-equivalent_strain: np.ndarray = io.calc_equivalent_strain(strain_tensors)
-first_principal: np.ndarray = io.calc_principal_strains(strain_tensors)[:, 0]
-background_fields: dict[str, tuple[str | np.ndarray, sens.SensorDescriptor]] = {
-    "temperature": (
-        "temperature",
-        sens.SensorDescriptor(name="Temperature", symbol="T", units="degC", tag="SG"),
-    ),
-    "strain_xx": (
-        "strain_xx",
-        sens.SensorDescriptor(
-            name="Strain xx", symbol=r"\varepsilon_{xx}", units="1", tag="SG"
-        ),
-    ),
-    "equivalent_strain": (
-        equivalent_strain,
-        sens.SensorDescriptor(
-            name="Equivalent strain", symbol=r"\varepsilon_{eq}", units="1", tag="SG"
-        ),
-    ),
-    "first_principal_strain": (
-        first_principal,
-        sens.SensorDescriptor(
-            name="First principal strain", symbol=r"\varepsilon_1", units="1", tag="SG"
-        ),
-    ),
-}
-# Show all face tags through the translucent mesh, including the far faces.
-for background_name, (background_field, descriptor) in background_fields.items():
-    for metric_output, direction in (
-        (vl.EMetricOut.D_PLUS, "d_plus"),
-        (vl.EMetricOut.D_MINUS, "d_minus"),
-    ):
-        pv_plot: pv.Plotter = vl.plot_metric_on_sim(
-            valid_result,
-            strain_tag,
-            vl.EMetricType.MAVM,
-            selectors={
-                vl.EValidResAxis.COMPONENT: 0,
-                vl.EValidResAxis.TIME: 4,
-                vl.EValidResAxis.SIM_TRANS: 0,
-            },
-            output=metric_output,
-            sim_data=nominal_sim,
-            sim_field=background_field,
-            sim_time_idx=background_time_idx,
-            descriptor=descriptor,
-            sim_coord_units="mm",
-            vis_opts=vl.create_valid_scene_opts(interactive=SHOW_PLOTS),
-            metric_opts=vl.MetricVisOpts(
-                mesh_opacity=0.4, labels_always_visible=True
-            ),
-        )
-        pv_plot.screenshot(
-            output_path / f"strain_xx_{direction}_on_{background_name}.png"
-        )
-        if SHOW_PLOTS:
-            pv_plot.show()
-        pv_plot.close()
-
 if SHOW_PLOTS:
     plt.show()
 else:

@@ -4,7 +4,9 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Transient nuisance extrema, shifted supports and coherent case ranking.
+"""
+Nuisance profiles
+================================================================================
 
 Both sources have transferable and nuisance axes. The exp bias increases with
 position and time; nuisance cases have different spreads. Changes of controlling
@@ -17,7 +19,6 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.figure import Figure
 
 import pyvale.validation as vl
 
@@ -111,40 +112,41 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
         },
         valid_result.metric_configs,
     )
-    for output in field.outputs:
-        name = f"{metric_type.name.lower()}_{output.name.lower()}"
-        fig: Figure
-        plot_axes: np.ndarray
-        fig, plot_axes = vl.plot_metric_time_points(
-            maximum_result,
+    selectors = {
+        vl.EValidResAxis.SIM_TRANS: 0,
+        vl.EValidResAxis.EXP_TRANS: 0,
+    }
+    fig, plot_axes = vl.plot_metric_time_points(
+        maximum_result,
+        observable_tag,
+        metric_type,
+        point_idxs=(0, 1),
+        selectors=selectors,
+    )
+    for point, ax in enumerate(plot_axes.flat):
+        heading = ax.get_title()
+        for line in ax.lines:
+            line.set_label(f"{line.get_label()} maximum")
+        maximum_count = len(ax.lines)
+        vl.plot_valid_metric_time(
+            minimum_result,
             observable_tag,
             metric_type,
-            point_idxs=(0, 1),
-            selectors={
-                vl.EValidResAxis.SIM_TRANS: 0,
-                vl.EValidResAxis.EXP_TRANS: 0,
-            },
-            output=output,
+            selectors={**selectors, vl.EValidResAxis.POINT: point},
+            ax=ax,
         )
-        for point, ax in enumerate(plot_axes.flat):
-            heading = ax.get_title()
-            ax.lines[0].set_label("Maximum over nuisance")
-            vl.plot_valid_metric_time(
-                minimum_result,
-                observable_tag,
-                metric_type,
-                selectors={
-                    vl.EValidResAxis.POINT: point,
-                    vl.EValidResAxis.SIM_TRANS: 0,
-                    vl.EValidResAxis.EXP_TRANS: 0,
-                },
-                output=output,
-                ax=ax,
-            )
-            ax.set_title(heading)
-            ax.lines[-1].set_label("Minimum over nuisance")
-            ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.3))
-        fig.savefig(output_path / f"{name}_profile.png", bbox_inches="tight")
+        ax.set_title(heading)
+        for line in ax.lines[maximum_count:]:
+            line.set_label(f"{line.get_label()} minimum")
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=2)
+    profile_name = metric_type.name.lower()
+    if len(field.outputs) == 1:
+        profile_name += f"_{next(iter(field.outputs)).name.lower()}"
+    fig.savefig(output_path / f"{profile_name}_profile.png", bbox_inches="tight")
+    if not SHOW_PLOTS:
+        plt.close(fig)
+    for output in field.outputs:
+        name = f"{metric_type.name.lower()}_{output.name.lower()}"
         np.savetxt(
             output_path / f"{name}_profile.csv",
             np.column_stack(
@@ -160,8 +162,6 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
             header="time,minimum,maximum,min_sim_nuis,min_exp_nuis,max_sim_nuis,max_exp_nuis",
             comments="",
         )
-        if not SHOW_PLOTS:
-            plt.close(fig)
 
 # %%
 # 3. Support profiling asks which ECDF +/- its own d reaches furthest. This is
@@ -199,7 +199,7 @@ ecdf_plot = vl.plot_sim_exp_cdfs(
     valid_case, observable_tag, point_idxs=None, time_idx=2
 )
 vl.add_support_overlay(
-    ecdf_plot, avm_supports, label="AVM symmetric magnitude envelope"
+    ecdf_plot, avm_supports
 )
 ecdf_plot.figure.savefig(output_path / "avm_original_support.png", bbox_inches="tight")
 if not SHOW_PLOTS:
@@ -252,7 +252,6 @@ for score in vl.EValidNuisanceScore:
                     vl.EValidResAxis.SIM_NUIS: sim_nuis,
                     vl.EValidResAxis.EXP_NUIS: exp_nuis,
                 },
-                label=f"{rank_name} {score_name}: nuisance ({sim_nuis}, {exp_nuis})",
             )
             ecdf_plot.figure.savefig(
                 output_path / f"{score_name}_{rank_name}_{direction}.png",

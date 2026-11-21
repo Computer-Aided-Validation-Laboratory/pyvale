@@ -4,7 +4,9 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Steady transferable/nuisance ECDF views on both simulation and experiment.
+"""
+Epistemic ECDF views
+================================================================================
 
 Sim has (3 transferable, 3 nuisance, 5 aleatory) samples; exp has (2,3,4).
 Nuisance alternatives have asymmetric shifts, making mean, median and quartile

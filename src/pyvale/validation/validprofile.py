@@ -275,6 +275,7 @@ def find_metric_epis_supports(
         lower_indices,
         upper_indices,
         dict(selectors or {}),
+        metric=metric,
     )
 
 
@@ -408,6 +409,7 @@ def _calc_metric_over_bounds(
         pair_indices[upper_origin],
         {},
         outputs,
+        metric=EMetricType.MAVM if directional else EMetricType.AVM,
     )
 
 

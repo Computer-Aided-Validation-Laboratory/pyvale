@@ -281,33 +281,39 @@ def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
     plt.close(fig)
 
 
-def test_directional_outputs_can_share_time_axes() -> None:
-    test_case = load_plate_case(transient=True)
+@pytest.mark.parametrize("combine", [True, False])
+def test_directional_outputs_can_share_time_axes(combine: bool) -> None:
+    times = np.array([0.0, 2.0, 5.0])
+    observable = vl.ValidObservable(
+        components=("temperature",), geometry=vl.EValidGeometry.GLOBAL, times=times
+    )
+    axes = (vl.EValidAxis.TIME, vl.EValidAxis.EPISTEMIC, vl.EValidAxis.ALEATORY)
+    sim = vl.ValidArray(np.zeros((3, 1, 1)), axes)
+    exp = vl.ValidArray(np.array([1.0, -3.0, 2.0]).reshape(3, 1, 1), axes)
+    test_case = vl.ValidCase(
+        {"temperature": observable}, {"temperature": sim}, {"temperature": exp}
+    )
     result = vl.ValidEngine([vl.MetricMAVM()]).run(test_case)
-    fig, ax = validplot.plot_valid_metric_time(
-        result,
-        "temperature",
-        vl.EMetricType.MAVM,
-        selectors={vl.EValidResAxis.POINT: 0},
-        output=vl.EMetricOut.D_PLUS,
-    )
-    validplot.plot_valid_metric_time(
-        result,
-        "temperature",
-        vl.EMetricType.MAVM,
-        selectors={vl.EValidResAxis.POINT: 0},
-        output=vl.EMetricOut.D_MINUS,
-        ax=ax,
-    )
-    assert [text.get_text() for text in ax.get_legend().get_texts()] == [
-        "MAVM d+",
-        "MAVM d−",
-    ]
-    field = result.metrics["temperature"][vl.EMetricType.MAVM]
-    for line, output in zip(
-        ax.lines, (vl.EMetricOut.D_PLUS, vl.EMetricOut.D_MINUS), strict=True
-    ):
-        np.testing.assert_allclose(line.get_ydata(), field.outputs[output][0, 0])
+    if combine:
+        fig, panels = validplot.plot_metric_time_points(
+            result, "temperature", vl.EMetricType.MAVM, point_idxs=(0,)
+        )
+        ax = panels[0, 0]
+    else:
+        fig, ax = validplot.plot_valid_metric_time(
+            result, "temperature", vl.EMetricType.MAVM, output=vl.EMetricOut.D_PLUS
+        )
+        validplot.plot_valid_metric_time(
+            result,
+            "temperature",
+            vl.EMetricType.MAVM,
+            output=vl.EMetricOut.D_MINUS,
+            ax=ax,
+        )
+    assert ax.get_legend_handles_labels()[1] == ["MAVM d+", "MAVM d−"]
+    for line, expected in zip(ax.lines, ([1.0, 0.0, 2.0], [0.0, 3.0, 0.0]), strict=True):
+        np.testing.assert_array_equal(line.get_xdata(), times)
+        np.testing.assert_allclose(line.get_ydata(), expected)
     plt.close(fig)
 
 
@@ -460,7 +466,7 @@ def test_mavm_support_uses_outer_shifted_ecdfs_not_global_largest_distance(
     np.testing.assert_allclose(
         shifted_line.get_xdata()[1:], expected, rtol=0, atol=1e-12
     )
-    assert "outer support shift" in ax.collections[-1].get_label()
+    assert ax.collections[-1].get_label() == "MAVM"
     plt.close(plot.figure)
 
 
@@ -489,8 +495,10 @@ def test_integration_polygon_area_equals_the_metric(
         output=output,
         display=validplot.EMetricDisp.INTEGRATION_AREA,
     )
+    shaded_area = plot.axes[0, 0].collections[-1]
+    assert shaded_area.get_label() == metric.get_kind().name
     area = 0.0
-    for path in plot.axes[0, 0].collections[-1].get_paths():
+    for path in shaded_area.get_paths():
         coords = path.vertices
         area += (
             abs(
@@ -517,9 +525,7 @@ def test_ks_segments_show_exact_single_and_bound_cdf_differences() -> None:
         "length",
     )
     validplot.add_metric_overlay(plot, vl.MetricKS())
-    labels = [line.get_label() for line in plot.axes[0, 0].lines[-2:]]
-    assert "lower-support bounds" in labels[0]
-    assert "upper-support bounds" in labels[1]
+    assert plot.axes[0, 0].get_legend_handles_labels()[1] == ["Exp.", "Sim.", "KS"]
     plt.close(plot.figure)
 
 
@@ -545,9 +551,8 @@ def test_nongeometric_metrics_compose_as_annotations_without_reinterpreting_area
 def test_u_pooling_has_its_own_probability_coordinate_plot() -> None:
     cdf = vl.ValidECDF(np.array([0.0, 2.0]), np.array([0.5, 1.0]))
     fig, ax = validplot.plot_u_pooling_cdf([cdf], np.array([1.0]))
-    label = ax.lines[0].get_label()
-    assert isinstance(label, str)
-    assert "0.25" in label
+    assert ax.lines[0].get_label() == "U-pooling"
+    assert ax.texts[0].get_text() == "U-pooling = 0.25"
     assert ax.get_xlim() == (0.0, 1.0)
     assert "[-]" in ax.get_xlabel()
     plt.close(fig)
@@ -597,7 +602,7 @@ def test_avm_shift_is_a_symmetric_magnitude_about_each_original_curve() -> None:
     validplot.add_metric_overlay(plot, vl.MetricAVM())
     np.testing.assert_allclose(plot.axes[0, 0].lines[-2].get_xdata()[1:], [-11.0, -9.0])
     np.testing.assert_allclose(plot.axes[0, 0].lines[-1].get_xdata()[1:], [11.0, 13.0])
-    assert "symmetric" in plot.axes[0, 0].collections[-1].get_label()
+    assert plot.axes[0, 0].collections[-1].get_label() == "AVM"
     plt.close(plot.figure)
 
 
@@ -611,11 +616,12 @@ def test_precomputed_support_profiles_compose_without_metric_recalculation() -> 
     )
     plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     validplot.add_support_overlay(plot, supports, output=vl.EMetricOut.D_PLUS)
+    assert plot.axes[0, 0].collections[-1].get_label() == "MAVM"
     np.testing.assert_allclose(plot.axes[0, 0].lines[-1].get_xdata()[1:], [11.0, 13.0])
     plt.close(plot.figure)
 
 
-def test_ecdf_bands_use_opaque_source_colors_without_legend() -> None:
+def test_ecdf_bands_use_translucent_colors_and_one_legend_entry_per_source() -> None:
     from matplotlib.colors import to_rgba
 
     sim = np.array([[0.0, 1.0], [2.0, 3.0]])
@@ -624,8 +630,16 @@ def test_ecdf_bands_use_opaque_source_colors_without_legend() -> None:
     for band, color in zip(
         axis.collections, (plot.options.exp_color, plot.options.sim_color), strict=True
     ):
-        np.testing.assert_array_equal(band.get_facecolor()[0], to_rgba(color))
-    assert axis.get_legend() is None
+        np.testing.assert_array_equal(
+            band.get_facecolor()[0], to_rgba(color, alpha=0.12)
+        )
+    assert [(line.get_color(), line.get_linestyle()) for line in axis.lines] == [
+        ("tab:orange", "--"),
+        ("tab:orange", "--"),
+        ("tab:blue", "-"),
+        ("tab:blue", "-"),
+    ]
+    assert axis.get_legend_handles_labels()[1] == ["Exp.", "Sim."]
     plt.close(plot.figure)
 
 
@@ -641,6 +655,7 @@ def test_zero_mavm_minus_adds_no_support_shading(sim: np.ndarray) -> None:
     plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     axis = plot.axes[0, 0]
     if sim.ndim == 1:
+        assert axis.get_legend_handles_labels()[1] == ["Exp.", "Sim."]
         exp_line, sim_line = axis.lines
         assert exp_line.get_color() == plot.options.exp_color
         assert not exp_line.is_dashed()

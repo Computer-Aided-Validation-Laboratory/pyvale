@@ -4,7 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Validation quickstart
+"""
+Validation quickstart
 ================================================================================
 
 Transient temperature and strain validation with aleatory repeats, epistemic
@@ -17,7 +18,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
-from matplotlib.figure import Figure
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -136,9 +136,8 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     time_idx=4,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
-fig, axes = ecdf_plot.figure, ecdf_plot.axes
-fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
- 
+ecdf_plot.figure.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
+
 # %%
 ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
     valid_case,
@@ -148,26 +147,20 @@ ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
     point_idxs=None,
     offset=None,
 )
-fig, axes = ecdf_plot.figure, ecdf_plot.axes
-fig.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
 
 # %%
-for metric_output, direction in (
-    (vl.EMetricOut.D_PLUS, "d_plus"),
-    (vl.EMetricOut.D_MINUS, "d_minus"),
-):
-    fig, axes = vl.plot_metric_time_points(
-        valid_result,
-        temperature_tag,
-        vl.EMetricType.MAVM,
-        point_idxs=point_idxs,
-        selectors={
-            vl.EValidResAxis.SIM_TRANS: 0,
-            vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.UPPER,
-        },
-        output=metric_output,
-    )
-    fig.savefig(output_path / f"temperature_{direction}_time.png", bbox_inches="tight")
+fig, _ = vl.plot_metric_time_points(
+    valid_result,
+    temperature_tag,
+    vl.EMetricType.MAVM,
+    point_idxs=point_idxs,
+    selectors={
+        vl.EValidResAxis.SIM_TRANS: 0,
+        vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.UPPER,
+    },
+)
+fig.savefig(output_path / "temperature_mavm_time.png", bbox_inches="tight")
 
 # %%
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]

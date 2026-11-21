@@ -4,7 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Reproduce the Pulse25X point-sensor validation benchmark
+"""
+Pulse25X benchmark
 ================================================================================
 
 This reproduces the point-sensor analysis in ``fullfieldvalmetrics`` for:
@@ -34,8 +35,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 
 import pyvale.data as dataset
 import pyvale.validation as vl
@@ -170,8 +169,6 @@ for channel in measurements:
     # Family plots retain the 250 conditional model ECDFs for every channel.
     # Available experimental readings retain their individual measurement spread.
     labels = vl.ValidPlotOpts(title=channel, x_label=axis_label)
-    fig: Figure
-    ax: Axes
     ecdf_plot: vl.ECDFPlot = vl.plot_sim_ecdfs(
         valid_case,
         channel,
@@ -180,11 +177,10 @@ for channel in measurements:
             scenario_idxs=None, centre=vl.EValidECDFCentre.MEAN
         ),
     )
-    fig, axes = ecdf_plot.figure, ecdf_plot.axes
     figure_name = f"0_sim_allcdfs_{channel}.png"
-    fig.savefig(output_path / figure_name, bbox_inches="tight")
+    ecdf_plot.figure.savefig(output_path / figure_name, bbox_inches="tight")
     if not SHOW_PLOTS:
-        plt.close(fig)
+        plt.close(ecdf_plot.figure)
     if np.any(np.isnan(exp_arrays[channel].data)):
         continue
 

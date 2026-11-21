@@ -4,7 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Analytic validation metrics
+"""
+Validation metrics
 ================================================================================
 
 Build a validation case from three scalar observations, then inspect its
@@ -16,7 +17,6 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.figure import Figure
 
 import pyvale.validation as vl
 
@@ -129,15 +129,12 @@ print(80*"-")
 # ------------------------------
 # Both source distributions appear in the legend. Directional MAVM distances
 # are plotted separately below; the ECDF comparison needs no metric result.
-fig: Figure
-axes: np.ndarray
 ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case,
     observable_tag,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Observable [unit]"),
 )
-fig, axes = ecdf_plot.figure, ecdf_plot.axes
-fig.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")
 
 # %%
 # Figures are saved even when interactive plotting is disabled. Keeping the
@@ -193,7 +190,7 @@ for metric_output, direction in (
 
 # U-pooling uses one model CDF per observation and its own probability axis.
 model_cdf: vl.ValidECDF = vl.calc_ecdf(sim_data)
-fig, pooling_ax = vl.plot_u_pooling_cdf([model_cdf] * exp.size, exp)
+fig, _ = vl.plot_u_pooling_cdf([model_cdf] * exp.size, exp)
 fig.savefig(output_path / "u_pooling.png", bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(fig)

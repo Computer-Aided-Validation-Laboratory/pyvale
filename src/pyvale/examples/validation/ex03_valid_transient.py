@@ -4,7 +4,8 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Transient plate validation
+"""
+Transient plate validation
 ================================================================================
 
 Introduce physical time as a separate comparison axis. The same 12 sensors
@@ -17,22 +18,18 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import pyvista as pv
-from matplotlib.figure import Figure
 
 import pyvale.data as dataset
-import pyvale.dataio as io
-import pyvale.mooseherder as mh
-import pyvale.sensorsim as sens
 import pyvale.validation as vl
 
-matplotlib.use("Agg")
 
 # %%
-# Console inspection is printed below. Enable interactive windows with SHOW_PLOTS.
+# Enable interactive windows with SHOW_PLOTS.
+matplotlib.use("Agg")
 SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
+
 output_path = Path.cwd() / "pyvale-output" / "valid_ex3_transient"
 output_path.mkdir(parents=True, exist_ok=True)
 
@@ -67,8 +64,10 @@ exp_strain = sim_strain + strain_bias[:, None, :, None]
 # A shared observables registers units, component order and physical coordinates.
 # Validation compares corresponding physical cells, retaining distinct point,
 # component, time and repeat-experiment axes.
+
 temperature_tag = "plate_temperature"
 strain_tag = "plate_strain"
+
 observables = {
     temperature_tag: vl.ValidObservable(
         components=("temperature",),
@@ -92,26 +91,29 @@ observables = {
 
 # Physical axes identify each comparison cell; ALEATORY holds its repeated
 # observations. The declared axis order matches the arrays in the archive.
+
 sim_axes = (
     vl.EValidAxis.POINT,
     vl.EValidAxis.COMPONENT,
     vl.EValidAxis.TIME,
     vl.EValidAxis.ALEATORY,
 )
+
 exp_axes = (
     vl.EValidAxis.POINT,
     vl.EValidAxis.COMPONENT,
     vl.EValidAxis.TIME,
     vl.EValidAxis.ALEATORY,
 )
-sim_arrays: dict[str, vl.ValidArray] = {}
-exp_arrays: dict[str, vl.ValidArray] = {}
-for observable_tag, sim_values, exp_values in (
-    (temperature_tag, sim_temp, exp_temp),
-    (strain_tag, sim_strain, exp_strain),
-):
-    sim_arrays[observable_tag] = vl.ValidArray(sim_values, sim_axes)
-    exp_arrays[observable_tag] = vl.ValidArray(exp_values, exp_axes)
+
+sim_arrays = {
+    temperature_tag: vl.ValidArray(sim_temp, sim_axes),
+    strain_tag: vl.ValidArray(sim_strain, sim_axes),
+}
+exp_arrays = {
+    temperature_tag: vl.ValidArray(exp_temp, exp_axes),
+    strain_tag: vl.ValidArray(exp_strain, exp_axes),
+}
 
 valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 
@@ -135,9 +137,12 @@ metric_field: vl.MetricField = valid_result.metrics[temperature_tag][
 ]
 metric_shape = metric_field.outputs[vl.EMetricOut.D_PLUS].shape
 metric_axes = metric_field.axes
+
+print(80*"-")
 print("Simulation axes:", sim_arrays[temperature_tag].axes)
 print("Simulation shape:", sim_arrays[temperature_tag].data.shape)
 print("Result axes:", metric_axes, "shape:", metric_shape)
+print(80*"-")
 
 # %%
 # 4. Analysis and visualisation
@@ -146,8 +151,6 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 # agree with sensor figures. Each panel compares the full selected sim and exp
 # epistemic envelopes, or one ECDF when only one scenario is available.
 point_idxs = tuple(range(len(coords)))
-fig: Figure
-axes: np.ndarray
 ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case,
     temperature_tag,
@@ -155,73 +158,26 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     time_idx=4,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
-fig, axes = ecdf_plot.figure, ecdf_plot.axes
-fig.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
 
 # AVM histories recover the imposed linear drift directly; compare these with
-# the separate MAVM directions, which additionally include confidence shifts.
-fig, axes = vl.plot_metric_time_points(
+# both MAVM directions, which additionally include confidence shifts.
+fig, _ = vl.plot_metric_time_points(
     valid_result, temperature_tag, vl.EMetricType.AVM, point_idxs=point_idxs
 )
 fig.savefig(output_path / "temperature_avm_time.png", bbox_inches="tight")
 
 # %%
 # Each panel follows one physical sensor through time. Explicit selectors fix
-# any remaining epistemic scenario; d+ identifies the directional MAVM quantity.
-for metric_output, direction in (
-    (vl.EMetricOut.D_PLUS, "d_plus"),
-    (vl.EMetricOut.D_MINUS, "d_minus"),
-):
-    fig, axes = vl.plot_metric_time_points(
-        valid_result,
-        temperature_tag,
-        vl.EMetricType.MAVM,
-        point_idxs=point_idxs,
-        output=metric_output,
-    )
-    fig.savefig(output_path / f"temperature_{direction}_time.png", bbox_inches="tight")
+# any remaining epistemic scenario.
+fig, _ = vl.plot_metric_time_points(
+    valid_result,
+    temperature_tag,
+    vl.EMetricType.MAVM,
+    point_idxs=point_idxs,
+)
+fig.savefig(output_path / "temperature_mavm_time.png", bbox_inches="tight")
 
-# %%
-# Overlay validation points on the nominal model in its original xyz geometry.
-# The model mesh and sensor positions use the same coordinates in mm.
-# Background nodal scalars (n_nodes,) have a physical colourbar.
-sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
-sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
-sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
-if sim_data.time is None:
-    raise ValueError("Simulation must contain time.")
-background_time_idx = sim_data.time.size - 1
-# Show both directional MAVM outputs in separate figures with nonnegative
-# colour scales, keeping the same explicit scenario selectors for each.
-for metric_output, direction in (
-    (vl.EMetricOut.D_PLUS, "d_plus"),
-    (vl.EMetricOut.D_MINUS, "d_minus"),
-):
-    pv_plot: pv.Plotter = vl.plot_metric_on_sim(
-        valid_result,
-        temperature_tag,
-        vl.EMetricType.MAVM,
-        selectors={
-            vl.EValidResAxis.TIME: 4,
-        },
-        output=metric_output,
-        sim_data=sim_data,
-        sim_field="temperature",
-        sim_time_idx=background_time_idx,
-        descriptor=sens.SensorDescriptor(
-            name="Temperature", symbol=r"T", units="degC", tag="TC"
-        ),
-        sim_coord_units="mm",
-        vis_opts=vl.create_valid_scene_opts(interactive=SHOW_PLOTS),
-        metric_opts=vl.MetricVisOpts(labels_always_visible=True),
-    )
-    pv_plot.screenshot(output_path / f"temperature_mavm_{direction}_on_sim.png")
-    if SHOW_PLOTS:
-        pv_plot.show()
-    pv_plot.close()
-# %%
-# Figures are saved even when interactive plotting is disabled. Keeping the
-# complete analysis in its own directory prevents clashes with other examples.
 if SHOW_PLOTS:
     plt.show()
 else:

@@ -4,7 +4,9 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Steady transferable bounds versus comparisons of every original scenario.
+"""
+Transferable bounds
+================================================================================
 
 Crossing conditional ECDFs make the two routes visibly different. This example
 has no nuisance uncertainty and needs no downloaded data. Bounds remain curves
@@ -33,7 +35,9 @@ output_path.mkdir(parents=True, exist_ok=True)
 # At p=.5 the second sim case supplies the upper bound; at p=1 the first does.
 # Each row is a complete conditional aleatory sample, never pooled with another.
 observable_tag = "response"
-axes = (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY)
+
+axes = (vl.EValidAxis.EPISTEMIC, vl.EValidAxis.ALEATORY)
+
 valid_case = vl.ValidCase(
     {
         observable_tag: vl.ValidObservable(
@@ -52,12 +56,15 @@ valid_case = vl.ValidCase(
 sim_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
     valid_case.sim[observable_tag]
 )
+
 exp_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
     valid_case.exp[observable_tag]
 )
+
 avm_bounds: vl.ValidSupportBounds = vl.calc_avm_over_epis_bounds(
     sim_bounds, exp_bounds
 )
+
 # alpha=.5 deliberately removes confidence shifts to isolate epistemic geometry.
 # ex07 demonstrates default MAVM confidence construction and coherent offsets.
 mavm_bounds: vl.ValidSupportBounds = vl.calc_mavm_over_epis_bounds(
@@ -68,9 +75,11 @@ mavm_bounds: vl.ValidSupportBounds = vl.calc_mavm_over_epis_bounds(
 valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM(alpha=0.5)]
 ).run(valid_case)
+
 avm_original: vl.ValidSupportBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.AVM
 )
+
 mavm_original: vl.ValidSupportBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
@@ -84,21 +93,25 @@ for route, avm, mavm in (
     ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case, observable_tag
     )
-    vl.add_support_overlay(ecdf_plot, avm, label=f"AVM symmetric shift: {route}")
+
+    vl.add_support_overlay(ecdf_plot, avm)
     ecdf_plot.figure.savefig(output_path / f"avm_{route}.png", bbox_inches="tight")
+
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
+
     for metric_output, direction in (
         (vl.EMetricOut.D_PLUS, "d_plus"),
         (vl.EMetricOut.D_MINUS, "d_minus"),
     ):
         ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
         vl.add_support_overlay(
-            ecdf_plot, mavm, output=metric_output, label=f"MAVM {direction}: {route}"
+            ecdf_plot, mavm, output=metric_output
         )
         ecdf_plot.figure.savefig(
             output_path / f"mavm_{direction}_{route}.png", bbox_inches="tight"
         )
+
         if not SHOW_PLOTS:
             plt.close(ecdf_plot.figure)
 

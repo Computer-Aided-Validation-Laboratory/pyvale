@@ -40,6 +40,7 @@ class EValidAxis(Enum):
     COMPONENT = auto()
     TIME = auto()
     EPISTEMIC_TRANS = auto()
+    EPISTEMIC = EPISTEMIC_TRANS
     EPISTEMIC_NUIS = auto()
     ALEATORY = auto()
 
@@ -650,6 +651,7 @@ class ValidSupportBounds:
     upper_indices: np.ndarray
     selectors: dict[EValidResAxis, int]
     metric_outputs: dict[EMetricOut, np.ndarray] | None = None
+    metric: EMetricType | None = None
 
 
 @dataclass(slots=True)

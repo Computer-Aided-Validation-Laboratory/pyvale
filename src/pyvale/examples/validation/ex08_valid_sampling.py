@@ -4,7 +4,9 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Sample 3D scalar/vector/tensor fields and assemble SensorSim acquisitions.
+"""
+Sensor sampling for validation
+================================================================================
 
 A deterministic sensor-frame bias grows with time and x. The generated
 acquisitions use small, symmetric repeat offsets, so the systematic signal is
@@ -17,8 +19,6 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import pyvista as pv
-from matplotlib.figure import Figure
 from scipy.spatial.transform import Rotation
 
 import pyvale.data as dataset
@@ -42,8 +42,6 @@ sim_data: io.SimData = mh.ExodusLoader(
     dataset.element_case_output_path(dataset.EElemTest.HEX20)
 ).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y", "disp_z"))
-if sim_data.time is None or sim_data.node_vars is None:
-    raise ValueError("Simulation must contain times and nodal fields.")
 # An explicitly derived global is a nodal arithmetic mean, not a volume average.
 # replace creates a local record; original field arrays are borrowed unchanged.
 sim_times = sim_data.time
@@ -187,8 +185,6 @@ print("Exp. repeat axis:", valid_case.exp["temperature_average"].axes)
 
 # %%
 # 4. Inspect temperature and tensor histories without flattening components.
-fig: Figure
-axes: np.ndarray
 for tag, component in (
     ("temperature_average", 0),
     ("displacement_local", 0),
@@ -200,65 +196,16 @@ for tag, component in (
     ecdf_plot.figure.savefig(output_path / f"{tag}_cdfs.png", bbox_inches="tight")
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
-    for metric_output, direction in (
-        (vl.EMetricOut.D_PLUS, "d_plus"),
-        (vl.EMetricOut.D_MINUS, "d_minus"),
-    ):
-        fig, axes = vl.plot_metric_time_points(
-            valid_result,
-            tag,
-            vl.EMetricType.MAVM,
-            point_idxs=(0, 1, 2, 3),
-            selectors={vl.EValidResAxis.COMPONENT: component},
-            output=metric_output,
-        )
-        fig.savefig(output_path / f"{tag}_{direction}_time.png", bbox_inches="tight")
-        if not SHOW_PLOTS:
-            plt.close(fig)
-# Independent background colourbars may show a stored field key or a derived
-# nodal scalar. Here equivalent strain is in the global solver frame; the metric
-# concerns the local sensor xx component, so both labels identify their frame.
-if sim_data.node_vars is None:
-    raise ValueError("Simulation must contain node_vars.")
-background_index = sim_times.size - 1
-normal = np.stack(
-    [sim_data.node_vars[key][:, background_index] for key in normal_keys], axis=-1
-)
-shear = np.stack(
-    [sim_data.node_vars[key][:, background_index] for key in shear_keys], axis=-1
-)
-tensor: np.ndarray = io.assemble_strain_tensor(
-    normal, shear, shear_convention=io.EStrainShear.TENSOR
-)
-equivalent: np.ndarray = io.calc_equivalent_strain(tensor)
-for background_name, background in (
-    ("temperature", "temperature"),
-    ("equivalent_strain", equivalent),
-):
-    for metric_output, direction in (
-        (vl.EMetricOut.D_PLUS, "d_plus"),
-        (vl.EMetricOut.D_MINUS, "d_minus"),
-    ):
-        plotter: pv.Plotter = vl.plot_metric_on_sim(
-            valid_result,
-            "strain_local",
-            vl.EMetricType.MAVM,
-            selectors={vl.EValidResAxis.COMPONENT: 0, vl.EValidResAxis.TIME: 4},
-            output=metric_output,
-            sim_data=sim_data,
-            sim_field=background,
-            sim_time_idx=background_index,
-            sim_coord_units="mm",
-            descriptor=sens.SensorDescriptor(name=background_name, tag="S"),
-            metric_opts=vl.MetricVisOpts(labels_always_visible=True),
-            vis_opts=vl.create_valid_scene_opts(interactive=SHOW_PLOTS),
-        )
-        plotter.screenshot(
-            output_path / f"strain_local_{direction}_on_{background_name}.png"
-        )
-        if SHOW_PLOTS:
-            plotter.show()
-        plotter.close()
+    fig, _ = vl.plot_metric_time_points(
+        valid_result,
+        tag,
+        vl.EMetricType.MAVM,
+        point_idxs=(0, 1, 2, 3),
+        selectors={vl.EValidResAxis.COMPONENT: component},
+    )
+    fig.savefig(output_path / f"{tag}_mavm_time.png", bbox_inches="tight")
+    if not SHOW_PLOTS:
+        plt.close(fig)
 if SHOW_PLOTS:
     plt.show()
 else:

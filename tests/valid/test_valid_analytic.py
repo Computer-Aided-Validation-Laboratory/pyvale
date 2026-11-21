@@ -39,7 +39,6 @@ from pyvale.dataio.simdata import SimData
 from pyvale.validation.metrics import (
     EMAVMDuplicates,
     calc_avm_1d,
-    calc_deterministic_metrics_1d,
     calc_mavm_1d,
 )
 
@@ -391,8 +390,6 @@ def test_engine_outputs_match_analytic_sample_count_cases(
         vl.MetricCVM(),
         vl.MetricMAVM(alpha=0.5),
     ]
-    if test_case.sim_count == test_case.exp_count:
-        metrics.extend([vl.MetricRMSE(), vl.MetricRelErr()])
     if np.isnan(test_case.cvm):
         with pytest.warns(RuntimeWarning, match="sample arguments is too small"):
             result = vl.ValidEngine(metrics).run(valid_case)
@@ -418,14 +415,7 @@ def test_engine_outputs_match_analytic_sample_count_cases(
             assert np.isnan(actual)
         else:
             assert actual == pytest.approx(expected, rel=0, abs=1e-12)
-    if test_case.sim_count == test_case.exp_count:
-        assert result.metrics["response"][vl.EMetricType.RMSE].outputs[
-            vl.EMetricOut.ERROR
-        ][0, 0, 0] == pytest.approx(1.0, rel=0, abs=1e-12)
-        assert result.metrics["response"][vl.EMetricType.RELATIVE_ERROR].outputs[
-            vl.EMetricOut.ERROR
-        ][0, 0, 0] == pytest.approx(1 / (2 * test_case.exp_count - 1), rel=0, abs=1e-12)
-    else:
+    if test_case.sim_count != test_case.exp_count:
         for metric in (vl.MetricRMSE(), vl.MetricRelErr()):
             with pytest.raises(ValueError, match="equal aleatory counts"):
                 vl.ValidEngine([metric]).run(valid_case)
@@ -552,24 +542,25 @@ def test_mavm_over_bounds_checks_both_sim_anchors_in_each_direction() -> None:
 def test_mavm_confidence_is_constructed_before_enveloping_original_exp_cases() -> None:
     sim = vl.ValidArray(np.array([-20.0]), (vl.EValidAxis.ALEATORY,))
     exp = vl.ValidArray(
-        np.array([[0.0, 2.0], [10.0, 14.0]]),
+        np.array([[0.0, 10.0], [1.0, 5.0]]),
         (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY),
     )
-    # For alpha=.25 and df=1 the t quantile is exactly 1. Original standard
-    # errors are 1/sqrt(2) and 2/sqrt(2); no synthetic bound sample count exists.
-    shift_lower = 1 / sqrt(2)
-    shift_upper = 2 / sqrt(2)
+    # The second curve owns the nominal upper quantile at p=0.5. With
+    # t(0.75, 1) = 1, the first curve shifts by 5/sqrt(2) and takes over.
+    shift_wide = 5 / sqrt(2)
+    shift_narrow = 2 / sqrt(2)
+    exp_bounds = vl.find_ecdf_epis_bounds(exp)
+    np.testing.assert_array_equal(exp_bounds.upper, [1.0, 10.0])
     supports = vl.calc_mavm_over_epis_bounds(
-        vl.find_ecdf_epis_bounds(sim), vl.find_ecdf_epis_bounds(exp), alpha=0.25
+        vl.find_ecdf_epis_bounds(sim), exp_bounds, alpha=0.25
     )
-    expected_shift = 32 + shift_upper  # mean upper confidence support minus -20.
     np.testing.assert_allclose(
-        supports.upper, [-20 + expected_shift, -20 + expected_shift], rtol=0, atol=1e-10
+        supports.upper, [5 + shift_wide, 5 + shift_wide], rtol=0, atol=1e-10
     )
     assert supports.metric_outputs is not None
     np.testing.assert_allclose(
         supports.metric_outputs[vl.EMetricOut.D_PLUS][0],
-        [21 - shift_lower, 32 + shift_upper],
+        [22.5 - (shift_wide + shift_narrow) / 2, 25 + shift_wide],
         rtol=0,
         atol=1e-10,
     )
@@ -732,10 +723,11 @@ def test_nuisance_profiles_keep_missing_cells_and_offset_selections() -> None:
 
 
 def test_ranked_nuisance_cases_are_coherent_and_use_explicit_width_scores() -> None:
-    probabilities = np.array([0.5, 1.0])
+    probabilities = np.array([0.25, 1.0])
     shifted_width = np.array([[3.0, 10.0], [4.0, 8.0]])
     original_width = np.array([[1.0, 8.0], [1.0, 2.0]])
     upper = np.repeat(shifted_width[..., None], 2, axis=-1)
+    upper[0, 0] = [1.5, 3.5]  # Weighted width is 3; the unweighted mean is 2.5.
     sim_upper = np.repeat(original_width[..., None], 2, axis=-1)
     origin = np.empty((*upper.shape, 0), dtype=int)
     supports = vl.ValidSupportBounds(
@@ -958,9 +950,13 @@ def test_relative_error_zero_and_near_zero(reference: float) -> None:
 
 
 def test_u_pooling_multiple_sample_oracle() -> None:
-    cdf = vl.ValidECDF(np.array([0.0]), np.array([1.0]))
-    assert vl.calc_u_pooling_1d([cdf, cdf], np.array([-1.0, 1.0])) == pytest.approx(
-        0.25
+    first = vl.ValidECDF(np.array([0.0, 2.0]), np.array([0.5, 1.0]))
+    second = vl.ValidECDF(
+        np.array([1.0, 3.0, 4.0, 5.0]), np.array([0.25, 0.5, 0.75, 1.0])
+    )
+    # Both observations hit a support point. The sorted transforms are 1/4, 1/2.
+    assert vl.calc_u_pooling_1d([first, second], np.array([0.0, 1.0])) == pytest.approx(
+        3 / 16, rel=0, abs=1e-12
     )
     with pytest.raises(ValueError):
         vl.calc_u_pooling_1d([], np.array([]))
@@ -990,13 +986,33 @@ def test_cvm_dimensionless_statistic_is_not_bounded_by_one() -> None:
     assert vl.MetricCVM().calc(sim, exp).value == pytest.approx(201 / 120)
 
 
-def test_deterministic_metrics() -> None:
-    """Deterministic error metric calculations (RMSE, Rel Err)."""
-    sim = np.array([10.0, 20.0, 30.0])
-    exp = np.array([10.0, 22.0, 28.0])
-    res = calc_deterministic_metrics_1d(sim, exp)
-    assert res.absolute_error == pytest.approx(4.0 / 3.0)
-    assert res.rmse == pytest.approx(np.sqrt(8.0 / 3.0))
+def test_deterministic_metrics_preserve_observation_order() -> None:
+    sim = np.array([0.0, 2.0])
+    exp = np.array([4.0, -1.0])
+    expected_rmse = sqrt(12.5)
+    errors = vl.calc_deterministic_metrics_1d(sim, exp)
+    assert errors.absolute_error == pytest.approx(3.5)
+    assert errors.rmse == pytest.approx(expected_rmse)
+    assert errors.relative_error == pytest.approx(0.875)
+    assert errors.nmse == pytest.approx(2.0)
+
+    axes = (vl.EValidAxis.ALEATORY,)
+    observable = vl.ValidObservable(
+        components=("response",), geometry=vl.EValidGeometry.GLOBAL
+    )
+    case = vl.ValidCase(
+        {"response": observable},
+        {"response": vl.ValidArray(sim, axes)},
+        {"response": vl.ValidArray(exp, axes)},
+    )
+    for metric, expected in (
+        (vl.MetricRMSE(), expected_rmse),
+        (vl.MetricRelErr(), 0.875),
+    ):
+        assert metric.calc(sim, exp).value == pytest.approx(expected)
+        result = vl.ValidEngine([metric]).run(case)
+        field = result.metrics["response"][metric.get_kind()]
+        assert field.outputs[vl.EMetricOut.ERROR].item() == pytest.approx(expected)
 
 
 def calculate_rectangle_signed_areas(
@@ -1250,11 +1266,11 @@ def test_sample_bound_field_matches_linear_space_and_time() -> None:
     observable = vl.ValidObservable(
         components=("temperature",),
         geometry=vl.EValidGeometry.POINT,
-        coords=np.array([[0.25, 0.5, 0.0], [0.75, 0.25, 0.0]]),
+        coords=np.array([[0.25, 0.5, 0.0], [0.75, 0.5, 0.0]]),
         times=np.array([0.25, 0.75]),
     )
     sampled = validprep.sample_field_for_valid(field, observable)
-    expected = np.array([[2.0, 3.5], [2.0, 3.5]])[:, None, :]
+    expected = np.array([[2.0, 3.5], [2.5, 4.0]])[:, None, :]
     assert sampled.axes == (
         vl.EValidAxis.POINT,
         vl.EValidAxis.COMPONENT,
