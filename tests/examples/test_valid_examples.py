@@ -190,6 +190,11 @@ EXAMPLES = (
         ),
     ),
     ("ex10_valid_pulse25x", "valid_ex10_pulse25x", PULSE25X_OUTPUTS),
+    (
+        "ex12_parallel_valid_ir_camera",
+        "valid_ex12_ir_camera",
+        ("ir_camera_avm.png",),
+    ),
 )
 
 
@@ -218,9 +223,8 @@ def test_valid_example(
 
 
 
-def test_valid_gallery_contains_exactly_the_documented_eleven_examples() -> None:
+def test_valid_gallery_matches_registered_examples() -> None:
     examples_root = Path(__file__).resolve().parents[2] / "src/pyvale/examples/validation"
     assert sorted(path.stem for path in examples_root.glob("ex*.py")) == sorted(
         name for name, _, _ in EXAMPLES
     )
-    assert len(EXAMPLES) == 11

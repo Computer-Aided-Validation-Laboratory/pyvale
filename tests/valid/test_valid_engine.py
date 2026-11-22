@@ -388,3 +388,54 @@ def test_custom_paired_classification_uses_joint_missing_observation_mask() -> N
     np.testing.assert_array_equal(
         field.outputs[vl.EMetricOut.STATISTIC], [[[1.0]]]
     )
+
+
+@pytest.mark.parametrize(
+    ("sim_count", "include_missing"), [(1, True), (3, False), (3, True)]
+)
+def test_batched_avm_matches_scalar_comparisons(
+    sim_count: int, include_missing: bool
+) -> None:
+    tag = "temperature"
+    simulation = np.arange(6, dtype=np.float32).reshape(3, 2, 1) + np.array(
+        [0.4, -0.1, 0.2], dtype=np.float32
+    )[:sim_count]
+    experiment = np.arange(27.0).reshape(3, 3, 3)[..., ::-1] / 10.0
+    if include_missing:
+        simulation[1, 1, 0] = np.nan
+        experiment[0, 0, 0] = np.nan
+        experiment[2, 1] = np.nan
+    axes = (
+        vl.EValidAxis.POINT,
+        vl.EValidAxis.EPISTEMIC_TRANS,
+        vl.EValidAxis.ALEATORY,
+    )
+    test_case = vl.ValidCase(
+        {
+            tag: vl.ValidObservable(
+                components=(tag,),
+                geometry=vl.EValidGeometry.POINT,
+                coords=np.zeros((3, 3)),
+            )
+        },
+        {tag: vl.ValidArray(simulation, axes)},
+        {tag: vl.ValidArray(experiment, axes)},
+    )
+    expected = np.full((3, 2, 3), np.nan)
+    for point, sim_scenario, exp_scenario in np.ndindex(expected.shape):
+        predicted_samples = simulation[point, sim_scenario]
+        observations = experiment[point, exp_scenario]
+        if np.any(np.isfinite(predicted_samples)) and np.any(np.isfinite(observations)):
+            expected[point, sim_scenario, exp_scenario] = vl.calc_avm_1d(
+                predicted_samples, observations
+            )
+
+    for workers in (1, 4):
+        result = vl.ValidEngine(
+            [vl.MetricAVM()], opts=vl.ValidEngineOpts(workers=workers)
+        ).run(test_case)
+        field = result.metrics[tag][vl.EMetricType.AVM]
+        assert field.axes[-2:] == (vl.EValidResAxis.SIM_TRANS, vl.EValidResAxis.EXP_TRANS)
+        np.testing.assert_allclose(
+            field.outputs[vl.EMetricOut.DISTANCE][:, 0, 0], expected, rtol=0, atol=1e-14
+        )

@@ -9,7 +9,7 @@
 from copy import copy, deepcopy
 from dataclasses import dataclass
 from math import prod
-from multiprocessing.pool import AsyncResult, Pool
+from multiprocessing.pool import AsyncResult, Pool, ThreadPool
 from os import cpu_count
 
 import numpy as np
@@ -209,7 +209,14 @@ class ValidEngine:
             ):
                 _store_chunk(results[name], self.metrics, start, calculated)
         else:
-            with Pool(workers) as pool:
+            # Batched NumPy AVM releases the GIL. Threads share the observation
+            # arrays and avoid serialising large result partitions.
+            pool_type = (
+                ThreadPool
+                if all(_can_batch_avm(workload, self.metrics) for workload in workloads)
+                else Pool
+            )
+            with pool_type(workers) as pool:
                 pending: list[AsyncResult] = []
                 for worker_idx in range(workers):
                     partition_start = total * worker_idx // workers
@@ -277,6 +284,59 @@ def _slice_points(quantity: ValidArray, start: int, stop: int) -> ValidArray:
     return sliced
 
 
+def _can_batch_avm(workload: _Workload, metrics: tuple[IValidMetric, ...]) -> bool:
+    if (
+        len(metrics) != 1
+        or type(metrics[0]) is not MetricAVM
+        or workload.sim.offsets is not None
+        or workload.exp.offsets is not None
+    ):
+        return False
+    sim_count = _get_axis_size(workload.sim, EValidAxis.ALEATORY)
+    exp_count = _get_axis_size(workload.exp, EValidAxis.ALEATORY)
+    # Missing samples can invalidate equal probability weights.
+    return sim_count == 1 or (
+        sim_count == exp_count
+        and not np.isnan(workload.sim.data).any()
+        and not np.isnan(workload.exp.data).any()
+    )
+
+
+def _calculate_batched_avm(workload: _Workload) -> np.ndarray:
+    """Batch point-mass or equal-count AVM comparisons without offsets."""
+    shape = workload.shape
+    simulation = workload.sim.data.reshape(*shape[:5], -1)
+    experiment = workload.exp.data.reshape(*shape[:3], *shape[5:7], -1)
+    distances = np.full(shape[:7], np.nan)
+    # Limit the temporary broadcast to about 8 MiB, or one point if larger.
+    samples_per_point = prod(shape[1:7]) * experiment.shape[-1]
+    batch_points = max(1, (1 << 20) // samples_per_point)
+    for start in range(0, shape[0], batch_points):
+        stop = start + batch_points
+        predicted = simulation[start:stop, ..., None, None, :]
+        observed = experiment[start:stop, :, :, None, None]
+        if simulation.shape[-1] > 1:
+            # Equal counts give equal probability mass on each sorted pair.
+            predicted = np.sort(predicted, axis=-1)
+            observed = np.sort(observed, axis=-1)
+        differences = np.subtract(predicted, observed, dtype=np.float64)
+        np.abs(differences, out=differences)
+        if simulation.shape[-1] > 1:
+            np.mean(differences, axis=-1, out=distances[start:stop])
+        else:
+            present = ~np.isnan(observed)
+            counts = np.count_nonzero(present, axis=-1)
+            np.divide(
+                np.sum(differences, axis=-1, where=present),
+                counts,
+                out=distances[start:stop],
+                where=counts != 0,
+            )
+    start = workload.start % prod(shape[1:])
+    stop = start + workload.stop - workload.start
+    return distances.reshape(1, -1)[:, start:stop]
+
+
 def _calculate_partition(
     workloads: list[_Workload], metrics: tuple[IValidMetric, ...]
 ) -> list[tuple[str, int, np.ndarray]]:
@@ -291,6 +351,11 @@ def _calculate_partition(
     )
     requires_pairs = any(paired_metrics)
     for workload in workloads:
+        if _can_batch_avm(workload, metrics):
+            calculated_workloads.append(
+                (workload.name, workload.start, _calculate_batched_avm(workload))
+            )
+            continue
         sim_array, exp_array, shape = workload.sim, workload.exp, workload.shape
         start = workload.start % prod(shape[1:])
         stop = start + workload.stop - workload.start
