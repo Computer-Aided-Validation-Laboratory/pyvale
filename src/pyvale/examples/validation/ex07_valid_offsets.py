@@ -74,59 +74,30 @@ valid_case = vl.ValidCase(
         )
     },
 )
-valid_result: vl.ValidResult = vl.ValidEngine(
-    [vl.MetricAVM(), vl.MetricMAVM()]
-).run(valid_case)
+mavm = vl.MetricMAVM()
+valid_result = vl.ValidEngine([mavm]).run(valid_case)
 
 # %%
-# 2. Only the explicit exp_offset=None expands all three offset states. The
-# default plot shows nominal observations; no offset axis is silently profiled.
-exp_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
+# 2. Show the nominal experiment, both offset limits and the two outermost
+# confidence limits. Confidence shifts are calculated from each offset's
+# original observations. The shaded metric envelope spans both MAVM directions.
+ecdf_plot = vl.plot_sim_exp_cdfs(
     valid_case,
     observable_tag,
     time_idx=2,
     point_idxs=None,
-    offset=None,
-    view=vl.ValidECDFView(scenario_idxs=None),
+    exp_offset=None,
+    confidence_alpha=mavm.alpha,
 )
-exp_plot.figure.savefig(output_path / "exp_offset_envelopes.png", bbox_inches="tight")
+vl.add_metric_overlay(ecdf_plot, mavm)
+ecdf_plot.figure.savefig(
+    output_path / "mavm_offset_confidence_ecdfs.png", bbox_inches="tight"
+)
 if not SHOW_PLOTS:
-    plt.close(exp_plot.figure)
+    plt.close(ecdf_plot.figure)
 
-# Confidence is computed per original experimental sample before enveloping.
-sim_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
-    valid_case.sim[observable_tag], time_idx=2
-)
-exp_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
-    valid_case.exp[observable_tag], time_idx=2, offset=None
-)
-confidence_supports: vl.ECDFSuppBounds = vl.calc_mavm_over_epis_bounds(
-    sim_bounds, exp_bounds
-)
 # %%
-# 3. Directional integration figures identify the experimental confidence bounds.
-# Select one offset at a time; each time history remains a conditional result.
-for offset in vl.EEpisOffset:
-    for metric_output, direction in (
-        (vl.EMetricOut.D_PLUS, "d_plus"),
-        (vl.EMetricOut.D_MINUS, "d_minus"),
-    ):
-        ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
-            valid_case, observable_tag, point_idxs=None, time_idx=2, exp_offset=offset
-        )
-        vl.add_metric_overlay(
-            ecdf_plot,
-            vl.MetricMAVM(),
-            output=metric_output,
-            display=vl.EMetricDisp.INTEGRATION_AREA,
-        )
-        ecdf_plot.figure.savefig(
-            output_path / f"mavm_{offset.name.lower()}_{direction}_area.png",
-            bbox_inches="tight",
-        )
-        if not SHOW_PLOTS:
-            plt.close(ecdf_plot.figure)
-
+# 3. The time history shows both MAVM directions at the nominal offset.
 fig, _ = vl.plot_metric_time_points(
     valid_result,
     observable_tag,
@@ -137,19 +108,6 @@ fig, _ = vl.plot_metric_time_points(
 fig.savefig(output_path / "mavm_time.png", bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(fig)
-
-ecdf_plot = vl.plot_sim_exp_cdfs(
-    valid_case, observable_tag, time_idx=2, exp_offset=None
-)
-vl.add_support_overlay(
-    ecdf_plot,
-    confidence_supports,
-)
-ecdf_plot.figure.savefig(
-    output_path / "mavm_confidence_support_envelope.png", bbox_inches="tight"
-)
-if not SHOW_PLOTS:
-    plt.close(ecdf_plot.figure)
 
 if SHOW_PLOTS:
     plt.show()

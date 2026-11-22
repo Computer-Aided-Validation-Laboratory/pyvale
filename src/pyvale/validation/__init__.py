@@ -57,6 +57,7 @@ from pyvale.validation.validio import (
 from pyvale.validation.validplot import (
     ECDFPlot,
     EMetricDisp,
+    EShowECDFBounds,
     ValidECDFComparison,
     ValidECDFReference,
     ValidPlotOpts,
@@ -136,6 +137,7 @@ __all__ = [
     "EMAVMDuplicates",
     "EMetricComparison",
     "EMetricDisp",
+    "EShowECDFBounds",
     "EMetricOut",
     "EMetricScale",
     "EMetricType",

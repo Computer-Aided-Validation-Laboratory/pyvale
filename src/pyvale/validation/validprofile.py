@@ -13,6 +13,14 @@ import numpy as np
 from scipy import stats
 
 from pyvale.validation.constants import MAVM_AREA_TOLERANCE
+from pyvale.validation.ecdftypes import (
+    ECDFNuisanceRank,
+    ECDFSuppBounds,
+    EValidBoundAxis,
+    EValidNuisanceScore,
+    ValidECDF,
+    ValidECDFBounds,
+)
 from pyvale.validation.metrics import calc_mavm_1d
 from pyvale.validation.metricstrategy import EMetricType
 from pyvale.validation.validecdf import (
@@ -22,23 +30,15 @@ from pyvale.validation.validecdf import (
     calc_ecdf,
 )
 from pyvale.validation.validtools import _build_metric_selection
-from pyvale.validation.ecdftypes import (
-    EValidBoundAxis,
-    EValidNuisanceScore,
-    ValidECDF,
-    ValidECDFBounds,
-    ECDFNuisanceRank,
-    ECDFSuppBounds,
-)
 from pyvale.validation.validtypes import (
     EEpisOffset,
     EMAVMDuplicates,
     EMetricOut,
     EValidResAxis,
     MAVMBoundPairs,
+    MetricField,
     ValidCase,
     ValidMetricExtrema,
-    MetricField,
     ValidResult,
 )
 
@@ -427,6 +427,22 @@ def calc_avm_over_epis_bounds(
     )
 
 
+def _mavm_confidence_shifts(
+    sample_sets: tuple[np.ndarray, ...], alpha: float
+) -> np.ndarray:
+    shifts = []
+    for samples in sample_sets:
+        support = np.unique(samples[np.isfinite(samples)])
+        count = support.size
+        shift = (
+            0.0
+            if count == 1
+            else stats.t.ppf(1 - alpha, count - 1) * np.std(support) / np.sqrt(count)
+        )
+        shifts.append(shift)
+    return np.asarray(shifts)
+
+
 def calc_mavm_over_epis_bounds(
     sim: ValidECDFBounds,
     exp: ValidECDFBounds,
@@ -449,16 +465,7 @@ def calc_mavm_over_epis_bounds(
         or not 0 < alpha < 1
     ):
         raise ValueError("MAVM alpha must be between zero and one.")
-    shifts = []
-    for samples in exp.data.samples:
-        support = np.unique(samples[np.isfinite(samples)])
-        count = support.size
-        shift = (
-            0.0
-            if count == 1
-            else stats.t.ppf(1 - alpha, count - 1) * np.std(support) / np.sqrt(count)
-        )
-        shifts.append(shift)
+    shifts = _mavm_confidence_shifts(exp.data.samples, alpha)
     shape = (
         len({s[0] for s in exp.data.original_scenarios}),
         len({s[1] for s in exp.data.original_scenarios}),
@@ -467,10 +474,10 @@ def calc_mavm_over_epis_bounds(
     )
     original = exp.data.original_quantiles
     lower_quantiles = _reduce_ecdf_quantiles(
-        (original - np.asarray(shifts)[:, None]).reshape(shape), exp.view
+        (original - shifts[:, None]).reshape(shape), exp.view
     )
     upper_quantiles = _reduce_ecdf_quantiles(
-        (original + np.asarray(shifts)[:, None]).reshape(shape), exp.view
+        (original + shifts[:, None]).reshape(shape), exp.view
     )
     lower, _, _, _ = _find_quantile_limits(
         lower_quantiles, exp.data.original_scenarios, exp.view

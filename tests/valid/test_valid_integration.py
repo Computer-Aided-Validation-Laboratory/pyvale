@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import pyvista as pv
+from matplotlib.colors import to_rgba
 from plate_fixture import load_plate_case
 
 import pyvale.dataio as io
@@ -425,10 +426,10 @@ def test_nuisance_median_profiles_are_drawn_inside_source_envelopes() -> None:
     )
     axis = plot.axes[0, 0]
     assert axis.get_legend_handles_labels()[1] == [
-        "Exp. Nuis. Envelope",
-        "Sim. Nuis. Envelope",
-        "Exp. Nuis. Prof. (median)",
-        "Sim. Nuis. Prof. (median)",
+        "Exp Nuis Env",
+        "Sim Nuis Env",
+        "Exp Nuis Prof-Med",
+        "Sim Nuis Prof-Med",
     ]
     for lines, shift, color in (
         (axis.lines[4:6], 10.0, plot.options.exp_profile_color),
@@ -440,6 +441,62 @@ def test_nuisance_median_profiles_are_drawn_inside_source_envelopes() -> None:
                 line.get_xdata()[1:], np.array(expected) + shift
             )
     assert all(curves.quantiles.shape[1] == 3 for curves in plot.data[0].values())
+    plt.close(plot.figure)
+
+
+@pytest.mark.parametrize("mode", [vl.EShowECDFBounds.OUTER, vl.EShowECDFBounds.ALL])
+def test_ecdf_nested_bounds_keep_only_outer_confidence_limits_by_default(
+    mode: vl.EShowECDFBounds,
+) -> None:
+    test_case = create_plot_epistemic_case()
+    sim = test_case.sim["length"]
+    test_case.exp["length"] = vl.ValidArray(
+        sim.data + 10.0, sim.axes, offsets=vl.EpistemicOffsets(2.0, 4.0)
+    )
+    plot = vl.plot_sim_exp_cdfs(
+        test_case,
+        "length",
+        exp_offset=None,
+        nuisance_profile=vl.EValidECDFReduce.MEDIAN,
+        confidence_alpha=0.05,
+        show_bounds=mode,
+        valid_plot_opts=vl.ValidPlotOpts(lw=2.0),
+    )
+    axis = plot.axes[0, 0]
+    labels = axis.get_legend_handles_labels()[1]
+    assert "Exp Nom Ctr" in labels
+    assert "Exp Epi Env" in labels
+    assert "Exp Off" in labels
+    assert "Exp Nuis Prof-Med" in labels
+    assert labels.count("Exp Conf") == 1
+
+    confidence_lines = [
+        line for line in axis.lines
+        if line.get_color() == plot.options.exp_color
+        and line.get_linestyle() == plot.options.exp_conf_linestyle
+    ]
+    expected_count = 2 if mode is vl.EShowECDFBounds.OUTER else 2 + 2 * 27
+    assert len(confidence_lines) == expected_count
+    experimental_low = np.array([9.0, 11.0])
+    experimental_high = np.array([23.0, 25.0])
+    np.testing.assert_allclose(
+        confidence_lines[0].get_xdata()[1:],
+        vl.calc_mavm_1d(experimental_low, experimental_low).exp_conf_lower,
+    )
+    np.testing.assert_allclose(
+        confidence_lines[1].get_xdata()[1:],
+        vl.calc_mavm_1d(experimental_high, experimental_high).exp_conf_upper,
+    )
+    source_lines = [line for line in axis.lines if line not in confidence_lines]
+    vl.add_metric_overlay(plot, vl.MetricMAVM())
+    support_lines = axis.lines[-2:]
+    assert all(line.get_linewidth() == 3.0 for line in source_lines)
+    assert all(
+        line.get_linewidth() == 2.0 for line in (*confidence_lines, *support_lines)
+    )
+    assert max(line.get_zorder() for line in axis.lines if not line.is_dashed()) < min(
+        line.get_zorder() for line in axis.lines if line.is_dashed()
+    )
     plt.close(plot.figure)
 
 
@@ -623,6 +680,7 @@ def test_ks_segments_show_exact_single_and_bound_cdf_differences() -> None:
     )
     validplot.add_metric_overlay(plot, vl.MetricKS())
     line = plot.axes[0, 0].lines[-1]
+    assert line.get_color() == "black"
     assert np.ptp(line.get_xdata()) == 0
     assert np.ptp(line.get_ydata()) == pytest.approx(0.5)
     plt.close(plot.figure)
@@ -631,7 +689,7 @@ def test_ks_segments_show_exact_single_and_bound_cdf_differences() -> None:
         "length",
     )
     validplot.add_metric_overlay(plot, vl.MetricKS())
-    assert plot.axes[0, 0].get_legend_handles_labels()[1] == ["Exp.", "Sim.", "KS"]
+    assert plot.axes[0, 0].get_legend_handles_labels()[1] == ["Exp", "Sim", "KS"]
     plt.close(plot.figure)
 
 
@@ -730,7 +788,12 @@ def test_mavm_defaults_to_full_support_envelope(precompute: bool) -> None:
         validplot.add_metric_overlay(plot, metric)
 
     axis = plot.axes[0, 0]
-    assert axis.collections[-1].get_label() == "MAVM support envelope"
+    assert axis.collections[-1].get_label() == "MAVM supp"
+    assert all(line.get_color() == "black" for line in axis.lines[-2:])
+    np.testing.assert_allclose(
+        axis.collections[-1].get_facecolor()[0],
+        to_rgba("grey", alpha=plot.options.metric_alpha),
+    )
     np.testing.assert_allclose(axis.lines[-2].get_xdata()[1:], [-1.0, 1.0])
     np.testing.assert_allclose(axis.lines[-1].get_xdata()[1:], [11.0, 13.0])
     plt.close(plot.figure)
@@ -752,8 +815,6 @@ def test_precomputed_support_profiles_compose_without_metric_recalculation() -> 
 
 
 def test_ecdf_bands_use_translucent_colors_and_one_legend_entry_per_source() -> None:
-    from matplotlib.colors import to_rgba
-
     sim = np.array([[0.0, 1.0], [2.0, 3.0]])
     plot = validplot.plot_sim_exp_cdfs(create_ecdf_case(sim, sim + 1), "length")
     axis = plot.axes[0, 0]
@@ -769,7 +830,7 @@ def test_ecdf_bands_use_translucent_colors_and_one_legend_entry_per_source() -> 
         ("tab:blue", "-"),
         ("tab:blue", "-"),
     ]
-    assert axis.get_legend_handles_labels()[1] == ["Exp.", "Sim."]
+    assert axis.get_legend_handles_labels()[1] == ["Exp", "Sim"]
     plt.close(plot.figure)
 
 
@@ -785,7 +846,7 @@ def test_zero_mavm_minus_adds_no_support_shading(sim: np.ndarray) -> None:
     plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     axis = plot.axes[0, 0]
     if sim.ndim == 1:
-        assert axis.get_legend_handles_labels()[1] == ["Exp.", "Sim."]
+        assert axis.get_legend_handles_labels()[1] == ["Exp", "Sim"]
         exp_line, sim_line = axis.lines
         assert exp_line.get_color() == plot.options.exp_color
         assert not exp_line.is_dashed()

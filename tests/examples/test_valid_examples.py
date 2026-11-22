@@ -163,15 +163,8 @@ EXAMPLES = (
         "ex07_valid_offsets",
         "valid_ex7_offsets",
         (
-            "exp_offset_envelopes.png",
+            "mavm_offset_confidence_ecdfs.png",
             "mavm_time.png",
-            "mavm_confidence_support_envelope.png",
-            "mavm_nominal_d_plus_area.png",
-            "mavm_nominal_d_minus_area.png",
-            "mavm_lower_d_plus_area.png",
-            "mavm_lower_d_minus_area.png",
-            "mavm_upper_d_plus_area.png",
-            "mavm_upper_d_minus_area.png",
         ),
     ),
     (
