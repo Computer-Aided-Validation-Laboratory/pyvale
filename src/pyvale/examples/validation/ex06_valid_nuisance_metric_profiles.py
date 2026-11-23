@@ -9,6 +9,7 @@ Nuisance metric profiles
 ================================================================================
 """
 
+from itertools import count
 from pathlib import Path
 
 import matplotlib
@@ -25,6 +26,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex06_nuisance_metric_profiles"
 output_path.mkdir(parents=True, exist_ok=True)
+figure_numbers = count(1)
 
 # %%
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -100,24 +102,31 @@ vl.save_valid_result(result_path, valid_result)
 valid_result = vl.load_valid_result(result_path)
 
 # %%
-for metric_type, field in valid_result.metrics[observable_tag].items():
+for mm, ff in valid_result.metrics[observable_tag].items():
     profile: vl.ValidMetricExtrema = vl.profile_epis_nuisance_extrema(
-        valid_result, observable_tag, metric_type
+        valid_result, observable_tag, mm
     )
     fig, _ = vl.plot_metric_extrema_time(
         valid_result,
         observable_tag,
-        metric_type,
+        mm,
         profile=profile,
         selectors={
             vl.EValidResAxis.SIM_TRANS: 0,
             vl.EValidResAxis.EXP_TRANS: 0,
         },
     )
-    profile_name = metric_type.name.lower()
-    if len(field.outputs) == 1:
-        profile_name += f"_{next(iter(field.outputs)).name.lower()}"
-    fig.savefig(output_path / f"{profile_name}_profile.png", bbox_inches="tight")
+    profile_name = mm.name.lower()
+    if len(ff.outputs) == 1:
+        profile_name += f"_{next(iter(ff.outputs)).name.lower()}"
+    fig.savefig(
+        output_path
+        / (
+            f"val_ex06_fig{next(figure_numbers):02d}_"
+            f"{profile_name}_profile.png"
+        ),
+        bbox_inches="tight",
+    )
     if not SHOW_PLOTS:
         plt.close(fig)
     vl.save_metric_extrema(output_path / f"{profile_name}_profile.npz", profile)
@@ -136,7 +145,14 @@ fig, _ = vl.plot_metric_extrema_ecdfs(
         vl.EValidResAxis.EXP_TRANS: 0,
     },
 )
-fig.savefig(output_path / "mavm_d_plus_extrema_ecdfs.png", bbox_inches="tight")
+fig.savefig(
+    output_path
+    / (
+        f"val_ex06_fig{next(figure_numbers):02d}_"
+        f"mavm_d_plus_extrema_ecdfs.png"
+    ),
+    bbox_inches="tight",
+)
 if not SHOW_PLOTS:
     plt.close(fig)
 
@@ -158,7 +174,12 @@ vl.add_support_overlay(
     selectors={vl.EValidResAxis.SIM_TRANS: 0, vl.EValidResAxis.EXP_TRANS: 0},
 )
 ecdf_plot.figure.savefig(
-    output_path / "mavm_nuisance_support_envelope.png", bbox_inches="tight"
+    output_path
+    / (
+        f"val_ex06_fig{next(figure_numbers):02d}_"
+        f"mavm_nuisance_support_envelope.png"
+    ),
+    bbox_inches="tight",
 )
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
@@ -171,7 +192,10 @@ ecdf_plot = vl.plot_sim_exp_cdfs(
 vl.add_support_overlay(
     ecdf_plot, avm_supports
 )
-ecdf_plot.figure.savefig(output_path / "avm_original_support.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(
+    output_path / f"val_ex06_fig{next(figure_numbers):02d}_avm_original_support.png",
+    bbox_inches="tight",
+)
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
@@ -183,11 +207,11 @@ by_case: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     vl.EMetricType.MAVM,
     reduce_axes=(vl.EValidResAxis.SIM_TRANS, vl.EValidResAxis.EXP_TRANS),
 )
-for score in vl.EValidNuisanceScore:
+for ss in vl.EValidNuisanceScore:
     ranking: vl.ECDFNuisanceRank = vl.rank_epis_nuisance_cases(
-        by_case, score=score
+        by_case, score=ss
     )
-    score_name = score.name.lower()
+    score_name = ss.name.lower()
     valid_count = int(ranking.valid_counts[0, 0, 2])
     order = ranking.order[0, 0, 2]
     selected_rows = (
@@ -195,10 +219,10 @@ for score in vl.EValidNuisanceScore:
         int(order[(valid_count - 1) // 2]),
         int(order[valid_count - 1]),
     )
-    for rank_name, row in zip(
+    for nn, rr in zip(
         ("minimum", "median", "maximum"), selected_rows, strict=True
     ):
-        sim_nuis, exp_nuis = (int(index) for index in ranking.cases[row])
+        sim_nuis, exp_nuis = (int(ii) for ii in ranking.cases[rr])
         ecdf_plot = vl.plot_sim_exp_cdfs(
             valid_case,
             observable_tag,
@@ -215,7 +239,11 @@ for score in vl.EValidNuisanceScore:
             },
         )
         ecdf_plot.figure.savefig(
-            output_path / f"{score_name}_{rank_name}_support_envelope.png",
+            output_path
+            / (
+                f"val_ex06_fig{next(figure_numbers):02d}_"
+                f"{score_name}_{nn}_support_envelope.png"
+            ),
             bbox_inches="tight",
         )
         if not SHOW_PLOTS:

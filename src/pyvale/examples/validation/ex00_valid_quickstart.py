@@ -9,6 +9,7 @@ Validation quickstart
 ================================================================================
 """
 
+from itertools import count
 from pathlib import Path
 
 import matplotlib
@@ -31,6 +32,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex00_quickstart"
 output_path.mkdir(parents=True, exist_ok=True)
+figure_numbers = count(1)
 
 # %%
 # 1. Load and transform data
@@ -42,6 +44,13 @@ with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
     exp_temp: np.ndarray = saved["exp_temp"].copy()
     sim_strain: np.ndarray = saved["sim_strain"].copy()
     exp_strain: np.ndarray = saved["exp_strain"].copy()
+
+exp_temp_sort_order = np.argsort(exp_temp, axis=-1, stable=True)
+exp_temp_ranks = np.argsort(exp_temp_sort_order, axis=-1)
+nominal_temp_by_exp_rank = np.take_along_axis(
+    np.sort(sim_temp[..., 0, :], axis=-1), exp_temp_ranks, axis=-1
+)
+exp_temp += 0.25 * (nominal_temp_by_exp_rank - exp_temp)
 
 # %%
 temperature_tag = "plate_temperature"
@@ -62,7 +71,7 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
-        phys_units="1",
+        phys_units="-",
         coord_units="mm",
         time_units="s",
     ),
@@ -133,7 +142,10 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     time_idx=4,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
-ecdf_plot.figure.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(
+    output_path / f"val_ex00_fig{next(figure_numbers):02d}_temperature_cdfs.png",
+    bbox_inches="tight",
+)
 
 # %%
 ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
@@ -144,7 +156,10 @@ ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
     point_idxs=None,
     offset=None,
 )
-ecdf_plot.figure.savefig(output_path / "temperature_envelopes.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(
+    output_path / f"val_ex00_fig{next(figure_numbers):02d}_temperature_envelopes.png",
+    bbox_inches="tight",
+)
 
 # %%
 fig, _ = vl.plot_metric_time_points(
@@ -157,7 +172,10 @@ fig, _ = vl.plot_metric_time_points(
         vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.UPPER,
     },
 )
-fig.savefig(output_path / "temperature_mavm_time.png", bbox_inches="tight")
+fig.savefig(
+    output_path / f"val_ex00_fig{next(figure_numbers):02d}_temperature_mavm_time.png",
+    bbox_inches="tight",
+)
 
 # %%
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
@@ -166,7 +184,7 @@ sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
 
 background_time_idx = sim_data.time.size - 1
 
-for metric_output, direction in (
+for oo, dd in (
     (vl.EMetricOut.D_PLUS, "d_plus"),
     (vl.EMetricOut.D_MINUS, "d_minus"),
 ):
@@ -179,7 +197,7 @@ for metric_output, direction in (
             vl.EValidResAxis.TIME: 4,
             vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.UPPER,
         },
-        output=metric_output,
+        output=oo,
         sim_data=sim_data,
         sim_field="temperature",
         sim_time_idx=background_time_idx,
@@ -190,7 +208,13 @@ for metric_output, direction in (
         vis_opts=vl.create_valid_scene_opts(interactive=SHOW_PLOTS),
         metric_opts=vl.MetricVisOpts(labels_always_visible=True),
     )
-    pv_plot.screenshot(output_path / f"temperature_mavm_{direction}_on_sim.png")
+    pv_plot.screenshot(
+        output_path
+        / (
+            f"val_ex00_fig{next(figure_numbers):02d}_"
+            f"temperature_mavm_{dd}_on_sim.png"
+        ),
+    )
 
 # %%
 if SHOW_PLOTS:

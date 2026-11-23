@@ -14,13 +14,9 @@ The table contains exact rational results, not outputs of another metric library
 * CvM uses pooled integer ranks: U/(nm(n+m)) - (4nm-1)/(6(n+m)).
 * MAVM at alpha=1/2 has zero confidence shift. Its signed areas integrate
   Q_exp(p)-Q_sim(p) on the rational grid {i/n} union {j/m}.
-* U-pooling integrates |Q_U(p)-p| after mapping each exp observation through
-  the right-continuous sim ECDF. Each probability interval is a triangle or
-  trapezoid, including the intervals at zero and one.
 
 For example n=2, m=1 gives CDF differences 1/2 and -1/2: AVM=1, KS=1/2,
-MAVM d+=d-=1/2. Its pooled observation is 1/2, giving two triangles of total
-area 1/4. CvM is undefined whenever either sample count is below two.
+MAVM d+=d-=1/2. CvM is undefined whenever either sample count is below two.
 Equal counts necessarily have matching parity; mixed parity applies to both
 orientations of unequal counts. Paired metrics reject every unequal count.
 """
@@ -33,7 +29,6 @@ import pytest
 from scipy import stats
 
 import pyvale.sensorsim as sens
-import pyvale.validation.validpreparation as validprep
 import pyvale.validation as vl
 from pyvale.dataio.simdata import SimData
 from pyvale.validation.metrics import (
@@ -52,7 +47,6 @@ class AnalyticCase:
     cvm: float
     d_plus: float
     d_minus: float
-    u_pooling: float
 
 
 # Counts: deterministic/deterministic; each deterministic/aleatory orientation;
@@ -66,7 +60,6 @@ ANALYTIC_CASES = (
         cvm=np.nan,
         d_plus=1,
         d_minus=0,
-        u_pooling=1 / 2,
     ),
     AnalyticCase(
         sim_count=1,
@@ -76,7 +69,6 @@ ANALYTIC_CASES = (
         cvm=np.nan,
         d_plus=2,
         d_minus=0,
-        u_pooling=1 / 2,
     ),
     AnalyticCase(
         sim_count=1,
@@ -86,7 +78,6 @@ ANALYTIC_CASES = (
         cvm=np.nan,
         d_plus=3,
         d_minus=0,
-        u_pooling=1 / 2,
     ),
     AnalyticCase(
         sim_count=2,
@@ -96,7 +87,6 @@ ANALYTIC_CASES = (
         cvm=np.nan,
         d_plus=1 / 2,
         d_minus=1 / 2,
-        u_pooling=1 / 4,
     ),
     AnalyticCase(
         sim_count=3,
@@ -106,7 +96,6 @@ ANALYTIC_CASES = (
         cvm=np.nan,
         d_plus=1 / 3,
         d_minus=4 / 3,
-        u_pooling=5 / 18,
     ),
     AnalyticCase(
         sim_count=2,
@@ -116,7 +105,6 @@ ANALYTIC_CASES = (
         cvm=1 / 8,
         d_plus=1,
         d_minus=0,
-        u_pooling=1 / 4,
     ),
     AnalyticCase(
         sim_count=3,
@@ -126,7 +114,6 @@ ANALYTIC_CASES = (
         cvm=1 / 12,
         d_plus=1,
         d_minus=0,
-        u_pooling=1 / 6,
     ),
     AnalyticCase(
         sim_count=4,
@@ -136,7 +123,6 @@ ANALYTIC_CASES = (
         cvm=7 / 72,
         d_plus=1 / 4,
         d_minus=5 / 4,
-        u_pooling=3 / 16,
     ),
     AnalyticCase(
         sim_count=4,
@@ -146,7 +132,6 @@ ANALYTIC_CASES = (
         cvm=1 / 21,
         d_plus=1 / 2,
         d_minus=1 / 2,
-        u_pooling=7 / 72,
     ),
     AnalyticCase(
         sim_count=5,
@@ -156,7 +141,6 @@ ANALYTIC_CASES = (
         cvm=1 / 7,
         d_plus=1 / 5,
         d_minus=11 / 5,
-        u_pooling=6 / 25,
     ),
     AnalyticCase(
         sim_count=5,
@@ -166,7 +150,6 @@ ANALYTIC_CASES = (
         cvm=19 / 240,
         d_plus=4 / 15,
         d_minus=19 / 15,
-        u_pooling=13 / 90,
     ),
     AnalyticCase(
         sim_count=2,
@@ -176,7 +159,6 @@ ANALYTIC_CASES = (
         cvm=19 / 72,
         d_plus=3,
         d_minus=0,
-        u_pooling=3 / 8,
     ),
     AnalyticCase(
         sim_count=3,
@@ -186,7 +168,6 @@ ANALYTIC_CASES = (
         cvm=13 / 84,
         d_plus=2,
         d_minus=0,
-        u_pooling=1 / 4,
     ),
     AnalyticCase(
         sim_count=2,
@@ -196,7 +177,6 @@ ANALYTIC_CASES = (
         cvm=11 / 35,
         d_plus=4,
         d_minus=0,
-        u_pooling=2 / 5,
     ),
     AnalyticCase(
         sim_count=3,
@@ -206,7 +186,6 @@ ANALYTIC_CASES = (
         cvm=11 / 48,
         d_plus=3,
         d_minus=0,
-        u_pooling=3 / 10,
     ),
 )
 CASE_IDS = tuple(
@@ -235,14 +214,6 @@ def test_interleaved_distribution_metrics_have_exact_answers(
     assert mavm.d_minus == pytest.approx(test_case.d_minus, rel=0, abs=1e-12)
     np.testing.assert_allclose(mavm.exp_conf_lower, exp, rtol=0, atol=1e-12)
     np.testing.assert_allclose(mavm.exp_conf_upper, exp, rtol=0, atol=1e-12)
-
-    # Explicit ECDF construction keeps the pooling reference independent of calc_ecdf.
-    sim_cdf = vl.ValidECDF(
-        sim, np.arange(1, test_case.sim_count + 1) / test_case.sim_count
-    )
-    assert vl.calc_u_pooling_1d([sim_cdf] * test_case.exp_count, exp) == pytest.approx(
-        test_case.u_pooling, rel=0, abs=1e-12
-    )
 
 
 # Fixed 95th percentiles of Student's t for df=1..4. df=0 has no confidence
@@ -299,12 +270,6 @@ def test_separated_metrics_and_mavm_confidence_have_closed_form_answers(
     pbox = vl.calc_mavm_pbox_1d(sim, sim, exp)
     assert pbox.d_plus == pytest.approx(expected_d_plus, rel=0, abs=1e-10)
     assert pbox.d_minus == pytest.approx(expected_d_minus, rel=0, abs=1e-10)
-    sim_cdf = vl.ValidECDF(
-        sim, np.arange(1, test_case.sim_count + 1) / test_case.sim_count
-    )
-    assert vl.calc_u_pooling_1d([sim_cdf] * test_case.exp_count, exp) == pytest.approx(
-        1 / 2, rel=0, abs=1e-12
-    )
 
 
 @pytest.mark.parametrize("test_case", ANALYTIC_CASES, ids=CASE_IDS)
@@ -949,21 +914,6 @@ def test_relative_error_zero_and_near_zero(reference: float) -> None:
     assert np.isnan(standalone.nmse)
 
 
-def test_u_pooling_multiple_sample_oracle() -> None:
-    first = vl.ValidECDF(np.array([0.0, 2.0]), np.array([0.5, 1.0]))
-    second = vl.ValidECDF(
-        np.array([1.0, 3.0, 4.0, 5.0]), np.array([0.25, 0.5, 0.75, 1.0])
-    )
-    # Both observations hit a support point. The sorted transforms are 1/4, 1/2.
-    assert vl.calc_u_pooling_1d([first, second], np.array([0.0, 1.0])) == pytest.approx(
-        3 / 16, rel=0, abs=1e-12
-    )
-    with pytest.raises(ValueError):
-        vl.calc_u_pooling_1d([], np.array([]))
-    with pytest.raises(ValueError):
-        vl.calc_u_pooling_1d([], np.array([1.0]))
-
-
 def test_mavm_frequency_sensitive_legacy_confidence() -> None:
     model = np.array([0.0, 2.0])
     unique = np.array([0.0, 2.0])
@@ -1269,7 +1219,7 @@ def test_sample_bound_field_matches_linear_space_and_time() -> None:
         coords=np.array([[0.25, 0.5, 0.0], [0.75, 0.5, 0.0]]),
         times=np.array([0.25, 0.75]),
     )
-    sampled = validprep.sample_field_for_valid(field, observable)
+    sampled = vl.sample_field_for_valid(field, observable)
     expected = np.array([[2.0, 3.5], [2.5, 4.0]])[:, None, :]
     assert sampled.axes == (
         vl.EValidAxis.POINT,
@@ -1297,7 +1247,7 @@ def test_sample_sweep_reuses_field_and_preserves_named_axes_and_globals() -> Non
     }
     indices = ((1, 2), (0, 1), (1, 0), (0, 2), (1, 1), (0, 0))
     runs = ((index, create_linear_sim(10 * index[0] + index[1])) for index in indices)
-    sampled = validprep.sample_sim_sweep(
+    sampled = vl.sample_sim_sweep_for_valid(
         {"temperature": field},
         observables,
         runs,

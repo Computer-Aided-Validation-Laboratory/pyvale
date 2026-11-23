@@ -15,7 +15,7 @@ examples that expose a `SHOW_PLOTS` setting.
 | Example | What it shows |
 | --- | --- |
 | `ex00_valid_quickstart` | End-to-end transient plate validation with ECDFs, a MAVM time history and mesh overlays. |
-| `ex01_valid_scalar_metrics` | An analytic scalar case for comparing metric behaviour, integration areas and U-pooling. |
+| `ex01_valid_scalar_metrics` | An analytic scalar case for comparing metric behaviour and integration areas. |
 | `ex02_valid_steady_state` | Temperature and strain at a single steady state, with spatial AVM and MAVM support plots. |
 | `ex03_valid_transient` | Temperature and strain over time, with ECDF snapshots and AVM/MAVM histories. |
 | `ex04_valid_epistemic_bound_metrics` | AVM and MAVM calculated from transferable ECDF bounds versus original scenario pairs. |

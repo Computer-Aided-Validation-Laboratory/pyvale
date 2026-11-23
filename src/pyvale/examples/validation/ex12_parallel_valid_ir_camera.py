@@ -9,6 +9,7 @@ Parallel IR camera validation
 ================================================================================
 """
 
+from itertools import count
 from pathlib import Path
 from time import perf_counter
 
@@ -153,6 +154,7 @@ def run_ir_camera_validation() -> None:
 
     output_path = Path.cwd() / "pyvale-output" / "valid_ex12_parallel_ir_camera"
     output_path.mkdir(parents=True, exist_ok=True)
+    figure_numbers = count(1)
     plot_opts = vl.ValidPlotOpts()
     figure, axes = plt.subplots(
         2, 2, figsize=(7.25, 5.0), layout="constrained", dpi=plot_opts.resolution
@@ -160,7 +162,7 @@ def run_ir_camera_validation() -> None:
     avm_by_pixel = serial_avm[:, 0, 0]
     nominal_avm = avm_by_pixel[:, 0, 0].reshape(CAMERA_HEIGHT, CAMERA_WIDTH)
     worst_case_avm = avm_by_pixel.max(axis=(1, 2)).reshape(CAMERA_HEIGHT, CAMERA_WIDTH)
-    for panel, image, title in zip(
+    for aa, ii, tt in zip(
         axes.flat,
         (
             ground_truth,
@@ -176,12 +178,14 @@ def run_ir_camera_validation() -> None:
         ),
         strict=True,
     ):
-        heatmap = panel.imshow(
-            image, origin="lower", extent=(0.0, PLATE_WIDTH_M, 0.0, PLATE_HEIGHT_M)
+        heatmap = aa.imshow(
+            ii, origin="lower", extent=(0.0, PLATE_WIDTH_M, 0.0, PLATE_HEIGHT_M)
         )
-        panel.set(title=title, xlabel="x [m]", ylabel="y [m]")
-        figure.colorbar(heatmap, ax=panel, label="Temperature [degC]")
-    figure.savefig(output_path / "ir_camera_avm.png")
+        aa.set(title=tt, xlabel="x [m]", ylabel="y [m]")
+        figure.colorbar(heatmap, ax=aa, label="Temperature [degC]")
+    figure.savefig(
+        output_path / f"val_ex12_fig{next(figure_numbers):02d}_ir_camera_avm.png",
+    )
     plt.close(figure)
 
 

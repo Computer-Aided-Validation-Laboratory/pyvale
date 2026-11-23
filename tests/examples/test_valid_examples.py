@@ -25,36 +25,20 @@ CUBE_OUTPUTS = tuple(
 )
 
 
-PULSE25X_OUTPUTS = (
-    tuple(
-        f"0_sim_allcdfs_{channel}.png"
-        for channel in (
-            "TC1",
-            "TC2",
-            "TC3",
-            "TC4",
-            "TC5",
-            "TC6",
-            "TC7",
-            "TC8",
-            "TC9",
-            "TC10",
-            "CV",
-        )
-    )
-    + tuple(
-        f"{diagnostic}_{channel}.png"
-        for channel in ("TC2", "TC3", "TC5", "TC6", "TC8", "TC9", "TC10", "CV")
-        for diagnostic in (
+PULSE25X_OUTPUTS = tuple(
+    f"{tag}_{channel}.png"
+    for channel in ("TC1", "TC3", "TC4", "TC5", "TC6", "TC7", "TC8", "TC9", "TC10", "TC2", "CV")
+    for tag in (
+        ("0_sim_allcdfs",)
+        if channel in ("TC1", "TC4", "TC7")
+        else (
+            "0_sim_allcdfs",
+            "mavm_support_envelope",
             "1_exp-sim-cdfs",
             "2_dextremes_wcdfs",
             "3_dextremes_wexpcdfs",
             "4_dextremes_simcdfsonly",
         )
-    )
-    + tuple(
-        f"mavm_support_envelope_{channel}.png"
-        for channel in ("TC2", "TC3", "TC5", "TC6", "TC8", "TC9", "TC10", "CV")
     )
 )
 
@@ -66,8 +50,8 @@ EXAMPLES = (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
             "temperature_mavm_time.png",
-            "temperature_mavm_d_minus_on_sim.png",
             "temperature_mavm_d_plus_on_sim.png",
+            "temperature_mavm_d_minus_on_sim.png",
         ),
     ),
     (
@@ -75,12 +59,11 @@ EXAMPLES = (
         (
             "observable_cdfs.png",
             "avm_overlay.png",
-            "avm_area.png",
             "ks_overlay.png",
             "cvm_overlay.png",
             "rmse_overlay.png",
             "relative_error_overlay.png",
-            "u_pooling.png",
+            "avm_area.png",
             "mavm_d_plus_area.png",
             "mavm_d_minus_area.png",
             "mavm_support_envelope.png",
@@ -106,8 +89,8 @@ EXAMPLES = (
         "ex04_valid_epistemic_bound_metrics",
         (
             "avm_bounds.png",
-            "avm_original.png",
             "mavm_support_envelope_bounds.png",
+            "avm_original.png",
             "mavm_support_envelope_original.png",
         ),
     ),
@@ -129,8 +112,6 @@ EXAMPLES = (
         (
             "validation_case.npz",
             "validation_result.npz",
-            "avm_original_support.png",
-            "mavm_nuisance_support_envelope.png",
             "avm_distance_profile.png",
             "avm_distance_profile.npz",
             "ks_statistic_profile.png",
@@ -143,6 +124,8 @@ EXAMPLES = (
             "relative_error_error_profile.npz",
             "mavm_profile.png",
             "mavm_d_plus_extrema_ecdfs.png",
+            "mavm_nuisance_support_envelope.png",
+            "avm_original_support.png",
             "mavm_profile.npz",
             "total_width_minimum_support_envelope.png",
             "total_width_median_support_envelope.png",
@@ -163,10 +146,10 @@ EXAMPLES = (
         "ex08_valid_sim_sensor_sampling",
         (
             "temperature_average_cdfs.png",
-            "displacement_local_cdfs.png",
-            "strain_local_cdfs.png",
             "temperature_average_mavm_time.png",
+            "displacement_local_cdfs.png",
             "displacement_local_mavm_time.png",
+            "strain_local_cdfs.png",
             "strain_local_mavm_time.png",
         ),
     ),
@@ -203,9 +186,15 @@ def test_valid_example(
 ) -> None:
     """Every example runs unattended and keeps its artifacts in its own directory."""
     output_directory = "valid_" + Path(example).stem.replace("_valid_", "_", 1)
-    expected_outputs = tuple(
-        f"pyvale-output/{output_directory}/{output}" for output in outputs
-    )
+    example_number = Path(example).stem[2:4]
+    output_paths = []
+    figure_number = 0
+    for output in outputs:
+        if output.endswith(".png"):
+            figure_number += 1
+            output = f"val_ex{example_number}_fig{figure_number:02d}_{output}"
+        output_paths.append(f"pyvale-output/{output_directory}/{output}")
+    expected_outputs = tuple(output_paths)
     work_dir = run_example(example, expected_outputs)
     assert not tuple(work_dir.glob("*.png"))
     assert tuple(path.name for path in (work_dir / "pyvale-output").iterdir()) == (

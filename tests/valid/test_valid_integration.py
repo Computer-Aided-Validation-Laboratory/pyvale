@@ -11,7 +11,6 @@ from plate_fixture import load_plate_case
 
 import pyvale.dataio as io
 import pyvale.sensorsim as sens
-import pyvale.validation.validpreparation as validprep
 import pyvale.validation as vl
 from pyvale.validation import validplot, validvis
 
@@ -148,7 +147,7 @@ def test_combine_cases_preserves_transient_run_pairing() -> None:
         )
         for i in (1.0, 2.0)
     ]
-    joined = validprep.concatenate_valid_cases(*cases)
+    joined = vl.concatenate_valid_cases(*cases)
     assert joined.sim is cases[0].sim
     for test_case in cases:
         assert test_case.exp["temperature"].axes == axes
@@ -170,7 +169,7 @@ def test_combine_cases_preserves_parameter_provenance() -> None:
         )
         exp = {"temperature": vl.ValidArray(np.array([[parameter]]), axes)}
         cases.append(vl.ValidCase(observables, sim, exp, exp_inputs=inputs))
-    joined = validprep.concatenate_valid_cases(*cases)
+    joined = vl.concatenate_valid_cases(*cases)
     for test_case in cases:
         assert test_case.exp_inputs.parameters["loading"].axes == ()
         assert test_case.exp_inputs.parameters["loading"].data.shape == ()
@@ -186,10 +185,10 @@ def test_sensor_sim_bridge_retains_component_and_run_values() -> None:
         ("plate", "strain", "meas"): values,
         ("plate", "strain", "sens_times"): np.array([0.0, 1.0]),
     }
-    converted = validprep.extract_exp_sim_data(
+    converted = vl.extract_exp_sim_data(
         output,
         sim_key="plate",
-        selections={"strain_xy": validprep.SensorOutputSelection("strain", 1, coords)},
+        selections={"strain_xy": vl.SensorOutputSelection("strain", 1, coords)},
     )
     assert len(converted) == 2
     np.testing.assert_array_equal(converted[1]["strain_xy"].fields, values[1, :, 1, :])
@@ -214,7 +213,7 @@ def test_combine_cases_preserves_sim_provenance() -> None:
         quantities,
         sim_inputs=sim_inputs,
     )
-    combined = validprep.concatenate_valid_cases(valid_case, valid_case)
+    combined = vl.concatenate_valid_cases(valid_case, valid_case)
     assert combined.sim_inputs is sim_inputs
     np.testing.assert_array_equal(combined.sim_inputs.run_ids.data, ["sim_0", "sim_1"])
     assert combined.exp["temperature"].data.shape == (1, 1, 4)
@@ -659,7 +658,12 @@ def test_integration_polygon_area_equals_the_metric(
         display=validplot.EMetricDisp.INTEGRATION_AREA,
     )
     shaded_area = plot.axes[0, 0].collections[-1]
-    assert shaded_area.get_label() == metric.get_kind().name
+    expected_label = {
+        vl.EMetricOut.DISTANCE: "AVM",
+        vl.EMetricOut.D_PLUS: "MAVM d+",
+        vl.EMetricOut.D_MINUS: "MAVM d−",
+    }[output]
+    assert shaded_area.get_label() == expected_label
     area = 0.0
     for path in shaded_area.get_paths():
         coords = path.vertices
@@ -683,6 +687,7 @@ def test_ks_segments_show_exact_single_and_bound_cdf_differences() -> None:
     assert line.get_color() == "black"
     assert np.ptp(line.get_xdata()) == 0
     assert np.ptp(line.get_ydata()) == pytest.approx(0.5)
+    assert plot.axes[0, 0].texts[-1].get_text() == "KS = 0.50"
     plt.close(plot.figure)
     plot = validplot.plot_sim_exp_cdfs(
         create_ecdf_case(np.array([[0.0, 2.0], [10.0, 12.0]]), np.array([1.0, 3.0])),
@@ -690,6 +695,7 @@ def test_ks_segments_show_exact_single_and_bound_cdf_differences() -> None:
     )
     validplot.add_metric_overlay(plot, vl.MetricKS())
     assert plot.axes[0, 0].get_legend_handles_labels()[1] == ["Exp", "Sim", "KS"]
+    assert plot.axes[0, 0].texts[-1].get_text() == "KS = 0.50 / 1.00 (lower / upper)"
     plt.close(plot.figure)
 
 
@@ -701,7 +707,12 @@ def test_nongeometric_metrics_compose_as_annotations_without_reinterpreting_area
     )
     for metric in (vl.MetricCVM(), vl.MetricRMSE(), vl.MetricRelErr()):
         validplot.add_metric_overlay(plot, metric)
-    assert len(plot.axes[0, 0].texts) == 3
+    annotations = [text.get_text() for text in plot.axes[0, 0].texts]
+    assert [annotation.split(" = ")[0] for annotation in annotations] == [
+        "CVM",
+        "RMSE",
+        "Rel Err",
+    ]
     assert not plot.axes[0, 0].collections
     with pytest.raises(ValueError, match="AVM or MAVM"):
         validplot.add_metric_overlay(
@@ -710,16 +721,6 @@ def test_nongeometric_metrics_compose_as_annotations_without_reinterpreting_area
             display=validplot.EMetricDisp.SUPPORT_SHIFT,
         )
     plt.close(plot.figure)
-
-
-def test_u_pooling_has_its_own_probability_coordinate_plot() -> None:
-    cdf = vl.ValidECDF(np.array([0.0, 2.0]), np.array([0.5, 1.0]))
-    fig, ax = validplot.plot_u_pooling_cdf([cdf], np.array([1.0]))
-    assert ax.lines[0].get_label() == "U-pooling"
-    assert ax.texts[0].get_text() == "U-pooling = 0.25"
-    assert ax.get_xlim() == (0.0, 1.0)
-    assert "[-]" in ax.get_xlabel()
-    plt.close(fig)
 
 
 @pytest.mark.parametrize(

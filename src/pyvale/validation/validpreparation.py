@@ -108,7 +108,7 @@ def sample_sim_globals(sim_data: SimData, observable: ValidObservable) -> ValidA
     )
 
 
-def sample_sim_sweep(
+def sample_sim_sweep_for_valid(
     fields: dict[str, IField],
     observables: dict[str, ValidObservable],
     runs: Iterable[tuple[tuple[int, ...], SimData]],

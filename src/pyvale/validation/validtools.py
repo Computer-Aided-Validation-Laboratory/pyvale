@@ -74,6 +74,10 @@ def _build_metric_selection(
 
 
 def _create_metric_label(metric: EMetricType, output: EMetricOut) -> str:
+    if metric in (EMetricType.RMSE, EMetricType.CVM):
+        return metric.name
+    if metric is EMetricType.RELATIVE_ERROR:
+        return "Rel Err"
     output_label = {
         EMetricOut.D_PLUS: "d+",
         EMetricOut.D_MINUS: "d−",

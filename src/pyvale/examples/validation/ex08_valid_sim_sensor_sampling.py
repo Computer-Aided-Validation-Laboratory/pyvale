@@ -9,7 +9,7 @@ Simulation sampling at sensors
 ================================================================================
 """
 
-from dataclasses import replace
+from itertools import count
 from pathlib import Path
 
 import matplotlib
@@ -22,7 +22,6 @@ import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.validation as vl
-from pyvale.validation import validpreparation as validprep
 
 matplotlib.use("Agg")
 
@@ -32,6 +31,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex08_sim_sensor_sampling"
 output_path.mkdir(parents=True, exist_ok=True)
+figure_numbers = count(1)
 
 # %%
 sim_data: io.SimData = mh.ExodusLoader(
@@ -46,12 +46,11 @@ strain_norm_keys = ("strain_xx", "strain_yy", "strain_zz")
 strain_shear_keys = ("strain_xy", "strain_xz", "strain_yz")
 
 sim_times = sim_data.time
-sim_data = replace(
-    sim_data,
-    glob_vars={
-        **(sim_data.glob_vars or {}),
-        "nodal_mean_temperature": np.mean(sim_data.node_vars[temp_key], axis=0),
-    },
+if sim_data.glob_vars is None:
+    sim_data.glob_vars = {}
+
+sim_data.glob_vars["nodal_mean_temperature"] = np.mean(
+    sim_data.node_vars[temp_key], axis=0
 )
 
 sens_coords = np.array(
@@ -83,7 +82,7 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=sens_coords,
         times=sens_times,
-        phys_units="1",
+        phys_units="-",
         coord_units="mm",
         time_units="s",
     ),
@@ -119,20 +118,20 @@ sensor_data = sens.SensorData(
 )
 
 
-sim_ref_temp: vl.ValidArray = validprep.sample_field_for_valid(
+sim_ref_temp: vl.ValidArray = vl.sample_field_for_valid(
     fields["temperature_average"],
     observables["temperature_average"],
     sensor_data=sensor_data,
 )
 
-sim_sweep_samples: dict[str, vl.ValidArray] = validprep.sample_sim_sweep(
+sim_sweep_samples: dict[str, vl.ValidArray] = vl.sample_sim_sweep_for_valid(
     fields,
     observables,
     [((), sim_data)],
-    sensor_data={tag: sensor_data for tag in fields},
+    sensor_data={kk: sensor_data for kk in fields},
 )
 
-sim_nodal_mean_temp: vl.ValidArray = validprep.sample_sim_globals(
+sim_nodal_mean_temp: vl.ValidArray = vl.sample_sim_globals(
     sim_data, observables["mean_temperature"]
 )
 
@@ -159,7 +158,7 @@ exp_disp_repeat_offsets = np.array([-2.0e-6, 0.0, 2.0e-6])
 exp_strain_repeat_offsets = np.array([-2.0e-8, 0.0, 2.0e-8])
 
 synth_exp_samples: dict[str, vl.ValidArray] = {}
-for tag, sim_reference, exp_bias, repeat_offsets in (
+for kk, ss, bb, rr in (
     ("temperature_average", sim_ref_temp, exp_temp_bias, exp_temp_repeat_offsets),
     (
         "displacement_local",
@@ -180,9 +179,9 @@ for tag, sim_reference, exp_bias, repeat_offsets in (
         exp_temp_repeat_offsets,
     ),
 ):
-    synth_exp_samples[tag] = vl.ValidArray(
-        (sim_reference.data + exp_bias)[..., None] + repeat_offsets,
-        (*sim_reference.axes, vl.EValidAxis.ALEATORY),
+    synth_exp_samples[kk] = vl.ValidArray(
+        (ss.data + bb)[..., None] + rr,
+        (*ss.axes, vl.EValidAxis.ALEATORY),
     )
 
 valid_case = vl.ValidCase(observables, sim_sweep_samples, synth_exp_samples)
@@ -192,30 +191,39 @@ valid_result: vl.ValidResult = vl.ValidEngine([vl.MetricAVM(), vl.MetricMAVM()])
 )
 
 print(80 * "-")
-print("Sampled axes:", {tag: array.axes for tag, array in sim_sweep_samples.items()})
+print("Sampled axes:", {kk: aa.axes for kk, aa in sim_sweep_samples.items()})
 print("Exp. repeat axis:", valid_case.exp["temperature_average"].axes)
 print(80 * "-")
 
 # %%
-for tag, component in (
+for kk, ii in (
     ("temperature_average", 0),
     ("displacement_local", 0),
     ("strain_local", 0),
 ):
     ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
-        valid_case, tag, point_idxs=None, component_idx=component, time_idx=4
+        valid_case, kk, point_idxs=None, component_idx=ii, time_idx=4
     )
-    ecdf_plot.figure.savefig(output_path / f"{tag}_cdfs.png", bbox_inches="tight")
+    ecdf_plot.figure.savefig(
+        output_path / f"val_ex08_fig{next(figure_numbers):02d}_{kk}_cdfs.png",
+        bbox_inches="tight",
+    )
+
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
+
     fig, _ = vl.plot_metric_time_points(
         valid_result,
-        tag,
+        kk,
         vl.EMetricType.MAVM,
         point_idxs=(0, 1, 2, 3),
-        selectors={vl.EValidResAxis.COMPONENT: component},
+        selectors={vl.EValidResAxis.COMPONENT: ii},
     )
-    fig.savefig(output_path / f"{tag}_mavm_time.png", bbox_inches="tight")
+    fig.savefig(
+        output_path / f"val_ex08_fig{next(figure_numbers):02d}_{kk}_mavm_time.png",
+        bbox_inches="tight",
+    )
+
     if not SHOW_PLOTS:
         plt.close(fig)
 

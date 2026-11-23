@@ -16,7 +16,6 @@ from scipy import stats
 import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.validation.validpreparation as validprep
 import pyvale.validation as vl
 from pyvale.validation.metrics import EMAVMDuplicates, calc_mavm_1d
 
@@ -264,7 +263,7 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
     nominal_path = dataset.thermomechanical_2d_experiment_paths()[0]
     sim_data = mh.ExodusLoader(nominal_path).load_all_sim_data()
     sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
-    sim = validprep.sample_sim_sweep(
+    sim = vl.sample_sim_sweep_for_valid(
         {"temperature": sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD)},
         observables,
         [((), sim_data)],
@@ -273,18 +272,18 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
         ("perturbed", "temp", "meas"): measured,
         ("perturbed", "temp", "sens_times"): times,
     }
-    acquisitions = validprep.extract_exp_sim_data(
+    acquisitions = vl.extract_exp_sim_data(
         output,
         sim_key="perturbed",
-        selections={"temperature": validprep.SensorOutputSelection("temp", 0, coords)},
+        selections={"temperature": vl.SensorOutputSelection("temp", 0, coords)},
     )
     cases = [
         vl.ValidCase(
-            observables, sim, validprep.assemble_exp_arrays(run, observables)
+            observables, sim, vl.assemble_exp_arrays(run, observables)
         )
         for run in acquisitions
     ]
-    converted = validprep.concatenate_valid_cases(*cases)
+    converted = vl.concatenate_valid_cases(*cases)
     direct_sim = {
         "temperature": vl.ValidArray(
             sim["temperature"].data, sim["temperature"].axes
@@ -350,7 +349,7 @@ def test_global_and_sensor_sim_extraction(
         ),
     }
     field = sens.FieldScalar(sim_data, "temperature", sens.EDim.TWOD)
-    result = validprep.sample_sim_sweep(
+    result = vl.sample_sim_sweep_for_valid(
         {
             "temperature_average": sens.FieldScalar(
                 sim_data, "temperature", sens.EDim.TWOD

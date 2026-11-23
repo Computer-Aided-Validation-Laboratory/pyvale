@@ -27,7 +27,6 @@ from pyvale.validation.ecdftypes import (
     ValidECDFView,
     ValidECDFViewData,
 )
-from pyvale.validation.metrics import calc_u_pooling_1d
 from pyvale.validation.metricstrategy import (
     EMetricScale,
     EMetricType,
@@ -1134,6 +1133,7 @@ def add_metric_overlay(
     for ax, (sim, exp, sim_indices, exp_indices, values) in zip(
         plot.axes.flat, prepared, strict=False
     ):
+        annotation = None
         if display is EMetricDisp.SUPPORT_SHIFT:
             quantiles = sim.original_quantiles[list(sim_indices)]
             lower = np.min(quantiles, axis=0)
@@ -1229,7 +1229,7 @@ def add_metric_overlay(
                 facecolor=to_rgba(options.metric_color, options.metric_alpha),
                 edgecolor=options.metric_line_color,
                 linewidth=options.lw,
-                label=kind.name,
+                label=metric_label if kind is EMetricType.MAVM else kind.name,
             )
         elif display is EMetricDisp.CDF_DIFFERENCE:
             if comparison is not None or len(sim_indices) == len(exp_indices) == 1:
@@ -1252,6 +1252,7 @@ def add_metric_overlay(
                         np.max(exp_quantiles, axis=0),
                     ),
                 )
+            gaps = []
             for pair_index, (sim_quantiles, exp_quantiles) in enumerate(curve_pairs):
                 support = np.unique(np.r_[sim_quantiles, exp_quantiles])
                 sim_probabilities = np.r_[0.0, sim.probabilities][
@@ -1260,7 +1261,9 @@ def add_metric_overlay(
                 exp_probabilities = np.r_[0.0, exp.probabilities][
                     np.searchsorted(exp_quantiles, support, side="right")
                 ]
-                index = int(np.argmax(np.abs(sim_probabilities - exp_probabilities)))
+                differences = np.abs(sim_probabilities - exp_probabilities)
+                index = int(np.argmax(differences))
+                gaps.append(differences[index])
                 ax.plot(
                     [support[index], support[index]],
                     [sim_probabilities[index], exp_probabilities[index]],
@@ -1270,6 +1273,9 @@ def add_metric_overlay(
                     label="KS" if pair_index == 0 else None,
                     linewidth=options.lw,
                 )
+            annotation = f"KS = {gaps[0]:.2f}"
+            if len(gaps) == 2:
+                annotation += f" / {gaps[1]:.2f} (lower / upper)"
         else:
             finite = values[np.isfinite(values)]
             if finite.size == 0:
@@ -1284,11 +1290,13 @@ def add_metric_overlay(
                 else "-"
             )
             units = "-" if units in ("1", "") else units
+            annotation = f"{label} [{units}]"
+        if annotation is not None:
             # Place later annotations below earlier ones, preserving composability.
             ax.text(
                 0.98,
                 0.98 - 0.07 * len(ax.texts),
-                f"{label} [{units}]",
+                annotation,
                 transform=ax.transAxes,
                 ha="right",
                 va="top",
@@ -1297,61 +1305,6 @@ def add_metric_overlay(
         if ax.get_legend_handles_labels()[1]:
             ax.legend()
         _apply_plot_options(plot.figure, ax, options, ecdf=True)
-
-
-def plot_u_pooling_cdf(
-    model_cdfs: list[ValidECDF],
-    exp_obs: np.ndarray,
-    *,
-    valid_plot_opts: ValidPlotOpts | None = None,
-    ax: Axes | None = None,
-) -> tuple[Figure, Axes]:
-    """Show probability-integral transforms against the continuous uniform CDF.
-
-    Each exp observation must have its own corresponding model CDF. This is a
-    separate probability-coordinate diagnostic, not a physical-ECDF overlay.
-    """
-    distance = calc_u_pooling_1d(model_cdfs, exp_obs)
-    transformed = []
-    for cdf, observation in zip(model_cdfs, exp_obs, strict=True):
-        index = np.searchsorted(cdf.quantiles, observation, side="right") - 1
-        transformed.append(0.0 if index < 0 else cdf.probabilities[index])
-    cdf = calc_ecdf(np.asarray(transformed))
-    fig, ax = _create_axes(ax, valid_plot_opts)
-    options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
-    _plot_quantile_curve(
-        ax,
-        cdf.quantiles,
-        cdf.probabilities,
-        color=options.exp_color,
-        label="U-pooling",
-        linestyle=options.exp_linestyle,
-        linewidth=options.lw * options.ecdf_lw_scale,
-    )
-    ax.plot(
-        [0.0, 1.0],
-        [0.0, 1.0],
-        color=options.sim_color,
-        linestyle=options.sim_linestyle,
-        label="Uniform reference",
-        linewidth=options.lw,
-    )
-    ax.set_xlim(0.0, 1.0)
-    ax.set_ylim(0.0, 1.0)
-    ax.text(
-        0.98,
-        0.98,
-        f"U-pooling = {distance:.4g}",
-        transform=ax.transAxes,
-        ha="right",
-        va="top",
-        fontsize=options.font_leg_size,
-    )
-    ax.set_xlabel("Transformed observation [-]")
-    ax.set_ylabel("Cumulative probability")
-    ax.legend()
-    _apply_plot_options(fig, ax, options, ecdf=True)
-    return fig, ax
 
 
 def plot_valid_metric_time(

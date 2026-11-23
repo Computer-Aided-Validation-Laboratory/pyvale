@@ -9,6 +9,7 @@ Scalar validation metrics
 ================================================================================
 """
 
+from itertools import count
 from pathlib import Path
 
 import matplotlib
@@ -26,6 +27,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex01_scalar_metrics"
 output_path.mkdir(parents=True, exist_ok=True)
+figure_numbers = count(1)
 
 # %%
 sim_data = np.array([0.0, 1.0, 2.0])
@@ -64,7 +66,7 @@ valid_result: vl.ValidResult = vl.ValidEngine(
 ).run(valid_case)
 
 print(80*"-")
-for metric in (
+for mm in (
     vl.MetricAVM(),
     vl.MetricKS(),
     vl.MetricCVM(),
@@ -72,7 +74,7 @@ for metric in (
     vl.MetricRelErr(),
     vl.MetricMAVM(),
 ):
-    print(metric.get_kind().name, metric.get_scale().name, metric.get_comparison().name)
+    print(mm.get_kind().name, mm.get_scale().name, mm.get_comparison().name)
 print(80*"-")
 
 # %%
@@ -84,8 +86,8 @@ print("Observable tags:", tuple(observables))
 print("Simulation axes and shape:", sim_response.axes, sim_response.data.shape)
 print("Experiment axes and shape:", exp_response.axes, exp_response.data.shape)
 print(80*"-")
-for metric_type, metric_field in metrics.items():
-    print(metric_type.name, metric_field.axes, metric_field.outputs)
+for tt, ff in metrics.items():
+    print(tt.name, ff.axes, ff.outputs)
 print(80*"-")
 
 # %%
@@ -94,10 +96,13 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     observable_tag,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Observable [unit]"),
 )
-ecdf_plot.figure.savefig(output_path / "observable_cdfs.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(
+    output_path / f"val_ex01_fig{next(figure_numbers):02d}_observable_cdfs.png",
+    bbox_inches="tight",
+)
 
 # %%
-for metric in (
+for mm in (
     vl.MetricAVM(),
     vl.MetricKS(),
     vl.MetricCVM(),
@@ -107,11 +112,15 @@ for metric in (
     overlay_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case, observable_tag
     )
-    vl.add_metric_overlay(overlay_plot, metric)
-    if metric.get_kind() is vl.EMetricType.AVM:
+    vl.add_metric_overlay(overlay_plot, mm)
+    if mm.get_kind() is vl.EMetricType.AVM:
         vl.add_normalised_ecdf_axis(overlay_plot, 2.0)
     overlay_plot.figure.savefig(
-        output_path / f"{metric.get_kind().name.lower()}_overlay.png",
+        output_path
+        / (
+            f"val_ex01_fig{next(figure_numbers):02d}_"
+            f"{mm.get_kind().name.lower()}_overlay.png"
+        ),
         bbox_inches="tight",
     )
     if not SHOW_PLOTS:
@@ -123,11 +132,14 @@ area_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
 vl.add_metric_overlay(
     area_plot, vl.MetricAVM(), display=vl.EMetricDisp.INTEGRATION_AREA
 )
-area_plot.figure.savefig(output_path / "avm_area.png", bbox_inches="tight")
+area_plot.figure.savefig(
+    output_path / f"val_ex01_fig{next(figure_numbers):02d}_avm_area.png",
+    bbox_inches="tight",
+)
 if not SHOW_PLOTS:
     plt.close(area_plot.figure)
 
-for metric_output, direction in (
+for oo, dd in (
     (vl.EMetricOut.D_PLUS, "d_plus"),
     (vl.EMetricOut.D_MINUS, "d_minus"),
 ):
@@ -135,20 +147,15 @@ for metric_output, direction in (
     vl.add_metric_overlay(
         area_plot,
         vl.MetricMAVM(),
-        output=metric_output,
+        output=oo,
         display=vl.EMetricDisp.INTEGRATION_AREA,
     )
     area_plot.figure.savefig(
-        output_path / f"mavm_{direction}_area.png", bbox_inches="tight"
+        output_path / f"val_ex01_fig{next(figure_numbers):02d}_mavm_{dd}_area.png",
+        bbox_inches="tight",
     )
     if not SHOW_PLOTS:
         plt.close(area_plot.figure)
-
-model_cdf: vl.ValidECDF = vl.calc_ecdf(sim_data)
-fig, _ = vl.plot_u_pooling_cdf([model_cdf] * exp.size, exp)
-fig.savefig(output_path / "u_pooling.png", bbox_inches="tight")
-if not SHOW_PLOTS:
-    plt.close(fig)
 
 supports = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
@@ -156,7 +163,8 @@ supports = vl.find_metric_epis_supports(
 ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
 vl.add_support_overlay(ecdf_plot, supports)
 ecdf_plot.figure.savefig(
-    output_path / "mavm_support_envelope.png", bbox_inches="tight"
+    output_path / f"val_ex01_fig{next(figure_numbers):02d}_mavm_support_envelope.png",
+    bbox_inches="tight",
 )
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)

@@ -9,7 +9,6 @@ from plate_fixture import load_plate_case
 
 import pyvale.dataio as io
 import pyvale.sensorsim as sens
-import pyvale.validation.validpreparation as validprep
 import pyvale.validation as vl
 from pyvale.dataio.simdata import SimData
 from pyvale.validation import validplot, validvis
@@ -92,8 +91,6 @@ def test_invalid_ecdf(support: list[float], probabilities: list[float]) -> None:
     cdf = vl.ValidECDF(np.array(support), np.array(probabilities))
     with pytest.raises(ValueError):
         vl.evaluate_ecdf_quantiles(cdf, np.array([0.5]))
-    with pytest.raises(ValueError):
-        vl.calc_u_pooling_1d([cdf], np.array([0.5]))
 
 
 @pytest.mark.parametrize(
@@ -173,8 +170,6 @@ def test_unsigned_support_must_be_ordered() -> None:
     cdf = vl.ValidECDF(np.array([1, 0], dtype=np.uint64), np.array([0.5, 1.0]))
     with pytest.raises(ValueError, match="increase"):
         vl.evaluate_ecdf_quantiles(cdf, np.array([0.5]))
-    with pytest.raises(ValueError, match="increase"):
-        vl.calc_u_pooling_1d([cdf], np.array([0.5]))
 
 
 @pytest.mark.parametrize("selector", [-1, 1, True, 0.0])
@@ -423,7 +418,7 @@ def test_sample_sweep_rejects_invalid_run_tensor(
         times=np.array([0.5]),
     )
     with pytest.raises(ValueError, match=message):
-        validprep.sample_sim_sweep(
+        vl.sample_sim_sweep_for_valid(
             {"temperature": field},
             {"temperature": observable},
             ((index, create_linear_sim()) for index in indices),

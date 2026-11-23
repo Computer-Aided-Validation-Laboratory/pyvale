@@ -9,6 +9,7 @@ Steady state validation
 ================================================================================
 """
 
+from itertools import count
 from pathlib import Path
 
 import matplotlib
@@ -31,6 +32,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex02_steady_state"
 output_path.mkdir(parents=True, exist_ok=True)
+figure_numbers = count(1)
 
 # %%
 with np.load(
@@ -64,7 +66,7 @@ observables = {
         components=("strain_xx", "strain_yy", "strain_xy"),
         geometry=vl.EValidGeometry.POINT,
         coords=coords,
-        phys_units="1",
+        phys_units="-",
         coord_units="mm",
     ),
 }
@@ -119,7 +121,10 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     point_idxs=point_idxs,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
-ecdf_plot.figure.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(
+    output_path / f"val_ex02_fig{next(figure_numbers):02d}_temperature_cdfs.png",
+    bbox_inches="tight",
+)
 
 # %%
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
@@ -143,7 +148,9 @@ pv_plot: pv.Plotter = vl.plot_metric_on_sim(
     metric_opts=vl.MetricVisOpts(labels_always_visible=True),
 )
 
-pv_plot.screenshot(output_path / "temperature_avm_on_sim.png")
+pv_plot.screenshot(
+    output_path / f"val_ex02_fig{next(figure_numbers):02d}_temperature_avm_on_sim.png",
+)
 
 if SHOW_PLOTS:
     pv_plot.show()
@@ -157,7 +164,8 @@ supports = vl.find_metric_epis_supports(
 ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, temperature_tag)
 vl.add_support_overlay(ecdf_plot, supports)
 ecdf_plot.figure.savefig(
-    output_path / "mavm_support_envelope.png", bbox_inches="tight"
+    output_path / f"val_ex02_fig{next(figure_numbers):02d}_mavm_support_envelope.png",
+    bbox_inches="tight",
 )
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)

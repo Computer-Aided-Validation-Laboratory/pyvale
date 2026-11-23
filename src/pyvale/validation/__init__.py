@@ -15,7 +15,6 @@ from pyvale.validation.metrics import (
     calc_ks_1d,
     calc_mavm_1d,
     calc_mavm_pbox_1d,
-    calc_u_pooling_1d,
 )
 from pyvale.validation.metricstrategy import (
     EMetricComparison,
@@ -72,9 +71,17 @@ from pyvale.validation.validplot import (
     plot_metric_time_points,
     plot_sim_ecdfs,
     plot_sim_exp_cdfs,
-    plot_u_pooling_cdf,
     plot_valid_mavm_diagnostic,
     plot_valid_metric_time,
+)
+from pyvale.validation.validpreparation import (
+    SensorOutputSelection,
+    assemble_exp_arrays,
+    concatenate_valid_cases,
+    extract_exp_sim_data,
+    sample_field_for_valid,
+    sample_sim_globals,
+    sample_sim_sweep_for_valid,
 )
 from pyvale.validation.validprofile import (
     calc_avm_over_epis_bounds,
@@ -200,7 +207,6 @@ __all__ = [
     "calc_mavm_bound_pairs",
     "calc_mavm_over_epis_bounds",
     "calc_mavm_pbox_1d",
-    "calc_u_pooling_1d",
     "create_valid_plot_grid",
     "create_valid_scene_opts",
     "evaluate_ecdf_quantiles",
@@ -222,7 +228,6 @@ __all__ = [
     "plot_metric_time_points",
     "plot_sim_ecdfs",
     "plot_sim_exp_cdfs",
-    "plot_u_pooling_cdf",
     "plot_valid_mavm_diagnostic",
     "plot_valid_metric_time",
     "profile_epis_nuisance_extrema",
@@ -231,5 +236,12 @@ __all__ = [
     "save_metric_extrema",
     "save_valid_case",
     "save_valid_result",
+    "SensorOutputSelection",
+    "assemble_exp_arrays",
+    "concatenate_valid_cases",
+    "extract_exp_sim_data",
+    "sample_field_for_valid",
+    "sample_sim_globals",
+    "sample_sim_sweep_for_valid",
     "select_metric_output",
 ]

@@ -9,6 +9,7 @@ Nuisance ECDF profiles
 ================================================================================
 """
 
+from itertools import count
 from pathlib import Path
 
 import matplotlib
@@ -25,6 +26,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex05_nuisance_ecdf_profiles"
 output_path.mkdir(parents=True, exist_ok=True)
+figure_numbers = count(1)
 
 # %%
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -78,12 +80,12 @@ valid_case = vl.ValidCase(
 )
 
 # %%
-for source_name, plot_sources in (
+for nn, pp in (
     ("sim", vl.plot_sim_ecdfs),
     ("exp", vl.plot_exp_ecdfs),
     ("sim_exp", vl.plot_sim_exp_cdfs),
 ):
-    ecdf_plot = plot_sources(
+    ecdf_plot = pp(
         valid_case,
         observable_tag,
         point_idxs=None,
@@ -91,11 +93,15 @@ for source_name, plot_sources in (
     )
     ecdf_plot.figure.suptitle("All-case envelope vs. median nuisance profile")
     ecdf_plot.figure.savefig(
-        output_path / f"ecdf_{source_name}_nuis_envelope_vs_prof_median.png",
+        output_path
+        / (
+            f"val_ex05_fig{next(figure_numbers):02d}_"
+            f"ecdf_{nn}_nuis_envelope_vs_prof_median.png"
+        ),
         bbox_inches="tight",
     )
 
-for name, title, reduction, probability in (
+for nn, tt, rr, qq in (
     ("mean", "mean", vl.EValidECDFReduce.MEAN, None),
     ("q25", "25th-percentile", vl.EValidECDFReduce.QUANTILE, 0.25),
 ):
@@ -103,34 +109,45 @@ for name, title, reduction, probability in (
         valid_case,
         observable_tag,
         point_idxs=None,
-        nuisance_profile=reduction,
-        nuisance_profile_quantile=probability,
+        nuisance_profile=rr,
+        nuisance_profile_quantile=qq,
     )
-    ecdf_plot.figure.suptitle(f"All-case envelope vs. {title} nuisance profile")
+    ecdf_plot.figure.suptitle(f"All-case envelope vs. {tt} nuisance profile")
     ecdf_plot.figure.savefig(
-        output_path / f"ecdf_sim_exp_nuis_envelope_vs_prof_{name}.png",
+        output_path
+        / (
+            f"val_ex05_fig{next(figure_numbers):02d}_"
+            f"ecdf_sim_exp_nuis_envelope_vs_prof_{nn}.png"
+        ),
         bbox_inches="tight",
     )
 
 # %%
 median_view = vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN)
-for name, title, view in (
+for nn, tt, vv in (
     ("envelope", "all-case envelope", None),
     ("prof_median", "median nuisance profile", median_view),
 ):
     ks_plot = vl.plot_sim_exp_cdfs(
-        valid_case, observable_tag, point_idxs=None, sim_view=view, exp_view=view
+        valid_case, observable_tag, point_idxs=None, sim_view=vv, exp_view=vv
     )
     vl.add_metric_overlay(ks_plot, vl.MetricKS())
-    ks_plot.figure.suptitle(f"KS gap between {title} bounds")
-    ks_plot.figure.savefig(output_path / f"ks_nuis_{name}_gap.png", bbox_inches="tight")
+    ks_plot.figure.suptitle(f"KS gap between {tt} bounds")
+    ks_plot.figure.savefig(
+        output_path / f"val_ex05_fig{next(figure_numbers):02d}_ks_nuis_{nn}_gap.png",
+        bbox_inches="tight",
+    )
 
 # %%
 mavm_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag, point_idxs=None)
 vl.add_metric_overlay(mavm_plot, vl.MetricMAVM())
 mavm_plot.figure.suptitle("MAVM support envelope over original scenario pairs")
 mavm_plot.figure.savefig(
-    output_path / "mavm_support_envelope_original_pairs.png",
+    output_path
+    / (
+        f"val_ex05_fig{next(figure_numbers):02d}_"
+        f"mavm_support_envelope_original_pairs.png"
+    ),
     bbox_inches="tight",
 )
 

@@ -9,6 +9,7 @@ Epistemic offsets
 ================================================================================
 """
 
+from itertools import count
 from pathlib import Path
 
 import matplotlib
@@ -25,6 +26,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex07_epistemic_offsets"
 output_path.mkdir(parents=True, exist_ok=True)
+figure_numbers = count(1)
 
 # %%
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -89,7 +91,12 @@ ecdf_plot = vl.plot_sim_exp_cdfs(
 vl.add_metric_overlay(ecdf_plot, mavm)
 
 ecdf_plot.figure.savefig(
-    output_path / "mavm_offset_confidence_ecdfs.png", bbox_inches="tight"
+    output_path
+    / (
+        f"val_ex07_fig{next(figure_numbers):02d}_"
+        f"mavm_offset_confidence_ecdfs.png"
+    ),
+    bbox_inches="tight",
 )
 
 if not SHOW_PLOTS:
@@ -103,7 +110,10 @@ fig, _ = vl.plot_metric_time_points(
     point_idxs=(0, 1),
     selectors={vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.NOMINAL},
 )
-fig.savefig(output_path / "mavm_time.png", bbox_inches="tight")
+fig.savefig(
+    output_path / f"val_ex07_fig{next(figure_numbers):02d}_mavm_time.png",
+    bbox_inches="tight",
+)
 if not SHOW_PLOTS:
     plt.close(fig)
 

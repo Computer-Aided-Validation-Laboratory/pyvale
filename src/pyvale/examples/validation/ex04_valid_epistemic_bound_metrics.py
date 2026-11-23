@@ -9,6 +9,7 @@ Metrics on epistemic bounds
 ================================================================================
 """
 
+from itertools import count
 from pathlib import Path
 
 import matplotlib
@@ -25,6 +26,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex04_epistemic_bound_metrics"
 output_path.mkdir(parents=True, exist_ok=True)
+figure_numbers = count(1)
 
 # %%
 observable_tag = "response"
@@ -72,7 +74,7 @@ mavm_original: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
 # %%
-for route, avm, mavm in (
+for rr, aa, mm in (
     ("bounds", avm_bounds, mavm_bounds),
     ("original", avm_original, mavm_original),
 ):
@@ -80,18 +82,26 @@ for route, avm, mavm in (
         valid_case, observable_tag
     )
 
-    vl.add_support_overlay(ecdf_plot, avm)
-    ecdf_plot.figure.savefig(output_path / f"avm_{route}.png", bbox_inches="tight")
+    vl.add_support_overlay(ecdf_plot, aa)
+    ecdf_plot.figure.savefig(
+        output_path / f"val_ex04_fig{next(figure_numbers):02d}_avm_{rr}.png",
+        bbox_inches="tight",
+    )
 
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
 
     ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
     vl.add_support_overlay(
-        ecdf_plot, mavm
+        ecdf_plot, mm
     )
     ecdf_plot.figure.savefig(
-        output_path / f"mavm_support_envelope_{route}.png", bbox_inches="tight"
+        output_path
+        / (
+            f"val_ex04_fig{next(figure_numbers):02d}_"
+            f"mavm_support_envelope_{rr}.png"
+        ),
+        bbox_inches="tight",
     )
 
     if not SHOW_PLOTS:

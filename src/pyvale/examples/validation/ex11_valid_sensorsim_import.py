@@ -12,6 +12,7 @@ SensorSim export validation
 import os
 import subprocess
 import sys
+from itertools import count
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -96,12 +97,16 @@ def run_sensorsim_import_validation() -> None:
     valid_result = vl.ValidEngine([mavm]).run(valid_case)
     output_path = Path.cwd() / "pyvale-output" / "valid_ex11_sensorsim_import"
     output_path.mkdir(parents=True, exist_ok=True)
+    figure_numbers = count(1)
 
     ecdf_plot = vl.plot_sim_exp_cdfs(
         valid_case, temp_tag, point_idxs=None, time_idx=len(sens_times) - 1
     )
     vl.add_metric_overlay(ecdf_plot, mavm)
-    ecdf_plot.figure.savefig(output_path / "temperature_ecdfs.png", bbox_inches="tight")
+    ecdf_plot.figure.savefig(
+        output_path / f"val_ex11_fig{next(figure_numbers):02d}_temperature_ecdfs.png",
+        bbox_inches="tight",
+    )
     plt.close(ecdf_plot.figure)
 
     figure, _ = vl.plot_metric_time_points(
@@ -111,7 +116,14 @@ def run_sensorsim_import_validation() -> None:
         point_idxs=tuple(range(len(sens_coords))),
         columns=2,
     )
-    figure.savefig(output_path / "temperature_mavm_time.png", bbox_inches="tight")
+    figure.savefig(
+        output_path
+        / (
+            f"val_ex11_fig{next(figure_numbers):02d}_"
+            f"temperature_mavm_time.png"
+        ),
+        bbox_inches="tight",
+    )
     plt.close(figure)
 
 

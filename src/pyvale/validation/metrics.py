@@ -8,7 +8,7 @@
 
 Includes Modified Area Validation Metric (MAVM), classical Area Validation
 Metric (AVM / 1-Wasserstein), Kolmogorov-Smirnov distance, Cramér-von Mises,
-U-pooling, and deterministic error metrics.
+and deterministic error metrics.
 """
 
 from dataclasses import dataclass
@@ -26,11 +26,7 @@ from pyvale.validation.cython.mavm import (
     _cyth_calc_mavm_1d,
     _cyth_calc_mavm_pbox_1d,
 )
-from pyvale.validation.validchecks import (
-    _validate_ecdf,
-    _validate_finite_sample,
-)
-from pyvale.validation.ecdftypes import ValidECDF
+from pyvale.validation.validchecks import _validate_finite_sample
 from pyvale.validation.validtypes import (
     EMAVMDuplicates,
     MAVMResult,
@@ -261,40 +257,6 @@ def _calculate_relative_error(
     if denominator == 0:
         return float("nan")
     return float(np.mean(np.abs(sim - exp)) / denominator)
-
-
-def calc_u_pooling_1d(model_cdfs: list[ValidECDF], exp_obs: np.ndarray) -> float:
-    """Evaluate right-continuous ECDFs and integrate distance to continuous U(0,1)."""
-    observations = _validate_real_array(exp_obs, "exp_obs", allow_nan=False)
-    if observations.ndim != 1 or not len(observations):
-        raise ValueError("U-pooling needs nonempty paired 1D observations.")
-    if len(model_cdfs) != len(observations):
-        raise ValueError("One model CDF is required per observation.")
-    transformed = np.empty(len(observations), dtype=np.float64)
-    for index, (cdf, observation) in enumerate(
-        zip(model_cdfs, observations, strict=True)
-    ):
-        _validate_ecdf(cdf)
-        support_index = np.searchsorted(cdf.quantiles, observation, side="right") - 1
-        transformed[index] = (
-            0.0 if support_index < 0 else cdf.probabilities[support_index]
-        )
-    transformed.sort()
-    count = len(transformed)
-    lower_probabilities = np.arange(count) / count
-    upper_probabilities = np.arange(1, count + 1) / count
-    # Antiderivative of |p - u| is (p - u)|p - u| / 2.
-    lower_distance = lower_probabilities - transformed
-    upper_distance = upper_probabilities - transformed
-    return float(
-        np.sum(
-            (
-                upper_distance * np.abs(upper_distance)
-                - lower_distance * np.abs(lower_distance)
-            )
-            / 2
-        )
-    )
 
 
 def _validate_paired_samples(

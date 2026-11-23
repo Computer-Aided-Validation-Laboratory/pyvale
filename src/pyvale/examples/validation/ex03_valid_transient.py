@@ -9,6 +9,7 @@ Transient validation
 ================================================================================
 """
 
+from itertools import count
 from pathlib import Path
 
 import matplotlib
@@ -27,6 +28,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex03_transient"
 output_path.mkdir(parents=True, exist_ok=True)
+figure_numbers = count(1)
 
 # %%
 with np.load(dataset.valid_data_dir() / "plate_validation_2d_nominal.npz") as saved:
@@ -61,7 +63,7 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
-        phys_units="1",
+        phys_units="-",
         coord_units="mm",
         time_units="s",
     ),
@@ -120,12 +122,18 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     time_idx=4,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
-ecdf_plot.figure.savefig(output_path / "temperature_cdfs.png", bbox_inches="tight")
+ecdf_plot.figure.savefig(
+    output_path / f"val_ex03_fig{next(figure_numbers):02d}_temperature_cdfs.png",
+    bbox_inches="tight",
+)
 
 fig, _ = vl.plot_metric_time_points(
     valid_result, temperature_tag, vl.EMetricType.AVM, point_idxs=point_idxs
 )
-fig.savefig(output_path / "temperature_avm_time.png", bbox_inches="tight")
+fig.savefig(
+    output_path / f"val_ex03_fig{next(figure_numbers):02d}_temperature_avm_time.png",
+    bbox_inches="tight",
+)
 
 # %%
 fig, _ = vl.plot_metric_time_points(
@@ -134,7 +142,10 @@ fig, _ = vl.plot_metric_time_points(
     vl.EMetricType.MAVM,
     point_idxs=point_idxs,
 )
-fig.savefig(output_path / "temperature_mavm_time.png", bbox_inches="tight")
+fig.savefig(
+    output_path / f"val_ex03_fig{next(figure_numbers):02d}_temperature_mavm_time.png",
+    bbox_inches="tight",
+)
 
 if SHOW_PLOTS:
     plt.show()
