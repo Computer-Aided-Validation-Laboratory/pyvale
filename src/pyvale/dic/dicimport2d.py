@@ -140,7 +140,7 @@ def import_2d(data: str | Path | list[Path],
     if isinstance(data, list):
         files = list(map(str, data))
     else:
-        files = sorted(glob.glob(data))
+        files = sorted(glob.glob(data), key=common_util.natural_sort_key)
         if not files:
             raise FileNotFoundError(f"No results found in: {data}")
     
