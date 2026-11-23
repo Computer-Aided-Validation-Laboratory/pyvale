@@ -155,6 +155,12 @@ fig_file = f"val_ex00_fig{next(fig_nums):02d}_temperature_cdfs.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
+# .. image:: /_static/val_ex00_fig01_temperature_cdfs.png
+#    :alt: Simulation and experiment temperature ECDFs at each sensor
+#    :width: 100%
+#    :align: center
+
+# %%
 ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
     valid_case,
     temperature_tag,
@@ -165,6 +171,12 @@ ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
 )
 fig_file = f"val_ex00_fig{next(fig_nums):02d}_temperature_envelopes.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
+
+# %%
+# .. image:: /_static/val_ex00_fig02_temperature_envelopes.png
+#    :alt: Experimental temperature envelope across coherent offsets
+#    :width: 100%
+#    :align: center
 
 # %%
 fig, _ = vl.plot_metric_time_points(
@@ -179,6 +191,12 @@ fig, _ = vl.plot_metric_time_points(
 )
 fig_file = f"val_ex00_fig{next(fig_nums):02d}_temperature_mavm_time.png"
 fig.savefig(output_path / fig_file, bbox_inches="tight")
+
+# %%
+# .. image:: /_static/val_ex00_fig03_temperature_mavm_time.png
+#    :alt: Directional MAVM histories at each plate sensor
+#    :width: 100%
+#    :align: center
 
 # %%
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
@@ -218,6 +236,17 @@ for oo, dd in (
             f"temperature_mavm_{dd}_on_sim.png"
         ),
     )
+
+# %%
+# .. image:: /_static/val_ex00_fig04_temperature_mavm_d_plus_on_sim.png
+#    :alt: MAVM d+ at the sensor locations on the temperature field
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex00_fig05_temperature_mavm_d_minus_on_sim.png
+#    :alt: MAVM d− at the sensor locations on the temperature field
+#    :width: 100%
+#    :align: center
 
 # %%
 if SHOW_PLOTS:

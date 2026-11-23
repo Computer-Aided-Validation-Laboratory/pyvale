@@ -255,6 +255,43 @@ for kk in observables:
         if not SHOW_PLOTS:
             plt.close(fig)
 
+# %%
+# TC3 results
+# -----------
+#
+# These figures show the benchmark diagnostics for thermocouple TC3.
+# The script saves the available figures for every channel.
+#
+# .. image:: /_static/val_ex10_fig02_0_sim_allcdfs_TC3.png
+#    :alt: TC3 simulation ECDFs across the epistemic sweep
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex10_fig03_mavm_support_envelope_TC3.png
+#    :alt: TC3 simulation and experiment ECDFs with the MAVM support envelope
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex10_fig04_1_exp-sim-cdfs_TC3.png
+#    :alt: TC3 experimental and simulation endpoint ECDFs
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex10_fig05_2_dextremes_wcdfs_TC3.png
+#    :alt: TC3 shifted endpoint curves for the paired MAVM comparisons
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex10_fig06_3_dextremes_wexpcdfs_TC3.png
+#    :alt: TC3 MAVM support envelope with the experimental ECDFs
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex10_fig07_4_dextremes_simcdfsonly_TC3.png
+#    :alt: TC3 MAVM support envelope with the simulation ECDFs
+#    :width: 100%
+#    :align: center
+
 if SHOW_PLOTS:
     plt.show()
 else:

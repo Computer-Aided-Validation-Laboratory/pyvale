@@ -176,6 +176,22 @@ fig, _ = vl.plot_metric_time_points(
 fig_file = f"val_ex03_fig{next(fig_nums):02d}_temperature_mavm_time.png"
 fig.savefig(output_path / fig_file, bbox_inches="tight")
 
+# %%
+# .. image:: /_static/val_ex03_fig01_temperature_cdfs.png
+#    :alt: Transient plate temperature ECDFs at the selected time
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex03_fig02_temperature_avm_time.png
+#    :alt: Temperature AVM over time at each sensor
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex03_fig03_temperature_mavm_time.png
+#    :alt: Directional temperature MAVM over time at each sensor
+#    :width: 100%
+#    :align: center
+
 if SHOW_PLOTS:
     plt.show()
 else:

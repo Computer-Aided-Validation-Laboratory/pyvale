@@ -137,6 +137,12 @@ fig_file = f"val_ex01_fig{next(fig_nums):02d}_observable_cdfs.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
+# .. image:: /_static/val_ex01_fig01_observable_cdfs.png
+#    :alt: ECDFs for the scalar simulation and its shifted experiment
+#    :width: 100%
+#    :align: center
+
+# %%
 # 6. Show metric overlays
 # -----------------------
 #
@@ -199,6 +205,47 @@ for oo, dd in (
         plt.close(area_plot.figure)
 
 # %%
+# .. image:: /_static/val_ex01_fig02_avm_overlay.png
+#    :alt: AVM overlay with a normalised response axis
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex01_fig03_ks_overlay.png
+#    :alt: Kolmogorov–Smirnov gap between the ECDFs
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex01_fig04_cvm_overlay.png
+#    :alt: Cramér–von Mises statistic for the two distributions
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex01_fig05_rmse_overlay.png
+#    :alt: RMSE for samples paired by index
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex01_fig06_relative_error_overlay.png
+#    :alt: Relative error for the paired scalar observations
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex01_fig07_avm_area.png
+#    :alt: Area between the scalar ECDFs used for AVM
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex01_fig08_mavm_d_plus_area.png
+#    :alt: Integration area for MAVM d+
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex01_fig09_mavm_d_minus_area.png
+#    :alt: Integration area for MAVM d−
+#    :width: 100%
+#    :align: center
+
+# %%
 # 7. Show the MAVM support span
 # -----------------------------
 #
@@ -216,6 +263,12 @@ ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
+
+# %%
+# .. image:: /_static/val_ex01_fig10_mavm_support_envelope.png
+#    :alt: Full MAVM support span
+#    :width: 100%
+#    :align: center
 
 if SHOW_PLOTS:
     plt.show()

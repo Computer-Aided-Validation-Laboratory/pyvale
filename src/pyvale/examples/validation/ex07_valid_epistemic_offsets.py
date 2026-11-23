@@ -127,6 +127,12 @@ if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
 # %%
+# .. image:: /_static/val_ex07_fig01_mavm_offset_confidence_ecdfs.png
+#    :alt: Experimental offset ECDFs, outer confidence limits, and MAVM support
+#    :width: 100%
+#    :align: center
+
+# %%
 # 5. Plot the nominal metric history
 # ----------------------------------
 #
@@ -143,6 +149,12 @@ fig_file = f"val_ex07_fig{next(fig_nums):02d}_mavm_time.png"
 fig.savefig(output_path / fig_file, bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(fig)
+
+# %%
+# .. image:: /_static/val_ex07_fig02_mavm_time.png
+#    :alt: Directional MAVM histories for the nominal experiment
+#    :width: 100%
+#    :align: center
 
 if SHOW_PLOTS:
     plt.show()

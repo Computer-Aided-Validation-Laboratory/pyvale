@@ -159,6 +159,12 @@ fig_file = f"val_ex02_fig{next(fig_nums):02d}_temperature_cdfs.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
+# .. image:: /_static/val_ex02_fig01_temperature_cdfs.png
+#    :alt: Steady-state temperature ECDFs across the plate sensors
+#    :width: 100%
+#    :align: center
+
+# %%
 # 5. Map MAVM onto the plate
 # --------------------------
 #
@@ -196,6 +202,12 @@ pv_plot.close()
 
 
 # %%
+# .. image:: /_static/val_ex02_fig02_temperature_avm_on_sim.png
+#    :alt: AVM discrepancy at the plate sensor locations
+#    :width: 100%
+#    :align: center
+
+# %%
 # 6. Show the MAVM support span
 # -----------------------------
 #
@@ -210,6 +222,12 @@ fig_file = f"val_ex02_fig{next(fig_nums):02d}_mavm_support_envelope.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
+
+# %%
+# .. image:: /_static/val_ex02_fig03_mavm_support_envelope.png
+#    :alt: MAVM support envelope for steady-state temperature
+#    :width: 100%
+#    :align: center
 
 if SHOW_PLOTS:
     plt.show()

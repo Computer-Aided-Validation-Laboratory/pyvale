@@ -175,6 +175,37 @@ for mm, ff in valid_result.metrics[observable_tag].items():
     vl.save_metric_extrema(output_path / f"{prof_tag}_profile.npz", profile)
 
 # %%
+# .. image:: /_static/val_ex06_fig01_avm_distance_profile.png
+#    :alt: AVM distance extrema over nuisance pairs
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig02_ks_statistic_profile.png
+#    :alt: KS statistic extrema over nuisance pairs
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig03_cvm_statistic_profile.png
+#    :alt: CVM statistic extrema over nuisance pairs
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig04_rmse_error_profile.png
+#    :alt: RMSE extrema over nuisance pairs
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig05_relative_error_error_profile.png
+#    :alt: Relative-error extrema over nuisance pairs
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig06_mavm_profile.png
+#    :alt: Directional MAVM extrema over nuisance pairs
+#    :width: 100%
+#    :align: center
+
+# %%
 # 6. Inspect the controlling ECDF pairs
 # -------------------------------------
 #
@@ -203,6 +234,12 @@ fig.savefig(output_path / fig_file, bbox_inches="tight")
 
 if not SHOW_PLOTS:
     plt.close(fig)
+
+# %%
+# .. image:: /_static/val_ex06_fig07_mavm_d_plus_extrema_ecdfs.png
+#    :alt: Original ECDF pairs controlling minimum and maximum MAVM d+
+#    :width: 100%
+#    :align: center
 
 # %%
 # 7. Plot the metric support spans
@@ -254,6 +291,17 @@ ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
+
+# %%
+# .. image:: /_static/val_ex06_fig08_mavm_nuisance_support_envelope.png
+#    :alt: MAVM support envelope at fixed transferable indices
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig09_avm_original_support.png
+#    :alt: AVM support envelope over all original scenario pairs
+#    :width: 100%
+#    :align: center
 
 # %%
 # 8. Rank original nuisance pairs
@@ -325,6 +373,37 @@ for ss in vl.EValidNuisanceScore:
 
         if not SHOW_PLOTS:
             plt.close(ecdf_plot.figure)
+
+# %%
+# .. image:: /_static/val_ex06_fig10_total_width_minimum_support_envelope.png
+#    :alt: Nuisance pair with minimum total MAVM support width
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig11_total_width_median_support_envelope.png
+#    :alt: Median nuisance pair ranked by total MAVM support width
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig12_total_width_maximum_support_envelope.png
+#    :alt: Nuisance pair with maximum total MAVM support width
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig13_added_width_minimum_support_envelope.png
+#    :alt: Nuisance pair with minimum added MAVM support width
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig14_added_width_median_support_envelope.png
+#    :alt: Median nuisance pair ranked by added MAVM support width
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex06_fig15_added_width_maximum_support_envelope.png
+#    :alt: Nuisance pair with maximum added MAVM support width
+#    :width: 100%
+#    :align: center
 
 if SHOW_PLOTS:
     plt.show()

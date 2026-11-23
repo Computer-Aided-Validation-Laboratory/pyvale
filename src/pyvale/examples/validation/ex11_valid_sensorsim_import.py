@@ -157,6 +157,17 @@ figure, _ = vl.plot_metric_time_points(
 fig_file = f"val_ex11_fig{next(fig_nums):02d}_temperature_mavm_time.png"
 figure.savefig(output_path / fig_file, bbox_inches="tight")
 
+# %%
+# .. image:: /_static/val_ex11_fig01_temperature_ecdfs.png
+#    :alt: Temperature ECDFs and MAVM support at the final SensorSim time
+#    :width: 100%
+#    :align: center
+#
+# .. image:: /_static/val_ex11_fig02_temperature_mavm_time.png
+#    :alt: Directional MAVM histories from the imported SensorSim measurements
+#    :width: 100%
+#    :align: center
+
 if SHOW_PLOTS:
     plt.show()
 else:

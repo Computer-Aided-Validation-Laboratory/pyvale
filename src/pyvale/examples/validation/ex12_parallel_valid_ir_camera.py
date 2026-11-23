@@ -247,6 +247,12 @@ for aa, (ii, tt) in zip(axes.flat, panels, strict=True):
 fig_file = f"val_ex12_fig{next(fig_nums):02d}_ir_camera_avm.png"
 figure.savefig(output_path / fig_file)
 
+# %%
+# .. image:: /_static/val_ex12_fig01_ir_camera_avm.png
+#    :alt: IR camera temperature, emissivity shift, nominal AVM, and worst-pair AVM
+#    :width: 100%
+#    :align: center
+
 if SHOW_PLOTS:
     plt.show()
 else:
