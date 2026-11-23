@@ -26,9 +26,9 @@ import numpy as np
 import pyvale.sensorsim as sens
 import pyvale.validation as vl
 
+# %%
 matplotlib.use("Agg")
 
-# %%
 SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")

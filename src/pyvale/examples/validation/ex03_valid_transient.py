@@ -25,6 +25,7 @@ import pyvale.validation as vl
 
 # %%
 matplotlib.use("Agg")
+
 SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")

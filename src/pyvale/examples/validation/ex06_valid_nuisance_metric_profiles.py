@@ -21,6 +21,7 @@ import numpy as np
 
 import pyvale.validation as vl
 
+# %%
 matplotlib.use("Agg")
 
 SHOW_PLOTS = False
@@ -212,6 +213,7 @@ if not SHOW_PLOTS:
 supports: vl.ECDFSuppBounds = vl.profile_epis_nuisance_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
+
 ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case,
     observable_tag,
@@ -221,28 +223,35 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     exp_view=vl.ValidECDFView(trans_idxs=(0,)),
     valid_plot_opts=vl.ValidPlotOpts(sim_label="Sim Nuis Env", exp_label="Exp Nuis Env"),
 )
+
 vl.add_support_overlay(
     ecdf_plot,
     supports,
     selectors={vl.EValidResAxis.SIM_TRANS: 0, vl.EValidResAxis.EXP_TRANS: 0},
 )
+
 ecdf_plot.figure.suptitle("MAVM over nuisance pairs | Sim Trans 0, Exp Trans 0")
 fig_file = f"val_ex06_fig{next(fig_nums):02d}_mavm_nuisance_support_envelope.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
+
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
+
 avm_supports: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.AVM
 )
+
 ecdf_plot = vl.plot_sim_exp_cdfs(
     valid_case, observable_tag, point_idxs=None, time_idx=2
 )
 vl.add_support_overlay(
     ecdf_plot, avm_supports
 )
+
 ecdf_plot.figure.suptitle("AVM over all original scenario pairs")
 fig_file = f"val_ex06_fig{next(fig_nums):02d}_avm_original_support.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
+
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
@@ -261,23 +270,28 @@ by_case: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     vl.EMetricType.MAVM,
     reduce_axes=(vl.EValidResAxis.SIM_TRANS, vl.EValidResAxis.EXP_TRANS),
 )
+
 for ss in vl.EValidNuisanceScore:
     ranking: vl.ECDFNuisanceRank = vl.rank_epis_nuisance_cases(
         by_case, score=ss
     )
+
     score_name = ss.name.lower()
     score_label = score_name.replace("_", " ")
     valid_count = int(ranking.valid_counts[0, 0, 2])
     order = ranking.order[0, 0, 2]
+
     selected_rows = (
         int(order[0]),
         int(order[(valid_count - 1) // 2]),
         int(order[valid_count - 1]),
     )
+
     for nn, rr in zip(
         ("minimum", "median", "maximum"), selected_rows, strict=True
     ):
         sim_nuis, exp_nuis = (int(ii) for ii in ranking.cases[rr])
+
         ecdf_plot = vl.plot_sim_exp_cdfs(
             valid_case,
             observable_tag,
@@ -289,6 +303,7 @@ for ss in vl.EValidNuisanceScore:
                 exp_label=f"Exp Nuis {exp_nuis}",
             ),
         )
+
         vl.add_support_overlay(
             ecdf_plot,
             by_case,
@@ -297,15 +312,19 @@ for ss in vl.EValidNuisanceScore:
                 vl.EValidResAxis.EXP_NUIS: exp_nuis,
             },
         )
+
         ecdf_plot.figure.suptitle(
             f"MAVM nuisance rank | {nn.title()} by {score_label}"
         )
+
         fig_file = (
             f"val_ex06_fig{next(fig_nums):02d}_"
             f"{score_name}_{nn}_support_envelope.png"
         )
         ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
+
         if not SHOW_PLOTS:
             plt.close(ecdf_plot.figure)
+
 if SHOW_PLOTS:
     plt.show()

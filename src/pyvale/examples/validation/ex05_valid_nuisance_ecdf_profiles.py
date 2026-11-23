@@ -21,6 +21,7 @@ import numpy as np
 
 import pyvale.validation as vl
 
+# %%
 matplotlib.use("Agg")
 
 SHOW_PLOTS = False
