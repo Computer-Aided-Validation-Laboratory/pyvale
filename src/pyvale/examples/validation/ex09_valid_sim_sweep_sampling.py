@@ -280,56 +280,6 @@ for ii, kk in enumerate(strain_keys):
 #    :alt: Strain xx MAVM histories for the nominal run
 #    :width: 100%
 #    :align: center
-#
-# .. image:: /_static/val_ex09_fig03_strain_yy_cdfs.png
-#    :alt: Strain yy ECDFs with the three-run simulation envelope
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig04_strain_yy_mavm_time.png
-#    :alt: Strain yy MAVM histories for the nominal run
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig05_strain_zz_cdfs.png
-#    :alt: Strain zz ECDFs with the three-run simulation envelope
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig06_strain_zz_mavm_time.png
-#    :alt: Strain zz MAVM histories for the nominal run
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig07_strain_xy_cdfs.png
-#    :alt: Strain xy ECDFs with the three-run simulation envelope
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig08_strain_xy_mavm_time.png
-#    :alt: Strain xy MAVM histories for the nominal run
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig09_strain_xz_cdfs.png
-#    :alt: Strain xz ECDFs with the three-run simulation envelope
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig10_strain_xz_mavm_time.png
-#    :alt: Strain xz MAVM histories for the nominal run
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig11_strain_yz_cdfs.png
-#    :alt: Strain yz ECDFs with the three-run simulation envelope
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig12_strain_yz_mavm_time.png
-#    :alt: Strain yz MAVM histories for the nominal run
-#    :width: 100%
-#    :align: center
 
 # %%
 # 7. Compare case-specific AVM histories
@@ -354,18 +304,8 @@ for ss, nn in enumerate(param_sets):
     fig.savefig(output_path / fig_file, bbox_inches="tight")
     
 # %%
-# .. image:: /_static/val_ex09_fig13_nominal_avm_time.png
-#    :alt: Strain xx AVM histories for the nominal run
-#    :width: 100%
-#    :align: center
-#
 # .. image:: /_static/val_ex09_fig14_heat_flux_plus_10pct_avm_time.png
 #    :alt: Strain xx AVM histories for the increased heat flux run
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex09_fig15_thermal_expansion_plus_10pct_avm_time.png
-#    :alt: Strain xx AVM histories for the increased thermal expansion run
 #    :width: 100%
 #    :align: center
 

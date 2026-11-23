@@ -205,18 +205,8 @@ for oo, dd in (
         plt.close(area_plot.figure)
 
 # %%
-# .. image:: /_static/val_ex01_fig02_avm_overlay.png
-#    :alt: AVM overlay with a normalised response axis
-#    :width: 100%
-#    :align: center
-#
 # .. image:: /_static/val_ex01_fig03_ks_overlay.png
 #    :alt: Kolmogorov–Smirnov gap between the ECDFs
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex01_fig04_cvm_overlay.png
-#    :alt: Cramér–von Mises statistic for the two distributions
 #    :width: 100%
 #    :align: center
 #
@@ -225,23 +215,8 @@ for oo, dd in (
 #    :width: 100%
 #    :align: center
 #
-# .. image:: /_static/val_ex01_fig06_relative_error_overlay.png
-#    :alt: Relative error for the paired scalar observations
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex01_fig07_avm_area.png
-#    :alt: Area between the scalar ECDFs used for AVM
-#    :width: 100%
-#    :align: center
-#
 # .. image:: /_static/val_ex01_fig08_mavm_d_plus_area.png
 #    :alt: Integration area for MAVM d+
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex01_fig09_mavm_d_minus_area.png
-#    :alt: Integration area for MAVM d−
 #    :width: 100%
 #    :align: center
 

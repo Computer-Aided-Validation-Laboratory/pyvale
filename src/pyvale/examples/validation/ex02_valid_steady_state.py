@@ -223,11 +223,6 @@ ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
-# %%
-# .. image:: /_static/val_ex02_fig03_mavm_support_envelope.png
-#    :alt: MAVM support envelope for steady-state temperature
-#    :width: 100%
-#    :align: center
 
 if SHOW_PLOTS:
     plt.show()

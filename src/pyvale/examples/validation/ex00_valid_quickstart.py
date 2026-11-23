@@ -172,11 +172,6 @@ ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
 fig_file = f"val_ex00_fig{next(fig_nums):02d}_temperature_envelopes.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
-# %%
-# .. image:: /_static/val_ex00_fig02_temperature_envelopes.png
-#    :alt: Experimental temperature envelope across coherent offsets
-#    :width: 100%
-#    :align: center
 
 # %%
 fig, _ = vl.plot_metric_time_points(
@@ -240,11 +235,6 @@ for oo, dd in (
 # %%
 # .. image:: /_static/val_ex00_fig04_temperature_mavm_d_plus_on_sim.png
 #    :alt: MAVM d+ at the sensor locations on the temperature field
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex00_fig05_temperature_mavm_d_minus_on_sim.png
-#    :alt: MAVM d− at the sensor locations on the temperature field
 #    :width: 100%
 #    :align: center
 

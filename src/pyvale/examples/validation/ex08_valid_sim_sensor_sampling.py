@@ -270,26 +270,6 @@ for kk, ii in (
 #    :width: 100%
 #    :align: center
 #
-# .. image:: /_static/val_ex08_fig02_temperature_average_mavm_time.png
-#    :alt: Directional MAVM histories for footprint-averaged temperature
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex08_fig03_displacement_local_cdfs.png
-#    :alt: Local displacement ECDFs at the sensor locations
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex08_fig04_displacement_local_mavm_time.png
-#    :alt: Directional MAVM histories for local displacement
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex08_fig05_strain_local_cdfs.png
-#    :alt: Local millistrain ECDFs at the sensor locations
-#    :width: 100%
-#    :align: center
-#
 # .. image:: /_static/val_ex08_fig06_strain_local_mavm_time.png
 #    :alt: Directional MAVM histories for local strain
 #    :width: 100%

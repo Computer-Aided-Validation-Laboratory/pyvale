@@ -182,11 +182,6 @@ fig.savefig(output_path / fig_file, bbox_inches="tight")
 #    :width: 100%
 #    :align: center
 #
-# .. image:: /_static/val_ex03_fig02_temperature_avm_time.png
-#    :alt: Temperature AVM over time at each sensor
-#    :width: 100%
-#    :align: center
-#
 # .. image:: /_static/val_ex03_fig03_temperature_mavm_time.png
 #    :alt: Directional temperature MAVM over time at each sensor
 #    :width: 100%

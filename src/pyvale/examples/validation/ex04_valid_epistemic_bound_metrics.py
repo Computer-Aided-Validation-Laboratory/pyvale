@@ -130,18 +130,8 @@ for rr, aa, mm in (
         plt.close(ecdf_plot.figure)
 
 # %%
-# .. image:: /_static/val_ex04_fig01_avm_bounds.png
-#    :alt: AVM support calculated from ECDF bounds
-#    :width: 100%
-#    :align: center
-#
 # .. image:: /_static/val_ex04_fig02_mavm_support_envelope_bounds.png
 #    :alt: MAVM support envelope calculated from ECDF bounds
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex04_fig03_avm_original.png
-#    :alt: AVM support calculated from original case pairs
 #    :width: 100%
 #    :align: center
 #

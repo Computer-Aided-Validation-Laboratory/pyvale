@@ -136,28 +136,8 @@ for nn, tt, rr, qq in (
     ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
-# .. image:: /_static/val_ex05_fig01_ecdf_sim_nuis_envelope_vs_prof_median.png
-#    :alt: Simulation nuisance envelope and median-profile bounds
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex05_fig02_ecdf_exp_nuis_envelope_vs_prof_median.png
-#    :alt: Experiment nuisance envelope and median-profile bounds
-#    :width: 100%
-#    :align: center
-#
 # .. image:: /_static/val_ex05_fig03_ecdf_sim_exp_nuis_envelope_vs_prof_median.png
 #    :alt: Simulation and experiment envelopes with median-profile bounds
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex05_fig04_ecdf_sim_exp_nuis_envelope_vs_prof_mean.png
-#    :alt: Simulation and experiment envelopes with mean-profile bounds
-#    :width: 100%
-#    :align: center
-#
-# .. image:: /_static/val_ex05_fig05_ecdf_sim_exp_nuis_envelope_vs_prof_q25.png
-#    :alt: Simulation and experiment envelopes with lower-quartile profile bounds
 #    :width: 100%
 #    :align: center
 
@@ -181,11 +161,6 @@ for nn, tt, vv in (
     ks_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
-# .. image:: /_static/val_ex05_fig06_ks_nuis_envelope_gap.png
-#    :alt: KS gap for the original-case envelopes
-#    :width: 100%
-#    :align: center
-#
 # .. image:: /_static/val_ex05_fig07_ks_nuis_prof_median_gap.png
 #    :alt: KS gap for the median nuisance profiles
 #    :width: 100%
@@ -232,11 +207,6 @@ fig_file = (
 fig.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
-# .. image:: /_static/val_ex05_fig08_mavm_support_envelope_original_pairs.png
-#    :alt: MAVM support envelope across original scenario pairs
-#    :width: 100%
-#    :align: center
-#
 # .. image:: /_static/val_ex05_fig09_mavm_support_envelope_nuis_prof_median.png
 #    :alt: MAVM support envelope for the median nuisance profiles
 #    :width: 100%
