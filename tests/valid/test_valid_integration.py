@@ -266,12 +266,13 @@ def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
         result,
         "temperature",
         vl.EMetricType.MAVM,
-        point_idxs=(0, 5),
+        point_idxs=(0, 1, 2, 5),
         selectors=selectors,
         output=vl.EMetricOut.D_MINUS,
     )
     field = result.metrics["temperature"][vl.EMetricType.MAVM]
-    for point, ax in zip((0, 5), axes.flat, strict=True):
+    assert axes.shape == (2, 2)
+    for point, ax in zip((0, 1, 2, 5), axes.flat, strict=True):
         np.testing.assert_allclose(
             ax.lines[0].get_ydata(),
             field.outputs[vl.EMetricOut.D_MINUS][point, 0, :, 1, 2],
@@ -352,6 +353,35 @@ def test_plot_metric_extrema_time_shows_both_mavm_extrema() -> None:
         np.testing.assert_array_equal(line.get_xdata(), times)
         np.testing.assert_allclose(line.get_ydata(), expected)
     assert axis.get_ylabel() == "MAVM [degC]"
+    plt.close(fig)
+
+
+def test_relative_error_labels_use_plot_options() -> None:
+    tag = "temperature"
+    metric = vl.EMetricType.RELATIVE_ERROR
+    observable = vl.ValidObservable(
+        components=(tag,), geometry=vl.EValidGeometry.GLOBAL, times=np.array([0.0, 1.0])
+    )
+    axes = (vl.EValidAxis.TIME, vl.EValidAxis.ALEATORY)
+    test_case = vl.ValidCase(
+        {tag: observable},
+        {tag: vl.ValidArray(np.array([[1.0], [2.0]]), axes)},
+        {tag: vl.ValidArray(np.array([[2.0], [3.0]]), axes)},
+    )
+    result = vl.ValidEngine([vl.MetricRelErr()]).run(test_case)
+    fig, ax = vl.plot_valid_metric_time(result, tag, metric)
+    assert ax.get_legend_handles_labels()[1] == ["Rel Err"]
+    assert ax.get_ylabel() == "Rel Err [-]"
+    plt.close(fig)
+
+    options = vl.ValidPlotOpts(metric_labels={metric: "Relative error"})
+    profile = vl.profile_epis_nuisance_extrema(result, tag, metric)
+    fig, panels = vl.plot_metric_extrema_time(
+        result, tag, metric, profile=profile, valid_plot_opts=options
+    )
+    assert panels[0, 0].get_legend_handles_labels()[1] == [
+        "Relative error min", "Relative error max",
+    ]
     plt.close(fig)
 
 

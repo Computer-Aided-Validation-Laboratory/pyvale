@@ -113,8 +113,10 @@ for mm in (
         valid_case, observable_tag
     )
     vl.add_metric_overlay(overlay_plot, mm)
+
     if mm.get_kind() is vl.EMetricType.AVM:
         vl.add_normalised_ecdf_axis(overlay_plot, 2.0)
+
     overlay_plot.figure.savefig(
         output_path
         / (
@@ -123,6 +125,7 @@ for mm in (
         ),
         bbox_inches="tight",
     )
+
     if not SHOW_PLOTS:
         plt.close(overlay_plot.figure)
 
@@ -136,6 +139,7 @@ area_plot.figure.savefig(
     output_path / f"val_ex01_fig{next(figure_numbers):02d}_avm_area.png",
     bbox_inches="tight",
 )
+
 if not SHOW_PLOTS:
     plt.close(area_plot.figure)
 
@@ -144,28 +148,34 @@ for oo, dd in (
     (vl.EMetricOut.D_MINUS, "d_minus"),
 ):
     area_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
+
     vl.add_metric_overlay(
         area_plot,
         vl.MetricMAVM(),
         output=oo,
         display=vl.EMetricDisp.INTEGRATION_AREA,
     )
+
     area_plot.figure.savefig(
         output_path / f"val_ex01_fig{next(figure_numbers):02d}_mavm_{dd}_area.png",
         bbox_inches="tight",
     )
+
     if not SHOW_PLOTS:
         plt.close(area_plot.figure)
 
 supports = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
+
 ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
 vl.add_support_overlay(ecdf_plot, supports)
+
 ecdf_plot.figure.savefig(
     output_path / f"val_ex01_fig{next(figure_numbers):02d}_mavm_support_envelope.png",
     bbox_inches="tight",
 )
+
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 

@@ -77,6 +77,9 @@ sens_times = np.linspace(nominal_sim.time[0], nominal_sim.time[-1], 5)
 strain_norm_keys = ("strain_xx", "strain_yy", "strain_zz")
 strain_dev_keys = ("strain_xy", "strain_xz", "strain_yz")
 strain_keys = (*strain_norm_keys, *strain_dev_keys)
+for ss in sims.values():
+    for kk in strain_keys:
+        ss.node_vars[kk] = ss.node_vars[kk] * 1.0e6
 
 sensor_data = sens.SensorData(positions=sens_coords, sample_times=sens_times)
 
@@ -89,14 +92,14 @@ strain_sensors: sens.SensorsPoint = sens.SensorFactory.tensor_point(
     descriptor=sens.SensorDescriptor(
         name="Strain",
         symbol=r"\varepsilon",
-        units="-",
+        units="µε",
         tag="SG",
         components=("xx", "yy", "zz", "xy", "xz", "yz"),
     ),
 )
 
 
-err_chain = [sens.ErrRandGen(sens.GenNormal(std=1.0e-7, seed=42))]
+err_chain = [sens.ErrRandGen(sens.GenNormal(std=0.1, seed=42))]
 strain_sensors.set_error_chain(err_chain)
 
 
@@ -112,7 +115,7 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=sens_coords,
         times=sens_times,
-        phys_units="-",
+        phys_units="µε",
         coord_units="mm",
         time_units="s",
     )
@@ -186,7 +189,7 @@ for ii, kk in enumerate(strain_keys):
         point_idxs=point_idxs,
         component_idx=ii,
         time_idx=4,
-        valid_plot_opts=vl.ValidPlotOpts(x_label=f"{kk} [-]"),
+        valid_plot_opts=vl.ValidPlotOpts(x_label=f"{kk} [µε]", x_axis_offset=False),
     )
     ecdf_plot.figure.savefig(
         output_path / f"val_ex09_fig{next(figure_numbers):02d}_{kk}_cdfs.png",

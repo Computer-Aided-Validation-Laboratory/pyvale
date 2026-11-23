@@ -40,14 +40,14 @@ with np.load(
 ) as saved:
     coords: np.ndarray = saved["coords"].copy()
     sim_temp: np.ndarray = saved["sim_temp"].copy()  # (12, 1, 6)
-    sim_strain: np.ndarray = saved["sim_strain"].copy()  # (12, 3, 6)
+    sim_strain: np.ndarray = saved["sim_strain"] * 1.0e6  # (12, 3, 6)
 
 x_fraction = (coords[:, 0] - np.min(coords[:, 0])) / np.ptp(coords[:, 0])
 temperature_bias = 3.0 * x_fraction
 exp_temp = sim_temp + temperature_bias[:, None, None]
 exp_strain = (
     sim_strain
-    + x_fraction[:, None, None] * np.array([20.0e-6, -10.0e-6, 5.0e-6])[None, :, None]
+    + x_fraction[:, None, None] * np.array([20.0, -10.0, 5.0])[None, :, None]
 )
 
 # %%
@@ -66,7 +66,7 @@ observables = {
         components=("strain_xx", "strain_yy", "strain_xy"),
         geometry=vl.EValidGeometry.POINT,
         coords=coords,
-        phys_units="-",
+        phys_units="µε",
         coord_units="mm",
     ),
 }

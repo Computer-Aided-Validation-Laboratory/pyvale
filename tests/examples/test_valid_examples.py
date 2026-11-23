@@ -105,6 +105,7 @@ EXAMPLES = (
             "ks_nuis_envelope_gap.png",
             "ks_nuis_prof_median_gap.png",
             "mavm_support_envelope_original_pairs.png",
+            "mavm_support_envelope_nuis_prof_median.png",
         ),
     ),
     (

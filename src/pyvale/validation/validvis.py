@@ -6,7 +6,7 @@
 
 """PyVista views of validation points over optional simulation geometry/fields."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pyvista as pv
@@ -18,7 +18,11 @@ from pyvale.sensorsim.visualopts import VisOptsSimSensors
 from pyvale.sensorsim.visualtools import create_pv_plotter
 from pyvale.validation.metricstrategy import EMetricScale, EMetricType
 from pyvale.validation.arraychecks import _validate_real_array
-from pyvale.validation.validtools import _create_metric_label, extract_metric_values
+from pyvale.validation.validtools import (
+    _create_default_metric_labels,
+    _create_metric_label,
+    extract_metric_values,
+)
 from pyvale.validation.validtypes import (
     EMetricOut,
     EValidResAxis,
@@ -39,6 +43,9 @@ class MetricVisOpts:
     labels_always_visible: bool = False
     title: str | None = None
     metric_label: str | None = None
+    metric_labels: dict[EMetricType, str] = field(
+        default_factory=_create_default_metric_labels
+    )
 
 
 def create_valid_scene_opts(*, interactive: bool = False) -> VisOptsSimSensors:
@@ -238,7 +245,9 @@ def plot_metric_on_sim(
         else observable_data.phys_units
     )
     units = "-" if units in ("1", "") else units
-    metric_label = metric_options.metric_label or _create_metric_label(metric, output)
+    metric_label = metric_options.metric_label or _create_metric_label(
+        metric, output, metric_labels=metric_options.metric_labels
+    )
     bar_label = metric_label
     component_idx = (selectors or {}).get(EValidResAxis.COMPONENT, 0)
     quantity_label = observable_data.components[component_idx]

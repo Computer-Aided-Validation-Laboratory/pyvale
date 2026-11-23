@@ -151,6 +151,36 @@ mavm_plot.figure.savefig(
     bbox_inches="tight",
 )
 
+fig, plot_axes = vl.create_valid_plot_grid(len(coords))
+for ii, aa in enumerate(plot_axes.flat):
+    sim_bounds = vl.find_ecdf_epis_bounds(
+        valid_case.sim[observable_tag], point_idx=ii, nuis_reduce=median_view.nuis_reduce
+    )
+    exp_bounds = vl.find_ecdf_epis_bounds(
+        valid_case.exp[observable_tag], point_idx=ii, nuis_reduce=median_view.nuis_reduce
+    )
+    median_mavm_plot = vl.plot_sim_exp_cdfs(
+        valid_case,
+        observable_tag,
+        point_idxs=(ii,),
+        sim_view=median_view,
+        exp_view=median_view,
+        ax=aa,
+    )
+    vl.add_support_overlay(
+        median_mavm_plot, vl.calc_mavm_over_epis_bounds(sim_bounds, exp_bounds)
+    )
+
+fig.suptitle("MAVM support envelope between median nuisance profile bounds")
+fig.savefig(
+    output_path
+    / (
+        f"val_ex05_fig{next(figure_numbers):02d}_"
+        "mavm_support_envelope_nuis_prof_median.png"
+    ),
+    bbox_inches="tight",
+)
+
 if SHOW_PLOTS:
     plt.show()
 else:

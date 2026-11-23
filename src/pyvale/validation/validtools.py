@@ -73,11 +73,23 @@ def _build_metric_selection(
     return tuple(selection)
 
 
-def _create_metric_label(metric: EMetricType, output: EMetricOut) -> str:
-    if metric in (EMetricType.RMSE, EMetricType.CVM):
-        return metric.name
-    if metric is EMetricType.RELATIVE_ERROR:
-        return "Rel Err"
+def _create_default_metric_labels() -> dict[EMetricType, str]:
+    return {EMetricType.RELATIVE_ERROR: "Rel Err"}
+
+
+def _create_metric_label(
+    metric: EMetricType,
+    output: EMetricOut | None = None,
+    *,
+    metric_labels: dict[EMetricType, str],
+) -> str:
+    label = metric_labels.get(metric, metric.name)
+    if output is None or metric in (
+        EMetricType.RMSE,
+        EMetricType.CVM,
+        EMetricType.RELATIVE_ERROR,
+    ):
+        return label
     output_label = {
         EMetricOut.D_PLUS: "d+",
         EMetricOut.D_MINUS: "d−",
@@ -85,4 +97,4 @@ def _create_metric_label(metric: EMetricType, output: EMetricOut) -> str:
         EMetricOut.STATISTIC: "statistic",
         EMetricOut.ERROR: "error",
     }[output]
-    return f"{metric.name} {output_label}"
+    return f"{label} {output_label}"

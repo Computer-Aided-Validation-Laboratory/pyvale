@@ -35,15 +35,15 @@ output_path.mkdir(parents=True, exist_ok=True)
 figure_numbers = count(1)
 
 # %%
-# 1. Load and transform data
+# 1. Load & transform data
 # ------------------------------------------------------------
 with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
     coords: np.ndarray = saved["coords"].copy()
     times: np.ndarray = saved["times"].copy()
     sim_temp: np.ndarray = saved["sim_temp"].copy()
     exp_temp: np.ndarray = saved["exp_temp"].copy()
-    sim_strain: np.ndarray = saved["sim_strain"].copy()
-    exp_strain: np.ndarray = saved["exp_strain"].copy()
+    sim_strain: np.ndarray = saved["sim_strain"] * 1.0e6
+    exp_strain: np.ndarray = saved["exp_strain"] * 1.0e6
 
 exp_temp_sort_order = np.argsort(exp_temp, axis=-1, stable=True)
 exp_temp_ranks = np.argsort(exp_temp_sort_order, axis=-1)
@@ -53,6 +53,8 @@ nominal_temp_by_exp_rank = np.take_along_axis(
 exp_temp += 0.25 * (nominal_temp_by_exp_rank - exp_temp)
 
 # %%
+# 2. Setup a validation case
+# ------------------------------------------------------------
 temperature_tag = "plate_temperature"
 strain_tag = "plate_strain"
 
@@ -71,7 +73,7 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
-        phys_units="-",
+        phys_units="µε",
         coord_units="mm",
         time_units="s",
     ),
@@ -111,15 +113,12 @@ exp_arrays = {
 valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 
 # %%
-# 2. Run validation analysis
+# 3. Run validation analysis & inspect output
 # ------------------------------------------------------------
 valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM()]
 ).run(valid_case)
 
-# %%
-# 3. Post-processing and inspect data structures
-# ------------------------------------------------------------
 metric_field: vl.MetricField = valid_result.metrics[temperature_tag][
     vl.EMetricType.MAVM
 ]
@@ -131,7 +130,7 @@ print("Simulation shape:", sim_arrays[temperature_tag].data.shape)
 print("Result axes:", metric_axes, "shape:", metric_shape)
 
 # %%
-# 4. Analysis and visualisation
+# 4. Visualisation & analysis
 # ------------------------------------------------------------
 
 point_idxs = tuple(range(len(coords)))

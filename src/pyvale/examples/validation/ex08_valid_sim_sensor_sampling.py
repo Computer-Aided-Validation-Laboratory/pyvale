@@ -44,6 +44,8 @@ sens.scale_length_units(1000.0, sim_data, disp_keys=disp_keys)
 temp_key = "temperature"
 strain_norm_keys = ("strain_xx", "strain_yy", "strain_zz")
 strain_shear_keys = ("strain_xy", "strain_xz", "strain_yz")
+for kk in (*strain_norm_keys, *strain_shear_keys):
+    sim_data.node_vars[kk] = sim_data.node_vars[kk] * 1.0e6
 
 sim_times = sim_data.time
 if sim_data.glob_vars is None:
@@ -82,7 +84,7 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=sens_coords,
         times=sens_times,
-        phys_units="-",
+        phys_units="µε",
         coord_units="mm",
         time_units="s",
     ),
@@ -147,7 +149,7 @@ exp_disp_bias = (
     0.002 * spatial_time_ramp * np.array([1.0, -0.5, 0.25])[None, :, None]
 )
 exp_strain_bias = (
-    20.0e-6
+    20.0
     * spatial_time_ramp
     * np.array([1.0, -0.5, 0.25, 0.1, -0.1, 0.2])[None, :, None]
 )
@@ -155,7 +157,7 @@ exp_mean_temp_bias = time_fraction[None, None, :]
 
 exp_temp_repeat_offsets = np.array([-0.02, 0.0, 0.02])
 exp_disp_repeat_offsets = np.array([-2.0e-6, 0.0, 2.0e-6])
-exp_strain_repeat_offsets = np.array([-2.0e-8, 0.0, 2.0e-8])
+exp_strain_repeat_offsets = np.array([-0.02, 0.0, 0.02])
 
 synth_exp_samples: dict[str, vl.ValidArray] = {}
 for kk, ss, bb, rr in (
@@ -202,7 +204,12 @@ for kk, ii in (
     ("strain_local", 0),
 ):
     ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
-        valid_case, kk, point_idxs=None, component_idx=ii, time_idx=4
+        valid_case,
+        kk,
+        point_idxs=None,
+        component_idx=ii,
+        time_idx=4,
+        valid_plot_opts=vl.ValidPlotOpts(x_axis_offset=kk != "strain_local"),
     )
     ecdf_plot.figure.savefig(
         output_path / f"val_ex08_fig{next(figure_numbers):02d}_{kk}_cdfs.png",

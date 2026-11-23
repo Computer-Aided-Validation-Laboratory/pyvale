@@ -42,6 +42,7 @@ from pyvale.validation.validecdf import (
 from pyvale.validation.validprofile import _mavm_confidence_shifts
 from pyvale.validation.validtools import (
     _build_metric_selection,
+    _create_default_metric_labels,
     _create_metric_label,
     extract_metric_values,
     select_metric_output,
@@ -68,9 +69,13 @@ class ValidPlotOpts:
 
     title: str | None = None
     x_label: str | None = None
+    x_axis_offset: bool = True
     y_label: str | None = None
     sim_label: str = "Sim"
     exp_label: str = "Exp"
+    metric_labels: dict[EMetricType, str] = field(
+        default_factory=_create_default_metric_labels
+    )
     sim_color: str = "tab:blue"
     exp_color: str = "tab:orange"
     sim_profile_color: str = "#008b95"
@@ -180,7 +185,7 @@ def _apply_plot_options(
     fig.set_dpi(options.resolution)
     ax.tick_params(labelsize=options.font_tick_size)
     ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
-    ax.xaxis.set_major_formatter(ScalarFormatter(useOffset=True))
+    ax.xaxis.set_major_formatter(ScalarFormatter(useOffset=options.x_axis_offset))
     ax.xaxis.get_offset_text().set_fontsize(options.font_tick_size)
     for text in (ax.title, ax.xaxis.label, ax.yaxis.label):
         text.set_fontname(options.font_name)
@@ -907,10 +912,15 @@ def add_support_overlay(
         prepared.append((lower, upper))
     options = plot.options
     if label is None:
+        label = (
+            "Support"
+            if supports.metric is None
+            else _create_metric_label(
+                supports.metric, metric_labels=options.metric_labels
+            )
+        )
         if supports.metric is EMetricType.MAVM and output is None:
-            label = "MAVM supp"
-        else:
-            label = supports.metric.name if supports.metric is not None else "Support"
+            label = f"{label} supp"
     for ax, (lower, upper) in zip(plot.axes.flat, prepared, strict=False):
         if np.array_equal(lower, upper):
             continue
@@ -1129,7 +1139,10 @@ def add_metric_overlay(
                         values[row, column] = metric_values[output_indices[0]]
         prepared.append((sim, exp, sim_indices, exp_indices, values))
     options = plot.options
-    metric_label = kind.name if output is None else _create_metric_label(kind, output)
+    metric_name = _create_metric_label(kind, metric_labels=options.metric_labels)
+    metric_label = _create_metric_label(
+        kind, output, metric_labels=options.metric_labels
+    )
     for ax, (sim, exp, sim_indices, exp_indices, values) in zip(
         plot.axes.flat, prepared, strict=False
     ):
@@ -1160,7 +1173,7 @@ def add_metric_overlay(
                 color=options.metric_color,
                 alpha=options.metric_alpha,
                 zorder=0.5,
-                label="MAVM supp" if full_support else kind.name,
+                label=f"{metric_name} supp" if full_support else metric_name,
             )
             _plot_quantile_curve(
                 ax,
@@ -1229,7 +1242,7 @@ def add_metric_overlay(
                 facecolor=to_rgba(options.metric_color, options.metric_alpha),
                 edgecolor=options.metric_line_color,
                 linewidth=options.lw,
-                label=metric_label if kind is EMetricType.MAVM else kind.name,
+                label=metric_label if kind is EMetricType.MAVM else metric_name,
             )
         elif display is EMetricDisp.CDF_DIFFERENCE:
             if comparison is not None or len(sim_indices) == len(exp_indices) == 1:
@@ -1270,10 +1283,10 @@ def add_metric_overlay(
                     color=options.metric_line_color,
                     linestyle=options.metric_linestyle,
                     marker="_",
-                    label="KS" if pair_index == 0 else None,
+                    label=metric_name if pair_index == 0 else None,
                     linewidth=options.lw,
                 )
-            annotation = f"KS = {gaps[0]:.2f}"
+            annotation = f"{metric_name} = {gaps[0]:.2f}"
             if len(gaps) == 2:
                 annotation += f" / {gaps[1]:.2f} (lower / upper)"
         else:
@@ -1336,10 +1349,10 @@ def plot_valid_metric_time(
     fig, ax = _create_axes(ax, valid_plot_opts)
     options = valid_plot_opts or ValidPlotOpts()
     for direction, trace in zip(outputs, traces, strict=True):
-        trace_label = (
-            _create_metric_label(metric, direction)
-            if metric is EMetricType.MAVM
-            else metric.name
+        trace_label = _create_metric_label(
+            metric,
+            direction if metric is EMetricType.MAVM else None,
+            metric_labels=options.metric_labels,
         )
         negative = direction is EMetricOut.D_MINUS
         ax.plot(
@@ -1353,7 +1366,11 @@ def plot_valid_metric_time(
     ax.legend()
     time_units = result.observables[observable].time_units
     ax.set_xlabel(f"Time [{time_units}]" if time_units else "Time")
-    label = "MAVM" if len(outputs) == 2 else _create_metric_label(metric, outputs[0])
+    label = _create_metric_label(
+        metric,
+        outputs[0] if len(outputs) == 1 else None,
+        metric_labels=options.metric_labels,
+    )
     ax.set_ylabel(f"{label} [{_metric_units(result, observable, metric)}]")
     ax.set_title(observable)
     ax.grid(alpha=0.3)
@@ -1389,10 +1406,10 @@ def plot_metric_dist(
         edgecolor=options.metric_line_color,
         linewidth=options.lw,
     )
-    ax.set_xlabel(
-        f"{_create_metric_label(metric, output)} "
-        f"[{_metric_units(result, observable, metric)}]"
+    metric_label = _create_metric_label(
+        metric, output, metric_labels=options.metric_labels
     )
+    ax.set_xlabel(f"{metric_label} [{_metric_units(result, observable, metric)}]")
     ax.set_ylabel("Cell count")
     ax.set_title(observable)
     _apply_plot_options(fig, ax, valid_plot_opts)
@@ -1456,10 +1473,13 @@ def plot_metric_time_points(
     point_idxs: tuple[int, ...],
     selectors: dict[EValidResAxis, int] | None = None,
     output: EMetricOut | None = None,
-    columns: int = 3,
+    columns: int | None = None,
     valid_plot_opts: ValidPlotOpts | None = None,
 ) -> tuple[Figure, np.ndarray]:
-    """Plot a selected scenario per point. MAVM defaults to both directions."""
+    """Plot a selected scenario per point. MAVM defaults to both directions.
+
+    The panel grid is sized from the point count unless columns is supplied.
+    """
     field = result.metrics[observable][metric]
     validation_output = (
         EMetricOut.D_PLUS
@@ -1569,15 +1589,17 @@ def plot_metric_extrema_time(
     )
     options = valid_plot_opts or ValidPlotOpts()
     time_units = observable_data.time_units
-    metric_label = (
-        "MAVM" if len(outputs) == 2 else _create_metric_label(metric, outputs[0])
+    metric_label = _create_metric_label(
+        metric,
+        outputs[0] if len(outputs) == 1 else None,
+        metric_labels=options.metric_labels,
     )
     for point_idx, point_traces, ax in zip(points, traces, axes.flat, strict=False):
         for direction, (lower, upper) in zip(outputs, point_traces, strict=True):
-            label = (
-                _create_metric_label(metric, direction)
-                if metric is EMetricType.MAVM
-                else metric.name
+            label = _create_metric_label(
+                metric,
+                direction if metric is EMetricType.MAVM else None,
+                metric_labels=options.metric_labels,
             )
             marker = "s" if direction is EMetricOut.D_MINUS else "o"
             ax.plot(
@@ -1648,7 +1670,13 @@ def plot_metric_extrema_ecdfs(
         }
         panels.append((bound, score, comparison_indices))
 
-    fig, axes = create_valid_plot_grid(2, rows=1, valid_plot_opts=valid_plot_opts)
+    options = valid_plot_opts or ValidPlotOpts()
+    fig, axes = create_valid_plot_grid(2, rows=1, valid_plot_opts=options)
+    label = _create_metric_label(
+        metric,
+        output if metric is EMetricType.MAVM else None,
+        metric_labels=options.metric_labels,
+    )
     for ax, (bound, score, comparison_indices) in zip(axes.flat, panels, strict=True):
         sim_trans = comparison_indices.get(EValidResAxis.SIM_TRANS, 0)
         sim_nuis = comparison_indices.get(EValidResAxis.SIM_NUIS, 0)
@@ -1666,7 +1694,7 @@ def plot_metric_extrema_ecdfs(
             point_idxs=(comparison_indices.get(EValidResAxis.POINT, 0),),
             component_idx=comparison_indices.get(EValidResAxis.COMPONENT, 0),
             time_idx=comparison_indices.get(EValidResAxis.TIME, 0),
-            valid_plot_opts=valid_plot_opts,
+            valid_plot_opts=options,
             ax=ax,
         )
         sim_case = f"Sim. trans. {sim_trans}, nuis. {sim_nuis}"
@@ -1675,11 +1703,6 @@ def plot_metric_extrema_ecdfs(
             sim_case += f", {sim_offset.name.lower()} offset"
         if EValidResAxis.EXP_OFFSET in comparison_indices:
             exp_case += f", {exp_offset.name.lower()} offset"
-        label = (
-            _create_metric_label(metric, output)
-            if metric is EMetricType.MAVM
-            else metric.name
-        )
         ax.set_title(f"{bound} {label} = {score:.4g}\n{sim_case}\n{exp_case}")
     return fig, axes
 
@@ -1832,6 +1855,10 @@ def plot_valid_mavm_diagnostic(
         )
         lower = _evaluate_ecdf_quantiles(lower_cdf, probabilities)
         upper = _evaluate_ecdf_quantiles(upper_cdf, probabilities)
+        metric_name = _create_metric_label(
+            EMetricType.MAVM, metric_labels=options.metric_labels
+        )
+        support_label = f"{metric_name} supp"
         if options.shade_bounds:
             ax.fill_betweenx(
                 np.r_[0.0, probabilities],
@@ -1841,7 +1868,7 @@ def plot_valid_mavm_diagnostic(
                 color=options.metric_color,
                 alpha=options.metric_alpha,
                 zorder=0.5,
-                label="MAVM supp",
+                label=support_label,
             )
         _plot_quantile_curve(
             ax,
@@ -1849,7 +1876,7 @@ def plot_valid_mavm_diagnostic(
             probabilities,
             color=options.metric_line_color,
             linestyle=options.metric_linestyle,
-            label=None if options.shade_bounds else "MAVM supp",
+            label=None if options.shade_bounds else support_label,
             linewidth=options.lw,
         )
         _plot_quantile_curve(

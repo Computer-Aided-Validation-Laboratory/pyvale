@@ -73,6 +73,7 @@ avm_original: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
 mavm_original: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
+
 # %%
 for rr, aa, mm in (
     ("bounds", avm_bounds, mavm_bounds),

@@ -116,6 +116,7 @@ for mm, ff in valid_result.metrics[observable_tag].items():
             vl.EValidResAxis.EXP_TRANS: 0,
         },
     )
+    fig.suptitle("Nuisance metric extrema | Sim Trans 0, Exp Trans 0")
     profile_name = mm.name.lower()
     if len(ff.outputs) == 1:
         profile_name += f"_{next(iter(ff.outputs)).name.lower()}"
@@ -145,6 +146,7 @@ fig, _ = vl.plot_metric_extrema_ecdfs(
         vl.EValidResAxis.EXP_TRANS: 0,
     },
 )
+fig.suptitle("Controlling nuisance pairs | First site, final time")
 fig.savefig(
     output_path
     / (
@@ -167,12 +169,14 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     time_idx=2,
     sim_view=vl.ValidECDFView(trans_idxs=(0,)),
     exp_view=vl.ValidECDFView(trans_idxs=(0,)),
+    valid_plot_opts=vl.ValidPlotOpts(sim_label="Sim Nuis Env", exp_label="Exp Nuis Env"),
 )
 vl.add_support_overlay(
     ecdf_plot,
     supports,
     selectors={vl.EValidResAxis.SIM_TRANS: 0, vl.EValidResAxis.EXP_TRANS: 0},
 )
+ecdf_plot.figure.suptitle("MAVM over nuisance pairs | Sim Trans 0, Exp Trans 0")
 ecdf_plot.figure.savefig(
     output_path
     / (
@@ -192,6 +196,7 @@ ecdf_plot = vl.plot_sim_exp_cdfs(
 vl.add_support_overlay(
     ecdf_plot, avm_supports
 )
+ecdf_plot.figure.suptitle("AVM over all original scenario pairs")
 ecdf_plot.figure.savefig(
     output_path / f"val_ex06_fig{next(figure_numbers):02d}_avm_original_support.png",
     bbox_inches="tight",
@@ -212,6 +217,7 @@ for ss in vl.EValidNuisanceScore:
         by_case, score=ss
     )
     score_name = ss.name.lower()
+    score_label = score_name.replace("_", " ")
     valid_count = int(ranking.valid_counts[0, 0, 2])
     order = ranking.order[0, 0, 2]
     selected_rows = (
@@ -229,6 +235,10 @@ for ss in vl.EValidNuisanceScore:
             time_idx=2,
             sim_view=vl.ValidECDFView(nuis_idxs=(sim_nuis,)),
             exp_view=vl.ValidECDFView(nuis_idxs=(exp_nuis,)),
+            valid_plot_opts=vl.ValidPlotOpts(
+                sim_label=f"Sim Nuis {sim_nuis}",
+                exp_label=f"Exp Nuis {exp_nuis}",
+            ),
         )
         vl.add_support_overlay(
             ecdf_plot,
@@ -237,6 +247,9 @@ for ss in vl.EValidNuisanceScore:
                 vl.EValidResAxis.SIM_NUIS: sim_nuis,
                 vl.EValidResAxis.EXP_NUIS: exp_nuis,
             },
+        )
+        ecdf_plot.figure.suptitle(
+            f"MAVM nuisance rank | {nn.title()} by {score_label}"
         )
         ecdf_plot.figure.savefig(
             output_path

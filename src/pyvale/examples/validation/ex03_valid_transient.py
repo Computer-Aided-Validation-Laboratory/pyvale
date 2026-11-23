@@ -35,13 +35,13 @@ with np.load(dataset.valid_data_dir() / "plate_validation_2d_nominal.npz") as sa
     coords: np.ndarray = saved["coords"].copy()
     times: np.ndarray = saved["times"].copy()
     sim_temp: np.ndarray = saved["sim_temp"].copy()  # (12, 1, 5, 6)
-    sim_strain: np.ndarray = saved["sim_strain"].copy()
+    sim_strain: np.ndarray = saved["sim_strain"] * 1.0e6
 
 x_fraction = (coords[:, 0] - np.min(coords[:, 0])) / np.ptp(coords[:, 0])
 time_fraction = (times - times[0]) / (times[-1] - times[0])
 temperature_bias = (2.0 + 3.0 * x_fraction[:, None]) * time_fraction
 exp_temp = sim_temp + temperature_bias[:, None, :, None]
-strain_bias = (20.0e-6 * x_fraction[:, None] + 10.0e-6) * time_fraction
+strain_bias = (20.0 * x_fraction[:, None] + 10.0) * time_fraction
 exp_strain = sim_strain + strain_bias[:, None, :, None]
 
 # %%
@@ -63,12 +63,11 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
-        phys_units="-",
+        phys_units="µε",
         coord_units="mm",
         time_units="s",
     ),
 }
-
 
 sim_axes = (
     vl.EValidAxis.POINT,
