@@ -21,11 +21,14 @@ from pyvale.validation.cython.mavm import (
     _PreparedECDF,
     _PreparedMAVMExp,
 )
-from pyvale.validation.metrics import _validate_relative_error_config
-from pyvale.validation.metricstrategy import (
+from pyvale.validation.imetric import (
     EMetricComparison,
+    EMetricOut,
     EMetricType,
     IValidMetric,
+)
+from pyvale.validation.metrics import _validate_relative_error_config
+from pyvale.validation.metricstrategy import (
     MetricAVM,
     MetricCVM,
     MetricKS,
@@ -43,13 +46,13 @@ from pyvale.validation.validtypes import (
     VALID_RES_AXES,
     EEpisOffset,
     EMAVMDuplicates,
-    EMetricOut,
     EValidAxis,
     EValidResAxis,
     ValidArray,
     ValidCase,
     MetricField,
     ValidResult,
+    _get_axis_size,
 )
 
 
@@ -153,15 +156,12 @@ class ValidEngine:
         for name, observable in valid_case.observables.items():
             sim = valid_case.sim[name]
             exp = valid_case.exp[name]
-            leng_pt = 1
-            if observable.coords is not None:
-                leng_pt = observable.coords.shape[0]
             leng_comp = len(observable.components)
             leng_time = 1
             if observable.times is not None:
                 leng_time = observable.times.shape[0]
             axis_sizes = {
-                EValidResAxis.POINT: leng_pt,
+                EValidResAxis.POINT: _get_axis_size(sim, EValidAxis.POINT),
                 EValidResAxis.COMPONENT: leng_comp,
                 EValidResAxis.TIME: leng_time,
                 EValidResAxis.SIM_TRANS: _get_axis_size(
@@ -181,19 +181,19 @@ class ValidEngine:
                     retained_axes.append(axis)
             axes = tuple(retained_axes)
             shape = tuple(axis_sizes[axis] for axis in axes)
-            scenarios = {}
+            epis_offsets = {}
             for axis in (EValidResAxis.SIM_OFFSET, EValidResAxis.EXP_OFFSET):
                 if axis in axes:
-                    scenarios[axis] = tuple(EEpisOffset)
+                    epis_offsets[axis] = tuple(EEpisOffset)
             metric_fields = {}
             for metric in self.metrics:
                 metric_fields[metric.get_kind()] = MetricField(
                     axes=axes,
-                    outputs={
+                    metric_vals={
                         output: np.full(shape, np.nan)
                         for output in metric.get_outputs()
                     },
-                    scenarios=scenarios or None,
+                    epis_offsets=epis_offsets or None,
                 )
             full_shape = tuple(axis_sizes[axis] for axis in VALID_RES_AXES)
             workloads.append(_Workload(name, sim, exp, full_shape, 0, prod(full_shape)))
@@ -254,12 +254,6 @@ class ValidEngine:
         return ValidResult(
             observables=valid_case.observables, metrics=results, metric_configs=configs
         )
-
-
-def _get_axis_size(quantity: ValidArray, axis: EValidAxis) -> int:
-    if axis not in quantity.axes:
-        return 1
-    return quantity.data.shape[quantity.axes.index(axis)]
 
 
 def _slice_points(quantity: ValidArray, start: int, stop: int) -> ValidArray:
@@ -456,7 +450,7 @@ def _store_chunk(
     for metric in metrics:
         field = metric_fields[metric.get_kind()]
         for output in metric.get_outputs():
-            field.outputs[output].reshape(-1)[start:stop] = calculated[output_idx]
+            field.metric_vals[output].reshape(-1)[start:stop] = calculated[output_idx]
             output_idx += 1
 
 

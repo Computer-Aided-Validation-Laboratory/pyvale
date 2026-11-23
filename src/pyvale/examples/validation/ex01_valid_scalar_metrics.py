@@ -27,7 +27,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex01_scalar_metrics"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 sim_data = np.array([0.0, 1.0, 2.0])
@@ -87,7 +87,7 @@ print("Simulation axes and shape:", sim_response.axes, sim_response.data.shape)
 print("Experiment axes and shape:", exp_response.axes, exp_response.data.shape)
 print(80*"-")
 for tt, ff in metrics.items():
-    print(tt.name, ff.axes, ff.outputs)
+    print(tt.name, ff.axes, ff.metric_vals)
 print(80*"-")
 
 # %%
@@ -96,10 +96,8 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     observable_tag,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Observable [unit]"),
 )
-ecdf_plot.figure.savefig(
-    output_path / f"val_ex01_fig{next(figure_numbers):02d}_observable_cdfs.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex01_fig{next(fig_nums):02d}_observable_cdfs.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
 for mm in (
@@ -117,14 +115,11 @@ for mm in (
     if mm.get_kind() is vl.EMetricType.AVM:
         vl.add_normalised_ecdf_axis(overlay_plot, 2.0)
 
-    overlay_plot.figure.savefig(
-        output_path
-        / (
-            f"val_ex01_fig{next(figure_numbers):02d}_"
-            f"{mm.get_kind().name.lower()}_overlay.png"
-        ),
-        bbox_inches="tight",
+    fig_file = (
+        f"val_ex01_fig{next(fig_nums):02d}_"
+        f"{mm.get_kind().name.lower()}_overlay.png"
     )
+    overlay_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
     if not SHOW_PLOTS:
         plt.close(overlay_plot.figure)
@@ -135,10 +130,8 @@ area_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
 vl.add_metric_overlay(
     area_plot, vl.MetricAVM(), display=vl.EMetricDisp.INTEGRATION_AREA
 )
-area_plot.figure.savefig(
-    output_path / f"val_ex01_fig{next(figure_numbers):02d}_avm_area.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex01_fig{next(fig_nums):02d}_avm_area.png"
+area_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 if not SHOW_PLOTS:
     plt.close(area_plot.figure)
@@ -156,10 +149,8 @@ for oo, dd in (
         display=vl.EMetricDisp.INTEGRATION_AREA,
     )
 
-    area_plot.figure.savefig(
-        output_path / f"val_ex01_fig{next(figure_numbers):02d}_mavm_{dd}_area.png",
-        bbox_inches="tight",
-    )
+    fig_file = f"val_ex01_fig{next(fig_nums):02d}_mavm_{dd}_area.png"
+    area_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
     if not SHOW_PLOTS:
         plt.close(area_plot.figure)
@@ -171,10 +162,8 @@ supports = vl.find_metric_epis_supports(
 ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag)
 vl.add_support_overlay(ecdf_plot, supports)
 
-ecdf_plot.figure.savefig(
-    output_path / f"val_ex01_fig{next(figure_numbers):02d}_mavm_support_envelope.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex01_fig{next(fig_nums):02d}_mavm_support_envelope.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)

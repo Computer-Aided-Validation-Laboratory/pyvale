@@ -23,14 +23,12 @@ from pyvale.validation.constants import (
     MAVM_DUPLICATE_TOLERANCE,
     MAVM_PROBABILITY_TOLERANCE,
 )
+from pyvale.validation.imetric import MAVMResult
 from pyvale.validation.validchecks import (
     _validate_finite_sample,
     _validate_mavm_config,
 )
-from pyvale.validation.validtypes import (
-    EMAVMDuplicates,
-    MAVMResult,
-)
+from pyvale.validation.validtypes import EMAVMDuplicates
 
 try:
     import cython

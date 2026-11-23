@@ -21,8 +21,8 @@ from pyvale.validation.ecdftypes import (
     ValidECDF,
     ValidECDFBounds,
 )
+from pyvale.validation.imetric import EMetricOut, EMetricType
 from pyvale.validation.metrics import calc_mavm_1d
-from pyvale.validation.metricstrategy import EMetricType
 from pyvale.validation.validecdf import (
     _evaluate_ecdf_quantiles,
     _find_quantile_limits,
@@ -33,7 +33,6 @@ from pyvale.validation.validtools import _build_metric_selection
 from pyvale.validation.validtypes import (
     EEpisOffset,
     EMAVMDuplicates,
-    EMetricOut,
     EValidResAxis,
     MAVMBoundPairs,
     MetricField,
@@ -105,7 +104,7 @@ def find_metric_epis_extrema(
     maximum = {}
     minimum_indices = {}
     maximum_indices = {}
-    for output, full_values in field.outputs.items():
+    for output, full_values in field.metric_vals.items():
         values = full_values[selection]
         ordered = np.transpose(values, permutation)
         retained_shape = ordered.shape[: len(retained)]
@@ -161,7 +160,7 @@ def _iterate_profile_cells(
     field: MetricField,
     selection: tuple[int | slice, ...],
 ) -> Iterator[tuple[tuple[int, ...], tuple[int, ...]]]:
-    shape = next(iter(field.outputs.values())).shape
+    shape = next(iter(field.metric_vals.values())).shape
     selected_shape = tuple(
         size
         for size, index in zip(shape, selection, strict=True)
@@ -196,7 +195,7 @@ def find_metric_epis_supports(
         raise ValueError("ECDF support shifts are defined here only for AVM and MAVM.")
     field = valid_result.metrics[observable][metric]
     selection, retained, _ = _select_profile_field(field, reduce_axes, selectors)
-    shape = next(iter(field.outputs.values())).shape
+    shape = next(iter(field.metric_vals.values())).shape
     retained_shape = tuple(shape[field.axes.index(axis)] for axis in retained)
     selected_axes = tuple(
         axis
@@ -204,10 +203,10 @@ def find_metric_epis_supports(
         if isinstance(index, slice)
     )
     retained_positions = tuple(selected_axes.index(axis) for axis in retained)
-    plus = field.outputs[
+    plus = field.metric_vals[
         EMetricOut.D_PLUS if metric is EMetricType.MAVM else EMetricOut.DISTANCE
     ]
-    minus = field.outputs[
+    minus = field.metric_vals[
         EMetricOut.D_MINUS if metric is EMetricType.MAVM else EMetricOut.DISTANCE
     ]
     cdfs: dict[tuple[int, ...], ValidECDF] = {}

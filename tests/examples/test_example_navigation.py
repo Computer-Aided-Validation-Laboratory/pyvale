@@ -21,8 +21,9 @@ GROUPS = (
     ("examples_render3d", "render3d"),
     ("examples_renderuvs", "renderuvs"),
     ("examples_ext_sensorsim", "extsensorsim"),
+    ("examples_valid", "validation"),
     ("examples_mooseherder", "mooseherder"),
-    ("examples_valid", "valid"),
+    ("examples_dataio", "dataio"),
 )
 
 
@@ -38,7 +39,7 @@ def get_toctree_entries(path: Path, prefix: str) -> tuple[str, ...]:
 
 def get_example_order(path: Path) -> str:
     """Order validation tutorials numerically, retaining other gallery orders."""
-    if path.parent.name == "valid":
+    if path.parent.name == "validation":
         return re.sub(r"^ex(\d+)", format_example_number, path.name)
     return path.name
 

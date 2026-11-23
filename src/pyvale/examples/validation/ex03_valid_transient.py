@@ -28,20 +28,27 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex03_transient"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 with np.load(dataset.valid_data_dir() / "plate_validation_2d_nominal.npz") as saved:
     coords: np.ndarray = saved["coords"].copy()
     times: np.ndarray = saved["times"].copy()
     sim_temp: np.ndarray = saved["sim_temp"].copy()  # (12, 1, 5, 6)
-    sim_strain: np.ndarray = saved["sim_strain"] * 1.0e6
+    sim_strain: np.ndarray = saved["sim_strain"] * 1.0e3
+
+# Increase the synthetic repeat scatter while preserving the mean strain.
+strain_repeat_spread_factor = 3.0
+sim_strain_mean = sim_strain.mean(axis=-1, keepdims=True)
+sim_strain = sim_strain_mean + strain_repeat_spread_factor * (
+    sim_strain - sim_strain_mean
+)
 
 x_fraction = (coords[:, 0] - np.min(coords[:, 0])) / np.ptp(coords[:, 0])
 time_fraction = (times - times[0]) / (times[-1] - times[0])
 temperature_bias = (2.0 + 3.0 * x_fraction[:, None]) * time_fraction
 exp_temp = sim_temp + temperature_bias[:, None, :, None]
-strain_bias = (20.0 * x_fraction[:, None] + 10.0) * time_fraction
+strain_bias = (0.020 * x_fraction[:, None] + 0.010) * time_fraction
 exp_strain = sim_strain + strain_bias[:, None, :, None]
 
 # %%
@@ -63,7 +70,7 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
-        phys_units="µε",
+        phys_units="mε",
         coord_units="mm",
         time_units="s",
     ),
@@ -103,7 +110,7 @@ valid_result: vl.ValidResult = vl.ValidEngine(
 metric_field: vl.MetricField = valid_result.metrics[temperature_tag][
     vl.EMetricType.MAVM
 ]
-metric_shape = metric_field.outputs[vl.EMetricOut.D_PLUS].shape
+metric_shape = metric_field.metric_vals[vl.EMetricOut.D_PLUS].shape
 metric_axes = metric_field.axes
 
 print(80*"-")
@@ -121,18 +128,14 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     time_idx=4,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
-ecdf_plot.figure.savefig(
-    output_path / f"val_ex03_fig{next(figure_numbers):02d}_temperature_cdfs.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex03_fig{next(fig_nums):02d}_temperature_cdfs.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 fig, _ = vl.plot_metric_time_points(
     valid_result, temperature_tag, vl.EMetricType.AVM, point_idxs=point_idxs
 )
-fig.savefig(
-    output_path / f"val_ex03_fig{next(figure_numbers):02d}_temperature_avm_time.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex03_fig{next(fig_nums):02d}_temperature_avm_time.png"
+fig.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
 fig, _ = vl.plot_metric_time_points(
@@ -141,10 +144,8 @@ fig, _ = vl.plot_metric_time_points(
     vl.EMetricType.MAVM,
     point_idxs=point_idxs,
 )
-fig.savefig(
-    output_path / f"val_ex03_fig{next(figure_numbers):02d}_temperature_mavm_time.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex03_fig{next(fig_nums):02d}_temperature_mavm_time.png"
+fig.savefig(output_path / fig_file, bbox_inches="tight")
 
 if SHOW_PLOTS:
     plt.show()

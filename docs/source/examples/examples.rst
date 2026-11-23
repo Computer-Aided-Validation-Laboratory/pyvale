@@ -43,6 +43,14 @@ Extended Sensor Simulation
 
    examples_ext_sensorsim
 
+Validation
+----------
+
+.. toctree::
+   :maxdepth: 2
+
+   examples_valid
+
 Mooseherder
 -----------
 
@@ -51,10 +59,10 @@ Mooseherder
 
    examples_mooseherder
 
-Validation
-----------
+Data I/O
+--------
 
 .. toctree::
    :maxdepth: 2
 
-   examples_valid
+   examples_dataio

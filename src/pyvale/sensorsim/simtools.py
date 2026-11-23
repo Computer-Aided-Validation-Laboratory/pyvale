@@ -195,6 +195,49 @@ def scale_length_units(
     return sim_data
 
 
+def scale_nodal_fields(
+    scale: float,
+    sim_data: _SimDataInput,
+    *,
+    field_keys: tuple[str, ...],
+) -> _SimDataInput:
+    """Scale selected nodal fields in place, leaving coordinates unchanged.
+
+    Parameters
+    ----------
+    scale : float
+        Multiplier applied to each selected field.
+    sim_data : SimData or list of SimData
+        Simulation data to update.
+    field_keys : tuple of str
+        Nodal field names to scale in each simulation.
+
+    Returns
+    -------
+    SimData or list of SimData
+        The original simulation or list with the selected fields updated.
+
+    Raises
+    ------
+    KeyError
+        A selected field is absent from a simulation.
+    """
+    simulations = sim_data if isinstance(sim_data, list) else [sim_data]
+    scaled_fields = []
+    for simulation in simulations:
+        node_vars = simulation.node_vars
+        if node_vars is None:
+            if field_keys:
+                raise KeyError(field_keys[0])
+            continue
+        scaled_fields.append(
+            (node_vars, {key: node_vars[key] * scale for key in field_keys})
+        )
+    for node_vars, fields in scaled_fields:
+        node_vars.update(fields)
+    return sim_data
+
+
 def coords_to_2D(coords_3d: np.ndarray) -> np.ndarray:
     """Collapses and input coordinate array with 3 spatial dimensions to have
     only 2 spatial dimensions. Useful for removing the axis that is zero for

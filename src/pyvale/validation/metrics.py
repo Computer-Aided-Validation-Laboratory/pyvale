@@ -26,11 +26,9 @@ from pyvale.validation.cython.mavm import (
     _cyth_calc_mavm_1d,
     _cyth_calc_mavm_pbox_1d,
 )
+from pyvale.validation.imetric import MAVMResult
 from pyvale.validation.validchecks import _validate_finite_sample
-from pyvale.validation.validtypes import (
-    EMAVMDuplicates,
-    MAVMResult,
-)
+from pyvale.validation.validtypes import EMAVMDuplicates
 
 
 def calc_mavm_1d(

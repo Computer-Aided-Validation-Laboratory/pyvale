@@ -31,21 +31,23 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex09_sim_sweep_sampling"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
 runner = mh.MooseRunner(timeout=120.0)
 run_root: Path = mh.get_next_run_path(output_path / "solves")
 
-parameter_sets: dict[str, dict[str, mh.InputValues]] = {
+nominal_heat_flux = 4.67e6
+nominal_thermal_expansion = 17.8e-6
+param_sets: dict[str, dict[str, mh.InputValues]] = {
     "nominal": {},
-    "heat_flux_plus_10pct": {"surfHeatFlux": 1.1 * 4.67e6},
-    "thermal_expansion_plus_10pct": {"ThermExp": 1.1 * 17.8e-6},
+    "heat_flux_plus_10pct": {"surfHeatFlux": 1.1 * nominal_heat_flux},
+    "thermal_expansion_plus_10pct": {"ThermExp": 1.1 * nominal_thermal_expansion},
 }
 
 sims: dict[str, io.SimData] = {}
-for nn, pp in parameter_sets.items():
+for nn, pp in param_sets.items():
     solve_result: mh.RunResult = runner.run(
         input_path,
         input_params=pp,
@@ -77,9 +79,7 @@ sens_times = np.linspace(nominal_sim.time[0], nominal_sim.time[-1], 5)
 strain_norm_keys = ("strain_xx", "strain_yy", "strain_zz")
 strain_dev_keys = ("strain_xy", "strain_xz", "strain_yz")
 strain_keys = (*strain_norm_keys, *strain_dev_keys)
-for ss in sims.values():
-    for kk in strain_keys:
-        ss.node_vars[kk] = ss.node_vars[kk] * 1.0e6
+sens.scale_nodal_fields(1.0e3, list(sims.values()), field_keys=strain_keys)
 
 sensor_data = sens.SensorData(positions=sens_coords, sample_times=sens_times)
 
@@ -92,14 +92,15 @@ strain_sensors: sens.SensorsPoint = sens.SensorFactory.tensor_point(
     descriptor=sens.SensorDescriptor(
         name="Strain",
         symbol=r"\varepsilon",
-        units="µε",
+        units="mε",
         tag="SG",
         components=("xx", "yy", "zz", "xy", "xz", "yz"),
     ),
 )
 
 
-err_chain = [sens.ErrRandGen(sens.GenNormal(std=0.1, seed=42))]
+exp_strain_noise_sd = 0.005  # mε
+err_chain = [sens.ErrRandGen(sens.GenNormal(std=exp_strain_noise_sd, seed=42))]
 strain_sensors.set_error_chain(err_chain)
 
 
@@ -115,23 +116,24 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=sens_coords,
         times=sens_times,
-        phys_units="µε",
+        phys_units="mε",
         coord_units="mm",
         time_units="s",
     )
 }
-model: dict[str, vl.ValidArray] = vl.sample_sim_sweep_for_valid(
-    {
-        strain_tag: sens.FieldTensor(
-            nominal_sim, strain_norm_keys, strain_dev_keys, sens.EDim.THREED
-        )
-    },
-    observables,
-    [((ii,), ss) for ii, ss in enumerate(sims.values())],
-    sample_axes=(vl.EValidAxis.EPISTEMIC_TRANS,),
-    sample_shape=(3,),
+
+strain_field = sens.FieldTensor(
+    nominal_sim, strain_norm_keys, strain_dev_keys, sens.EDim.THREED
 )
-exp = {
+
+model: dict[str, vl.ValidArray] = vl.sample_sim_sweep_for_valid(
+    fields={strain_tag: strain_field},
+    observables=observables,
+    runs=list(sims.values()),
+    sample_axes=(vl.EValidAxis.EPISTEMIC_TRANS,),
+)
+
+exp: dict[str, vl.ValidArray] = {
     strain_tag: vl.ValidArray(
         measurements,
         (
@@ -142,22 +144,29 @@ exp = {
         ),
     )
 }
-parameter_axes = (vl.EValidAxis.EPISTEMIC_TRANS,)
-sim_run_ids = vl.ValidArray(np.arange(len(parameter_sets)), parameter_axes)
+
+param_axes = (vl.EValidAxis.EPISTEMIC_TRANS,)
+sim_run_ids = vl.ValidArray(np.arange(len(param_sets)), param_axes)
+
+heat_flux_values = np.array(
+    [pp.get("surfHeatFlux", nominal_heat_flux) for pp in param_sets.values()]
+)
+thermal_expansion_values = np.array(
+    [pp.get("ThermExp", nominal_thermal_expansion) for pp in param_sets.values()]
+)
+sim_input_params = {
+    "surfHeatFlux": vl.ValidArray(heat_flux_values, param_axes),
+    "ThermExp": vl.ValidArray(thermal_expansion_values, param_axes),
+}
 sim_inputs = vl.ValidSampleInputs(
-    parameters={
-        kk: vl.ValidArray(
-            np.array(
-                [oo.get(kk, nn) for oo in parameter_sets.values()]
-            ),
-            parameter_axes,
-        )
-        for kk, nn in (("surfHeatFlux", 4.67e6), ("ThermExp", 17.8e-6))
-    },
+    input_params=sim_input_params,
     run_ids=sim_run_ids,
 )
+
 valid_case = vl.ValidCase(observables, model, exp, sim_inputs=sim_inputs)
-print("Transferable run IDs:", sim_run_ids.data, tuple(parameter_sets))
+print(80*"-")
+print("Transferable run IDs:", sim_run_ids.data, tuple(param_sets))
+print(80*"-")
 
 # %%
 valid_result: vl.ValidResult = vl.ValidEngine(
@@ -165,36 +174,43 @@ valid_result: vl.ValidResult = vl.ValidEngine(
 ).run(valid_case)
 
 # %%
-metric_field: vl.MetricField = valid_result.metrics[strain_tag][
-    vl.EMetricType.MAVM
-]
-print(
-    "Model axes/shape:",
-    model[strain_tag].axes,
-    model[strain_tag].data.shape,
-)
+metric_field: vl.MetricField = valid_result.metrics[strain_tag][vl.EMetricType.MAVM]
+
+print("Model axes/shape:",model[strain_tag].axes,model[strain_tag].data.shape)
 print("Experiment shape:", measurements.shape)
 print(
     "Result axes/shape:",
     metric_field.axes,
-    metric_field.outputs[vl.EMetricOut.D_PLUS].shape,
+    metric_field.metric_vals[vl.EMetricOut.D_PLUS].shape,
 )
+print(80*"-")
 
 # %%
 point_idxs = tuple(range(len(sens_coords)))
+sim_envelope_view = vl.ValidECDFView(
+    trans_idxs=tuple(range(len(sims))),
+    bounds=True,
+)
+
 for ii, kk in enumerate(strain_keys):
     ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
         valid_case,
         strain_tag,
+        sim_view=sim_envelope_view,
         point_idxs=point_idxs,
         component_idx=ii,
         time_idx=4,
-        valid_plot_opts=vl.ValidPlotOpts(x_label=f"{kk} [µε]", x_axis_offset=False),
+        valid_plot_opts=vl.ValidPlotOpts(
+            sim_label="Sim Env", x_label=f"{kk} [mε]", x_axis_offset=False
+        ),
     )
-    ecdf_plot.figure.savefig(
-        output_path / f"val_ex09_fig{next(figure_numbers):02d}_{kk}_cdfs.png",
-        bbox_inches="tight",
+
+    ecdf_plot.figure.suptitle(
+        "Simulation envelope: nominal, +10% heat flux, +10% thermal expansion"
     )
+
+    fig_file = f"val_ex09_fig{next(fig_nums):02d}_{kk}_cdfs.png"
+    ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
     
     fig, _ = vl.plot_metric_time_points(
         valid_result,
@@ -205,18 +221,17 @@ for ii, kk in enumerate(strain_keys):
             vl.EValidResAxis.COMPONENT: ii,
             vl.EValidResAxis.SIM_TRANS: 0,
         },
-        valid_plot_opts=vl.ValidPlotOpts(title=kk),
+        valid_plot_opts=vl.ValidPlotOpts(title=f"{kk}: nominal simulation"),
     )
-    fig.savefig(
-        output_path / f"val_ex09_fig{next(figure_numbers):02d}_{kk}_mavm_time.png",
-        bbox_inches="tight",
-    )
+
+    fig_file = f"val_ex09_fig{next(fig_nums):02d}_{kk}_mavm_time.png"
+    fig.savefig(output_path / fig_file, bbox_inches="tight")
     
     if not SHOW_PLOTS:
         plt.close("all")
 
 # %%
-for ss, nn in enumerate(parameter_sets):
+for ss, nn in enumerate(param_sets):
     fig, _ = vl.plot_metric_time_points(
         valid_result,
         strain_tag,
@@ -228,10 +243,9 @@ for ss, nn in enumerate(parameter_sets):
         },
         valid_plot_opts=vl.ValidPlotOpts(title=f"strain_xx: {nn}"),
     )
-    fig.savefig(
-        output_path / f"val_ex09_fig{next(figure_numbers):02d}_{nn}_avm_time.png",
-        bbox_inches="tight",
-    )
+
+    fig_file = f"val_ex09_fig{next(fig_nums):02d}_{nn}_avm_time.png"
+    fig.savefig(output_path / fig_file, bbox_inches="tight")
     
 if SHOW_PLOTS:
     plt.show()

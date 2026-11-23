@@ -6,18 +6,13 @@
 
 """ECDF records, scenario reductions and shifted support bounds."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pyvale.validation.validtypes import EEpisOffset, EMetricOut, EValidResAxis
-
-if TYPE_CHECKING:
-    from pyvale.validation.metricstrategy import EMetricType
+from pyvale.validation.imetric import EMetricOut, EMetricType
+from pyvale.validation.validtypes import EEpisOffset, EValidResAxis
 
 
 @dataclass(slots=True)

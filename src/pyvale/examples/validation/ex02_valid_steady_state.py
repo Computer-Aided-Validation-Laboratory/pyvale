@@ -32,7 +32,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex02_steady_state"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 with np.load(
@@ -40,14 +40,21 @@ with np.load(
 ) as saved:
     coords: np.ndarray = saved["coords"].copy()
     sim_temp: np.ndarray = saved["sim_temp"].copy()  # (12, 1, 6)
-    sim_strain: np.ndarray = saved["sim_strain"] * 1.0e6  # (12, 3, 6)
+    sim_strain: np.ndarray = saved["sim_strain"] * 1.0e3  # (12, 3, 6)
+
+# Increase the synthetic repeat scatter while preserving the mean strain.
+strain_repeat_spread_factor = 3.0
+sim_strain_mean = sim_strain.mean(axis=-1, keepdims=True)
+sim_strain = sim_strain_mean + strain_repeat_spread_factor * (
+    sim_strain - sim_strain_mean
+)
 
 x_fraction = (coords[:, 0] - np.min(coords[:, 0])) / np.ptp(coords[:, 0])
 temperature_bias = 3.0 * x_fraction
 exp_temp = sim_temp + temperature_bias[:, None, None]
 exp_strain = (
     sim_strain
-    + x_fraction[:, None, None] * np.array([20.0, -10.0, 5.0])[None, :, None]
+    + x_fraction[:, None, None] * np.array([0.020, -0.010, 0.005])[None, :, None]
 )
 
 # %%
@@ -66,7 +73,7 @@ observables = {
         components=("strain_xx", "strain_yy", "strain_xy"),
         geometry=vl.EValidGeometry.POINT,
         coords=coords,
-        phys_units="µε",
+        phys_units="mε",
         coord_units="mm",
     ),
 }
@@ -103,7 +110,7 @@ valid_result: vl.ValidResult = vl.ValidEngine(
 metric_field: vl.MetricField = valid_result.metrics[temperature_tag][
     vl.EMetricType.MAVM
 ]
-metric_shape = metric_field.outputs[vl.EMetricOut.D_PLUS].shape
+metric_shape = metric_field.metric_vals[vl.EMetricOut.D_PLUS].shape
 metric_axes = metric_field.axes
 
 print(80*"-")
@@ -121,10 +128,8 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     point_idxs=point_idxs,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
-ecdf_plot.figure.savefig(
-    output_path / f"val_ex02_fig{next(figure_numbers):02d}_temperature_cdfs.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex02_fig{next(fig_nums):02d}_temperature_cdfs.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
@@ -149,7 +154,7 @@ pv_plot: pv.Plotter = vl.plot_metric_on_sim(
 )
 
 pv_plot.screenshot(
-    output_path / f"val_ex02_fig{next(figure_numbers):02d}_temperature_avm_on_sim.png",
+    output_path / f"val_ex02_fig{next(fig_nums):02d}_temperature_avm_on_sim.png",
 )
 
 if SHOW_PLOTS:
@@ -163,10 +168,8 @@ supports = vl.find_metric_epis_supports(
 )
 ecdf_plot = vl.plot_sim_exp_cdfs(valid_case, temperature_tag)
 vl.add_support_overlay(ecdf_plot, supports)
-ecdf_plot.figure.savefig(
-    output_path / f"val_ex02_fig{next(figure_numbers):02d}_mavm_support_envelope.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex02_fig{next(fig_nums):02d}_mavm_support_envelope.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 

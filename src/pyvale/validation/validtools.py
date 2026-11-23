@@ -8,12 +8,8 @@
 
 import numpy as np
 
-from pyvale.validation.metricstrategy import EMetricType
-from pyvale.validation.validtypes import (
-    EMetricOut,
-    EValidResAxis,
-    MetricField,
-)
+from pyvale.validation.imetric import EMetricOut, EMetricType
+from pyvale.validation.validtypes import EValidResAxis, MetricField
 
 
 def select_metric_output(
@@ -23,7 +19,7 @@ def select_metric_output(
     selection_idxs: tuple[int | slice, ...] = (),
 ) -> np.ndarray:
     """Borrow an explicit output, or the sole output when no choice is supplied."""
-    return field.outputs[field._resolve_output(output)][selection_idxs]
+    return field.metric_vals[field._resolve_output(output)][selection_idxs]
 
 
 def extract_metric_values(
@@ -55,7 +51,7 @@ def _build_metric_selection(
             raise ValueError("Selectors must name stored result axes.")
     selection = []
     for axis, size in zip(
-        field.axes, next(iter(field.outputs.values())).shape, strict=True
+        field.axes, next(iter(field.metric_vals.values())).shape, strict=True
     ):
         if axis == keep or (keep is None and axis not in selected):
             selection.append(slice(None))

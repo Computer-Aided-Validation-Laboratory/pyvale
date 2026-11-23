@@ -32,7 +32,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex00_quickstart"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 # 1. Load & transform data
@@ -42,8 +42,19 @@ with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
     times: np.ndarray = saved["times"].copy()
     sim_temp: np.ndarray = saved["sim_temp"].copy()
     exp_temp: np.ndarray = saved["exp_temp"].copy()
-    sim_strain: np.ndarray = saved["sim_strain"] * 1.0e6
-    exp_strain: np.ndarray = saved["exp_strain"] * 1.0e6
+    sim_strain: np.ndarray = saved["sim_strain"] * 1.0e3
+    exp_strain: np.ndarray = saved["exp_strain"] * 1.0e3
+
+# Increase the synthetic repeat scatter while preserving the mean strain.
+strain_repeat_spread_factor = 3.0
+sim_strain_mean = sim_strain.mean(axis=-1, keepdims=True)
+sim_strain = sim_strain_mean + strain_repeat_spread_factor * (
+    sim_strain - sim_strain_mean
+)
+exp_strain_mean = exp_strain.mean(axis=-1, keepdims=True)
+exp_strain = exp_strain_mean + strain_repeat_spread_factor * (
+    exp_strain - exp_strain_mean
+)
 
 exp_temp_sort_order = np.argsort(exp_temp, axis=-1, stable=True)
 exp_temp_ranks = np.argsort(exp_temp_sort_order, axis=-1)
@@ -73,7 +84,7 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=coords,
         times=times,
-        phys_units="µε",
+        phys_units="mε",
         coord_units="mm",
         time_units="s",
     ),
@@ -122,7 +133,7 @@ valid_result: vl.ValidResult = vl.ValidEngine(
 metric_field: vl.MetricField = valid_result.metrics[temperature_tag][
     vl.EMetricType.MAVM
 ]
-metric_shape = metric_field.outputs[vl.EMetricOut.D_PLUS].shape
+metric_shape = metric_field.metric_vals[vl.EMetricOut.D_PLUS].shape
 metric_axes = metric_field.axes
 
 print("Simulation axes:", sim_arrays[temperature_tag].axes)
@@ -141,10 +152,8 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     time_idx=4,
     valid_plot_opts=vl.ValidPlotOpts(x_label="Temperature [degC]"),
 )
-ecdf_plot.figure.savefig(
-    output_path / f"val_ex00_fig{next(figure_numbers):02d}_temperature_cdfs.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex00_fig{next(fig_nums):02d}_temperature_cdfs.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
 ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
@@ -155,10 +164,8 @@ ecdf_plot: vl.ECDFPlot = vl.plot_exp_ecdfs(
     point_idxs=None,
     offset=None,
 )
-ecdf_plot.figure.savefig(
-    output_path / f"val_ex00_fig{next(figure_numbers):02d}_temperature_envelopes.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex00_fig{next(fig_nums):02d}_temperature_envelopes.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
 fig, _ = vl.plot_metric_time_points(
@@ -171,10 +178,8 @@ fig, _ = vl.plot_metric_time_points(
         vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.UPPER,
     },
 )
-fig.savefig(
-    output_path / f"val_ex00_fig{next(figure_numbers):02d}_temperature_mavm_time.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex00_fig{next(fig_nums):02d}_temperature_mavm_time.png"
+fig.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
@@ -210,7 +215,7 @@ for oo, dd in (
     pv_plot.screenshot(
         output_path
         / (
-            f"val_ex00_fig{next(figure_numbers):02d}_"
+            f"val_ex00_fig{next(fig_nums):02d}_"
             f"temperature_mavm_{dd}_on_sim.png"
         ),
     )

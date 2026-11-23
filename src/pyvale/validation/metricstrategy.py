@@ -6,9 +6,6 @@
 
 """Metric strategies and compact tagged metric results."""
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from enum import Enum, auto
 from typing import cast
 
 import numpy as np
@@ -16,6 +13,16 @@ from scipy import stats
 
 from pyvale.validation.constants import MAVM_AREA_TOLERANCE
 from pyvale.validation.cython.mavm import _calculate_mavm
+from pyvale.validation.imetric import (
+    EMetricComparison,
+    EMetricOut,
+    EMetricScale,
+    EMetricType,
+    IValidMetric,
+    MAVMResult,
+    MetricResult,
+    ScalarMetricResult,
+)
 from pyvale.validation.metrics import (
     ERelErrNorm,
     _calculate_cvm_statistic,
@@ -29,69 +36,7 @@ from pyvale.validation.metrics import (
     _validate_relative_error_config,
 )
 from pyvale.validation.validchecks import _validate_mavm_config
-from pyvale.validation.validtypes import (
-    EMAVMDuplicates,
-    EMetricOut,
-    MAVMResult,
-)
-
-
-class EMetricScale(Enum):
-    PHYSICAL = auto()
-    DIMENSIONLESS = auto()
-    DIMENSIONLESS_01 = auto()
-
-
-class EMetricComparison(Enum):
-    PAIRED = auto()
-    DISTRIBUTIONAL = auto()
-    CALIBRATION = auto()
-
-
-class EMetricType(Enum):
-    MAVM = auto()
-    AVM = auto()
-    KS = auto()
-    CVM = auto()
-    RMSE = auto()
-    RELATIVE_ERROR = auto()
-
-
-@dataclass(slots=True)
-class ScalarMetricResult:
-    kind: EMetricType
-    value: float
-
-
-MetricResult = ScalarMetricResult | MAVMResult
-
-
-class IValidMetric(ABC):
-    """Calculate a metric from one-dimensional NumPy observations."""
-
-    @abstractmethod
-    def calc(self, sim: np.ndarray, exp: np.ndarray) -> MetricResult:
-        """Return a tagged metric result."""
-
-    @abstractmethod
-    def get_kind(self) -> EMetricType:
-        """Return the metric tag without calculating a result."""
-
-    @abstractmethod
-    def get_scale(self) -> EMetricScale:
-        """Declare the numerical scale of the metric outputs."""
-
-    @abstractmethod
-    def get_comparison(self) -> EMetricComparison:
-        """Declare how the metric compares sim and exp observations."""
-
-    @abstractmethod
-    def get_outputs(self) -> tuple[EMetricOut, ...]:
-        """Declare outputs in the order returned by extract_outputs."""
-
-    @abstractmethod
-    def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
-        """Extract numerical outputs from this metric's tagged result."""
+from pyvale.validation.validtypes import EMAVMDuplicates
 
 
 class MetricMAVM(IValidMetric):

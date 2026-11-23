@@ -374,8 +374,8 @@ def test_engine_outputs_match_analytic_sample_count_cases(
             vl.EValidResAxis.COMPONENT,
             vl.EValidResAxis.TIME,
         )
-        assert field.outputs[output].shape == (1, 1, 1)
-        actual = field.outputs[output][0, 0, 0]
+        assert field.metric_vals[output].shape == (1, 1, 1)
+        actual = field.metric_vals[output][0, 0, 0]
         if np.isnan(expected):
             assert np.isnan(actual)
         else:
@@ -962,7 +962,7 @@ def test_deterministic_metrics_preserve_observation_order() -> None:
         assert metric.calc(sim, exp).value == pytest.approx(expected)
         result = vl.ValidEngine([metric]).run(case)
         field = result.metrics["response"][metric.get_kind()]
-        assert field.outputs[vl.EMetricOut.ERROR].item() == pytest.approx(expected)
+        assert field.metric_vals[vl.EMetricOut.ERROR].item() == pytest.approx(expected)
 
 
 def calculate_rectangle_signed_areas(
@@ -1227,6 +1227,23 @@ def test_sample_bound_field_matches_linear_space_and_time() -> None:
         vl.EValidAxis.TIME,
     )
     np.testing.assert_allclose(sampled.data, expected, rtol=0, atol=1e-12)
+
+
+def test_sample_sweep_infers_single_axis_shape_from_flat_runs() -> None:
+    observable = vl.ValidObservable(
+        components=("mean_temperature",),
+        geometry=vl.EValidGeometry.GLOBAL,
+        times=np.array([0.25, 0.75]),
+    )
+    sampled = vl.sample_sim_sweep_for_valid(
+        fields={},
+        observables={"mean_temperature": observable},
+        runs=[create_linear_sim(5), create_linear_sim(1)],
+        sample_axes=(vl.EValidAxis.EPISTEMIC_TRANS,),
+    )["mean_temperature"]
+
+    assert sampled.axes[-1] is vl.EValidAxis.EPISTEMIC_TRANS
+    np.testing.assert_allclose(sampled.data[0, 0], [[7.25, 3.25], [8.75, 4.75]])
 
 
 def test_sample_sweep_reuses_field_and_preserves_named_axes_and_globals() -> None:

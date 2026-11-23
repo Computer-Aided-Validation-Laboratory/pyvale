@@ -26,7 +26,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex05_nuisance_ecdf_profiles"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -92,14 +92,11 @@ for nn, pp in (
         nuisance_profile=vl.EValidECDFReduce.MEDIAN,
     )
     ecdf_plot.figure.suptitle("All-case envelope vs. median nuisance profile")
-    ecdf_plot.figure.savefig(
-        output_path
-        / (
-            f"val_ex05_fig{next(figure_numbers):02d}_"
-            f"ecdf_{nn}_nuis_envelope_vs_prof_median.png"
-        ),
-        bbox_inches="tight",
+    fig_file = (
+        f"val_ex05_fig{next(fig_nums):02d}_"
+        f"ecdf_{nn}_nuis_envelope_vs_prof_median.png"
     )
+    ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 for nn, tt, rr, qq in (
     ("mean", "mean", vl.EValidECDFReduce.MEAN, None),
@@ -113,14 +110,11 @@ for nn, tt, rr, qq in (
         nuisance_profile_quantile=qq,
     )
     ecdf_plot.figure.suptitle(f"All-case envelope vs. {tt} nuisance profile")
-    ecdf_plot.figure.savefig(
-        output_path
-        / (
-            f"val_ex05_fig{next(figure_numbers):02d}_"
-            f"ecdf_sim_exp_nuis_envelope_vs_prof_{nn}.png"
-        ),
-        bbox_inches="tight",
+    fig_file = (
+        f"val_ex05_fig{next(fig_nums):02d}_"
+        f"ecdf_sim_exp_nuis_envelope_vs_prof_{nn}.png"
     )
+    ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
 median_view = vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN)
@@ -133,23 +127,15 @@ for nn, tt, vv in (
     )
     vl.add_metric_overlay(ks_plot, vl.MetricKS())
     ks_plot.figure.suptitle(f"KS gap between {tt} bounds")
-    ks_plot.figure.savefig(
-        output_path / f"val_ex05_fig{next(figure_numbers):02d}_ks_nuis_{nn}_gap.png",
-        bbox_inches="tight",
-    )
+    fig_file = f"val_ex05_fig{next(fig_nums):02d}_ks_nuis_{nn}_gap.png"
+    ks_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
 mavm_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag, point_idxs=None)
 vl.add_metric_overlay(mavm_plot, vl.MetricMAVM())
 mavm_plot.figure.suptitle("MAVM support envelope over original scenario pairs")
-mavm_plot.figure.savefig(
-    output_path
-    / (
-        f"val_ex05_fig{next(figure_numbers):02d}_"
-        f"mavm_support_envelope_original_pairs.png"
-    ),
-    bbox_inches="tight",
-)
+fig_file = f"val_ex05_fig{next(fig_nums):02d}_mavm_support_envelope_original_pairs.png"
+mavm_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 fig, plot_axes = vl.create_valid_plot_grid(len(coords))
 for ii, aa in enumerate(plot_axes.flat):
@@ -172,14 +158,11 @@ for ii, aa in enumerate(plot_axes.flat):
     )
 
 fig.suptitle("MAVM support envelope between median nuisance profile bounds")
-fig.savefig(
-    output_path
-    / (
-        f"val_ex05_fig{next(figure_numbers):02d}_"
-        "mavm_support_envelope_nuis_prof_median.png"
-    ),
-    bbox_inches="tight",
+fig_file = (
+    f"val_ex05_fig{next(fig_nums):02d}_"
+    "mavm_support_envelope_nuis_prof_median.png"
 )
+fig.savefig(output_path / fig_file, bbox_inches="tight")
 
 if SHOW_PLOTS:
     plt.show()

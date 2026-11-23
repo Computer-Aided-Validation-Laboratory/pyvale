@@ -26,7 +26,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex06_nuisance_metric_profiles"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -51,12 +51,14 @@ sim_samples = (
     + sim_epistemic_nuis_shift[None, None, None, None, :, None]
     + sim_aleatory_deviations
 )
+
 exp_samples = (
     (ground_truth + exp_bias)[:, None, :, None, None, None]
     + exp_epistemic_trans_shift[None, None, None, :, None, None]
     + exp_epistemic_nuis_shift[None, None, None, None, :, None]
     + exp_aleatory_deviations
 )
+
 axes = (
     vl.EValidAxis.POINT,
     vl.EValidAxis.COMPONENT,
@@ -65,7 +67,10 @@ axes = (
     vl.EValidAxis.EPISTEMIC_NUIS,
     vl.EValidAxis.ALEATORY,
 )
+
+# %%
 observable_tag = "temperature"
+
 observables = {
     observable_tag: vl.ValidObservable(
         components=("temperature",),
@@ -77,15 +82,19 @@ observables = {
         time_units="s",
     )
 }
+
 valid_case = vl.ValidCase(
     observables,
     {observable_tag: vl.ValidArray(sim_samples, axes)},
     {observable_tag: vl.ValidArray(exp_samples, axes)},
 )
+
+# %%
 case_path = output_path / "validation_case.npz"
 vl.save_valid_case(case_path, valid_case)
 valid_case = vl.load_valid_case(case_path)
 
+# %%
 valid_result: vl.ValidResult = vl.ValidEngine(
     [
         vl.MetricAVM(),
@@ -106,6 +115,7 @@ for mm, ff in valid_result.metrics[observable_tag].items():
     profile: vl.ValidMetricExtrema = vl.profile_epis_nuisance_extrema(
         valid_result, observable_tag, mm
     )
+
     fig, _ = vl.plot_metric_extrema_time(
         valid_result,
         observable_tag,
@@ -117,22 +127,23 @@ for mm, ff in valid_result.metrics[observable_tag].items():
         },
     )
     fig.suptitle("Nuisance metric extrema | Sim Trans 0, Exp Trans 0")
-    profile_name = mm.name.lower()
-    if len(ff.outputs) == 1:
-        profile_name += f"_{next(iter(ff.outputs)).name.lower()}"
-    fig.savefig(
-        output_path
-        / (
-            f"val_ex06_fig{next(figure_numbers):02d}_"
-            f"{profile_name}_profile.png"
-        ),
-        bbox_inches="tight",
-    )
+
+    prof_tag = mm.name.lower()
+
+    if len(ff.metric_vals) == 1:
+        prof_tag += f"_{next(iter(ff.metric_vals)).name.lower()}"
+
+    fig_file = f"val_ex06_fig{next(fig_nums):02d}_{prof_tag}_profile.png"
+    fig.savefig(output_path / fig_file, bbox_inches="tight")
+
     if not SHOW_PLOTS:
         plt.close(fig)
-    vl.save_metric_extrema(output_path / f"{profile_name}_profile.npz", profile)
 
+    vl.save_metric_extrema(output_path / f"{prof_tag}_profile.npz", profile)
+
+# %%
 mavm_profile = vl.load_metric_extrema(output_path / "mavm_profile.npz")
+
 fig, _ = vl.plot_metric_extrema_ecdfs(
     valid_case,
     observable_tag,
@@ -147,14 +158,10 @@ fig, _ = vl.plot_metric_extrema_ecdfs(
     },
 )
 fig.suptitle("Controlling nuisance pairs | First site, final time")
-fig.savefig(
-    output_path
-    / (
-        f"val_ex06_fig{next(figure_numbers):02d}_"
-        f"mavm_d_plus_extrema_ecdfs.png"
-    ),
-    bbox_inches="tight",
-)
+
+fig_file = f"val_ex06_fig{next(fig_nums):02d}_mavm_d_plus_extrema_ecdfs.png"
+fig.savefig(output_path / fig_file, bbox_inches="tight")
+
 if not SHOW_PLOTS:
     plt.close(fig)
 
@@ -177,14 +184,8 @@ vl.add_support_overlay(
     selectors={vl.EValidResAxis.SIM_TRANS: 0, vl.EValidResAxis.EXP_TRANS: 0},
 )
 ecdf_plot.figure.suptitle("MAVM over nuisance pairs | Sim Trans 0, Exp Trans 0")
-ecdf_plot.figure.savefig(
-    output_path
-    / (
-        f"val_ex06_fig{next(figure_numbers):02d}_"
-        f"mavm_nuisance_support_envelope.png"
-    ),
-    bbox_inches="tight",
-)
+fig_file = f"val_ex06_fig{next(fig_nums):02d}_mavm_nuisance_support_envelope.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 avm_supports: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
@@ -197,10 +198,8 @@ vl.add_support_overlay(
     ecdf_plot, avm_supports
 )
 ecdf_plot.figure.suptitle("AVM over all original scenario pairs")
-ecdf_plot.figure.savefig(
-    output_path / f"val_ex06_fig{next(figure_numbers):02d}_avm_original_support.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex06_fig{next(fig_nums):02d}_avm_original_support.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
@@ -251,14 +250,11 @@ for ss in vl.EValidNuisanceScore:
         ecdf_plot.figure.suptitle(
             f"MAVM nuisance rank | {nn.title()} by {score_label}"
         )
-        ecdf_plot.figure.savefig(
-            output_path
-            / (
-                f"val_ex06_fig{next(figure_numbers):02d}_"
-                f"{score_name}_{nn}_support_envelope.png"
-            ),
-            bbox_inches="tight",
+        fig_file = (
+            f"val_ex06_fig{next(fig_nums):02d}_"
+            f"{score_name}_{nn}_support_envelope.png"
         )
+        ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
         if not SHOW_PLOTS:
             plt.close(ecdf_plot.figure)
 if SHOW_PLOTS:

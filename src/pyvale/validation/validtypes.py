@@ -6,27 +6,19 @@
 
 """Named physical and uncertainty axes for validation data."""
 
-from __future__ import annotations
-
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, StrEnum, auto
-from typing import TYPE_CHECKING
 
 import numpy as np
 
 from pyvale.validation.arraychecks import _validate_real_array
-
-if TYPE_CHECKING:
-    from pyvale.validation.metricstrategy import EMetricType, IValidMetric
-
-
-class EMetricOut(Enum):
-    D_PLUS = auto()
-    D_MINUS = auto()
-    DISTANCE = auto()
-    STATISTIC = auto()
-    ERROR = auto()
+from pyvale.validation.imetric import (
+    EMetricOut,
+    EMetricType,
+    IValidMetric,
+    MAVMResult,
+)
 
 
 class EEpisOffset(IntEnum):
@@ -83,11 +75,13 @@ class ValidObservable:
         if self.geometry is EValidGeometry.GLOBAL:
             if self.coords is not None:
                 raise ValueError("GLOBAL geometry cannot have point coordinates.")
-        elif self.coords is None or self.coords.ndim != 2:
+        elif self.coords is None and self.geometry is not EValidGeometry.POINT:
             raise ValueError("Spatial geometry requires coordinates (point, xyz).")
 
         if self.coords is not None and (
-            self.coords.shape[1] != 3 or self.coords.shape[0] == 0
+            self.coords.ndim != 2
+            or self.coords.shape[1] != 3
+            or self.coords.shape[0] == 0
         ):
             raise ValueError("Coordinates must have x, y, z columns.")
         if not self.components or len(set(self.components)) != len(self.components):
@@ -249,8 +243,14 @@ class ValidArray:
 
 @dataclass(slots=True)
 class ValidSampleInputs:
-    parameters: dict[str, ValidArray] | None = None
+    input_params: dict[str, ValidArray] | None = None
     run_ids: ValidArray | None = None
+
+
+def _get_axis_size(quantity: ValidArray, axis: EValidAxis) -> int:
+    if axis not in quantity.axes:
+        return 1
+    return quantity.data.shape[quantity.axes.index(axis)]
 
 
 @dataclass(slots=True)
@@ -275,6 +275,8 @@ class ValidCase:
             leng_pt = 1
             if observable.coords is not None:
                 leng_pt = observable.coords.shape[0]
+            elif observable.geometry is EValidGeometry.POINT:
+                leng_pt = _get_axis_size(self.sim[name], EValidAxis.POINT)
             leng_comp = len(observable.components)
             leng_time = 1
             if observable.times is not None:
@@ -312,7 +314,7 @@ class ValidCase:
                                 )
 
                 if provenance is not None:
-                    trace_arrays = list((provenance.parameters or {}).values())
+                    trace_arrays = list((provenance.input_params or {}).values())
                     if provenance.run_ids is not None:
                         trace_arrays.append(provenance.run_ids)
                     for trace in trace_arrays:
@@ -342,40 +344,6 @@ class EMAVMDuplicates(Enum):
 
     INCLUDE = "include"
     """Probability weighted loop that supports repeated observations."""
-
-
-@dataclass(slots=True)
-class MAVMResult:
-    """Container for Modified Area Validation Metric (MAVM) calculation
-    results.
-    """
-
-    d_plus: float
-    """Positive support-shift mismatch area, matching fullfieldvalmetrics."""
-
-    d_minus: float
-    """Negative support-shift mismatch area, matching fullfieldvalmetrics."""
-
-    model_quantiles: np.ndarray
-    """Quantiles (support values) of the model empirical CDF."""
-
-    model_probs: np.ndarray
-    """Cumulative probabilities corresponding to model quantiles."""
-
-    exp_quantiles: np.ndarray
-    """Quantiles (support values) of the experimental empirical CDF."""
-
-    exp_probs: np.ndarray
-    """Cumulative probabilities corresponding to experimental quantiles."""
-
-    exp_conf_lower: np.ndarray
-    """Lower confidence bound quantiles for the experimental CDF."""
-
-    exp_conf_upper: np.ndarray
-    """Upper confidence bound quantiles for the experimental CDF."""
-
-    alpha: float
-    """Significance level used for the confidence interval (e.g. 0.05)."""
 
 
 class EValidMAVMDiagnostic(Enum):
@@ -429,18 +397,18 @@ class MetricField:
     """
 
     axes: tuple[EValidResAxis, ...]
-    outputs: dict[EMetricOut, np.ndarray]
-    scenarios: dict[EValidResAxis, tuple[EEpisOffset, ...]] | None = None
+    metric_vals: dict[EMetricOut, np.ndarray]
+    epis_offsets: dict[EValidResAxis, tuple[EEpisOffset, ...]] | None = None
 
     def _resolve_output(self, output: EMetricOut | None) -> EMetricOut:
         """Select the sole output or require an explicit choice for multiple outputs."""
         if output is None:
-            if len(self.outputs) != 1:
+            if len(self.metric_vals) != 1:
                 raise ValueError("Select an output explicitly for a multi-output metric.")
-            return next(iter(self.outputs))
+            return next(iter(self.metric_vals))
         if not isinstance(output, EMetricOut):
             raise TypeError("Metric output must be EMetricOut.")
-        if output not in self.outputs:
+        if output not in self.metric_vals:
             raise ValueError(f"Metric field has no {output.name} output.")
         return output
 
@@ -483,7 +451,7 @@ class ValidResult:
     ) -> tuple[float, dict[EValidResAxis, int]]:
         """Locate a finite extreme without reducing the stored result field."""
         field = self.metrics[observable][metric]
-        values = field.outputs[field._resolve_output(output)]
+        values = field.metric_vals[field._resolve_output(output)]
         if not np.any(np.isfinite(values)):
             raise ValueError("Metric field contains no finite results.")
         selectable = np.where(

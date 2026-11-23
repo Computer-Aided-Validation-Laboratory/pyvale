@@ -15,6 +15,45 @@ import pyvale.validation as vl
 from pyvale.validation import validplot, validvis
 
 
+def test_assemble_exp_arrays_and_compare_points_without_coordinates() -> None:
+    acquisition = io.ExpData(
+        fields=np.array([[100.0, 1.0, 2.0], [200.0, 3.0, 4.0]]),
+        sens_label_to_ind={"TC1": 0, "TC2": 1},
+        ind_to_sens_label={0: "TC1", 1: "TC2"},
+    )
+    observable = vl.ValidObservable(
+        components=("temperature",), geometry=vl.EValidGeometry.POINT
+    )
+    selected = vl.assemble_exp_arrays(
+        sources={"DAQ": acquisition},
+        observables={"temperature": observable},
+        steady_window=slice(1, None),
+        channel_map={"temperature": ("DAQ", "TC2")},
+    )
+    np.testing.assert_array_equal(selected["temperature"].data, [[[3.0, 4.0]]])
+
+    observables = {"temperature": observable}
+    exp = vl.assemble_exp_arrays(
+        sources={"temperature": acquisition},
+        observables=observables,
+        steady_window=slice(1, None),
+    )
+    exp_field = exp["temperature"]
+    sim = {
+        "temperature": vl.ValidArray(
+            exp_field.data + np.array([1.0, 2.0])[:, None, None], exp_field.axes
+        )
+    }
+    valid_case = vl.ValidCase(observables, sim, exp)
+    result = vl.ValidEngine([vl.MetricAVM()]).run(valid_case)
+    field = result.metrics["temperature"][vl.EMetricType.AVM]
+    np.testing.assert_allclose(field.metric_vals[vl.EMetricOut.DISTANCE][:, 0, 0], [1, 2])
+
+    plot = vl.plot_sim_exp_cdfs(valid_case, "temperature", point_idxs=None)
+    assert plot.axes.shape == (1, 2)
+    plt.close(plot.figure)
+
+
 def test_offset_and_borrowing_contract() -> None:
     observations = np.array([1.0, 2.0])
     quantity = vl.ValidArray(
@@ -77,7 +116,7 @@ def test_custom_calibration_classification_allows_unequal_counts_and_controls_un
     metric = MetricSampleDifference(vl.EMetricComparison.CALIBRATION, scale)
     result = vl.ValidEngine([metric]).run(valid_case)
     field = result.metrics["length"][vl.EMetricType.KS]
-    np.testing.assert_allclose(field.outputs[vl.EMetricOut.STATISTIC], [[[0.4]]])
+    np.testing.assert_allclose(field.metric_vals[vl.EMetricOut.STATISTIC], [[[0.4]]])
     fig, ax = validplot.plot_metric_dist(
         result, "length", vl.EMetricType.KS
     )
@@ -165,16 +204,16 @@ def test_combine_cases_preserves_parameter_provenance() -> None:
     cases = []
     for index, parameter in enumerate((10.0, 20.0)):
         inputs = vl.ValidSampleInputs(
-            parameters={"loading": vl.ValidArray(np.array(parameter), ())}
+            input_params={"loading": vl.ValidArray(np.array(parameter), ())}
         )
         exp = {"temperature": vl.ValidArray(np.array([[parameter]]), axes)}
         cases.append(vl.ValidCase(observables, sim, exp, exp_inputs=inputs))
     joined = vl.concatenate_valid_cases(*cases)
     for test_case in cases:
-        assert test_case.exp_inputs.parameters["loading"].axes == ()
-        assert test_case.exp_inputs.parameters["loading"].data.shape == ()
+        assert test_case.exp_inputs.input_params["loading"].axes == ()
+        assert test_case.exp_inputs.input_params["loading"].data.shape == ()
     np.testing.assert_array_equal(
-        joined.exp_inputs.parameters["loading"].data, [10.0, 20.0]
+        joined.exp_inputs.input_params["loading"].data, [10.0, 20.0]
     )
 
 
@@ -275,7 +314,7 @@ def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
     for point, ax in zip((0, 1, 2, 5), axes.flat, strict=True):
         np.testing.assert_allclose(
             ax.lines[0].get_ydata(),
-            field.outputs[vl.EMetricOut.D_MINUS][point, 0, :, 1, 2],
+            field.metric_vals[vl.EMetricOut.D_MINUS][point, 0, :, 1, 2],
         )
         assert ax.get_ylabel() == "MAVM d− [degC]"
     assert vl.EValidResAxis.POINT not in selectors

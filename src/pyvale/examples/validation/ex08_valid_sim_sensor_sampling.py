@@ -31,7 +31,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex08_sim_sensor_sampling"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 sim_data: io.SimData = mh.ExodusLoader(
@@ -39,13 +39,14 @@ sim_data: io.SimData = mh.ExodusLoader(
 ).load_all_sim_data()
 
 disp_keys = ("disp_x", "disp_y", "disp_z")
-sens.scale_length_units(1000.0, sim_data, disp_keys=disp_keys)
+sens.scale_length_units(1.0e3, sim_data, disp_keys=disp_keys)
 
 temp_key = "temperature"
 strain_norm_keys = ("strain_xx", "strain_yy", "strain_zz")
 strain_shear_keys = ("strain_xy", "strain_xz", "strain_yz")
-for kk in (*strain_norm_keys, *strain_shear_keys):
-    sim_data.node_vars[kk] = sim_data.node_vars[kk] * 1.0e6
+sens.scale_nodal_fields(
+    1.0e3, sim_data, field_keys=(*strain_norm_keys, *strain_shear_keys)
+)
 
 sim_times = sim_data.time
 if sim_data.glob_vars is None:
@@ -60,6 +61,7 @@ sens_coords = np.array(
 )
 sens_times = np.linspace(sim_times[0], sim_times[-1], 5)
 
+# %%
 observables = {
     "temperature_average": vl.ValidObservable(
         components=(temp_key,),
@@ -84,7 +86,7 @@ observables = {
         geometry=vl.EValidGeometry.POINT,
         coords=sens_coords,
         times=sens_times,
-        phys_units="µε",
+        phys_units="mε",
         coord_units="mm",
         time_units="s",
     ),
@@ -98,18 +100,6 @@ observables = {
 }
 
 
-fields: dict[str, sens.IField] = {
-    "temperature_average": sens.FieldScalar(
-        sim_data, temp_key, sens.EDim.THREED
-    ),
-    "displacement_local": sens.FieldVector(
-        sim_data, disp_keys, sens.EDim.THREED
-    ),
-    "strain_local": sens.FieldTensor(
-        sim_data, strain_norm_keys, strain_shear_keys, sens.EDim.THREED
-    ),
-}
-
 # %%
 sensor_data = sens.SensorData(
     positions=sens_coords,
@@ -121,22 +111,32 @@ sensor_data = sens.SensorData(
 
 
 sim_ref_temp: vl.ValidArray = vl.sample_field_for_valid(
-    fields["temperature_average"],
+    sens.FieldScalar(sim_data, temp_key, sens.EDim.THREED),
     observables["temperature_average"],
     sensor_data=sensor_data,
 )
 
-sim_sweep_samples: dict[str, vl.ValidArray] = vl.sample_sim_sweep_for_valid(
-    fields,
-    observables,
-    [((), sim_data)],
-    sensor_data={kk: sensor_data for kk in fields},
+sim_ref_disp: vl.ValidArray = vl.sample_field_for_valid(
+    sens.FieldVector(sim_data, disp_keys, sens.EDim.THREED),
+    observables["displacement_local"],
+    sensor_data=sensor_data,
+)
+sim_ref_strain: vl.ValidArray = vl.sample_field_for_valid(
+    sens.FieldTensor(sim_data, strain_norm_keys, strain_shear_keys, sens.EDim.THREED),
+    observables["strain_local"],
+    sensor_data=sensor_data,
 )
 
 sim_nodal_mean_temp: vl.ValidArray = vl.sample_sim_globals(
     sim_data, observables["mean_temperature"]
 )
 
+sim_samples: dict[str, vl.ValidArray] = {
+    "temperature_average": sim_ref_temp,
+    "displacement_local": sim_ref_disp,
+    "strain_local": sim_ref_strain,
+    "mean_temperature": sim_nodal_mean_temp,
+}
 
 # %%
 sens_x = sens_coords[:, 0]
@@ -149,7 +149,7 @@ exp_disp_bias = (
     0.002 * spatial_time_ramp * np.array([1.0, -0.5, 0.25])[None, :, None]
 )
 exp_strain_bias = (
-    20.0
+    0.020
     * spatial_time_ramp
     * np.array([1.0, -0.5, 0.25, 0.1, -0.1, 0.2])[None, :, None]
 )
@@ -157,20 +157,20 @@ exp_mean_temp_bias = time_fraction[None, None, :]
 
 exp_temp_repeat_offsets = np.array([-0.02, 0.0, 0.02])
 exp_disp_repeat_offsets = np.array([-2.0e-6, 0.0, 2.0e-6])
-exp_strain_repeat_offsets = np.array([-0.02, 0.0, 0.02])
+exp_strain_repeat_offsets = np.array([-0.006, 0.0, 0.006])
 
 synth_exp_samples: dict[str, vl.ValidArray] = {}
 for kk, ss, bb, rr in (
     ("temperature_average", sim_ref_temp, exp_temp_bias, exp_temp_repeat_offsets),
     (
         "displacement_local",
-        sim_sweep_samples["displacement_local"],
+        sim_ref_disp,
         exp_disp_bias,
         exp_disp_repeat_offsets,
     ),
     (
         "strain_local",
-        sim_sweep_samples["strain_local"],
+        sim_ref_strain,
         exp_strain_bias,
         exp_strain_repeat_offsets,
     ),
@@ -186,14 +186,14 @@ for kk, ss, bb, rr in (
         (*ss.axes, vl.EValidAxis.ALEATORY),
     )
 
-valid_case = vl.ValidCase(observables, sim_sweep_samples, synth_exp_samples)
+valid_case = vl.ValidCase(observables, sim_samples, synth_exp_samples)
 
 valid_result: vl.ValidResult = vl.ValidEngine([vl.MetricAVM(), vl.MetricMAVM()]).run(
     valid_case
 )
 
 print(80 * "-")
-print("Sampled axes:", {kk: aa.axes for kk, aa in sim_sweep_samples.items()})
+print("Sampled axes:", {kk: aa.axes for kk, aa in sim_samples.items()})
 print("Exp. repeat axis:", valid_case.exp["temperature_average"].axes)
 print(80 * "-")
 
@@ -211,10 +211,8 @@ for kk, ii in (
         time_idx=4,
         valid_plot_opts=vl.ValidPlotOpts(x_axis_offset=kk != "strain_local"),
     )
-    ecdf_plot.figure.savefig(
-        output_path / f"val_ex08_fig{next(figure_numbers):02d}_{kk}_cdfs.png",
-        bbox_inches="tight",
-    )
+    fig_file = f"val_ex08_fig{next(fig_nums):02d}_{kk}_cdfs.png"
+    ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
@@ -226,10 +224,8 @@ for kk, ii in (
         point_idxs=(0, 1, 2, 3),
         selectors={vl.EValidResAxis.COMPONENT: ii},
     )
-    fig.savefig(
-        output_path / f"val_ex08_fig{next(figure_numbers):02d}_{kk}_mavm_time.png",
-        bbox_inches="tight",
-    )
+    fig_file = f"val_ex08_fig{next(fig_nums):02d}_{kk}_mavm_time.png"
+    fig.savefig(output_path / fig_file, bbox_inches="tight")
 
     if not SHOW_PLOTS:
         plt.close(fig)

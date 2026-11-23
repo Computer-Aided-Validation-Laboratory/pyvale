@@ -27,11 +27,12 @@ from pyvale.validation.ecdftypes import (
     ValidECDFView,
     ValidECDFViewData,
 )
-from pyvale.validation.metricstrategy import (
+from pyvale.validation.metricstrategy import MetricMAVM
+from pyvale.validation.imetric import (
+    EMetricOut,
     EMetricScale,
     EMetricType,
     IValidMetric,
-    MetricMAVM,
 )
 from pyvale.validation.validecdf import (
     _evaluate_ecdf_quantiles,
@@ -49,7 +50,7 @@ from pyvale.validation.validtools import (
 )
 from pyvale.validation.validtypes import (
     EEpisOffset,
-    EMetricOut,
+    EValidAxis,
     EValidMAVMDiagnostic,
     EValidResAxis,
     EValidSource,
@@ -58,6 +59,7 @@ from pyvale.validation.validtypes import (
     ValidCase,
     ValidMetricExtrema,
     ValidResult,
+    _get_axis_size,
 )
 
 _LineStyle = str | tuple[float, tuple[float, ...]]
@@ -414,9 +416,7 @@ def _plot_ecdf_sources(
     elif nuisance_profile_quantile is not None:
         raise ValueError("A nuisance profile probability requires QUANTILE reduction.")
     observable_data = valid_case.observables[observable]
-    point_count = (
-        1 if observable_data.coords is None else observable_data.coords.shape[0]
-    )
+    point_count = _get_axis_size(valid_case.sim[observable], EValidAxis.POINT)
     selected_points = tuple(range(point_count)) if point_idxs is None else point_idxs
     if not isinstance(selected_points, tuple) or not selected_points:
         raise ValueError("Supply a nonempty tuple of point indices.")
@@ -1781,20 +1781,20 @@ def plot_valid_mavm_diagnostic(
     sim: ValidECDFSummary,
     exp: ValidECDFSummary | None = None,
     *,
-    correction: MAVMBoundPairs | None = None,
+    bound_pairs: MAVMBoundPairs | None = None,
     view: EValidMAVMDiagnostic = EValidMAVMDiagnostic.DISTRIBUTIONS,
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
-    """Compare uncertainty bands, endpoint corrections or the outer MAVM support band.
+    """Compare uncertainty bands, shifted endpoint curves or MAVM support.
 
-    Correction views shift model support by scalar MAVM distances. The filled
-    correction is not an experimental confidence interval or a pooled CDF.
+    The bound pairs provide the scalar MAVM distances used to shift model
+    support and draw the outer support band.
     """
     if not isinstance(view, EValidMAVMDiagnostic):
         raise TypeError("Diagnostic view must be EValidMAVMDiagnostic.")
-    if view is not EValidMAVMDiagnostic.DISTRIBUTIONS and correction is None:
-        raise ValueError("Selected diagnostic needs a MAVM correction.")
+    if view is not EValidMAVMDiagnostic.DISTRIBUTIONS and bound_pairs is None:
+        raise ValueError("Selected diagnostic requires MAVM bound pairs.")
     fig, ax = _create_axes(ax, valid_plot_opts)
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
     if exp is not None and view is not EValidMAVMDiagnostic.MODEL_CORRECTION:
@@ -1816,10 +1816,10 @@ def plot_valid_mavm_diagnostic(
         linestyle=options.sim_linestyle,
         bounds_linestyle=options.sim_bounds_linestyle,
     )
-    if correction is not None and view is EValidMAVMDiagnostic.COMPARISONS:
+    if bound_pairs is not None and view is EValidMAVMDiagnostic.COMPARISONS:
         for comparison, linestyle, label in (
-            (correction.upper, options.metric_linestyle, "Upper case"),
-            (correction.lower, options.metric_alt_linestyle, "Lower case"),
+            (bound_pairs.upper, options.metric_linestyle, "Upper case"),
+            (bound_pairs.lower, options.metric_alt_linestyle, "Lower case"),
         ):
             _plot_quantile_curve(
                 ax,
@@ -1838,17 +1838,17 @@ def plot_valid_mavm_diagnostic(
                 linestyle=linestyle,
                 linewidth=options.lw,
             )
-    if correction is not None and view in (
+    if bound_pairs is not None and view in (
         EValidMAVMDiagnostic.CORRECTION,
         EValidMAVMDiagnostic.MODEL_CORRECTION,
     ):
         lower_cdf = ValidECDF(
-            correction.lower.model_quantiles - correction.lower.d_minus,
-            correction.lower.model_probs,
+            bound_pairs.lower.model_quantiles - bound_pairs.lower.d_minus,
+            bound_pairs.lower.model_probs,
         )
         upper_cdf = ValidECDF(
-            correction.upper.model_quantiles + correction.upper.d_plus,
-            correction.upper.model_probs,
+            bound_pairs.upper.model_quantiles + bound_pairs.upper.d_plus,
+            bound_pairs.upper.model_probs,
         )
         probabilities = np.unique(
             np.r_[lower_cdf.probabilities, upper_cdf.probabilities]

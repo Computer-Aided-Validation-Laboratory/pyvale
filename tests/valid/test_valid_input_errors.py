@@ -50,7 +50,7 @@ def test_missing_diagnostic_inputs_fail_before_plotting() -> None:
     with pytest.raises(ValueError):
         vl.calc_ecdf_summary([])
     summary = vl.calc_ecdf_summary([np.array([1.0, 2.0])])
-    with pytest.raises(ValueError, match="correction"):
+    with pytest.raises(ValueError, match="bound pairs"):
         validplot.plot_valid_mavm_diagnostic(
             summary, view=vl.EValidMAVMDiagnostic.CORRECTION
         )
@@ -233,7 +233,7 @@ class MetricSampleMeans(vl.IValidMetric):
     ("geometry", "coords"),
     [
         (vl.EValidGeometry.GLOBAL, np.zeros((1, 3))),
-        (vl.EValidGeometry.POINT, None),
+        (vl.EValidGeometry.SURFACE, None),
         (vl.EValidGeometry.POINT, np.zeros(3)),
         (vl.EValidGeometry.POINT, np.zeros((1, 2))),
         (vl.EValidGeometry.POINT, np.zeros((0, 3))),
@@ -586,13 +586,13 @@ def test_selection_requires_all_scenarios_and_preserves_output(
         output=vl.EMetricOut.D_MINUS,
     )
     np.testing.assert_allclose(selected, [0.0, 3.0, 1.0, np.nan])
-    assert field.outputs[vl.EMetricOut.D_MINUS][2, 0, 0, 0] == 1.0
+    assert field.metric_vals[vl.EMetricOut.D_MINUS][2, 0, 0, 0] == 1.0
     with pytest.raises(ValueError, match="output"):
         vl.select_metric_output(
             vl.MetricField(
                 field.axes,
                 {
-                    vl.EMetricOut.D_MINUS: field.outputs[
+                    vl.EMetricOut.D_MINUS: field.metric_vals[
                         vl.EMetricOut.D_MINUS
                     ]
                 },

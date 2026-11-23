@@ -9,6 +9,7 @@
 from collections.abc import Iterable
 from copy import copy
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 
@@ -54,7 +55,8 @@ def sample_field_for_valid(
         or observable.times[-1] > sim_data.time[-1]
     ):
         raise ValueError("Evaluation times leave the sim range.")
-    assert observable.coords is not None
+    if observable.coords is None:
+        raise ValueError("Field sampling requires observable coordinates.")
     if sim_data.coords is None:
         raise ValueError("Sim data has no coordinates.")
     mesh_lower = np.min(sim_data.coords, axis=0)
@@ -111,20 +113,57 @@ def sample_sim_globals(sim_data: SimData, observable: ValidObservable) -> ValidA
 def sample_sim_sweep_for_valid(
     fields: dict[str, IField],
     observables: dict[str, ValidObservable],
-    runs: Iterable[tuple[tuple[int, ...], SimData]],
+    runs: list[SimData] | Iterable[tuple[tuple[int, ...], SimData]],
     *,
     sample_axes: tuple[EValidAxis, ...] = (),
     sample_shape: tuple[int, ...] = (),
     sensor_data: dict[str, SensorData] | None = None,
 ) -> dict[str, ValidArray]:
-    """Sample indexed sim runs with reusable fields and assemble named sample axes.
+    """Sample simulation runs and assemble their values along named axes.
 
-    Fields are supplied only for spatial observables. They are rebound IN PLACE
-    through set_sim_data(), once per distinct field per run, and remain bound
-    to the final run. Do not share these fields with concurrent sampling.
-    GLOBAL observables use sample_sim_globals and need no field entry.
-    Each index addresses sample_axes; sample_shape permits allocation before
-    consuming the run iterable. Every cell must be supplied exactly once.
+    Parameters
+    ----------
+    fields : dict[str, IField]
+        Sampling fields keyed by spatial observable name. Supply exactly one
+        entry per spatial observable. Global observables are sampled from the
+        simulation's stored global variables.
+    observables : dict[str, ValidObservable]
+        Observable definitions keyed by name. Every observable must specify
+        evaluation times. Spatial observables also specify sampling coordinates.
+    runs : list[SimData] or iterable of tuple[tuple[int, ...], SimData]
+        For one sample axis, pass a flat list of simulations in axis order.
+        For multiple axes, pass pairs of zero-based index tuples and simulations.
+        For example, `((1, 2), sim_data)` selects transferable case 1 and nuisance
+        case 2 when the axes are `(EPISTEMIC_TRANS, EPISTEMIC_NUIS)`. Indexed
+        pairs can arrive in any order and must supply each cell exactly once.
+        Indexed pairs also work for a single axis. With no sample axes, pass
+        one pair with an empty index tuple, `((), sim_data)`.
+    sample_axes : tuple of EValidAxis, optional
+        Axes addressed by the run indices, in canonical order. Use any subset
+        of transferable epistemic, nuisance epistemic, and aleatory, in that
+        order. The default is no sample axes.
+    sample_shape : tuple of int, optional
+        Number of runs along each sample axis, in the same order as
+        `sample_axes`. Supply this for indexed sweeps with sample axes. For a
+        flat list, it defaults to the list length as a one-element tuple.
+    sensor_data : dict[str, SensorData] or None, optional
+        Sensor settings keyed by spatial observable name. Entries can supply
+        sensor orientations and spatial averaging. Their positions and sample
+        times must match the corresponding observable. For an omitted entry,
+        the field is sampled directly at the observable's coordinates and times.
+
+    Returns
+    -------
+    dict[str, ValidArray]
+        Sampled values keyed by observable name. Each array has point, component,
+        and time axes followed by `sample_axes`. Global observables have a
+        singleton point axis.
+
+    Notes
+    -----
+    Each distinct field is rebound in place through `set_sim_data` once per run
+    and remains bound to the last run processed. Use separate field instances
+    for concurrent sampling.
     """
     spatial_names = {
         name
@@ -135,6 +174,20 @@ def sample_sim_sweep_for_valid(
         raise ValueError("Field keys must match spatial observable keys.")
     if any(not isinstance(field, IField) for field in fields.values()):
         raise TypeError("Fields must be IField instances.")
+    indexed_runs: Iterable[tuple[tuple[int, ...], SimData]]
+    if isinstance(runs, list) and runs and isinstance(runs[0], SimData):
+        if len(sample_axes) != 1:
+            raise ValueError("A flat simulation list requires exactly one sample axis.")
+        inferred_shape = (len(runs),)
+        if sample_shape and sample_shape != inferred_shape:
+            raise ValueError("Sample shape must match the flat simulation list length.")
+        if any(not isinstance(run, SimData) for run in runs):
+            raise TypeError("A flat simulation list must contain only SimData.")
+        sample_shape = inferred_shape
+        flat_runs = cast(list[SimData], runs)
+        indexed_runs = (((idx,), sim) for idx, sim in enumerate(flat_runs))
+    else:
+        indexed_runs = cast(Iterable[tuple[tuple[int, ...], SimData]], runs)
     if len(sample_axes) != len(sample_shape):
         raise ValueError("Sample axes and shape must have the same length.")
     if any(
@@ -173,7 +226,7 @@ def sample_sim_sweep_for_valid(
     # Multiple observable tags may use the same tensor field.
     distinct_fields = {id(field): field for field in fields.values()}
     seen: set[tuple[int, ...]] = set()
-    for selection_idx, sim_data in runs:
+    for selection_idx, sim_data in indexed_runs:
         if len(selection_idx) != len(sample_axes):
             raise ValueError("Run index rank does not match sample axes.")
         if any(
@@ -207,32 +260,55 @@ def assemble_exp_arrays(
     observables: dict[str, ValidObservable],
     *,
     steady_window: slice | None = None,
+    channel_map: dict[str, tuple[str, str]] | None = None,
 ) -> dict[str, ValidArray]:
-    """Borrow acquisition arrays per observable at registered observable coordinates.
+    """Assemble single-component validation arrays from experimental traces.
 
-    A steady window treats trace values as aleatory observations. Transient
-    acquisition times must exactly match the requested observables times.
+    By default, keys in `sources` must match the observables, and acquisition
+    rows are used as points in their existing order. Supply `channel_map` to
+    select one row per observable by (source key, sensor label). Coordinates
+    are compared when supplied by both the observable and acquisition.
+
+    A steady window treats selected trace values as aleatory observations.
+    Without a window, acquisition times must match the observable's times.
     """
-    if set(sources) != set(observables):
+    if channel_map is None and set(sources) != set(observables):
         raise ValueError("Experimental source keys must match the observables.")
+    if channel_map is not None and set(channel_map) != set(observables):
+        raise ValueError("Experimental channel map keys must match the observables.")
     arrays = {}
-    for name, exp_data in sources.items():
+    for name in sources if channel_map is None else observables:
         observable = observables[name]
-        coords = observable.coords
-        if coords is None or exp_data.coords is None:
-            raise ValueError(f"{name}: explicit registered coordinates required.")
-        if not np.array_equal(coords, exp_data.coords):
-            raise ValueError(
-                f"{name}: experimental coordinates differ from observables."
-            )
+        if channel_map is None:
+            exp_data = sources[name]
+            rows = slice(None)
+        else:
+            source_key, sensor_label = channel_map[name]
+            exp_data = sources[source_key]
+            row_idx = exp_data.sens_label_to_ind[sensor_label]
+            rows = slice(row_idx, row_idx + 1)
         if exp_data.fields.ndim != 2 or len(observable.components) != 1:
             raise ValueError(f"{name}: ExpData source must have one component.")
-        if exp_data.fields.shape[0] != len(coords):
+        fields = exp_data.fields[rows]
+        coords = observable.coords
+        if coords is not None:
+            point_count = len(coords)
+            if exp_data.coords is not None and not np.array_equal(
+                coords, exp_data.coords[rows]
+            ):
+                raise ValueError(
+                    f"{name}: experimental coordinates differ from observables."
+                )
+        elif observable.geometry is EValidGeometry.GLOBAL:
+            point_count = 1
+        else:
+            point_count = len(fields)
+        if not len(fields) or len(fields) != point_count:
             raise ValueError(f"{name}: experimental point count mismatch.")
         if steady_window is not None:
             if observable.times is not None:
                 raise ValueError("Steady window requires observables without times.")
-            values = exp_data.fields[:, steady_window]
+            values = fields[:, steady_window]
             arrays[name] = ValidArray(
                 values[:, None, :],
                 (EValidAxis.POINT, EValidAxis.COMPONENT, EValidAxis.ALEATORY),
@@ -243,7 +319,7 @@ def assemble_exp_arrays(
             if not np.array_equal(observable.times, exp_data.times):
                 raise ValueError(f"{name}: acquisition times differ from observables.")
             arrays[name] = ValidArray(
-                exp_data.fields[:, None, :],
+                fields[:, None, :],
                 (EValidAxis.POINT, EValidAxis.COMPONENT, EValidAxis.TIME),
             )
     return arrays
@@ -342,8 +418,8 @@ def _compare_sample_inputs(
         return left is right
     if (left.run_ids is None) != (right.run_ids is None):
         return False
-    left_arrays = dict(left.parameters or {})
-    right_arrays = dict(right.parameters or {})
+    left_arrays = dict(left.input_params or {})
+    right_arrays = dict(right.input_params or {})
     if set(left_arrays) != set(right_arrays):
         return False
     for key, value in left_arrays.items():
@@ -467,19 +543,19 @@ def concatenate_valid_cases(*cases: ValidCase) -> ValidCase:
         combined[name].data = np.concatenate(pieces, axis=-1)
         combined[name].axes = axes
     parameter_keys = set(
-        (first.exp_inputs.parameters or {}) if first.exp_inputs is not None else {}
+        (first.exp_inputs.input_params or {}) if first.exp_inputs is not None else {}
     )
     parameters = {}
     for valid_case in cases:
         inputs = valid_case.exp_inputs
         if (
-            set((inputs.parameters or {}) if inputs is not None else {})
+            set((inputs.input_params or {}) if inputs is not None else {})
             != parameter_keys
         ):
             raise ValueError("Cases have different experimental parameter keys.")
     for key in parameter_keys:
-        assert first.exp_inputs is not None and first.exp_inputs.parameters is not None
-        reference_parameter = first.exp_inputs.parameters[key]
+        assert first.exp_inputs is not None and first.exp_inputs.input_params is not None
+        reference_parameter = first.exp_inputs.input_params[key]
         base_axes = tuple(
             axis for axis in reference_parameter.axes if axis is not EValidAxis.ALEATORY
         )
@@ -487,9 +563,9 @@ def concatenate_valid_cases(*cases: ValidCase) -> ValidCase:
         for case_idx, valid_case in enumerate(cases):
             assert (
                 valid_case.exp_inputs is not None
-                and valid_case.exp_inputs.parameters is not None
+                and valid_case.exp_inputs.input_params is not None
             )
-            parameter = valid_case.exp_inputs.parameters[key]
+            parameter = valid_case.exp_inputs.input_params[key]
             if EValidAxis.ALEATORY in parameter.axes:
                 if parameter.axes != (*base_axes, EValidAxis.ALEATORY):
                     raise ValueError(f"{key}: parameter axes differ.")
@@ -507,7 +583,7 @@ def concatenate_valid_cases(*cases: ValidCase) -> ValidCase:
         parameters[key].axes = (*base_axes, EValidAxis.ALEATORY)
         parameters[key].offsets = None
     inputs = ValidSampleInputs(
-        parameters=parameters or None,
+        input_params=parameters or None,
         run_ids=ValidArray(np.concatenate(run_ids), (EValidAxis.ALEATORY,)),
     )
     combined_case = copy(first)

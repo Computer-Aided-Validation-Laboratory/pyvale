@@ -26,7 +26,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex04_epistemic_bound_metrics"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 observable_tag = "response"
@@ -84,10 +84,8 @@ for rr, aa, mm in (
     )
 
     vl.add_support_overlay(ecdf_plot, aa)
-    ecdf_plot.figure.savefig(
-        output_path / f"val_ex04_fig{next(figure_numbers):02d}_avm_{rr}.png",
-        bbox_inches="tight",
-    )
+    fig_file = f"val_ex04_fig{next(fig_nums):02d}_avm_{rr}.png"
+    ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)
@@ -96,14 +94,8 @@ for rr, aa, mm in (
     vl.add_support_overlay(
         ecdf_plot, mm
     )
-    ecdf_plot.figure.savefig(
-        output_path
-        / (
-            f"val_ex04_fig{next(figure_numbers):02d}_"
-            f"mavm_support_envelope_{rr}.png"
-        ),
-        bbox_inches="tight",
-    )
+    fig_file = f"val_ex04_fig{next(fig_nums):02d}_mavm_support_envelope_{rr}.png"
+    ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
     if not SHOW_PLOTS:
         plt.close(ecdf_plot.figure)

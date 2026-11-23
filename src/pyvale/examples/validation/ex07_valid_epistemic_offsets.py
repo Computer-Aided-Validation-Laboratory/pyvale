@@ -26,7 +26,7 @@ if SHOW_PLOTS:
 
 output_path = Path.cwd() / "pyvale-output" / "valid_ex07_epistemic_offsets"
 output_path.mkdir(parents=True, exist_ok=True)
-figure_numbers = count(1)
+fig_nums = count(1)
 
 # %%
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -41,6 +41,7 @@ exp_samples = (ground_truth + exp_bias)[:, None, :, None] + aleatory_deviations
 exp_epistemic_offset_lower = np.array([1.5, 2.5])[:, None] + 0.5 * times
 exp_epistemic_offset_upper = np.array([4.0, 6.0])[:, None] + times
 
+# %%
 axes = (
     vl.EValidAxis.POINT,
     vl.EValidAxis.COMPONENT,
@@ -76,6 +77,7 @@ valid_case = vl.ValidCase(
     },
 )
 
+# %%
 mavm = vl.MetricMAVM()
 valid_result = vl.ValidEngine([mavm]).run(valid_case)
 
@@ -90,14 +92,8 @@ ecdf_plot = vl.plot_sim_exp_cdfs(
 )
 vl.add_metric_overlay(ecdf_plot, mavm)
 
-ecdf_plot.figure.savefig(
-    output_path
-    / (
-        f"val_ex07_fig{next(figure_numbers):02d}_"
-        f"mavm_offset_confidence_ecdfs.png"
-    ),
-    bbox_inches="tight",
-)
+fig_file = f"val_ex07_fig{next(fig_nums):02d}_mavm_offset_confidence_ecdfs.png"
+ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
@@ -110,10 +106,8 @@ fig, _ = vl.plot_metric_time_points(
     point_idxs=(0, 1),
     selectors={vl.EValidResAxis.EXP_OFFSET: vl.EEpisOffset.NOMINAL},
 )
-fig.savefig(
-    output_path / f"val_ex07_fig{next(figure_numbers):02d}_mavm_time.png",
-    bbox_inches="tight",
-)
+fig_file = f"val_ex07_fig{next(fig_nums):02d}_mavm_time.png"
+fig.savefig(output_path / fig_file, bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(fig)
 

@@ -78,12 +78,12 @@ def test_parallel_metrics_match_serial(workers: int) -> None:
             expected = serial.metrics[name][metric.get_kind()]
             actual = parallel.metrics[name][metric.get_kind()]
             assert actual.axes == expected.axes
-            assert actual.scenarios == expected.scenarios
-            assert actual.outputs.keys() == expected.outputs.keys()
-            for output in expected.outputs:
+            assert actual.epis_offsets == expected.epis_offsets
+            assert actual.metric_vals.keys() == expected.metric_vals.keys()
+            for output in expected.metric_vals:
                 np.testing.assert_allclose(
-                    actual.outputs[output],
-                    expected.outputs[output],
+                    actual.metric_vals[output],
+                    expected.metric_vals[output],
                     rtol=0,
                     atol=0,
                     equal_nan=True,
@@ -120,7 +120,7 @@ def test_worker_failure_propagates_and_engine_can_run_again() -> None:
     assert np.isfinite(
         engine.run(test_case)
         .metrics["camera"][vl.EMetricType.AVM]
-        .outputs[vl.EMetricOut.DISTANCE]
+        .metric_vals[vl.EMetricOut.DISTANCE]
     ).any()
 
 
@@ -200,7 +200,7 @@ def test_uneven_partitions_preserve_physical_offsets(workers: int) -> None:
         (vl.EMetricType.RMSE, vl.EMetricOut.ERROR),
     ):
         np.testing.assert_allclose(
-            result.metrics["response"][metric].outputs[output],
+            result.metrics["response"][metric].metric_vals[output],
             expected,
             rtol=1e-13,
             atol=1e-12,
@@ -238,7 +238,7 @@ def test_small_workload_with_worker_cap_matches_analytic_shift() -> None:
         for metric in metrics:
             assert (
                 result.metrics["response"][metric.get_kind()]
-                .outputs[metric.get_outputs()[0]]
+                .metric_vals[metric.get_outputs()[0]]
                 .item()
                 == 0.125
             )
@@ -315,7 +315,7 @@ def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
         opts=vl.ValidEngineOpts(workers=workers),
     ).run(test_case)
     field = result.metrics["scalar"][vl.EMetricType.AVM]
-    assert tuple(field.outputs) == (
+    assert tuple(field.metric_vals) == (
         vl.EMetricOut.ERROR,
         vl.EMetricOut.DISTANCE,
     )
@@ -323,13 +323,13 @@ def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
         (vl.EMetricOut.ERROR, [2.0, np.nan, 5.0]),
         (vl.EMetricOut.DISTANCE, [3.0, np.nan, 6.0]),
     ):
-        assert field.outputs[output].shape == (3, 1, 1)
+        assert field.metric_vals[output].shape == (3, 1, 1)
         np.testing.assert_allclose(
             vl.extract_metric_values(field, output=output), expected
         )
         selected = vl.select_metric_output(field, output)
-        assert np.shares_memory(selected, field.outputs[output])
-    statistic = result.metrics["scalar"][vl.EMetricType.KS].outputs[
+        assert np.shares_memory(selected, field.metric_vals[output])
+    statistic = result.metrics["scalar"][vl.EMetricType.KS].metric_vals[
         vl.EMetricOut.STATISTIC
     ]
     np.testing.assert_allclose(statistic[:, 0, 0], [0.0, np.nan, 0.0])
@@ -386,7 +386,7 @@ def test_custom_paired_classification_uses_joint_missing_observation_mask() -> N
     result = vl.ValidEngine([metric]).run(valid_case)
     field = result.metrics["length"][vl.EMetricType.KS]
     np.testing.assert_array_equal(
-        field.outputs[vl.EMetricOut.STATISTIC], [[[1.0]]]
+        field.metric_vals[vl.EMetricOut.STATISTIC], [[[1.0]]]
     )
 
 
@@ -437,5 +437,8 @@ def test_batched_avm_matches_scalar_comparisons(
         field = result.metrics[tag][vl.EMetricType.AVM]
         assert field.axes[-2:] == (vl.EValidResAxis.SIM_TRANS, vl.EValidResAxis.EXP_TRANS)
         np.testing.assert_allclose(
-            field.outputs[vl.EMetricOut.DISTANCE][:, 0, 0], expected, rtol=0, atol=1e-14
+            field.metric_vals[vl.EMetricOut.DISTANCE][:, 0, 0],
+            expected,
+            rtol=0,
+            atol=1e-14,
         )

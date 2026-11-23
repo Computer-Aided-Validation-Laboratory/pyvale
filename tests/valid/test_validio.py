@@ -38,7 +38,7 @@ def archive_case() -> vl.ValidCase:
         {"temperature": sim},
         {"temperature": exp},
         sim_inputs=vl.ValidSampleInputs(
-            parameters={"gain": vl.ValidArray(np.array([1, 2]), nuisance_axis)},
+            input_params={"gain": vl.ValidArray(np.array([1, 2]), nuisance_axis)},
             run_ids=vl.ValidArray(np.array(["run_a", "run_b"]), nuisance_axis),
         ),
     )
@@ -64,9 +64,9 @@ def test_valid_case_round_trip(archive_case: vl.ValidCase, tmp_path: Path) -> No
     assert restored.sim[tag].offsets is None
     assert restored.exp_inputs is None
     assert restored.sim_inputs is not None
-    assert restored.sim_inputs.parameters is not None
+    assert restored.sim_inputs.input_params is not None
     assert restored.sim_inputs.run_ids is not None
-    np.testing.assert_array_equal(restored.sim_inputs.parameters["gain"].data, [1, 2])
+    np.testing.assert_array_equal(restored.sim_inputs.input_params["gain"].data, [1, 2])
     np.testing.assert_array_equal(restored.sim_inputs.run_ids.data, ["run_a", "run_b"])
 
     observable = restored.observables[tag]
@@ -100,11 +100,11 @@ def test_result_and_extrema_round_trip(
     for kind, original_field in original.metrics[tag].items():
         loaded = restored.metrics[tag][kind]
         assert loaded.axes == original_field.axes
-        assert loaded.scenarios == original_field.scenarios
-        assert loaded.outputs.keys() == original_field.outputs.keys()
-        for output in loaded.outputs:
+        assert loaded.epis_offsets == original_field.epis_offsets
+        assert loaded.metric_vals.keys() == original_field.metric_vals.keys()
+        for output in loaded.metric_vals:
             np.testing.assert_array_equal(
-                loaded.outputs[output], original_field.outputs[output]
+                loaded.metric_vals[output], original_field.metric_vals[output]
             )
     mavm = restored.metric_configs[vl.EMetricType.MAVM]
     assert isinstance(mavm, vl.MetricMAVM)

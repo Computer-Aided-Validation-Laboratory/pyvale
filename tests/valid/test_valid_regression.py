@@ -151,9 +151,9 @@ def test_engine_matches_standalone_uncertainty_products(workers: int) -> None:
         )
         for metric in metrics:
             field = result.metrics["response"][metric.get_kind()]
-            assert tuple(field.outputs) == metric.get_outputs()
+            assert tuple(field.metric_vals) == metric.get_outputs()
             if not np.any(np.isfinite(exp_samples)):
-                for array in field.outputs.values():
+                for array in field.metric_vals.values():
                     assert np.isnan(array[selection])
                 continue
             expected = metric.calc(sim_samples, exp_samples)
@@ -161,7 +161,7 @@ def test_engine_matches_standalone_uncertainty_products(workers: int) -> None:
             for output, expected_value in zip(
                 metric.get_outputs(), expected_outputs, strict=True
             ):
-                assert field.outputs[output][selection] == pytest.approx(
+                assert field.metric_vals[output][selection] == pytest.approx(
                     expected_value, rel=1e-13, abs=1e-12
                 )
 
@@ -227,20 +227,20 @@ def test_prepared_plate_gold_metrics() -> None:
     """Track the saved SensorSim fixture and selected metric diagnostics."""
     valid_case = load_plate_case()
     result = vl.ValidEngine([vl.MetricAVM(), vl.MetricMAVM()]).run(valid_case)
-    assert result.metrics["temperature"][vl.EMetricType.AVM].outputs[
+    assert result.metrics["temperature"][vl.EMetricType.AVM].metric_vals[
         vl.EMetricOut.DISTANCE
     ][5, 0, 0] == pytest.approx(0.26243433506330643, abs=1e-10)
-    assert result.metrics["temperature"][vl.EMetricType.MAVM].outputs[
+    assert result.metrics["temperature"][vl.EMetricType.MAVM].metric_vals[
         vl.EMetricOut.D_PLUS
-    ][5, 0, 0] + result.metrics["temperature"][vl.EMetricType.MAVM].outputs[
+    ][5, 0, 0] + result.metrics["temperature"][vl.EMetricType.MAVM].metric_vals[
         vl.EMetricOut.D_MINUS
     ][5, 0, 0] == pytest.approx(0.4891546824953229, abs=1e-10)
-    assert result.metrics["strain"][vl.EMetricType.AVM].outputs[
+    assert result.metrics["strain"][vl.EMetricType.AVM].metric_vals[
         vl.EMetricOut.DISTANCE
     ][5, 0, 0] == pytest.approx(1.2018068336589567e-06, abs=1e-12)
-    assert result.metrics["strain"][vl.EMetricType.MAVM].outputs[
+    assert result.metrics["strain"][vl.EMetricType.MAVM].metric_vals[
         vl.EMetricOut.D_PLUS
-    ][5, 2, 0] + result.metrics["strain"][vl.EMetricType.MAVM].outputs[
+    ][5, 2, 0] + result.metrics["strain"][vl.EMetricType.MAVM].metric_vals[
         vl.EMetricOut.D_MINUS
     ][5, 2, 0] == pytest.approx(3.368761032966909e-06, abs=1e-12)
 
@@ -310,9 +310,12 @@ def test_real_simdata_expdata_and_direct_arrays_agree() -> None:
     for metric in (vl.EMetricType.AVM, vl.EMetricType.MAVM):
         expected = direct_result.metrics["temperature"][metric]
         actual = converted_result.metrics["temperature"][metric]
-        for output in expected.outputs:
+        for output in expected.metric_vals:
             np.testing.assert_allclose(
-                actual.outputs[output], expected.outputs[output], rtol=0.0, atol=1e-12
+                actual.metric_vals[output],
+                expected.metric_vals[output],
+                rtol=0.0,
+                atol=1e-12,
             )
 
 

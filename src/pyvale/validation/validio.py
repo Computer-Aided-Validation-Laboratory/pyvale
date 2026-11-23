@@ -13,10 +13,13 @@ from tempfile import NamedTemporaryFile
 import numpy as np
 from numpy.lib.npyio import NpzFile
 
-from pyvale.validation.metrics import ERelErrNorm
-from pyvale.validation.metricstrategy import (
+from pyvale.validation.imetric import (
+    EMetricOut,
     EMetricType,
     IValidMetric,
+)
+from pyvale.validation.metrics import ERelErrNorm
+from pyvale.validation.metricstrategy import (
     MetricAVM,
     MetricCVM,
     MetricKS,
@@ -27,7 +30,6 @@ from pyvale.validation.metricstrategy import (
 from pyvale.validation.validtypes import (
     EEpisOffset,
     EMAVMDuplicates,
-    EMetricOut,
     EpistemicOffsets,
     EValidAxis,
     EValidGeometry,
@@ -181,10 +183,10 @@ def _pack_inputs(
     return {
         "parameters": (
             None
-            if inputs.parameters is None
+            if inputs.input_params is None
             else {
                 tag: _pack_quantity(value, arrays)
-                for tag, value in inputs.parameters.items()
+                for tag, value in inputs.input_params.items()
             }
         ),
         "run_ids": None
@@ -199,7 +201,7 @@ def _unpack_inputs(metadata: dict | None, archive: NpzFile) -> ValidSampleInputs
     parameters = metadata["parameters"]
     run_ids = metadata["run_ids"]
     return ValidSampleInputs(
-        parameters=(
+        input_params=(
             None
             if parameters is None
             else {
@@ -308,16 +310,16 @@ def save_valid_result(path: str | Path, result: ValidResult) -> None:
     for tag, metrics in result.metrics.items():
         fields[tag] = {}
         for kind, metric_field in metrics.items():
-            scenarios = metric_field.scenarios
+            epis_offsets = metric_field.epis_offsets
             fields[tag][kind.name] = {
                 "axes": [axis.name for axis in metric_field.axes],
-                "outputs": _pack_outputs(metric_field.outputs, arrays),
+                "outputs": _pack_outputs(metric_field.metric_vals, arrays),
                 "scenarios": (
                     None
-                    if scenarios is None
+                    if epis_offsets is None
                     else {
                         axis.name: [offset.name for offset in offsets]
-                        for axis, offsets in scenarios.items()
+                        for axis, offsets in epis_offsets.items()
                     }
                 ),
             }
@@ -343,18 +345,18 @@ def load_valid_result(path: str | Path) -> ValidResult:
         for tag, fields in metadata["metrics"].items():
             metrics[tag] = {}
             for kind, stored in fields.items():
-                scenarios = stored["scenarios"]
+                epis_offsets = stored["scenarios"]
                 metrics[tag][EMetricType[kind]] = MetricField(
                     axes=tuple(EValidResAxis[name] for name in stored["axes"]),
-                    outputs=_unpack_outputs(stored["outputs"], archive),
-                    scenarios=(
+                    metric_vals=_unpack_outputs(stored["outputs"], archive),
+                    epis_offsets=(
                         None
-                        if scenarios is None
+                        if epis_offsets is None
                         else {
                             EValidResAxis[axis]: tuple(
                                 EEpisOffset[name] for name in offsets
                             )
-                            for axis, offsets in scenarios.items()
+                            for axis, offsets in epis_offsets.items()
                         }
                     ),
                 )

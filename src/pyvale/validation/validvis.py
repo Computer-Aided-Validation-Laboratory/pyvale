@@ -16,18 +16,18 @@ from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_vis
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.visualopts import VisOptsSimSensors
 from pyvale.sensorsim.visualtools import create_pv_plotter
-from pyvale.validation.metricstrategy import EMetricScale, EMetricType
 from pyvale.validation.arraychecks import _validate_real_array
+from pyvale.validation.imetric import (
+    EMetricOut,
+    EMetricScale,
+    EMetricType,
+)
 from pyvale.validation.validtools import (
     _create_default_metric_labels,
     _create_metric_label,
     extract_metric_values,
 )
-from pyvale.validation.validtypes import (
-    EMetricOut,
-    EValidResAxis,
-    ValidResult,
-)
+from pyvale.validation.validtypes import EValidResAxis, ValidResult
 
 
 @dataclass(slots=True)

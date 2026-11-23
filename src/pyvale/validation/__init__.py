@@ -6,6 +6,16 @@
 
 """Validation of common physical observables and uncertainty scenarios."""
 
+from pyvale.validation.imetric import (
+    EMetricComparison,
+    EMetricOut,
+    EMetricScale,
+    EMetricType,
+    IValidMetric,
+    MAVMResult,
+    MetricResult,
+    ScalarMetricResult,
+)
 from pyvale.validation.metrics import (
     DeterministicMetricResult,
     ERelErrNorm,
@@ -17,18 +27,12 @@ from pyvale.validation.metrics import (
     calc_mavm_pbox_1d,
 )
 from pyvale.validation.metricstrategy import (
-    EMetricComparison,
-    EMetricScale,
-    EMetricType,
-    IValidMetric,
     MetricAVM,
     MetricCVM,
     MetricKS,
     MetricMAVM,
     MetricRMSE,
     MetricRelErr,
-    MetricResult,
-    ScalarMetricResult,
 )
 from pyvale.validation.validecdf import (
     calc_ecdf,
@@ -114,7 +118,6 @@ from pyvale.validation.ecdftypes import (
 from pyvale.validation.validtypes import (
     EEpisOffset,
     EMAVMDuplicates,
-    EMetricOut,
     EValidAxis,
     EValidGeometry,
     EValidMAVMDiagnostic,
@@ -122,7 +125,6 @@ from pyvale.validation.validtypes import (
     EValidSource,
     EpistemicOffsets,
     MAVMBoundPairs,
-    MAVMResult,
     MetricField,
     ValidArray,
     ValidCase,
