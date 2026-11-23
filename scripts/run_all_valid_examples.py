@@ -28,7 +28,8 @@ def main() -> int:
     arguments = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
-    examples = sorted((repo_root / "src/pyvale/examples/validation").glob("ex*.py"))
+    examples_directory = repo_root / "src/pyvale/examples/validation"
+    examples = sorted(examples_directory.glob("ex[0-9][0-9]*_valid_*.py"))
     if not examples:
         parser.error("No validation examples found in this checkout.")
     output_root = repo_root / "pyvale-output"
@@ -51,6 +52,9 @@ def main() -> int:
     for index, example in enumerate(examples, start=1):
         print(f"[{index}/{len(examples)}] {example.name}", flush=True)
         start = perf_counter()
+        output_directory = output_root / (
+            "valid_" + example.stem.replace("_valid_", "_", 1)
+        )
         log_path = log_directory / f"{example.stem}.log"
         with log_path.open("w") as log_stream:
             completed = subprocess.run(
@@ -64,11 +68,17 @@ def main() -> int:
         if completed.returncode:
             failed.append(example.name)
             print(f"  FAIL ({completed.returncode}); see {log_path}", flush=True)
+        elif not output_directory.is_dir():
+            failed.append(example.name)
+            print(f"  FAIL: expected output directory {output_directory}", flush=True)
         else:
-            print(f"  PASS ({perf_counter() - start:.1f}s)", flush=True)
+            print(
+                f"  PASS ({perf_counter() - start:.1f}s): {output_directory}",
+                flush=True,
+            )
 
     print(f"\n{len(examples) - len(failed)} passed, {len(failed)} failed")
-    print(f"Figures: {output_root}/valid_ex*")
+    print(f"Outputs: {output_root}/valid_ex*")
     print(f"Logs: {log_directory}")
     if failed:
         print("Failed examples: " + ", ".join(failed))

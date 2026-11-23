@@ -5,12 +5,8 @@
 # ==============================================================================
 
 """
-Transferable bounds
+Metrics on epistemic bounds
 ================================================================================
-
-Crossing conditional ECDFs make the two routes visibly different. This example
-has no nuisance uncertainty and needs no downloaded data. Bounds remain curves
-with empirical probability mass, rather than synthetic equally weighted samples.
 """
 
 from pathlib import Path
@@ -27,13 +23,10 @@ SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
 
-output_path = Path.cwd() / "pyvale-output" / "valid_ex4_transferable_bounds"
+output_path = Path.cwd() / "pyvale-output" / "valid_ex04_epistemic_bound_metrics"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-# 1. Construct crossing sim ECDFs and two transferable exp alternatives.
-# At p=.5 the second sim case supplies the upper bound; at p=1 the first does.
-# Each row is a complete conditional aleatory sample, never pooled with another.
 observable_tag = "response"
 
 axes = (vl.EValidAxis.EPISTEMIC, vl.EValidAxis.ALEATORY)
@@ -51,8 +44,6 @@ valid_case = vl.ValidCase(
 )
 
 # %%
-# 2. The boundary route needs no engine. Its four comparisons use pointwise
-# envelope boundaries that can splice together different original scenarios.
 sim_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
     valid_case.sim[observable_tag]
 )
@@ -65,13 +56,10 @@ avm_bounds: vl.ECDFSuppBounds = vl.calc_avm_over_epis_bounds(
     sim_bounds, exp_bounds
 )
 
-# alpha=.5 deliberately removes confidence shifts to isolate epistemic geometry.
-# ex07 demonstrates default MAVM confidence construction and coherent offsets.
 mavm_bounds: vl.ECDFSuppBounds = vl.calc_mavm_over_epis_bounds(
     sim_bounds, exp_bounds, alpha=0.5
 )
 
-# 3. The original-scenario route calculates all comparisons, then reuses them.
 valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM(alpha=0.5)]
 ).run(valid_case)
@@ -84,8 +72,6 @@ mavm_original: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
 # %%
-# 4. Compare the two definitions on separate figures, with the same original
-# scenario curves available for context. Neither route is relabelled as the other.
 for route, avm, mavm in (
     ("bounds", avm_bounds, mavm_bounds),
     ("original", avm_original, mavm_original),

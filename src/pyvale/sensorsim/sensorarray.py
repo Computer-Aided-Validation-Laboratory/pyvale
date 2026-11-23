@@ -49,6 +49,10 @@ class ISensorArray(ABC):
     """
 
     @abstractmethod
+    def get_sensor_positions(self) -> np.ndarray | None:
+        """Return nominal positions with shape (sensor, xyz), if defined."""
+
+    @abstractmethod
     def get_measurement_shape(self) -> tuple[int,int,int]:
         """Abstract method. Gets the shape of the measurement array:
         shape=(num_sensors,num_field_components,num_time_steps).

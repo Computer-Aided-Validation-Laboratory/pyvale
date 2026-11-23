@@ -5,12 +5,8 @@
 # ==============================================================================
 
 """
-Calibration offsets
+Epistemic offsets
 ================================================================================
-
-The imposed experimental bias grows from 4 to 14 degC. Calibration offsets shift an entire
-conditional distribution, whereas MAVM confidence depends on its observations.
-These are distinct from the epistemic scenario envelope shown in ex04-ex06.
 """
 
 from pathlib import Path
@@ -22,14 +18,15 @@ import numpy as np
 import pyvale.validation as vl
 
 matplotlib.use("Agg")
+
 SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
-output_path = Path.cwd() / "pyvale-output" / "valid_ex7_offsets"
+
+output_path = Path.cwd() / "pyvale-output" / "valid_ex07_epistemic_offsets"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-# 1. Two points and three times share a deterministic aleatory sampling grid.
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
 times = np.array([0.0, 1.0, 2.0])
 ground_truth = np.array([100.0, 120.0])[:, None] + 10.0 * times
@@ -39,16 +36,18 @@ exp_bias = 4.0 + 5.0 * times
 sim_samples = ground_truth[:, None, :, None] + aleatory_deviations
 exp_samples = (ground_truth + exp_bias)[:, None, :, None] + aleatory_deviations
 
-# Calibration offset magnitudes vary by site and time, in degC.
 exp_epistemic_offset_lower = np.array([1.5, 2.5])[:, None] + 0.5 * times
 exp_epistemic_offset_upper = np.array([4.0, 6.0])[:, None] + times
+
 axes = (
     vl.EValidAxis.POINT,
     vl.EValidAxis.COMPONENT,
     vl.EValidAxis.TIME,
     vl.EValidAxis.ALEATORY,
 )
+
 observable_tag = "temperature"
+
 valid_case = vl.ValidCase(
     {
         observable_tag: vl.ValidObservable(
@@ -74,13 +73,11 @@ valid_case = vl.ValidCase(
         )
     },
 )
+
 mavm = vl.MetricMAVM()
 valid_result = vl.ValidEngine([mavm]).run(valid_case)
 
 # %%
-# 2. Show the nominal experiment, both offset limits and the two outermost
-# confidence limits. Confidence shifts are calculated from each offset's
-# original observations. The shaded metric envelope spans both MAVM directions.
 ecdf_plot = vl.plot_sim_exp_cdfs(
     valid_case,
     observable_tag,
@@ -90,14 +87,15 @@ ecdf_plot = vl.plot_sim_exp_cdfs(
     confidence_alpha=mavm.alpha,
 )
 vl.add_metric_overlay(ecdf_plot, mavm)
+
 ecdf_plot.figure.savefig(
     output_path / "mavm_offset_confidence_ecdfs.png", bbox_inches="tight"
 )
+
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
 # %%
-# 3. The time history shows both MAVM directions at the nominal offset.
 fig, _ = vl.plot_metric_time_points(
     valid_result,
     observable_tag,

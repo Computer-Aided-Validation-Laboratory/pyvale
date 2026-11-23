@@ -62,7 +62,6 @@ PULSE25X_OUTPUTS = (
 EXAMPLES = (
     (
         "ex00_valid_quickstart",
-        "valid_ex0_quickstart",
         (
             "temperature_cdfs.png",
             "temperature_envelopes.png",
@@ -72,8 +71,7 @@ EXAMPLES = (
         ),
     ),
     (
-        "ex01_valid_metric",
-        "valid_ex1_metric",
+        "ex01_valid_scalar_metrics",
         (
             "observable_cdfs.png",
             "avm_overlay.png",
@@ -89,8 +87,7 @@ EXAMPLES = (
         ),
     ),
     (
-        "ex02_valid_steady",
-        "valid_ex2_steady",
+        "ex02_valid_steady_state",
         (
             "temperature_cdfs.png",
             "temperature_avm_on_sim.png",
@@ -99,7 +96,6 @@ EXAMPLES = (
     ),
     (
         "ex03_valid_transient",
-        "valid_ex3_transient",
         (
             "temperature_cdfs.png",
             "temperature_avm_time.png",
@@ -107,8 +103,7 @@ EXAMPLES = (
         ),
     ),
     (
-        "ex04_valid_transferable_bounds",
-        "valid_ex4_transferable_bounds",
+        "ex04_valid_epistemic_bound_metrics",
         (
             "avm_bounds.png",
             "avm_original.png",
@@ -117,8 +112,7 @@ EXAMPLES = (
         ),
     ),
     (
-        "ex05_valid_epistemic_axes",
-        "valid_ex5_epistemic_axes",
+        "ex05_valid_nuisance_ecdf_profiles",
         (
             "ecdf_sim_nuis_envelope_vs_prof_median.png",
             "ecdf_exp_nuis_envelope_vs_prof_median.png",
@@ -131,8 +125,7 @@ EXAMPLES = (
         ),
     ),
     (
-        "ex06_valid_nuisance_profiles",
-        "valid_ex6_nuisance_profiles",
+        "ex06_valid_nuisance_metric_profiles",
         (
             "validation_case.npz",
             "validation_result.npz",
@@ -160,16 +153,14 @@ EXAMPLES = (
         ),
     ),
     (
-        "ex07_valid_offsets",
-        "valid_ex7_offsets",
+        "ex07_valid_epistemic_offsets",
         (
             "mavm_offset_confidence_ecdfs.png",
             "mavm_time.png",
         ),
     ),
     (
-        "ex08_valid_sampling",
-        "valid_ex8_sampling",
+        "ex08_valid_sim_sensor_sampling",
         (
             "temperature_average_cdfs.png",
             "displacement_local_cdfs.png",
@@ -180,8 +171,7 @@ EXAMPLES = (
         ),
     ),
     (
-        "ex09_valid_cube_sweep",
-        "valid_ex9_cube_sweep",
+        "ex09_valid_sim_sweep_sampling",
         CUBE_OUTPUTS
         + (
             "nominal_avm_time.png",
@@ -189,10 +179,13 @@ EXAMPLES = (
             "thermal_expansion_plus_10pct_avm_time.png",
         ),
     ),
-    ("ex10_valid_pulse25x", "valid_ex10_pulse25x", PULSE25X_OUTPUTS),
+    ("ex10_valid_pulse25x_benchmark", PULSE25X_OUTPUTS),
+    (
+        "ex11_valid_sensorsim_import",
+        ("temperature_ecdfs.png", "temperature_mavm_time.png"),
+    ),
     (
         "ex12_parallel_valid_ir_camera",
-        "valid_ex12_ir_camera",
         ("ir_camera_avm.png",),
     ),
 )
@@ -200,16 +193,16 @@ EXAMPLES = (
 
 @pytest.mark.example
 @pytest.mark.parametrize(
-    ("example", "output_directory", "outputs"),
-    [(f"validation/{name}.py", directory, outputs) for name, directory, outputs in EXAMPLES],
+    ("example", "outputs"),
+    [(f"validation/{name}.py", outputs) for name, outputs in EXAMPLES],
 )
 def test_valid_example(
     run_example: Callable[..., Path],
     example: str,
-    output_directory: str,
     outputs: tuple[str, ...],
 ) -> None:
     """Every example runs unattended and keeps its artifacts in its own directory."""
+    output_directory = "valid_" + Path(example).stem.replace("_valid_", "_", 1)
     expected_outputs = tuple(
         f"pyvale-output/{output_directory}/{output}" for output in outputs
     )
@@ -226,5 +219,5 @@ def test_valid_example(
 def test_valid_gallery_matches_registered_examples() -> None:
     examples_root = Path(__file__).resolve().parents[2] / "src/pyvale/examples/validation"
     assert sorted(path.stem for path in examples_root.glob("ex*.py")) == sorted(
-        name for name, _, _ in EXAMPLES
+        name for name, _ in EXAMPLES
     )

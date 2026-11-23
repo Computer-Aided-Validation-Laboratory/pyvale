@@ -46,6 +46,10 @@ class CameraBasic2D(ISensorArray):
 
     #---------------------------------------------------------------------------
     # Accessors
+    def get_sensor_positions(self) -> np.ndarray | None:
+        """Return the configured sensor positions before perturbation."""
+        return self._sensor_data.positions
+
     def get_sample_times(self) -> np.ndarray:
         if self._sensor_data.sample_times is None:
             #shape=(n_time_steps,)

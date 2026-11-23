@@ -8,24 +8,25 @@ python scripts/run_all_valid_examples.py
 ```
 
 For an unpublished local data checkout, add `--data-dir ../pyvale-data/Data`.
-Figures and numerical reference tables are written to the git-ignored
-`pyvale-output/valid_ex*` directories. Interactive plotting is opt-in through
-`SHOW_PLOTS` in each tutorial. The gallery is limited to ex00–ex10; ex00 is
-unchanged by this reorganisation.
+Figures and validation archives are written to the git-ignored
+`pyvale-output/valid_ex*` directories. Interactive plotting is opt-in in the
+examples that expose a `SHOW_PLOTS` setting.
 
-| Example | Physical regime | Main features |
-| --- | --- | --- |
-| ex00_valid_quickstart | Existing transient case | Original end-to-end quickstart, unchanged |
-| ex01_valid_metric | Steady global scalar | All metrics, deterministic/aleatory sample counts, paired versus distributional comparisons, metric classifications, composable overlays, constant normalisation and U-pooling |
-| ex02_valid_steady | Steady 2D plate | Multiple observables/components, registered spatial points and metric maps with a prescribed edge bias |
-| ex03_valid_transient | Transient 2D plate | Time and repeat axes, drift histories, spatial maps and explicit snapshot selection |
-| ex04_valid_transferable_bounds | Steady transferable alternatives on both sources | ECDF bounds, AVM/MAVM over boundaries versus original scenario comparisons, crossing curves and provenance |
-| ex05_valid_epistemic_axes | Steady transferable/nuisance alternatives on both sources | All-case envelopes, fixed/subset nuisance selections, mean/median/quartile reductions, selected joint curves and reference-quantile normalisation |
-| ex06_valid_nuisance_profiles | Transient, both epistemic axes | All-metric nuisance extrema, outer shifted supports, retained transferable axes, original indices and ranking coherent nuisance cases by total or additional width |
-| ex07_valid_offsets | Transient spatial observations | Asymmetric coherent offsets, nominal/lower/upper selections and experimental confidence construction, kept distinct from epistemic envelopes |
-| ex08_valid_sampling | Transient 3D cube | Reusable scalar/vector/tensor fields, rotated averaging footprints, globals, single/sweep sampling, SensorSim-shaped acquisitions, ExpData assembly, repeated cases and derived backgrounds |
-| ex09_valid_cube_sweep | Transient 3D MOOSE sweep | Real +10% parameter perturbations, transferable alternatives, tensor histories, stored/derived backgrounds and engine execution options |
-| ex10_valid_pulse25x | Existing experimental dataset | Frozen paper reproduction, legacy endpoint calculation, provenance and numerical parity |
+| Example | What it shows |
+| --- | --- |
+| `ex00_valid_quickstart` | End-to-end transient plate validation with ECDFs, a MAVM time history and mesh overlays. |
+| `ex01_valid_scalar_metrics` | An analytic scalar case for comparing metric behaviour, integration areas and U-pooling. |
+| `ex02_valid_steady_state` | Temperature and strain at a single steady state, with spatial AVM and MAVM support plots. |
+| `ex03_valid_transient` | Temperature and strain over time, with ECDF snapshots and AVM/MAVM histories. |
+| `ex04_valid_epistemic_bound_metrics` | AVM and MAVM calculated from transferable ECDF bounds versus original scenario pairs. |
+| `ex05_valid_nuisance_ecdf_profiles` | Mean, median and 25th-percentile nuisance profiles against all-case ECDF envelopes, with KS and MAVM overlays. |
+| `ex06_valid_nuisance_metric_profiles` | Metric extrema and their controlling ECDF pairs, MAVM support ranking and NPZ round-trips. |
+| `ex07_valid_epistemic_offsets` | Nominal and offset ECDFs with outer experimental confidence limits and a MAVM support envelope. |
+| `ex08_valid_sim_sensor_sampling` | Scalar, vector, tensor and global sampling with synthetic experimental acquisitions. |
+| `ex09_valid_sim_sweep_sampling` | Run a MOOSE parameter sweep, sample each run at virtual sensors and compare strain histories. |
+| `ex10_valid_pulse25x_benchmark` | Reproduce the Pulse25X benchmark's MAVM endpoint comparisons and diagnostics. |
+| `ex11_valid_sensorsim_import` | Run SensorSim ex3 and validate its exported temperature repeats at the stored nominal positions and times. |
+| `ex12_parallel_valid_ir_camera` | Compare serial and four-worker AVM on a 640×480 plate image with noisy frames and emissivity sweeps. |
 
 Recognisable discrepancy patterns
 ---------------------------------
@@ -39,7 +40,7 @@ realisations:
   3 degC at the right edge.
 - ex03: `bias = (2 + 3*x_fraction)*time_fraction` degC, zero initially and rising
   to 2–5 degC at the final time.
-- ex05: asymmetric nuisance shifts include one 18 degC alternative, making the
+- ex05: asymmetric nuisance shifts include one 178 degC nuisance shift, making the
   sensitivity of means and pointwise quartiles clear.
 - ex06: position/time-dependent bias and prescribed nuisance spreads produce
   structured, sometimes piecewise metric trends as controlling cases change.
@@ -49,7 +50,7 @@ realisations:
 - ex09: metric structure comes from real heat-flux and thermal-expansion changes;
   seeded measurement noise is deliberately small.
 
-MAVM d+ and d− are plotted separately. Its experimental confidence shifts can
+MAVM time histories can show d+ and d− together. Experimental confidence shifts can
 produce a nonzero floor even when the prescribed mean bias is zero. Epistemic
 samples are never pooled into aleatory observations. Mean/median/quantile curves
 are labelled as synthetic summaries; ranked nuisance cases retain actual joint
@@ -58,5 +59,5 @@ sample indices.
 Ex10 retains the numerical conventions of Horne-Jones et al. (2026),
 https://arxiv.org/abs/2605.11886, including its frozen reference checks. The general
 bounds/profiling algorithms in ex04–ex06 are deliberately distinguished from that
-paper-specific endpoint calculation. Parallel performance measurements remain in
-`scripts/perf_valid.py`; the small gallery cases use serial execution.
+paper-specific endpoint calculation. The larger performance benchmark is in
+`scripts/perf_valid.py`.

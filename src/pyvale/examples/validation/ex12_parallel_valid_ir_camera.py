@@ -5,12 +5,8 @@
 # ==============================================================================
 
 """
-IR camera validation
+Parallel IR camera validation
 ================================================================================
-
-Compare repeated simulated and experimental IR frames of a steady plate.
-Assumed emissivity shifts are coherent across the frames at each pixel.
-Run batched AVM on the same case in serial and with four worker threads.
 """
 
 from pathlib import Path
@@ -34,9 +30,6 @@ PLATE_HEIGHT_M = 0.48
 def run_ir_camera_validation() -> None:
     setup_start = perf_counter()
 
-    # An ideal rectified camera sees the entire 4:3 plate. Image row zero is
-    # the bottom edge. The bilinear corner temperatures are 20, 55, 50 and 100
-    # degC at bottom left, bottom right, top left and top right respectively.
     normalized_x, normalized_y = np.meshgrid(
         np.linspace(0.0, 1.0, CAMERA_WIDTH),
         np.linspace(0.0, 1.0, CAMERA_HEIGHT),
@@ -55,8 +48,6 @@ def run_ir_camera_validation() -> None:
         )
     )
 
-    # Broadband grey-body approximation with a 20 degC reflected background.
-    # The same radiance is interpreted under several emissivity assumptions.
     kelvin_offset = 273.15
     reflected_kelvin = 20.0 + kelvin_offset
     true_emissivity = 0.95
@@ -80,8 +71,6 @@ def run_ir_camera_validation() -> None:
         - ground_truth.reshape(-1, 1)
     ).astype(np.float32)
 
-    # Each source uses its own independent noise draws. Within that source, all
-    # emissivity interpretations reuse the same frames and change only the offset.
     generator = np.random.default_rng(2871)
     frame_sample_shape = (ground_truth.size, FRAME_COUNT)
     ground_truth_by_pixel = ground_truth.astype(np.float32).reshape(-1, 1)
@@ -136,8 +125,6 @@ def run_ir_camera_validation() -> None:
         flush=True,
     )
 
-    # Both runs use the same simulated frames and experimental emissivity cases.
-    # The timers include engine and worker setup.
     print("Calculating validation metrics serial...", flush=True)
     serial_start = perf_counter()
     serial_result = vl.ValidEngine(
@@ -164,7 +151,7 @@ def run_ir_camera_validation() -> None:
     ]
     np.testing.assert_array_equal(serial_avm, parallel_avm)
 
-    output_path = Path.cwd() / "pyvale-output" / "valid_ex12_ir_camera"
+    output_path = Path.cwd() / "pyvale-output" / "valid_ex12_parallel_ir_camera"
     output_path.mkdir(parents=True, exist_ok=True)
     plot_opts = vl.ValidPlotOpts()
     figure, axes = plt.subplots(

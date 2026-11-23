@@ -7,9 +7,6 @@
 """
 Validation quickstart
 ================================================================================
-
-Transient temperature and strain validation with aleatory repeats, epistemic
-model scenarios, calibration offsets, MAVM diagnostics and simulation overlays.
 """
 
 from pathlib import Path
@@ -32,7 +29,7 @@ SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
 
-output_path = Path.cwd() / "pyvale-output" / "valid_ex0_quickstart"
+output_path = Path.cwd() / "pyvale-output" / "valid_ex00_quickstart"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%

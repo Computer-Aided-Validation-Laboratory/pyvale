@@ -5,13 +5,8 @@
 # ==============================================================================
 
 """
-Nuisance profiles
+Nuisance metric profiles
 ================================================================================
-
-Both sources have transferable and nuisance axes. The exp bias increases with
-position and time; nuisance cases have different spreads. Changes of controlling
-case create piecewise trends, not random fields. KS/CvM can saturate even while
-physical-distance metrics continue growing. No observations are randomly drawn.
 """
 
 from pathlib import Path
@@ -28,23 +23,20 @@ SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
 
-output_path = Path.cwd() / "pyvale-output" / "valid_ex6_nuisance_profiles"
+output_path = Path.cwd() / "pyvale-output" / "valid_ex06_nuisance_metric_profiles"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-# 1. Keep all six axes distinct. Equal repeat counts allow paired metrics too.
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
 times = np.array([0.0, 1.0, 2.0])
 ground_truth = np.array([100.0, 120.0])[:, None] + 10.0 * times
 exp_bias = np.array([10.0, 30.0])[:, None] + 5.0 * times
 
-# Use the same additive epistemic shifts as ex05, in degC.
 sim_epistemic_trans_shift = np.array([2.0, 4.0, 8.0])
 sim_epistemic_nuis_shift = np.array([0.0, 178.0, 8.0])
 exp_epistemic_trans_shift = np.array([0.0, 6.0])
 exp_epistemic_nuis_shift = np.array([0.0, 2.0, 12.0])
 
-# Four repeats per scenario. The nuisance case also controls their spread.
 aleatory_grid = np.array([-1.0, -1 / 3, 1 / 3, 1.0])
 sim_aleatory_half_width = np.array([2.0, 10.0, 20.0])
 exp_aleatory_half_width = np.array([4.0, 8.0, 12.0])
@@ -88,7 +80,6 @@ valid_case = vl.ValidCase(
     {observable_tag: vl.ValidArray(sim_samples, axes)},
     {observable_tag: vl.ValidArray(exp_samples, axes)},
 )
-# Save the prepared samples so the original ECDFs can be recovered later.
 case_path = output_path / "validation_case.npz"
 vl.save_valid_case(case_path, valid_case)
 valid_case = vl.load_valid_case(case_path)
@@ -104,15 +95,11 @@ valid_result: vl.ValidResult = vl.ValidEngine(
     ]
 ).run(valid_case)
 
-# Reload the metric arrays for post-processing without rerunning the engine.
 result_path = output_path / "validation_result.npz"
 vl.save_valid_result(result_path, valid_result)
 valid_result = vl.load_valid_result(result_path)
 
 # %%
-# 2. Value profiling answers "which nuisance samples minimise/maximise the
-# metric?" Transferable axes remain. Indices identify original comparisons;
-# they can differ between outputs and physical cells.
 for metric_type, field in valid_result.metrics[observable_tag].items():
     profile: vl.ValidMetricExtrema = vl.profile_epis_nuisance_extrema(
         valid_result, observable_tag, metric_type
@@ -135,7 +122,6 @@ for metric_type, field in valid_result.metrics[observable_tag].items():
         plt.close(fig)
     vl.save_metric_extrema(output_path / f"{profile_name}_profile.npz", profile)
 
-# Reload the profile to recover the original ECDF pairs at the final time.
 mavm_profile = vl.load_metric_extrema(output_path / "mavm_profile.npz")
 fig, _ = vl.plot_metric_extrema_ecdfs(
     valid_case,
@@ -155,8 +141,6 @@ if not SHOW_PLOTS:
     plt.close(fig)
 
 # %%
-# 3. Support profiling asks which ECDF +/- its own d reaches furthest. This is
-# not a globally largest d added to the sim envelope. Origins may change along p.
 supports: vl.ECDFSuppBounds = vl.profile_epis_nuisance_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
@@ -192,10 +176,6 @@ if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
 # %%
-# 4. Rank whole nuisance cases: first envelope transferable uncertainty while
-# retaining nuisance axes. Total width and additional outward extension answer
-# different questions. A median-ranked case is actual data, unlike ex05's
-# synthetic pointwise nuisance median. Stable ties retain canonical index order.
 by_case: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case,
     valid_result,

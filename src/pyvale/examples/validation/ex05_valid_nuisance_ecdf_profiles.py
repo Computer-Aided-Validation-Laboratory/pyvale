@@ -5,13 +5,8 @@
 # ==============================================================================
 
 """
-Epistemic ECDF views
+Nuisance ECDF profiles
 ================================================================================
-
-Sim has (3 transferable, 3 nuisance, 5 aleatory) samples; exp has (2,3,4).
-Nuisance alternatives have asymmetric shifts, making mean, median and quartile
-summaries visibly different. Their quantiles are not probabilities assigned to
-nuisance parameters. Ex06 selects and ranks actual nuisance cases instead.
 """
 
 from pathlib import Path
@@ -28,24 +23,19 @@ SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
 
-output_path = Path.cwd() / "pyvale-output" / "valid_ex5_epistemic_axes"
+output_path = Path.cwd() / "pyvale-output" / "valid_ex05_nuisance_ecdf_profiles"
 output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-# 1. Prepare positive temperatures at two sites and conditional sample grids.
-# A large sim nuisance shift exposes the sensitivity of the mean.
-
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
 
 ground_truth = np.array([100.0, 120.0])  # degC at the two sites
 
-# Each scenario combines one transferable shift and one nuisance shift in degC.
 sim_epistemic_trans_shift = np.array([2.0, 4.0, 8.0])
 sim_epistemic_nuis_shift = np.array([0.0, 178.0, 8.0])
 exp_epistemic_trans_shift = np.array([0.0, 6.0])
 exp_epistemic_nuis_shift = np.array([0.0, 2.0, 12.0])
 
-# Fixed deviations provide aleatory spread within every scenario.
 sim_aleatory_deviations = np.array([-10.0, -5.0, 0.0, 5.0, 10.0])
 exp_aleatory_deviations = np.array([-8.0, -2.0, 2.0, 8.0])
 
@@ -88,9 +78,6 @@ valid_case = vl.ValidCase(
 )
 
 # %%
-# 2. Compare the all-case envelope with a nuisance profile. Each profile
-# reduces nuisance quantiles within each transferable case, then envelopes
-# the resulting curves over the transferable cases.
 for source_name, plot_sources in (
     ("sim", vl.plot_sim_ecdfs),
     ("exp", vl.plot_exp_ecdfs),
@@ -126,7 +113,6 @@ for name, title, reduction, probability in (
     )
 
 # %%
-# 3. KS measures the vertical gap between corresponding displayed bounds.
 median_view = vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN)
 for name, title, view in (
     ("envelope", "all-case envelope", None),
@@ -140,8 +126,6 @@ for name, title, view in (
     ks_plot.figure.savefig(output_path / f"ks_nuis_{name}_gap.png", bbox_inches="tight")
 
 # %%
-# 4. MAVM shifts the simulation support using original scenario comparisons.
-# The shaded envelope spans both directional shifts.
 mavm_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag, point_idxs=None)
 vl.add_metric_overlay(mavm_plot, vl.MetricMAVM())
 mavm_plot.figure.suptitle("MAVM support envelope over original scenario pairs")
