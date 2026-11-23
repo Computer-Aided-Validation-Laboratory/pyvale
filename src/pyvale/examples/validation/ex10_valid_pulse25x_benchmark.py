@@ -7,6 +7,9 @@
 """
 Pulse25X benchmark
 ================================================================================
+
+Reproduce the Pulse25X benchmark and inspect the MAVM endpoint and support
+plots.
 """
 
 from itertools import count
@@ -33,12 +36,24 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Load simulation samples
+# --------------------------
+#
+# The archive stores one array ordered by channel, transferable case, and
+# aleatory sample. The channel tags identify which slice to use for each
+# observable.
 data_path: Path = dataset.valid_data_dir()
 with np.load(data_path / "pulse25x_full_simulation.npz") as saved:
     sensor_tags = tuple(saved["sensor_tags"].tolist())
     sim_data: np.ndarray = saved["simulation"]
 
 # %%
+# 2. Read the three acquisition streams
+# -------------------------------------
+#
+# Each ``PointSensLoader`` maps CSV columns to sensor labels. The returned
+# ``ExpData`` objects keep one row per channel and one column per recorded
+# sample.
 dic_tags = ("TC1", "TC3", "TC4", "TC5", "TC6", "TC7", "TC8", "TC9", "TC10")
 exp_loaders: dict[str, io.IExpLoader] = {
     "DIC_DAQ": io.PointSensLoader(
@@ -61,6 +76,12 @@ exp_data = io.load_exp_data(loaders=exp_loaders)
 
 
 # %%
+# 3. Read the uncertainty summary
+# -------------------------------
+#
+# The benchmark uses the final row of the summary to construct symmetric
+# offset magnitudes. Keep the benchmark's positional mapping when reproducing
+# its reference results.
 summary: pd.DataFrame = pd.read_csv(data_path / "pulse25x_uncertainty_summary.csv")
 uncertainty_columns = (*sensor_tags[:-1], "Coil RMS Voltage")
 uncertainties = summary.loc[summary.index[-1], list(uncertainty_columns)].to_numpy(
@@ -68,6 +89,12 @@ uncertainties = summary.loc[summary.index[-1], list(uncertainty_columns)].to_num
 )
 
 # %%
+# 4. Assemble channels for validation
+# -----------------------------------
+#
+# Map each validation tag to a DAQ and sensor label. A ``POINT`` observable
+# can represent an individually identified sensor with optional coordinates.
+# The steady window turns each channel trace into a set of aleatory samples.
 channel_map = {kk: ("DIC_DAQ", kk) for kk in dic_tags}
 channel_map["TC2"] = ("HIVE_DAQ", "TC2")
 channel_map["CV"] = ("PICO_DAQ", "CV")
@@ -92,6 +119,13 @@ exp_arrays = vl.assemble_exp_arrays(
     channel_map=channel_map,
 )
 
+# %%
+# 5. Apply the benchmark sample rules
+# -----------------------------------
+#
+# Use unique observed values for the benchmark integration and mark channels
+# containing missing values as unavailable. Apply the uncertainty vector in
+# DAQ channel order to match the frozen reference.
 for ii, (kk, aa) in enumerate(exp_arrays.items()):
     oo = aa.select_aleatory(0, 0, 0).astype(np.float64, copy=False)
     missing = bool(np.any(np.isnan(oo)))
@@ -118,6 +152,14 @@ print("TC3 result axes:", valid_result.metrics["TC3"][vl.EMetricType.MAVM].axes)
 print(80*"-")
 
 # %%
+# 6. Inspect the support and endpoint comparisons
+# -----------------------------------------------
+#
+# The support-sum rule selects complete endpoint ECDFs by summing their sorted
+# support values. ``calc_mavm_bound_pairs`` compares the simulation and
+# experiment endpoints and returns the pairs used to shift the model support.
+# Choose a diagnostic view to inspect the distributions, comparisons, or
+# shifted support.
 for kk in observables:
     units = observables[kk].phys_units
     axis_label = "Coil RMS voltage [V]" if kk == "CV" else "Temperature [degC]"

@@ -7,6 +7,8 @@
 """
 Epistemic offsets
 ================================================================================
+
+Propagate coherent experimental offsets and sample confidence through MAVM.
 """
 
 from itertools import count
@@ -29,6 +31,12 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Build nominal samples and offsets
+# ------------------------------------
+#
+# The sample arrays have point, component, time, and aleatory axes. At each
+# point and time, the lower and upper offset magnitudes describe a coherent
+# shift applied to every experimental repeat.
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
 times = np.array([0.0, 1.0, 2.0])
 ground_truth = np.array([100.0, 120.0])[:, None] + 10.0 * times
@@ -42,6 +50,12 @@ exp_epistemic_offset_lower = np.array([1.5, 2.5])[:, None] + 0.5 * times
 exp_epistemic_offset_upper = np.array([4.0, 6.0])[:, None] + times
 
 # %%
+# 2. Attach offsets to the experiment
+# -----------------------------------
+#
+# ``EpistemicOffsets`` takes positive magnitudes for the downward and upward
+# shifts. Its point and time axes let the magnitudes vary across the plate and
+# over the measurement history.
 axes = (
     vl.EValidAxis.POINT,
     vl.EValidAxis.COMPONENT,
@@ -78,10 +92,23 @@ valid_case = vl.ValidCase(
 )
 
 # %%
+# 3. Calculate MAVM for each offset
+# ---------------------------------
+#
+# The metric result retains an experiment offset axis with nominal, lower, and
+# upper selections. Use this axis to select the measurement assumption for a
+# time plot.
 mavm = vl.MetricMAVM()
 valid_result = vl.ValidEngine([mavm]).run(valid_case)
 
 # %%
+# 4. Show the outer confidence limits
+# -----------------------------------
+#
+# Select all experimental offsets with ``exp_offset=None``. The confidence
+# level comes from the MAVM significance setting. The plot shows the nominal
+# and offset cases with the outer confidence bounds, and the MAVM overlay adds
+# the support span.
 ecdf_plot = vl.plot_sim_exp_cdfs(
     valid_case,
     observable_tag,
@@ -99,6 +126,11 @@ if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
 # %%
+# 5. Plot the nominal metric history
+# ----------------------------------
+#
+# Select the nominal experiment offset to track both MAVM directions for the
+# two sites over time.
 fig, _ = vl.plot_metric_time_points(
     valid_result,
     observable_tag,

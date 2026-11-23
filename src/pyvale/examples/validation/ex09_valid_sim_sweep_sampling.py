@@ -7,6 +7,9 @@
 """
 Simulation sweep sampling
 ================================================================================
+
+Sample a MOOSE parameter sweep at virtual strain sensors and compare it with
+synthetic measurements.
 """
 
 from itertools import count
@@ -34,6 +37,12 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Run the epistemic sweep
+# --------------------------
+#
+# The sweep varies heat flux and thermal expansion around the nominal model.
+# Use the heat-flux variant as the source for the synthetic experiment, then
+# add independent measurement noise.
 input_path: Path = dataset.element_case_input_path(dataset.EElemTest.HEX8)
 runner = mh.MooseRunner(timeout=120.0)
 run_root: Path = mh.get_next_run_path(output_path / "solves")
@@ -60,6 +69,13 @@ nominal_sim: io.SimData = sims["nominal"]
 exp_sim: io.SimData = sims["heat_flux_plus_10pct"]
 
 # %%
+# 2. Generate strain measurements
+# -------------------------------
+#
+# The six rows of coordinates give the x, y, and z positions of the sensors.
+# The tensor sensor samples the six strain components at shared times. Stack
+# noisy acquisitions on the final aleatory axis to obtain point, component,
+# time, and repeat dimensions.
 sens_coords = np.array(
     [
         [5.0, 0.0, 5.0],
@@ -109,6 +125,13 @@ measurements = np.stack(
 )  # (6 points, 6 tensor components, 5 times, 6 aleatory repeats)
 
 # %%
+# 3. Sample each simulation at the same sensors
+# ---------------------------------------------
+#
+# A flat list of runs fills the single transferable axis in list order. The
+# resulting model adds that axis after point, component, and time. For a
+# multi-axis sweep, pass indexed run pairs with an index tuple in sample-axis
+# order.
 strain_tag = "cube_strain"
 observables = {
     strain_tag: vl.ValidObservable(
@@ -145,6 +168,13 @@ exp: dict[str, vl.ValidArray] = {
     )
 }
 
+# %%
+# 4. Record sweep provenance
+# --------------------------
+#
+# ``ValidSampleInputs`` records run IDs and input settings on the same
+# transferable axis as the sampled model. Each run index identifies both its
+# parameter values and its sensor predictions.
 param_axes = (vl.EValidAxis.EPISTEMIC_TRANS,)
 sim_run_ids = vl.ValidArray(np.arange(len(param_sets)), param_axes)
 
@@ -169,6 +199,11 @@ print("Transferable run IDs:", sim_run_ids.data, tuple(param_sets))
 print(80*"-")
 
 # %%
+# 5. Calculate metrics across sweep cases
+# ---------------------------------------
+#
+# The simulation transferable axis remains in each metric field. Select a run
+# by its index to plot a case-specific metric time history.
 valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM()]
 ).run(valid_case)
@@ -186,6 +221,11 @@ print(
 print(80*"-")
 
 # %%
+# 6. Compare the simulation envelope
+# ----------------------------------
+#
+# The ECDF envelope spans predictions from the three simulation runs at each
+# sensor. The MAVM time panels use only the nominal simulation case.
 point_idxs = tuple(range(len(sens_coords)))
 sim_envelope_view = vl.ValidECDFView(
     trans_idxs=tuple(range(len(sims))),
@@ -231,6 +271,11 @@ for ii, kk in enumerate(strain_keys):
         plt.close("all")
 
 # %%
+# 7. Compare case-specific AVM histories
+# --------------------------------------
+#
+# Plot the strain xx AVM for each run using the same point and component
+# selections. The title identifies the input change.
 for ss, nn in enumerate(param_sets):
     fig, _ = vl.plot_metric_time_points(
         valid_result,

@@ -7,6 +7,9 @@
 """
 Steady state validation
 ================================================================================
+
+Validate steady-state plate temperature and strain and map the discrepancy to
+the sensor locations.
 """
 
 from itertools import count
@@ -35,6 +38,13 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Prepare the steady-state samples
+# -----------------------------------
+#
+# The sample arrays are ordered by point, component, and aleatory repeat. Each
+# row of ``coords`` supplies the x, y, and z location of one point. The
+# synthetic experiment adds a bias that grows along x, so the temperature
+# discrepancy has a known spatial pattern. Strain is expressed in millistrain.
 with np.load(
     dataset.valid_data_dir() / "plate_validation_2d_steady_nominal.npz"
 ) as saved:
@@ -58,6 +68,12 @@ exp_strain = (
 )
 
 # %%
+# 2. Register the sensor locations
+# --------------------------------
+#
+# Use ``POINT`` observables to associate each sample row with its sensor
+# coordinates. Temperature has one component and strain has three. The same
+# observable tags connect both sources to their coordinate and unit metadata.
 temperature_tag = "plate_temperature"
 strain_tag = "plate_strain"
 
@@ -102,6 +118,12 @@ exp_arrays = {
 valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 
 # %%
+# 3. Calculate validation metrics
+# -------------------------------
+#
+# Run AVM and MAVM at each point and component. Metric fields include a
+# singleton time dimension for this steady state. Inspect the named axes and
+# select a directional MAVM output to read its values.
 valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM(alpha=0.5)]
 ).run(valid_case)
@@ -120,6 +142,11 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 print(80*"-")
 
 # %%
+# 4. Compare the ECDFs
+# --------------------
+#
+# Select the sensor indices to compare the distributions side by side. Each
+# panel corresponds to one point for the selected component.
 point_idxs = tuple(range(len(coords)))
 
 ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
@@ -132,6 +159,12 @@ fig_file = f"val_ex02_fig{next(fig_nums):02d}_temperature_cdfs.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
+# 5. Map MAVM onto the plate
+# --------------------------
+#
+# Use the temperature field as a spatial backdrop for the metric markers. The
+# selected metric output and the mesh coordinates share the same physical
+# frame and length units.
 sim_path = dataset.thermomechanical_2d_experiment_paths()[0]
 sim_data: io.SimData = mh.ExodusLoader(sim_path).load_all_sim_data()
 sens.scale_length_units(1000.0, sim_data, disp_keys=("disp_x", "disp_y"))
@@ -163,6 +196,11 @@ pv_plot.close()
 
 
 # %%
+# 6. Show the MAVM support span
+# -----------------------------
+#
+# Find the shifted simulation support from the calculated result and overlay
+# it on the ECDF comparison.
 supports = vl.find_metric_epis_supports(
     valid_case, valid_result, temperature_tag, vl.EMetricType.MAVM
 )

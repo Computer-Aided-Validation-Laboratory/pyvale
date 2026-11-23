@@ -45,7 +45,6 @@ with np.load(dataset.valid_data_dir() / "plate_validation_2d.npz") as saved:
     sim_strain: np.ndarray = saved["sim_strain"] * 1.0e3
     exp_strain: np.ndarray = saved["exp_strain"] * 1.0e3
 
-# Increase the synthetic repeat scatter while preserving the mean strain.
 strain_repeat_spread_factor = 3.0
 sim_strain_mean = sim_strain.mean(axis=-1, keepdims=True)
 sim_strain = sim_strain_mean + strain_repeat_spread_factor * (
@@ -64,7 +63,7 @@ nominal_temp_by_exp_rank = np.take_along_axis(
 exp_temp += 0.25 * (nominal_temp_by_exp_rank - exp_temp)
 
 # %%
-# 2. Setup a validation case
+# 2. Set up a validation case
 # ------------------------------------------------------------
 temperature_tag = "plate_temperature"
 strain_tag = "plate_strain"

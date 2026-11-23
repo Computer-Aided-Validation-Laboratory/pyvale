@@ -7,6 +7,9 @@
 """
 Metrics on epistemic bounds
 ================================================================================
+
+Compare validation envelopes built from ECDF bounds and from original scenario
+pairs.
 """
 
 from itertools import count
@@ -29,6 +32,12 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Set up two epistemic families
+# --------------------------------
+#
+# Each row is an epistemic case and each column is an aleatory sample within
+# that case. Use ``EPISTEMIC`` for the transferable axis in this single-axis
+# example.
 observable_tag = "response"
 
 axes = (vl.EValidAxis.EPISTEMIC, vl.EValidAxis.ALEATORY)
@@ -46,6 +55,12 @@ valid_case = vl.ValidCase(
 )
 
 # %%
+# 2. Calculate support from ECDF bounds
+# -------------------------------------
+#
+# Find the pointwise envelope of each ECDF family. The bound-based AVM and
+# MAVM functions use those envelopes to produce ``ECDFSuppBounds``, which
+# holds the support curves for plotting.
 sim_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
     valid_case.sim[observable_tag]
 )
@@ -62,6 +77,14 @@ mavm_bounds: vl.ECDFSuppBounds = vl.calc_mavm_over_epis_bounds(
     sim_bounds, exp_bounds, alpha=0.5
 )
 
+# %%
+# 3. Calculate support from original cases
+# ----------------------------------------
+#
+# Run the metrics over each simulation and experiment case pair. Use the
+# resulting metric fields and the original samples to assemble the span of
+# their shifted supports. Both MAVM calculations use the same significance
+# level.
 valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM(alpha=0.5)]
 ).run(valid_case)
@@ -75,6 +98,11 @@ mavm_original: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
 )
 
 # %%
+# 4. Compare the resulting spans
+# ------------------------------
+#
+# Add each set of supports to the same ECDF comparison so the difference
+# between the two calculation routes is visible.
 for rr, aa, mm in (
     ("bounds", avm_bounds, mavm_bounds),
     ("original", avm_original, mavm_original),

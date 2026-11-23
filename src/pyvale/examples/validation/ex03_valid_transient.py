@@ -7,6 +7,9 @@
 """
 Transient validation
 ================================================================================
+
+Follow a plate discrepancy over time using ECDF snapshots and metric
+histories.
 """
 
 from itertools import count
@@ -31,6 +34,13 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Prepare the transient samples
+# --------------------------------
+#
+# The arrays are ordered by point, component, time, and aleatory repeat. The
+# synthetic temperature bias grows from zero to 2–5 degC, depending on the
+# sensor position. The two-dimensional bias has point and time axes and
+# broadcasts across components and repeats.
 with np.load(dataset.valid_data_dir() / "plate_validation_2d_nominal.npz") as saved:
     coords: np.ndarray = saved["coords"].copy()
     times: np.ndarray = saved["times"].copy()
@@ -52,6 +62,12 @@ strain_bias = (0.020 * x_fraction[:, None] + 0.010) * time_fraction
 exp_strain = sim_strain + strain_bias[:, None, :, None]
 
 # %%
+# 2. Pair data on a shared time grid
+# ----------------------------------
+#
+# Use the observable to record physical sample times and sensor coordinates.
+# Align simulation and experiment to this grid before creating the case.
+# Temperature uses degC and strain uses millistrain.
 temperature_tag = "plate_temperature"
 strain_tag = "plate_strain"
 
@@ -102,6 +118,12 @@ exp_arrays = {
 valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 
 # %%
+# 3. Calculate metrics over time
+# ------------------------------
+#
+# Each metric calculation compares the aleatory samples at one point,
+# component, and time. The time axis remains in the metric field so you can
+# plot a history directly.
 valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM()]
 ).run(valid_case)
@@ -120,6 +142,12 @@ print("Result axes:", metric_axes, "shape:", metric_shape)
 print(80*"-")
 
 # %%
+# 4. Plot snapshots and histories
+# -------------------------------
+#
+# Select one time index for the ECDF comparison. Plot AVM over physical time
+# to track the growing bias. The MAVM history shows both directional outputs
+# on each point panel.
 point_idxs = tuple(range(len(coords)))
 ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case,

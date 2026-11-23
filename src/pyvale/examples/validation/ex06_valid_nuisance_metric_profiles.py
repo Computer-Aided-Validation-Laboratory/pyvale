@@ -7,6 +7,9 @@
 """
 Nuisance metric profiles
 ================================================================================
+
+Find nuisance cases that control metric extrema, rank their support widths,
+and save the results.
 """
 
 from itertools import count
@@ -29,6 +32,12 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Build a time-varying nuisance study
+# --------------------------------------
+#
+# The sample axes are point, component, time, transferable case, nuisance
+# case, and aleatory repeat. The aleatory deviations vary by nuisance case, so
+# the case that controls a metric can also vary across sites and times.
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
 times = np.array([0.0, 1.0, 2.0])
 ground_truth = np.array([100.0, 120.0])[:, None] + 10.0 * times
@@ -69,6 +78,12 @@ axes = (
 )
 
 # %%
+# 2. Assemble the validation case
+# -------------------------------
+#
+# The observable records the two sites and their shared times. The simulation
+# and experiment arrays use the same axis names and can contain different
+# numbers of uncertainty cases.
 observable_tag = "temperature"
 
 observables = {
@@ -90,11 +105,21 @@ valid_case = vl.ValidCase(
 )
 
 # %%
+# 3. Save and load the case
+# -------------------------
+#
+# ``save_valid_case`` stores the input samples and their metadata in an NPZ
+# archive. Reload the case to repeat the analysis in a separate session.
 case_path = output_path / "validation_case.npz"
 vl.save_valid_case(case_path, valid_case)
 valid_case = vl.load_valid_case(case_path)
 
 # %%
+# 4. Calculate and save metric fields
+# -----------------------------------
+#
+# The result archive stores the metric arrays, observable metadata, and metric
+# configuration. Reload it to inspect calculated values and profiles.
 valid_result: vl.ValidResult = vl.ValidEngine(
     [
         vl.MetricAVM(),
@@ -111,6 +136,13 @@ vl.save_valid_result(result_path, valid_result)
 valid_result = vl.load_valid_result(result_path)
 
 # %%
+# 5. Profile the metric extrema
+# -----------------------------
+#
+# ``ValidMetricExtrema`` stores minimum and maximum values and the indices of
+# the cases that attain them. The time plots fix each transferable index and
+# show the extrema over the nuisance pairs. Save the extrema separately to
+# reuse those selections.
 for mm, ff in valid_result.metrics[observable_tag].items():
     profile: vl.ValidMetricExtrema = vl.profile_epis_nuisance_extrema(
         valid_result, observable_tag, mm
@@ -142,6 +174,12 @@ for mm, ff in valid_result.metrics[observable_tag].items():
     vl.save_metric_extrema(output_path / f"{prof_tag}_profile.npz", profile)
 
 # %%
+# 6. Inspect the controlling ECDF pairs
+# -------------------------------------
+#
+# Pass the saved extrema and the original case to the ECDF plotter. It uses
+# the stored indices to recover the two original pairs controlling d+ at the
+# selected point and time.
 mavm_profile = vl.load_metric_extrema(output_path / "mavm_profile.npz")
 
 fig, _ = vl.plot_metric_extrema_ecdfs(
@@ -166,6 +204,11 @@ if not SHOW_PLOTS:
     plt.close(fig)
 
 # %%
+# 7. Plot the metric support spans
+# --------------------------------
+#
+# The MAVM overlay spans nuisance pairs at fixed transferable indices. The AVM
+# overlay spans all original scenario pairs.
 supports: vl.ECDFSuppBounds = vl.profile_epis_nuisance_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
@@ -204,6 +247,13 @@ if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
 # %%
+# 8. Rank original nuisance pairs
+# -------------------------------
+#
+# ``ECDFNuisanceRank`` stores the case indices, scores, and sorted order. Each
+# score describes a whole pair using either total support width or added
+# width. Select the first, median, and last ranked rows to inspect their
+# ECDFs.
 by_case: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     valid_case,
     valid_result,

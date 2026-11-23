@@ -7,6 +7,9 @@
 """
 Simulation sampling at sensors
 ================================================================================
+
+Sample finite-element fields at virtual sensors and construct a synthetic
+experiment for validation.
 """
 
 from itertools import count
@@ -34,6 +37,12 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Load and prepare simulation data
+# -----------------------------------
+#
+# ``SimData`` holds the mesh, time grid, and nodal and global fields. Scale
+# the coordinates and displacement to millimetres and the strain fields to
+# millistrain. Store the nodal mean temperature as a separate global quantity.
 sim_data: io.SimData = mh.ExodusLoader(
     dataset.element_case_output_path(dataset.EElemTest.HEX20)
 ).load_all_sim_data()
@@ -62,6 +71,12 @@ sens_coords = np.array(
 sens_times = np.linspace(sim_times[0], sim_times[-1], 5)
 
 # %%
+# 2. Define what each sensor measures
+# -----------------------------------
+#
+# The point observables share sensor positions and sample times. The component
+# names choose the scalar, vector, or tensor entries to keep. The global
+# temperature observable uses only the sample times.
 observables = {
     "temperature_average": vl.ValidObservable(
         components=(temp_key,),
@@ -101,6 +116,12 @@ observables = {
 
 
 # %%
+# 3. Sample the simulation at sensors
+# -----------------------------------
+#
+# ``SensorData`` provides the sensor orientation and footprint integration
+# rule. The spatial sampler returns point, component, and time axes in that
+# order. The global sampler interpolates the stored mean to the same times.
 sensor_data = sens.SensorData(
     positions=sens_coords,
     sample_times=sens_times,
@@ -139,6 +160,12 @@ sim_samples: dict[str, vl.ValidArray] = {
 }
 
 # %%
+# 4. Create the synthetic acquisitions
+# ------------------------------------
+#
+# Add biases that vary by position and time, then broadcast the repeat offsets
+# onto a new final aleatory axis. Use the same observable tags to pair these
+# synthetic samples with their reference simulation arrays.
 sens_x = sens_coords[:, 0]
 x_fraction = (sens_x - sens_x.min()) / np.ptp(sens_x)
 time_fraction = (sens_times - sens_times[0]) / np.ptp(sens_times)
@@ -198,6 +225,12 @@ print("Exp. repeat axis:", valid_case.exp["temperature_average"].axes)
 print(80 * "-")
 
 # %%
+# 5. Inspect distributions and metric histories
+# ---------------------------------------------
+#
+# Select a representative component for each spatial observable. The ECDF
+# plots show a single time and the MAVM plots track both directions at the
+# same sensor points.
 for kk, ii in (
     ("temperature_average", 0),
     ("displacement_local", 0),

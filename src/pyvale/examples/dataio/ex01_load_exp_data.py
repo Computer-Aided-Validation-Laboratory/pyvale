@@ -18,6 +18,12 @@ import pyvale.data as dataset
 import pyvale.dataio as io
 
 # %%
+# 1. Configure the DAQ loaders
+# ----------------------------
+#
+# Create one ``PointSensLoader`` per acquisition system. Supply zero-based
+# sensor column indices and a matching label for each column. For a time
+# trace, pass the time column alongside the sensor columns.
 data_path: Path = dataset.valid_data_dir()
 pulse_ids = (253, 254, 255)
 load_opts = io.ExpLoadOpts(delimiter=",", header_rows=0)
@@ -46,6 +52,13 @@ exp_loaders: dict[str, io.IExpLoader] = {
 }
 
 # %%
+# 2. Load and inspect the sensor traces
+# -------------------------------------
+#
+# ``load_exp_data`` returns one ``ExpData`` per DAQ key. Each ``fields`` array
+# has sensor rows and sample columns. Files are appended along the sample axis
+# in the supplied order. Use ``sens_label_to_ind`` to select a row by its
+# sensor label.
 exp_data: dict[str, io.ExpData] = io.load_exp_data(loaders=exp_loaders)
 for daq_name, acquisition in exp_data.items():
     print(f"{daq_name}: {acquisition.fields.shape} (sensors, samples)")

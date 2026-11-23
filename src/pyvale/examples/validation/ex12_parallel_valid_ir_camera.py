@@ -7,6 +7,9 @@
 """
 Parallel IR camera validation
 ================================================================================
+
+Compare serial and four-worker AVM calculations for an infrared camera viewing
+a heated plate.
 """
 
 from itertools import count
@@ -31,6 +34,12 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Configure the camera and sampling study
+# ------------------------------------------
+#
+# Each pixel represents one validation point. The steady-state experiment uses
+# repeated frames for aleatory noise and different assumed emissivities for
+# epistemic uncertainty.
 CAMERA_WIDTH = 640
 CAMERA_HEIGHT = 480
 FRAME_COUNT = 20
@@ -42,6 +51,13 @@ PLATE_HEIGHT_M = 0.48
 
 
 # %%
+# 2. Generate plate temperatures and camera samples
+# -------------------------------------------------
+#
+# The bilinear temperature field ranges from 20 degC at the bottom left to 100
+# degC at the top right. The radiance inversion yields a temperature shift for
+# each pixel and emissivity assumption. Broadcast those shifts across the
+# noisy frames to produce arrays ordered by pixel, emissivity case, and frame.
 setup_start = perf_counter()
 
 normalized_x, normalized_y = np.meshgrid(
@@ -114,6 +130,12 @@ exp_temperature_samples = (
 )
 
 # %%
+# 3. Name the validation dimensions
+# ---------------------------------
+#
+# Insert singleton component and time axes for one temperature component at
+# one steady time. Each source then has point, component, time, transferable
+# case, and aleatory axes. Pixel coordinates retain the spatial layout.
 physical_axes = (vl.EValidAxis.POINT, vl.EValidAxis.COMPONENT, vl.EValidAxis.TIME)
 
 observable_tag = "plate_temperature"
@@ -155,6 +177,12 @@ print(
 print(80*"-")
 
 # %%
+# 4. Time serial and parallel validation
+# --------------------------------------
+#
+# Run the same case with one and four workers. This equal-sample AVM workload
+# uses batched NumPy calculations and shares observation arrays across worker
+# threads.
 print("Calculating validation metrics serial...", flush=True)
 serial_start = perf_counter()
 serial_result = vl.ValidEngine(
@@ -177,6 +205,14 @@ print(f"Combined solve: {serial_seconds + parallel_seconds:.3f} s")
 print(f"Four-worker speedup: {serial_seconds / parallel_seconds:.2f}×")
 print(80*"-")
 
+# %%
+# 5. Compare results and reshape to the image
+# -------------------------------------------
+#
+# The AVM field retains independent simulation and experiment emissivity axes.
+# Select case zero from both for the nominal comparison and take the maximum
+# over both axes for the worst pair at each pixel. Reshape the point axis to
+# image rows and columns for display.
 serial_field = serial_result.metrics[observable_tag][vl.EMetricType.AVM]
 parallel_field = parallel_result.metrics[observable_tag][vl.EMetricType.AVM]
 serial_avm = serial_field.metric_vals[vl.EMetricOut.DISTANCE]

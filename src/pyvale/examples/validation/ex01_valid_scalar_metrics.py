@@ -7,6 +7,8 @@
 """
 Scalar validation metrics
 ================================================================================
+
+Compare six validation metrics on a scalar example with a known shift.
 """
 
 from itertools import count
@@ -30,10 +32,23 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Create scalar samples
+# ------------------------
+#
+# Each array contains three aleatory observations. The experiment is shifted
+# by two units, giving a known discrepancy for checking how the metrics
+# respond.
 sim_data = np.array([0.0, 1.0, 2.0])
 exp = sim_data + 2.0
 
 # %%
+# 2. Build a validation case
+# --------------------------
+#
+# A ``ValidObservable`` describes the quantity, components, geometry, and
+# units. ``GLOBAL`` describes a system-level quantity. A ``ValidArray`` pairs
+# a NumPy array with axis names in dimension order. ``ValidCase`` joins the
+# observable and its simulation and experiment arrays by their shared tag.
 scalar_observable = vl.ValidObservable(
     components=("scalar",),
     geometry=vl.EValidGeometry.GLOBAL,
@@ -54,6 +69,13 @@ exp_arrays = {observable_tag: exp_response}
 valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 
 # %%
+# 3. Run the metrics
+# ------------------
+#
+# AVM and MAVM are area validation metrics. Kolmogorov–Smirnov (KS) and
+# Cramér–von Mises (CVM) also compare empirical distributions. RMSE and relative
+# error use samples paired by index. Here the AVM and RMSE both equal the
+# two-unit shift.
 valid_result: vl.ValidResult = vl.ValidEngine(
     [
         vl.MetricAVM(),
@@ -78,6 +100,14 @@ for mm in (
 print(80*"-")
 
 # %%
+# 4. Read metric fields
+# ---------------------
+#
+# Look up a ``MetricField`` in ``ValidResult.metrics`` using the observable tag
+# followed by an ``EMetricType`` key. Read ``field.axes`` for dimension order and
+# ``field.metric_vals[output]`` for the NumPy array corresponding to an
+# ``EMetricOut`` key. MAVM has separate ``D_PLUS`` and ``D_MINUS`` arrays. The
+# sample axis is reduced by each metric.
 metrics: dict[vl.EMetricType, vl.MetricField] = valid_result.metrics[
     observable_tag
 ]
@@ -91,6 +121,13 @@ for tt, ff in metrics.items():
 print(80*"-")
 
 # %%
+# 5. Plot the empirical distributions
+# -----------------------------------
+#
+# An empirical cumulative distribution function (ECDF) gives the fraction of
+# samples at or below a value. ``ECDFPlot`` holds the figure, axes, and data
+# selections. Pass it to the overlay functions and use its ``figure``
+# attribute to save the result.
 ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     valid_case,
     observable_tag,
@@ -100,6 +137,12 @@ fig_file = f"val_ex01_fig{next(fig_nums):02d}_observable_cdfs.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
+# 6. Show metric overlays
+# -----------------------
+#
+# The overlays show each metric in the context of the same ECDFs. The
+# normalised AVM axis uses two units as the reference length. Integration-area
+# views highlight where the directional or total discrepancy accumulates.
 for mm in (
     vl.MetricAVM(),
     vl.MetricKS(),
@@ -155,6 +198,12 @@ for oo, dd in (
     if not SHOW_PLOTS:
         plt.close(area_plot.figure)
 
+# %%
+# 7. Show the MAVM support span
+# -----------------------------
+#
+# The support overlay displays the band between the lower simulation support
+# shifted by d− and the upper simulation support shifted by d+.
 supports = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )

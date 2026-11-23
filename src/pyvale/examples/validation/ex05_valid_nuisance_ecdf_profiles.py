@@ -7,6 +7,9 @@
 """
 Nuisance ECDF profiles
 ================================================================================
+
+Profile nuisance uncertainty in temperature ECDFs and compare the effect on KS
+and MAVM.
 """
 
 from itertools import count
@@ -29,6 +32,14 @@ output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 
 # %%
+# 1. Separate the sources of variation
+# ------------------------------------
+#
+# Transferable cases represent conditions of interest. Nuisance cases capture
+# uncertain conditions over which you may want to summarise. Aleatory samples
+# represent repeat variability within a joint case. Broadcasting builds arrays
+# ordered by point, component, transferable case, nuisance case, and aleatory
+# sample.
 coords = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
 
 ground_truth = np.array([100.0, 120.0])  # degC at the two sites
@@ -80,6 +91,13 @@ valid_case = vl.ValidCase(
 )
 
 # %%
+# 2. Compare the envelope and nuisance profiles
+# ---------------------------------------------
+#
+# The outer envelope spans all original cases. Profiling takes a pointwise
+# quantile summary across nuisance cases at each transferable case, then
+# envelopes the resulting curves. The large simulation nuisance shift makes
+# the mean, median, and lower quartile behave differently.
 for nn, pp in (
     ("sim", vl.plot_sim_ecdfs),
     ("exp", vl.plot_exp_ecdfs),
@@ -117,6 +135,11 @@ for nn, tt, rr, qq in (
     ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
+# 3. Compare KS gaps
+# ------------------
+#
+# Use the same median reduction on both sources. The KS overlay measures the
+# largest vertical gap between the selected ECDF bounds.
 median_view = vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN)
 for nn, tt, vv in (
     ("envelope", "all-case envelope", None),
@@ -131,6 +154,12 @@ for nn, tt, vv in (
     ks_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 # %%
+# 4. Compare MAVM support envelopes
+# ---------------------------------
+#
+# The first overlay spans the shifted supports across original case pairs. For
+# the median view, calculate support from the profiled ECDF bounds at each
+# point and add it to the matching panel.
 mavm_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag, point_idxs=None)
 vl.add_metric_overlay(mavm_plot, vl.MetricMAVM())
 mavm_plot.figure.suptitle("MAVM support envelope over original scenario pairs")
