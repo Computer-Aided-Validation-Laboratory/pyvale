@@ -266,10 +266,6 @@ def test_separated_metrics_and_mavm_confidence_have_closed_form_answers(
     np.testing.assert_allclose(
         mavm.exp_conf_upper, exp + confidence_shift, rtol=0, atol=1e-10
     )
-    # A degenerate model p-box must give exactly the single-model MAVM.
-    pbox = vl.calc_mavm_pbox_1d(sim, sim, exp)
-    assert pbox.d_plus == pytest.approx(expected_d_plus, rel=0, abs=1e-10)
-    assert pbox.d_minus == pytest.approx(expected_d_minus, rel=0, abs=1e-10)
 
 
 @pytest.mark.parametrize("test_case", ANALYTIC_CASES, ids=CASE_IDS)
@@ -1285,20 +1281,6 @@ def test_sample_sweep_reuses_field_and_preserves_named_axes_and_globals() -> Non
         field.get_sim_data().node_vars["temperature"],
         create_linear_sim().node_vars["temperature"],
     )
-
-
-@pytest.mark.parametrize("duplicates", list(vl.EMAVMDuplicates))
-def test_mavm_pbox_has_closed_form_endpoint_distances(
-    duplicates: vl.EMAVMDuplicates,
-) -> None:
-    """A deterministic observation lies five units from either p-box anchor."""
-    result = vl.calc_mavm_pbox_1d(
-        np.array([0.0]), np.array([10.0]), np.array([5.0]), duplicates=duplicates
-    )
-    assert result.d_plus == pytest.approx(5.0, rel=0, abs=1e-12)
-    assert result.d_minus == pytest.approx(5.0, rel=0, abs=1e-12)
-    np.testing.assert_array_equal(result.exp_conf_lower, [5.0])
-    np.testing.assert_array_equal(result.exp_conf_upper, [5.0])
 
 
 def test_crossing_transferable_supports_have_exact_analytic_limits() -> None:

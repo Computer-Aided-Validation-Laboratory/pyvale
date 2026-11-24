@@ -26,7 +26,6 @@ from pyvale.validation.metrics import (
     calc_deterministic_metrics_1d,
     calc_ks_1d,
     calc_mavm_1d,
-    calc_mavm_pbox_1d,
 )
 from pyvale.validation.metricstrategy import (
     MetricAVM,
@@ -207,7 +206,6 @@ __all__ = [
     "calc_mavm_1d",
     "calc_mavm_bound_pairs",
     "calc_mavm_over_epis_bounds",
-    "calc_mavm_pbox_1d",
     "create_valid_plot_grid",
     "create_valid_scene_opts",
     "evaluate_ecdf_quantiles",

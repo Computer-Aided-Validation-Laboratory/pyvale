@@ -197,6 +197,7 @@ def _calculate_trusted_metric(
 ) -> MetricResult:
     """Calculate on validated engine arrays, omitting missing observations."""
     kind = metric.get_kind()
+
     if type(metric) in (MetricRMSE, MetricRelErr):
         if not len(sim):
             return ScalarMetricResult(kind, float("nan"))
@@ -208,12 +209,17 @@ def _calculate_trusted_metric(
             residual = sim - exp
             value = float(np.sqrt(np.mean(residual * residual)))
         return ScalarMetricResult(kind, value)
+
     if type(metric) is MetricMAVM:
         return _calculate_mavm(sim, exp, metric.alpha, metric.duplicates, metric.tol)
+
     if type(metric) is MetricAVM:
         return ScalarMetricResult(kind, float(stats.wasserstein_distance(sim, exp)))
+
     if type(metric) is MetricKS:
         return ScalarMetricResult(kind, _calculate_ks_statistic(sim, exp))
+
     if type(metric) is MetricCVM:
         return ScalarMetricResult(kind, _calculate_cvm_statistic(sim, exp))
+
     return metric.calc(sim, exp)

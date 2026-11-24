@@ -16,7 +16,6 @@ from pyvale.validation.constants import MAVM_DUPLICATE_TOLERANCE
 from pyvale.validation.metrics import (
     EMAVMDuplicates,
     calc_mavm_1d,
-    calc_mavm_pbox_1d,
 )
 from pyvale.validation.metrics import ERelErrNorm as Normalisation
 from pyvale.validation.validtools import _build_metric_selection
@@ -118,10 +117,6 @@ def test_mavm_configuration_rejected_before_observations(
         vl.MetricMAVM(**configuration)
     with pytest.raises((ValueError, TypeError), match=message):
         vl.calc_mavm_1d(np.array([np.nan]), np.array([np.nan]), **configuration)
-    with pytest.raises((ValueError, TypeError), match=message):
-        vl.calc_mavm_pbox_1d(
-            np.array([np.nan]), np.array([np.nan]), np.array([np.nan]), **configuration
-        )
 
 
 def create_scalar_case(observations: np.ndarray) -> vl.ValidCase:
@@ -504,17 +499,6 @@ def test_invalid_views_fail_before_plotting(
     with pytest.raises(exception):
         validplot.plot_sim_ecdfs(create_plot_epistemic_case(), "length", view=view)
     assert plt.get_fignums() == figures
-
-
-@pytest.mark.parametrize("sample_index", [0, 1, 2])
-@pytest.mark.parametrize("separation", [0.0, MAVM_DUPLICATE_TOLERANCE / 2.0])
-def test_mavm_pbox_rejects_duplicate_samples(
-    sample_index: int, separation: float
-) -> None:
-    samples = [np.array([0.0, 1.0, 2.0]) for _ in range(3)]
-    samples[sample_index] = np.array([0.0, separation, 2.0])
-    with pytest.raises(ValueError, match="REJECT MAVM duplicates"):
-        calc_mavm_pbox_1d(*samples, duplicates=EMAVMDuplicates.REJECT)
 
 
 @pytest.mark.parametrize("separation", [0.0, MAVM_DUPLICATE_TOLERANCE / 2.0])

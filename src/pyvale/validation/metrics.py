@@ -24,7 +24,6 @@ from pyvale.validation.constants import (
 )
 from pyvale.validation.cython.mavm import (
     _cyth_calc_mavm_1d,
-    _cyth_calc_mavm_pbox_1d,
 )
 from pyvale.validation.imetric import MAVMResult
 from pyvale.validation.validchecks import _validate_finite_sample
@@ -68,45 +67,6 @@ def calc_mavm_1d(
         Complete result dataclass with d+, d-, and CDF data.
     """
     return _cyth_calc_mavm_1d(sim_data, exp_data, alpha, duplicates, tol)
-
-
-def calc_mavm_pbox_1d(
-    sim_pbox_min: np.ndarray,
-    sim_pbox_max: np.ndarray,
-    exp_data: np.ndarray,
-    *,
-    alpha: float = 0.05,
-    duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
-    tol: float = MAVM_AREA_TOLERANCE,
-) -> MAVMResult:
-    """Calculates MAVM between an epistemic simulation p-box and experimental
-    data.
-
-    Parameters
-    ----------
-    sim_pbox_min : np.ndarray
-        Samples representing the lower quantile endpoint of the simulation p-box.
-    sim_pbox_max : np.ndarray
-        Samples representing the upper quantile endpoint of the simulation p-box.
-    exp_data : np.ndarray
-        1D experimental observation samples.
-    alpha : float, optional
-        Legacy Student's t quantile parameter; see calc_mavm_1d.
-    duplicates : EMAVMDuplicates, optional
-        MAVM empirical-CDF integration algorithm.
-    tol : float, optional
-        Tolerance.
-
-    Returns
-    -------
-    MAVMResult
-        The positive area uses the lower simulation endpoint and the negative
-        area uses the upper endpoint. The returned simulation CDF describes
-        the lower endpoint.
-    """
-    return _cyth_calc_mavm_pbox_1d(
-        sim_pbox_min, sim_pbox_max, exp_data, alpha, duplicates, tol
-    )
 
 
 def calc_avm_1d(
