@@ -7,17 +7,19 @@
 """Validation of common physical observables and uncertainty scenarios."""
 
 from pyvale.validation.imetric import (
-    EMetricComparison,
+    EMetricCompare,
     EMetricOut,
     EMetricScale,
     EMetricType,
     IValidMetric,
     MAVMResult,
     MetricResult,
+    MultiMetricResult,
+    extract_metric_outputs,
     ScalarMetricResult,
 )
 from pyvale.validation.metrics import (
-    DeterministicMetricResult,
+    DetMetricResult,
     ERelErrNorm,
     calc_avm_1d,
     calc_cvm_1d,
@@ -138,11 +140,11 @@ from pyvale.validation.validvis import (
 )
 
 __all__ = [
-    "DeterministicMetricResult",
+    "DetMetricResult",
     "ECDFPlot",
     "EEpisOffset",
     "EMAVMDuplicates",
-    "EMetricComparison",
+    "EMetricCompare",
     "EMetricDisp",
     "EShowECDFBounds",
     "EMetricOut",
@@ -170,6 +172,7 @@ __all__ = [
     "MetricRMSE",
     "MetricRelErr",
     "MetricResult",
+    "MultiMetricResult",
     "MetricVisOpts",
     "ScalarMetricResult",
     "ValidArray",
@@ -211,6 +214,7 @@ __all__ = [
     "extract_aleatory_scenarios",
     "extract_ecdf",
     "extract_ecdf_envelope",
+    "extract_metric_outputs",
     "extract_metric_values",
     "find_ecdf_epis_bounds",
     "find_metric_epis_extrema",

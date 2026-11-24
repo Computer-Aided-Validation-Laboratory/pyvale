@@ -293,9 +293,9 @@ def test_paired_metrics_use_pairs_and_reject_unequal_counts(
     exp_variance = 3 * (count**2 - 1) / 4
     expected_relative = mean_absolute_error / (3 * count - 2)
     errors = vl.calc_deterministic_metrics_1d(sim, exp)
-    assert errors.absolute_error == pytest.approx(mean_absolute_error, rel=0, abs=1e-12)
+    assert errors.abs_err == pytest.approx(mean_absolute_error, rel=0, abs=1e-12)
     assert errors.rmse == pytest.approx(sqrt(mean_square_error), rel=0, abs=1e-12)
-    assert errors.relative_error == pytest.approx(expected_relative, rel=0, abs=1e-12)
+    assert errors.rel_err == pytest.approx(expected_relative, rel=0, abs=1e-12)
     if count == 1:
         assert np.isnan(errors.nmse)
     else:
@@ -321,11 +321,11 @@ def test_paired_metrics_use_pairs_and_reject_unequal_counts(
         )
         if denominator == 0:
             assert np.isnan(relative)
-            assert np.isnan(errors.relative_error)
+            assert np.isnan(errors.rel_err)
         else:
             expected = mean_absolute_error / denominator
             assert relative == pytest.approx(expected, rel=0, abs=1e-12)
-            assert errors.relative_error == pytest.approx(expected, rel=0, abs=1e-12)
+            assert errors.rel_err == pytest.approx(expected, rel=0, abs=1e-12)
 
 
 @pytest.mark.parametrize("test_case", ANALYTIC_CASES, ids=CASE_IDS)
@@ -635,7 +635,7 @@ def test_other_metric_nuisance_extrema_match_hand_calculated_shift_cases(
         vl.EMetricType.KS: 0.5,
         vl.EMetricType.CVM: 3 / 16,
         vl.EMetricType.RMSE: 2.0,
-        vl.EMetricType.RELATIVE_ERROR: 1.0,
+        vl.EMetricType.REL_ERR: 1.0,
     }[metric.get_kind()]
     np.testing.assert_allclose(profile.minimum[output], 0.0, rtol=0, atol=1e-12)
     np.testing.assert_allclose(
@@ -905,12 +905,12 @@ def test_relative_error_zero_and_near_zero(reference: float) -> None:
     standalone = vl.calc_deterministic_metrics_1d(sim_data, exp)
     strategy = vl.MetricRelErr().calc(sim_data, exp).value
     if reference == 0:
-        assert np.isnan(standalone.relative_error) and np.isnan(strategy)
+        assert np.isnan(standalone.rel_err) and np.isnan(strategy)
     else:
-        assert standalone.relative_error == pytest.approx(
+        assert standalone.rel_err == pytest.approx(
             abs(1 - reference) / abs(reference)
         )
-        assert strategy == standalone.relative_error
+        assert strategy == standalone.rel_err
     assert np.isnan(standalone.nmse)
 
 
@@ -941,9 +941,9 @@ def test_deterministic_metrics_preserve_observation_order() -> None:
     exp = np.array([4.0, -1.0])
     expected_rmse = sqrt(12.5)
     errors = vl.calc_deterministic_metrics_1d(sim, exp)
-    assert errors.absolute_error == pytest.approx(3.5)
+    assert errors.abs_err == pytest.approx(3.5)
     assert errors.rmse == pytest.approx(expected_rmse)
-    assert errors.relative_error == pytest.approx(0.875)
+    assert errors.rel_err == pytest.approx(0.875)
     assert errors.nmse == pytest.approx(2.0)
 
     axes = (vl.EValidAxis.ALEATORY,)
@@ -1106,10 +1106,10 @@ def test_endpoint_corrections_are_anchored_to_model_limits() -> None:
     assert correction.upper_exp_idx == 1
     assert correction.comparisons[2].d_plus == pytest.approx(13.0)
     np.testing.assert_allclose(
-        correction.lower.model_quantiles - correction.lower.d_minus, [-2.0]
+        correction.lower.sim_quantiles - correction.lower.d_minus, [-2.0]
     )
     np.testing.assert_allclose(
-        correction.upper.model_quantiles + correction.upper.d_plus, [13.0]
+        correction.upper.sim_quantiles + correction.upper.d_plus, [13.0]
     )
 
 

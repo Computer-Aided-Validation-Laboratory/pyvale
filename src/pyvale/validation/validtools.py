@@ -70,7 +70,7 @@ def _build_metric_selection(
 
 
 def _create_default_metric_labels() -> dict[EMetricType, str]:
-    return {EMetricType.RELATIVE_ERROR: "Rel Err"}
+    return {EMetricType.REL_ERR: "Rel Err"}
 
 
 def _create_metric_label(
@@ -83,7 +83,7 @@ def _create_metric_label(
     if output is None or metric in (
         EMetricType.RMSE,
         EMetricType.CVM,
-        EMetricType.RELATIVE_ERROR,
+        EMetricType.REL_ERR,
     ):
         return label
     output_label = {

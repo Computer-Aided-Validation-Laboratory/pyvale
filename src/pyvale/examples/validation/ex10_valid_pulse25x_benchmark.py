@@ -162,8 +162,8 @@ print(80*"-")
 for kk in observables:
     units = observables[kk].phys_units
     axis_label = "Coil RMS voltage [V]" if kk == "CV" else "Temperature [degC]"
-    model_view = vl.calc_ecdf_view(sim_arrays[kk])
-    model_cases = vl.select_ecdf_support_cases(model_view.samples)
+    sim_view = vl.calc_ecdf_view(sim_arrays[kk])
+    sim_cases = vl.select_ecdf_support_cases(sim_view.samples)
 
     labels = vl.ValidPlotOpts(title=kk, x_label=axis_label)
     ecdf_plot: vl.ECDFPlot = vl.plot_sim_ecdfs(
@@ -203,8 +203,8 @@ for kk in observables:
     exp_view = vl.calc_ecdf_view(exp_arrays[kk], offset=None)
     exp_cases = vl.select_ecdf_support_cases(exp_view.samples)
 
-    model_lower = model_view.samples[model_cases[0]]
-    model_upper = model_view.samples[model_cases[1]]
+    sim_lower = sim_view.samples[sim_cases[0]]
+    sim_upper = sim_view.samples[sim_cases[1]]
 
     exp_lower: np.ndarray = exp_arrays[kk].select_aleatory(
         0, 0, 0, offset=vl.EEpisOffset.LOWER
@@ -214,8 +214,8 @@ for kk in observables:
     )
 
     bound_pairs: vl.MAVMBoundPairs = vl.calc_mavm_bound_pairs(
-        model_lower,
-        model_upper,
+        sim_lower,
+        sim_upper,
         exp_lower,
         exp_upper,
         duplicates=vl.EMAVMDuplicates.REJECT,
@@ -230,9 +230,9 @@ for kk in observables:
     )
     for ff, vv in diagnostic_views:
         fig, ax = vl.plot_valid_mavm_diagnostic(
-            model_view,
+            sim_view,
             exp_view,
-            sim_support_cases=model_cases,
+            sim_support_cases=sim_cases,
             exp_support_cases=exp_cases,
             bound_pairs=bound_pairs,
             view=vv,

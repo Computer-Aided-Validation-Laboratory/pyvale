@@ -72,7 +72,7 @@ def test_offset_and_borrowing_contract() -> None:
 class MetricSampleDifference(vl.IValidMetric):
     """Custom implementation whose metadata deliberately differs from its KS tag."""
 
-    comparison: vl.EMetricComparison
+    comparison: vl.EMetricCompare
     scale: vl.EMetricScale = vl.EMetricScale.PHYSICAL
 
     def get_kind(self) -> vl.EMetricType:
@@ -81,7 +81,7 @@ class MetricSampleDifference(vl.IValidMetric):
     def get_scale(self) -> vl.EMetricScale:
         return self.scale
 
-    def get_comparison(self) -> vl.EMetricComparison:
+    def get_comparison(self) -> vl.EMetricCompare:
         return self.comparison
 
     def get_outputs(self) -> tuple[vl.EMetricOut, ...]:
@@ -91,10 +91,6 @@ class MetricSampleDifference(vl.IValidMetric):
         return vl.ScalarMetricResult(
             self.get_kind(), float(np.sum(sim) - np.sum(exp))
         )
-
-    def extract_outputs(self, result: vl.MetricResult) -> tuple[float, ...]:
-        assert isinstance(result, vl.ScalarMetricResult)
-        return (result.value,)
 
 
 @pytest.mark.parametrize("scale", tuple(vl.EMetricScale))
@@ -113,7 +109,7 @@ def test_custom_calibration_classification_allows_unequal_counts_and_controls_un
         {"length": vl.ValidArray(np.array([0.1, 0.3]), axes)},
         {"length": vl.ValidArray(np.array([0.0]), axes)},
     )
-    metric = MetricSampleDifference(vl.EMetricComparison.CALIBRATION, scale)
+    metric = MetricSampleDifference(vl.EMetricCompare.CALIB, scale)
     result = vl.ValidEngine([metric]).run(valid_case)
     field = result.metrics["length"][vl.EMetricType.KS]
     np.testing.assert_allclose(field.metric_vals[vl.EMetricOut.STATISTIC], [[[0.4]]])
@@ -125,7 +121,7 @@ def test_custom_calibration_classification_allows_unequal_counts_and_controls_un
         assert ax.get_xlabel().endswith(f"[{units}]")
     finally:
         plt.close(fig)
-    metric.comparison = vl.EMetricComparison.PAIRED
+    metric.comparison = vl.EMetricCompare.PAIRED
     with pytest.raises(ValueError, match="equal aleatory counts"):
         vl.ValidEngine([metric]).run(valid_case)
 
@@ -397,7 +393,7 @@ def test_plot_metric_extrema_time_shows_both_mavm_extrema() -> None:
 
 def test_relative_error_labels_use_plot_options() -> None:
     tag = "temperature"
-    metric = vl.EMetricType.RELATIVE_ERROR
+    metric = vl.EMetricType.REL_ERR
     observable = vl.ValidObservable(
         components=(tag,), geometry=vl.EValidGeometry.GLOBAL, times=np.array([0.0, 1.0])
     )

@@ -32,7 +32,7 @@ from pyvale.validation.validtypes import EMAVMDuplicates
 
 
 def calc_mavm_1d(
-    model_data: np.ndarray,
+    sim_data: np.ndarray,
     exp_data: np.ndarray,
     *,
     alpha: float = 0.05,
@@ -47,8 +47,8 @@ def calc_mavm_1d(
 
     Parameters
     ----------
-    model_data : np.ndarray
-        1D array of simulated / model realization values.
+    sim_data : np.ndarray
+        1D array of simulation realization values.
     exp_data : np.ndarray
         1D array of experimental observation values.
     alpha : float, optional
@@ -67,12 +67,12 @@ def calc_mavm_1d(
     MAVMResult
         Complete result dataclass with d+, d-, and CDF data.
     """
-    return _cyth_calc_mavm_1d(model_data, exp_data, alpha, duplicates, tol)
+    return _cyth_calc_mavm_1d(sim_data, exp_data, alpha, duplicates, tol)
 
 
 def calc_mavm_pbox_1d(
-    model_pbox_min: np.ndarray,
-    model_pbox_max: np.ndarray,
+    sim_pbox_min: np.ndarray,
+    sim_pbox_max: np.ndarray,
     exp_data: np.ndarray,
     *,
     alpha: float = 0.05,
@@ -84,10 +84,10 @@ def calc_mavm_pbox_1d(
 
     Parameters
     ----------
-    model_pbox_min : np.ndarray
-        Lower envelope model samples (min CDF across epistemic parameter space).
-    model_pbox_max : np.ndarray
-        Upper envelope model samples (max CDF across epistemic parameter space).
+    sim_pbox_min : np.ndarray
+        Samples representing the lower quantile endpoint of the simulation p-box.
+    sim_pbox_max : np.ndarray
+        Samples representing the upper quantile endpoint of the simulation p-box.
     exp_data : np.ndarray
         1D experimental observation samples.
     alpha : float, optional
@@ -100,10 +100,12 @@ def calc_mavm_pbox_1d(
     Returns
     -------
     MAVMResult
-        MAVM result comparing the p-box against experimental confidence bounds.
+        The positive area uses the lower simulation endpoint and the negative
+        area uses the upper endpoint. The returned simulation CDF describes
+        the lower endpoint.
     """
     return _cyth_calc_mavm_pbox_1d(
-        model_pbox_min, model_pbox_max, exp_data, alpha, duplicates, tol
+        sim_pbox_min, sim_pbox_max, exp_data, alpha, duplicates, tol
     )
 
 
@@ -211,9 +213,9 @@ class ERelErrNorm(Enum):
 
 
 @dataclass(slots=True)
-class DeterministicMetricResult:
-    absolute_error: float
-    relative_error: float
+class DetMetricResult:
+    abs_err: float
+    rel_err: float
     rmse: float
     nmse: float
 
@@ -224,6 +226,7 @@ def _validate_relative_error_config(
 ) -> None:
     if not isinstance(normalisation, ERelErrNorm):
         raise TypeError("Normalisation must be ERelErrNorm.")
+
     if normalisation is ERelErrNorm.CONSTANT:
         if (
             constant is None
@@ -235,6 +238,7 @@ def _validate_relative_error_config(
             raise ValueError(
                 "Constant normalisation requires a positive finite constant."
             )
+
     elif constant is not None:
         raise ValueError("A normalisation constant requires CONSTANT normalisation.")
 
@@ -277,16 +281,16 @@ def calc_deterministic_metrics_1d(
     *,
     normalisation: ERelErrNorm = ERelErrNorm.EXP_MAX,
     constant: float | None = None,
-) -> DeterministicMetricResult:
+) -> DetMetricResult:
     """Return paired errors; NMSE is NaN for variance at or below the zero tolerance."""
     _validate_relative_error_config(normalisation, constant)
     sim, exp = _validate_paired_samples(sim_valid, exp_valid)
     residual = sim - exp
     mean_square_error = float(np.mean(residual * residual))
     exp_variance = float(np.var(exp))
-    return DeterministicMetricResult(
-        absolute_error=float(np.mean(np.abs(residual))),
-        relative_error=_calculate_relative_error(sim, exp, normalisation, constant),
+    return DetMetricResult(
+        abs_err=float(np.mean(np.abs(residual))),
+        rel_err=_calculate_relative_error(sim, exp, normalisation, constant),
         rmse=float(np.sqrt(mean_square_error)),
         nmse=mean_square_error / exp_variance
         if exp_variance > METRIC_ZERO_TOLERANCE

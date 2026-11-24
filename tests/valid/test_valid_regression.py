@@ -98,7 +98,7 @@ def test_mavm_accepts_strided_samples_and_filters_nan() -> None:
     expected = calc_mavm_1d(np.array([0.0, 2.0]), np.array([1.0, 3.0]))
     assert calculated.d_plus == pytest.approx(expected.d_plus)
     assert calculated.d_minus == pytest.approx(expected.d_minus)
-    np.testing.assert_array_equal(calculated.model_quantiles, [0.0, 2.0])
+    np.testing.assert_array_equal(calculated.sim_quantiles, [0.0, 2.0])
 
 
 @pytest.mark.parametrize("workers", [1])
@@ -157,7 +157,7 @@ def test_engine_matches_standalone_uncertainty_products(workers: int) -> None:
                     assert np.isnan(array[selection])
                 continue
             expected = metric.calc(sim_samples, exp_samples)
-            expected_outputs = metric.extract_outputs(expected)
+            expected_outputs = vl.extract_metric_outputs(expected)
             for output, expected_value in zip(
                 metric.get_outputs(), expected_outputs, strict=True
             ):
@@ -217,8 +217,8 @@ def test_native_and_interpreted_mavm_agree(duplicates: vl.EMAVMDuplicates) -> No
         rtol=1e-13,
         atol=1e-12,
     )
-    np.testing.assert_array_equal(native.model_quantiles, reference.model_quantiles)
-    np.testing.assert_array_equal(native.model_probs, reference.model_probs)
+    np.testing.assert_array_equal(native.sim_quantiles, reference.sim_quantiles)
+    np.testing.assert_array_equal(native.sim_probs, reference.sim_probs)
     np.testing.assert_array_equal(native.exp_quantiles, reference.exp_quantiles)
     np.testing.assert_array_equal(native.exp_probs, reference.exp_probs)
 

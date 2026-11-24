@@ -49,7 +49,7 @@ _METRIC_CLASSES: dict[EMetricType, type[IValidMetric]] = {
     EMetricType.CVM: MetricCVM,
     EMetricType.KS: MetricKS,
     EMetricType.MAVM: MetricMAVM,
-    EMetricType.RELATIVE_ERROR: MetricRelErr,
+    EMetricType.REL_ERR: MetricRelErr,
     EMetricType.RMSE: MetricRMSE,
 }
 
@@ -281,7 +281,7 @@ def _unpack_metric_config(kind: EMetricType, config: dict) -> IValidMetric:
             duplicates=EMAVMDuplicates[config["duplicates"]],
             tol=config["tol"],
         )
-    if kind is EMetricType.RELATIVE_ERROR:
+    if kind is EMetricType.REL_ERR:
         return MetricRelErr(
             normalisation=ERelErrNorm[config["normalisation"]],
             constant=config["constant"],
@@ -303,6 +303,15 @@ def _unpack_outputs(
     return {EMetricOut[name]: archive[key] for name, key in outputs.items()}
 
 
+def _pack_metric_kind(kind: EMetricType) -> str:
+    # Keep the schema v1 key when the public enum member is renamed.
+    return "RELATIVE_ERROR" if kind is EMetricType.REL_ERR else kind.name
+
+
+def _unpack_metric_kind(name: str) -> EMetricType:
+    return EMetricType.REL_ERR if name == "RELATIVE_ERROR" else EMetricType[name]
+
+
 def save_valid_result(path: str | Path, result: ValidResult) -> None:
     """Save metric fields, observable metadata and built-in metric settings."""
     arrays: dict[str, np.ndarray] = {}
@@ -311,7 +320,7 @@ def save_valid_result(path: str | Path, result: ValidResult) -> None:
         fields[tag] = {}
         for kind, metric_field in metrics.items():
             epis_offsets = metric_field.epis_offsets
-            fields[tag][kind.name] = {
+            fields[tag][_pack_metric_kind(kind)] = {
                 "axes": [axis.name for axis in metric_field.axes],
                 "outputs": _pack_outputs(metric_field.metric_vals, arrays),
                 "scenarios": (
@@ -330,7 +339,7 @@ def save_valid_result(path: str | Path, result: ValidResult) -> None:
         },
         "metrics": fields,
         "metric_configs": {
-            kind.name: _pack_metric_config(kind, metric)
+            _pack_metric_kind(kind): _pack_metric_config(kind, metric)
             for kind, metric in result.metric_configs.items()
         },
     }
@@ -346,7 +355,7 @@ def load_valid_result(path: str | Path) -> ValidResult:
             metrics[tag] = {}
             for kind, stored in fields.items():
                 epis_offsets = stored["scenarios"]
-                metrics[tag][EMetricType[kind]] = MetricField(
+                metrics[tag][_unpack_metric_kind(kind)] = MetricField(
                     axes=tuple(EValidResAxis[name] for name in stored["axes"]),
                     metric_vals=_unpack_outputs(stored["outputs"], archive),
                     epis_offsets=(
@@ -360,16 +369,17 @@ def load_valid_result(path: str | Path) -> ValidResult:
                         }
                     ),
                 )
+        metric_configs = {}
+        for name, config in metadata["metric_configs"].items():
+            kind = _unpack_metric_kind(name)
+            metric_configs[kind] = _unpack_metric_config(kind, config)
         return ValidResult(
             {
                 tag: _unpack_observable(value, archive)
                 for tag, value in metadata["observables"].items()
             },
             metrics,
-            {
-                EMetricType[kind]: _unpack_metric_config(EMetricType[kind], config)
-                for kind, config in metadata["metric_configs"].items()
-            },
+            metric_configs,
         )
 
 

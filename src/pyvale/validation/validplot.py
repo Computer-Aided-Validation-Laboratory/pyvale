@@ -32,6 +32,7 @@ from pyvale.validation.imetric import (
     EMetricScale,
     EMetricType,
     IValidMetric,
+    extract_metric_outputs,
 )
 from pyvale.validation.validecdf import (
     _evaluate_ecdf_quantiles,
@@ -1129,7 +1130,7 @@ def add_metric_overlay(
             for row, sim_index in enumerate(sim_indices):
                 for column, exp_index in enumerate(exp_indices):
                     result = metric.calc(sim.samples[sim_index], exp.samples[exp_index])
-                    metric_values = metric.extract_outputs(result)
+                    metric_values = extract_metric_outputs(result)
                     if display is EMetricDisp.SUPPORT_SHIFT:
                         for direction_idx, output_idx in enumerate(output_indices):
                             values[row, direction_idx] = np.fmax(
@@ -1800,7 +1801,7 @@ def plot_valid_mavm_diagnostic(
     Support case indices select whole original curves. With no indices,
     the diagnostic draws pointwise bounds.
 
-    The bound pairs provide the scalar MAVM distances used to shift model
+    The bound pairs provide the scalar MAVM distances used to shift sim
     support and draw the outer support band.
     """
     if not isinstance(view, EValidMAVMDiagnostic):
@@ -1837,8 +1838,8 @@ def plot_valid_mavm_diagnostic(
         ):
             _plot_quantile_curve(
                 ax,
-                comparison.model_quantiles + comparison.d_plus,
-                comparison.model_probs,
+                comparison.sim_quantiles + comparison.d_plus,
+                comparison.sim_probs,
                 color=options.metric_line_color,
                 linestyle=linestyle,
                 label=label,
@@ -1846,8 +1847,8 @@ def plot_valid_mavm_diagnostic(
             )
             _plot_quantile_curve(
                 ax,
-                comparison.model_quantiles - comparison.d_minus,
-                comparison.model_probs,
+                comparison.sim_quantiles - comparison.d_minus,
+                comparison.sim_probs,
                 color=options.metric_line_color,
                 linestyle=linestyle,
                 linewidth=options.lw,
@@ -1857,12 +1858,12 @@ def plot_valid_mavm_diagnostic(
         EValidMAVMDiagnostic.MODEL_CORRECTION,
     ):
         lower_cdf = ECDF(
-            bound_pairs.lower.model_quantiles - bound_pairs.lower.d_minus,
-            bound_pairs.lower.model_probs,
+            bound_pairs.lower.sim_quantiles - bound_pairs.lower.d_minus,
+            bound_pairs.lower.sim_probs,
         )
         upper_cdf = ECDF(
-            bound_pairs.upper.model_quantiles + bound_pairs.upper.d_plus,
-            bound_pairs.upper.model_probs,
+            bound_pairs.upper.sim_quantiles + bound_pairs.upper.d_plus,
+            bound_pairs.upper.sim_probs,
         )
         probabilities = np.unique(
             np.r_[lower_cdf.probs, upper_cdf.probs]

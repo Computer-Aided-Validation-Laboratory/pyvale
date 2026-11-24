@@ -113,7 +113,7 @@ def test_result_and_extrema_round_trip(
         vl.EMAVMDuplicates.REJECT,
         1e-9,
     )
-    relative_error = restored.metric_configs[vl.EMetricType.RELATIVE_ERROR]
+    relative_error = restored.metric_configs[vl.EMetricType.REL_ERR]
     assert isinstance(relative_error, vl.MetricRelErr)
     assert (relative_error.normalisation, relative_error.constant) == (
         vl.ERelErrNorm.CONSTANT,

@@ -213,8 +213,8 @@ class MetricSampleMeans(vl.IValidMetric):
     def get_scale(self) -> vl.EMetricScale:
         return vl.EMetricScale.PHYSICAL
 
-    def get_comparison(self) -> vl.EMetricComparison:
-        return vl.EMetricComparison.DISTRIBUTIONAL
+    def get_comparison(self) -> vl.EMetricCompare:
+        return vl.EMetricCompare.DISTRIB
 
     def get_kind(self) -> vl.EMetricType:
         return vl.EMetricType.AVM
@@ -223,11 +223,8 @@ class MetricSampleMeans(vl.IValidMetric):
         return (vl.EMetricOut.ERROR, vl.EMetricOut.DISTANCE)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.MetricResult:
-        return vl.ScalarMetricResult(self.get_kind(), float(np.mean(sim)))
-
-    def extract_outputs(self, result: vl.MetricResult) -> tuple[float, ...]:
-        assert isinstance(result, vl.ScalarMetricResult)
-        return (result.value, result.value + 1.0)
+        mean = float(np.mean(sim))
+        return vl.MultiMetricResult(self.get_kind(), (mean, mean + 1.0))
 
 
 @pytest.mark.parametrize(
@@ -271,8 +268,8 @@ class MetricInvalidOutputs(vl.IValidMetric):
     def get_scale(self) -> vl.EMetricScale:
         return vl.EMetricScale.PHYSICAL
 
-    def get_comparison(self) -> vl.EMetricComparison:
-        return vl.EMetricComparison.DISTRIBUTIONAL
+    def get_comparison(self) -> vl.EMetricCompare:
+        return vl.EMetricCompare.DISTRIB
 
     def get_kind(self) -> vl.EMetricType:
         return vl.EMetricType.AVM
@@ -282,9 +279,6 @@ class MetricInvalidOutputs(vl.IValidMetric):
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.MetricResult:
         return vl.ScalarMetricResult(self.get_kind(), 1.0)
-
-    def extract_outputs(self, result: vl.MetricResult) -> tuple[float, ...]:
-        return (1.0,)
 
 
 @pytest.mark.parametrize("workers", [1, 2])
@@ -530,7 +524,7 @@ def test_mavm_default_rejects_near_duplicate_model_data(separation: float) -> No
     exp_data = np.array([0.5, 1.5, 2.5], dtype=np.float64)
     with pytest.raises(
         ValueError,
-        match="REJECT MAVM duplicates requires unique model observations.*INCLUDE",
+        match="REJECT MAVM duplicates requires unique sim observations.*INCLUDE",
     ):
         calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDuplicates.REJECT)
 

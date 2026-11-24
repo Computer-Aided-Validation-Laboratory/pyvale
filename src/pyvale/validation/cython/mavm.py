@@ -68,28 +68,28 @@ except ModuleNotFoundError:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def _integrate_mavm_bound_default(
-    model_quantiles: cython.double[::1],
+    sim_quantiles: cython.double[::1],
     exp_bound_quantiles: cython.double[::1],
-    model_probability_step: cython.double,
+    sim_probability_step: cython.double,
     exp_probability_step: cython.double,
     tolerance: cython.double,
 ) -> tuple[float, float]:
     """Integrate one MAVM bound with the fullfield-compatible algorithm."""
     exp_count: cython.Py_ssize_t = exp_bound_quantiles.shape[0]
-    model_count: cython.Py_ssize_t = model_quantiles.shape[0]
+    sim_count: cython.Py_ssize_t = sim_quantiles.shape[0]
     d_plus: cython.double = 0.0
     d_minus: cython.double = 0.0
     d_remainder: cython.double = 0.0
     d_area: cython.double = 0.0
     exp_idx: cython.Py_ssize_t = 0
-    model_idx: cython.Py_ssize_t = 0
+    sim_idx: cython.Py_ssize_t = 0
 
-    if exp_count > model_count:
-        for model_idx in range(model_count):
+    if exp_count > sim_count:
+        for sim_idx in range(sim_count):
             if abs(d_remainder) > tolerance:
-                d_area = (exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]) * (
+                d_area = (exp_bound_quantiles[exp_idx] - sim_quantiles[sim_idx]) * (
                     exp_probability_step * (exp_idx + 1)
-                    - model_probability_step * model_idx
+                    - sim_probability_step * sim_idx
                 )
                 if d_area > 0.0:
                     d_plus += d_area
@@ -97,11 +97,11 @@ def _integrate_mavm_bound_default(
                     d_minus += d_area
                 exp_idx += 1
 
-            while (model_idx + 1) * model_probability_step > (
+            while (sim_idx + 1) * sim_probability_step > (
                 exp_idx + 1
             ) * exp_probability_step:
                 d_area = (
-                    exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]
+                    exp_bound_quantiles[exp_idx] - sim_quantiles[sim_idx]
                 ) * exp_probability_step
                 if d_area > tolerance:
                     d_plus += d_area
@@ -111,9 +111,9 @@ def _integrate_mavm_bound_default(
 
             if exp_idx < exp_count:
                 d_remainder = (
-                    exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]
+                    exp_bound_quantiles[exp_idx] - sim_quantiles[sim_idx]
                 ) * (
-                    model_probability_step * (model_idx + 1)
+                    sim_probability_step * (sim_idx + 1)
                     - exp_probability_step * exp_idx
                 )
                 if d_remainder > 0.0:
@@ -123,33 +123,33 @@ def _integrate_mavm_bound_default(
     else:
         for exp_idx in range(exp_count):
             if abs(d_remainder) > tolerance:
-                d_area = (exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]) * (
-                    model_probability_step * (model_idx + 1)
+                d_area = (exp_bound_quantiles[exp_idx] - sim_quantiles[sim_idx]) * (
+                    sim_probability_step * (sim_idx + 1)
                     - exp_probability_step * exp_idx
                 )
                 if d_area > tolerance:
                     d_plus += d_area
                 else:
                     d_minus += d_area
-                model_idx += 1
+                sim_idx += 1
 
-            while (model_idx + 1) * model_probability_step < (
+            while (sim_idx + 1) * sim_probability_step < (
                 exp_idx + 1
             ) * exp_probability_step:
                 d_area = (
-                    exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]
-                ) * model_probability_step
+                    exp_bound_quantiles[exp_idx] - sim_quantiles[sim_idx]
+                ) * sim_probability_step
                 if d_area > tolerance:
                     d_plus += d_area
                 else:
                     d_minus += d_area
-                model_idx += 1
+                sim_idx += 1
 
             d_remainder = (
-                exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]
+                exp_bound_quantiles[exp_idx] - sim_quantiles[sim_idx]
             ) * (
                 exp_probability_step * (exp_idx + 1)
-                - model_probability_step * model_idx
+                - sim_probability_step * sim_idx
             )
             if d_remainder > tolerance:
                 d_plus += d_remainder
@@ -163,32 +163,32 @@ def _integrate_mavm_bound_default(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def _integrate_mavm_bound_robust(
-    model_quantiles: cython.double[::1],
+    sim_quantiles: cython.double[::1],
     exp_bound_quantiles: cython.double[::1],
-    model_probabilities: cython.double[::1],
+    sim_probabilities: cython.double[::1],
     exp_probabilities: cython.double[::1],
     tolerance: cython.double,
 ) -> tuple[float, float]:
     """Integrate one MAVM bound over a merged empirical-CDF probability grid."""
-    model_count: cython.Py_ssize_t = model_quantiles.shape[0]
+    sim_count: cython.Py_ssize_t = sim_quantiles.shape[0]
     exp_count: cython.Py_ssize_t = exp_bound_quantiles.shape[0]
-    model_idx: cython.Py_ssize_t = 0
+    sim_idx: cython.Py_ssize_t = 0
     exp_idx: cython.Py_ssize_t = 0
     probability: cython.double = 0.0
     next_probability: cython.double = 0.0
     d_area: cython.double = 0.0
     d_plus: cython.double = 0.0
     d_minus: cython.double = 0.0
-    model_at_next: cython.bint = False
+    sim_at_next: cython.bint = False
     exp_at_next: cython.bint = False
     probability_tolerance: cython.double = MAVM_PROBABILITY_TOLERANCE
 
-    while model_idx < model_count and exp_idx < exp_count:
+    while sim_idx < sim_count and exp_idx < exp_count:
         next_probability = min(
-            model_probabilities[model_idx],
+            sim_probabilities[sim_idx],
             exp_probabilities[exp_idx],
         )
-        d_area = (exp_bound_quantiles[exp_idx] - model_quantiles[model_idx]) * (
+        d_area = (exp_bound_quantiles[exp_idx] - sim_quantiles[sim_idx]) * (
             next_probability - probability
         )
         if d_area > tolerance:
@@ -197,14 +197,14 @@ def _integrate_mavm_bound_robust(
             d_minus -= d_area
 
         probability = next_probability
-        model_at_next = (
-            abs(probability - model_probabilities[model_idx]) <= probability_tolerance
+        sim_at_next = (
+            abs(probability - sim_probabilities[sim_idx]) <= probability_tolerance
         )
         exp_at_next = (
             abs(probability - exp_probabilities[exp_idx]) <= probability_tolerance
         )
-        if model_at_next:
-            model_idx += 1
+        if sim_at_next:
+            sim_idx += 1
         if exp_at_next:
             exp_idx += 1
 
@@ -218,7 +218,7 @@ def _convert_contiguous_float64(values: np.ndarray) -> np.ndarray:
 
 @cython.ccall
 def _cyth_calc_mavm_1d(
-    model_data: np.ndarray,
+    sim_data: np.ndarray,
     exp_data: np.ndarray,
     alpha: float = 0.05,
     duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
@@ -230,30 +230,30 @@ def _cyth_calc_mavm_1d(
     :func:`pyvale.validation.metrics.calc_mavm_1d`.
     """
     _validate_mavm_config(alpha, duplicates, tol)
-    model_clean = _validate_finite_sample(model_data, "model_data")
+    sim_clean = _validate_finite_sample(sim_data, "sim_data")
     exp_clean = _validate_finite_sample(exp_data, "exp_data")
 
-    model = _prepare_mavm_distribution(
-        model_clean,
-        unique_label="model" if duplicates is EMAVMDuplicates.REJECT else None,
+    sim = _prepare_mavm_distribution(
+        sim_clean,
+        unique_label="sim" if duplicates is EMAVMDuplicates.REJECT else None,
     )
     exp = _prepare_mavm_exp(
         exp_clean,
         alpha,
         unique_label="experimental" if duplicates is EMAVMDuplicates.REJECT else None,
     )
-    return _calculate_prepared_mavm(model, exp, alpha, duplicates, tol)
+    return _calculate_prepared_mavm(sim, exp, alpha, duplicates, tol)
 
 
 def _calculate_mavm(
-    model_clean: np.ndarray,
+    sim_clean: np.ndarray,
     exp_clean: np.ndarray,
     alpha: float,
     duplicates: EMAVMDuplicates,
     tol: float,
 ) -> MAVMResult:
     return _calculate_prepared_mavm(
-        _prepare_mavm_distribution(model_clean),
+        _prepare_mavm_distribution(sim_clean),
         _prepare_mavm_exp(exp_clean, alpha),
         alpha,
         duplicates,
@@ -312,48 +312,48 @@ def _prepare_mavm_exp(
 
 
 def _calculate_prepared_mavm(
-    model: _PreparedECDF,
+    sim: _PreparedECDF,
     exp: _PreparedMAVMExp,
     alpha: float,
     duplicates: EMAVMDuplicates,
     tol: float,
 ) -> MAVMResult:
-    model_quantiles = model.quantiles
-    model_probabilities = model.probabilities
+    sim_quantiles = sim.quantiles
+    sim_probabilities = sim.probabilities
     exp_quantiles = exp.distribution.quantiles
     exp_probabilities = exp.distribution.probabilities
     exp_conf_lower, exp_conf_upper = exp.lower, exp.upper
     exp_count = len(exp_quantiles)
 
     if duplicates is EMAVMDuplicates.REJECT:
-        model_probability_step = 1.0 / len(model_quantiles)
+        sim_probability_step = 1.0 / len(sim_quantiles)
         exp_probability_step = 1.0 / exp_count
         lower_plus, lower_minus = _integrate_mavm_bound_default(
-            model_quantiles,
+            sim_quantiles,
             exp_conf_lower,
-            model_probability_step,
+            sim_probability_step,
             exp_probability_step,
             tol,
         )
         upper_plus, upper_minus = _integrate_mavm_bound_default(
-            model_quantiles,
+            sim_quantiles,
             exp_conf_upper,
-            model_probability_step,
+            sim_probability_step,
             exp_probability_step,
             tol,
         )
     elif duplicates is EMAVMDuplicates.INCLUDE:
         lower_plus, lower_minus = _integrate_mavm_bound_robust(
-            model_quantiles,
+            sim_quantiles,
             exp_conf_lower,
-            model_probabilities,
+            sim_probabilities,
             exp_probabilities,
             tol,
         )
         upper_plus, upper_minus = _integrate_mavm_bound_robust(
-            model_quantiles,
+            sim_quantiles,
             exp_conf_upper,
-            model_probabilities,
+            sim_probabilities,
             exp_probabilities,
             tol,
         )
@@ -366,8 +366,8 @@ def _calculate_prepared_mavm(
     return MAVMResult(
         d_plus=d_plus,
         d_minus=d_minus,
-        model_quantiles=model_quantiles,
-        model_probs=model_probabilities,
+        sim_quantiles=sim_quantiles,
+        sim_probs=sim_probabilities,
         exp_quantiles=exp_quantiles,
         exp_probs=exp_probabilities,
         exp_conf_lower=exp_conf_lower,
@@ -378,39 +378,39 @@ def _calculate_prepared_mavm(
 
 @cython.ccall
 def _cyth_calc_mavm_pbox_1d(
-    model_pbox_min: np.ndarray,
-    model_pbox_max: np.ndarray,
+    sim_pbox_min: np.ndarray,
+    sim_pbox_max: np.ndarray,
     exp_data: np.ndarray,
     alpha: float = 0.05,
     duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMResult:
-    """Calculate p-box MAVM using :func:`_cyth_calc_mavm_1d` for each bound."""
+    """Compare both simulation endpoints against one experimental sample."""
     _validate_mavm_config(alpha, duplicates, tol)
-    lower_samples = _validate_finite_sample(model_pbox_min, "model_pbox_min")
-    upper_samples = _validate_finite_sample(model_pbox_max, "model_pbox_max")
+    lower_samples = _validate_finite_sample(sim_pbox_min, "sim_pbox_min")
+    upper_samples = _validate_finite_sample(sim_pbox_max, "sim_pbox_max")
     exp_samples = _validate_finite_sample(exp_data, "exp_data")
-    lower_model = _prepare_mavm_distribution(
+    lower_sim = _prepare_mavm_distribution(
         lower_samples,
-        unique_label="lower model" if duplicates is EMAVMDuplicates.REJECT else None,
+        unique_label="lower sim" if duplicates is EMAVMDuplicates.REJECT else None,
     )
-    upper_model = _prepare_mavm_distribution(
+    upper_sim = _prepare_mavm_distribution(
         upper_samples,
-        unique_label="upper model" if duplicates is EMAVMDuplicates.REJECT else None,
+        unique_label="upper sim" if duplicates is EMAVMDuplicates.REJECT else None,
     )
     exp = _prepare_mavm_exp(
         exp_samples,
         alpha,
         unique_label="experimental" if duplicates is EMAVMDuplicates.REJECT else None,
     )
-    result_min = _calculate_prepared_mavm(lower_model, exp, alpha, duplicates, tol)
-    result_max = _calculate_prepared_mavm(upper_model, exp, alpha, duplicates, tol)
+    result_min = _calculate_prepared_mavm(lower_sim, exp, alpha, duplicates, tol)
+    result_max = _calculate_prepared_mavm(upper_sim, exp, alpha, duplicates, tol)
 
     return MAVMResult(
         d_plus=result_min.d_plus,
         d_minus=result_max.d_minus,
-        model_quantiles=result_min.model_quantiles,
-        model_probs=result_min.model_probs,
+        sim_quantiles=result_min.sim_quantiles,
+        sim_probs=result_min.sim_probs,
         exp_quantiles=result_min.exp_quantiles,
         exp_probs=result_min.exp_probs,
         exp_conf_lower=result_min.exp_conf_lower,

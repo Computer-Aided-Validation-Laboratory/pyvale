@@ -22,10 +22,11 @@ from pyvale.validation.cython.mavm import (
     _PreparedMAVMExp,
 )
 from pyvale.validation.imetric import (
-    EMetricComparison,
+    EMetricCompare,
     EMetricOut,
     EMetricType,
     IValidMetric,
+    extract_metric_outputs,
 )
 from pyvale.validation.metrics import _validate_relative_error_config
 from pyvale.validation.metricstrategy import (
@@ -117,7 +118,7 @@ class ValidEngine:
         for name in valid_case.observables:
             sim, exp = valid_case.sim[name], valid_case.exp[name]
             requires_pairs = any(
-                metric.get_comparison() is EMetricComparison.PAIRED
+                metric.get_comparison() is EMetricCompare.PAIRED
                 for metric in self.metrics
             )
             if requires_pairs and _get_axis_size(
@@ -341,7 +342,7 @@ def _calculate_partition(
         for metric in metrics
     )
     paired_metrics = tuple(
-        metric.get_comparison() is EMetricComparison.PAIRED for metric in metrics
+        metric.get_comparison() is EMetricCompare.PAIRED for metric in metrics
     )
     requires_pairs = any(paired_metrics)
     for workload in workloads:
@@ -353,7 +354,7 @@ def _calculate_partition(
         sim_array, exp_array, shape = workload.sim, workload.exp, workload.shape
         start = workload.start % prod(shape[1:])
         stop = start + workload.stop - workload.start
-        model_distributions: dict[tuple[int, ...], _PreparedECDF] = {}
+        sim_distributions: dict[tuple[int, ...], _PreparedECDF] = {}
         exp_distributions: dict[tuple[int, ...], _PreparedMAVMExp] = {}
         metric_outputs = tuple(metric.get_outputs() for metric in metrics)
         output_count = sum(len(outputs) for outputs in metric_outputs)
@@ -374,7 +375,7 @@ def _calculate_partition(
             ) = indices
             current_cell = (point, component, time)
             if current_cell != physical_cell:
-                model_distributions.clear()
+                sim_distributions.clear()
                 exp_distributions.clear()
                 physical_cell = current_cell
             sim_samples = sim_array._select_aleatory(
@@ -399,7 +400,7 @@ def _calculate_partition(
                 metrics, metric_outputs, check_output_count, paired_metrics, strict=True
             ):
                 if type(metric) is MetricMAVM:
-                    model_key = (point, component, time, sim_trans, sim_nuis, sim_off)
+                    sim_key = (point, component, time, sim_trans, sim_nuis, sim_off)
                     exp_key = (
                         point,
                         component,
@@ -408,14 +409,14 @@ def _calculate_partition(
                         exp_nuis,
                         exp_off,
                     )
-                    if model_key not in model_distributions:
-                        model_distributions[model_key] = _prepare_mavm_distribution(sim)
+                    if sim_key not in sim_distributions:
+                        sim_distributions[sim_key] = _prepare_mavm_distribution(sim)
                     if exp_key not in exp_distributions:
                         exp_distributions[exp_key] = _prepare_mavm_exp(
                             exp, metric.alpha
                         )
                     metric_result = _calculate_prepared_mavm(
-                        model_distributions[model_key],
+                        sim_distributions[sim_key],
                         exp_distributions[exp_key],
                         metric.alpha,
                         metric.duplicates,
@@ -428,7 +429,7 @@ def _calculate_partition(
                 else:
                     metric_result = _calculate_trusted_metric(metric, sim, exp)
                 output_stop = output_start + len(outputs)
-                output_values = metric.extract_outputs(metric_result)
+                output_values = extract_metric_outputs(metric_result)
                 if check_count and len(output_values) != len(outputs):
                     raise ValueError(
                         "Calculated outputs must match the metric declaration."

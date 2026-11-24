@@ -95,14 +95,11 @@ class FailingMetric(vl.IValidMetric):
     def get_scale(self) -> vl.EMetricScale:
         return vl.EMetricScale.PHYSICAL
 
-    def get_comparison(self) -> vl.EMetricComparison:
-        return vl.EMetricComparison.DISTRIBUTIONAL
+    def get_comparison(self) -> vl.EMetricCompare:
+        return vl.EMetricCompare.DISTRIB
 
     def get_outputs(self) -> tuple[vl.EMetricOut, ...]:
         return (vl.EMetricOut.DISTANCE,)
-
-    def extract_outputs(self, result: vl.MetricResult) -> tuple[float, ...]:
-        raise AssertionError("Failed calculations cannot produce outputs.")
 
     def get_kind(self) -> vl.EMetricType:
         return vl.EMetricType.AVM
@@ -277,8 +274,8 @@ class MetricSampleMeans(vl.IValidMetric):
     def get_scale(self) -> vl.EMetricScale:
         return vl.EMetricScale.PHYSICAL
 
-    def get_comparison(self) -> vl.EMetricComparison:
-        return vl.EMetricComparison.DISTRIBUTIONAL
+    def get_comparison(self) -> vl.EMetricCompare:
+        return vl.EMetricCompare.DISTRIB
 
     def get_kind(self) -> vl.EMetricType:
         return vl.EMetricType.AVM
@@ -287,11 +284,8 @@ class MetricSampleMeans(vl.IValidMetric):
         return (vl.EMetricOut.ERROR, vl.EMetricOut.DISTANCE)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.MetricResult:
-        return vl.ScalarMetricResult(self.get_kind(), float(np.mean(sim)))
-
-    def extract_outputs(self, result: vl.MetricResult) -> tuple[float, ...]:
-        assert isinstance(result, vl.ScalarMetricResult)
-        return (result.value, result.value + 1.0)
+        mean = float(np.mean(sim))
+        return vl.MultiMetricResult(self.get_kind(), (mean, mean + 1.0))
 
 
 @pytest.mark.parametrize("workers", [1, 2])
@@ -344,7 +338,7 @@ def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
 class MetricSampleDifference(vl.IValidMetric):
     """Custom implementation whose metadata deliberately differs from its KS tag."""
 
-    comparison: vl.EMetricComparison
+    comparison: vl.EMetricCompare
     scale: vl.EMetricScale = vl.EMetricScale.PHYSICAL
 
     def get_kind(self) -> vl.EMetricType:
@@ -353,7 +347,7 @@ class MetricSampleDifference(vl.IValidMetric):
     def get_scale(self) -> vl.EMetricScale:
         return self.scale
 
-    def get_comparison(self) -> vl.EMetricComparison:
+    def get_comparison(self) -> vl.EMetricCompare:
         return self.comparison
 
     def get_outputs(self) -> tuple[vl.EMetricOut, ...]:
@@ -363,10 +357,6 @@ class MetricSampleDifference(vl.IValidMetric):
         return vl.ScalarMetricResult(
             self.get_kind(), float(np.sum(sim) - np.sum(exp))
         )
-
-    def extract_outputs(self, result: vl.MetricResult) -> tuple[float, ...]:
-        assert isinstance(result, vl.ScalarMetricResult)
-        return (result.value,)
 
 
 def test_custom_paired_classification_uses_joint_missing_observation_mask() -> None:
@@ -382,7 +372,7 @@ def test_custom_paired_classification_uses_joint_missing_observation_mask() -> N
         {"length": vl.ValidArray(np.array([1.0, np.nan, 3.0]), axes)},
         {"length": vl.ValidArray(np.array([0.0, 20.0, np.nan]), axes)},
     )
-    metric = MetricSampleDifference(vl.EMetricComparison.PAIRED)
+    metric = MetricSampleDifference(vl.EMetricCompare.PAIRED)
     result = vl.ValidEngine([metric]).run(valid_case)
     field = result.metrics["length"][vl.EMetricType.KS]
     np.testing.assert_array_equal(

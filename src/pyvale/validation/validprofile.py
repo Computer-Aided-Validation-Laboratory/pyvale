@@ -485,8 +485,8 @@ def calc_mavm_over_epis_bounds(
 
 
 def calc_mavm_bound_pairs(
-    model_lower: np.ndarray,
-    model_upper: np.ndarray,
+    sim_lower: np.ndarray,
+    sim_upper: np.ndarray,
     exp_lower: np.ndarray,
     exp_upper: np.ndarray,
     *,
@@ -494,16 +494,16 @@ def calc_mavm_bound_pairs(
     duplicates: EMAVMDuplicates = EMAVMDuplicates.INCLUDE,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMBoundPairs:
-    """Compare four endpoint pairs and anchor corrections to the supplied model limits.
+    """Compare four endpoint pairs and anchor corrections to the supplied sim limits.
 
-    The largest d_minus on model_lower selects the lower correction; the largest
-    d_plus on model_upper selects the upper correction. These are support-shift
-    diagnostics, not a reduction to the largest MAVM across every model scenario.
+    The largest d_minus on sim_lower selects the lower correction; the largest
+    d_plus on sim_upper selects the upper correction. These are support-shift
+    diagnostics, not a reduction to the largest MAVM across every sim scenario.
     """
     comparisons = tuple(
-        calc_mavm_1d(model, exp, alpha=alpha, duplicates=duplicates, tol=tol)
+        calc_mavm_1d(sim, exp, alpha=alpha, duplicates=duplicates, tol=tol)
         for exp in (exp_lower, exp_upper)
-        for model in (model_lower, model_upper)
+        for sim in (sim_lower, sim_upper)
     )
     lower_exp_idx = int(np.argmax([comparisons[0].d_minus, comparisons[2].d_minus]))
     upper_exp_idx = int(np.argmax([comparisons[1].d_plus, comparisons[3].d_plus]))

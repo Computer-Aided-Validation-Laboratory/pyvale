@@ -15,14 +15,14 @@ import numpy as np
 
 class EMetricScale(Enum):
     PHYSICAL = auto()
-    DIMENSIONLESS = auto()
-    DIMENSIONLESS_01 = auto()
+    DIMLESS = auto()
+    DIMLESS_01 = auto()
 
 
-class EMetricComparison(Enum):
+class EMetricCompare(Enum):
     PAIRED = auto()
-    DISTRIBUTIONAL = auto()
-    CALIBRATION = auto()
+    DISTRIB = auto()
+    CALIB = auto()
 
 
 class EMetricType(Enum):
@@ -31,7 +31,7 @@ class EMetricType(Enum):
     KS = auto()
     CVM = auto()
     RMSE = auto()
-    RELATIVE_ERROR = auto()
+    REL_ERR = auto()
 
 
 class EMetricOut(Enum):
@@ -54,11 +54,11 @@ class MAVMResult:
     d_minus: float
     """Negative support-shift mismatch area, matching fullfieldvalmetrics."""
 
-    model_quantiles: np.ndarray
-    """Quantiles (support values) of the model empirical CDF."""
+    sim_quantiles: np.ndarray
+    """Quantiles (support values) of the sim empirical CDF."""
 
-    model_probs: np.ndarray
-    """Cumulative probabilities corresponding to model quantiles."""
+    sim_probs: np.ndarray
+    """Cumulative probabilities corresponding to sim quantiles."""
 
     exp_quantiles: np.ndarray
     """Quantiles (support values) of the experimental empirical CDF."""
@@ -82,7 +82,22 @@ class ScalarMetricResult:
     value: float
 
 
-MetricResult = ScalarMetricResult | MAVMResult
+@dataclass(slots=True)
+class MultiMetricResult:
+    kind: EMetricType
+    values: tuple[float, ...]
+
+
+MetricResult = ScalarMetricResult | MultiMetricResult | MAVMResult
+
+
+def extract_metric_outputs(result: MetricResult) -> tuple[float, ...]:
+    """Return numerical outputs in the metric's declared order."""
+    if isinstance(result, ScalarMetricResult):
+        return (result.value,)
+    if isinstance(result, MultiMetricResult):
+        return result.values
+    return result.d_plus, result.d_minus
 
 
 class IValidMetric(ABC):
@@ -101,13 +116,9 @@ class IValidMetric(ABC):
         """Declare the numerical scale of the metric outputs."""
 
     @abstractmethod
-    def get_comparison(self) -> EMetricComparison:
+    def get_comparison(self) -> EMetricCompare:
         """Declare how the metric compares sim and exp observations."""
 
     @abstractmethod
     def get_outputs(self) -> tuple[EMetricOut, ...]:
-        """Declare outputs in the order returned by extract_outputs."""
-
-    @abstractmethod
-    def extract_outputs(self, result: MetricResult) -> tuple[float, ...]:
-        """Extract numerical outputs from this metric's tagged result."""
+        """Declare outputs in the order returned by extract_metric_outputs."""
