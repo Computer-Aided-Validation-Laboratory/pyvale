@@ -8,7 +8,7 @@
 Metrics on epistemic bounds
 ================================================================================
 
-Compare validation envelopes built from ECDF bounds and from original scenario
+Compare validation envelopes built from ECDF bounds and from original sim–exp case
 pairs.
 """
 
@@ -62,12 +62,12 @@ valid_case = vl.ValidCase(
 # Find the pointwise envelope of each ECDF family. The bound-based AVM and
 # MAVM functions use those envelopes to produce ``ECDFMetricBounds``, which
 # holds the support curves for plotting.
-sim_bounds: vl.ECDFEpisBounds = vl.find_ecdf_epis_bounds(
-    valid_case.sim[observable_tag]
+sim_bounds: vl.ECDFEpisBounds = vl.calc_ecdf_epis_bounds(
+    vl.calc_ecdf_view(valid_case.sim[observable_tag])
 )
 
-exp_bounds: vl.ECDFEpisBounds = vl.find_ecdf_epis_bounds(
-    valid_case.exp[observable_tag]
+exp_bounds: vl.ECDFEpisBounds = vl.calc_ecdf_epis_bounds(
+    vl.calc_ecdf_view(valid_case.exp[observable_tag])
 )
 
 avm_bounds: vl.ECDFMetricBounds = vl.calc_avm_over_epis_bounds(

@@ -142,7 +142,7 @@ for ii, (kk, aa) in enumerate(exp_arrays.items()):
 valid_case = vl.ValidCase(observables, sim_arrays, exp_arrays)
 
 valid_result: vl.ValidResult = vl.ValidEngine(
-    [vl.MetricMAVM(alpha=0.05, duplicates=vl.EMAVMDuplicates.REJECT)]
+    [vl.MetricMAVM(alpha=0.05, duplicates=vl.EMAVMDupes.REJECT)]
 ).run(valid_case)
 
 print(80*"-")
@@ -163,15 +163,15 @@ for kk in observables:
     units = observables[kk].phys_units
     axis_label = "Coil RMS voltage [V]" if kk == "CV" else "Temperature [degC]"
     sim_view = vl.calc_ecdf_view(sim_arrays[kk])
-    sim_cases = vl.select_ecdf_support_cases(sim_view.samples)
+    sim_cases = vl.select_ecdf_support_sum_cases(sim_view.samples)
 
     labels = vl.ValidPlotOpts(title=kk, x_label=axis_label)
     ecdf_plot: vl.ECDFPlot = vl.plot_sim_ecdfs(
         valid_case,
         kk,
         valid_plot_opts=labels,
-        view=vl.ECDFViewOpts(
-            scenario_idxs=None, centre=vl.EECDFCentre.MEAN
+        vis_opts=vl.ECDFVisOpts(
+            epis_case_idxs=None, centre=vl.EECDFCentre.MEAN
         ),
     )
 
@@ -201,7 +201,7 @@ for kk in observables:
         plt.close(limiting_plot.figure)
 
     exp_view = vl.calc_ecdf_view(exp_arrays[kk], offset=None)
-    exp_cases = vl.select_ecdf_support_cases(exp_view.samples)
+    exp_cases = vl.select_ecdf_support_sum_cases(exp_view.samples)
 
     sim_lower = sim_view.samples[sim_cases[0]]
     sim_upper = sim_view.samples[sim_cases[1]]
@@ -218,7 +218,7 @@ for kk in observables:
         sim_upper,
         exp_lower,
         exp_upper,
-        duplicates=vl.EMAVMDuplicates.REJECT,
+        duplicates=vl.EMAVMDupes.REJECT,
     )
 
     # %%

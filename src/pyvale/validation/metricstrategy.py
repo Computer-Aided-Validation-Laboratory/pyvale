@@ -30,20 +30,20 @@ from pyvale.validation.metrics import (
     _validate_relative_error_config,
 )
 from pyvale.validation.validchecks import _validate_finite_sample, _validate_mavm_config
-from pyvale.validation.validtypes import EMAVMDuplicates
+from pyvale.validation.validtypes import EMAVMDupes
 
 
 class MetricMAVM(IValidMetric):
     __slots__ = ("alpha", "duplicates", "tol")
     alpha: float
-    duplicates: EMAVMDuplicates
+    duplicates: EMAVMDupes
     tol: float
 
     def __init__(
         self,
         *,
         alpha: float = 0.05,
-        duplicates: EMAVMDuplicates = EMAVMDuplicates.INCLUDE,
+        duplicates: EMAVMDupes = EMAVMDupes.INCLUDE,
         tol: float = MAVM_AREA_TOLERANCE,
     ) -> None:
         _validate_mavm_config(alpha, duplicates, tol)

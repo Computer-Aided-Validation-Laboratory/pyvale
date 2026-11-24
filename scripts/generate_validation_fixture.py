@@ -36,7 +36,7 @@ def save_plate_arrays(
 ) -> dict[str, dict[str, list[str]]]:
     """Save validation-ready variants from SensorSim (repeat, point, component, time).
 
-    Scenario 0 is the nominal model; scenario 1 is the perturbed model. The
+    Transferable case 0 is the nominal simulation and case 1 is perturbed. The
     perturbed observations also supply the synthetic experiment for these
     controlled examples. All saved validation arrays retain repeats last.
     """
@@ -161,7 +161,7 @@ def main() -> None:
     )
     metadata = {
         "fixture_axes": fixture_axes,
-        "scenario_order": ["nominal", "perturbed"],
+        "trans_case_order": ["nominal", "perturbed"],
         "synthetic_experiment": "perturbed",
         "steady_time": float(times[-1]),
         "source_files": [nominal_path.name, perturbed_path.name],

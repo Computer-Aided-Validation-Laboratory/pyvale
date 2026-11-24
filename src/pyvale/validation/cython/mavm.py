@@ -28,7 +28,7 @@ from pyvale.validation.validchecks import (
     _validate_finite_sample,
     _validate_mavm_config,
 )
-from pyvale.validation.validtypes import EMAVMDuplicates
+from pyvale.validation.validtypes import EMAVMDupes
 
 try:
     import cython
@@ -221,7 +221,7 @@ def _cyth_calc_mavm_1d(
     sim_data: np.ndarray,
     exp_data: np.ndarray,
     alpha: float = 0.05,
-    duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
+    duplicates: EMAVMDupes = EMAVMDupes.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMResult:
     """Calculate MAVM using compiled loops when this module is compiled.
@@ -235,12 +235,12 @@ def _cyth_calc_mavm_1d(
 
     sim = _prepare_mavm_distribution(
         sim_clean,
-        unique_label="sim" if duplicates is EMAVMDuplicates.REJECT else None,
+        unique_label="sim" if duplicates is EMAVMDupes.REJECT else None,
     )
     exp = _prepare_mavm_exp(
         exp_clean,
         alpha,
-        unique_label="experimental" if duplicates is EMAVMDuplicates.REJECT else None,
+        unique_label="experimental" if duplicates is EMAVMDupes.REJECT else None,
     )
     return _calculate_prepared_mavm(sim, exp, alpha, duplicates, tol)
 
@@ -249,7 +249,7 @@ def _calculate_mavm(
     sim_clean: np.ndarray,
     exp_clean: np.ndarray,
     alpha: float,
-    duplicates: EMAVMDuplicates,
+    duplicates: EMAVMDupes,
     tol: float,
 ) -> MAVMResult:
     return _calculate_prepared_mavm(
@@ -287,7 +287,7 @@ def _prepare_mavm_distribution(
             raise ValueError(
                 f"REJECT MAVM duplicates requires unique {unique_label} observations "
                 f"within MAVM_DUPLICATE_TOLERANCE={MAVM_DUPLICATE_TOLERANCE}. "
-                "Use duplicates=EMAVMDuplicates.INCLUDE for repeated observations."
+                "Use duplicates=EMAVMDupes.INCLUDE for repeated observations."
             )
     return _PreparedECDF(
         _convert_contiguous_float64(distribution.quantiles),
@@ -315,7 +315,7 @@ def _calculate_prepared_mavm(
     sim: _PreparedECDF,
     exp: _PreparedMAVMExp,
     alpha: float,
-    duplicates: EMAVMDuplicates,
+    duplicates: EMAVMDupes,
     tol: float,
 ) -> MAVMResult:
     sim_quantiles = sim.quantiles
@@ -325,7 +325,7 @@ def _calculate_prepared_mavm(
     exp_conf_lower, exp_conf_upper = exp.lower, exp.upper
     exp_count = len(exp_quantiles)
 
-    if duplicates is EMAVMDuplicates.REJECT:
+    if duplicates is EMAVMDupes.REJECT:
         sim_probability_step = 1.0 / len(sim_quantiles)
         exp_probability_step = 1.0 / exp_count
         lower_plus, lower_minus = _integrate_mavm_bound_default(
@@ -342,7 +342,7 @@ def _calculate_prepared_mavm(
             exp_probability_step,
             tol,
         )
-    elif duplicates is EMAVMDuplicates.INCLUDE:
+    elif duplicates is EMAVMDupes.INCLUDE:
         lower_plus, lower_minus = _integrate_mavm_bound_robust(
             sim_quantiles,
             exp_conf_lower,

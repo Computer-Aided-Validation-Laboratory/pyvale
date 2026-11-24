@@ -83,7 +83,7 @@ def report_timings(
 
 
 def calculate_scipy_camera(samples: np.ndarray) -> np.ndarray:
-    """Run the reference scenario loop and grid alignment for each pixel."""
+    """Run the reference loop over epistemic cases and grid alignment for each pixel."""
     views = np.empty_like(samples)
     for pixel, pixel_samples in enumerate(samples):
         _, views[pixel] = calculate_scipy_batch(pixel_samples)
@@ -174,7 +174,7 @@ def benchmark_vector_lengths(
         )
 
     print(f"\nBatched ECDF view ({trans} trans × {nuis} nuis)")
-    print("One NumPy batch call vs. a SciPy scenario loop with grid alignment.")
+    print("One NumPy batch call vs. SciPy looping over cases and aligning the grids.")
     print(heading)
     for size in sizes:
         samples = rng.standard_normal((trans, nuis, size))

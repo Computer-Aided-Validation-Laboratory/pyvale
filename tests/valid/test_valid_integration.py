@@ -257,40 +257,48 @@ def test_combine_cases_preserves_sim_provenance() -> None:
     assert combined.exp["temperature"].data.shape == (1, 1, 4)
 
 
-def test_extract_ecdf_selects_epistemic_cell_and_retains_duplicate_mass(
+def test_calc_ecdf_from_selected_epistemic_cell_and_retains_duplicate_mass(
     ecdf_quantity: vl.ValidArray,
 ) -> None:
-    cdf = vl.extract_ecdf(
-        ecdf_quantity,
+    samples = ecdf_quantity.select_aleatory(
+        0, 0, 0,
         epis_trans_idx=1,
         epis_nuis_idx=0,
         offset=vl.EEpisOffset.UPPER,
     )
+    cdf = vl.calc_ecdf(samples)
     np.testing.assert_array_equal(cdf.quants, [12.0, 14.0])
     np.testing.assert_allclose(cdf.probs, [2.0 / 3.0, 1.0])
     assert ecdf_quantity.data[1, 0, 0] == 10.0
 
 
-def test_envelope_fixes_transferable_axis_and_spans_nuisance_axis(
+def test_ecdf_bounds_fix_transferable_axis_and_span_nuisance_axis(
     ecdf_quantity: vl.ValidArray,
 ) -> None:
-    support, lower, upper = vl.extract_ecdf_envelope(
-        ecdf_quantity, epis_trans_idx=1, offset=vl.EEpisOffset.NOMINAL
-    )
-    np.testing.assert_array_equal(support, [10.0, 12.0, 14.0])
-    np.testing.assert_allclose(lower, [0.0, 2.0 / 3.0, 1.0])
-    np.testing.assert_allclose(upper, [2.0 / 3.0, 1.0, 1.0])
+    view = vl.calc_ecdf_view(ecdf_quantity, view=vl.ECDFViewSel(trans_idxs=(1,)))
+    bounds = vl.calc_ecdf_epis_bounds(view)
+    np.testing.assert_allclose(view.probs, [2.0 / 3.0, 1.0])
+    np.testing.assert_array_equal(bounds.lower, [10.0, 12.0])
+    np.testing.assert_array_equal(bounds.upper, [12.0, 14.0])
 
 
-def test_envelope_spans_coherent_offsets_of_one_epistemic_cell(
+def test_ecdf_bounds_span_coherent_offsets_of_one_epistemic_cell(
     ecdf_quantity: vl.ValidArray,
 ) -> None:
-    support, lower, upper = vl.extract_ecdf_envelope(
-        ecdf_quantity, epis_trans_idx=1, epis_nuis_idx=0
+    view = vl.calc_ecdf_view(
+        ecdf_quantity, view=vl.ECDFViewSel(trans_idxs=(1,), nuis_idxs=(0,)),
+        offset=None,
     )
-    np.testing.assert_array_equal(support, [9.0, 10.0, 11.0, 12.0, 14.0])
-    np.testing.assert_allclose(lower, [0.0, 0.0, 0.0, 2.0 / 3.0, 1.0])
-    np.testing.assert_allclose(upper, [2.0 / 3.0, 2.0 / 3.0, 1.0, 1.0, 1.0])
+    bounds = vl.calc_ecdf_epis_bounds(view)
+    np.testing.assert_allclose(view.probs, [2.0 / 3.0, 1.0])
+    np.testing.assert_array_equal(bounds.lower, [9.0, 11.0])
+    np.testing.assert_array_equal(bounds.upper, [12.0, 14.0])
+    np.testing.assert_array_equal(
+        bounds.lower_indices, [[1, 0, vl.EEpisOffset.LOWER]] * 2
+    )
+    np.testing.assert_array_equal(
+        bounds.upper_indices, [[1, 0, vl.EEpisOffset.UPPER]] * 2
+    )
 
 
 def test_metric_panels_select_direction_and_leave_selectors_unchanged() -> None:
@@ -567,7 +575,7 @@ def test_ecdf_nested_bounds_keep_only_outer_confidence_limits_by_default(
     plt.close(plot.figure)
 
 
-def test_offsets_are_explicit_and_retained_as_coherent_scenarios() -> None:
+def test_offsets_are_explicit_and_retained_as_coherent_offsets() -> None:
     quantity = vl.ValidArray(
         np.array([1.0, 3.0]),
         (vl.EValidAxis.ALEATORY,),
@@ -576,17 +584,37 @@ def test_offsets_are_explicit_and_retained_as_coherent_scenarios() -> None:
     nominal = vl.calc_ecdf_view(quantity)
     assert nominal.quants.shape == (1, 1, 1, 2)
     np.testing.assert_array_equal(nominal.quants[0, 0, 0], [1.0, 3.0])
-    all_offsets = vl.calc_ecdf_view(
-        quantity, offset=None, view=vl.ECDFViewOpts(scenario_idxs=None)
-    )
+    all_offsets = vl.calc_ecdf_view(quantity, offset=None)
     assert all_offsets.quants.shape == (1, 1, 3, 2)
     np.testing.assert_array_equal(
         all_offsets.quants[0, 0], [[1.0, 3.0], [0.5, 2.5], [3.0, 5.0]]
     )
     selected_offsets = tuple(
-        all_offsets.orig_epis_offsets[idx][2] for idx in all_offsets.overlay_indices
+        case[2] for case in all_offsets.orig_epis_offsets
     )
     assert selected_offsets == tuple(vl.EEpisOffset)
+
+
+def test_ecdf_vis_opts_plot_centre_and_original_overlays_in_selection_order() -> None:
+    case = create_plot_epistemic_case()
+    plot = vl.plot_sim_ecdfs(
+        case,
+        "length",
+        view=vl.ECDFViewSel(
+            trans_idxs=(2, 0), nuis_idxs=(1, 2), nuis_reduce=vl.EECDFReduce.MEAN
+        ),
+        vis_opts=vl.ECDFVisOpts(
+            show_bounds=False,
+            centre=vl.EECDFCentre.MEAN,
+            epis_case_idxs=((0, 2), (2, 1)),
+        ),
+    )
+    lines = plot.axes[0, 0].lines
+    assert len(lines) == 3
+    np.testing.assert_array_equal(lines[0].get_xdata()[1:], [7.0, 9.0])
+    np.testing.assert_array_equal(lines[1].get_xdata()[1:], [8.0, 10.0])
+    np.testing.assert_array_equal(lines[2].get_xdata()[1:], [6.0, 8.0])
+    plt.close(plot.figure)
 
 
 def test_mavm_diagnostic_draws_pointwise_or_whole_case_bounds() -> None:
@@ -595,7 +623,7 @@ def test_mavm_diagnostic_draws_pointwise_or_whole_case_bounds() -> None:
         (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY),
     )
     curves = vl.calc_ecdf_view(quantity)
-    support_cases = vl.select_ecdf_support_cases(curves.samples)
+    support_cases = vl.select_ecdf_support_sum_cases(curves.samples)
     for cases, expected_lower, expected_upper in (
         (None, [0.0, 5.0], [4.0, 10.0]),
         (support_cases, [4.0, 5.0], [0.0, 10.0]),
@@ -607,7 +635,7 @@ def test_mavm_diagnostic_draws_pointwise_or_whole_case_bounds() -> None:
         plt.close(figure)
 
 
-def test_many_scenarios_default_to_two_bounds() -> None:
+def test_many_epistemic_cases_default_to_two_bounds() -> None:
     test_case = create_plot_epistemic_case()
     test_case.sim["length"] = vl.ValidArray(
         np.arange(64.0)[:, None] + np.array([0.0, 1.0]),
@@ -817,7 +845,7 @@ def test_nongeometric_metrics_compose_as_annotations_without_reinterpreting_area
         (vl.EMetricOut.D_MINUS, [-15.0, 45.0]),
     ],
 )
-def test_shift_bounds_can_switch_controlling_scenario_with_both_epistemic_axes(
+def test_shift_bounds_can_switch_controlling_case_with_both_epistemic_axes(
     output: vl.EMetricOut, expected: list[float]
 ) -> None:
     axes = (

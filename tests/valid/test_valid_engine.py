@@ -132,11 +132,11 @@ def test_uneven_partitions_preserve_physical_offsets(workers: int) -> None:
         + np.arange(component_count)[None, :, None] * 2.0
         + np.arange(time_count)[None, None, :] * 0.5
     )
-    model_scenarios = np.array([0.0, 2.0])
-    exp_scenarios = np.array([0.25, 0.75])
+    sim_trans_shifts = np.array([0.0, 2.0])
+    exp_trans_shifts = np.array([0.25, 0.75])
     samples = np.arange(3.0)
-    model = physical[..., None, None] + model_scenarios[:, None] + samples
-    exp = physical[..., None, None] + exp_scenarios[:, None] + samples
+    model = physical[..., None, None] + sim_trans_shifts[:, None] + samples
+    exp = physical[..., None, None] + exp_trans_shifts[:, None] + samples
     model_lower = np.arange(point_count)[:, None] * 0.1 + np.arange(time_count) * 0.05
     exp_lower = np.full(physical.shape, 0.3)
     observable = vl.ValidObservable(
@@ -190,8 +190,8 @@ def test_uneven_partitions_preserve_physical_offsets(workers: int) -> None:
         (np.zeros_like(exp_lower), -exp_lower, 2 * exp_lower), axis=-1
     )
     expected = np.abs(
-        model_scenarios[None, None, None, :, None, None, None]
-        - exp_scenarios[None, None, None, None, :, None, None]
+        sim_trans_shifts[None, None, None, :, None, None, None]
+        - exp_trans_shifts[None, None, None, None, :, None, None]
         + model_shifts[:, None, :, None, None, :, None]
         - exp_shifts[:, :, :, None, None, None, :]
     )
@@ -421,11 +421,11 @@ def test_batched_avm_matches_scalar_comparisons(
         {tag: vl.ValidArray(experiment, axes)},
     )
     expected = np.full((3, 2, 3), np.nan)
-    for point, sim_scenario, exp_scenario in np.ndindex(expected.shape):
-        predicted_samples = simulation[point, sim_scenario]
-        observations = experiment[point, exp_scenario]
+    for point, sim_trans_idx, exp_trans_idx in np.ndindex(expected.shape):
+        predicted_samples = simulation[point, sim_trans_idx]
+        observations = experiment[point, exp_trans_idx]
         if np.any(np.isfinite(predicted_samples)) and np.any(np.isfinite(observations)):
-            expected[point, sim_scenario, exp_scenario] = vl.calc_avm_1d(
+            expected[point, sim_trans_idx, exp_trans_idx] = vl.calc_avm_1d(
                 predicted_samples, observations
             )
 

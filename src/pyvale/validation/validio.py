@@ -29,7 +29,7 @@ from pyvale.validation.metricstrategy import (
 )
 from pyvale.validation.validtypes import (
     EEpisOffset,
-    EMAVMDuplicates,
+    EMAVMDupes,
     EpistemicOffsets,
     EValidAxis,
     EValidGeometry,
@@ -278,7 +278,7 @@ def _unpack_metric_config(kind: EMetricType, config: dict) -> IValidMetric:
     if kind is EMetricType.MAVM:
         return MetricMAVM(
             alpha=config["alpha"],
-            duplicates=EMAVMDuplicates[config["duplicates"]],
+            duplicates=EMAVMDupes[config["duplicates"]],
             tol=config["tol"],
         )
     if kind is EMetricType.REL_ERR:
@@ -323,7 +323,7 @@ def save_valid_result(path: str | Path, result: ValidResult) -> None:
             fields[tag][_pack_metric_kind(kind)] = {
                 "axes": [axis.name for axis in metric_field.axes],
                 "outputs": _pack_outputs(metric_field.metric_vals, arrays),
-                "scenarios": (
+                "epis_offsets": (
                     None
                     if epis_offsets is None
                     else {
@@ -354,7 +354,12 @@ def load_valid_result(path: str | Path) -> ValidResult:
         for tag, fields in metadata["metrics"].items():
             metrics[tag] = {}
             for kind, stored in fields.items():
-                epis_offsets = stored["scenarios"]
+                # Older result archives stored these offset labels under "scenarios".
+                epis_offsets = (
+                    stored["epis_offsets"]
+                    if "epis_offsets" in stored
+                    else stored["scenarios"]
+                )
                 metrics[tag][_unpack_metric_kind(kind)] = MetricField(
                     axes=tuple(EValidResAxis[name] for name in stored["axes"]),
                     metric_vals=_unpack_outputs(stored["outputs"], archive),

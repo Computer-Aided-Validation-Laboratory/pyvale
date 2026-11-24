@@ -18,7 +18,7 @@ examples that expose a `SHOW_PLOTS` setting.
 | `ex01_valid_scalar_metrics` | An analytic scalar case for comparing metric behaviour and integration areas. |
 | `ex02_valid_steady_state` | Temperature and strain at a single steady state, with spatial AVM and MAVM support plots. |
 | `ex03_valid_transient` | Temperature and strain over time, with ECDF snapshots and AVM/MAVM histories. |
-| `ex04_valid_epistemic_bound_metrics` | AVM and MAVM calculated from transferable ECDF bounds versus original scenario pairs. |
+| `ex04_valid_epistemic_bound_metrics` | AVM and MAVM calculated from transferable ECDF bounds versus original sim–exp case pairs. |
 | `ex05_valid_nuisance_ecdf_profiles` | Mean, median and 25th-percentile nuisance profiles against all-case ECDF envelopes, with KS and MAVM overlays. |
 | `ex06_valid_nuisance_metric_profiles` | Metric extrema and their controlling ECDF pairs, MAVM support ranking and NPZ round-trips. |
 | `ex07_valid_epistemic_offsets` | Nominal and offset ECDFs with outer experimental confidence limits and a MAVM support envelope. |

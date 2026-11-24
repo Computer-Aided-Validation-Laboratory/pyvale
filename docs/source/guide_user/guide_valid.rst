@@ -19,11 +19,11 @@ C-order arrays, so one conditional sample is a cheap slice. ``ValidArray`` prese
 the original array or memory map; the caller controls its lifetime.
 
 ``EpistemicOffsets`` gives nonnegative ``lower`` and ``upper`` magnitudes in
-observable units. For each conditional aleatory sample, the lower scenario
-subtracts ``lower`` from every sample value, and the upper scenario adds
+observable units. For each conditional aleatory sample, the lower offset
+subtracts ``lower`` from every sample value, and the upper offset adds
 ``upper``. Magnitudes may be scalar or vary by named physical point, component,
-and time axes. A scenario represents one coherent choice across the observable.
-These scenarios can coexist with sampled epistemic axes.
+and time axes. An offset is applied coherently across the observable.
+Coherent offsets can coexist with sampled epistemic axes.
 
 Basic workflow
 --------------
@@ -45,12 +45,12 @@ Metrics also work independently on one-dimensional NumPy samples through
 equal length. The distribution metrics accept unequal sample lengths. Missing
 values represented by NaN are omitted by the distribution kernels; a cell with
 no finite observations remains NaN in ``ValidResult``. The MAVM strategy defaults
-to ``EMAVMDuplicates.INCLUDE``. Pass that option explicitly to
+to ``EMAVMDupes.INCLUDE``. Pass that option explicitly to
 ``calc_mavm_1d`` for repeated values.
 
 ``ValidResult`` stores a ``MetricField`` for each observable and metric. The field
 records its axes and maps each output to a NumPy array. It retains sampled
-epistemic and offset scenarios. MAVM exposes ``D_PLUS`` and ``D_MINUS`` outputs.
+epistemic cases and coherent offsets. MAVM exposes ``D_PLUS`` and ``D_MINUS`` outputs.
 Use ``plot_sim_exp_cdfs`` to compare distributions from a ``ValidCase`` and
 ``plot_sim_ecdfs`` for a pointwise envelope across simulation cases. Metric maps
 and time plots use observable metadata from the ``ValidResult``.

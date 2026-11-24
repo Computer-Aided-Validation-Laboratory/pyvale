@@ -27,7 +27,7 @@ from pyvale.validation.cython.mavm import (
 )
 from pyvale.validation.imetric import MAVMResult
 from pyvale.validation.validchecks import _validate_finite_sample
-from pyvale.validation.validtypes import EMAVMDuplicates
+from pyvale.validation.validtypes import EMAVMDupes
 
 
 def calc_mavm_1d(
@@ -35,7 +35,7 @@ def calc_mavm_1d(
     exp_data: np.ndarray,
     *,
     alpha: float = 0.05,
-    duplicates: EMAVMDuplicates = EMAVMDuplicates.REJECT,
+    duplicates: EMAVMDupes = EMAVMDupes.REJECT,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMResult:
     """Calculates the Modified Area Validation Metric (MAVM) between 1D arrays.
@@ -54,7 +54,7 @@ def calc_mavm_1d(
         Legacy Student's t quantile parameter: t.ppf(1-alpha, n_unique-1).
         Confidence shifts use the population standard deviation of unique
         experimental support divided by sqrt(n_unique), including with INCLUDE.
-    duplicates : EMAVMDuplicates, optional
+    duplicates : EMAVMDupes, optional
         REJECT preserves fullfieldvalmetrics behaviour and requires unique
         observations. INCLUDE supports repeated observations using weighted ECDF
         probability steps.

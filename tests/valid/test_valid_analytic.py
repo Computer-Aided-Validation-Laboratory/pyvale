@@ -32,7 +32,7 @@ import pyvale.sensorsim as sens
 import pyvale.validation as vl
 from pyvale.dataio.simdata import SimData
 from pyvale.validation.metrics import (
-    EMAVMDuplicates,
+    EMAVMDupes,
     calc_avm_1d,
     calc_mavm_1d,
 )
@@ -432,9 +432,12 @@ def test_epis_bounds_nuisance_treatments_have_analytic_quantiles(
             vl.EValidAxis.ALEATORY,
         ),
     )
-    bounds = vl.find_ecdf_epis_bounds(
-        quantity, nuis_reduce=reduction, nuis_quantile=probability
+    view = vl.calc_ecdf_view(
+        quantity,
+        view=vl.ECDFViewSel(nuis_reduce=reduction, nuis_quantile=probability),
     )
+    bounds = vl.calc_ecdf_epis_bounds(view)
+    assert bounds.view is view
     np.testing.assert_allclose(bounds.view.probs, [0.5, 1.0])
     np.testing.assert_allclose(bounds.lower, [lower, lower + 2], rtol=0, atol=1e-12)
     np.testing.assert_allclose(bounds.upper, [upper, upper + 2], rtol=0, atol=1e-12)
@@ -444,7 +447,9 @@ def test_epis_bounds_nuisance_treatments_have_analytic_quantiles(
     else:
         assert np.all(bounds.lower_indices[:, 1] == -1)
         assert np.all(bounds.upper_indices[:, 1] == -1)
-    conditioned = vl.find_ecdf_epis_bounds(quantity, nuis_idxs=(1,))
+    conditioned = vl.calc_ecdf_epis_bounds(
+        vl.calc_ecdf_view(quantity, view=vl.ECDFViewSel(nuis_idxs=(1,)))
+    )
     np.testing.assert_array_equal(conditioned.lower, [3.0, 5.0])
     np.testing.assert_array_equal(conditioned.upper, [90.0, 92.0])
 
@@ -455,8 +460,8 @@ def test_avm_bounds_preserve_unequal_empirical_probability_mass() -> None:
         (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY),
     )
     exp = vl.ValidArray(np.array([5.0]), (vl.EValidAxis.ALEATORY,))
-    sim_bounds = vl.find_ecdf_epis_bounds(sim)
-    exp_bounds = vl.find_ecdf_epis_bounds(exp)
+    sim_bounds = vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(sim))
+    exp_bounds = vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(exp))
     # The grid has interval weights [1/3,1/6,1/6,1/3], not four equal masses.
     np.testing.assert_allclose(sim_bounds.view.probs, [1 / 3, 0.5, 2 / 3, 1.0])
     np.testing.assert_array_equal(sim_bounds.lower, [0.0, 0.0, 3.0, 10.0])
@@ -484,7 +489,8 @@ def test_mavm_over_bounds_checks_both_sim_anchors_in_each_direction() -> None:
     )
     exp = vl.ValidArray(np.array([100.0]), (vl.EValidAxis.ALEATORY,))
     supports = vl.calc_mavm_over_epis_bounds(
-        vl.find_ecdf_epis_bounds(sim), vl.find_ecdf_epis_bounds(exp)
+        vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(sim)),
+        vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(exp)),
     )
     # d+ is 50 on the lower boundary and 30 on the upper boundary. Thus the
     # upper boundary controls p=.5 (70), but the lower controls p=1 (150).
@@ -510,10 +516,10 @@ def test_mavm_confidence_is_constructed_before_enveloping_original_exp_cases() -
     # t(0.75, 1) = 1, the first curve shifts by 5/sqrt(2) and takes over.
     shift_wide = 5 / sqrt(2)
     shift_narrow = 2 / sqrt(2)
-    exp_bounds = vl.find_ecdf_epis_bounds(exp)
+    exp_bounds = vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(exp))
     np.testing.assert_array_equal(exp_bounds.upper, [1.0, 10.0])
     supports = vl.calc_mavm_over_epis_bounds(
-        vl.find_ecdf_epis_bounds(sim), exp_bounds, alpha=0.25
+        vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(sim)), exp_bounds, alpha=0.25
     )
     np.testing.assert_allclose(
         supports.upper, [5 + shift_wide, 5 + shift_wide], rtol=0, atol=1e-10
@@ -527,7 +533,7 @@ def test_mavm_confidence_is_constructed_before_enveloping_original_exp_cases() -
     )
 
 
-def test_bounds_route_and_original_scenario_route_are_distinct() -> None:
+def test_bounds_route_and_original_case_route_are_distinct() -> None:
     test_case = create_epistemic_case(
         np.array([[[0.0, 100.0], [40.0, 60.0]]]), np.array([[[100.0]]])
     )
@@ -536,8 +542,8 @@ def test_bounds_route_and_original_scenario_route_are_distinct() -> None:
         test_case, result, "length", vl.EMetricType.MAVM
     )
     bounded = vl.calc_mavm_over_epis_bounds(
-        vl.find_ecdf_epis_bounds(test_case.sim["length"]),
-        vl.find_ecdf_epis_bounds(test_case.exp["length"]),
+        vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(test_case.sim["length"])),
+        vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(test_case.exp["length"])),
         alpha=0.5,
     )
     np.testing.assert_allclose(direct.upper[0, 0, 0], [90.0, 150.0], rtol=0, atol=1e-12)
@@ -734,8 +740,8 @@ def test_bounds_and_profiles_cover_the_full_analytic_sample_count_matrix(
     exp = vl.ValidArray(
         1.0 + 2.0 * np.arange(test_case.exp_count), (vl.EValidAxis.ALEATORY,)
     )
-    sim_bounds = vl.find_ecdf_epis_bounds(sim)
-    exp_bounds = vl.find_ecdf_epis_bounds(exp)
+    sim_bounds = vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(sim))
+    exp_bounds = vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(exp))
     avm = vl.calc_avm_over_epis_bounds(sim_bounds, exp_bounds)
     mavm = vl.calc_mavm_over_epis_bounds(sim_bounds, exp_bounds, alpha=0.5)
     assert avm.metric_outputs is not None and mavm.metric_outputs is not None
@@ -792,15 +798,15 @@ def test_mavm_confidence_preserves_original_counts_before_nuisance_mean() -> Non
         np.array([[0.0, 2.0, np.nan], [10.0, 12.0, 14.0]]),
         (vl.EValidAxis.EPISTEMIC_NUIS, vl.EValidAxis.ALEATORY),
     )
-    exp_bounds = vl.find_ecdf_epis_bounds(
-        exp, nuis_reduce=vl.EECDFReduce.MEAN
+    exp_bounds = vl.calc_ecdf_epis_bounds(
+        vl.calc_ecdf_view(exp, view=vl.ECDFViewSel(nuis_reduce=vl.EECDFReduce.MEAN))
     )
     # The mean quantile curve is [5,6,7,8] on intervals [1/3,1/6,1/6,1/3],
     # giving mean 6.5. Confidence shifts use the original counts two and three,
     # not four pseudo-observations reconstructed from this curve's vertices.
     confidence = (1 / sqrt(2) + 4 / (3 * sqrt(3))) / 2
     supports = vl.calc_mavm_over_epis_bounds(
-        vl.find_ecdf_epis_bounds(sim), exp_bounds, alpha=0.25
+        vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(sim)), exp_bounds, alpha=0.25
     )
     assert supports.metric_outputs is not None
     np.testing.assert_allclose(
@@ -914,9 +920,9 @@ def test_mavm_frequency_sensitive_legacy_confidence() -> None:
     model = np.array([0.0, 2.0])
     unique = np.array([0.0, 2.0])
     repeated = np.array([0.0, 0.0, 0.0, 2.0])
-    first = vl.calc_mavm_1d(model, unique, duplicates=vl.EMAVMDuplicates.INCLUDE)
+    first = vl.calc_mavm_1d(model, unique, duplicates=vl.EMAVMDupes.INCLUDE)
     second = vl.calc_mavm_1d(
-        model, repeated, duplicates=vl.EMAVMDuplicates.INCLUDE
+        model, repeated, duplicates=vl.EMAVMDupes.INCLUDE
     )
     expected_half_width = stats.t.ppf(0.95, 1) / np.sqrt(2)
     np.testing.assert_allclose(first.exp_conf_upper - unique, expected_half_width)
@@ -1041,7 +1047,7 @@ def test_mavm_matches_independent_rectangle_integration(
     expected_d_plus, expected_d_minus = calculate_rectangle_mavm_areas(
         model_data, exp_data
     )
-    result = calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDuplicates.INCLUDE)
+    result = calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDupes.INCLUDE)
     assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-12)
     assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-12)
 
@@ -1064,15 +1070,15 @@ def test_avm_matches_hand_calculated_ecdf_rectangles(
 
 
 def test_crossing_cdfs_distinguish_pointwise_from_support_sum_bounds() -> None:
-    scenarios = np.array([[0.0, 10.0], [4.0, 5.0]])
+    case_samples = np.array([[0.0, 10.0], [4.0, 5.0]])
     quantity = vl.ValidArray(
-        scenarios, (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY)
+        case_samples, (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY)
     )
-    bounds = vl.find_ecdf_epis_bounds(quantity)
+    bounds = vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(quantity))
     np.testing.assert_allclose(bounds.view.probs, [0.5, 1.0])
     np.testing.assert_allclose(bounds.lower, [0.0, 5.0])
     np.testing.assert_allclose(bounds.upper, [4.0, 10.0])
-    assert vl.select_ecdf_support_cases(bounds.view.samples) == (1, 0)
+    assert vl.select_ecdf_support_sum_cases(bounds.view.samples) == (1, 0)
 
 
 def test_quantile_bounds_preserve_duplicate_mass_and_unequal_counts() -> None:
@@ -1080,7 +1086,7 @@ def test_quantile_bounds_preserve_duplicate_mass_and_unequal_counts() -> None:
     quantity = vl.ValidArray(
         samples, (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY)
     )
-    bounds = vl.find_ecdf_epis_bounds(quantity)
+    bounds = vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(quantity))
     np.testing.assert_allclose(bounds.view.probs, [0.5, 2.0 / 3.0, 1.0])
     np.testing.assert_allclose(bounds.lower, [0.0, 0.0, 2.0])
     np.testing.assert_allclose(bounds.upper, [1.0, 3.0, 3.0])
@@ -1137,14 +1143,14 @@ def test_quantile_reductions_preserve_axes_and_use_nuisance_first() -> None:
     np.testing.assert_array_equal(curves.probs, [0.5, 1.0])
     np.testing.assert_array_equal(curves.quants[..., 0, :], quantity.data)
     median_nuis = vl.calc_ecdf_view(
-        quantity, view=vl.ECDFViewOpts(nuis_reduce=vl.EECDFReduce.MEDIAN)
+        quantity, view=vl.ECDFViewSel(nuis_reduce=vl.EECDFReduce.MEDIAN)
     )
     np.testing.assert_array_equal(
         median_nuis.quants[:, 0, 0], [[8.0, 10.0], [3.0, 5.0], [5.0, 7.0]]
     )
     median_both = vl.calc_ecdf_view(
         quantity,
-        view=vl.ECDFViewOpts(
+        view=vl.ECDFViewSel(
             nuis_reduce=vl.EECDFReduce.MEDIAN,
             trans_reduce=vl.EECDFReduce.MEDIAN,
         ),
@@ -1152,7 +1158,7 @@ def test_quantile_reductions_preserve_axes_and_use_nuisance_first() -> None:
     np.testing.assert_array_equal(median_both.quants, [[[[5.0, 7.0]]]])
     mean_both = vl.calc_ecdf_view(
         quantity,
-        view=vl.ECDFViewOpts(
+        view=vl.ECDFViewSel(
             nuis_reduce=vl.EECDFReduce.MEAN,
             trans_reduce=vl.EECDFReduce.MEAN,
         ),
@@ -1160,35 +1166,25 @@ def test_quantile_reductions_preserve_axes_and_use_nuisance_first() -> None:
     np.testing.assert_allclose(mean_both.quants, [[[[5.0, 7.0]]]])
 
 
-def test_selection_precedes_reduction_and_original_joint_overlays_are_preserved() -> (
-    None
-):
+def test_selection_precedes_reduction_and_preserves_original_curves() -> None:
     quantity = create_plot_epistemic_case().sim["length"]
-    view = vl.ECDFViewOpts(
+    view = vl.ECDFViewSel(
         trans_idxs=(2, 0),
         nuis_idxs=(1, 2),
         nuis_reduce=vl.EECDFReduce.MEAN,
-        scenario_idxs=((0, 2), (2, 1)),
     )
     curves = vl.calc_ecdf_view(quantity, view=view)
     np.testing.assert_array_equal(curves.quants[:, 0, 0], [[5.5, 7.5], [8.5, 10.5]])
-    assert tuple(curves.orig_epis_offsets[idx] for idx in curves.overlay_indices) == (
-        (0, 2, vl.EEpisOffset.NOMINAL),
+    assert curves.orig_epis_offsets == (
         (2, 1, vl.EEpisOffset.NOMINAL),
+        (2, 2, vl.EEpisOffset.NOMINAL),
+        (0, 1, vl.EEpisOffset.NOMINAL),
+        (0, 2, vl.EEpisOffset.NOMINAL),
     )
-    original = curves.orig_quants.reshape(-1, curves.probs.size)
     np.testing.assert_array_equal(
-        original[list(curves.overlay_indices)], [[8.0, 10.0], [6.0, 8.0]]
+        curves.orig_quants[:, :, 0],
+        [[[6.0, 8.0], [5.0, 7.0]], [[9.0, 11.0], [8.0, 10.0]]],
     )
-
-
-def test_pointwise_ecdf_envelope_handles_crossing_distributions() -> None:
-    support, lower, upper = vl.calc_ecdf_envelope(
-        [np.array([0.0, 3.0]), np.array([1.0, 2.0])]
-    )
-    np.testing.assert_array_equal(support, [0.0, 1.0, 2.0, 3.0])
-    np.testing.assert_allclose(lower, [0.0, 0.5, 0.5, 1.0])
-    np.testing.assert_allclose(upper, [0.5, 0.5, 1.0, 1.0])
 
 
 def create_linear_sim(shift: float = 0.0) -> SimData:
@@ -1294,8 +1290,8 @@ def test_crossing_transferable_supports_have_exact_analytic_limits() -> None:
         {"response": vl.ValidArray(np.array([[0.0, 100.0], [40.0, 60.0]]), axes)},
         {"response": vl.ValidArray(np.array([[-10.0, 0.0], [100.0, 110.0]]), axes)},
     )
-    sim_bounds = vl.find_ecdf_epis_bounds(test_case.sim["response"])
-    exp_bounds = vl.find_ecdf_epis_bounds(test_case.exp["response"])
+    sim_bounds = vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(test_case.sim["response"]))
+    exp_bounds = vl.calc_ecdf_epis_bounds(vl.calc_ecdf_view(test_case.exp["response"]))
     boundary_supports = vl.calc_mavm_over_epis_bounds(
         sim_bounds, exp_bounds, alpha=0.5
     )

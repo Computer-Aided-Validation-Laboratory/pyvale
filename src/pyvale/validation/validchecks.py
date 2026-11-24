@@ -11,7 +11,7 @@ import numpy as np
 from pyvale.validation.arraychecks import _validate_real_array
 from pyvale.validation.constants import MAVM_DUPLICATE_TOLERANCE
 from pyvale.validation.ecdftypes import ECDF
-from pyvale.validation.validtypes import EMAVMDuplicates
+from pyvale.validation.validtypes import EMAVMDupes
 
 
 def _validate_finite_sample(values: np.ndarray, name: str) -> np.ndarray:
@@ -35,13 +35,13 @@ def _validate_unique_sample(values: np.ndarray, data_label: str) -> None:
         raise ValueError(
             f"REJECT MAVM duplicates requires unique {data_label} observations within "
             f"MAVM_DUPLICATE_TOLERANCE={MAVM_DUPLICATE_TOLERANCE}. "
-            "Use duplicates=EMAVMDuplicates.INCLUDE for repeated observations."
+            "Use duplicates=EMAVMDupes.INCLUDE for repeated observations."
         )
 
 
-def _validate_mavm_config(alpha: float, duplicates: EMAVMDuplicates, tol: float) -> None:
-    if not isinstance(duplicates, EMAVMDuplicates):
-        raise TypeError("MAVM duplicates must be EMAVMDuplicates.")
+def _validate_mavm_config(alpha: float, duplicates: EMAVMDupes, tol: float) -> None:
+    if not isinstance(duplicates, EMAVMDupes):
+        raise TypeError("MAVM duplicates must be EMAVMDupes.")
 
     if (
         not isinstance(alpha, (int, float, np.integer, np.floating))

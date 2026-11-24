@@ -41,11 +41,10 @@ from pyvale.validation.validchecks import (
     _validate_mavm_config,
     _validate_unique_sample,
 )
-from pyvale.validation.validecdf import extract_aleatory_scenarios
 from pyvale.validation.validtypes import (
     VALID_RES_AXES,
     EEpisOffset,
-    EMAVMDuplicates,
+    EMAVMDupes,
     EValidAxis,
     EValidResAxis,
     ValidArray,
@@ -53,6 +52,7 @@ from pyvale.validation.validtypes import (
     MetricField,
     ValidResult,
     _get_axis_size,
+    _select_aleatory_cases,
 )
 
 
@@ -79,7 +79,7 @@ class _Workload:
 
 
 class ValidEngine:
-    """Snapshot metric/options configuration and retain epistemic scenarios."""
+    """Snapshot metric/options configuration and retain epistemic cases."""
 
     __slots__ = ("metrics", "opts")
     metrics: tuple[IValidMetric, ...]
@@ -109,10 +109,10 @@ class ValidEngine:
         )
 
     def run(self, valid_case: ValidCase) -> ValidResult:
-        """Return all physical, sampled epistemic, and offset scenarios."""
+        """Calculate metric values across physical, epistemic, and offset axes."""
         _validate_metric_configs(self.metrics)
         # Observations are borrowed from validated containers; callers must not
-        # mutate them during evaluation. Preflight scenario invariants before output.
+        # mutate them during evaluation. Check inputs before allocating outputs.
 
         for name in valid_case.observables:
             sim, exp = valid_case.sim[name], valid_case.exp[name]
@@ -126,7 +126,7 @@ class ValidEngine:
                 raise ValueError("Paired metrics require equal aleatory counts.")
             if any(
                 isinstance(metric, MetricMAVM)
-                and metric.duplicates is EMAVMDuplicates.REJECT
+                and metric.duplicates is EMAVMDupes.REJECT
                 for metric in self.metrics
             ):
                 physical_shape = tuple(
@@ -139,13 +139,14 @@ class ValidEngine:
                 )
                 for quantity in (sim, exp):
                     for point, component, time in np.ndindex(physical_shape):
-                        for samples in extract_aleatory_scenarios(
+                        _, sample_sets = _select_aleatory_cases(
                             quantity,
                             point_idx=point,
                             component_idx=component,
                             time_idx=time,
                             offset=None,
-                        ):
+                        )
+                        for samples in sample_sets:
                             _validate_unique_sample(
                                 samples[np.isfinite(samples)], "engine"
                             )

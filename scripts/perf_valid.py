@@ -135,19 +135,19 @@ def prepare_cases(
         physical_shape = (len(coords), len(components), len(times))
         if any(observation.shape != physical_shape for observation in observations):
             raise ValueError(f"Unexpected sensor observation shape for {name}.")
-        # Synthetic transferable scenarios interpolate nominal/biased responses.
+        # Synthetic transferable cases interpolate nominal/biased responses.
         # These are response-space surrogates rather than separate FE solutions.
         sim_samples = np.empty(
             (*physical_shape, SIM_EPISTEMIC_SAMPLES, SIM_ALEATORY_SAMPLES)
         )
-        for scenario, weight in enumerate(np.linspace(0, 1, SIM_EPISTEMIC_SAMPLES)):
-            scenario_mean = (
+        for trans_idx, weight in enumerate(np.linspace(0, 1, SIM_EPISTEMIC_SAMPLES)):
+            case_mean = (
                 1.0 - weight
             ) * nominal_observations + weight * biased_observations
-            sim_samples[..., scenario, :] = generator.normal(
+            sim_samples[..., trans_idx, :] = generator.normal(
                 0.0, noise_std, (*physical_shape, SIM_ALEATORY_SAMPLES)
             )
-            sim_samples[..., scenario, :] += scenario_mean[..., None]
+            sim_samples[..., trans_idx, :] += case_mean[..., None]
         exp_samples = generator.normal(
             0.0, noise_std, (*physical_shape, EXP_ALEATORY_SAMPLES)
         )
@@ -177,7 +177,7 @@ def prepare_cases(
             {name: vl.ValidArray(sim_samples, sim_axes)},
             {name: exp},
         )
-        # Explicit first-N pairing, retaining all epistemic/offset scenarios.
+        # Explicit first-N pairing, retaining all epistemic cases and coherent offsets.
         paired = vl.ValidCase(
             observables,
             {name: vl.ValidArray(sim_samples[..., :EXP_ALEATORY_SAMPLES], sim_axes)},

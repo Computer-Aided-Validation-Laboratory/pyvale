@@ -1,5 +1,6 @@
 """Round-trip prepared validation cases, results and metric profiles."""
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -84,16 +85,27 @@ def test_valid_case_round_trip(archive_case: vl.ValidCase, tmp_path: Path) -> No
     np.testing.assert_array_equal(observable.times, [0.0, 2.0])
 
 
+@pytest.mark.parametrize("legacy_offset_key", [False, True])
 def test_result_and_extrema_round_trip(
-    archive_case: vl.ValidCase, tmp_path: Path
+    archive_case: vl.ValidCase, tmp_path: Path, legacy_offset_key: bool
 ) -> None:
     metrics = [
-        vl.MetricMAVM(alpha=0.2, duplicates=vl.EMAVMDuplicates.REJECT, tol=1e-9),
+        vl.MetricMAVM(alpha=0.2, duplicates=vl.EMAVMDupes.REJECT, tol=1e-9),
         vl.MetricRelErr(normalisation=vl.ERelErrNorm.CONSTANT, constant=10.0),
     ]
     original = vl.ValidEngine(metrics).run(archive_case)
     result_path = tmp_path / "result.npz"
     vl.save_valid_result(result_path, original)
+    with np.load(result_path, allow_pickle=False) as archive:
+        manifest = json.loads(archive["manifest"].item())
+        arrays = {key: archive[key] for key in archive.files if key != "manifest"}
+    for fields in manifest["metadata"]["metrics"].values():
+        for stored in fields.values():
+            assert "epis_offsets" in stored and "scenarios" not in stored
+            if legacy_offset_key:
+                stored["scenarios"] = stored.pop("epis_offsets")
+    if legacy_offset_key:
+        np.savez(result_path, manifest=np.array(json.dumps(manifest)), **arrays)
     restored = vl.load_valid_result(result_path)
 
     tag = "temperature"
@@ -110,7 +122,7 @@ def test_result_and_extrema_round_trip(
     assert isinstance(mavm, vl.MetricMAVM)
     assert (mavm.alpha, mavm.duplicates, mavm.tol) == (
         0.2,
-        vl.EMAVMDuplicates.REJECT,
+        vl.EMAVMDupes.REJECT,
         1e-9,
     )
     relative_error = restored.metric_configs[vl.EMetricType.REL_ERR]

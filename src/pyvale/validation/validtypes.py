@@ -9,6 +9,7 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum, StrEnum, auto
+from itertools import product
 
 import numpy as np
 
@@ -48,11 +49,6 @@ class EValidGeometry(Enum):
     SURFACE = auto()
     VOLUME = auto()
     GLOBAL = auto()
-
-
-class EValidSource(StrEnum):
-    SIM = "sim"
-    EXP = "exp"
 
 
 @dataclass(slots=True)
@@ -190,10 +186,10 @@ class ValidArray:
                 )
 
         if not isinstance(offset, EEpisOffset):
-            raise TypeError("Offset scenario must be EEpisOffset.")
+            raise TypeError("Offset must be EEpisOffset.")
 
         if offset != EEpisOffset.NOMINAL and self.offsets is None:
-            raise ValueError("Quantity has no offset scenarios.")
+            raise ValueError("Quantity has no coherent offsets.")
 
         return self._select_aleatory(
             point_idx, component_idx, time_idx, epis_trans_idx, epis_nuis_idx, offset
@@ -251,6 +247,44 @@ def _get_axis_size(quantity: ValidArray, axis: EValidAxis) -> int:
     if axis not in quantity.axes:
         return 1
     return quantity.data.shape[quantity.axes.index(axis)]
+
+
+def _select_aleatory_cases(
+    quantity: ValidArray,
+    *,
+    point_idx: int,
+    component_idx: int,
+    time_idx: int,
+    offset: EEpisOffset | None,
+    trans_idxs: tuple[int, ...] | None = None,
+    nuis_idxs: tuple[int, ...] | None = None,
+) -> tuple[tuple[tuple[int, int, EEpisOffset], ...], tuple[np.ndarray, ...]]:
+    """Return case labels and samples in transferable, nuisance, offset order."""
+    if offset is not None and not isinstance(offset, EEpisOffset):
+        raise TypeError("Offset must be EEpisOffset or None.")
+
+    if trans_idxs is None:
+        trans_idxs = tuple(range(_get_axis_size(quantity, EValidAxis.EPISTEMIC_TRANS)))
+    if nuis_idxs is None:
+        nuis_idxs = tuple(range(_get_axis_size(quantity, EValidAxis.EPISTEMIC_NUIS)))
+
+    offsets = (offset,) if offset is not None else (EEpisOffset.NOMINAL,)
+    if offset is None and quantity.offsets is not None:
+        offsets = tuple(EEpisOffset)
+
+    cases = tuple(product(trans_idxs, nuis_idxs, offsets))
+    samples = tuple(
+        quantity.select_aleatory(
+            point_idx,
+            component_idx,
+            time_idx,
+            epis_trans_idx=trans_idx,
+            epis_nuis_idx=nuis_idx,
+            offset=case_offset,
+        )
+        for trans_idx, nuis_idx, case_offset in cases
+    )
+    return cases, samples
 
 
 @dataclass(slots=True)
@@ -336,7 +370,7 @@ class ValidCase:
                                 )
 
 
-class EMAVMDuplicates(Enum):
+class EMAVMDupes(Enum):
     """Selects the MAVM empirical-CDF integration algorithm."""
 
     REJECT = "reject"
@@ -344,13 +378,6 @@ class EMAVMDuplicates(Enum):
 
     INCLUDE = "include"
     """Probability weighted loop that supports repeated observations."""
-
-
-class EValidMAVMDiagnostic(Enum):
-    DISTRIBUTIONS = auto()
-    COMPARISONS = auto()
-    CORRECTION = auto()
-    MODEL_CORRECTION = auto()
 
 
 @dataclass(slots=True)
@@ -393,7 +420,7 @@ class MetricField:
     offset. Physical axes are always present; singleton uncertainty axes are
     omitted. All output arrays share the same shape.
     A steady scalar observable commonly has shape (n_points, 1, 1); a transient
-    vector has shape (n_points, n_components, n_times) before scenario axes.
+    vector has shape (n_points, n_components, n_times) before epistemic and offset axes.
     """
 
     axes: tuple[EValidResAxis, ...]

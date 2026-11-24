@@ -7,7 +7,7 @@
 """Diagnostic plots for validation samples and labelled metric fields."""
 
 from dataclasses import dataclass, field, replace
-from enum import Enum, auto
+from enum import Enum, StrEnum, auto
 from math import ceil, sqrt
 
 import matplotlib.pyplot as plt
@@ -20,10 +20,9 @@ from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from pyvale.sensorsim.visualopts import PlotOptsGeneral
 from pyvale.validation.ecdftypes import (
     ECDFMetricBounds,
-    EECDFCentre,
     EECDFReduce,
     ECDF,
-    ECDFViewOpts,
+    ECDFViewSel,
     ECDFView,
 )
 from pyvale.validation.metricstrategy import MetricMAVM
@@ -34,11 +33,11 @@ from pyvale.validation.imetric import (
     IValidMetric,
     extract_metric_outputs,
 )
-from pyvale.validation.validecdf import (
+from pyvale.validation.ecdfops import (
     _evaluate_ecdf_quantiles,
-    _find_ecdf_view_bounds,
     _reduce_ecdf_quantiles,
     calc_ecdf,
+    calc_ecdf_epis_bounds,
     calc_ecdf_view,
 )
 from pyvale.validation.validprofile import _mavm_confidence_shifts
@@ -52,9 +51,7 @@ from pyvale.validation.validtools import (
 from pyvale.validation.validtypes import (
     EEpisOffset,
     EValidAxis,
-    EValidMAVMDiagnostic,
     EValidResAxis,
-    EValidSource,
     MAVMBoundPairs,
     MetricField,
     ValidCase,
@@ -99,7 +96,7 @@ class ValidPlotOpts:
     metric_alpha: float = 0.25
     metric_linestyle: _LineStyle = "-."
     metric_alt_linestyle: _LineStyle = "--"
-    scenario_alpha: float = 0.25
+    ecdf_overlay_alpha: float = 0.25
     legend_outside: bool = False
     legend_columns: int = 1
     resolution: float = 300.0
@@ -116,6 +113,37 @@ class ValidPlotOpts:
     lw: float = 0.8
     ecdf_lw_scale: float = 1.5
     ms: float = 3.2
+
+
+class EValidSource(StrEnum):
+    SIM = "sim"
+    EXP = "exp"
+
+
+class EValidMAVMDiagnostic(Enum):
+    DISTRIBUTIONS = auto()
+    COMPARISONS = auto()
+    CORRECTION = auto()
+    MODEL_CORRECTION = auto()
+
+
+class EECDFCentre(Enum):
+    NONE = auto()
+    MEAN = auto()
+    MEDIAN = auto()
+
+
+@dataclass(slots=True)
+class ECDFVisOpts:
+    """Choose which curves to draw from an ECDF view.
+
+    Overlay indices are original (transferable, nuisance) pairs.
+    An empty tuple draws no overlays. None draws all selected cases.
+    """
+
+    show_bounds: bool = True
+    centre: EECDFCentre = EECDFCentre.NONE
+    epis_case_idxs: tuple[tuple[int, int], ...] | None = ()
 
 
 class EShowECDFBounds(Enum):
@@ -245,7 +273,8 @@ def plot_sim_ecdfs(
     valid_case: ValidCase,
     observable: str,
     *,
-    view: ECDFViewOpts | None = None,
+    view: ECDFViewSel | None = None,
+    vis_opts: ECDFVisOpts | None = None,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     show_bounds: EShowECDFBounds = EShowECDFBounds.OUTER,
     nuisance_profile: EECDFReduce | None = None,
@@ -263,12 +292,12 @@ def plot_sim_ecdfs(
     Default to the outer envelope over both epistemic axes at point zero.
     point_idxs=None explicitly selects every physical point. An existing ax
     accepts one point only. Set nuisance_profile to overlay a nuisance reduction
-    within the selected envelope. ALL also displays original scenario curves.
+    within the selected envelope. ALL also displays original epistemic curves.
     """
     return _plot_ecdf_sources(
         valid_case,
         observable,
-        ((EValidSource.SIM, view, offset),),
+        ((EValidSource.SIM, view, vis_opts, offset),),
         show_bounds=show_bounds,
         confidence_alpha=None,
         nuisance_profile=nuisance_profile,
@@ -287,7 +316,8 @@ def plot_exp_ecdfs(
     valid_case: ValidCase,
     observable: str,
     *,
-    view: ECDFViewOpts | None = None,
+    view: ECDFViewSel | None = None,
+    vis_opts: ECDFVisOpts | None = None,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     show_bounds: EShowECDFBounds = EShowECDFBounds.OUTER,
     confidence_alpha: float | None = None,
@@ -304,12 +334,12 @@ def plot_exp_ecdfs(
     """Plot exp ECDFs with optional nuisance profiles and MAVM confidence bounds.
 
     Use offset=None for nominal and shifted ECDFs on the same axes. OUTER shows
-    the enclosing bounds, while ALL includes each selected original scenario.
+    the enclosing bounds, while ALL includes each selected original epistemic curve.
     """
     return _plot_ecdf_sources(
         valid_case,
         observable,
-        ((EValidSource.EXP, view, offset),),
+        ((EValidSource.EXP, view, vis_opts, offset),),
         show_bounds=show_bounds,
         confidence_alpha=confidence_alpha,
         nuisance_profile=nuisance_profile,
@@ -328,8 +358,10 @@ def plot_sim_exp_cdfs(
     valid_case: ValidCase,
     observable: str,
     *,
-    sim_view: ECDFViewOpts | None = None,
-    exp_view: ECDFViewOpts | None = None,
+    sim_view: ECDFViewSel | None = None,
+    exp_view: ECDFViewSel | None = None,
+    sim_vis_opts: ECDFVisOpts | None = None,
+    exp_vis_opts: ECDFVisOpts | None = None,
     sim_offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     exp_offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     show_bounds: EShowECDFBounds = EShowECDFBounds.OUTER,
@@ -344,22 +376,22 @@ def plot_sim_exp_cdfs(
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
 ) -> ECDFPlot:
-    """Compare sim and exp families without pooling or selecting a hidden scenario.
+    """Compare sim and exp ECDFs across the selected epistemic cases.
 
     Each source defaults to a shaded pointwise epistemic envelope, or one ECDF
-    when only one scenario remains. Set nuisance_profile to overlay a pointwise
+    when only one epistemic curve remains. Set nuisance_profile to overlay a pointwise
     nuisance reduction within each transferable case. QUANTILE also requires
     nuisance_profile_quantile. Use exp_offset=None or sim_offset=None to display
     nominal and coherent offsets together. Set confidence_alpha to display
-    MAVM experimental confidence bounds. ALL includes individual scenario curves
+    MAVM experimental confidence bounds. ALL includes individual epistemic curves
     and confidence pairs. Metric overlays use the original plot selections.
     """
     return _plot_ecdf_sources(
         valid_case,
         observable,
         (
-            (EValidSource.EXP, exp_view, exp_offset),
-            (EValidSource.SIM, sim_view, sim_offset),
+            (EValidSource.EXP, exp_view, exp_vis_opts, exp_offset),
+            (EValidSource.SIM, sim_view, sim_vis_opts, sim_offset),
         ),
         show_bounds=show_bounds,
         confidence_alpha=confidence_alpha,
@@ -378,7 +410,12 @@ def plot_sim_exp_cdfs(
 def _plot_ecdf_sources(
     valid_case: ValidCase,
     observable: str,
-    sources: tuple[tuple[EValidSource, ECDFViewOpts | None, EEpisOffset | None], ...],
+    sources: tuple[
+        tuple[
+            EValidSource, ECDFViewSel | None, ECDFVisOpts | None, EEpisOffset | None
+        ],
+        ...,
+    ],
     *,
     show_bounds: EShowECDFBounds,
     confidence_alpha: float | None,
@@ -433,30 +470,43 @@ def _plot_ecdf_sources(
     ):
         raise ValueError("An existing axes accepts one point and no grid layout.")
     # Prepare before creating any figure, so invalid selections leave no figures behind.
-    prepared: list[list[tuple[EValidSource, ECDFView]]] = []
+    prepared: list[
+        list[tuple[EValidSource, ECDFView, ECDFVisOpts, tuple[int, ...]]]
+    ] = []
     profiles: list[list[tuple[EValidSource, ECDFView]]] = []
     for point in selected_points:
         point_sources = []
         point_profiles = []
-        for source, view, offset in sources:
-            selected_view = ECDFViewOpts() if view is None else view
+        for source, view, vis_opts, offset in sources:
+            selected_vis = ECDFVisOpts() if vis_opts is None else vis_opts
+            if not isinstance(selected_vis, ECDFVisOpts):
+                raise TypeError("ECDF visualisation options must be ECDFVisOpts.")
             if show_bounds is EShowECDFBounds.ALL:
-                selected_view = replace(selected_view, scenario_idxs=None)
+                selected_vis = replace(selected_vis, epis_case_idxs=None)
             quantity = (
                 valid_case.sim if source is EValidSource.SIM else valid_case.exp
             )[observable]
             curves = calc_ecdf_view(
                 quantity,
-                view=selected_view,
+                view=view,
                 point_idx=point,
                 component_idx=component_idx,
                 time_idx=time_idx,
                 offset=offset,
             )
-            point_sources.append((source, curves))
+            overlay_indices = _select_ecdf_overlays(curves, selected_vis)
+            if (
+                np.prod(curves.quants.shape[:-1]) > 1
+                and not selected_vis.show_bounds
+                and selected_vis.centre is EECDFCentre.NONE
+                and not overlay_indices
+            ):
+                raise ValueError("Select bounds, a centre curve or case overlays.")
+            point_sources.append((source, curves, selected_vis, overlay_indices))
+            selected_view = curves.opts
             if nuisance_profile is not None:
                 if (
-                    not selected_view.bounds
+                    not selected_vis.show_bounds
                     or selected_view.nuis_reduce is not EECDFReduce.KEEP
                     or selected_view.trans_reduce is not EECDFReduce.KEEP
                 ):
@@ -467,8 +517,6 @@ def _plot_ecdf_sources(
                     selected_view,
                     nuis_reduce=nuisance_profile,
                     nuis_quantile=nuisance_profile_quantile,
-                    centre=EECDFCentre.NONE,
-                    scenario_idxs=(),
                 )
                 profile_quantiles = _reduce_ecdf_quantiles(
                     curves.quants, profile_view
@@ -476,7 +524,6 @@ def _plot_ecdf_sources(
                 profile_curves = replace(
                     curves,
                     quants=profile_quantiles,
-                    overlay_indices=(),
                     opts=profile_view,
                 )
                 point_profiles.append((source, profile_curves))
@@ -494,13 +541,15 @@ def _plot_ecdf_sources(
         selected_points, prepared, profiles, axes.flat, strict=False
     ):
         profile_by_source = {source: curves for source, curves in point_profiles}
-        for source, curves in point_sources:
+        for source, curves, vis_opts, overlay_indices in point_sources:
             has_offsets = curves.quants.shape[2] > 1
             _plot_ecdf_view(
                 panel,
                 source,
                 curves,
                 options,
+                vis_opts=vis_opts,
+                overlay_indices=overlay_indices,
                 label_suffix=(
                     " Off"
                     if has_offsets
@@ -527,6 +576,7 @@ def _plot_ecdf_sources(
                 source,
                 curves,
                 options,
+                vis_opts=ECDFVisOpts(),
                 profile=True,
                 show_all=show_bounds is EShowECDFBounds.ALL,
             )
@@ -556,7 +606,7 @@ def _plot_ecdf_sources(
         component_idx,
         time_idx,
         tuple(
-            {source: curves for source, curves in point_sources}
+            {source: curves for source, curves, _, _ in point_sources}
             for point_sources in prepared
         ),
         options,
@@ -574,12 +624,50 @@ def _ecdf_profile_label(reduction: EECDFReduce, quantile: float | None) -> str:
     return ""
 
 
+def _select_ecdf_overlays(curves: ECDFView, vis_opts: ECDFVisOpts) -> tuple[int, ...]:
+    if not isinstance(vis_opts.centre, EECDFCentre):
+        raise TypeError("ECDF centre must be EECDFCentre.")
+
+    pairs = vis_opts.epis_case_idxs
+    if pairs is None:
+        return tuple(range(len(curves.orig_epis_offsets)))
+    if not isinstance(pairs, tuple):
+        raise TypeError("Epistemic case selections must be a tuple of index pairs.")
+    if not pairs:
+        return ()
+
+    case_rows: dict[tuple[int, int], list[int]] = {}
+    for row, (trans_idx, nuis_idx, _) in enumerate(curves.orig_epis_offsets):
+        case_rows.setdefault((trans_idx, nuis_idx), []).append(row)
+
+    selected_rows: list[int] = []
+    seen: set[tuple[int, int]] = set()
+    for pair in pairs:
+        if not isinstance(pair, tuple) or len(pair) != 2:
+            raise ValueError("Select cases using (transferable, nuisance) index pairs.")
+        if any(
+            isinstance(index, (bool, np.bool_))
+            or not isinstance(index, (int, np.integer))
+            for index in pair
+        ):
+            raise TypeError("Epistemic case indices must be integers.")
+        if pair not in case_rows:
+            raise IndexError("Case index pair is outside the current selection.")
+        if pair in seen:
+            raise ValueError("Epistemic case index pairs must be unique.")
+        seen.add(pair)
+        selected_rows.extend(case_rows[pair])
+    return tuple(selected_rows)
+
+
 def _plot_ecdf_view(
     ax: Axes,
     source: EValidSource,
     curves: ECDFView,
     options: ValidPlotOpts,
     *,
+    vis_opts: ECDFVisOpts,
+    overlay_indices: tuple[int, ...] = (),
     label_suffix: str = "",
     profile: bool = False,
     offset_bounds: bool = False,
@@ -632,7 +720,7 @@ def _plot_ecdf_view(
             linewidth=options.lw * options.ecdf_lw_scale,
         )
     else:
-        if view.bounds:
+        if vis_opts.show_bounds:
             lower = np.min(quantiles, axis=0)
             upper = np.max(quantiles, axis=0)
             _plot_quantile_curve(
@@ -662,10 +750,10 @@ def _plot_ecdf_view(
                     alpha=options.bounds_alpha,
                     zorder=0.4,
                 )
-        if view.centre is not EECDFCentre.NONE:
+        if vis_opts.centre is not EECDFCentre.NONE:
             centre = (
                 np.mean(quantiles, axis=0)
-                if view.centre is EECDFCentre.MEAN
+                if vis_opts.centre is EECDFCentre.MEAN
                 else np.median(quantiles, axis=0)
             )
             _plot_quantile_curve(
@@ -673,7 +761,7 @@ def _plot_ecdf_view(
                 centre,
                 curves.probs,
                 color=color,
-                label=None if view.bounds else label,
+                label=None if vis_opts.show_bounds else label,
                 linestyle=linestyle,
                 linewidth=options.lw * options.ecdf_lw_scale,
             )
@@ -685,44 +773,44 @@ def _plot_ecdf_view(
                 curves.probs,
                 color=color,
                 linestyle=bounds_linestyle,
-                alpha=options.scenario_alpha,
+                alpha=options.ecdf_overlay_alpha,
                 linewidth=options.lw * options.ecdf_lw_scale,
             )
     # A sole original ECDF is already drawn above. Reduced single curves can
-    # still be shown alongside their original selected scenario overlays.
-    original_single = single and not reduced and len(curves.overlay_indices) == 1
+    # still be shown alongside their original selected epistemic case overlays.
+    original_single = single and not reduced and len(overlay_indices) == 1
     if not original_single:
         original = curves.orig_quants.reshape(-1, curves.probs.size)
-        for scenario_index, row in enumerate(curves.overlay_indices):
+        for overlay_idx, row in enumerate(overlay_indices):
             quantiles = original[row]
             trans_idx, nuis_idx, offset = curves.orig_epis_offsets[row]
-            scenario_style = linestyle
+            overlay_style = linestyle
             if offset is not EEpisOffset.NOMINAL:
-                scenario_style = (
+                overlay_style = (
                     options.sim_offset_linestyle
                     if is_sim
                     else options.exp_offset_linestyle
                 )
-            scenario_label = f"{label} Trans {trans_idx}, Nuis {nuis_idx}"
+            overlay_label = f"{label} Trans {trans_idx}, Nuis {nuis_idx}"
             if offset is not EEpisOffset.NOMINAL:
-                scenario_label += f", {offset.name.lower()} offset"
+                overlay_label += f", {offset.name.lower()} offset"
             if (
-                scenario_index == 0
+                overlay_idx == 0
                 and not single
-                and not view.bounds
-                and view.centre is EECDFCentre.NONE
+                and not vis_opts.show_bounds
+                and vis_opts.centre is EECDFCentre.NONE
             ):
-                scenario_label = label
-            elif view.scenario_idxs is None:
-                scenario_label = None
+                overlay_label = label
+            elif vis_opts.epis_case_idxs is None:
+                overlay_label = None
             _plot_quantile_curve(
                 ax,
                 quantiles,
                 curves.probs,
                 color=color,
-                label=scenario_label,
-                linestyle=scenario_style,
-                alpha=options.scenario_alpha,
+                label=overlay_label,
+                linestyle=overlay_style,
+                alpha=options.ecdf_overlay_alpha,
                 linewidth=options.lw * options.ecdf_lw_scale,
             )
 
@@ -829,7 +917,7 @@ def _plot_exp_confidence_bounds(
                 curves.probs,
                 color=options.exp_color,
                 linestyle=options.exp_conf_linestyle,
-                alpha=options.scenario_alpha,
+                alpha=options.ecdf_overlay_alpha,
                 linewidth=options.lw,
             )
 
@@ -1077,7 +1165,7 @@ def add_metric_overlay(
             if isinstance(index, (bool, np.bool_)) or not isinstance(
                 index, (int, np.integer)
             ):
-                raise TypeError("Comparison scenario indices must be integers.")
+                raise TypeError("Comparison case indices must be integers.")
         if not isinstance(comparison.sim_offset, EEpisOffset) or not isinstance(
             comparison.exp_offset, EEpisOffset
         ):
@@ -1108,7 +1196,7 @@ def add_metric_overlay(
                 or exp_key not in exp.orig_epis_offsets
             ):
                 raise ValueError(
-                    "Comparison is outside the plotted scenario selections."
+                    "Comparison is outside the plotted epistemic case selections."
                 )
             sim_indices = (sim.orig_epis_offsets.index(sim_key),)
             exp_indices = (exp.orig_epis_offsets.index(exp_key),)
@@ -1116,7 +1204,7 @@ def add_metric_overlay(
             len(sim_indices) != 1 or len(exp_indices) != 1
         ):
             raise ValueError(
-                "Integration shading requires an explicit original scenario comparison."
+                "Integration shading requires an explicit original sim–exp case pair."
             )
         value_columns = (
             len(output_indices)
@@ -1125,7 +1213,7 @@ def add_metric_overlay(
         )
         values = np.full((len(sim_indices), value_columns), np.nan)
         # KS envelope geometry is calculated directly from displayed bounds;
-        # it is not claimed to be the maximum KS over original scenario pairs.
+        # it is not claimed to be the maximum KS over original sim–exp case pairs.
         if display is not EMetricDisp.CDF_DIFFERENCE:
             for row, sim_index in enumerate(sim_indices):
                 for column, exp_index in enumerate(exp_indices):
@@ -1331,7 +1419,7 @@ def plot_valid_metric_time(
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
-    """Plot a selected scenario over time. MAVM defaults to both directions."""
+    """Plot a selected epistemic case over time. MAVM defaults to both directions."""
     field = result.metrics[observable][metric]
     outputs = (
         (EMetricOut.D_PLUS, EMetricOut.D_MINUS)
@@ -1389,7 +1477,7 @@ def plot_metric_dist(
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
-    """Histogram finite metric values over selected physical/scenario cells."""
+    """Histogram finite metric values over selected comparison cells."""
     field = result.metrics[observable][metric]
     output = field._resolve_output(output)
     selection_idx = _build_metric_selection(field, selectors)
@@ -1477,7 +1565,7 @@ def plot_metric_time_points(
     columns: int | None = None,
     valid_plot_opts: ValidPlotOpts | None = None,
 ) -> tuple[Figure, np.ndarray]:
-    """Plot a selected scenario per point. MAVM defaults to both directions.
+    """Plot a selected epistemic case per point. MAVM defaults to both directions.
 
     The panel grid is sized from the point count unless columns is supplied.
     """
@@ -1688,8 +1776,8 @@ def plot_metric_extrema_ecdfs(
         plot_sim_exp_cdfs(
             valid_case,
             observable,
-            sim_view=ECDFViewOpts(trans_idxs=(sim_trans,), nuis_idxs=(sim_nuis,)),
-            exp_view=ECDFViewOpts(trans_idxs=(exp_trans,), nuis_idxs=(exp_nuis,)),
+            sim_view=ECDFViewSel(trans_idxs=(sim_trans,), nuis_idxs=(sim_nuis,)),
+            exp_view=ECDFViewSel(trans_idxs=(exp_trans,), nuis_idxs=(exp_nuis,)),
             sim_offset=sim_offset,
             exp_offset=exp_offset,
             point_idxs=(comparison_indices.get(EValidResAxis.POINT, 0),),
@@ -1743,7 +1831,7 @@ def _plot_distribution_bounds(
     linestyle: _LineStyle,
 ) -> None:
     if support_cases is None:
-        bounds = _find_ecdf_view_bounds(curves)
+        bounds = calc_ecdf_epis_bounds(curves)
         lower, upper = bounds.lower, bounds.upper
     else:
         original = curves.orig_quants.reshape(-1, curves.probs.size)

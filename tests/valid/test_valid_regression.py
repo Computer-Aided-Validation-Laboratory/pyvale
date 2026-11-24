@@ -17,7 +17,7 @@ import pyvale.data as dataset
 import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
 import pyvale.validation as vl
-from pyvale.validation.metrics import EMAVMDuplicates, calc_mavm_1d
+from pyvale.validation.metrics import EMAVMDupes, calc_mavm_1d
 
 
 def create_fullfield_reference_cases() -> dict[str, tuple[np.ndarray, np.ndarray]]:
@@ -86,7 +86,7 @@ def test_mavm_matches_fullfield_analytic_cases(
 ) -> None:
     """Match fullfieldvalmetrics MAVM values to floating-point tolerance."""
     model_data, exp_data = create_fullfield_reference_cases()[case_name]
-    result = calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDuplicates.INCLUDE)
+    result = calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDupes.INCLUDE)
     assert result.d_plus == pytest.approx(expected_d_plus, abs=1e-10)
     assert result.d_minus == pytest.approx(expected_d_minus, abs=1e-10)
 
@@ -194,8 +194,8 @@ def test_distribution_statistics_match_scipy(
         )
 
 
-@pytest.mark.parametrize("duplicates", list(vl.EMAVMDuplicates))
-def test_native_and_interpreted_mavm_agree(duplicates: vl.EMAVMDuplicates) -> None:
+@pytest.mark.parametrize("duplicates", list(vl.EMAVMDupes))
+def test_native_and_interpreted_mavm_agree(duplicates: vl.EMAVMDupes) -> None:
     source = Path(__file__).resolve().parents[2] / "src/pyvale/validation/cython/mavm.py"
     interpreted = cast(
         Callable[..., vl.MAVMResult],
@@ -204,7 +204,7 @@ def test_native_and_interpreted_mavm_agree(duplicates: vl.EMAVMDuplicates) -> No
     generator = np.random.default_rng(2751)
     sim_data = generator.normal(size=64)
     exp = generator.normal(size=8)
-    if duplicates is vl.EMAVMDuplicates.INCLUDE:
+    if duplicates is vl.EMAVMDupes.INCLUDE:
         sim_data = np.round(sim_data)
         exp = np.round(exp)
     sim_data[0] = np.nan
@@ -395,7 +395,7 @@ def test_spatial_temporal_offset_is_applied_per_conditional_cdf() -> None:
 def test_prepared_plate_arrays_preserve_sensor_observations(
     filename: str, transient: bool, epistemic: bool
 ) -> None:
-    """Prepared axes and model scenarios preserve each original repeat exactly."""
+    """Prepared axes and sim epistemic cases preserve each original repeat exactly."""
     data_path = dataset.valid_data_dir()
     with (
         np.load(data_path / "plate_sensorsim_2d.npz") as raw,
@@ -482,8 +482,9 @@ def pulse_reference() -> Pulse25XReference:
 def test_all_paper_endpoint_distances_match_independent_reference(
     pulse_reference: Pulse25XReference, channel: str
 ) -> None:
-    scenarios = pulse_reference.sim_data[pulse_reference.sensor_tags.index(channel)]
-    support_sums = np.sum(np.sort(scenarios, axis=1), axis=1)
+    channel_idx = pulse_reference.sensor_tags.index(channel)
+    sim_case_samples = pulse_reference.sim_data[channel_idx]
+    support_sums = np.sum(np.sort(sim_case_samples, axis=1), axis=1)
     lower_idx = int(np.argmin(support_sums))
     upper_idx = int(np.argmax(support_sums))
     exp_support = np.unique(pulse_reference.exp[channel])
@@ -491,7 +492,7 @@ def test_all_paper_endpoint_distances_match_independent_reference(
         exp = exp_support + sign * pulse_reference.offsets[channel]
         for sim_name, index in (("min", lower_idx), ("max", upper_idx)):
             calculated = vl.calc_mavm_1d(
-                scenarios[index], exp, duplicates=vl.EMAVMDuplicates.REJECT
+                sim_case_samples[index], exp, duplicates=vl.EMAVMDupes.REJECT
             )
             for direction, distance in (
                 ("d+", calculated.d_plus),
@@ -502,11 +503,11 @@ def test_all_paper_endpoint_distances_match_independent_reference(
                     pulse_reference.expected.loc[row, channel], rel=1e-12, abs=1e-12
                 )
     correction = vl.calc_mavm_bound_pairs(
-        scenarios[lower_idx],
-        scenarios[upper_idx],
+        sim_case_samples[lower_idx],
+        sim_case_samples[upper_idx],
         exp_support - pulse_reference.offsets[channel],
         exp_support + pulse_reference.offsets[channel],
-        duplicates=vl.EMAVMDuplicates.REJECT,
+        duplicates=vl.EMAVMDupes.REJECT,
     )
     expected_lower = max(
         pulse_reference.expected.loc[f"sim-min_exp-{exp_name}-d-", channel]

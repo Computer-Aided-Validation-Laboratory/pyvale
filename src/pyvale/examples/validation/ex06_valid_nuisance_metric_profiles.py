@@ -221,7 +221,7 @@ if not SHOW_PLOTS:
 # --------------------------------
 #
 # The MAVM overlay spans nuisance pairs at fixed transferable indices. The AVM
-# overlay spans all original scenario pairs.
+# overlay spans all original sim–exp case pairs.
 supports: vl.ECDFMetricBounds = vl.profile_epis_nuisance_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
@@ -231,8 +231,8 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     observable_tag,
     point_idxs=None,
     time_idx=2,
-    sim_view=vl.ECDFViewOpts(trans_idxs=(0,)),
-    exp_view=vl.ECDFViewOpts(trans_idxs=(0,)),
+    sim_view=vl.ECDFViewSel(trans_idxs=(0,)),
+    exp_view=vl.ECDFViewSel(trans_idxs=(0,)),
     valid_plot_opts=vl.ValidPlotOpts(sim_label="Sim Nuis Env", exp_label="Exp Nuis Env"),
 )
 
@@ -260,7 +260,7 @@ vl.add_support_overlay(
     ecdf_plot, avm_supports
 )
 
-ecdf_plot.figure.suptitle("AVM over all original scenario pairs")
+ecdf_plot.figure.suptitle("AVM over all original sim–exp case pairs")
 fig_file = f"val_ex06_fig{next(fig_nums):02d}_avm_original_support.png"
 ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
@@ -314,8 +314,8 @@ for ss in vl.EECDFNuisanceScore:
             valid_case,
             observable_tag,
             time_idx=2,
-            sim_view=vl.ECDFViewOpts(nuis_idxs=(sim_nuis,)),
-            exp_view=vl.ECDFViewOpts(nuis_idxs=(exp_nuis,)),
+            sim_view=vl.ECDFViewSel(nuis_idxs=(sim_nuis,)),
+            exp_view=vl.ECDFViewSel(nuis_idxs=(exp_nuis,)),
             valid_plot_opts=vl.ValidPlotOpts(
                 sim_label=f"Sim Nuis {sim_nuis}",
                 exp_label=f"Exp Nuis {exp_nuis}",

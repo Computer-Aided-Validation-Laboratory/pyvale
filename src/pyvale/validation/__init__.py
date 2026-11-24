@@ -4,7 +4,7 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Validation of common physical observables and uncertainty scenarios."""
+"""Validation of common physical observables and epistemic cases."""
 
 from pyvale.validation.imetric import (
     EMetricCompare,
@@ -35,16 +35,12 @@ from pyvale.validation.metricstrategy import (
     MetricRMSE,
     MetricRelErr,
 )
-from pyvale.validation.validecdf import (
+from pyvale.validation.ecdfops import (
     calc_ecdf,
-    calc_ecdf_envelope,
-    select_ecdf_support_cases,
+    calc_ecdf_epis_bounds,
     calc_ecdf_view,
     evaluate_ecdf_quantiles,
-    extract_aleatory_scenarios,
-    extract_ecdf,
-    extract_ecdf_envelope,
-    find_ecdf_epis_bounds,
+    select_ecdf_support_sum_cases,
 )
 from pyvale.validation.validengine import (
     ValidEngine,
@@ -59,6 +55,10 @@ from pyvale.validation.validio import (
     save_valid_result,
 )
 from pyvale.validation.validplot import (
+    ECDFVisOpts,
+    EECDFCentre,
+    EValidMAVMDiagnostic,
+    EValidSource,
     ECDFPlot,
     EMetricDisp,
     EShowECDFBounds,
@@ -105,23 +105,20 @@ from pyvale.validation.validtools import (
 from pyvale.validation.ecdftypes import (
     EECDFBoundAxis,
     EECDFNuisanceScore,
-    EECDFCentre,
     EECDFReduce,
     ECDF,
     ECDFEpisBounds,
-    ECDFViewOpts,
+    ECDFViewSel,
     ECDFView,
     ECDFNuisanceRank,
     ECDFMetricBounds,
 )
 from pyvale.validation.validtypes import (
     EEpisOffset,
-    EMAVMDuplicates,
+    EMAVMDupes,
     EValidAxis,
     EValidGeometry,
-    EValidMAVMDiagnostic,
     EValidResAxis,
-    EValidSource,
     EpistemicOffsets,
     MAVMBoundPairs,
     MetricField,
@@ -142,7 +139,7 @@ __all__ = [
     "DetMetricResult",
     "ECDFPlot",
     "EEpisOffset",
-    "EMAVMDuplicates",
+    "EMAVMDupes",
     "EMetricCompare",
     "EMetricDisp",
     "EShowECDFBounds",
@@ -180,7 +177,8 @@ __all__ = [
     "ECDFEpisBounds",
     "ECDFComparison",
     "ECDFReference",
-    "ECDFViewOpts",
+    "ECDFViewSel",
+    "ECDFVisOpts",
     "ECDFView",
     "ValidEngine",
     "ValidEngineOpts",
@@ -199,8 +197,7 @@ __all__ = [
     "calc_cvm_1d",
     "calc_deterministic_metrics_1d",
     "calc_ecdf",
-    "calc_ecdf_envelope",
-    "select_ecdf_support_cases",
+    "calc_ecdf_epis_bounds",
     "calc_ecdf_view",
     "calc_ks_1d",
     "calc_mavm_1d",
@@ -209,12 +206,8 @@ __all__ = [
     "create_valid_plot_grid",
     "create_valid_scene_opts",
     "evaluate_ecdf_quantiles",
-    "extract_aleatory_scenarios",
-    "extract_ecdf",
-    "extract_ecdf_envelope",
     "extract_metric_outputs",
     "extract_metric_values",
-    "find_ecdf_epis_bounds",
     "find_metric_epis_extrema",
     "find_metric_epis_supports",
     "load_metric_extrema",
@@ -243,5 +236,6 @@ __all__ = [
     "sample_field_for_valid",
     "sample_sim_globals",
     "sample_sim_sweep_for_valid",
+    "select_ecdf_support_sum_cases",
     "select_metric_output",
 ]

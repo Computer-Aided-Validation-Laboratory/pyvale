@@ -4,7 +4,7 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""ECDF records, scenario reductions and shifted support bounds."""
+"""ECDF records, epistemic reductions and shifted support bounds."""
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -34,20 +34,11 @@ class EECDFReduce(Enum):
     QUANTILE = auto()
 
 
-class EECDFCentre(Enum):
-    NONE = auto()
-    MEAN = auto()
-    MEDIAN = auto()
-
-
 @dataclass(slots=True)
-class ECDFViewOpts:
-    """Select scenarios before nuisance-first, then transferable quantile reduction.
+class ECDFViewSel:
+    """Select epistemic cases before nuisance-first quantile reduction.
 
-    None index selections retain every index. scenario_idxs overlays original
-    (transferable, nuisance) pairs: () draws none, None draws all selected pairs.
-    Bounds and centre summarise the reduced family, never pooled observations.
-    Offsets are selected separately by the plotting/calculation function.
+    None index selections retain every index. Offsets are selected separately.
     """
 
     trans_reduce: EECDFReduce = EECDFReduce.KEEP
@@ -56,9 +47,6 @@ class ECDFViewOpts:
     nuis_quantile: float | None = None
     trans_idxs: tuple[int, ...] | None = None
     nuis_idxs: tuple[int, ...] | None = None
-    bounds: bool = True
-    centre: EECDFCentre = EECDFCentre.NONE
-    scenario_idxs: tuple[tuple[int, int], ...] | None = ()
 
 
 @dataclass(slots=True)
@@ -68,7 +56,6 @@ class ECDFView:
     quants has axes (transferable, nuisance, offset, probability).
     orig_quants has the same axis order before reduction. orig_epis_offsets and
     samples follow the flattened (transferable, nuisance, offset) order.
-    overlay_indices select rows in that order.
     """
 
     probs: np.ndarray
@@ -76,8 +63,7 @@ class ECDFView:
     orig_quants: np.ndarray
     orig_epis_offsets: tuple[tuple[int, int, EEpisOffset], ...]
     samples: tuple[np.ndarray, ...]
-    overlay_indices: tuple[int, ...]
-    opts: ECDFViewOpts
+    opts: ECDFViewSel
 
 
 @dataclass(slots=True)

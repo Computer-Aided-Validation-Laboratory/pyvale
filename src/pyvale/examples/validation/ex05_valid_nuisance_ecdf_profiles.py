@@ -147,7 +147,7 @@ for nn, tt, rr, qq in (
 #
 # Use the same median reduction on both sources. The KS overlay measures the
 # largest vertical gap between the selected ECDF bounds.
-median_view = vl.ECDFViewOpts(nuis_reduce=vl.EECDFReduce.MEDIAN)
+median_view = vl.ECDFViewSel(nuis_reduce=vl.EECDFReduce.MEDIAN)
 for nn, tt, vv in (
     ("envelope", "all-case envelope", None),
     ("prof_median", "median nuisance profile", median_view),
@@ -175,17 +175,21 @@ for nn, tt, vv in (
 # point and add it to the matching panel.
 mavm_plot = vl.plot_sim_exp_cdfs(valid_case, observable_tag, point_idxs=None)
 vl.add_metric_overlay(mavm_plot, vl.MetricMAVM())
-mavm_plot.figure.suptitle("MAVM support envelope over original scenario pairs")
+mavm_plot.figure.suptitle("MAVM support envelope over original sim–exp case pairs")
 fig_file = f"val_ex05_fig{next(fig_nums):02d}_mavm_support_envelope_original_pairs.png"
 mavm_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 fig, plot_axes = vl.create_valid_plot_grid(len(coords))
 for ii, aa in enumerate(plot_axes.flat):
-    sim_bounds = vl.find_ecdf_epis_bounds(
-        valid_case.sim[observable_tag], point_idx=ii, nuis_reduce=median_view.nuis_reduce
+    sim_bounds = vl.calc_ecdf_epis_bounds(
+        vl.calc_ecdf_view(
+            valid_case.sim[observable_tag], point_idx=ii, view=median_view
+        )
     )
-    exp_bounds = vl.find_ecdf_epis_bounds(
-        valid_case.exp[observable_tag], point_idx=ii, nuis_reduce=median_view.nuis_reduce
+    exp_bounds = vl.calc_ecdf_epis_bounds(
+        vl.calc_ecdf_view(
+            valid_case.exp[observable_tag], point_idx=ii, view=median_view
+        )
     )
     median_mavm_plot = vl.plot_sim_exp_cdfs(
         valid_case,

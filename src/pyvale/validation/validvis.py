@@ -4,7 +4,7 @@
 # Copyright (C) 2026 The Computer Aided Validation Team
 # ==============================================================================
 
-"""PyVista views of validation points over optional simulation geometry/fields."""
+"""Visualisation options and PyVista views for validation results."""
 
 from dataclasses import dataclass, field
 
@@ -109,7 +109,7 @@ def plot_metric_on_sim(
     The caller supplies the background run and declares its coordinate units and
     coord_frame; both must match the observable geometry. A time-resolved result must
     match the supplied background step exactly. No nearest-time selection,
-    coordinate transformation, scenario reduction or mesh interpolation occurs.
+    coordinate transformation, epistemic reduction or mesh interpolation occurs.
     NaN metrics remain grey points. Each numerical output is selected explicitly.
     A newly constructed plotter is off-screen by default; showing/saving is explicit.
 

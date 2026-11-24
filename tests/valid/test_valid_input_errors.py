@@ -14,7 +14,7 @@ from pyvale.dataio.simdata import SimData
 from pyvale.validation import validplot, validvis
 from pyvale.validation.constants import MAVM_DUPLICATE_TOLERANCE
 from pyvale.validation.metrics import (
-    EMAVMDuplicates,
+    EMAVMDupes,
     calc_mavm_1d,
 )
 from pyvale.validation.metrics import ERelErrNorm as Normalisation
@@ -47,7 +47,7 @@ def test_invalid_quantile_probabilities_fail(probabilities: np.ndarray) -> None:
 
 def test_missing_diagnostic_inputs_fail_before_plotting() -> None:
     with pytest.raises(ValueError):
-        vl.select_ecdf_support_cases(())
+        vl.select_ecdf_support_sum_cases(())
     quantity = vl.ValidArray(np.array([1.0, 2.0]), (vl.EValidAxis.ALEATORY,))
     curves = vl.calc_ecdf_view(quantity)
     with pytest.raises(ValueError, match="bound pairs"):
@@ -432,19 +432,19 @@ def test_calc_ecdf_rejects_invalid_samples(samples: np.ndarray) -> None:
 
 
 @pytest.mark.parametrize("index", [-1, 2])
-def test_extraction_rejects_invalid_epistemic_indices(
+def test_selection_rejects_invalid_epistemic_indices(
     ecdf_quantity: vl.ValidArray, index: int
 ) -> None:
     with pytest.raises(IndexError, match="EPISTEMIC_TRANS"):
-        vl.extract_ecdf(ecdf_quantity, epis_trans_idx=index)
-    with pytest.raises(IndexError, match="EPISTEMIC_TRANS"):
-        vl.extract_ecdf_envelope(ecdf_quantity, epis_trans_idx=index)
+        ecdf_quantity.select_aleatory(0, 0, 0, epis_trans_idx=index)
+    with pytest.raises(IndexError, match="Epistemic index"):
+        vl.calc_ecdf_view(ecdf_quantity, view=vl.ECDFViewSel(trans_idxs=(index,)))
 
 
-def test_extraction_rejects_nonzero_index_on_absent_axis() -> None:
+def test_selection_rejects_nonzero_index_on_absent_axis() -> None:
     ecdf_quantity = vl.ValidArray(np.array([0.0, 1.0]), (vl.EValidAxis.ALEATORY,))
     with pytest.raises(IndexError, match="EPISTEMIC_NUIS"):
-        vl.extract_ecdf(ecdf_quantity, epis_nuis_idx=1)
+        ecdf_quantity.select_aleatory(0, 0, 0, epis_nuis_idx=1)
 
 
 def create_plot_epistemic_case() -> vl.ValidCase:
@@ -489,21 +489,37 @@ def test_invalid_points_do_not_create_figures(
 @pytest.mark.parametrize(
     "view, exception",
     [
-        (vl.ECDFViewOpts(trans_idxs=()), ValueError),
-        (vl.ECDFViewOpts(trans_idxs=(3,)), IndexError),
-        (vl.ECDFViewOpts(trans_idxs=(0, 0)), ValueError),
-        (vl.ECDFViewOpts(trans_idxs=(True,)), TypeError),
-        (vl.ECDFViewOpts(scenario_idxs=((0, 3),)), IndexError),
-        (vl.ECDFViewOpts(scenario_idxs=((0, 0), (0, 0))), ValueError),
-        (vl.ECDFViewOpts(bounds=False), ValueError),
+        (vl.ECDFViewSel(trans_idxs=()), ValueError),
+        (vl.ECDFViewSel(trans_idxs=(3,)), IndexError),
+        (vl.ECDFViewSel(trans_idxs=(0, 0)), ValueError),
+        (vl.ECDFViewSel(trans_idxs=(True,)), TypeError),
     ],
 )
 def test_invalid_views_fail_before_plotting(
-    view: vl.ECDFViewOpts, exception: type[Exception]
+    view: vl.ECDFViewSel, exception: type[Exception]
 ) -> None:
     figures = plt.get_fignums()
     with pytest.raises(exception):
         validplot.plot_sim_ecdfs(create_plot_epistemic_case(), "length", view=view)
+    assert plt.get_fignums() == figures
+
+
+@pytest.mark.parametrize(
+    "vis_opts, exception",
+    [
+        (vl.ECDFVisOpts(epis_case_idxs=((0, 3),)), IndexError),
+        (vl.ECDFVisOpts(epis_case_idxs=((0, 0), (0, 0))), ValueError),
+        (vl.ECDFVisOpts(show_bounds=False), ValueError),
+    ],
+)
+def test_invalid_ecdf_vis_options_fail_before_plotting(
+    vis_opts: vl.ECDFVisOpts, exception: type[Exception]
+) -> None:
+    figures = plt.get_fignums()
+    with pytest.raises(exception):
+        validplot.plot_sim_ecdfs(
+            create_plot_epistemic_case(), "length", vis_opts=vis_opts
+        )
     assert plt.get_fignums() == figures
 
 
@@ -516,7 +532,7 @@ def test_mavm_default_rejects_near_duplicate_model_data(separation: float) -> No
         ValueError,
         match="REJECT MAVM duplicates requires unique sim observations.*INCLUDE",
     ):
-        calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDuplicates.REJECT)
+        calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDupes.REJECT)
 
 
 def test_mavm_default_rejects_near_duplicate_experimental_data() -> None:
@@ -529,7 +545,7 @@ def test_mavm_default_rejects_near_duplicate_experimental_data() -> None:
         ValueError,
         match="REJECT MAVM duplicates requires unique experimental observations.*INCLUDE",
     ):
-        calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDuplicates.REJECT)
+        calc_mavm_1d(model_data, exp_data, duplicates=EMAVMDupes.REJECT)
 
 
 @pytest.mark.parametrize(
@@ -558,7 +574,7 @@ def test_mavm_rejects_invalid_alpha(alpha: float) -> None:
         calc_mavm_1d(np.array([0.0, 1.0]), np.array([0.0, 1.0]), alpha=alpha)
 
 
-def test_selection_requires_all_scenarios_and_preserves_output(
+def test_selection_requires_all_comparison_axes_and_preserves_output(
     metric_scene: tuple[vl.ValidResult, io.SimData],
 ) -> None:
     result, _ = metric_scene
@@ -707,7 +723,7 @@ def test_case_validates_sample_input_dimensions_for_each_source() -> None:
         )
 
 
-def test_multi_scenario_integration_requires_an_explicit_original_comparison() -> None:
+def test_multi_case_integration_requires_an_explicit_original_comparison() -> None:
     test_case = create_ecdf_case(
         np.array([[0.0, 2.0], [10.0, 12.0]]), np.array([1.0, 3.0])
     )

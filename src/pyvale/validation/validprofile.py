@@ -23,7 +23,7 @@ from pyvale.validation.ecdftypes import (
 )
 from pyvale.validation.imetric import EMetricOut, EMetricType
 from pyvale.validation.metrics import calc_mavm_1d
-from pyvale.validation.validecdf import (
+from pyvale.validation.ecdfops import (
     _evaluate_ecdf_quantiles,
     _find_quantile_limits,
     _reduce_ecdf_quantiles,
@@ -32,7 +32,7 @@ from pyvale.validation.validecdf import (
 from pyvale.validation.validtools import _build_metric_selection
 from pyvale.validation.validtypes import (
     EEpisOffset,
-    EMAVMDuplicates,
+    EMAVMDupes,
     EValidResAxis,
     MAVMBoundPairs,
     MetricField,
@@ -450,12 +450,12 @@ def calc_mavm_over_epis_bounds(
 ) -> ECDFMetricBounds:
     """Construct experimental confidence bounds before epistemic enveloping.
 
-    Each original experimental scenario uses the existing MAVM convention:
+    Each original experimental case uses the existing MAVM convention:
     Student-t(1-alpha, n_unique-1) times population std(unique support)/sqrt(n_unique).
     The chosen nuisance reduction is then applied to those confidence curves.
     Synthetic envelope vertices are never treated as experimental observations.
     All four sim/confidence-bound combinations compete for both shifted limits.
-    This is distinct from MAVM over every original scenario pair.
+    This is distinct from MAVM over every original sim–exp case pair.
     """
     if (
         isinstance(alpha, (bool, np.bool_))
@@ -491,14 +491,14 @@ def calc_mavm_bound_pairs(
     exp_upper: np.ndarray,
     *,
     alpha: float = 0.05,
-    duplicates: EMAVMDuplicates = EMAVMDuplicates.INCLUDE,
+    duplicates: EMAVMDupes = EMAVMDupes.INCLUDE,
     tol: float = MAVM_AREA_TOLERANCE,
 ) -> MAVMBoundPairs:
     """Compare four endpoint pairs and anchor corrections to the supplied sim limits.
 
     The largest d_minus on sim_lower selects the lower correction; the largest
     d_plus on sim_upper selects the upper correction. These are support-shift
-    diagnostics, not a reduction to the largest MAVM across every sim scenario.
+    diagnostics, not a reduction to the largest MAVM across every sim case.
     """
     comparisons = tuple(
         calc_mavm_1d(sim, exp, alpha=alpha, duplicates=duplicates, tol=tol)
