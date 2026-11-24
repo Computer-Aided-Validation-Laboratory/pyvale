@@ -52,7 +52,7 @@ def main() -> None:
                 flags=re.MULTILINE,
             )
             if not image_names:
-                parser.error(f"No documentation figures referenced by {example.name}.")
+                continue
             print(f"Generating figures for {example.stem}", flush=True)
             subprocess.run(
                 (sys.executable, str(example)), cwd=work_dir, env=environment, check=True

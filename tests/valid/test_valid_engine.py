@@ -392,7 +392,7 @@ def test_custom_paired_classification_uses_joint_missing_observation_mask() -> N
 @pytest.mark.parametrize(
     ("sim_count", "include_missing"), [(1, True), (3, False), (3, True)]
 )
-def test_batched_avm_matches_scalar_comparisons(
+def test_engine_avm_matches_scalar_comparisons(
     sim_count: int, include_missing: bool
 ) -> None:
     tag = "temperature"

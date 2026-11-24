@@ -27,7 +27,7 @@ SHOW_PLOTS = False
 if SHOW_PLOTS:
     plt.switch_backend("QtAgg")
 
-output_path = Path.cwd() / "pyvale-output" / "valid_ex01_scalar_metrics"
+output_path = Path.cwd() / "pyvale-output" / "valid_ex01a_scalar_metrics"
 output_path.mkdir(parents=True, exist_ok=True)
 fig_nums = count(1)
 

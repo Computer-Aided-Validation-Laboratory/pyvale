@@ -76,10 +76,12 @@ class ValidPlotOpts:
     metric_labels: dict[EMetricType, str] = field(
         default_factory=_create_default_metric_labels
     )
+
     sim_color: str = "tab:blue"
     exp_color: str = "tab:orange"
     sim_profile_color: str = "#008b95"
     exp_profile_color: str = "#a65316"
+
     sim_linestyle: _LineStyle = (0, (8, 3))
     exp_linestyle: _LineStyle = "-"
     sim_bounds_linestyle: _LineStyle = "-"
@@ -89,17 +91,22 @@ class ValidPlotOpts:
     sim_offset_linestyle: _LineStyle = "-."
     exp_offset_linestyle: _LineStyle = "-."
     exp_conf_linestyle: _LineStyle = ":"
+
     shade_bounds: bool = True
     bounds_alpha: float = 0.12
+
     metric_color: str = "grey"
     metric_line_color: str = "black"
     metric_alpha: float = 0.25
     metric_linestyle: _LineStyle = "-."
     metric_alt_linestyle: _LineStyle = "--"
     ecdf_overlay_alpha: float = 0.25
+
     legend_outside: bool = False
     legend_columns: int = 1
+
     resolution: float = 300.0
+
     font_tick_size: float = 8.0
     font_head_size: float = 9.0
     font_ax_size: float = 8.0
@@ -107,9 +114,11 @@ class ValidPlotOpts:
     font_ecdf_leg_size: float = 6.5
     font_def_weight: str = "normal"
     font_name: str = field(default_factory=lambda: PlotOptsGeneral().font_name)
+
     single_fig_size_landscape: tuple[float, float] = field(
         default_factory=lambda: PlotOptsGeneral().single_fig_size_landscape
     )
+
     lw: float = 0.8
     ecdf_lw_scale: float = 1.5
     ms: float = 3.2
@@ -206,10 +215,13 @@ def _apply_plot_options(
     ecdf: bool = False,
 ) -> None:
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
+
     if options.title is not None:
         ax.set_title(options.title)
+
     if options.x_label is not None:
         ax.set_xlabel(options.x_label)
+
     if options.y_label is not None:
         ax.set_ylabel(options.y_label)
 
@@ -218,19 +230,26 @@ def _apply_plot_options(
     ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
     ax.xaxis.set_major_formatter(ScalarFormatter(useOffset=options.x_axis_offset))
     ax.xaxis.get_offset_text().set_fontsize(options.font_tick_size)
+
     for text in (ax.title, ax.xaxis.label, ax.yaxis.label):
         text.set_fontname(options.font_name)
         text.set_fontweight(options.font_def_weight)
+
     ax.title.set_fontsize(options.font_head_size)
     ax.xaxis.label.set_fontsize(options.font_ax_size)
     ax.yaxis.label.set_fontsize(options.font_ax_size)
+
     for line in ax.lines:
         # Draw patterned lines over solid ones without reordering legend entries.
         line.set_zorder(2.1 if line.is_dashed() else 2.0)
+
         if not ecdf:
             line.set_linewidth(options.lw)
+
         line.set_markersize(options.ms)
+
     legend = ax.get_legend()
+
     if legend is not None:
         if options.legend_outside:
             legend = ax.legend(
@@ -240,6 +259,7 @@ def _apply_plot_options(
             )
         else:
             legend = ax.legend(loc="upper left", ncol=options.legend_columns)
+
         for text in legend.get_texts():
             text.set_fontsize(
                 options.font_ecdf_leg_size if ecdf else options.font_leg_size
@@ -254,6 +274,7 @@ def _create_axes(
         figure = ax.get_figure(root=True)
         assert figure is not None
         return figure, ax
+
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
     return plt.subplots(
         figsize=options.single_fig_size_landscape,
@@ -265,6 +286,7 @@ def _create_axes(
 def _metric_units(result: ValidResult, observable: str, metric: EMetricType) -> str:
     if result.metric_configs[metric].get_scale() is not EMetricScale.PHYSICAL:
         return "-"
+
     units = result.observables[observable].phys_units
     return "-" if units in ("1", "") else units
 
@@ -431,17 +453,21 @@ def _plot_ecdf_sources(
 ) -> ECDFPlot:
     if not isinstance(show_bounds, EShowECDFBounds):
         raise TypeError("show_bounds must be EShowECDFBounds.")
+
     if confidence_alpha is not None and (
         isinstance(confidence_alpha, (bool, np.bool_))
         or not isinstance(confidence_alpha, (int, float, np.integer, np.floating))
         or not 0 < confidence_alpha <= 0.5
     ):
         raise ValueError("Confidence alpha must be in (0, 0.5].")
+
     if nuisance_profile is not None:
         if not isinstance(nuisance_profile, EECDFReduce):
             raise TypeError("Nuisance profile must be EECDFReduce.")
+
         if nuisance_profile is EECDFReduce.KEEP:
             raise ValueError("Nuisance profile requires mean, median or quantile.")
+
     if nuisance_profile is EECDFReduce.QUANTILE:
         if (
             isinstance(nuisance_profile_quantile, (bool, np.bool_))
@@ -453,36 +479,47 @@ def _plot_ecdf_sources(
             raise ValueError("Nuisance profile probability must be in [0, 1].")
     elif nuisance_profile_quantile is not None:
         raise ValueError("A nuisance profile probability requires QUANTILE reduction.")
+
     observable_data = valid_case.observables[observable]
     point_count = _get_axis_size(valid_case.sim[observable], EValidAxis.POINT)
     selected_points = tuple(range(point_count)) if point_idxs is None else point_idxs
+
     if not isinstance(selected_points, tuple) or not selected_points:
         raise ValueError("Supply a nonempty tuple of point indices.")
+
     if any(
         isinstance(index, (bool, np.bool_)) or not isinstance(index, (int, np.integer))
         for index in selected_points
     ):
         raise TypeError("Point indices must be integers.")
+
     if any(index < 0 or index >= point_count for index in selected_points):
         raise IndexError("Point index is outside the observable.")
+
     if ax is not None and (
         len(selected_points) != 1 or rows is not None or columns is not None
     ):
         raise ValueError("An existing axes accepts one point and no grid layout.")
+
     # Prepare before creating any figure, so invalid selections leave no figures behind.
     prepared: list[
         list[tuple[EValidSource, ECDFView, ECDFVisOpts, tuple[int, ...]]]
     ] = []
     profiles: list[list[tuple[EValidSource, ECDFView]]] = []
+
     for point in selected_points:
         point_sources = []
         point_profiles = []
+
         for source, view, vis_opts, offset in sources:
             selected_vis = ECDFVisOpts() if vis_opts is None else vis_opts
+
             if not isinstance(selected_vis, ECDFVisOpts):
                 raise TypeError("ECDF visualisation options must be ECDFVisOpts.")
+
             if show_bounds is EShowECDFBounds.ALL:
                 selected_vis = replace(selected_vis, epis_case_idxs=None)
+
             quantity = (
                 valid_case.sim if source is EValidSource.SIM else valid_case.exp
             )[observable]
@@ -495,6 +532,7 @@ def _plot_ecdf_sources(
                 offset=offset,
             )
             overlay_indices = _select_ecdf_overlays(curves, selected_vis)
+
             if (
                 np.prod(curves.quants.shape[:-1]) > 1
                 and not selected_vis.show_bounds
@@ -502,8 +540,10 @@ def _plot_ecdf_sources(
                 and not overlay_indices
             ):
                 raise ValueError("Select bounds, a centre curve or case overlays.")
+
             point_sources.append((source, curves, selected_vis, overlay_indices))
             selected_view = curves.opts
+
             if nuisance_profile is not None:
                 if (
                     not selected_vis.show_bounds
@@ -511,8 +551,10 @@ def _plot_ecdf_sources(
                     or selected_view.trans_reduce is not EECDFReduce.KEEP
                 ):
                     raise ValueError("Nuisance profiles require an unreduced envelope.")
+
                 if curves.quants.shape[1] == 1:
                     continue
+
                 profile_view = replace(
                     selected_view,
                     nuis_reduce=nuisance_profile,
@@ -527,9 +569,12 @@ def _plot_ecdf_sources(
                     opts=profile_view,
                 )
                 point_profiles.append((source, profile_curves))
+
         prepared.append(point_sources)
         profiles.append(point_profiles)
+
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
+
     if ax is None:
         fig, axes = create_valid_plot_grid(
             len(selected_points), rows=rows, columns=columns, valid_plot_opts=options
@@ -537,10 +582,12 @@ def _plot_ecdf_sources(
     else:
         fig, ax = _create_axes(ax, options)
         axes = np.array([[ax]], dtype=object)
+
     for point, point_sources, point_profiles, panel in zip(
         selected_points, prepared, profiles, axes.flat, strict=False
     ):
         profile_by_source = {source: curves for source, curves in point_profiles}
+
         for source, curves, vis_opts, overlay_indices in point_sources:
             has_offsets = curves.quants.shape[2] > 1
             _plot_ecdf_view(
@@ -560,17 +607,21 @@ def _plot_ecdf_sources(
                 offset_bounds=has_offsets,
                 show_all=show_bounds is EShowECDFBounds.ALL,
             )
+
             if has_offsets:
                 _plot_nominal_offset_view(
                     panel, source, curves, profile_by_source.get(source), options
                 )
+
             if source is EValidSource.EXP and confidence_alpha is not None:
                 _plot_exp_confidence_bounds(
                     panel, curves, confidence_alpha, show_bounds, options
                 )
+
         for source, curves in point_profiles:
             if curves.quants.shape[2] > 1 and show_bounds is EShowECDFBounds.OUTER:
                 curves = replace(curves, quants=curves.quants[:, :, :1])
+
             _plot_ecdf_view(
                 panel,
                 source,
@@ -580,6 +631,7 @@ def _plot_ecdf_sources(
                 profile=True,
                 show_all=show_bounds is EShowECDFBounds.ALL,
             )
+
         time_label = (
             "steady"
             if observable_data.times is None
@@ -588,15 +640,19 @@ def _plot_ecdf_sources(
         panel.set_title(
             f"Point {point}: {observable_data.components[component_idx]}, {time_label}"
         )
+
         units = observable_data.phys_units
         units = "-" if units in ("1", "") else units
         panel.set_xlabel(f"{observable} [{units}]")
         panel.set_ylabel("Cumulative probability")
         panel.set_ylim(0.0, 1.02)
         panel.grid(alpha=0.3)
+
         if panel.get_legend_handles_labels()[1]:
             panel.legend()
+
         _apply_plot_options(fig, panel, options, ecdf=True)
+
     return ECDFPlot(
         fig,
         axes,
@@ -616,11 +672,14 @@ def _plot_ecdf_sources(
 def _ecdf_profile_label(reduction: EECDFReduce, quantile: float | None) -> str:
     if reduction is EECDFReduce.MEDIAN:
         return "Prof-Med"
+
     if reduction is EECDFReduce.MEAN:
         return "Prof-Mean"
+
     if reduction is EECDFReduce.QUANTILE:
         assert quantile is not None
         return f"Prof-Q{100 * quantile:g}"
+
     return ""
 
 
@@ -629,34 +688,44 @@ def _select_ecdf_overlays(curves: ECDFView, vis_opts: ECDFVisOpts) -> tuple[int,
         raise TypeError("ECDF centre must be EECDFCentre.")
 
     pairs = vis_opts.epis_case_idxs
+
     if pairs is None:
         return tuple(range(len(curves.orig_epis_offsets)))
+
     if not isinstance(pairs, tuple):
         raise TypeError("Epistemic case selections must be a tuple of index pairs.")
+
     if not pairs:
         return ()
 
     case_rows: dict[tuple[int, int], list[int]] = {}
+
     for row, (trans_idx, nuis_idx, _) in enumerate(curves.orig_epis_offsets):
         case_rows.setdefault((trans_idx, nuis_idx), []).append(row)
 
     selected_rows: list[int] = []
     seen: set[tuple[int, int]] = set()
+
     for pair in pairs:
         if not isinstance(pair, tuple) or len(pair) != 2:
             raise ValueError("Select cases using (transferable, nuisance) index pairs.")
+
         if any(
             isinstance(index, (bool, np.bool_))
             or not isinstance(index, (int, np.integer))
             for index in pair
         ):
             raise TypeError("Epistemic case indices must be integers.")
+
         if pair not in case_rows:
             raise IndexError("Case index pair is outside the current selection.")
+
         if pair in seen:
             raise ValueError("Epistemic case index pairs must be unique.")
+
         seen.add(pair)
         selected_rows.extend(case_rows[pair])
+
     return tuple(selected_rows)
 
 
@@ -676,17 +745,21 @@ def _plot_ecdf_view(
     view = curves.opts
     is_sim = source is EValidSource.SIM
     label = (options.sim_label if is_sim else options.exp_label) + label_suffix
+
     for axis, reduction, quantile in (
         ("Nuis", view.nuis_reduce, view.nuis_quantile),
         ("Trans", view.trans_reduce, view.trans_quantile),
     ):
         method = _ecdf_profile_label(reduction, quantile)
+
         if method:
             label = f"{label} {axis} {method}"
+
     if profile:
         color = options.sim_profile_color if is_sim else options.exp_profile_color
     else:
         color = options.sim_color if is_sim else options.exp_color
+
     bounds_linestyle = (
         options.sim_bounds_linestyle if is_sim else options.exp_bounds_linestyle
     )
@@ -695,6 +768,7 @@ def _plot_ecdf_view(
         if profile
         else (options.sim_linestyle if is_sim else options.exp_linestyle)
     )
+
     if profile:
         bounds_linestyle = (
             options.sim_profile_linestyle if is_sim else options.exp_profile_linestyle
@@ -703,12 +777,14 @@ def _plot_ecdf_view(
         bounds_linestyle = (
             options.sim_offset_linestyle if is_sim else options.exp_offset_linestyle
         )
+
     quantiles = curves.quants.reshape(-1, curves.probs.size)
     single = quantiles.shape[0] == 1
     reduced = (
         view.nuis_reduce is not EECDFReduce.KEEP
         or view.trans_reduce is not EECDFReduce.KEEP
     )
+
     if single:
         _plot_quantile_curve(
             ax,
@@ -723,6 +799,7 @@ def _plot_ecdf_view(
         if vis_opts.show_bounds:
             lower = np.min(quantiles, axis=0)
             upper = np.max(quantiles, axis=0)
+
             _plot_quantile_curve(
                 ax,
                 lower,
@@ -740,6 +817,7 @@ def _plot_ecdf_view(
                 linestyle=bounds_linestyle,
                 linewidth=options.lw * options.ecdf_lw_scale,
             )
+
             if options.shade_bounds and not np.array_equal(lower, upper):
                 ax.fill_betweenx(
                     np.r_[0.0, curves.probs],
@@ -750,12 +828,14 @@ def _plot_ecdf_view(
                     alpha=options.bounds_alpha,
                     zorder=0.4,
                 )
+
         if vis_opts.centre is not EECDFCentre.NONE:
             centre = (
                 np.mean(quantiles, axis=0)
                 if vis_opts.centre is EECDFCentre.MEAN
                 else np.median(quantiles, axis=0)
             )
+
             _plot_quantile_curve(
                 ax,
                 centre,
@@ -765,6 +845,7 @@ def _plot_ecdf_view(
                 linestyle=linestyle,
                 linewidth=options.lw * options.ecdf_lw_scale,
             )
+
     if profile and show_all and not single:
         for profile_quantiles in quantiles:
             _plot_quantile_curve(
@@ -776,24 +857,31 @@ def _plot_ecdf_view(
                 alpha=options.ecdf_overlay_alpha,
                 linewidth=options.lw * options.ecdf_lw_scale,
             )
+
     # A sole original ECDF is already drawn above. Reduced single curves can
     # still be shown alongside their original selected epistemic case overlays.
     original_single = single and not reduced and len(overlay_indices) == 1
+
     if not original_single:
         original = curves.orig_quants.reshape(-1, curves.probs.size)
+
         for overlay_idx, row in enumerate(overlay_indices):
             quantiles = original[row]
             trans_idx, nuis_idx, offset = curves.orig_epis_offsets[row]
             overlay_style = linestyle
+
             if offset is not EEpisOffset.NOMINAL:
                 overlay_style = (
                     options.sim_offset_linestyle
                     if is_sim
                     else options.exp_offset_linestyle
                 )
+
             overlay_label = f"{label} Trans {trans_idx}, Nuis {nuis_idx}"
+
             if offset is not EEpisOffset.NOMINAL:
                 overlay_label += f", {offset.name.lower()} offset"
+
             if (
                 overlay_idx == 0
                 and not single
@@ -803,6 +891,7 @@ def _plot_ecdf_view(
                 overlay_label = label
             elif vis_opts.epis_case_idxs is None:
                 overlay_label = None
+
             _plot_quantile_curve(
                 ax,
                 quantiles,
@@ -827,6 +916,7 @@ def _plot_nominal_offset_view(
     is_sim = source is EValidSource.SIM
     color = options.sim_color if is_sim else options.exp_color
     label = options.sim_label if is_sim else options.exp_label
+
     if nominal.shape[0] > 1:
         _plot_ecdf_limits(
             ax,
@@ -837,6 +927,7 @@ def _plot_nominal_offset_view(
             f"{label} Epi Env",
             linewidth=options.lw * options.ecdf_lw_scale,
         )
+
     centre_curves = (
         nominal
         if profile is None
@@ -874,6 +965,7 @@ def _plot_ecdf_limits(
         label=label,
         linewidth=linewidth,
     )
+
     if not np.array_equal(lower, upper):
         _plot_quantile_curve(
             ax,
@@ -894,12 +986,16 @@ def _plot_exp_confidence_bounds(
 ) -> None:
     if alpha == 0.5:
         return
+
     shifts = _mavm_confidence_shifts(curves.samples, alpha)[:, None]
+
     if not np.any(shifts > 0):
         return
+
     original = curves.orig_quants.reshape(-1, curves.probs.size)
     lower = original - shifts
     upper = original + shifts
+
     _plot_ecdf_limits(
         ax,
         np.concatenate((lower, upper)),
@@ -909,6 +1005,7 @@ def _plot_exp_confidence_bounds(
         f"{options.exp_label} Conf",
         linewidth=options.lw,
     )
+
     if show_bounds is EShowECDFBounds.ALL and len(lower) > 1:
         for quantiles in np.concatenate((lower, upper)):
             _plot_quantile_curve(
@@ -938,6 +1035,7 @@ def add_support_overlay(
     Omit output for the full support envelope. Bounds-based results with no
     physical axes are for a single-panel plot.
     """
+
     if output not in (
         None,
         EMetricOut.D_PLUS,
@@ -945,27 +1043,36 @@ def add_support_overlay(
         EMetricOut.DISTANCE,
     ):
         raise ValueError("Support overlays require distance or directional outputs.")
+
     selected = selectors or {}
+
     if any(axis not in supports.axes for axis in selected):
         raise ValueError("Support selectors must name retained support axes.")
+
     if not supports.axes and not supports.selectors and len(plot.point_idxs) != 1:
         raise ValueError("Bounds without physical metadata require a single panel.")
+
     prepared = []
+
     for point in plot.point_idxs:
         physical = {
             EValidResAxis.POINT: point,
             EValidResAxis.COMPONENT: plot.component_idx,
             EValidResAxis.TIME: plot.time_idx,
         }
+
         for axis, index in supports.selectors.items():
             if axis in physical and physical[axis] != index:
                 raise ValueError(
                     "The profile and plot select different physical cells."
                 )
+
         indices = []
+
         for axis, size in zip(supports.axes, supports.lower.shape[:-1], strict=True):
             if axis in selected:
                 index = selected[axis]
+
                 if axis in physical and physical[axis] != index:
                     raise ValueError(
                         "Support selectors must match the plotted physical cell."
@@ -978,13 +1085,17 @@ def add_support_overlay(
                 raise ValueError(
                     f"Select a retained {axis.value} index for this overlay."
                 )
+
             if isinstance(index, (bool, np.bool_)) or not isinstance(
                 index, (int, np.integer)
             ):
                 raise TypeError("Support selector indices must be integers.")
+
             if not 0 <= index < size:
                 raise IndexError("Support selector is outside the retained axis.")
+
             indices.append(index)
+
         selection = tuple(indices)
         lower = (
             supports.sim_upper[selection]
@@ -996,10 +1107,14 @@ def add_support_overlay(
             if output is EMetricOut.D_MINUS
             else supports.upper[selection]
         )
+
         if not np.all(np.isfinite(lower)) or not np.all(np.isfinite(upper)):
             raise ValueError("The selected support profile has no finite comparison.")
+
         prepared.append((lower, upper))
+
     options = plot.options
+
     if label is None:
         label = (
             "Support"
@@ -1008,11 +1123,14 @@ def add_support_overlay(
                 supports.metric, metric_labels=options.metric_labels
             )
         )
+
         if supports.metric is EMetricType.MAVM and output is None:
             label = f"{label} supp"
+
     for ax, (lower, upper) in zip(plot.axes.flat, prepared, strict=False):
         if np.array_equal(lower, upper):
             continue
+
         ax.fill_betweenx(
             np.r_[0.0, supports.probs],
             np.r_[lower[0], lower],
@@ -1039,6 +1157,7 @@ def add_support_overlay(
             linestyle=options.metric_linestyle,
             linewidth=options.lw,
         )
+
         ax.legend()
         _apply_plot_options(plot.figure, ax, options, ecdf=True)
 
@@ -1053,13 +1172,18 @@ def add_normalised_ecdf_axis(
     curve, after its selected epistemic reductions. This is a constant scaling,
     not a probability-dependent displacement. Metric values retain physical units.
     """
+
     if plot.normalisation is not None:
         raise ValueError("This plot already has a normalised horizontal axis.")
+
     constants = []
+
     if isinstance(reference, ECDFReference):
         if not isinstance(reference.source, EValidSource):
             raise TypeError("Reference source must be EValidSource.")
+
         probability = reference.probability
+
         if (
             isinstance(probability, (bool, np.bool_))
             or not isinstance(probability, (int, float, np.integer, np.floating))
@@ -1067,9 +1191,11 @@ def add_normalised_ecdf_axis(
             or not 0 < probability <= 1
         ):
             raise ValueError("Reference probability must be in (0, 1].")
+
         for data in plot.data:
             if reference.source not in data:
                 raise ValueError("The reference source is not displayed in this plot.")
+
             curves = data[reference.source]
             mean_quantiles = np.mean(curves.quants, axis=(0, 1, 2))
             index = np.searchsorted(curves.probs, probability, side="left")
@@ -1079,9 +1205,12 @@ def add_normalised_ecdf_axis(
             reference, (int, float, np.integer, np.floating)
         ):
             raise TypeError("Reference must be a constant or ECDFReference.")
+
         constants = [float(reference)] * len(plot.point_idxs)
+
     if any(not np.isfinite(constant) or constant == 0 for constant in constants):
         raise ValueError("Normalisation constants must be finite and nonzero.")
+
     for ax, constant in zip(plot.axes.flat, constants, strict=False):
         secondary = ax.secondary_xaxis(
             "top",
@@ -1095,6 +1224,7 @@ def add_normalised_ecdf_axis(
         )
         secondary.xaxis.label.set_fontname(plot.options.font_name)
         secondary.tick_params(labelsize=plot.options.font_tick_size)
+
     plot.normalisation = tuple(constants)
 
 
@@ -1119,6 +1249,7 @@ def add_metric_overlay(
     """
     kind = metric.get_kind()
     outputs = metric.get_outputs()
+
     if display is None:
         if kind in (EMetricType.AVM, EMetricType.MAVM):
             display = EMetricDisp.SUPPORT_SHIFT
@@ -1126,20 +1257,25 @@ def add_metric_overlay(
             display = EMetricDisp.CDF_DIFFERENCE
         else:
             display = EMetricDisp.ANNOTATION
+
     if not isinstance(display, EMetricDisp):
         raise TypeError("Metric display must be EMetricDisp.")
+
     if display in (
         EMetricDisp.SUPPORT_SHIFT,
         EMetricDisp.INTEGRATION_AREA,
     ) and kind not in (EMetricType.AVM, EMetricType.MAVM):
         raise ValueError("Support shifts and integration areas require AVM or MAVM.")
+
     if display is EMetricDisp.CDF_DIFFERENCE and kind is not EMetricType.KS:
         raise ValueError("Vertical CDF differences require KS.")
+
     full_support = (
         kind is EMetricType.MAVM
         and display is EMetricDisp.SUPPORT_SHIFT
         and output is None
     )
+
     if full_support:
         output_indices = (
             outputs.index(EMetricOut.D_PLUS),
@@ -1149,13 +1285,18 @@ def add_metric_overlay(
         if output is None:
             if len(outputs) != 1:
                 raise ValueError("Select D_PLUS or D_MINUS for this MAVM overlay.")
+
             output = outputs[0]
+
         if output not in outputs:
             raise ValueError("The selected metric does not declare that output.")
+
         output_indices = (outputs.index(output),)
+
     if comparison is not None:
         if not isinstance(comparison, ECDFComparison):
             raise TypeError("Comparison must be ECDFComparison.")
+
         for index in (
             comparison.sim_trans_idx,
             comparison.sim_nuis_idx,
@@ -1166,20 +1307,25 @@ def add_metric_overlay(
                 index, (int, np.integer)
             ):
                 raise TypeError("Comparison case indices must be integers.")
+
         if not isinstance(comparison.sim_offset, EEpisOffset) or not isinstance(
             comparison.exp_offset, EEpisOffset
         ):
             raise TypeError("Comparison offsets must be EEpisOffset.")
+
     prepared = []
+
     for data in plot.data:
         if EValidSource.SIM not in data or EValidSource.EXP not in data:
             raise ValueError(
                 "Metric overlays require plot_sim_exp_cdfs with both sources."
             )
+
         sim = data[EValidSource.SIM]
         exp = data[EValidSource.EXP]
         sim_indices = tuple(range(len(sim.samples)))
         exp_indices = tuple(range(len(exp.samples)))
+
         if comparison is not None:
             sim_key = (
                 comparison.sim_trans_idx,
@@ -1191,6 +1337,7 @@ def add_metric_overlay(
                 comparison.exp_nuis_idx,
                 comparison.exp_offset,
             )
+
             if (
                 sim_key not in sim.orig_epis_offsets
                 or exp_key not in exp.orig_epis_offsets
@@ -1198,20 +1345,24 @@ def add_metric_overlay(
                 raise ValueError(
                     "Comparison is outside the plotted epistemic case selections."
                 )
+
             sim_indices = (sim.orig_epis_offsets.index(sim_key),)
             exp_indices = (exp.orig_epis_offsets.index(exp_key),)
+
         if display is EMetricDisp.INTEGRATION_AREA and (
             len(sim_indices) != 1 or len(exp_indices) != 1
         ):
             raise ValueError(
                 "Integration shading requires an explicit original sim–exp case pair."
             )
+
         value_columns = (
             len(output_indices)
             if display is EMetricDisp.SUPPORT_SHIFT
             else len(exp_indices)
         )
         values = np.full((len(sim_indices), value_columns), np.nan)
+
         # KS envelope geometry is calculated directly from displayed bounds;
         # it is not claimed to be the maximum KS over original sim–exp case pairs.
         if display is not EMetricDisp.CDF_DIFFERENCE:
@@ -1219,6 +1370,7 @@ def add_metric_overlay(
                 for column, exp_index in enumerate(exp_indices):
                     result = metric.calc(sim.samples[sim_index], exp.samples[exp_index])
                     metric_values = extract_metric_outputs(result)
+
                     if display is EMetricDisp.SUPPORT_SHIFT:
                         for direction_idx, output_idx in enumerate(output_indices):
                             values[row, direction_idx] = np.fmax(
@@ -1226,20 +1378,25 @@ def add_metric_overlay(
                             )
                     else:
                         values[row, column] = metric_values[output_indices[0]]
+
         prepared.append((sim, exp, sim_indices, exp_indices, values))
+
     options = plot.options
     metric_name = _create_metric_label(kind, metric_labels=options.metric_labels)
     metric_label = _create_metric_label(
         kind, output, metric_labels=options.metric_labels
     )
+
     for ax, (sim, exp, sim_indices, exp_indices, values) in zip(
         plot.axes.flat, prepared, strict=False
     ):
         annotation = None
+
         if display is EMetricDisp.SUPPORT_SHIFT:
             quantiles = sim.orig_quants.reshape(-1, sim.probs.size)[list(sim_indices)]
             lower = np.min(quantiles, axis=0)
             upper = np.max(quantiles, axis=0)
+
             if full_support:
                 upper = np.max(quantiles + values[:, 0, None], axis=0)
                 lower = np.min(quantiles - values[:, 1, None], axis=0)
@@ -1252,8 +1409,10 @@ def add_metric_overlay(
             else:
                 upper = lower
                 lower = np.min(quantiles - values[:, 0, None], axis=0)
+
             if np.array_equal(lower, upper):
                 continue
+
             ax.fill_betweenx(
                 np.r_[0.0, sim.probs],
                 np.r_[lower[0], lower],
@@ -1283,9 +1442,11 @@ def add_metric_overlay(
         elif display is EMetricDisp.INTEGRATION_AREA:
             sim_cdf = calc_ecdf(sim.samples[sim_indices[0]])
             exp_cdf = calc_ecdf(exp.samples[exp_indices[0]])
+
             if kind is EMetricType.MAVM:
                 if not isinstance(metric, MetricMAVM):
                     raise TypeError("MAVM integration shading requires MetricMAVM.")
+
                 mavm = metric.calc(
                     sim.samples[sim_indices[0]], exp.samples[exp_indices[0]]
                 )
@@ -1295,6 +1456,7 @@ def add_metric_overlay(
                     else mavm.exp_conf_lower
                 )
                 exp_cdf = ECDF(exp_bound, mavm.exp_probs)
+
                 _plot_quantile_curve(
                     ax,
                     mavm.exp_conf_lower,
@@ -1311,18 +1473,22 @@ def add_metric_overlay(
                     linestyle=options.exp_conf_linestyle,
                     linewidth=options.lw,
                 )
+
             probabilities = np.unique(
                 np.r_[sim_cdf.probs, exp_cdf.probs]
             )
             sim_quantiles = _evaluate_ecdf_quantiles(sim_cdf, probabilities)
             exp_quantiles = _evaluate_ecdf_quantiles(exp_cdf, probabilities)
+
             lower = np.minimum(sim_quantiles, exp_quantiles)
             upper = np.maximum(sim_quantiles, exp_quantiles)
+
             if kind is EMetricType.MAVM:
                 if output is EMetricOut.D_PLUS:
                     lower = sim_quantiles
                 else:
                     upper = sim_quantiles
+
             ax.fill_betweenx(
                 np.r_[0.0, probabilities],
                 np.r_[lower[0], lower],
@@ -1354,7 +1520,9 @@ def add_metric_overlay(
                         np.max(exp_quantiles, axis=0),
                     ),
                 )
+
             gaps = []
+
             for pair_index, (sim_quantiles, exp_quantiles) in enumerate(curve_pairs):
                 support = np.unique(np.r_[sim_quantiles, exp_quantiles])
                 sim_probabilities = np.r_[0.0, sim.probs][
@@ -1363,9 +1531,11 @@ def add_metric_overlay(
                 exp_probabilities = np.r_[0.0, exp.probs][
                     np.searchsorted(exp_quantiles, support, side="right")
                 ]
+
                 differences = np.abs(sim_probabilities - exp_probabilities)
                 index = int(np.argmax(differences))
                 gaps.append(differences[index])
+
                 ax.plot(
                     [support[index], support[index]],
                     [sim_probabilities[index], exp_probabilities[index]],
@@ -1375,17 +1545,21 @@ def add_metric_overlay(
                     label=metric_name if pair_index == 0 else None,
                     linewidth=options.lw,
                 )
+
             annotation = f"{metric_name} = {gaps[0]:.2f}"
+
             if len(gaps) == 2:
                 annotation += f" / {gaps[1]:.2f} (lower / upper)"
         else:
             finite = values[np.isfinite(values)]
+
             if finite.size == 0:
                 label = f"{metric_label}: undefined"
             elif finite.size == 1:
                 label = f"{metric_label} = {finite[0]:.4g}"
             else:
                 label = f"{metric_label} original comparisons: [{np.min(finite):.4g}, {np.max(finite):.4g}]"
+
             units = (
                 plot.valid_case.observables[plot.observable].phys_units
                 if metric.get_scale() is EMetricScale.PHYSICAL
@@ -1393,6 +1567,7 @@ def add_metric_overlay(
             )
             units = "-" if units in ("1", "") else units
             annotation = f"{label} [{units}]"
+
         if annotation is not None:
             # Place later annotations below earlier ones, preserving composability.
             ax.text(
@@ -1404,8 +1579,10 @@ def add_metric_overlay(
                 va="top",
                 fontsize=options.font_leg_size,
             )
+
         if ax.get_legend_handles_labels()[1]:
             ax.legend()
+
         _apply_plot_options(plot.figure, ax, options, ecdf=True)
 
 
@@ -1427,8 +1604,10 @@ def plot_valid_metric_time(
         else (field._resolve_output(output),)
     )
     times = result.observables[observable].times
+
     if times is None:
         raise ValueError("Time plot requires physical time coordinates.")
+
     traces = [
         extract_metric_values(
             field, keep=EValidResAxis.TIME, selectors=selectors, output=direction
@@ -1437,6 +1616,7 @@ def plot_valid_metric_time(
     ]
     fig, ax = _create_axes(ax, valid_plot_opts)
     options = valid_plot_opts or ValidPlotOpts()
+
     for direction, trace in zip(outputs, traces, strict=True):
         trace_label = _create_metric_label(
             metric,
@@ -1452,9 +1632,12 @@ def plot_valid_metric_time(
             linestyle=options.metric_alt_linestyle if negative else "-",
             label=trace_label,
         )
+
     ax.legend()
+
     time_units = result.observables[observable].time_units
     ax.set_xlabel(f"Time [{time_units}]" if time_units else "Time")
+
     label = _create_metric_label(
         metric,
         outputs[0] if len(outputs) == 1 else None,
@@ -1463,7 +1646,9 @@ def plot_valid_metric_time(
     ax.set_ylabel(f"{label} [{_metric_units(result, observable, metric)}]")
     ax.set_title(observable)
     ax.grid(alpha=0.3)
+
     _apply_plot_options(fig, ax, options)
+
     return fig, ax
 
 
@@ -1482,12 +1667,16 @@ def plot_metric_dist(
     output = field._resolve_output(output)
     selection_idx = _build_metric_selection(field, selectors)
     selected_field = select_metric_output(field, output, selection_idxs=selection_idx)
+
     values = selected_field.ravel()
     values = values[np.isfinite(values)]
+
     if not len(values):
         raise ValueError("No finite metric values selected.")
+
     fig, ax = _create_axes(ax, valid_plot_opts)
     options = valid_plot_opts or ValidPlotOpts()
+
     ax.hist(
         values,
         bins=min(20, len(values)),
@@ -1495,13 +1684,16 @@ def plot_metric_dist(
         edgecolor=options.metric_line_color,
         linewidth=options.lw,
     )
+
     metric_label = _create_metric_label(
         metric, output, metric_labels=options.metric_labels
     )
     ax.set_xlabel(f"{metric_label} [{_metric_units(result, observable, metric)}]")
     ax.set_ylabel("Cell count")
     ax.set_title(observable)
+
     _apply_plot_options(fig, ax, valid_plot_opts)
+
     return fig, ax
 
 
@@ -1517,12 +1709,14 @@ def create_valid_plot_grid(
     Returns a two-dimensional axes array, hiding spare panels. Supply a panel
     count and optionally rows, columns or both to control the grid.
     """
+
     if (
         isinstance(point_count, (bool, np.bool_))
         or not isinstance(point_count, (int, np.integer))
         or point_count < 1
     ):
         raise ValueError("Supply a positive point count.")
+
     for count in (rows, columns):
         if count is not None and (
             isinstance(count, (bool, np.bool_))
@@ -1532,14 +1726,19 @@ def create_valid_plot_grid(
             raise ValueError(
                 "Supply positive integer rows and columns for the point grid."
             )
+
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
+
     if columns is None:
         columns = ceil(sqrt(point_count)) if rows is None else ceil(point_count / rows)
+
     if rows is None:
         columns = min(columns, point_count)
         rows = ceil(point_count / columns)
+
     if rows * columns < point_count:
         raise ValueError("Point grid has fewer panels than selected points.")
+
     width, height = options.single_fig_size_landscape
     fig, axes = plt.subplots(
         rows,
@@ -1549,8 +1748,10 @@ def create_valid_plot_grid(
         dpi=options.resolution,
         layout="constrained",
     )
+
     for ax in axes.flat[point_count:]:
         ax.set_visible(False)
+
     return fig, axes
 
 
@@ -1575,8 +1776,10 @@ def plot_metric_time_points(
         if metric is EMetricType.MAVM and output is None
         else field._resolve_output(output)
     )
+
     if result.observables[observable].times is None:
         raise ValueError("Time plot requires physical time coordinates.")
+
     for point_idx in point_idxs:
         selected = dict(selectors or {})
         selected[EValidResAxis.POINT] = point_idx
@@ -1586,9 +1789,11 @@ def plot_metric_time_points(
             selectors=selected,
             output=validation_output,
         )
+
     fig, axes = create_valid_plot_grid(
         len(point_idxs), columns=columns, valid_plot_opts=valid_plot_opts
     )
+
     for point_idx, ax in zip(point_idxs, axes.flat, strict=False):
         selected = dict(selectors or {})
         selected[EValidResAxis.POINT] = point_idx
@@ -1605,6 +1810,7 @@ def plot_metric_time_points(
             f"Point {point_idx}: {ax.get_title()}",
             fontsize=(valid_plot_opts or ValidPlotOpts()).font_head_size,
         )
+
     return fig, axes
 
 
@@ -1627,9 +1833,12 @@ def plot_metric_extrema_time(
     """
     observable_data = result.observables[observable]
     times = observable_data.times
+
     if times is None or EValidResAxis.TIME not in profile.axes:
         raise ValueError("Extrema time plots require a retained physical time axis.")
+
     selected = dict(selectors or {})
+
     if EValidResAxis.TIME in selected or EValidResAxis.POINT in selected:
         raise ValueError("Use point_idxs to select points and leave time unselected.")
 
@@ -1640,25 +1849,32 @@ def plot_metric_extrema_time(
         else (minimum_field._resolve_output(output),)
     )
     point_axis = EValidResAxis.POINT
+
     if point_axis in profile.axes:
         point_count = profile.minimum[outputs[0]].shape[profile.axes.index(point_axis)]
         available_points = range(point_count)
     else:
         available_points = (profile.selectors[point_axis],)
+
     points = tuple(available_points) if point_idxs is None else point_idxs
+
     if not isinstance(points, tuple) or not points:
         raise ValueError("Supply a nonempty tuple of point indices.")
 
     traces = []
+
     for point_idx in points:
         if isinstance(point_idx, (bool, np.bool_)) or not isinstance(
             point_idx, (int, np.integer)
         ):
             raise TypeError("Point indices must be integers.")
+
         if point_idx not in available_points:
             raise IndexError("Point index is outside the extrema profile.")
+
         if point_axis in profile.axes:
             selected[point_axis] = point_idx
+
         indices = _build_metric_selection(
             minimum_field, selected, keep=EValidResAxis.TIME
         )
@@ -1666,11 +1882,13 @@ def plot_metric_extrema_time(
             (profile.minimum[direction][indices], profile.maximum[direction][indices])
             for direction in outputs
         ]
+
         if any(
             lower.shape != times.shape or upper.shape != times.shape
             for lower, upper in point_traces
         ):
             raise ValueError("Extrema traces must match the physical time coordinates.")
+
         traces.append(point_traces)
 
     fig, axes = create_valid_plot_grid(
@@ -1683,6 +1901,7 @@ def plot_metric_extrema_time(
         outputs[0] if len(outputs) == 1 else None,
         metric_labels=options.metric_labels,
     )
+
     for point_idx, point_traces, ax in zip(points, traces, axes.flat, strict=False):
         for direction, (lower, upper) in zip(outputs, point_traces, strict=True):
             label = _create_metric_label(
@@ -1706,12 +1925,15 @@ def plot_metric_extrema_time(
                 color=options.metric_line_color,
                 label=f"{label} max",
             )
+
         ax.set_xlabel(f"Time [{time_units}]" if time_units else "Time")
         ax.set_ylabel(f"{metric_label} [{_metric_units(result, observable, metric)}]")
         ax.set_title(f"Point {point_idx}: {observable}")
         ax.grid(alpha=0.3)
         ax.legend()
+
         _apply_plot_options(fig, ax, options)
+
     return fig, axes
 
 
@@ -1733,26 +1955,34 @@ def plot_metric_extrema_ecdfs(
     field = MetricField(profile.axes, profile.minimum)
     output = field._resolve_output(output)
     values = profile.minimum[output]
+
     missing_selectors = set(selectors or {}) - set(profile.axes)
+
     if missing_selectors:
         raise ValueError("Selectors must name retained profile axes.")
+
     selected = dict(selectors or {})
+
     for axis, size in zip(profile.axes, values.shape, strict=True):
         if size == 1:
             selected.setdefault(axis, 0)
         elif axis not in selected:
             raise ValueError(f"Select a {axis.value} index for the extrema ECDFs.")
+
     indices = _build_metric_selection(field, selected)
     cell = {**profile.selectors, **selected}
     panels = []
+
     for bound, scores, origins in (
         ("Minimum", values, profile.minimum_indices[output]),
         ("Maximum", profile.maximum[output], profile.maximum_indices[output]),
     ):
         score = float(scores[indices])
         origin = origins[indices]
+
         if not np.isfinite(score) or np.any(origin < 0):
             raise ValueError(f"The selected {bound.lower()} has no finite comparison.")
+
         comparison_indices = {
             **cell,
             **dict(zip(profile.reduced_axes, map(int, origin), strict=True)),
@@ -1766,6 +1996,7 @@ def plot_metric_extrema_ecdfs(
         output if metric is EMetricType.MAVM else None,
         metric_labels=options.metric_labels,
     )
+
     for ax, (bound, score, comparison_indices) in zip(axes.flat, panels, strict=True):
         sim_trans = comparison_indices.get(EValidResAxis.SIM_TRANS, 0)
         sim_nuis = comparison_indices.get(EValidResAxis.SIM_NUIS, 0)
@@ -1773,6 +2004,7 @@ def plot_metric_extrema_ecdfs(
         exp_nuis = comparison_indices.get(EValidResAxis.EXP_NUIS, 0)
         sim_offset = EEpisOffset(comparison_indices.get(EValidResAxis.SIM_OFFSET, 0))
         exp_offset = EEpisOffset(comparison_indices.get(EValidResAxis.EXP_OFFSET, 0))
+
         plot_sim_exp_cdfs(
             valid_case,
             observable,
@@ -1786,13 +2018,18 @@ def plot_metric_extrema_ecdfs(
             valid_plot_opts=options,
             ax=ax,
         )
+
         sim_case = f"Sim. trans. {sim_trans}, nuis. {sim_nuis}"
         exp_case = f"Exp. trans. {exp_trans}, nuis. {exp_nuis}"
+
         if EValidResAxis.SIM_OFFSET in comparison_indices:
             sim_case += f", {sim_offset.name.lower()} offset"
+
         if EValidResAxis.EXP_OFFSET in comparison_indices:
             exp_case += f", {exp_offset.name.lower()} offset"
+
         ax.set_title(f"{bound} {label} = {score:.4g}\n{sim_case}\n{exp_case}")
+
     return fig, axes
 
 
@@ -1836,6 +2073,7 @@ def _plot_distribution_bounds(
     else:
         original = curves.orig_quants.reshape(-1, curves.probs.size)
         lower, upper = original[list(support_cases)]
+
     _plot_quantile_curve(
         ax,
         np.mean(curves.quants, axis=(0, 1, 2)),
@@ -1861,6 +2099,7 @@ def _plot_distribution_bounds(
         linestyle=bounds_linestyle,
         linewidth=options.lw * options.ecdf_lw_scale,
     )
+
     if options.shade_bounds and not np.array_equal(lower, upper):
         ax.fill_betweenx(
             np.r_[0.0, curves.probs],
@@ -1892,12 +2131,16 @@ def plot_valid_mavm_diagnostic(
     The bound pairs provide the scalar MAVM distances used to shift sim
     support and draw the outer support band.
     """
+
     if not isinstance(view, EValidMAVMDiagnostic):
         raise TypeError("Diagnostic view must be EValidMAVMDiagnostic.")
+
     if view is not EValidMAVMDiagnostic.DISTRIBUTIONS and bound_pairs is None:
         raise ValueError("Selected diagnostic requires MAVM bound pairs.")
+
     fig, ax = _create_axes(ax, valid_plot_opts)
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
+
     if exp is not None and view is not EValidMAVMDiagnostic.MODEL_CORRECTION:
         _plot_distribution_bounds(
             ax,
@@ -1909,6 +2152,7 @@ def plot_valid_mavm_diagnostic(
             linestyle=options.exp_linestyle,
             bounds_linestyle=options.exp_bounds_linestyle,
         )
+
     _plot_distribution_bounds(
         ax,
         sim,
@@ -1919,6 +2163,7 @@ def plot_valid_mavm_diagnostic(
         linestyle=options.sim_linestyle,
         bounds_linestyle=options.sim_bounds_linestyle,
     )
+
     if bound_pairs is not None and view is EValidMAVMDiagnostic.COMPARISONS:
         for comparison, linestyle, label in (
             (bound_pairs.upper, options.metric_linestyle, "Upper case"),
@@ -1941,6 +2186,7 @@ def plot_valid_mavm_diagnostic(
                 linestyle=linestyle,
                 linewidth=options.lw,
             )
+
     if bound_pairs is not None and view in (
         EValidMAVMDiagnostic.CORRECTION,
         EValidMAVMDiagnostic.MODEL_CORRECTION,
@@ -1953,15 +2199,18 @@ def plot_valid_mavm_diagnostic(
             bound_pairs.upper.sim_quantiles + bound_pairs.upper.d_plus,
             bound_pairs.upper.sim_probs,
         )
+
         probabilities = np.unique(
             np.r_[lower_cdf.probs, upper_cdf.probs]
         )
         lower = _evaluate_ecdf_quantiles(lower_cdf, probabilities)
         upper = _evaluate_ecdf_quantiles(upper_cdf, probabilities)
+
         metric_name = _create_metric_label(
             EMetricType.MAVM, metric_labels=options.metric_labels
         )
         support_label = f"{metric_name} supp"
+
         if options.shade_bounds:
             ax.fill_betweenx(
                 np.r_[0.0, probabilities],
@@ -1973,6 +2222,7 @@ def plot_valid_mavm_diagnostic(
                 zorder=0.5,
                 label=support_label,
             )
+
         _plot_quantile_curve(
             ax,
             lower,
@@ -1990,9 +2240,13 @@ def plot_valid_mavm_diagnostic(
             linestyle=options.metric_linestyle,
             linewidth=options.lw,
         )
+
     ax.set_ylabel("Cumulative probability")
     ax.set_ylim(0.0, 1.02)
+
     if ax.get_legend_handles_labels()[1]:
         ax.legend()
+
     _apply_plot_options(fig, ax, valid_plot_opts, ecdf=True)
+
     return fig, ax

@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:03.972** total execution time for 84 files **from all galleries**:
+**00:03.972** total execution time for 85 files **from all galleries**:
 
 .. container::
 
@@ -248,7 +248,10 @@ Computation times
    * - :ref:`sphx_glr_examples_validation_ex00_valid_quickstart.py` (``../../src/pyvale/examples/validation/ex00_valid_quickstart.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_validation_ex01_valid_scalar_metrics.py` (``../../src/pyvale/examples/validation/ex01_valid_scalar_metrics.py``)
+   * - :ref:`sphx_glr_examples_validation_ex01a_valid_scalar_metrics.py` (``../../src/pyvale/examples/validation/ex01a_valid_scalar_metrics.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex01b_valid_numpy_metrics.py` (``../../src/pyvale/examples/validation/ex01b_valid_numpy_metrics.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_validation_ex02_valid_steady_state.py` (``../../src/pyvale/examples/validation/ex02_valid_steady_state.py``)

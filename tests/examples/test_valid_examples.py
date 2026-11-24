@@ -55,20 +55,21 @@ EXAMPLES = (
         ),
     ),
     (
-        "ex01_valid_scalar_metrics",
+        "ex01a_valid_scalar_metrics",
         (
             "observable_cdfs.png",
             "avm_overlay.png",
             "ks_overlay.png",
             "cvm_overlay.png",
             "rmse_overlay.png",
-            "relative_error_overlay.png",
+            "rel_err_overlay.png",
             "avm_area.png",
             "mavm_d_plus_area.png",
             "mavm_d_minus_area.png",
             "mavm_support_envelope.png",
         ),
     ),
+    ("ex01b_valid_numpy_metrics", ()),
     (
         "ex02_valid_steady_state",
         (
@@ -121,8 +122,8 @@ EXAMPLES = (
             "cvm_statistic_profile.npz",
             "rmse_error_profile.png",
             "rmse_error_profile.npz",
-            "relative_error_error_profile.png",
-            "relative_error_error_profile.npz",
+            "rel_err_error_profile.png",
+            "rel_err_error_profile.npz",
             "mavm_profile.png",
             "mavm_d_plus_extrema_ecdfs.png",
             "mavm_nuisance_support_envelope.png",
@@ -198,6 +199,9 @@ def test_valid_example(
     expected_outputs = tuple(output_paths)
     work_dir = run_example(example, expected_outputs)
     assert not tuple(work_dir.glob("*.png"))
+    if not expected_outputs:
+        assert not (work_dir / "pyvale-output").exists()
+        return
     assert tuple(path.name for path in (work_dir / "pyvale-output").iterdir()) == (
         output_directory,
     )

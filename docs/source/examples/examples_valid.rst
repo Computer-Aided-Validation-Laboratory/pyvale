@@ -11,14 +11,15 @@ unpublished data checkout. Figures and validation archives are saved beneath
 Getting started
 ---------------
 
-Build a validation case, compare scalar metrics, and analyse steady-state and
-transient data.
+Build a validation case, compare scalar metrics with the engine or directly
+from NumPy arrays, and analyse steady-state and transient data.
 
 .. toctree::
    :maxdepth: 1
 
    validation/ex00_valid_quickstart
-   validation/ex01_valid_scalar_metrics
+   validation/ex01a_valid_scalar_metrics
+   validation/ex01b_valid_numpy_metrics
    validation/ex02_valid_steady_state
    validation/ex03_valid_transient
 

@@ -68,12 +68,10 @@ def main() -> int:
         if completed.returncode:
             failed.append(example.name)
             print(f"  FAIL ({completed.returncode}); see {log_path}", flush=True)
-        elif not output_directory.is_dir():
-            failed.append(example.name)
-            print(f"  FAIL: expected output directory {output_directory}", flush=True)
         else:
+            location = output_directory if output_directory.is_dir() else log_path
             print(
-                f"  PASS ({perf_counter() - start:.1f}s): {output_directory}",
+                f"  PASS ({perf_counter() - start:.1f}s): {location}",
                 flush=True,
             )
 

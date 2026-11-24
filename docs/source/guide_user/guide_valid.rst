@@ -48,6 +48,12 @@ no finite observations remains NaN in ``ValidResult``. The MAVM strategy default
 to ``EMAVMDupes.INCLUDE``. Pass that option explicitly to
 ``calc_mavm_1d`` for repeated values.
 
+See :doc:`Example 01b </examples/validation/ex01b_valid_numpy_metrics>` for the
+direct NumPy calls, including ``calc_deterministic_metrics_1d``. Use
+``ValidEngine`` for parallel comparisons and operations on epistemic axes.
+:doc:`Example 01a </examples/validation/ex01a_valid_scalar_metrics>` introduces
+the engine with the same samples.
+
 ``ValidResult`` stores a ``MetricField`` for each observable and metric. The field
 records its axes and maps each output to a NumPy array. It retains sampled
 epistemic cases and coherent offsets. MAVM exposes ``D_PLUS`` and ``D_MINUS`` outputs.
