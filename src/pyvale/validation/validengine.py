@@ -57,19 +57,25 @@ from pyvale.validation.validtypes import (
 
 
 @dataclass(slots=True)
-class ValidEngineOpts:
-    workers: int | None = 1
-
-    def __post_init__(self) -> None:
-        if self.workers is not None:
-            if isinstance(self.workers, bool) or not isinstance(self.workers, int):
-                raise TypeError("workers must be an integer or None.")
-            if self.workers < 1:
-                raise ValueError("workers must be positive.")
-
-
-@dataclass(slots=True)
 class _Workload:
+    """Describe a contiguous range of comparison cells for one observable.
+
+    Attributes
+    ----------
+    name : str
+        Observable tag used to place results in the final mapping.
+    sim : ValidArray
+        Simulation observation array, optionally sliced to the required point range.
+    exp : ValidArray
+        Experimental observation array covering the same physical cells.
+    shape : tuple[int, ...]
+        Comparison grid shape in canonical result order, including singleton axes.
+    start : int
+        Inclusive flat result index relative to the full observable.
+    stop : int
+        Exclusive flat result index relative to the full observable.
+    """
+
     name: str
     sim: ValidArray
     exp: ValidArray
@@ -79,15 +85,32 @@ class _Workload:
 
 
 class ValidEngine:
-    """Snapshot metric/options configuration and retain epistemic cases."""
+    """Snapshot metric configuration and retain epistemic cases.
 
-    __slots__ = ("metrics", "opts")
+    Attributes
+    ----------
+    metrics : tuple[IValidMetric, ...]
+        Independent snapshots of the metric strategies.
+    workers : int or None
+        Number of workers. Use None to select the available CPU count.
+    """
+
+    __slots__ = ("metrics", "workers")
     metrics: tuple[IValidMetric, ...]
-    opts: ValidEngineOpts
+    workers: int | None
 
     def __init__(
-        self, metrics: list[IValidMetric], *, opts: ValidEngineOpts | None = None
+        self, metrics: list[IValidMetric], *, workers: int | None = 1
     ) -> None:
+        """Initialise the engine and snapshot the metric strategies.
+
+        Parameters
+        ----------
+        metrics : list[IValidMetric]
+            Nonempty list of metrics with unique kinds and declared outputs.
+        workers : int or None, optional
+            Number of workers. Use None to select the available CPU count.
+        """
         if not metrics:
             raise ValueError("At least one metric is required.")
 
@@ -109,13 +132,32 @@ class ValidEngine:
             if any(not isinstance(output, EMetricOut) for output in outputs):
                 raise TypeError("Metric outputs must be EMetricOut.")
 
+        if workers is not None:
+            if isinstance(workers, bool) or not isinstance(workers, int):
+                raise TypeError("workers must be an integer or None.")
+
+            if workers < 1:
+                raise ValueError("workers must be positive.")
+
         self.metrics = tuple(deepcopy(metrics))
-        self.opts = (
-            ValidEngineOpts() if opts is None else ValidEngineOpts(workers=opts.workers)
-        )
+        self.workers = workers
 
     def run(self, valid_case: ValidCase) -> ValidResult:
-        """Calculate metric values across physical, epistemic, and offset axes."""
+        """Calculate metric values across physical, epistemic, and offset axes.
+
+        Parameters
+        ----------
+        valid_case : ValidCase
+            Aligned simulation and experiment observations with their named axes.
+
+        Returns
+        -------
+        ValidResult
+            Metric fields keyed by observable and metric. Each output has leading
+            dimensions ``(n_points, n_components, n_times)`` followed by the
+            non-singleton simulation and experiment epistemic and offset axes.
+            Comparisons with missing samples on either side remain NaN.
+        """
         # Validate metric configuration and comparison inputs.
         _validate_metric_configs(self.metrics)
 
@@ -220,7 +262,7 @@ class ValidEngine:
             results[name] = metric_fields
 
         # Run workloads serially or in parallel and store each result chunk.
-        workers = self.opts.workers
+        workers = self.workers
 
         if workers is None:
             workers = cpu_count() or 1
@@ -287,6 +329,23 @@ class ValidEngine:
 
 
 def _slice_points(quantity: ValidArray, start: int, stop: int) -> ValidArray:
+    """Borrow a contiguous range of physical points and corresponding offset magnitudes.
+
+    Parameters
+    ----------
+    quantity : ValidArray
+        Observations paired with their canonical named axes.
+    start : int
+        Inclusive point index.
+    stop : int
+        Exclusive point index.
+
+    Returns
+    -------
+    ValidArray
+        Observation array whose point-dependent values and offsets cover the
+        requested range.
+    """
     if start == 0 and stop == _get_axis_size(quantity, EValidAxis.POINT):
         return quantity
 
@@ -296,6 +355,7 @@ def _slice_points(quantity: ValidArray, start: int, stop: int) -> ValidArray:
     )
 
     offsets = quantity.offsets
+
     if offsets is not None and EValidAxis.POINT in offsets.axes:
         offset_selection = tuple(
             slice(start, stop) if axis is EValidAxis.POINT else slice(None)
@@ -315,7 +375,22 @@ def _slice_points(quantity: ValidArray, start: int, stop: int) -> ValidArray:
 def _calculate_partition(
     workloads: list[_Workload], metrics: tuple[IValidMetric, ...]
 ) -> list[tuple[str, int, np.ndarray]]:
+    """Evaluate a worker's comparison ranges and reuse prepared MAVM distributions.
 
+    Parameters
+    ----------
+    workloads : list[_Workload]
+        One or more contiguous ranges of comparison cells, possibly across
+        observables.
+    metrics : tuple[IValidMetric, ...]
+        Metrics to evaluate, in output row order.
+
+    Returns
+    -------
+    list[tuple[str, int, ndarray]]
+        One tuple per range containing the observable tag, flat start index and
+        values of shape (n_outputs, n_comparisons).
+    """
     calculated_workloads: list[tuple[str, int, np.ndarray]] = []
 
     check_output_count = tuple(
@@ -338,6 +413,7 @@ def _calculate_partition(
         # Cache MAVM distributions within the current point, component, and time.
         sim_distributions: dict[tuple[int, ...], _PreparedECDF] = {}
         exp_distributions: dict[tuple[int, ...], _PreparedMAVMExp] = {}
+
         metric_outputs = tuple(metric.get_outputs() for metric in metrics)
         output_count = sum(len(outputs) for outputs in metric_outputs)
         calculated = np.full((output_count, stop - start), np.nan)
@@ -358,6 +434,7 @@ def _calculate_partition(
             ) = indices
 
             current_cell = (point, component, time)
+
             if current_cell != physical_cell:
                 sim_distributions.clear()
                 exp_distributions.clear()
@@ -447,7 +524,20 @@ def _store_chunk(
     start: int,
     calculated: np.ndarray,
 ) -> None:
+    """Write calculated metric rows into their final result arrays.
 
+    Parameters
+    ----------
+    metric_fields : dict[EMetricType, MetricField]
+        Destination arrays keyed by metric type for one observable.
+    metrics : tuple[IValidMetric, ...]
+        Metrics to evaluate, in output row order.
+    start : int
+        Inclusive flat result index in the destination fields.
+    calculated : ndarray
+        Values of shape (n_outputs, n_comparisons), with rows ordered by metric and
+        output.
+    """
     stop = start + calculated.shape[-1]
     output_idx = 0
 
@@ -460,7 +550,13 @@ def _store_chunk(
 
 
 def _validate_metric_configs(metrics: tuple[IValidMetric, ...]) -> None:
+    """Revalidate configurable metric settings before executing a case.
 
+    Parameters
+    ----------
+    metrics : tuple[IValidMetric, ...]
+        Metrics to evaluate, in output row order.
+    """
     for metric in metrics:
         if isinstance(metric, MetricMAVM):
             _validate_mavm_config(metric.alpha, metric.duplicates, metric.tol)

@@ -1,7 +1,7 @@
 .. _examples_validation:
 
-Validation examples
-===================
+Validation
+==========
 
 Run the tutorials from the project root with
 ``python scripts/run_all_valid_examples.py``. Add ``--data-dir`` for a local

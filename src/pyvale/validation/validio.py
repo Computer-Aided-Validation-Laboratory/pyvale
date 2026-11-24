@@ -55,8 +55,23 @@ _METRIC_CLASSES: dict[EMetricType, type[IValidMetric]] = {
 
 
 def _store_array(arrays: dict[str, np.ndarray], array: np.ndarray) -> str:
+    """Register an array under the next available archive key.
+
+    Parameters
+    ----------
+    arrays : dict[str, ndarray]
+        Mapping from archive keys to stored NumPy arrays.
+    array : ndarray
+        NumPy array of arbitrary rank. Object arrays are unsupported.
+
+    Returns
+    -------
+    str
+        Assigned key used by the metadata to refer to the array.
+    """
     if array.dtype.hasobject:
         raise TypeError("Validation archives cannot store object arrays.")
+
     key = f"array_{len(arrays)}"
     arrays[key] = array
     return key
@@ -68,12 +83,27 @@ def _save_archive(
     metadata: dict[str, object],
     arrays: dict[str, np.ndarray],
 ) -> None:
+    """Write the versioned manifest and arrays and publish the archive atomically.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the NPZ archive.
+    kind : str
+        Archive or metric identifier for the operation.
+    metadata : dict[str, object]
+        JSON-compatible metadata describing the corresponding arrays.
+    arrays : dict[str, ndarray]
+        Mapping from archive keys to stored NumPy arrays.
+    """
     destination = Path(path)
     manifest = np.array(
         json.dumps({"version": _SCHEMA_VERSION, "kind": kind, "metadata": metadata})
     )
+
     with NamedTemporaryFile(dir=destination.parent, delete=False) as temp_file:
         temp_path = Path(temp_file.name)
+
         try:
             np.savez(temp_file, manifest=manifest, **arrays)
             temp_file.close()
@@ -84,19 +114,51 @@ def _save_archive(
 
 
 def _load_metadata(archive: NpzFile, kind: str) -> dict:
+    """Read the JSON manifest and check the archive kind and version.
+
+    Parameters
+    ----------
+    archive : NpzFile
+        Open NPZ archive with a JSON manifest and named arrays.
+    kind : str
+        Archive or metric identifier for the operation.
+
+    Returns
+    -------
+    dict
+        Metadata payload from the checked manifest.
+    """
     if "manifest" not in archive:
         raise ValueError("Validation archive has no manifest.")
+
     manifest = json.loads(archive["manifest"].item())
+
     if manifest.get("version") != _SCHEMA_VERSION:
         raise ValueError("Unsupported validation archive schema version.")
+
     if manifest.get("kind") != kind:
         raise ValueError(f"Expected a {kind} validation archive.")
+
     return manifest["metadata"]
 
 
 def _pack_observable(
     observable: ValidObservable, arrays: dict[str, np.ndarray]
 ) -> dict[str, object]:
+    """Encode observable metadata and register its coordinate, time and connectivity arrays.
+
+    Parameters
+    ----------
+    observable : ValidObservable
+        Physical observable metadata to encode.
+    arrays : dict[str, ndarray]
+        Mapping from archive keys to stored NumPy arrays.
+
+    Returns
+    -------
+    dict[str, object]
+        JSON-compatible observable metadata with keys for stored arrays.
+    """
     return {
         "components": observable.components,
         "geometry": observable.geometry.name,
@@ -122,6 +184,20 @@ def _pack_observable(
 
 
 def _unpack_observable(metadata: dict, archive: NpzFile) -> ValidObservable:
+    """Reconstruct observable metadata from the manifest and array data.
+
+    Parameters
+    ----------
+    metadata : dict
+        JSON-compatible metadata describing the corresponding arrays.
+    archive : NpzFile
+        Open NPZ archive with a JSON manifest and named arrays.
+
+    Returns
+    -------
+    ValidObservable
+        Observable with coordinate, connectivity and time axes restored.
+    """
     return ValidObservable(
         components=tuple(metadata["components"]),
         geometry=EValidGeometry[metadata["geometry"]],
@@ -142,6 +218,20 @@ def _unpack_observable(metadata: dict, archive: NpzFile) -> ValidObservable:
 def _pack_quantity(
     quantity: ValidArray, arrays: dict[str, np.ndarray]
 ) -> dict[str, object]:
+    """Encode observation axes, values and coherent offsets.
+
+    Parameters
+    ----------
+    quantity : ValidArray
+        Observations paired with their canonical named axes.
+    arrays : dict[str, ndarray]
+        Mapping from archive keys to stored NumPy arrays.
+
+    Returns
+    -------
+    dict[str, object]
+        Stored array keys and JSON-compatible metadata for the quantity.
+    """
     offsets = quantity.offsets
     return {
         "data": _store_array(arrays, quantity.data),
@@ -159,6 +249,20 @@ def _pack_quantity(
 
 
 def _unpack_quantity(metadata: dict, archive: NpzFile) -> ValidArray:
+    """Load a named array and its optional coherent offsets.
+
+    Parameters
+    ----------
+    metadata : dict
+        JSON-compatible metadata describing the corresponding arrays.
+    archive : NpzFile
+        Open NPZ archive with a JSON manifest and named arrays.
+
+    Returns
+    -------
+    ValidArray
+        Array with the original dimension order and offset metadata.
+    """
     offsets = metadata["offsets"]
     return ValidArray(
         archive[metadata["data"]],
@@ -178,8 +282,23 @@ def _unpack_quantity(metadata: dict, archive: NpzFile) -> ValidArray:
 def _pack_inputs(
     inputs: ValidSampleInputs | None, arrays: dict[str, np.ndarray]
 ) -> dict[str, object] | None:
+    """Encode optional input parameter and run ID arrays.
+
+    Parameters
+    ----------
+    inputs : ValidSampleInputs or None
+        Optional sampled input parameters and run identifiers.
+    arrays : dict[str, ndarray]
+        Mapping from archive keys to stored NumPy arrays.
+
+    Returns
+    -------
+    dict[str, object] or None
+        Provenance metadata referring to archive arrays, or None.
+    """
     if inputs is None:
         return None
+
     return {
         "parameters": (
             None
@@ -196,8 +315,23 @@ def _pack_inputs(
 
 
 def _unpack_inputs(metadata: dict | None, archive: NpzFile) -> ValidSampleInputs | None:
+    """Load optional input parameter and run ID arrays.
+
+    Parameters
+    ----------
+    metadata : dict or None
+        JSON-compatible metadata describing the corresponding arrays.
+    archive : NpzFile
+        Open NPZ archive with a JSON manifest and named arrays.
+
+    Returns
+    -------
+    ValidSampleInputs or None
+        Reconstructed sample inputs, or None when no inputs were stored.
+    """
     if metadata is None:
         return None
+
     parameters = metadata["parameters"]
     run_ids = metadata["run_ids"]
     return ValidSampleInputs(
@@ -214,7 +348,15 @@ def _unpack_inputs(metadata: dict | None, archive: NpzFile) -> ValidSampleInputs
 
 
 def save_valid_case(path: str | Path, valid_case: ValidCase) -> None:
-    """Save prepared samples, axes, observables and optional sample inputs."""
+    """Save prepared samples, axes, observables and optional sample inputs.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the NPZ archive.
+    valid_case : ValidCase
+        Aligned simulation and experiment observations with their named axes.
+    """
     arrays: dict[str, np.ndarray] = {}
     metadata = {
         "observables": {
@@ -234,7 +376,20 @@ def save_valid_case(path: str | Path, valid_case: ValidCase) -> None:
 
 
 def load_valid_case(path: str | Path) -> ValidCase:
-    """Load the prepared case, including the samples needed for ECDF plots."""
+    """Load the prepared case, including the samples needed for ECDF plots.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the NPZ archive.
+
+    Returns
+    -------
+    ValidCase
+        Case with observable metadata, named observation arrays and optional
+        provenance restored.
+    """
+
     with np.load(path, allow_pickle=False) as archive:
         metadata = _load_metadata(archive, "case")
         return ValidCase(
@@ -256,42 +411,89 @@ def load_valid_case(path: str | Path) -> ValidCase:
 
 
 def _pack_metric_config(kind: EMetricType, metric: IValidMetric) -> dict[str, object]:
+    """Encode a built-in metric's calculation settings.
+
+    Parameters
+    ----------
+    kind : EMetricType
+        Archive or metric identifier for the operation.
+    metric : IValidMetric
+        Metric to select or evaluate.
+
+    Returns
+    -------
+    dict[str, object]
+        JSON-compatible options for reconstructing the metric.
+    """
     if type(metric) is not _METRIC_CLASSES.get(kind):
         raise TypeError(
             "Validation archives support only built-in metric configurations."
         )
+
     if isinstance(metric, MetricMAVM):
         return {
             "alpha": float(metric.alpha),
             "duplicates": metric.duplicates.name,
             "tol": float(metric.tol),
         }
+
     if isinstance(metric, MetricRelErr):
         return {
             "normalisation": metric.normalisation.name,
             "constant": None if metric.constant is None else float(metric.constant),
         }
+
     return {}
 
 
 def _unpack_metric_config(kind: EMetricType, config: dict) -> IValidMetric:
+    """Reconstruct a built-in metric strategy from its stored settings.
+
+    Parameters
+    ----------
+    kind : EMetricType
+        Archive or metric identifier for the operation.
+    config : dict
+        Stored options for the selected metric kind.
+
+    Returns
+    -------
+    IValidMetric
+        Metric configured as when the result was saved.
+    """
     if kind is EMetricType.MAVM:
         return MetricMAVM(
             alpha=config["alpha"],
             duplicates=EMAVMDupes[config["duplicates"]],
             tol=config["tol"],
         )
+
     if kind is EMetricType.REL_ERR:
         return MetricRelErr(
             normalisation=ERelErrNorm[config["normalisation"]],
             constant=config["constant"],
         )
+
     return _METRIC_CLASSES[kind]()
 
 
 def _pack_outputs(
     outputs: dict[EMetricOut, np.ndarray], arrays: dict[str, np.ndarray]
 ) -> dict[str, str]:
+    """Register metric output arrays without changing their axes.
+
+    Parameters
+    ----------
+    outputs : dict[EMetricOut, ndarray]
+        Metric outputs keyed by output tag or stored tag name.
+    arrays : dict[str, ndarray]
+        Mapping from archive keys to stored NumPy arrays.
+
+    Returns
+    -------
+    dict[str, str]
+        Stored output tag names mapped to array keys.
+    """
     return {
         output.name: _store_array(arrays, values) for output, values in outputs.items()
     }
@@ -300,24 +502,72 @@ def _pack_outputs(
 def _unpack_outputs(
     outputs: dict[str, str], archive: NpzFile
 ) -> dict[EMetricOut, np.ndarray]:
+    """Load output arrays with their original shapes.
+
+    Parameters
+    ----------
+    outputs : dict[str, str]
+        Metric outputs keyed by output tag or stored tag name.
+    archive : NpzFile
+        Open NPZ archive with a JSON manifest and named arrays.
+
+    Returns
+    -------
+    dict[EMetricOut, ndarray]
+        Metric output tags mapped to arrays from the archive.
+    """
     return {EMetricOut[name]: archive[key] for name, key in outputs.items()}
 
 
 def _pack_metric_kind(kind: EMetricType) -> str:
     # Keep the schema v1 key when the public enum member is renamed.
+    """Encode the archive name of a metric kind.
+
+    Parameters
+    ----------
+    kind : EMetricType
+        Archive or metric identifier for the operation.
+
+    Returns
+    -------
+    str
+        Schema-compatible metric name.
+    """
     return "RELATIVE_ERROR" if kind is EMetricType.REL_ERR else kind.name
 
 
 def _unpack_metric_kind(name: str) -> EMetricType:
+    """Resolve a stored metric name to its enum member.
+
+    Parameters
+    ----------
+    name : str
+        Stored name of a metric kind.
+
+    Returns
+    -------
+    EMetricType
+        Metric type represented by the archive name.
+    """
     return EMetricType.REL_ERR if name == "RELATIVE_ERROR" else EMetricType[name]
 
 
 def save_valid_result(path: str | Path, result: ValidResult) -> None:
-    """Save metric fields, observable metadata and built-in metric settings."""
+    """Save metric fields, observable metadata and built-in metric settings.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the NPZ archive.
+    result : ValidResult
+        Validation results containing the requested observable and metric.
+    """
     arrays: dict[str, np.ndarray] = {}
     fields = {}
+
     for tag, metrics in result.metrics.items():
         fields[tag] = {}
+
         for kind, metric_field in metrics.items():
             epis_offsets = metric_field.epis_offsets
             fields[tag][_pack_metric_kind(kind)] = {
@@ -332,6 +582,7 @@ def save_valid_result(path: str | Path, result: ValidResult) -> None:
                     }
                 ),
             }
+
     metadata = {
         "observables": {
             tag: _pack_observable(value, arrays)
@@ -347,12 +598,26 @@ def save_valid_result(path: str | Path, result: ValidResult) -> None:
 
 
 def load_valid_result(path: str | Path) -> ValidResult:
-    """Load previously calculated metric fields without running validation again."""
+    """Load previously calculated metric fields without running validation again.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the NPZ archive.
+
+    Returns
+    -------
+    ValidResult
+        Metric fields, named result axes and available built-in metric settings.
+    """
+
     with np.load(path, allow_pickle=False) as archive:
         metadata = _load_metadata(archive, "result")
         metrics: dict[str, dict[EMetricType, MetricField]] = {}
+
         for tag, fields in metadata["metrics"].items():
             metrics[tag] = {}
+
             for kind, stored in fields.items():
                 # Older result archives stored these offset labels under "scenarios".
                 epis_offsets = (
@@ -374,10 +639,13 @@ def load_valid_result(path: str | Path) -> ValidResult:
                         }
                     ),
                 )
+
         metric_configs = {}
+
         for name, config in metadata["metric_configs"].items():
             kind = _unpack_metric_kind(name)
             metric_configs[kind] = _unpack_metric_config(kind, config)
+
         return ValidResult(
             {
                 tag: _unpack_observable(value, archive)
@@ -389,7 +657,15 @@ def load_valid_result(path: str | Path) -> ValidResult:
 
 
 def save_metric_extrema(path: str | Path, extrema: ValidMetricExtrema) -> None:
-    """Save extrema, their controlling indices and the associated axis selections."""
+    """Save extrema, their controlling indices and the associated axis selections.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the NPZ archive.
+    extrema : ValidMetricExtrema
+        Extrema values and controlling indices on their retained axes.
+    """
     arrays: dict[str, np.ndarray] = {}
     metadata = {
         "axes": [axis.name for axis in extrema.axes],
@@ -406,7 +682,19 @@ def save_metric_extrema(path: str | Path, extrema: ValidMetricExtrema) -> None:
 
 
 def load_metric_extrema(path: str | Path) -> ValidMetricExtrema:
-    """Load a profile. Use the original result for metadata and case for samples."""
+    """Load a profile. Use the original result for metadata and case for samples.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the NPZ archive.
+
+    Returns
+    -------
+    ValidMetricExtrema
+        Extrema arrays and original comparison indices with their axis labels.
+    """
+
     with np.load(path, allow_pickle=False) as archive:
         metadata = _load_metadata(archive, "extrema")
         return ValidMetricExtrema(

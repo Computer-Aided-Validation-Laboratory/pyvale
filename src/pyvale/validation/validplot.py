@@ -40,7 +40,7 @@ from pyvale.validation.ecdfops import (
     calc_ecdf_epis_bounds,
     calc_ecdf_view,
 )
-from pyvale.validation.validprofile import _mavm_confidence_shifts
+from pyvale.validation.validprof import _mavm_confidence_shifts
 from pyvale.validation.validtools import (
     _build_metric_selection,
     _create_default_metric_labels,
@@ -65,7 +65,95 @@ _LineStyle = str | tuple[float, tuple[float, ...]]
 
 @dataclass(slots=True)
 class ValidPlotOpts:
-    """Control validation figure layout, labels, source styles and ECDF shading."""
+    """Control validation figure layout, labels, source styles and ECDF shading.
+
+    Attributes
+    ----------
+    title : str or None
+        Optional axes title override.
+    x_label : str or None
+        Optional x-axis label override.
+    x_axis_offset : bool
+        Allow an additive offset in numeric x-axis tick labels.
+    y_label : str or None
+        Optional y-axis label override.
+    sim_label : str
+        Base legend label for simulation curves.
+    exp_label : str
+        Base legend label for experimental curves.
+    metric_labels : dict[EMetricType, str]
+        Display label overrides keyed by metric type.
+    sim_color : str
+        Colour of simulation curves.
+    exp_color : str
+        Colour of experimental curves.
+    sim_profile_color : str
+        Colour of simulation nuisance profile curves.
+    exp_profile_color : str
+        Colour of experimental nuisance profile curves.
+    sim_linestyle : _LineStyle
+        Line style of nominal simulation curves.
+    exp_linestyle : _LineStyle
+        Line style of nominal experimental curves.
+    sim_bounds_linestyle : _LineStyle
+        Line style of simulation bounds.
+    exp_bounds_linestyle : _LineStyle
+        Line style of experimental bounds.
+    sim_profile_linestyle : _LineStyle
+        Line style of simulation profile bounds.
+    exp_profile_linestyle : _LineStyle
+        Line style of experimental profile bounds.
+    sim_offset_linestyle : _LineStyle
+        Line style of simulation offset curves.
+    exp_offset_linestyle : _LineStyle
+        Line style of experimental offset curves.
+    exp_conf_linestyle : _LineStyle
+        Line style of experimental confidence limits.
+    shade_bounds : bool
+        Fill between distinct lower and upper bounds.
+    bounds_alpha : float
+        Opacity of the region between ECDF bounds.
+    metric_color : str
+        Fill colour for metric overlays and histograms.
+    metric_line_color : str
+        Line and edge colour for metric artists.
+    metric_alpha : float
+        Opacity of shaded metric regions.
+    metric_linestyle : _LineStyle
+        Line style for the primary metric curve.
+    metric_alt_linestyle : _LineStyle
+        Line style for a second metric curve or direction.
+    ecdf_overlay_alpha : float
+        Opacity of individual ECDF, profile and confidence overlays.
+    legend_outside : bool
+        Place the legend below the axes.
+    legend_columns : int
+        Number of legend columns.
+    resolution : float
+        Figure resolution in dots per inch.
+    font_tick_size : float
+        Tick label size in points.
+    font_head_size : float
+        Axes title size in points.
+    font_ax_size : float
+        Axis label size in points.
+    font_leg_size : float
+        Default legend font size in points.
+    font_ecdf_leg_size : float
+        ECDF legend font size in points.
+    font_def_weight : str
+        Font weight for titles and axis labels.
+    font_name : str
+        Matplotlib font family.
+    single_fig_size_landscape : tuple[float, float]
+        Width and height of one landscape panel, in inches.
+    lw : float
+        Base line width in points.
+    ecdf_lw_scale : float
+        Multiplier applied to the base ECDF line width.
+    ms : float
+        Marker size in points.
+    """
 
     title: str | None = None
     x_label: str | None = None
@@ -125,11 +213,15 @@ class ValidPlotOpts:
 
 
 class EValidSource(StrEnum):
+    """Choose simulation or experiment as the source for an ECDF plot."""
+
     SIM = "sim"
     EXP = "exp"
 
 
 class EValidMAVMDiagnostic(Enum):
+    """Choose distribution, pairwise comparison or support correction views."""
+
     DISTRIBUTIONS = auto()
     COMPARISONS = auto()
     CORRECTION = auto()
@@ -137,6 +229,8 @@ class EValidMAVMDiagnostic(Enum):
 
 
 class EECDFCentre(Enum):
+    """Choose whether to draw the mean or median quantile curve across cases."""
+
     NONE = auto()
     MEAN = auto()
     MEDIAN = auto()
@@ -148,6 +242,16 @@ class ECDFVisOpts:
 
     Overlay indices are original (transferable, nuisance) pairs.
     An empty tuple draws no overlays. None draws all selected cases.
+
+    Attributes
+    ----------
+    show_bounds : bool
+        Draw pointwise lower and upper quantiles for a multi-curve view.
+    centre : EECDFCentre
+        Optional pointwise mean or median of the displayed quantile curves.
+    epis_case_idxs : tuple[tuple[int, int], ...] or None
+        Original (transferable, nuisance) index pairs to overlay. None selects every
+        pair; an empty tuple selects none.
     """
 
     show_bounds: bool = True
@@ -156,11 +260,15 @@ class ECDFVisOpts:
 
 
 class EShowECDFBounds(Enum):
+    """Choose outer bounds or all individual cases for ECDF display."""
+
     OUTER = auto()
     ALL = auto()
 
 
 class EMetricDisp(Enum):
+    """Choose how a validation metric is displayed on an ECDF plot."""
+
     SUPPORT_SHIFT = auto()
     INTEGRATION_AREA = auto()
     CDF_DIFFERENCE = auto()
@@ -169,7 +277,15 @@ class EMetricDisp(Enum):
 
 @dataclass(slots=True)
 class ECDFReference:
-    """Normalise by a quantile of the displayed family's mean quantile curve."""
+    """Normalise by a quantile of the displayed family's mean quantile curve.
+
+    Attributes
+    ----------
+    source : EValidSource
+        Source used to obtain the normalising quantile.
+    probability : float
+        Cumulative probability in (0, 1] on the selected mean quantile curve.
+    """
 
     source: EValidSource = EValidSource.SIM
     probability: float = 0.5
@@ -177,7 +293,23 @@ class ECDFReference:
 
 @dataclass(slots=True)
 class ECDFComparison:
-    """Choose an original conditional sim/exp pair for a metric overlay."""
+    """Choose an original conditional sim/exp pair for a metric overlay.
+
+    Attributes
+    ----------
+    sim_trans_idx : int
+        Original simulation transferable case index.
+    sim_nuis_idx : int
+        Original simulation nuisance case index.
+    exp_trans_idx : int
+        Original experimental transferable case index.
+    exp_nuis_idx : int
+        Original experimental nuisance case index.
+    sim_offset : EEpisOffset
+        Simulation offset used in the comparison.
+    exp_offset : EEpisOffset
+        Experimental offset used in the comparison.
+    """
 
     sim_trans_idx: int = 0
     sim_nuis_idx: int = 0
@@ -193,6 +325,31 @@ class ECDFPlot:
 
     Created by the source plotting functions. Source arrays are borrowed and
     must not be mutated while adding overlays. Axes always form a 2D grid.
+
+    Attributes
+    ----------
+    figure : Figure
+        Matplotlib figure for the composed plot.
+    axes : ndarray
+        Object array of Matplotlib axes with shape (n_rows, n_columns). Active
+        panels follow point_idxs in row-major order.
+    valid_case : ValidCase
+        Aligned simulation and experiment observations with their named axes.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    point_idxs : tuple[int, ...]
+        Original point indices in panel order. None selects all available points.
+    component_idx : int
+        Zero-based observable component index.
+    time_idx : int
+        Zero-based evaluation time index.
+    data : tuple[dict[EValidSource, ECDFView], ...]
+        One dictionary per active panel, mapping each plotted source to its computed
+        ECDF view.
+    options : ValidPlotOpts
+        Matplotlib styling options used by the plot.
+    normalisation : tuple[float, ...] or None
+        Optional nonzero normalisation constant for each active panel.
     """
 
     figure: Figure
@@ -214,6 +371,21 @@ def _apply_plot_options(
     *,
     ecdf: bool = False,
 ) -> None:
+    """Apply figure resolution, formatting and legend settings to an axes.
+
+    Parameters
+    ----------
+    fig : Figure
+        Figure containing the axes.
+    ax : Axes
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+    valid_plot_opts : ValidPlotOpts or None
+        Matplotlib layout and appearance settings. Use None for defaults.
+    ecdf : bool, optional
+        Use ECDF-specific legend sizes and preserve the width of existing ECDF
+        lines.
+    """
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
 
     if options.title is not None:
@@ -270,6 +442,21 @@ def _apply_plot_options(
 def _create_axes(
     ax: Axes | None, valid_plot_opts: ValidPlotOpts | None
 ) -> tuple[Figure, Axes]:
+    """Reuse existing axes or create a single diagnostic panel.
+
+    Parameters
+    ----------
+    ax : Axes or None
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+    valid_plot_opts : ValidPlotOpts or None
+        Matplotlib layout and appearance settings. Use None for defaults.
+
+    Returns
+    -------
+    tuple[Figure, Axes]
+        Figure and axes for the requested diagnostic.
+    """
     if ax is not None:
         figure = ax.get_figure(root=True)
         assert figure is not None
@@ -284,6 +471,23 @@ def _create_axes(
 
 
 def _metric_units(result: ValidResult, observable: str, metric: EMetricType) -> str:
+    """Resolve the units displayed for a metric.
+
+    Parameters
+    ----------
+    result : ValidResult
+        Validation results containing the requested observable and metric.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    metric : EMetricType
+        Metric identifier or strategy used by the plot or overlay.
+
+    Returns
+    -------
+    str
+        Observable units for a physical metric, or '-' for a dimensionless or
+        unspecified unit.
+    """
     if result.metric_configs[metric].get_scale() is not EMetricScale.PHYSICAL:
         return "-"
 
@@ -315,6 +519,48 @@ def plot_sim_ecdfs(
     point_idxs=None explicitly selects every physical point. An existing ax
     accepts one point only. Set nuisance_profile to overlay a nuisance reduction
     within the selected envelope. ALL also displays original epistemic curves.
+
+    Parameters
+    ----------
+    valid_case : ValidCase
+        Aligned simulation and experiment observations with their named axes.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    view : ECDFViewSel or None, optional
+        Epistemic selection and reduction for this source. None uses the default
+        selection.
+    vis_opts : ECDFVisOpts or None, optional
+        Controls for drawing bounds, a centre curve and original cases.
+    offset : EEpisOffset or None, optional
+        Offset to plot. None includes nominal and all available coherent offsets.
+    show_bounds : EShowECDFBounds, optional
+        Display mode for outer limits or individual offset and case curves.
+    nuisance_profile : EECDFReduce or None, optional
+        Optional nuisance reduction drawn as an additional curve or set of curves.
+    nuisance_profile_quantile : float or None, optional
+        Probability in [0, 1] when nuisance_profile is QUANTILE.
+    point_idxs : tuple[int, ...] or None, optional
+        Original point indices in panel order. None selects all available points.
+    component_idx : int, optional
+        Zero-based observable component index.
+    time_idx : int, optional
+        Zero-based evaluation time index.
+    rows : int or None, optional
+        Requested grid rows. None chooses the count from the panel count and
+        columns.
+    columns : int or None, optional
+        Requested grid columns. None chooses the count automatically.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+    ax : Axes or None, optional
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+
+    Returns
+    -------
+    ECDFPlot
+        Figure, two-dimensional axes grid and the simulation ECDF view for each
+        active panel.
     """
     return _plot_ecdf_sources(
         valid_case,
@@ -357,6 +603,51 @@ def plot_exp_ecdfs(
 
     Use offset=None for nominal and shifted ECDFs on the same axes. OUTER shows
     the enclosing bounds, while ALL includes each selected original epistemic curve.
+
+    Parameters
+    ----------
+    valid_case : ValidCase
+        Aligned simulation and experiment observations with their named axes.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    view : ECDFViewSel or None, optional
+        Epistemic selection and reduction for this source. None uses the default
+        selection.
+    vis_opts : ECDFVisOpts or None, optional
+        Controls for drawing bounds, a centre curve and original cases.
+    offset : EEpisOffset or None, optional
+        Offset to plot. None includes nominal and all available coherent offsets.
+    show_bounds : EShowECDFBounds, optional
+        Display mode for outer limits or individual offset and case curves.
+    confidence_alpha : float or None, optional
+        Experimental MAVM confidence parameter in (0, 0.5]. None suppresses
+        confidence bounds.
+    nuisance_profile : EECDFReduce or None, optional
+        Optional nuisance reduction drawn as an additional curve or set of curves.
+    nuisance_profile_quantile : float or None, optional
+        Probability in [0, 1] when nuisance_profile is QUANTILE.
+    point_idxs : tuple[int, ...] or None, optional
+        Original point indices in panel order. None selects all available points.
+    component_idx : int, optional
+        Zero-based observable component index.
+    time_idx : int, optional
+        Zero-based evaluation time index.
+    rows : int or None, optional
+        Requested grid rows. None chooses the count from the panel count and
+        columns.
+    columns : int or None, optional
+        Requested grid columns. None chooses the count automatically.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+    ax : Axes or None, optional
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+
+    Returns
+    -------
+    ECDFPlot
+        Figure, two-dimensional axes grid and the experimental ECDF view for each
+        active panel.
     """
     return _plot_ecdf_sources(
         valid_case,
@@ -407,6 +698,56 @@ def plot_sim_exp_cdfs(
     nominal and coherent offsets together. Set confidence_alpha to display
     MAVM experimental confidence bounds. ALL includes individual epistemic curves
     and confidence pairs. Metric overlays use the original plot selections.
+
+    Parameters
+    ----------
+    valid_case : ValidCase
+        Aligned simulation and experiment observations with their named axes.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    sim_view : ECDFViewSel or None, optional
+        Simulation epistemic selection and reduction settings.
+    exp_view : ECDFViewSel or None, optional
+        Experimental epistemic selection and reduction settings.
+    sim_vis_opts : ECDFVisOpts or None, optional
+        Display options for the simulation curves.
+    exp_vis_opts : ECDFVisOpts or None, optional
+        Display options for the experimental curves.
+    sim_offset : EEpisOffset or None, optional
+        Simulation offset to display. None includes all available offsets.
+    exp_offset : EEpisOffset or None, optional
+        Experimental offset to display. None includes all available offsets.
+    show_bounds : EShowECDFBounds, optional
+        Display mode for outer limits or individual offset and case curves.
+    confidence_alpha : float or None, optional
+        Experimental MAVM confidence parameter in (0, 0.5]. None suppresses
+        confidence bounds.
+    nuisance_profile : EECDFReduce or None, optional
+        Optional nuisance reduction drawn as an additional curve or set of curves.
+    nuisance_profile_quantile : float or None, optional
+        Probability in [0, 1] when nuisance_profile is QUANTILE.
+    point_idxs : tuple[int, ...] or None, optional
+        Original point indices in panel order. None selects all available points.
+    component_idx : int, optional
+        Zero-based observable component index.
+    time_idx : int, optional
+        Zero-based evaluation time index.
+    rows : int or None, optional
+        Requested grid rows. None chooses the count from the panel count and
+        columns.
+    columns : int or None, optional
+        Requested grid columns. None chooses the count automatically.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+    ax : Axes or None, optional
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+
+    Returns
+    -------
+    ECDFPlot
+        Figure and axes grid of shape (n_rows, n_columns), with both source views
+        per active panel.
     """
     return _plot_ecdf_sources(
         valid_case,
@@ -451,6 +792,47 @@ def _plot_ecdf_sources(
     valid_plot_opts: ValidPlotOpts | None,
     ax: Axes | None,
 ) -> ECDFPlot:
+    """Prepare the selected views and render one panel per physical point.
+
+    Parameters
+    ----------
+    valid_case : ValidCase
+        Aligned simulation and experiment observations with their named axes.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    sources : tuple[tuple[EValidSource, ECDFViewSel or None, ECDFVisOpts or None, EEpisOffset or None], ...]
+        Tuples of source, computational selection, display options and offset.
+    show_bounds : EShowECDFBounds
+        Display mode for outer limits or individual offset and case curves.
+    confidence_alpha : float or None
+        Experimental MAVM confidence parameter in (0, 0.5]. None suppresses
+        confidence bounds.
+    nuisance_profile : EECDFReduce or None
+        Optional nuisance reduction drawn as an additional curve or set of curves.
+    nuisance_profile_quantile : float or None
+        Probability in [0, 1] when nuisance_profile is QUANTILE.
+    point_idxs : tuple[int, ...] or None
+        Original point indices in panel order. None selects all available points.
+    component_idx : int
+        Zero-based observable component index.
+    time_idx : int
+        Zero-based evaluation time index.
+    rows : int or None
+        Requested grid rows. None chooses the count from the panel count and
+        columns.
+    columns : int or None
+        Requested grid columns. None chooses the count automatically.
+    valid_plot_opts : ValidPlotOpts or None
+        Matplotlib layout and appearance settings. Use None for defaults.
+    ax : Axes or None
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+
+    Returns
+    -------
+    ECDFPlot
+        Composed figure and the computed source views for each panel.
+    """
     if not isinstance(show_bounds, EShowECDFBounds):
         raise TypeError("show_bounds must be EShowECDFBounds.")
 
@@ -670,6 +1052,20 @@ def _plot_ecdf_sources(
 
 
 def _ecdf_profile_label(reduction: EECDFReduce, quantile: float | None) -> str:
+    """Format the label suffix for an epistemic reduction.
+
+    Parameters
+    ----------
+    reduction : EECDFReduce
+        Epistemic reduction applied to the quantile curves.
+    quantile : float or None
+        Quantile level for QUANTILE reduction, if used.
+
+    Returns
+    -------
+    str
+        Short label suffix, or an empty string for an unreduced axis.
+    """
     if reduction is EECDFReduce.MEDIAN:
         return "Prof-Med"
 
@@ -684,6 +1080,21 @@ def _ecdf_profile_label(reduction: EECDFReduce, quantile: float | None) -> str:
 
 
 def _select_ecdf_overlays(curves: ECDFView, vis_opts: ECDFVisOpts) -> tuple[int, ...]:
+    """Validate selected case pairs and locate their original curves.
+
+    Parameters
+    ----------
+    curves : ECDFView
+        Aligned ECDF quantiles and original case metadata for a single physical
+        cell.
+    vis_opts : ECDFVisOpts
+        Controls for drawing bounds, a centre curve and original cases.
+
+    Returns
+    -------
+    tuple[int, ...]
+        Flat row indices into orig_quants, in requested pair and offset order.
+    """
     if not isinstance(vis_opts.centre, EECDFCentre):
         raise TypeError("ECDF centre must be EECDFCentre.")
 
@@ -742,6 +1153,33 @@ def _plot_ecdf_view(
     offset_bounds: bool = False,
     show_all: bool = False,
 ) -> None:
+    """Render the reduced curves and selected original overlays for one source.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+    source : EValidSource
+        Simulation or experiment source, used to select labels and styles.
+    curves : ECDFView
+        Aligned ECDF quantiles and original case metadata for a single physical
+        cell.
+    options : ValidPlotOpts
+        Matplotlib styling options used by the plot.
+    vis_opts : ECDFVisOpts
+        Controls for drawing bounds, a centre curve and original cases.
+    overlay_indices : tuple[int, ...], optional
+        Flattened original curve indices in display order.
+    label_suffix : str, optional
+        Additional text appended to the source legend label.
+    profile : bool, optional
+        Apply the styling for nuisance profile curves.
+    offset_bounds : bool, optional
+        Apply offset-specific line styling to the bounds.
+    show_all : bool, optional
+        Draw the individual profile curves as well as their limits.
+    """
     view = curves.opts
     is_sim = source is EValidSource.SIM
     label = (options.sim_label if is_sim else options.exp_label) + label_suffix
@@ -912,6 +1350,23 @@ def _plot_nominal_offset_view(
     options: ValidPlotOpts,
 ) -> None:
     # Expanded offset order follows EEpisOffset, starting with NOMINAL.
+    """Overlay the nominal bounds and centre on a view that spans coherent offsets.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+    source : EValidSource
+        Simulation or experiment source, used to select labels and styles.
+    curves : ECDFView
+        Aligned ECDF quantiles and original case metadata for a single physical
+        cell.
+    profile : ECDFView or None
+        Optional nuisance-reduced view used for the nominal centre.
+    options : ValidPlotOpts
+        Matplotlib styling options used by the plot.
+    """
     nominal = curves.quants[:, :, 0].reshape(-1, curves.probs.size)
     is_sim = source is EValidSource.SIM
     color = options.sim_color if is_sim else options.exp_color
@@ -954,6 +1409,26 @@ def _plot_ecdf_limits(
     *,
     linewidth: float,
 ) -> None:
+    """Draw the pointwise lower and upper curves in an aligned family.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+    quantiles : ndarray
+        Aligned quantiles of shape (n_curves, n_probs).
+    probabilities : ndarray
+        One-dimensional cumulative probabilities, with shape (n_probs,).
+    color : str
+        Matplotlib colour of the plotted line.
+    linestyle : _LineStyle
+        Matplotlib line style for the displayed curve.
+    label : str
+        Legend text for the drawn curve or overlay.
+    linewidth : float
+        Line width in points.
+    """
     lower = np.min(quantiles, axis=0)
     upper = np.max(quantiles, axis=0)
     _plot_quantile_curve(
@@ -984,6 +1459,23 @@ def _plot_exp_confidence_bounds(
     show_bounds: EShowECDFBounds,
     options: ValidPlotOpts,
 ) -> None:
+    """Draw experimental support limits after per-case confidence shifts.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+    curves : ECDFView
+        Aligned ECDF quantiles and original case metadata for a single physical
+        cell.
+    alpha : float
+        Experimental confidence parameter used in the Student's t quantile.
+    show_bounds : EShowECDFBounds
+        Display mode for outer limits or individual offset and case curves.
+    options : ValidPlotOpts
+        Matplotlib styling options used by the plot.
+    """
     if alpha == 0.5:
         return
 
@@ -1034,6 +1526,20 @@ def add_support_overlay(
     must match. D_PLUS/D_MINUS show the corresponding extension separately.
     Omit output for the full support envelope. Bounds-based results with no
     physical axes are for a single-panel plot.
+
+    Parameters
+    ----------
+    plot : ECDFPlot
+        Existing ECDF plot to modify in place.
+    supports : ECDFMetricBounds
+        Simulation support bounds with shape ``(*retained_shape, n_probs)``.
+    output : EMetricOut or None, optional
+        Metric output to select. Use None to infer a single available output.
+    selectors : dict[EValidResAxis, int] or None, optional
+        Zero-based indices keyed by result axis; omitted axes follow the operation's
+        defaults.
+    label : str or None, optional
+        Legend text for the drawn curve or overlay.
     """
 
     if output not in (
@@ -1171,6 +1677,14 @@ def add_normalised_ecdf_axis(
     A reference quantile is evaluated on the displayed family's mean quantile
     curve, after its selected epistemic reductions. This is a constant scaling,
     not a probability-dependent displacement. Metric values retain physical units.
+
+    Parameters
+    ----------
+    plot : ECDFPlot
+        Existing ECDF plot to modify in place.
+    reference : float or ECDFReference
+        Nonzero scale or reference quantile of a selected source's displayed mean
+        curve.
     """
 
     if plot.normalisation is not None:
@@ -1246,6 +1760,19 @@ def add_metric_overlay(
     vertical distances between the displayed lower/upper support envelopes.
     CvM and paired metrics default to annotations of original comparison values.
     No metric is calculated from synthetic mean/median observations.
+
+    Parameters
+    ----------
+    plot : ECDFPlot
+        Existing ECDF plot to modify in place.
+    metric : IValidMetric
+        Metric identifier or strategy used by the plot or overlay.
+    output : EMetricOut or None, optional
+        Metric output to select. Use None to infer a single available output.
+    display : EMetricDisp or None, optional
+        Overlay geometry to draw. None chooses a default for the metric.
+    comparison : ECDFComparison or None, optional
+        Optional explicit original simulation and experiment case pair.
     """
     kind = metric.get_kind()
     outputs = metric.get_outputs()
@@ -1596,7 +2123,33 @@ def plot_valid_metric_time(
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
-    """Plot a selected epistemic case over time. MAVM defaults to both directions."""
+    """Plot a selected epistemic case over time. MAVM defaults to both directions.
+
+    Parameters
+    ----------
+    result : ValidResult
+        Validation results containing the requested observable and metric.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    metric : EMetricType
+        Metric identifier or strategy used by the plot or overlay.
+    selectors : dict[EValidResAxis, int] or None, optional
+        Zero-based indices keyed by result axis; omitted axes follow the operation's
+        defaults.
+    output : EMetricOut or None, optional
+        Metric output to select. Use None to infer a single available output.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+    ax : Axes or None, optional
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+
+    Returns
+    -------
+    tuple[Figure, Axes]
+        Figure and axes with metric values against the one-dimensional physical time
+        coordinate.
+    """
     field = result.metrics[observable][metric]
     outputs = (
         (EMetricOut.D_PLUS, EMetricOut.D_MINUS)
@@ -1662,7 +2215,32 @@ def plot_metric_dist(
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
-    """Histogram finite metric values over selected comparison cells."""
+    """Histogram finite metric values over selected comparison cells.
+
+    Parameters
+    ----------
+    result : ValidResult
+        Validation results containing the requested observable and metric.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    metric : EMetricType
+        Metric identifier or strategy used by the plot or overlay.
+    output : EMetricOut or None, optional
+        Metric output to select. Use None to infer a single available output.
+    selectors : dict[EValidResAxis, int] or None, optional
+        Zero-based indices keyed by result axis; omitted axes follow the operation's
+        defaults.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+    ax : Axes or None, optional
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+
+    Returns
+    -------
+    tuple[Figure, Axes]
+        Figure and axes with a histogram of the selected finite metric cells.
+    """
     field = result.metrics[observable][metric]
     output = field._resolve_output(output)
     selection_idx = _build_metric_selection(field, selectors)
@@ -1708,6 +2286,24 @@ def create_valid_plot_grid(
 
     Returns a two-dimensional axes array, hiding spare panels. Supply a panel
     count and optionally rows, columns or both to control the grid.
+
+    Parameters
+    ----------
+    point_count : int
+        Number of visible panels.
+    rows : int or None, optional
+        Requested grid rows. None chooses the count from the panel count and
+        columns.
+    columns : int or None, optional
+        Requested grid columns. None chooses the count automatically.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+
+    Returns
+    -------
+    tuple[Figure, ndarray]
+        Figure and object array of Matplotlib axes with shape (n_rows, n_columns).
+        Spare axes are hidden.
     """
 
     if (
@@ -1769,6 +2365,32 @@ def plot_metric_time_points(
     """Plot a selected epistemic case per point. MAVM defaults to both directions.
 
     The panel grid is sized from the point count unless columns is supplied.
+
+    Parameters
+    ----------
+    result : ValidResult
+        Validation results containing the requested observable and metric.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    metric : EMetricType
+        Metric identifier or strategy used by the plot or overlay.
+    point_idxs : tuple[int, ...]
+        Original point indices in panel order. None selects all available points.
+    selectors : dict[EValidResAxis, int] or None, optional
+        Zero-based indices keyed by result axis; omitted axes follow the operation's
+        defaults.
+    output : EMetricOut or None, optional
+        Metric output to select. Use None to infer a single available output.
+    columns : int or None, optional
+        Requested grid columns. None chooses the count automatically.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+
+    Returns
+    -------
+    tuple[Figure, ndarray]
+        Figure and two-dimensional axes grid with one time-series panel per selected
+        point.
     """
     field = result.metrics[observable][metric]
     validation_output = (
@@ -1830,6 +2452,34 @@ def plot_metric_extrema_time(
 
     Select any remaining non-singleton axes with selectors. By default all
     profiled points and both MAVM directions are shown.
+
+    Parameters
+    ----------
+    result : ValidResult
+        Validation results containing the requested observable and metric.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    metric : EMetricType
+        Metric identifier or strategy used by the plot or overlay.
+    profile : ValidMetricExtrema
+        Previously computed metric extrema and their controlling case indices.
+    point_idxs : tuple[int, ...] or None, optional
+        Original point indices in panel order. None selects all available points.
+    selectors : dict[EValidResAxis, int] or None, optional
+        Zero-based indices keyed by result axis; omitted axes follow the operation's
+        defaults.
+    output : EMetricOut or None, optional
+        Metric output to select. Use None to infer a single available output.
+    columns : int, optional
+        Requested grid columns. None chooses the count automatically.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+
+    Returns
+    -------
+    tuple[Figure, ndarray]
+        Figure and two-dimensional axes grid with lower and upper metric traces per
+        selected point.
     """
     observable_data = result.observables[observable]
     times = observable_data.times
@@ -1951,6 +2601,30 @@ def plot_metric_extrema_ecdfs(
 
     Select every non-singleton retained axis, including the physical time if
     present. Multi-output profiles require an explicit metric output.
+
+    Parameters
+    ----------
+    valid_case : ValidCase
+        Aligned simulation and experiment observations with their named axes.
+    observable : str
+        Observable tag identifying matching metadata and observations.
+    metric : EMetricType
+        Metric identifier or strategy used by the plot or overlay.
+    profile : ValidMetricExtrema
+        Previously computed metric extrema and their controlling case indices.
+    selectors : dict[EValidResAxis, int] or None, optional
+        Zero-based indices keyed by result axis; omitted axes follow the operation's
+        defaults.
+    output : EMetricOut or None, optional
+        Metric output to select. Use None to infer a single available output.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+
+    Returns
+    -------
+    tuple[Figure, ndarray]
+        Figure and axes array of shape (1, 2), showing the original minimum and
+        maximum comparisons.
     """
     field = MetricField(profile.axes, profile.minimum)
     output = field._resolve_output(output)
@@ -2044,6 +2718,28 @@ def _plot_quantile_curve(
     linewidth: float,
     alpha: float = 1.0,
 ) -> None:
+    """Draw a single empirical quantile curve as a probability step plot.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+    quantiles : ndarray
+        Curve coordinates of shape (n_probs,), in observable units.
+    probabilities : ndarray
+        One-dimensional cumulative probabilities, with shape (n_probs,).
+    color : str
+        Matplotlib colour of the plotted line.
+    label : str or None, optional
+        Legend text for the drawn curve or overlay.
+    linestyle : _LineStyle
+        Matplotlib line style for the displayed curve.
+    linewidth : float
+        Line width in points.
+    alpha : float, optional
+        Opacity of the plotted curve.
+    """
     ax.step(
         np.r_[quantiles[0], quantiles],
         np.r_[0.0, probabilities],
@@ -2067,6 +2763,30 @@ def _plot_distribution_bounds(
     bounds_linestyle: _LineStyle,
     linestyle: _LineStyle,
 ) -> None:
+    """Draw a mean quantile curve and selected distribution endpoints.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+    curves : ECDFView
+        Aligned ECDF quantiles and original case metadata for a single physical
+        cell.
+    support_cases : tuple[int, int] or None
+        Original flat indices for the lower and upper whole-case curves. None uses
+        pointwise limits.
+    color : str
+        Matplotlib colour of the plotted line.
+    label : str
+        Legend text for the drawn curve or overlay.
+    options : ValidPlotOpts
+        Matplotlib styling options used by the plot.
+    bounds_linestyle : _LineStyle
+        Line style used for lower and upper bound curves.
+    linestyle : _LineStyle
+        Matplotlib line style for the displayed curve.
+    """
     if support_cases is None:
         bounds = calc_ecdf_epis_bounds(curves)
         lower, upper = bounds.lower, bounds.upper
@@ -2130,6 +2850,33 @@ def plot_valid_mavm_diagnostic(
 
     The bound pairs provide the scalar MAVM distances used to shift sim
     support and draw the outer support band.
+
+    Parameters
+    ----------
+    sim : ECDFView
+        Computed simulation ECDF view.
+    exp : ECDFView or None, optional
+        Optional experimental ECDF view.
+    sim_support_cases : tuple[int, int] or None, optional
+        Optional pair of original simulation case indices for the lower and upper
+        curves.
+    exp_support_cases : tuple[int, int] or None, optional
+        Optional pair of original experimental case indices for the lower and upper
+        curves.
+    bound_pairs : MAVMBoundPairs or None, optional
+        MAVM endpoint comparisons required for shifted support and comparison views.
+    view : EValidMAVMDiagnostic, optional
+        Diagnostic mode for distributions, comparisons or corrected support.
+    valid_plot_opts : ValidPlotOpts or None, optional
+        Matplotlib layout and appearance settings. Use None for defaults.
+    ax : Axes or None, optional
+        Matplotlib axes to draw into. Public plotters create axes when None is
+        supplied.
+
+    Returns
+    -------
+    tuple[Figure, Axes]
+        Figure and axes with the selected MAVM diagnostic.
     """
 
     if not isinstance(view, EValidMAVMDiagnostic):

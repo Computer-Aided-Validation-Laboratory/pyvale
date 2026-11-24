@@ -59,7 +59,7 @@ def test_parallel_metrics_match_serial(workers: int) -> None:
     ]
     serial = vl.ValidEngine(metrics).run(test_case)
     parallel = vl.ValidEngine(
-        metrics, opts=vl.ValidEngineOpts(workers=workers)
+        metrics, workers=workers
     ).run(test_case)
     assert parallel.observables is test_case.observables
     assert parallel.metric_configs.keys() == serial.metric_configs.keys()
@@ -113,7 +113,7 @@ class FailingMetric(vl.IValidMetric):
 
 def test_worker_failure_propagates_and_engine_can_run_again() -> None:
     test_case = create_parallel_case()
-    engine = vl.ValidEngine([FailingMetric()], opts=vl.ValidEngineOpts(workers=2))
+    engine = vl.ValidEngine([FailingMetric()], workers=2)
     with pytest.raises(ValueError, match="Deliberate worker failure"):
         engine.run(test_case)
     engine.metrics = (vl.MetricAVM(),)
@@ -181,7 +181,7 @@ def test_uneven_partitions_preserve_physical_offsets(workers: int) -> None:
     )
     result = vl.ValidEngine(
         [vl.MetricAVM(), vl.MetricRMSE()],
-        opts=vl.ValidEngineOpts(workers=workers),
+        workers=workers,
     ).run(test_case)
     model_shifts = np.stack(
         (np.zeros_like(model_lower), -model_lower, 2 * model_lower), axis=-1
@@ -233,7 +233,7 @@ def test_small_workload_with_worker_cap_matches_analytic_shift() -> None:
     ]
     for workers in (1, 4):
         result = vl.ValidEngine(
-            metrics, opts=vl.ValidEngineOpts(workers=workers)
+            metrics, workers=workers
         ).run(test_case)
         for metric in metrics:
             assert (
@@ -257,15 +257,13 @@ def create_scalar_case(observations: np.ndarray) -> vl.ValidCase:
 def test_engine_snapshots_and_all_nan_configuration() -> None:
     metric = vl.MetricMAVM(alpha=0.1)
     metrics = [metric]
-    options = vl.ValidEngineOpts(workers=1)
-    engine = vl.ValidEngine(metrics, opts=options)
+    engine = vl.ValidEngine(metrics)
     metric.alpha = 0.2
     metrics.clear()
-    options.workers = 0
     result = engine.run(create_scalar_case(np.array([1.0, 2.0])))
     engine.metrics[0].alpha = 0.3
     assert result.metric_configs[vl.EMetricType.MAVM].alpha == 0.1
-    assert engine.opts.workers == 1
+    assert engine.workers == 1
     engine.metrics[0].tol = -1.0
     with pytest.raises(ValueError, match="tolerance"):
         engine.run(create_scalar_case(np.array([np.nan])))
@@ -312,7 +310,7 @@ def test_custom_multiple_outputs_preserve_order_axes_and_missing_cells(
     )
     result = vl.ValidEngine(
         [MetricSampleMeans(), vl.MetricKS()],
-        opts=vl.ValidEngineOpts(workers=workers),
+        workers=workers,
     ).run(test_case)
     field = result.metrics["scalar"][vl.EMetricType.AVM]
     assert tuple(field.metric_vals) == (
@@ -431,7 +429,7 @@ def test_engine_avm_matches_scalar_comparisons(
 
     for workers in (1, 4):
         result = vl.ValidEngine(
-            [vl.MetricAVM()], opts=vl.ValidEngineOpts(workers=workers)
+            [vl.MetricAVM()], workers=workers
         ).run(test_case)
         field = result.metrics[tag][vl.EMetricType.AVM]
         assert field.axes[-2:] == (vl.EValidResAxis.SIM_TRANS, vl.EValidResAxis.EXP_TRANS)

@@ -29,9 +29,9 @@ def test_invalid_observations_fail_when_case_is_initialized() -> None:
 
 
 @pytest.mark.parametrize("value", [0, -1, True, 1.5])
-def test_invalid_options(value: float) -> None:
+def test_invalid_worker_count(value: float) -> None:
     with pytest.raises((TypeError, ValueError)):
-        vl.ValidEngineOpts(workers=value)
+        vl.ValidEngine([vl.MetricAVM()], workers=value)
 
 
 @pytest.mark.parametrize(
@@ -296,7 +296,7 @@ def test_custom_metric_output_count_is_checked(workers: int) -> None:
     with pytest.raises(ValueError, match="Calculated outputs must match"):
         vl.ValidEngine(
             [MetricInvalidOutputs()],
-            opts=vl.ValidEngineOpts(workers=workers),
+            workers=workers,
         ).run(test_case)
 
 

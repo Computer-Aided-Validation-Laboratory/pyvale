@@ -139,7 +139,7 @@ ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 # %%
 # .. image:: /_static/val_ex01_fig01_observable_cdfs.png
 #    :alt: ECDFs for the scalar simulation and its shifted experiment
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 
 # %%
@@ -207,17 +207,17 @@ for oo, dd in (
 # %%
 # .. image:: /_static/val_ex01_fig03_ks_overlay.png
 #    :alt: Kolmogorov–Smirnov gap between the ECDFs
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 #
 # .. image:: /_static/val_ex01_fig05_rmse_overlay.png
 #    :alt: RMSE for samples paired by index
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 #
 # .. image:: /_static/val_ex01_fig08_mavm_d_plus_area.png
 #    :alt: Integration area for MAVM d+
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 
 # %%
@@ -242,7 +242,7 @@ if not SHOW_PLOTS:
 # %%
 # .. image:: /_static/val_ex01_fig10_mavm_support_envelope.png
 #    :alt: Full MAVM support span
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 
 if SHOW_PLOTS:

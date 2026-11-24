@@ -15,6 +15,21 @@ from pyvale.validation.validtypes import EMAVMDupes
 
 
 def _validate_finite_sample(values: np.ndarray, name: str) -> np.ndarray:
+    """Validate a conditional sample and omit missing observations.
+
+    Parameters
+    ----------
+    values : ndarray
+        One-dimensional observation array.
+    name : str
+        Input label used in exception messages.
+
+    Returns
+    -------
+    ndarray
+        Nonempty float64 sample of shape (n_present,), preserving the original
+        order.
+    """
     array = _validate_real_array(values, name)
 
     if array.ndim != 1:
@@ -29,6 +44,15 @@ def _validate_finite_sample(values: np.ndarray, name: str) -> np.ndarray:
 
 
 def _validate_unique_sample(values: np.ndarray, data_label: str) -> None:
+    """Reject repeated or near-repeated observations under the fullfield MAVM convention.
+
+    Parameters
+    ----------
+    values : ndarray
+        One-dimensional observation array.
+    data_label : str
+        Label identifying the source in duplicate-check errors.
+    """
     sorted_values = np.sort(values)
 
     if np.any(np.diff(sorted_values) <= MAVM_DUPLICATE_TOLERANCE):
@@ -40,6 +64,17 @@ def _validate_unique_sample(values: np.ndarray, data_label: str) -> None:
 
 
 def _validate_mavm_config(alpha: float, duplicates: EMAVMDupes, tol: float) -> None:
+    """Check the confidence parameter, duplicate policy and integration tolerance.
+
+    Parameters
+    ----------
+    alpha : float
+        Experimental confidence parameter used in the Student's t quantile.
+    duplicates : EMAVMDupes
+        Duplicate handling and empirical-probability integration policy.
+    tol : float
+        Absolute area tolerance for signed contributions, in observation units.
+    """
     if not isinstance(duplicates, EMAVMDupes):
         raise TypeError("MAVM duplicates must be EMAVMDupes.")
 
@@ -61,6 +96,14 @@ def _validate_mavm_config(alpha: float, duplicates: EMAVMDupes, tol: float) -> N
 
 
 def _validate_ecdf(cdf: ECDF) -> None:
+    """Validate support shape, strict ordering and cumulative probability mass.
+
+    Parameters
+    ----------
+    cdf : ECDF
+        Empirical distribution with matching one-dimensional support and probability
+        arrays.
+    """
     if not isinstance(cdf, ECDF):
         raise TypeError("Model CDFs must be ECDF records.")
 

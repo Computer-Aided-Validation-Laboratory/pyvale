@@ -42,10 +42,7 @@ from pyvale.validation.ecdfops import (
     evaluate_ecdf_quantiles,
     select_ecdf_support_sum_cases,
 )
-from pyvale.validation.validengine import (
-    ValidEngine,
-    ValidEngineOpts,
-)
+from pyvale.validation.validengine import ValidEngine
 from pyvale.validation.validio import (
     load_metric_extrema,
     load_valid_case,
@@ -79,7 +76,7 @@ from pyvale.validation.validplot import (
     plot_valid_mavm_diagnostic,
     plot_valid_metric_time,
 )
-from pyvale.validation.validpreparation import (
+from pyvale.validation.validprep import (
     SensorOutputSelection,
     assemble_exp_arrays,
     concatenate_valid_cases,
@@ -88,7 +85,7 @@ from pyvale.validation.validpreparation import (
     sample_sim_globals,
     sample_sim_sweep_for_valid,
 )
-from pyvale.validation.validprofile import (
+from pyvale.validation.validprof import (
     calc_avm_over_epis_bounds,
     calc_mavm_bound_pairs,
     calc_mavm_over_epis_bounds,
@@ -181,7 +178,6 @@ __all__ = [
     "ECDFVisOpts",
     "ECDFView",
     "ValidEngine",
-    "ValidEngineOpts",
     "ValidMetricExtrema",
     "ECDFNuisanceRank",
     "ValidObservable",

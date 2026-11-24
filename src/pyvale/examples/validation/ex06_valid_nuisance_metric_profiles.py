@@ -347,7 +347,7 @@ for ss in vl.EECDFNuisanceScore:
 # %%
 # .. image:: /_static/val_ex06_fig11_total_width_median_support_envelope.png
 #    :alt: Median nuisance pair ranked by total MAVM support width
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 
 if SHOW_PLOTS:

@@ -34,14 +34,43 @@ from pyvale.validation.validtypes import (
 
 
 def calc_ecdf(samples: np.ndarray) -> ECDF:
-    """Calculate a 1D ECDF, omitting NaNs and preserving duplicate mass."""
+    """Calculate a 1D ECDF, omitting NaNs and preserving duplicate mass.
+
+    Parameters
+    ----------
+    samples : ndarray
+        Aleatory observations of shape (n_aleatory,) for one conditional
+        distribution.
+
+    Returns
+    -------
+    ECDF
+        Sorted distinct observations and cumulative empirical masses, each with
+        shape (n_support,). NaNs are omitted; repeated values contribute their full
+        mass.
+    """
     observations = _validate_finite_sample(samples, "samples")
     cdf = stats.ecdf(observations).cdf
     return ECDF(cdf.quantiles, cdf.probabilities)
 
 
 def evaluate_ecdf_quantiles(cdf: ECDF, probabilities: np.ndarray) -> np.ndarray:
-    """Evaluate the inverse ECDF using the first support reaching each probability."""
+    """Evaluate the inverse ECDF using the first support reaching each probability.
+
+    Parameters
+    ----------
+    cdf : ECDF
+        Empirical distribution with matching one-dimensional support and probability
+        arrays.
+    probabilities : ndarray
+        One-dimensional cumulative probabilities, with shape (n_probs,).
+
+    Returns
+    -------
+    ndarray
+        Quantiles of shape (n_probs,), in input probability order. Each value is the
+        first support point whose cumulative mass reaches the requested probability.
+    """
     _validate_ecdf(cdf)
     probabilities = _validate_real_array(probabilities, "probabilities", allow_nan=False)
 
@@ -55,11 +84,41 @@ def evaluate_ecdf_quantiles(cdf: ECDF, probabilities: np.ndarray) -> np.ndarray:
 
 
 def _evaluate_ecdf_quantiles(cdf: ECDF, probabilities: np.ndarray) -> np.ndarray:
+    """Evaluate inverse ECDF quantiles on a trusted grid.
+
+    Parameters
+    ----------
+    cdf : ECDF
+        Empirical distribution with matching one-dimensional support and probability
+        arrays.
+    probabilities : ndarray
+        One-dimensional cumulative probabilities, with shape (n_probs,).
+
+    Returns
+    -------
+    ndarray
+        Quantiles of shape (n_probs,), selected using a left-sided probability
+        search.
+    """
     return cdf.quants[np.searchsorted(cdf.probs, probabilities, side="left")]
 
 
 def select_ecdf_support_sum_cases(samples: tuple[np.ndarray, ...]) -> tuple[int, int]:
-    """Select whole cases by the minimum and maximum sums of unique support."""
+    """Select whole cases by the minimum and maximum sums of unique support.
+
+    Parameters
+    ----------
+    samples : tuple[ndarray, ...]
+        Tuple of original conditional sample arrays. Each array has shape
+        (n_aleatory,) for its case; lengths may differ.
+
+    Returns
+    -------
+    tuple[int, int]
+        Indices of the cases with the minimum and maximum sum of distinct finite
+        support values, in that order. Ties choose the first case.
+    """
+
     if not samples:
         raise ValueError("Supply at least one conditional sample.")
 
@@ -87,6 +146,29 @@ def calc_ecdf_view(
     they do not assign probabilities to epistemic uncertainty. Original case
     overlays remain unchanged by reductions. None offset explicitly spans every
     available coherent offset; the default retains nominal values only.
+
+    Parameters
+    ----------
+    quantity : ValidArray
+        Observations paired with their canonical named axes.
+    view : ECDFViewSel or None, optional
+        Epistemic selection and reduction settings. Use None for the default
+        selection.
+    point_idx : int, optional
+        Zero-based physical sampling point index.
+    component_idx : int, optional
+        Zero-based observable component index.
+    time_idx : int, optional
+        Zero-based evaluation time index.
+    offset : EEpisOffset or None, optional
+        Coherent offset to apply. Use None to include nominal and all available
+        offsets.
+
+    Returns
+    -------
+    ECDFView
+        Original and reduced quantiles on a common grid, with axes (transferable,
+        nuisance, offset, probability). Reduced dimensions remain singleton axes.
     """
     selected_view = ECDFViewSel() if view is None else view
 
@@ -180,7 +262,21 @@ def calc_ecdf_view(
 
 
 def _reduce_ecdf_quantiles(quantiles: np.ndarray, view: ECDFViewSel) -> np.ndarray:
-    """Reduce trusted quantile arrays in the same order for views and confidence bounds."""
+    """Reduce trusted quantile arrays in the same order for views and confidence bounds.
+
+    Parameters
+    ----------
+    quantiles : ndarray
+        Quantile array of shape (n_trans, n_nuis, n_offsets, n_probs).
+    view : ECDFViewSel
+        Selection settings that declare the nuisance and transferable reductions.
+
+    Returns
+    -------
+    ndarray
+        Reduced quantiles retaining both epistemic axes as singleton dimensions
+        where reduced.
+    """
 
     for axis, reduction, probability in (
         (1, view.nuis_reduce, view.nuis_quantile),
@@ -202,7 +298,24 @@ def _find_quantile_limits(
     case_labels: tuple[tuple[int, int, EEpisOffset], ...],
     view: ECDFViewSel,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Find pointwise inverse ECDF extrema and their original case labels.
 
+    Parameters
+    ----------
+    quantiles : ndarray
+        Reduced quantiles of shape (n_trans, n_nuis, n_offsets, n_probs).
+    case_labels : tuple[tuple[int, int, EEpisOffset], ...]
+        Original (transferable index, nuisance index, offset) labels in row-major
+        order.
+    view : ECDFViewSel
+        Reduction settings that identify axes with synthetic cases.
+
+    Returns
+    -------
+    tuple[ndarray, ndarray, ndarray, ndarray]
+        Lower and upper quantiles of shape (n_probs,), followed by their two origin
+        arrays of shape (n_probs, 3). An origin index of -1 denotes a reduced axis.
+    """
     trans_indices = tuple(dict.fromkeys(case_label[0] for case_label in case_labels))
     nuis_indices = tuple(dict.fromkeys(case_label[1] for case_label in case_labels))
     offsets = tuple(dict.fromkeys(case_label[2] for case_label in case_labels))
@@ -231,7 +344,19 @@ def _find_quantile_limits(
 
 
 def calc_ecdf_epis_bounds(view: ECDFView) -> ECDFEpisBounds:
-    """Find pointwise quantile bounds and their controlling epistemic cases."""
+    """Find pointwise quantile bounds and their controlling epistemic cases.
+
+    Parameters
+    ----------
+    view : ECDFView
+        Computed ECDF view with aligned quantile curves and original case metadata.
+
+    Returns
+    -------
+    ECDFEpisBounds
+        Pointwise lower and upper quantiles on the view's shared probability grid,
+        with controlling case indices.
+    """
     lower, upper, lower_indices, upper_indices = _find_quantile_limits(
         view.quants, view.orig_epis_offsets, view.opts
     )

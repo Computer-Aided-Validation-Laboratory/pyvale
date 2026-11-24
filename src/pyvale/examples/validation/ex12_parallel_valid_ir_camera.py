@@ -186,7 +186,7 @@ print(80*"-")
 print("Calculating validation metrics serial...", flush=True)
 serial_start = perf_counter()
 serial_result = vl.ValidEngine(
-    [vl.MetricAVM()], opts=vl.ValidEngineOpts(workers=1)
+    [vl.MetricAVM()], workers=1
 ).run(valid_case)
 serial_seconds = perf_counter() - serial_start
 print(f"Serial AVM: {serial_seconds:.3f} s", flush=True)
@@ -195,7 +195,7 @@ print(80*"-")
 print("Calculating validation metrics in parallel (4 workers)...", flush=True)
 parallel_start = perf_counter()
 parallel_result = vl.ValidEngine(
-    [vl.MetricAVM()], opts=vl.ValidEngineOpts(workers=4)
+    [vl.MetricAVM()], workers=4
 ).run(valid_case)
 parallel_seconds = perf_counter() - parallel_start
 

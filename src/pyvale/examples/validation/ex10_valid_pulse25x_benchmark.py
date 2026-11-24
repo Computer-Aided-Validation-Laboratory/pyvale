@@ -254,12 +254,12 @@ for kk in observables:
 #
 # .. image:: /_static/val_ex10_fig03_mavm_support_envelope_TC3.png
 #    :alt: TC3 simulation and experiment ECDFs with the MAVM support envelope
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 #
 # .. image:: /_static/val_ex10_fig05_2_dextremes_wcdfs_TC3.png
 #    :alt: TC3 shifted endpoint curves for the paired MAVM comparisons
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 
 if SHOW_PLOTS:

@@ -132,12 +132,12 @@ for rr, aa, mm in (
 # %%
 # .. image:: /_static/val_ex04_fig02_mavm_support_envelope_bounds.png
 #    :alt: MAVM support envelope calculated from ECDF bounds
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 #
 # .. image:: /_static/val_ex04_fig04_mavm_support_envelope_original.png
 #    :alt: MAVM support envelope calculated from original case pairs
-#    :width: 100%
+#    :width: 75%
 #    :align: center
 
 if SHOW_PLOTS:

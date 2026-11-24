@@ -320,7 +320,7 @@ def main() -> None:
             vl.MetricKS(),
             vl.MetricCVM(),
         ],
-        opts=vl.ValidEngineOpts(workers=arguments.workers),
+        workers=arguments.workers,
     )
     # A fixed positive scale avoids singular relative error at initial zero fields.
     paired_engines = {
@@ -337,7 +337,7 @@ def main() -> None:
                     }[case.name],
                 ),
             ],
-            opts=vl.ValidEngineOpts(workers=arguments.workers),
+            workers=arguments.workers,
         )
         for case in cases
     }

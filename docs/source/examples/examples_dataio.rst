@@ -1,7 +1,7 @@
 .. _examples_dataio:
 
-Data I/O examples
-=================
+Data I/O
+========
 
 Load experimental sensor measurements and probabilistic simulation samples
 from the Pulse25X CSV files.

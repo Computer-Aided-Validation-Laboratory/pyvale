@@ -127,7 +127,7 @@ def test_engine_matches_standalone_uncertainty_products(workers: int) -> None:
         vl.MetricCVM(),
     ]
     result = vl.ValidEngine(
-        metrics, opts=vl.ValidEngineOpts(workers=workers)
+        metrics, workers=workers
     ).run(vl.ValidCase(observables, {"response": simulated}, {"response": observed}))
     for sim_trans, sim_nuis, exp_trans, exp_nuis, sim_offset, exp_offset in product(
         range(2), range(2), range(2), range(2), vl.EEpisOffset, vl.EEpisOffset

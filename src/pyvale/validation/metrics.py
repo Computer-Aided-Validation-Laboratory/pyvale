@@ -59,7 +59,7 @@ def calc_mavm_1d(
         observations. INCLUDE supports repeated observations using weighted ECDF
         probability steps.
     tol : float, optional
-        Floating-point comparison tolerance for interval boundaries.
+        Absolute area tolerance for signed contributions, in observation units.
 
     Returns
     -------
@@ -89,6 +89,7 @@ def calc_avm_1d(
     """
     model_samples = _validate_finite_sample(model_data, "model_data")
     exp_samples = _validate_finite_sample(exp_data, "exp_data")
+
     return float(stats.wasserstein_distance(model_samples, exp_samples))
 
 
@@ -112,6 +113,7 @@ def calc_ks_1d(
     """
     model_samples = _validate_finite_sample(model_data, "model_data")
     exp_samples = _validate_finite_sample(exp_data, "exp_data")
+
     return _calculate_ks_statistic(model_samples, exp_samples)
 
 
@@ -135,38 +137,80 @@ def calc_cvm_1d(
     """
     model_samples = _validate_finite_sample(model_data, "model_data")
     exp_samples = _validate_finite_sample(exp_data, "exp_data")
+
     return _calculate_cvm_statistic(model_samples, exp_samples)
 
 
 def _calculate_ks_statistic(sim: np.ndarray, exp: np.ndarray) -> float:
+    """Calculate the maximum gap between two empirical CDFs.
+
+    Parameters
+    ----------
+    sim : ndarray
+        Simulation observations of shape (n_sim_aleatory,) for one comparison.
+    exp : ndarray
+        Experimental observations of shape (n_exp_aleatory,) in the same units as
+        sim.
+
+    Returns
+    -------
+    float
+        Maximum absolute difference in cumulative probability.
+    """
     sim_sorted = np.sort(sim)
     exp_sorted = np.sort(exp)
+
     support = np.concatenate((sim_sorted, exp_sorted))
+
     sim_cdf = np.searchsorted(sim_sorted, support, side="right") / len(sim)
     exp_cdf = np.searchsorted(exp_sorted, support, side="right") / len(exp)
+
     return float(np.max(np.abs(sim_cdf - exp_cdf)))
 
 
 def _calculate_cvm_statistic(sim: np.ndarray, exp: np.ndarray) -> float:
+    """Calculate the two-sample Cramér–von Mises statistic using pooled ranks.
+
+    Parameters
+    ----------
+    sim : ndarray
+        Simulation observations of shape (n_sim_aleatory,) for one comparison.
+    exp : ndarray
+        Experimental observations of shape (n_exp_aleatory,) in the same units as
+        sim.
+
+    Returns
+    -------
+    float
+        Dimensionless two-sample statistic.
+    """
     sim_count, exp_count = len(sim), len(exp)
+
     if min(sim_count, exp_count) < 2:
         return float(stats.cramervonmises_2samp(sim, exp).statistic)
+
     # Anderson's two-sample statistic with pooled average ranks for ties.
     pooled = np.concatenate((np.sort(sim), np.sort(exp)))
     ranks = stats.rankdata(pooled, method="average")
+
     sim_rank_error = ranks[:sim_count] - np.arange(1, sim_count + 1)
     exp_rank_error = ranks[sim_count:] - np.arange(1, exp_count + 1)
+
     rank_sum = sim_count * np.sum(sim_rank_error * sim_rank_error) + exp_count * np.sum(
         exp_rank_error * exp_rank_error
     )
+
     pair_count = sim_count * exp_count
     total_count = sim_count + exp_count
+
     return float(
         rank_sum / (pair_count * total_count) - (4 * pair_count - 1) / (6 * total_count)
     )
 
 
 class ERelErrNorm(Enum):
+    """Choose the reference magnitude used by relative error."""
+
     EXP_MAX = auto()
     SIM_MAX = auto()
     CONSTANT = auto()
@@ -174,6 +218,21 @@ class ERelErrNorm(Enum):
 
 @dataclass(slots=True)
 class DetMetricResult:
+    """Store errors calculated from matched simulation and experimental observations.
+
+    Attributes
+    ----------
+    abs_err : float
+        Mean absolute error in observable units.
+    rel_err : float
+        Mean absolute error divided by the selected reference magnitude.
+    rmse : float
+        Root mean square error in observable units.
+    nmse : float
+        Mean square error divided by the variance of the experimental observations.
+        NaN when that variance is effectively zero.
+    """
+
     abs_err: float
     rel_err: float
     rmse: float
@@ -184,6 +243,15 @@ def _validate_relative_error_config(
     normalisation: ERelErrNorm,
     constant: float | None,
 ) -> None:
+    """Validate the relative error normalisation and optional constant.
+
+    Parameters
+    ----------
+    normalisation : ERelErrNorm
+        Reference used to scale the mean absolute paired error.
+    constant : float or None
+        Positive fixed normalisation value for CONSTANT mode; otherwise None.
+    """
     if not isinstance(normalisation, ERelErrNorm):
         raise TypeError("Normalisation must be ERelErrNorm.")
 
@@ -209,6 +277,24 @@ def _calculate_relative_error(
     normalisation: ERelErrNorm,
     constant: float | None,
 ) -> float:
+    """Calculate relative error on clean, matched observations.
+
+    Parameters
+    ----------
+    sim : ndarray
+        Simulation observations of shape (n_pairs,).
+    exp : ndarray
+        Experimental observations of shape (n_pairs,), paired by index with sim.
+    normalisation : ERelErrNorm
+        Reference used to scale the mean absolute paired error.
+    constant : float or None
+        Positive fixed normalisation value for CONSTANT mode; otherwise None.
+
+    Returns
+    -------
+    float
+        Mean absolute error divided by the selected normalisation magnitude.
+    """
     if normalisation is ERelErrNorm.EXP_MAX:
         denominator = float(np.max(np.abs(exp)))
     elif normalisation is ERelErrNorm.SIM_MAX:
@@ -216,8 +302,10 @@ def _calculate_relative_error(
     else:
         assert constant is not None
         denominator = constant
+
     if denominator == 0:
         return float("nan")
+
     return float(np.mean(np.abs(sim - exp)) / denominator)
 
 
@@ -225,13 +313,32 @@ def _validate_paired_samples(
     sim: float | np.ndarray,
     exp: float | np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
+    """Check paired observations and remove pairs containing NaN.
+
+    Parameters
+    ----------
+    sim : float or ndarray
+        Simulation observations of shape (n_aleatory,).
+    exp : float or ndarray
+        Experimental observations of the same shape and units, paired by index.
+
+    Returns
+    -------
+    tuple[ndarray, ndarray]
+        Two float64 arrays of shape (n_valid_pairs,), preserving the original pair
+        order.
+    """
     sim_array = np.atleast_1d(_validate_real_array(sim, "simulation"))
     exp_array = np.atleast_1d(_validate_real_array(exp, "experiment"))
+
     if sim_array.ndim != 1 or sim_array.shape != exp_array.shape:
         raise ValueError("Deterministic metrics require paired 1D observations.")
+
     paired = ~np.isnan(sim_array) & ~np.isnan(exp_array)
+
     if not np.any(paired):
         raise ValueError("Deterministic metrics need a finite observation pair.")
+
     return sim_array[paired].astype(np.float64), exp_array[paired].astype(np.float64)
 
 
@@ -242,12 +349,33 @@ def calc_deterministic_metrics_1d(
     normalisation: ERelErrNorm = ERelErrNorm.EXP_MAX,
     constant: float | None = None,
 ) -> DetMetricResult:
-    """Return paired errors; NMSE is NaN for variance at or below the zero tolerance."""
+    """Return paired errors; NMSE is NaN for variance at or below the zero tolerance.
+
+    Parameters
+    ----------
+    sim_valid : float or ndarray
+        Simulation observations of shape (n_aleatory,), paired by index with
+        exp_valid.
+    exp_valid : float or ndarray
+        Experimental observations of shape (n_aleatory,) in the same units. Pairs
+        containing NaN are omitted.
+    normalisation : ERelErrNorm, optional
+        Reference used to scale the mean absolute paired error.
+    constant : float or None, optional
+        Positive fixed normalisation value for CONSTANT mode; otherwise None.
+
+    Returns
+    -------
+    DetMetricResult
+        Mean absolute error, relative error, RMSE and NMSE for the remaining pairs.
+    """
     _validate_relative_error_config(normalisation, constant)
     sim, exp = _validate_paired_samples(sim_valid, exp_valid)
+
     residual = sim - exp
     mean_square_error = float(np.mean(residual * residual))
     exp_variance = float(np.var(exp))
+
     return DetMetricResult(
         abs_err=float(np.mean(np.abs(residual))),
         rel_err=_calculate_relative_error(sim, exp, normalisation, constant),
