@@ -18,22 +18,18 @@ from pyvale.validation.imetric import (
     EMetricType,
     IValidMetric,
     MAVMResult,
-    MetricResult,
     ScalarMetricResult,
 )
 from pyvale.validation.metrics import (
     ERelErrNorm,
     _calculate_cvm_statistic,
     _calculate_ks_statistic,
-    calc_avm_1d,
-    calc_cvm_1d,
-    calc_ks_1d,
     calc_mavm_1d,
     _calculate_relative_error,
     _validate_paired_samples,
     _validate_relative_error_config,
 )
-from pyvale.validation.validchecks import _validate_mavm_config
+from pyvale.validation.validchecks import _validate_finite_sample, _validate_mavm_config
 from pyvale.validation.validtypes import EMAVMDuplicates
 
 
@@ -75,6 +71,9 @@ class MetricMAVM(IValidMetric):
             sim, exp, alpha=self.alpha, duplicates=self.duplicates, tol=self.tol
         )
 
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> MAVMResult:
+        return _calculate_mavm(sim, exp, self.alpha, self.duplicates, self.tol)
+
 
 class MetricAVM(IValidMetric):
     __slots__ = ()
@@ -92,7 +91,14 @@ class MetricAVM(IValidMetric):
         return (EMetricOut.DISTANCE,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
-        return ScalarMetricResult(EMetricType.AVM, calc_avm_1d(sim, exp))
+        return self._calc_trusted(
+            _validate_finite_sample(sim, "model_data"),
+            _validate_finite_sample(exp, "exp_data"),
+        )
+
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        distance = float(stats.wasserstein_distance(sim, exp))
+        return ScalarMetricResult(EMetricType.AVM, distance)
 
 
 class MetricKS(IValidMetric):
@@ -111,7 +117,13 @@ class MetricKS(IValidMetric):
         return (EMetricOut.STATISTIC,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
-        return ScalarMetricResult(EMetricType.KS, calc_ks_1d(sim, exp))
+        return self._calc_trusted(
+            _validate_finite_sample(sim, "model_data"),
+            _validate_finite_sample(exp, "exp_data"),
+        )
+
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        return ScalarMetricResult(EMetricType.KS, _calculate_ks_statistic(sim, exp))
 
 
 class MetricCVM(IValidMetric):
@@ -130,7 +142,13 @@ class MetricCVM(IValidMetric):
         return (EMetricOut.STATISTIC,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
-        return ScalarMetricResult(EMetricType.CVM, calc_cvm_1d(sim, exp))
+        return self._calc_trusted(
+            _validate_finite_sample(sim, "model_data"),
+            _validate_finite_sample(exp, "exp_data"),
+        )
+
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        return ScalarMetricResult(EMetricType.CVM, _calculate_cvm_statistic(sim, exp))
 
 
 class MetricRMSE(IValidMetric):
@@ -149,8 +167,12 @@ class MetricRMSE(IValidMetric):
         return (EMetricOut.ERROR,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
-        sim_values, exp_values = _validate_paired_samples(sim, exp)
-        residual = sim_values - exp_values
+        return self._calc_trusted(*_validate_paired_samples(sim, exp))
+
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        if not len(sim):
+            return ScalarMetricResult(EMetricType.RMSE, float("nan"))
+        residual = sim - exp
         return ScalarMetricResult(
             EMetricType.RMSE,
             float(np.sqrt(np.mean(residual * residual))),
@@ -185,41 +207,12 @@ class MetricRelErr(IValidMetric):
         return (EMetricOut.ERROR,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
-        sim, exp = _validate_paired_samples(sim, exp)
+        return self._calc_trusted(*_validate_paired_samples(sim, exp))
+
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> ScalarMetricResult:
+        if not len(sim):
+            return ScalarMetricResult(EMetricType.REL_ERR, float("nan"))
         return ScalarMetricResult(
             EMetricType.REL_ERR,
             _calculate_relative_error(sim, exp, self.normalisation, self.constant),
         )
-
-
-def _calculate_trusted_metric(
-    metric: IValidMetric, sim: np.ndarray, exp: np.ndarray
-) -> MetricResult:
-    """Calculate on validated engine arrays, omitting missing observations."""
-    kind = metric.get_kind()
-
-    if type(metric) in (MetricRMSE, MetricRelErr):
-        if not len(sim):
-            return ScalarMetricResult(kind, float("nan"))
-        if isinstance(metric, MetricRelErr):
-            value = _calculate_relative_error(
-                sim, exp, metric.normalisation, metric.constant
-            )
-        else:
-            residual = sim - exp
-            value = float(np.sqrt(np.mean(residual * residual)))
-        return ScalarMetricResult(kind, value)
-
-    if type(metric) is MetricMAVM:
-        return _calculate_mavm(sim, exp, metric.alpha, metric.duplicates, metric.tol)
-
-    if type(metric) is MetricAVM:
-        return ScalarMetricResult(kind, float(stats.wasserstein_distance(sim, exp)))
-
-    if type(metric) is MetricKS:
-        return ScalarMetricResult(kind, _calculate_ks_statistic(sim, exp))
-
-    if type(metric) is MetricCVM:
-        return ScalarMetricResult(kind, _calculate_cvm_statistic(sim, exp))
-
-    return metric.calc(sim, exp)

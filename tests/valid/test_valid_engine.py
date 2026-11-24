@@ -104,6 +104,9 @@ class FailingMetric(vl.IValidMetric):
     def get_kind(self) -> vl.EMetricType:
         return vl.EMetricType.AVM
 
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> vl.MetricResult:
+        return self.calc(sim, exp)
+
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.MetricResult:
         raise ValueError("Deliberate worker failure.")
 
@@ -283,6 +286,9 @@ class MetricSampleMeans(vl.IValidMetric):
     def get_outputs(self) -> tuple[vl.EMetricOut, ...]:
         return (vl.EMetricOut.ERROR, vl.EMetricOut.DISTANCE)
 
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> vl.MetricResult:
+        return self.calc(sim, exp)
+
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.MetricResult:
         mean = float(np.mean(sim))
         return vl.MultiMetricResult(self.get_kind(), (mean, mean + 1.0))
@@ -354,6 +360,9 @@ class MetricSampleDifference(vl.IValidMetric):
         return (vl.EMetricOut.STATISTIC,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.ScalarMetricResult:
+        return self._calc_trusted(sim, exp)
+
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> vl.ScalarMetricResult:
         return vl.ScalarMetricResult(
             self.get_kind(), float(np.sum(sim) - np.sum(exp))
         )

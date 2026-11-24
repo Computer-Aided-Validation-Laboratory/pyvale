@@ -88,6 +88,9 @@ class MetricSampleDifference(vl.IValidMetric):
         return (vl.EMetricOut.STATISTIC,)
 
     def calc(self, sim: np.ndarray, exp: np.ndarray) -> vl.ScalarMetricResult:
+        return self._calc_trusted(sim, exp)
+
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> vl.ScalarMetricResult:
         return vl.ScalarMetricResult(
             self.get_kind(), float(np.sum(sim) - np.sum(exp))
         )

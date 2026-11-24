@@ -36,7 +36,6 @@ from pyvale.validation.metricstrategy import (
     MetricMAVM,
     MetricRelErr,
     MetricRMSE,
-    _calculate_trusted_metric,
 )
 from pyvale.validation.validchecks import (
     _validate_mavm_config,
@@ -423,11 +422,9 @@ def _calculate_partition(
                         metric.tol,
                     )
                 elif paired_metric:
-                    metric_result = _calculate_trusted_metric(
-                        metric, paired_sim, paired_exp
-                    )
+                    metric_result = metric._calc_trusted(paired_sim, paired_exp)
                 else:
-                    metric_result = _calculate_trusted_metric(metric, sim, exp)
+                    metric_result = metric._calc_trusted(sim, exp)
                 output_stop = output_start + len(outputs)
                 output_values = extract_metric_outputs(metric_result)
                 if check_count and len(output_values) != len(outputs):

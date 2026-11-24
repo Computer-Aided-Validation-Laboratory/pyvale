@@ -108,6 +108,13 @@ class IValidMetric(ABC):
         """Return a tagged metric result."""
 
     @abstractmethod
+    def _calc_trusted(self, sim: np.ndarray, exp: np.ndarray) -> MetricResult:
+        """Calculate on validated 1D samples after engine NaN filtering.
+
+        Paired metrics may receive empty arrays when no complete pairs remain.
+        """
+
+    @abstractmethod
     def get_kind(self) -> EMetricType:
         """Return the metric tag without calculating a result."""
 
