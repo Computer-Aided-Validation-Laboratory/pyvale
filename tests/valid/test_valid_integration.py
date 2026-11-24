@@ -267,8 +267,8 @@ def test_extract_ecdf_selects_epistemic_cell_and_retains_duplicate_mass(
         epis_nuis_idx=0,
         offset=vl.EEpisOffset.UPPER,
     )
-    np.testing.assert_array_equal(cdf.quantiles, [12.0, 14.0])
-    np.testing.assert_allclose(cdf.probabilities, [2.0 / 3.0, 1.0])
+    np.testing.assert_array_equal(cdf.quants, [12.0, 14.0])
+    np.testing.assert_allclose(cdf.probs, [2.0 / 3.0, 1.0])
     assert ecdf_quantity.data[1, 0, 0] == 10.0
 
 
@@ -490,7 +490,7 @@ def test_nuisance_median_profiles_are_drawn_inside_source_envelopes() -> None:
     sim = test_case.sim["length"]
     test_case.exp["length"] = vl.ValidArray(sim.data + 10.0, sim.axes)
     plot = validplot.plot_sim_exp_cdfs(
-        test_case, "length", nuisance_profile=vl.EValidECDFReduce.MEDIAN
+        test_case, "length", nuisance_profile=vl.EECDFReduce.MEDIAN
     )
     axis = plot.axes[0, 0]
     assert axis.get_legend_handles_labels()[1] == [
@@ -508,7 +508,7 @@ def test_nuisance_median_profiles_are_drawn_inside_source_envelopes() -> None:
             np.testing.assert_array_equal(
                 line.get_xdata()[1:], np.array(expected) + shift
             )
-    assert all(curves.quantiles.shape[1] == 3 for curves in plot.data[0].values())
+    assert all(curves.quants.shape[1] == 3 for curves in plot.data[0].values())
     plt.close(plot.figure)
 
 
@@ -525,7 +525,7 @@ def test_ecdf_nested_bounds_keep_only_outer_confidence_limits_by_default(
         test_case,
         "length",
         exp_offset=None,
-        nuisance_profile=vl.EValidECDFReduce.MEDIAN,
+        nuisance_profile=vl.EECDFReduce.MEDIAN,
         confidence_alpha=0.05,
         show_bounds=mode,
         valid_plot_opts=vl.ValidPlotOpts(lw=2.0),
@@ -575,18 +575,37 @@ def test_offsets_are_explicit_and_retained_as_coherent_scenarios() -> None:
         vl.EpistemicOffsets(0.5, 2.0),
     )
     nominal = vl.calc_ecdf_view(quantity)
-    assert nominal.quantiles.shape == (1, 1, 1, 2)
-    np.testing.assert_array_equal(nominal.quantiles[0, 0, 0], [1.0, 3.0])
+    assert nominal.quants.shape == (1, 1, 1, 2)
+    np.testing.assert_array_equal(nominal.quants[0, 0, 0], [1.0, 3.0])
     all_offsets = vl.calc_ecdf_view(
-        quantity, offset=None, view=vl.ValidECDFView(scenario_idxs=None)
+        quantity, offset=None, view=vl.ECDFViewOpts(scenario_idxs=None)
     )
-    assert all_offsets.quantiles.shape == (1, 1, 3, 2)
+    assert all_offsets.quants.shape == (1, 1, 3, 2)
     np.testing.assert_array_equal(
-        all_offsets.quantiles[0, 0], [[1.0, 3.0], [0.5, 2.5], [3.0, 5.0]]
+        all_offsets.quants[0, 0], [[1.0, 3.0], [0.5, 2.5], [3.0, 5.0]]
     )
-    assert tuple(scenario[2] for scenario in all_offsets.scenarios) == tuple(
-        vl.EEpisOffset
+    selected_offsets = tuple(
+        all_offsets.orig_epis_offsets[idx][2] for idx in all_offsets.overlay_indices
     )
+    assert selected_offsets == tuple(vl.EEpisOffset)
+
+
+def test_mavm_diagnostic_draws_pointwise_or_whole_case_bounds() -> None:
+    quantity = vl.ValidArray(
+        np.array([[0.0, 10.0], [4.0, 5.0]]),
+        (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY),
+    )
+    curves = vl.calc_ecdf_view(quantity)
+    support_cases = vl.select_ecdf_support_cases(curves.samples)
+    for cases, expected_lower, expected_upper in (
+        (None, [0.0, 5.0], [4.0, 10.0]),
+        (support_cases, [4.0, 5.0], [0.0, 10.0]),
+    ):
+        figure, axes = vl.plot_valid_mavm_diagnostic(curves, sim_support_cases=cases)
+        np.testing.assert_array_equal(axes.lines[0].get_xdata()[1:], [2.0, 7.5])
+        np.testing.assert_array_equal(axes.lines[1].get_xdata()[1:], expected_lower)
+        np.testing.assert_array_equal(axes.lines[2].get_xdata()[1:], expected_upper)
+        plt.close(figure)
 
 
 def test_many_scenarios_default_to_two_bounds() -> None:
@@ -646,7 +665,7 @@ def test_reference_quantile_normalisation_is_a_constant_secondary_axis(
     plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     original_quantiles = plot.axes[0, 0].lines[0].get_xdata().copy()
     validplot.add_normalised_ecdf_axis(
-        plot, validplot.ValidECDFReference(probability=probability)
+        plot, validplot.ECDFReference(probability=probability)
     )
     plot.figure.canvas.draw()
     assert plot.normalisation == (expected,)
@@ -667,7 +686,7 @@ def test_constant_and_exp_reference_scalings_are_explicit() -> None:
     test_case = create_ecdf_case(np.array([2.0, 4.0]), np.array([10.0, 20.0]))
     plot = validplot.plot_sim_exp_cdfs(test_case, "length")
     validplot.add_normalised_ecdf_axis(
-        plot, validplot.ValidECDFReference(source=vl.EValidSource.EXP)
+        plot, validplot.ECDFReference(source=vl.EValidSource.EXP)
     )
     assert plot.normalisation == (10.0,)
     plt.close(plot.figure)

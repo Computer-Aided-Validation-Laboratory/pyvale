@@ -227,7 +227,7 @@ print(80*"-")
 # The ECDF envelope spans predictions from the three simulation runs at each
 # sensor. The MAVM time panels use only the nominal simulation case.
 point_idxs = tuple(range(len(sens_coords)))
-sim_envelope_view = vl.ValidECDFView(
+sim_envelope_view = vl.ECDFViewOpts(
     trans_idxs=tuple(range(len(sims))),
     bounds=True,
 )

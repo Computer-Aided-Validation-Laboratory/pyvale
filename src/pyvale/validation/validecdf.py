@@ -18,14 +18,12 @@ from pyvale.validation.validchecks import (
     _validate_finite_sample,
 )
 from pyvale.validation.ecdftypes import (
-    EValidECDFBounds,
-    EValidECDFCentre,
-    EValidECDFReduce,
-    ValidECDF,
-    ValidECDFBounds,
-    ValidECDFSummary,
-    ValidECDFView,
-    ValidECDFViewData,
+    EECDFCentre,
+    EECDFReduce,
+    ECDF,
+    ECDFEpisBounds,
+    ECDFViewOpts,
+    ECDFView,
 )
 from pyvale.validation.validtypes import (
     EEpisOffset,
@@ -34,11 +32,11 @@ from pyvale.validation.validtypes import (
 )
 
 
-def calc_ecdf(samples: np.ndarray) -> ValidECDF:
+def calc_ecdf(samples: np.ndarray) -> ECDF:
     """Calculate a 1D ECDF, omitting NaNs and preserving duplicate mass."""
     observations = _validate_finite_sample(samples, "samples")
     cdf = stats.ecdf(observations).cdf
-    return ValidECDF(cdf.quantiles, cdf.probabilities)
+    return ECDF(cdf.quantiles, cdf.probabilities)
 
 
 def extract_ecdf(
@@ -50,7 +48,7 @@ def extract_ecdf(
     epis_trans_idx: int = 0,
     epis_nuis_idx: int = 0,
     offset: EEpisOffset = EEpisOffset.NOMINAL,
-) -> ValidECDF:
+) -> ECDF:
     """Extract one conditional ECDF using physical and epistemic axis indices.
 
     Only ALEATORY supplies observations. Epistemic scenarios are selected, never
@@ -153,7 +151,7 @@ def extract_aleatory_scenarios(
     return samples
 
 
-def evaluate_ecdf_quantiles(cdf: ValidECDF, probabilities: np.ndarray) -> np.ndarray:
+def evaluate_ecdf_quantiles(cdf: ECDF, probabilities: np.ndarray) -> np.ndarray:
     """Evaluate the inverse ECDF using the first support reaching each probability."""
     _validate_ecdf(cdf)
     probabilities = _validate_real_array(probabilities, "probabilities", allow_nan=False)
@@ -164,67 +162,30 @@ def evaluate_ecdf_quantiles(cdf: ValidECDF, probabilities: np.ndarray) -> np.nda
     return _evaluate_ecdf_quantiles(cdf, probabilities)
 
 
-def _evaluate_ecdf_quantiles(cdf: ValidECDF, probabilities: np.ndarray) -> np.ndarray:
-    return cdf.quantiles[np.searchsorted(cdf.probabilities, probabilities, side="left")]
+def _evaluate_ecdf_quantiles(cdf: ECDF, probabilities: np.ndarray) -> np.ndarray:
+    return cdf.quants[np.searchsorted(cdf.probs, probabilities, side="left")]
 
 
-def calc_ecdf_summary(
-    samples: list[np.ndarray],
-    *,
-    bounds: EValidECDFBounds = EValidECDFBounds.POINTWISE,
-) -> ValidECDFSummary:
-    """Summarise conditional distributions without mixing epistemic scenarios.
-
-    SUPPORT_SUM reproduces the paper script's complete-scenario selection by
-    sums of unique support values. It differs from pointwise probability boxes.
-    """
+def select_ecdf_support_cases(samples: tuple[np.ndarray, ...]) -> tuple[int, int]:
+    """Select whole cases by the minimum and maximum sums of unique support."""
     if not samples:
         raise ValueError("Supply at least one conditional sample.")
-    if not isinstance(bounds, EValidECDFBounds):
-        raise TypeError("Bounds must be EValidECDFBounds.")
-    cdfs = [calc_ecdf(sample) for sample in samples]
-    probabilities = np.unique(np.concatenate([cdf.probabilities for cdf in cdfs]))
-    nominal = np.zeros_like(probabilities)
-    lower = np.full_like(probabilities, np.inf)
-    upper = np.full_like(probabilities, -np.inf)
-    lower_idx = None
-    upper_idx = None
-    if bounds is EValidECDFBounds.SUPPORT_SUM:
-        support_sums = np.array([np.sum(cdf.quantiles) for cdf in cdfs])
-        lower_idx = int(np.argmin(support_sums))
-        upper_idx = int(np.argmax(support_sums))
-    for selection_idx, cdf in enumerate(cdfs):
-        quantiles = _evaluate_ecdf_quantiles(cdf, probabilities)
-        nominal += quantiles
-        if bounds is EValidECDFBounds.POINTWISE:
-            np.minimum(lower, quantiles, out=lower)
-            np.maximum(upper, quantiles, out=upper)
-        else:
-            if selection_idx == lower_idx:
-                lower[:] = quantiles
-            if selection_idx == upper_idx:
-                upper[:] = quantiles
-    nominal /= len(cdfs)
-    return ValidECDFSummary(
-        probabilities,
-        lower,
-        upper,
-        nominal,
-        bounds,
-        lower_idx,
-        upper_idx,
-    )
+    support_sums = [
+        np.sum(np.unique(_validate_finite_sample(sample, "sample")))
+        for sample in samples
+    ]
+    return int(np.argmin(support_sums)), int(np.argmax(support_sums))
 
 
 def calc_ecdf_view(
     quantity: ValidArray,
     *,
-    view: ValidECDFView | None = None,
+    view: ECDFViewOpts | None = None,
     point_idx: int = 0,
     component_idx: int = 0,
     time_idx: int = 0,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
-) -> ValidECDFViewData:
+) -> ECDFView:
     """Calculate conditional quantile curves without pooling epistemic samples.
 
     Select each axis first, then reduce nuisance before transferable uncertainty.
@@ -233,11 +194,11 @@ def calc_ecdf_view(
     overlays remain unchanged by reductions. None offset explicitly spans every
     available coherent offset; the default retains nominal values only.
     """
-    selected_view = ValidECDFView() if view is None else view
-    if not isinstance(selected_view, ValidECDFView):
-        raise TypeError("ECDF view must be ValidECDFView.")
-    if not isinstance(selected_view.centre, EValidECDFCentre):
-        raise TypeError("ECDF centre must be EValidECDFCentre.")
+    selected_view = ECDFViewOpts() if view is None else view
+    if not isinstance(selected_view, ECDFViewOpts):
+        raise TypeError("ECDF view must be ECDFViewOpts.")
+    if not isinstance(selected_view.centre, EECDFCentre):
+        raise TypeError("ECDF centre must be EECDFCentre.")
     axis_indices: list[tuple[int, ...]] = []
     for axis, indices, reduction in (
         (
@@ -247,8 +208,8 @@ def calc_ecdf_view(
         ),
         (EValidAxis.EPISTEMIC_NUIS, selected_view.nuis_idxs, selected_view.nuis_reduce),
     ):
-        if not isinstance(reduction, EValidECDFReduce):
-            raise TypeError("ECDF reduction must be EValidECDFReduce.")
+        if not isinstance(reduction, EECDFReduce):
+            raise TypeError("ECDF reduction must be EECDFReduce.")
         size = (
             quantity.data.shape[quantity.axes.index(axis)]
             if axis in quantity.axes
@@ -273,7 +234,7 @@ def calc_ecdf_view(
         (selected_view.nuis_reduce, selected_view.nuis_quantile),
         (selected_view.trans_reduce, selected_view.trans_quantile),
     ):
-        if reduction is EValidECDFReduce.QUANTILE:
+        if reduction is EECDFReduce.QUANTILE:
             if (
                 isinstance(probability, (bool, np.bool_))
                 or not isinstance(probability, (int, float, np.integer, np.floating))
@@ -323,51 +284,52 @@ def calc_ecdf_view(
         )
         cdfs.append(calc_ecdf(samples))
         sample_arrays.append(samples)
-    probabilities = np.unique(np.concatenate([cdf.probabilities for cdf in cdfs]))
+    probabilities = np.unique(np.concatenate([cdf.probs for cdf in cdfs]))
     original_quantiles = np.stack(
         [_evaluate_ecdf_quantiles(cdf, probabilities) for cdf in cdfs]
     )
-    quantiles = original_quantiles.reshape(
+    original_quantiles = original_quantiles.reshape(
         len(trans_indices), len(nuis_indices), len(offsets), probabilities.size
     )
-    quantiles = _reduce_ecdf_quantiles(quantiles, selected_view)
+    quantiles = _reduce_ecdf_quantiles(original_quantiles, selected_view)
     selected_scenarios = tuple(
         (trans_idx, nuis_idx, selected_offset)
         for trans_idx, nuis_idx in scenario_pairs
         for selected_offset in offsets
     )
     scenario_positions = {scenario: index for index, scenario in enumerate(scenarios)}
-    overlay_indices = [scenario_positions[scenario] for scenario in selected_scenarios]
-    overlay_quantiles = original_quantiles[overlay_indices]
+    overlay_indices = tuple(
+        scenario_positions[scenario] for scenario in selected_scenarios
+    )
     if (
         np.prod(quantiles.shape[:-1]) > 1
         and not selected_view.bounds
-        and selected_view.centre is EValidECDFCentre.NONE
+        and selected_view.centre is EECDFCentre.NONE
         and not selected_scenarios
     ):
         raise ValueError("Select bounds, a centre curve or scenario overlays.")
-    return ValidECDFViewData(
+    return ECDFView(
         probabilities,
         quantiles,
-        overlay_quantiles,
-        selected_scenarios,
         original_quantiles,
         scenarios,
         tuple(sample_arrays),
+        overlay_indices,
+        copy(selected_view),
     )
 
 
-def _reduce_ecdf_quantiles(quantiles: np.ndarray, view: ValidECDFView) -> np.ndarray:
+def _reduce_ecdf_quantiles(quantiles: np.ndarray, view: ECDFViewOpts) -> np.ndarray:
     """Reduce trusted quantile arrays in the same order for views and confidence bounds."""
     for axis, reduction, probability in (
         (1, view.nuis_reduce, view.nuis_quantile),
         (0, view.trans_reduce, view.trans_quantile),
     ):
-        if reduction is EValidECDFReduce.MEAN:
+        if reduction is EECDFReduce.MEAN:
             quantiles = np.mean(quantiles, axis=axis, keepdims=True)
-        elif reduction is EValidECDFReduce.MEDIAN:
+        elif reduction is EECDFReduce.MEDIAN:
             quantiles = np.median(quantiles, axis=axis, keepdims=True)
-        elif reduction is EValidECDFReduce.QUANTILE:
+        elif reduction is EECDFReduce.QUANTILE:
             assert probability is not None
             quantiles = np.quantile(quantiles, probability, axis=axis, keepdims=True)
     return quantiles
@@ -376,14 +338,14 @@ def _reduce_ecdf_quantiles(quantiles: np.ndarray, view: ValidECDFView) -> np.nda
 def _find_quantile_limits(
     quantiles: np.ndarray,
     scenarios: tuple[tuple[int, int, EEpisOffset], ...],
-    view: ValidECDFView,
+    view: ECDFViewOpts,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     trans_indices = tuple(dict.fromkeys(scenario[0] for scenario in scenarios))
     nuis_indices = tuple(dict.fromkeys(scenario[1] for scenario in scenarios))
     offsets = tuple(dict.fromkeys(scenario[2] for scenario in scenarios))
-    if view.trans_reduce is not EValidECDFReduce.KEEP:
+    if view.trans_reduce is not EECDFReduce.KEEP:
         trans_indices = (-1,)
-    if view.nuis_reduce is not EValidECDFReduce.KEEP:
+    if view.nuis_reduce is not EECDFReduce.KEEP:
         nuis_indices = (-1,)
     origins = np.asarray(
         tuple(product(trans_indices, nuis_indices, offsets)), dtype=int
@@ -408,10 +370,10 @@ def find_ecdf_epis_bounds(
     time_idx: int = 0,
     trans_idxs: tuple[int, ...] | None = None,
     nuis_idxs: tuple[int, ...] | None = None,
-    nuis_reduce: EValidECDFReduce = EValidECDFReduce.KEEP,
+    nuis_reduce: EECDFReduce = EECDFReduce.KEEP,
     nuis_quantile: float | None = None,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
-) -> ValidECDFBounds:
+) -> ECDFEpisBounds:
     """Resolve nuisance uncertainty, then envelope all selected transferable cases.
 
     KEEP envelopes both axes without pooling observations. A singleton nuis_idxs
@@ -419,7 +381,7 @@ def find_ecdf_epis_bounds(
     synthetic nuisance quantile summaries separately for each transferable case.
     Quantiles use linear interpolation between nuisance order statistics.
     """
-    view = ValidECDFView(
+    view = ECDFViewOpts(
         trans_idxs=trans_idxs,
         nuis_idxs=nuis_idxs,
         nuis_reduce=nuis_reduce,
@@ -433,9 +395,11 @@ def find_ecdf_epis_bounds(
         time_idx=time_idx,
         offset=offset,
     )
+    return _find_ecdf_view_bounds(data)
+
+
+def _find_ecdf_view_bounds(view: ECDFView) -> ECDFEpisBounds:
     lower, upper, lower_indices, upper_indices = _find_quantile_limits(
-        data.quantiles, data.original_scenarios, view
+        view.quants, view.orig_epis_offsets, view.opts
     )
-    return ValidECDFBounds(
-        data.probabilities, lower, upper, lower_indices, upper_indices, data, copy(view)
-    )
+    return ECDFEpisBounds(lower, upper, lower_indices, upper_indices, view)

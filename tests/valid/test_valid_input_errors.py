@@ -48,11 +48,12 @@ def test_invalid_quantile_probabilities_fail(probabilities: np.ndarray) -> None:
 
 def test_missing_diagnostic_inputs_fail_before_plotting() -> None:
     with pytest.raises(ValueError):
-        vl.calc_ecdf_summary([])
-    summary = vl.calc_ecdf_summary([np.array([1.0, 2.0])])
+        vl.select_ecdf_support_cases(())
+    quantity = vl.ValidArray(np.array([1.0, 2.0]), (vl.EValidAxis.ALEATORY,))
+    curves = vl.calc_ecdf_view(quantity)
     with pytest.raises(ValueError, match="bound pairs"):
         validplot.plot_valid_mavm_diagnostic(
-            summary, view=vl.EValidMAVMDiagnostic.CORRECTION
+            curves, view=vl.EValidMAVMDiagnostic.CORRECTION
         )
 
 
@@ -88,7 +89,7 @@ def test_invalid_relative_error_configuration(
     ],
 )
 def test_invalid_ecdf(support: list[float], probabilities: list[float]) -> None:
-    cdf = vl.ValidECDF(np.array(support), np.array(probabilities))
+    cdf = vl.ECDF(np.array(support), np.array(probabilities))
     with pytest.raises(ValueError):
         vl.evaluate_ecdf_quantiles(cdf, np.array([0.5]))
 
@@ -167,7 +168,7 @@ def test_geometry_rejects_nonfinite_and_complex(coordinates: np.ndarray) -> None
 
 
 def test_unsigned_support_must_be_ordered() -> None:
-    cdf = vl.ValidECDF(np.array([1, 0], dtype=np.uint64), np.array([0.5, 1.0]))
+    cdf = vl.ECDF(np.array([1, 0], dtype=np.uint64), np.array([0.5, 1.0]))
     with pytest.raises(ValueError, match="increase"):
         vl.evaluate_ecdf_quantiles(cdf, np.array([0.5]))
 
@@ -327,12 +328,12 @@ def create_ecdf_case(sim: np.ndarray, exp: np.ndarray) -> vl.ValidCase:
         0.0,
         np.inf,
         np.nan,
-        validplot.ValidECDFReference(probability=0.0),
-        validplot.ValidECDFReference(probability=1.1),
+        validplot.ECDFReference(probability=0.0),
+        validplot.ECDFReference(probability=1.1),
     ],
 )
 def test_invalid_normalisation_does_not_add_partial_axes(
-    reference: float | validplot.ValidECDFReference,
+    reference: float | validplot.ECDFReference,
 ) -> None:
     plot = validplot.plot_sim_exp_cdfs(
         create_ecdf_case(np.array([0.0, 2.0]), np.array([1.0, 3.0])), "length"
@@ -349,7 +350,7 @@ def test_zero_reference_quantile_is_rejected() -> None:
         create_ecdf_case(np.array([0.0, 2.0]), np.array([1.0, 3.0])), "length"
     )
     with pytest.raises(ValueError, match="nonzero"):
-        validplot.add_normalised_ecdf_axis(plot, validplot.ValidECDFReference())
+        validplot.add_normalised_ecdf_axis(plot, validplot.ECDFReference())
     plt.close(plot.figure)
 
 
@@ -493,17 +494,17 @@ def test_invalid_points_do_not_create_figures(
 @pytest.mark.parametrize(
     "view, exception",
     [
-        (vl.ValidECDFView(trans_idxs=()), ValueError),
-        (vl.ValidECDFView(trans_idxs=(3,)), IndexError),
-        (vl.ValidECDFView(trans_idxs=(0, 0)), ValueError),
-        (vl.ValidECDFView(trans_idxs=(True,)), TypeError),
-        (vl.ValidECDFView(scenario_idxs=((0, 3),)), IndexError),
-        (vl.ValidECDFView(scenario_idxs=((0, 0), (0, 0))), ValueError),
-        (vl.ValidECDFView(bounds=False), ValueError),
+        (vl.ECDFViewOpts(trans_idxs=()), ValueError),
+        (vl.ECDFViewOpts(trans_idxs=(3,)), IndexError),
+        (vl.ECDFViewOpts(trans_idxs=(0, 0)), ValueError),
+        (vl.ECDFViewOpts(trans_idxs=(True,)), TypeError),
+        (vl.ECDFViewOpts(scenario_idxs=((0, 3),)), IndexError),
+        (vl.ECDFViewOpts(scenario_idxs=((0, 0), (0, 0))), ValueError),
+        (vl.ECDFViewOpts(bounds=False), ValueError),
     ],
 )
 def test_invalid_views_fail_before_plotting(
-    view: vl.ValidECDFView, exception: type[Exception]
+    view: vl.ECDFViewOpts, exception: type[Exception]
 ) -> None:
     figures = plt.get_fignums()
     with pytest.raises(exception):
@@ -737,6 +738,6 @@ def test_multi_scenario_integration_requires_an_explicit_original_comparison() -
         plot,
         vl.MetricAVM(),
         display=validplot.EMetricDisp.INTEGRATION_AREA,
-        comparison=validplot.ValidECDFComparison(),
+        comparison=validplot.ECDFComparison(),
     )
     plt.close(plot.figure)

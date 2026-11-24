@@ -14,7 +14,6 @@ plots.
 
 from itertools import count
 from pathlib import Path
-from typing import cast
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -163,21 +162,16 @@ print(80*"-")
 for kk in observables:
     units = observables[kk].phys_units
     axis_label = "Coil RMS voltage [V]" if kk == "CV" else "Temperature [degC]"
-    model_scenarios: list[np.ndarray] = vl.extract_aleatory_scenarios(
-        sim_arrays[kk]
-    )
-
-    model_summary: vl.ValidECDFSummary = vl.calc_ecdf_summary(
-        model_scenarios, bounds=vl.EValidECDFBounds.SUPPORT_SUM
-    )
+    model_view = vl.calc_ecdf_view(sim_arrays[kk])
+    model_cases = vl.select_ecdf_support_cases(model_view.samples)
 
     labels = vl.ValidPlotOpts(title=kk, x_label=axis_label)
     ecdf_plot: vl.ECDFPlot = vl.plot_sim_ecdfs(
         valid_case,
         kk,
         valid_plot_opts=labels,
-        view=vl.ValidECDFView(
-            scenario_idxs=None, centre=vl.EValidECDFCentre.MEAN
+        view=vl.ECDFViewOpts(
+            scenario_idxs=None, centre=vl.EECDFCentre.MEAN
         ),
     )
 
@@ -206,17 +200,11 @@ for kk in observables:
     if not SHOW_PLOTS:
         plt.close(limiting_plot.figure)
 
-    exp_scenarios: list[np.ndarray] = vl.extract_aleatory_scenarios(
-        exp_arrays[kk], offset=None
-    )
+    exp_view = vl.calc_ecdf_view(exp_arrays[kk], offset=None)
+    exp_cases = vl.select_ecdf_support_cases(exp_view.samples)
 
-    exp_summary: vl.ValidECDFSummary = vl.calc_ecdf_summary(
-        exp_scenarios,
-        bounds=vl.EValidECDFBounds.SUPPORT_SUM,
-    )
-
-    model_lower = model_scenarios[cast(int, model_summary.lower_idx)]
-    model_upper = model_scenarios[cast(int, model_summary.upper_idx)]
+    model_lower = model_view.samples[model_cases[0]]
+    model_upper = model_view.samples[model_cases[1]]
 
     exp_lower: np.ndarray = exp_arrays[kk].select_aleatory(
         0, 0, 0, offset=vl.EEpisOffset.LOWER
@@ -242,8 +230,10 @@ for kk in observables:
     )
     for ff, vv in diagnostic_views:
         fig, ax = vl.plot_valid_mavm_diagnostic(
-            model_summary,
-            exp_summary,
+            model_view,
+            exp_view,
+            sim_support_cases=model_cases,
+            exp_support_cases=exp_cases,
             bound_pairs=bound_pairs,
             view=vv,
             valid_plot_opts=labels,

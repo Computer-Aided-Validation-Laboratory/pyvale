@@ -15,11 +15,11 @@ from scipy import stats
 from pyvale.validation.constants import MAVM_AREA_TOLERANCE
 from pyvale.validation.ecdftypes import (
     ECDFNuisanceRank,
-    ECDFSuppBounds,
-    EValidBoundAxis,
-    EValidNuisanceScore,
-    ValidECDF,
-    ValidECDFBounds,
+    ECDFMetricBounds,
+    EECDFBoundAxis,
+    EECDFNuisanceScore,
+    ECDF,
+    ECDFEpisBounds,
 )
 from pyvale.validation.imetric import EMetricOut, EMetricType
 from pyvale.validation.metrics import calc_mavm_1d
@@ -183,7 +183,7 @@ def find_metric_epis_supports(
     *,
     reduce_axes: tuple[EValidResAxis, ...] = EPIS_AXES,
     selectors: dict[EValidResAxis, int] | None = None,
-) -> ECDFSuppBounds:
+) -> ECDFMetricBounds:
     """Envelope original simulation quantiles shifted by stored AVM/MAVM values.
 
     MAVM uses Q_sim-d_minus and Q_sim+d_plus. AVM uses symmetric Q_sim+/-distance
@@ -209,7 +209,7 @@ def find_metric_epis_supports(
     minus = field.metric_vals[
         EMetricOut.D_MINUS if metric is EMetricType.MAVM else EMetricOut.DISTANCE
     ]
-    cdfs: dict[tuple[int, ...], ValidECDF] = {}
+    cdfs: dict[tuple[int, ...], ECDF] = {}
     # One ECDF per original sim cell, irrespective of how many exp cases use it.
     sim_axes = (
         EValidResAxis.POINT,
@@ -230,7 +230,7 @@ def find_metric_epis_supports(
             )
             cdfs[key] = calc_ecdf(samples)
     probabilities = (
-        np.unique(np.concatenate([cdf.probabilities for cdf in cdfs.values()]))
+        np.unique(np.concatenate([cdf.probs for cdf in cdfs.values()]))
         if cdfs
         else np.array([1.0])
     )
@@ -265,7 +265,7 @@ def find_metric_epis_supports(
             upper_indices[group][changed] = full_index
     for array in (lower, upper, sim_lower, sim_upper):
         array[~np.isfinite(array)] = np.nan
-    return ECDFSuppBounds(
+    return ECDFMetricBounds(
         retained,
         probabilities,
         lower,
@@ -287,7 +287,7 @@ def profile_epis_nuisance_supports(
     metric: EMetricType,
     *,
     selectors: dict[EValidResAxis, int] | None = None,
-) -> ECDFSuppBounds:
+) -> ECDFMetricBounds:
     """Profile shifted supports over nuisance, retaining transferable axes."""
     return find_metric_epis_supports(
         valid_case,
@@ -300,9 +300,9 @@ def profile_epis_nuisance_supports(
 
 
 def rank_epis_nuisance_cases(
-    supports: ECDFSuppBounds,
+    supports: ECDFMetricBounds,
     *,
-    score: EValidNuisanceScore = EValidNuisanceScore.TOTAL_WIDTH,
+    score: EECDFNuisanceScore = EECDFNuisanceScore.TOTAL_WIDTH,
 ) -> ECDFNuisanceRank:
     """Rank coherent nuisance cases after enveloping transferable uncertainty.
 
@@ -311,8 +311,8 @@ def rank_epis_nuisance_cases(
     extension beyond the unshifted sim envelope. Ranks select actual cases,
     never a pointwise synthetic median. Equal scores preserve canonical order.
     """
-    if not isinstance(score, EValidNuisanceScore):
-        raise TypeError("Nuisance score must be EValidNuisanceScore.")
+    if not isinstance(score, EECDFNuisanceScore):
+        raise TypeError("Nuisance score must be EECDFNuisanceScore.")
     if any(
         axis in supports.axes
         for axis in (EValidResAxis.SIM_TRANS, EValidResAxis.EXP_TRANS)
@@ -323,11 +323,11 @@ def rank_epis_nuisance_cases(
         raise ValueError("Retain at least one nuisance axis before ranking cases.")
     retained = tuple(axis for axis in supports.axes if axis not in case_axes)
     widths = supports.upper - supports.lower
-    if score is EValidNuisanceScore.ADDED_WIDTH:
+    if score is EECDFNuisanceScore.ADDED_WIDTH:
         widths = np.maximum(0.0, supports.upper - supports.sim_upper) + np.maximum(
             0.0, supports.sim_lower - supports.lower
         )
-    probabilities = np.diff(np.r_[0.0, supports.probabilities])
+    probabilities = np.diff(np.r_[0.0, supports.probs])
     scores = np.sum(widths * probabilities, axis=-1)
     permutation = tuple(supports.axes.index(axis) for axis in (*retained, *case_axes))
     ordered_scores = np.transpose(scores, permutation)
@@ -355,18 +355,18 @@ def rank_epis_nuisance_cases(
 
 
 def _calc_metric_over_bounds(
-    sim: ValidECDFBounds,
-    exp_lower: ValidECDF,
-    exp_upper: ValidECDF,
+    sim: ECDFEpisBounds,
+    exp_lower: ECDF,
+    exp_upper: ECDF,
     *,
     directional: bool,
-) -> ECDFSuppBounds:
+) -> ECDFMetricBounds:
     probabilities = np.unique(
-        np.r_[sim.probabilities, exp_lower.probabilities, exp_upper.probabilities]
+        np.r_[sim.view.probs, exp_lower.probs, exp_upper.probs]
     )
     sim_quantiles = np.stack(
         [
-            _evaluate_ecdf_quantiles(ValidECDF(curve, sim.probabilities), probabilities)
+            _evaluate_ecdf_quantiles(ECDF(curve, sim.view.probs), probabilities)
             for curve in (sim.lower, sim.upper)
         ]
     )
@@ -398,14 +398,14 @@ def _calc_metric_over_bounds(
         if directional
         else {EMetricOut.DISTANCE: plus}
     )
-    return ECDFSuppBounds(
+    return ECDFMetricBounds(
         (),
         probabilities,
         lower_candidates[lower_origin, probability_indices],
         upper_candidates[upper_origin, probability_indices],
         sim_quantiles[0],
         sim_quantiles[1],
-        (EValidBoundAxis.SIM_BOUND, EValidBoundAxis.EXP_BOUND),
+        (EECDFBoundAxis.SIM_BOUND, EECDFBoundAxis.EXP_BOUND),
         pair_indices[lower_origin],
         pair_indices[upper_origin],
         {},
@@ -415,13 +415,13 @@ def _calc_metric_over_bounds(
 
 
 def calc_avm_over_epis_bounds(
-    sim: ValidECDFBounds, exp: ValidECDFBounds
-) -> ECDFSuppBounds:
+    sim: ECDFEpisBounds, exp: ECDFEpisBounds
+) -> ECDFMetricBounds:
     """Compare all four bound combinations using exact empirical probability mass."""
     return _calc_metric_over_bounds(
         sim,
-        ValidECDF(exp.lower, exp.probabilities),
-        ValidECDF(exp.upper, exp.probabilities),
+        ECDF(exp.lower, exp.view.probs),
+        ECDF(exp.upper, exp.view.probs),
         directional=False,
     )
 
@@ -443,11 +443,11 @@ def _mavm_confidence_shifts(
 
 
 def calc_mavm_over_epis_bounds(
-    sim: ValidECDFBounds,
-    exp: ValidECDFBounds,
+    sim: ECDFEpisBounds,
+    exp: ECDFEpisBounds,
     *,
     alpha: float = 0.05,
-) -> ECDFSuppBounds:
+) -> ECDFMetricBounds:
     """Construct experimental confidence bounds before epistemic enveloping.
 
     Each original experimental scenario uses the existing MAVM convention:
@@ -464,30 +464,22 @@ def calc_mavm_over_epis_bounds(
         or not 0 < alpha < 1
     ):
         raise ValueError("MAVM alpha must be between zero and one.")
-    shifts = _mavm_confidence_shifts(exp.data.samples, alpha)
-    shape = (
-        len({s[0] for s in exp.data.original_scenarios}),
-        len({s[1] for s in exp.data.original_scenarios}),
-        len({s[2] for s in exp.data.original_scenarios}),
-        exp.probabilities.size,
-    )
-    original = exp.data.original_quantiles
-    lower_quantiles = _reduce_ecdf_quantiles(
-        (original - shifts[:, None]).reshape(shape), exp.view
-    )
-    upper_quantiles = _reduce_ecdf_quantiles(
-        (original + shifts[:, None]).reshape(shape), exp.view
-    )
+    view = exp.view
+    original = view.orig_quants
+    shifts = _mavm_confidence_shifts(view.samples, alpha)
+    shifts = shifts.reshape(*original.shape[:-1], 1)
+    lower_quantiles = _reduce_ecdf_quantiles(original - shifts, view.opts)
+    upper_quantiles = _reduce_ecdf_quantiles(original + shifts, view.opts)
     lower, _, _, _ = _find_quantile_limits(
-        lower_quantiles, exp.data.original_scenarios, exp.view
+        lower_quantiles, view.orig_epis_offsets, view.opts
     )
     _, upper, _, _ = _find_quantile_limits(
-        upper_quantiles, exp.data.original_scenarios, exp.view
+        upper_quantiles, view.orig_epis_offsets, view.opts
     )
     return _calc_metric_over_bounds(
         sim,
-        ValidECDF(lower, exp.probabilities),
-        ValidECDF(upper, exp.probabilities),
+        ECDF(lower, exp.view.probs),
+        ECDF(upper, exp.view.probs),
         directional=True,
     )
 

@@ -10,7 +10,7 @@ import numpy as np
 
 from pyvale.validation.arraychecks import _validate_real_array
 from pyvale.validation.constants import MAVM_DUPLICATE_TOLERANCE
-from pyvale.validation.ecdftypes import ValidECDF
+from pyvale.validation.ecdftypes import ECDF
 from pyvale.validation.validtypes import EMAVMDuplicates
 
 
@@ -60,30 +60,30 @@ def _validate_mavm_config(alpha: float, duplicates: EMAVMDuplicates, tol: float)
         raise ValueError("MAVM tolerance must be finite and nonnegative.")
 
 
-def _validate_ecdf(cdf: ValidECDF) -> None:
-    if not isinstance(cdf, ValidECDF):
-        raise TypeError("Model CDFs must be ValidECDF records.")
+def _validate_ecdf(cdf: ECDF) -> None:
+    if not isinstance(cdf, ECDF):
+        raise TypeError("Model CDFs must be ECDF records.")
 
-    _validate_real_array(cdf.quantiles, "quantiles", allow_nan=False)
-    _validate_real_array(cdf.probabilities, "probabilities", allow_nan=False)
+    _validate_real_array(cdf.quants, "quantiles", allow_nan=False)
+    _validate_real_array(cdf.probs, "probabilities", allow_nan=False)
 
     if (
-        cdf.quantiles.ndim != 1
-        or not len(cdf.quantiles)
-        or cdf.quantiles.shape != cdf.probabilities.shape
+        cdf.quants.ndim != 1
+        or not len(cdf.quants)
+        or cdf.quants.shape != cdf.probs.shape
     ):
         raise ValueError(
             "ECDF support and probabilities need matching nonempty 1D shapes."
         )
 
-    if np.any(cdf.quantiles[1:] <= cdf.quantiles[:-1]):
+    if np.any(cdf.quants[1:] <= cdf.quants[:-1]):
         raise ValueError("ECDF support must increase strictly.")
 
     if (
-        np.any(cdf.probabilities <= 0)
-        or np.any(cdf.probabilities > 1)
-        or np.any(cdf.probabilities[1:] <= cdf.probabilities[:-1])
-        or cdf.probabilities[-1] != 1
+        np.any(cdf.probs <= 0)
+        or np.any(cdf.probs > 1)
+        or np.any(cdf.probs[1:] <= cdf.probs[:-1])
+        or cdf.probs[-1] != 1
     ):
         raise ValueError(
             "ECDF probabilities must increase strictly in (0, 1] and end at one."

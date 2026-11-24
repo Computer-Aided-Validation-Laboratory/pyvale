@@ -19,13 +19,12 @@ from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
 from pyvale.sensorsim.visualopts import PlotOptsGeneral
 from pyvale.validation.ecdftypes import (
-    ECDFSuppBounds,
-    EValidECDFCentre,
-    EValidECDFReduce,
-    ValidECDF,
-    ValidECDFSummary,
-    ValidECDFView,
-    ValidECDFViewData,
+    ECDFMetricBounds,
+    EECDFCentre,
+    EECDFReduce,
+    ECDF,
+    ECDFViewOpts,
+    ECDFView,
 )
 from pyvale.validation.metricstrategy import MetricMAVM
 from pyvale.validation.imetric import (
@@ -36,6 +35,7 @@ from pyvale.validation.imetric import (
 )
 from pyvale.validation.validecdf import (
     _evaluate_ecdf_quantiles,
+    _find_ecdf_view_bounds,
     _reduce_ecdf_quantiles,
     calc_ecdf,
     calc_ecdf_view,
@@ -130,7 +130,7 @@ class EMetricDisp(Enum):
 
 
 @dataclass(slots=True)
-class ValidECDFReference:
+class ECDFReference:
     """Normalise by a quantile of the displayed family's mean quantile curve."""
 
     source: EValidSource = EValidSource.SIM
@@ -138,7 +138,7 @@ class ValidECDFReference:
 
 
 @dataclass(slots=True)
-class ValidECDFComparison:
+class ECDFComparison:
     """Choose an original conditional sim/exp pair for a metric overlay."""
 
     sim_trans_idx: int = 0
@@ -164,7 +164,7 @@ class ECDFPlot:
     point_idxs: tuple[int, ...]
     component_idx: int
     time_idx: int
-    data: tuple[dict[EValidSource, ValidECDFViewData], ...]
+    data: tuple[dict[EValidSource, ECDFView], ...]
     options: ValidPlotOpts
     normalisation: tuple[float, ...] | None = None
 
@@ -244,10 +244,10 @@ def plot_sim_ecdfs(
     valid_case: ValidCase,
     observable: str,
     *,
-    view: ValidECDFView | None = None,
+    view: ECDFViewOpts | None = None,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     show_bounds: EShowECDFBounds = EShowECDFBounds.OUTER,
-    nuisance_profile: EValidECDFReduce | None = None,
+    nuisance_profile: EECDFReduce | None = None,
     nuisance_profile_quantile: float | None = None,
     point_idxs: tuple[int, ...] | None = (0,),
     component_idx: int = 0,
@@ -286,11 +286,11 @@ def plot_exp_ecdfs(
     valid_case: ValidCase,
     observable: str,
     *,
-    view: ValidECDFView | None = None,
+    view: ECDFViewOpts | None = None,
     offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     show_bounds: EShowECDFBounds = EShowECDFBounds.OUTER,
     confidence_alpha: float | None = None,
-    nuisance_profile: EValidECDFReduce | None = None,
+    nuisance_profile: EECDFReduce | None = None,
     nuisance_profile_quantile: float | None = None,
     point_idxs: tuple[int, ...] | None = (0,),
     component_idx: int = 0,
@@ -327,13 +327,13 @@ def plot_sim_exp_cdfs(
     valid_case: ValidCase,
     observable: str,
     *,
-    sim_view: ValidECDFView | None = None,
-    exp_view: ValidECDFView | None = None,
+    sim_view: ECDFViewOpts | None = None,
+    exp_view: ECDFViewOpts | None = None,
     sim_offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     exp_offset: EEpisOffset | None = EEpisOffset.NOMINAL,
     show_bounds: EShowECDFBounds = EShowECDFBounds.OUTER,
     confidence_alpha: float | None = None,
-    nuisance_profile: EValidECDFReduce | None = None,
+    nuisance_profile: EECDFReduce | None = None,
     nuisance_profile_quantile: float | None = None,
     point_idxs: tuple[int, ...] | None = (0,),
     component_idx: int = 0,
@@ -377,11 +377,11 @@ def plot_sim_exp_cdfs(
 def _plot_ecdf_sources(
     valid_case: ValidCase,
     observable: str,
-    sources: tuple[tuple[EValidSource, ValidECDFView | None, EEpisOffset | None], ...],
+    sources: tuple[tuple[EValidSource, ECDFViewOpts | None, EEpisOffset | None], ...],
     *,
     show_bounds: EShowECDFBounds,
     confidence_alpha: float | None,
-    nuisance_profile: EValidECDFReduce | None,
+    nuisance_profile: EECDFReduce | None,
     nuisance_profile_quantile: float | None,
     point_idxs: tuple[int, ...] | None,
     component_idx: int,
@@ -400,11 +400,11 @@ def _plot_ecdf_sources(
     ):
         raise ValueError("Confidence alpha must be in (0, 0.5].")
     if nuisance_profile is not None:
-        if not isinstance(nuisance_profile, EValidECDFReduce):
-            raise TypeError("Nuisance profile must be EValidECDFReduce.")
-        if nuisance_profile is EValidECDFReduce.KEEP:
+        if not isinstance(nuisance_profile, EECDFReduce):
+            raise TypeError("Nuisance profile must be EECDFReduce.")
+        if nuisance_profile is EECDFReduce.KEEP:
             raise ValueError("Nuisance profile requires mean, median or quantile.")
-    if nuisance_profile is EValidECDFReduce.QUANTILE:
+    if nuisance_profile is EECDFReduce.QUANTILE:
         if (
             isinstance(nuisance_profile_quantile, (bool, np.bool_))
             or not isinstance(
@@ -432,13 +432,13 @@ def _plot_ecdf_sources(
     ):
         raise ValueError("An existing axes accepts one point and no grid layout.")
     # Prepare before creating any figure, so invalid selections leave no figures behind.
-    prepared: list[list[tuple[EValidSource, ValidECDFView, ValidECDFViewData]]] = []
-    profiles: list[list[tuple[EValidSource, ValidECDFView, ValidECDFViewData]]] = []
+    prepared: list[list[tuple[EValidSource, ECDFView]]] = []
+    profiles: list[list[tuple[EValidSource, ECDFView]]] = []
     for point in selected_points:
         point_sources = []
         point_profiles = []
         for source, view, offset in sources:
-            selected_view = ValidECDFView() if view is None else view
+            selected_view = ECDFViewOpts() if view is None else view
             if show_bounds is EShowECDFBounds.ALL:
                 selected_view = replace(selected_view, scenario_idxs=None)
             quantity = (
@@ -452,33 +452,33 @@ def _plot_ecdf_sources(
                 time_idx=time_idx,
                 offset=offset,
             )
-            point_sources.append((source, selected_view, curves))
+            point_sources.append((source, curves))
             if nuisance_profile is not None:
                 if (
                     not selected_view.bounds
-                    or selected_view.nuis_reduce is not EValidECDFReduce.KEEP
-                    or selected_view.trans_reduce is not EValidECDFReduce.KEEP
+                    or selected_view.nuis_reduce is not EECDFReduce.KEEP
+                    or selected_view.trans_reduce is not EECDFReduce.KEEP
                 ):
                     raise ValueError("Nuisance profiles require an unreduced envelope.")
-                if curves.quantiles.shape[1] == 1:
+                if curves.quants.shape[1] == 1:
                     continue
                 profile_view = replace(
                     selected_view,
                     nuis_reduce=nuisance_profile,
                     nuis_quantile=nuisance_profile_quantile,
-                    centre=EValidECDFCentre.NONE,
+                    centre=EECDFCentre.NONE,
                     scenario_idxs=(),
                 )
                 profile_quantiles = _reduce_ecdf_quantiles(
-                    curves.quantiles, profile_view
+                    curves.quants, profile_view
                 )
                 profile_curves = replace(
                     curves,
-                    quantiles=profile_quantiles,
-                    scenarios=(),
-                    scenario_quantiles=curves.scenario_quantiles[:0],
+                    quants=profile_quantiles,
+                    overlay_indices=(),
+                    opts=profile_view,
                 )
-                point_profiles.append((source, profile_view, profile_curves))
+                point_profiles.append((source, profile_curves))
         prepared.append(point_sources)
         profiles.append(point_profiles)
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
@@ -492,13 +492,12 @@ def _plot_ecdf_sources(
     for point, point_sources, point_profiles, panel in zip(
         selected_points, prepared, profiles, axes.flat, strict=False
     ):
-        profile_by_source = {source: curves for source, _, curves in point_profiles}
-        for source, view, curves in point_sources:
-            has_offsets = curves.quantiles.shape[2] > 1
+        profile_by_source = {source: curves for source, curves in point_profiles}
+        for source, curves in point_sources:
+            has_offsets = curves.quants.shape[2] > 1
             _plot_ecdf_view(
                 panel,
                 source,
-                view,
                 curves,
                 options,
                 label_suffix=(
@@ -519,13 +518,12 @@ def _plot_ecdf_sources(
                 _plot_exp_confidence_bounds(
                     panel, curves, confidence_alpha, show_bounds, options
                 )
-        for source, view, curves in point_profiles:
-            if curves.quantiles.shape[2] > 1 and show_bounds is EShowECDFBounds.OUTER:
-                curves = replace(curves, quantiles=curves.quantiles[:, :, :1])
+        for source, curves in point_profiles:
+            if curves.quants.shape[2] > 1 and show_bounds is EShowECDFBounds.OUTER:
+                curves = replace(curves, quants=curves.quants[:, :, :1])
             _plot_ecdf_view(
                 panel,
                 source,
-                view,
                 curves,
                 options,
                 profile=True,
@@ -557,19 +555,19 @@ def _plot_ecdf_sources(
         component_idx,
         time_idx,
         tuple(
-            {source: curves for source, _, curves in point_sources}
+            {source: curves for source, curves in point_sources}
             for point_sources in prepared
         ),
         options,
     )
 
 
-def _ecdf_profile_label(reduction: EValidECDFReduce, quantile: float | None) -> str:
-    if reduction is EValidECDFReduce.MEDIAN:
+def _ecdf_profile_label(reduction: EECDFReduce, quantile: float | None) -> str:
+    if reduction is EECDFReduce.MEDIAN:
         return "Prof-Med"
-    if reduction is EValidECDFReduce.MEAN:
+    if reduction is EECDFReduce.MEAN:
         return "Prof-Mean"
-    if reduction is EValidECDFReduce.QUANTILE:
+    if reduction is EECDFReduce.QUANTILE:
         assert quantile is not None
         return f"Prof-Q{100 * quantile:g}"
     return ""
@@ -578,8 +576,7 @@ def _ecdf_profile_label(reduction: EValidECDFReduce, quantile: float | None) -> 
 def _plot_ecdf_view(
     ax: Axes,
     source: EValidSource,
-    view: ValidECDFView,
-    curves: ValidECDFViewData,
+    curves: ECDFView,
     options: ValidPlotOpts,
     *,
     label_suffix: str = "",
@@ -587,6 +584,7 @@ def _plot_ecdf_view(
     offset_bounds: bool = False,
     show_all: bool = False,
 ) -> None:
+    view = curves.opts
     is_sim = source is EValidSource.SIM
     label = (options.sim_label if is_sim else options.exp_label) + label_suffix
     for axis, reduction, quantile in (
@@ -616,17 +614,17 @@ def _plot_ecdf_view(
         bounds_linestyle = (
             options.sim_offset_linestyle if is_sim else options.exp_offset_linestyle
         )
-    quantiles = curves.quantiles.reshape(-1, curves.probabilities.size)
+    quantiles = curves.quants.reshape(-1, curves.probs.size)
     single = quantiles.shape[0] == 1
     reduced = (
-        view.nuis_reduce is not EValidECDFReduce.KEEP
-        or view.trans_reduce is not EValidECDFReduce.KEEP
+        view.nuis_reduce is not EECDFReduce.KEEP
+        or view.trans_reduce is not EECDFReduce.KEEP
     )
     if single:
         _plot_quantile_curve(
             ax,
             quantiles[0],
-            curves.probabilities,
+            curves.probs,
             color=color,
             label=label,
             linestyle=linestyle,
@@ -639,7 +637,7 @@ def _plot_ecdf_view(
             _plot_quantile_curve(
                 ax,
                 lower,
-                curves.probabilities,
+                curves.probs,
                 color=color,
                 label=label,
                 linestyle=bounds_linestyle,
@@ -648,14 +646,14 @@ def _plot_ecdf_view(
             _plot_quantile_curve(
                 ax,
                 upper,
-                curves.probabilities,
+                curves.probs,
                 color=color,
                 linestyle=bounds_linestyle,
                 linewidth=options.lw * options.ecdf_lw_scale,
             )
             if options.shade_bounds and not np.array_equal(lower, upper):
                 ax.fill_betweenx(
-                    np.r_[0.0, curves.probabilities],
+                    np.r_[0.0, curves.probs],
                     np.r_[lower[0], lower],
                     np.r_[upper[0], upper],
                     step="pre",
@@ -663,16 +661,16 @@ def _plot_ecdf_view(
                     alpha=options.bounds_alpha,
                     zorder=0.4,
                 )
-        if view.centre is not EValidECDFCentre.NONE:
+        if view.centre is not EECDFCentre.NONE:
             centre = (
                 np.mean(quantiles, axis=0)
-                if view.centre is EValidECDFCentre.MEAN
+                if view.centre is EECDFCentre.MEAN
                 else np.median(quantiles, axis=0)
             )
             _plot_quantile_curve(
                 ax,
                 centre,
-                curves.probabilities,
+                curves.probs,
                 color=color,
                 label=None if view.bounds else label,
                 linestyle=linestyle,
@@ -683,7 +681,7 @@ def _plot_ecdf_view(
             _plot_quantile_curve(
                 ax,
                 profile_quantiles,
-                curves.probabilities,
+                curves.probs,
                 color=color,
                 linestyle=bounds_linestyle,
                 alpha=options.scenario_alpha,
@@ -691,11 +689,12 @@ def _plot_ecdf_view(
             )
     # A sole original ECDF is already drawn above. Reduced single curves can
     # still be shown alongside their original selected scenario overlays.
-    original_single = single and not reduced and len(curves.scenarios) == 1
+    original_single = single and not reduced and len(curves.overlay_indices) == 1
     if not original_single:
-        for scenario_index, (quantiles, (trans_idx, nuis_idx, offset)) in enumerate(
-            zip(curves.scenario_quantiles, curves.scenarios, strict=True)
-        ):
+        original = curves.orig_quants.reshape(-1, curves.probs.size)
+        for scenario_index, row in enumerate(curves.overlay_indices):
+            quantiles = original[row]
+            trans_idx, nuis_idx, offset = curves.orig_epis_offsets[row]
             scenario_style = linestyle
             if offset is not EEpisOffset.NOMINAL:
                 scenario_style = (
@@ -710,7 +709,7 @@ def _plot_ecdf_view(
                 scenario_index == 0
                 and not single
                 and not view.bounds
-                and view.centre is EValidECDFCentre.NONE
+                and view.centre is EECDFCentre.NONE
             ):
                 scenario_label = label
             elif view.scenario_idxs is None:
@@ -718,7 +717,7 @@ def _plot_ecdf_view(
             _plot_quantile_curve(
                 ax,
                 quantiles,
-                curves.probabilities,
+                curves.probs,
                 color=color,
                 label=scenario_label,
                 linestyle=scenario_style,
@@ -730,12 +729,12 @@ def _plot_ecdf_view(
 def _plot_nominal_offset_view(
     ax: Axes,
     source: EValidSource,
-    curves: ValidECDFViewData,
-    profile: ValidECDFViewData | None,
+    curves: ECDFView,
+    profile: ECDFView | None,
     options: ValidPlotOpts,
 ) -> None:
     # Expanded offset order follows EEpisOffset, starting with NOMINAL.
-    nominal = curves.quantiles[:, :, 0].reshape(-1, curves.probabilities.size)
+    nominal = curves.quants[:, :, 0].reshape(-1, curves.probs.size)
     is_sim = source is EValidSource.SIM
     color = options.sim_color if is_sim else options.exp_color
     label = options.sim_label if is_sim else options.exp_label
@@ -743,7 +742,7 @@ def _plot_nominal_offset_view(
         _plot_ecdf_limits(
             ax,
             nominal,
-            curves.probabilities,
+            curves.probs,
             color,
             options.sim_bounds_linestyle if is_sim else options.exp_bounds_linestyle,
             f"{label} Epi Env",
@@ -752,12 +751,12 @@ def _plot_nominal_offset_view(
     centre_curves = (
         nominal
         if profile is None
-        else profile.quantiles[:, :, 0].reshape(-1, curves.probabilities.size)
+        else profile.quants[:, :, 0].reshape(-1, curves.probs.size)
     )
     _plot_quantile_curve(
         ax,
         np.mean(centre_curves, axis=0),
-        curves.probabilities,
+        curves.probs,
         color=color,
         linestyle=options.sim_linestyle if is_sim else options.exp_linestyle,
         label=f"{label} Nom" if nominal.shape[0] == 1 else f"{label} Nom Ctr",
@@ -799,7 +798,7 @@ def _plot_ecdf_limits(
 
 def _plot_exp_confidence_bounds(
     ax: Axes,
-    curves: ValidECDFViewData,
+    curves: ECDFView,
     alpha: float,
     show_bounds: EShowECDFBounds,
     options: ValidPlotOpts,
@@ -809,12 +808,13 @@ def _plot_exp_confidence_bounds(
     shifts = _mavm_confidence_shifts(curves.samples, alpha)[:, None]
     if not np.any(shifts > 0):
         return
-    lower = curves.original_quantiles - shifts
-    upper = curves.original_quantiles + shifts
+    original = curves.orig_quants.reshape(-1, curves.probs.size)
+    lower = original - shifts
+    upper = original + shifts
     _plot_ecdf_limits(
         ax,
         np.concatenate((lower, upper)),
-        curves.probabilities,
+        curves.probs,
         options.exp_color,
         options.exp_conf_linestyle,
         f"{options.exp_label} Conf",
@@ -825,7 +825,7 @@ def _plot_exp_confidence_bounds(
             _plot_quantile_curve(
                 ax,
                 quantiles,
-                curves.probabilities,
+                curves.probs,
                 color=options.exp_color,
                 linestyle=options.exp_conf_linestyle,
                 alpha=options.scenario_alpha,
@@ -835,7 +835,7 @@ def _plot_exp_confidence_bounds(
 
 def add_support_overlay(
     plot: ECDFPlot,
-    supports: ECDFSuppBounds,
+    supports: ECDFMetricBounds,
     *,
     output: EMetricOut | None = None,
     selectors: dict[EValidResAxis, int] | None = None,
@@ -925,7 +925,7 @@ def add_support_overlay(
         if np.array_equal(lower, upper):
             continue
         ax.fill_betweenx(
-            np.r_[0.0, supports.probabilities],
+            np.r_[0.0, supports.probs],
             np.r_[lower[0], lower],
             np.r_[upper[0], upper],
             step="pre",
@@ -937,7 +937,7 @@ def add_support_overlay(
         _plot_quantile_curve(
             ax,
             lower,
-            supports.probabilities,
+            supports.probs,
             color=options.metric_line_color,
             linestyle=options.metric_linestyle,
             linewidth=options.lw,
@@ -945,7 +945,7 @@ def add_support_overlay(
         _plot_quantile_curve(
             ax,
             upper,
-            supports.probabilities,
+            supports.probs,
             color=options.metric_line_color,
             linestyle=options.metric_linestyle,
             linewidth=options.lw,
@@ -956,7 +956,7 @@ def add_support_overlay(
 
 def add_normalised_ecdf_axis(
     plot: ECDFPlot,
-    reference: float | ValidECDFReference,
+    reference: float | ECDFReference,
 ) -> None:
     """Add a secondary x/c axis using one constant per physical panel.
 
@@ -967,7 +967,7 @@ def add_normalised_ecdf_axis(
     if plot.normalisation is not None:
         raise ValueError("This plot already has a normalised horizontal axis.")
     constants = []
-    if isinstance(reference, ValidECDFReference):
+    if isinstance(reference, ECDFReference):
         if not isinstance(reference.source, EValidSource):
             raise TypeError("Reference source must be EValidSource.")
         probability = reference.probability
@@ -982,14 +982,14 @@ def add_normalised_ecdf_axis(
             if reference.source not in data:
                 raise ValueError("The reference source is not displayed in this plot.")
             curves = data[reference.source]
-            mean_quantiles = np.mean(curves.quantiles, axis=(0, 1, 2))
-            index = np.searchsorted(curves.probabilities, probability, side="left")
+            mean_quantiles = np.mean(curves.quants, axis=(0, 1, 2))
+            index = np.searchsorted(curves.probs, probability, side="left")
             constants.append(float(mean_quantiles[index]))
     else:
         if isinstance(reference, (bool, np.bool_)) or not isinstance(
             reference, (int, float, np.integer, np.floating)
         ):
-            raise TypeError("Reference must be a constant or ValidECDFReference.")
+            raise TypeError("Reference must be a constant or ECDFReference.")
         constants = [float(reference)] * len(plot.point_idxs)
     if any(not np.isfinite(constant) or constant == 0 for constant in constants):
         raise ValueError("Normalisation constants must be finite and nonzero.")
@@ -1015,7 +1015,7 @@ def add_metric_overlay(
     *,
     output: EMetricOut | None = None,
     display: EMetricDisp | None = None,
-    comparison: ValidECDFComparison | None = None,
+    comparison: ECDFComparison | None = None,
 ) -> None:
     """Compose a metric illustration with the exact selected conditional samples.
 
@@ -1065,8 +1065,8 @@ def add_metric_overlay(
             raise ValueError("The selected metric does not declare that output.")
         output_indices = (outputs.index(output),)
     if comparison is not None:
-        if not isinstance(comparison, ValidECDFComparison):
-            raise TypeError("Comparison must be ValidECDFComparison.")
+        if not isinstance(comparison, ECDFComparison):
+            raise TypeError("Comparison must be ECDFComparison.")
         for index in (
             comparison.sim_trans_idx,
             comparison.sim_nuis_idx,
@@ -1103,14 +1103,14 @@ def add_metric_overlay(
                 comparison.exp_offset,
             )
             if (
-                sim_key not in sim.original_scenarios
-                or exp_key not in exp.original_scenarios
+                sim_key not in sim.orig_epis_offsets
+                or exp_key not in exp.orig_epis_offsets
             ):
                 raise ValueError(
                     "Comparison is outside the plotted scenario selections."
                 )
-            sim_indices = (sim.original_scenarios.index(sim_key),)
-            exp_indices = (exp.original_scenarios.index(exp_key),)
+            sim_indices = (sim.orig_epis_offsets.index(sim_key),)
+            exp_indices = (exp.orig_epis_offsets.index(exp_key),)
         if display is EMetricDisp.INTEGRATION_AREA and (
             len(sim_indices) != 1 or len(exp_indices) != 1
         ):
@@ -1148,7 +1148,7 @@ def add_metric_overlay(
     ):
         annotation = None
         if display is EMetricDisp.SUPPORT_SHIFT:
-            quantiles = sim.original_quantiles[list(sim_indices)]
+            quantiles = sim.orig_quants.reshape(-1, sim.probs.size)[list(sim_indices)]
             lower = np.min(quantiles, axis=0)
             upper = np.max(quantiles, axis=0)
             if full_support:
@@ -1166,7 +1166,7 @@ def add_metric_overlay(
             if np.array_equal(lower, upper):
                 continue
             ax.fill_betweenx(
-                np.r_[0.0, sim.probabilities],
+                np.r_[0.0, sim.probs],
                 np.r_[lower[0], lower],
                 np.r_[upper[0], upper],
                 step="pre",
@@ -1178,7 +1178,7 @@ def add_metric_overlay(
             _plot_quantile_curve(
                 ax,
                 lower,
-                sim.probabilities,
+                sim.probs,
                 color=options.metric_line_color,
                 linestyle=options.metric_linestyle,
                 linewidth=options.lw,
@@ -1186,7 +1186,7 @@ def add_metric_overlay(
             _plot_quantile_curve(
                 ax,
                 upper,
-                sim.probabilities,
+                sim.probs,
                 color=options.metric_line_color,
                 linestyle=options.metric_linestyle,
                 linewidth=options.lw,
@@ -1205,7 +1205,7 @@ def add_metric_overlay(
                     if output is EMetricOut.D_PLUS
                     else mavm.exp_conf_lower
                 )
-                exp_cdf = ValidECDF(exp_bound, mavm.exp_probs)
+                exp_cdf = ECDF(exp_bound, mavm.exp_probs)
                 _plot_quantile_curve(
                     ax,
                     mavm.exp_conf_lower,
@@ -1223,7 +1223,7 @@ def add_metric_overlay(
                     linewidth=options.lw,
                 )
             probabilities = np.unique(
-                np.r_[sim_cdf.probabilities, exp_cdf.probabilities]
+                np.r_[sim_cdf.probs, exp_cdf.probs]
             )
             sim_quantiles = _evaluate_ecdf_quantiles(sim_cdf, probabilities)
             exp_quantiles = _evaluate_ecdf_quantiles(exp_cdf, probabilities)
@@ -1248,13 +1248,13 @@ def add_metric_overlay(
             if comparison is not None or len(sim_indices) == len(exp_indices) == 1:
                 curve_pairs = (
                     (
-                        sim.original_quantiles[sim_indices[0]],
-                        exp.original_quantiles[exp_indices[0]],
+                        sim.orig_quants.reshape(-1, sim.probs.size)[sim_indices[0]],
+                        exp.orig_quants.reshape(-1, exp.probs.size)[exp_indices[0]],
                     ),
                 )
             else:
-                sim_quantiles = sim.quantiles.reshape(-1, sim.probabilities.size)
-                exp_quantiles = exp.quantiles.reshape(-1, exp.probabilities.size)
+                sim_quantiles = sim.quants.reshape(-1, sim.probs.size)
+                exp_quantiles = exp.quants.reshape(-1, exp.probs.size)
                 curve_pairs = (
                     (
                         np.min(sim_quantiles, axis=0),
@@ -1268,10 +1268,10 @@ def add_metric_overlay(
             gaps = []
             for pair_index, (sim_quantiles, exp_quantiles) in enumerate(curve_pairs):
                 support = np.unique(np.r_[sim_quantiles, exp_quantiles])
-                sim_probabilities = np.r_[0.0, sim.probabilities][
+                sim_probabilities = np.r_[0.0, sim.probs][
                     np.searchsorted(sim_quantiles, support, side="right")
                 ]
-                exp_probabilities = np.r_[0.0, exp.probabilities][
+                exp_probabilities = np.r_[0.0, exp.probs][
                     np.searchsorted(exp_quantiles, support, side="right")
                 ]
                 differences = np.abs(sim_probabilities - exp_probabilities)
@@ -1687,8 +1687,8 @@ def plot_metric_extrema_ecdfs(
         plot_sim_exp_cdfs(
             valid_case,
             observable,
-            sim_view=ValidECDFView(trans_idxs=(sim_trans,), nuis_idxs=(sim_nuis,)),
-            exp_view=ValidECDFView(trans_idxs=(exp_trans,), nuis_idxs=(exp_nuis,)),
+            sim_view=ECDFViewOpts(trans_idxs=(sim_trans,), nuis_idxs=(sim_nuis,)),
+            exp_view=ECDFViewOpts(trans_idxs=(exp_trans,), nuis_idxs=(exp_nuis,)),
             sim_offset=sim_offset,
             exp_offset=exp_offset,
             point_idxs=(comparison_indices.get(EValidResAxis.POINT, 0),),
@@ -1730,9 +1730,10 @@ def _plot_quantile_curve(
     )
 
 
-def _plot_distribution_summary(
+def _plot_distribution_bounds(
     ax: Axes,
-    summary: ValidECDFSummary,
+    curves: ECDFView,
+    support_cases: tuple[int, int] | None,
     *,
     color: str,
     label: str,
@@ -1740,10 +1741,16 @@ def _plot_distribution_summary(
     bounds_linestyle: _LineStyle,
     linestyle: _LineStyle,
 ) -> None:
+    if support_cases is None:
+        bounds = _find_ecdf_view_bounds(curves)
+        lower, upper = bounds.lower, bounds.upper
+    else:
+        original = curves.orig_quants.reshape(-1, curves.probs.size)
+        lower, upper = original[list(support_cases)]
     _plot_quantile_curve(
         ax,
-        summary.nominal,
-        summary.probabilities,
+        np.mean(curves.quants, axis=(0, 1, 2)),
+        curves.probs,
         color=color,
         label=label,
         linestyle=linestyle,
@@ -1751,25 +1758,25 @@ def _plot_distribution_summary(
     )
     _plot_quantile_curve(
         ax,
-        summary.lower,
-        summary.probabilities,
+        lower,
+        curves.probs,
         color=color,
         linestyle=bounds_linestyle,
         linewidth=options.lw * options.ecdf_lw_scale,
     )
     _plot_quantile_curve(
         ax,
-        summary.upper,
-        summary.probabilities,
+        upper,
+        curves.probs,
         color=color,
         linestyle=bounds_linestyle,
         linewidth=options.lw * options.ecdf_lw_scale,
     )
-    if options.shade_bounds and not np.array_equal(summary.lower, summary.upper):
+    if options.shade_bounds and not np.array_equal(lower, upper):
         ax.fill_betweenx(
-            np.r_[0.0, summary.probabilities],
-            np.r_[summary.lower[0], summary.lower],
-            np.r_[summary.upper[0], summary.upper],
+            np.r_[0.0, curves.probs],
+            np.r_[lower[0], lower],
+            np.r_[upper[0], upper],
             step="pre",
             color=color,
             alpha=options.bounds_alpha,
@@ -1778,15 +1785,20 @@ def _plot_distribution_summary(
 
 
 def plot_valid_mavm_diagnostic(
-    sim: ValidECDFSummary,
-    exp: ValidECDFSummary | None = None,
+    sim: ECDFView,
+    exp: ECDFView | None = None,
     *,
+    sim_support_cases: tuple[int, int] | None = None,
+    exp_support_cases: tuple[int, int] | None = None,
     bound_pairs: MAVMBoundPairs | None = None,
     view: EValidMAVMDiagnostic = EValidMAVMDiagnostic.DISTRIBUTIONS,
     valid_plot_opts: ValidPlotOpts | None = None,
     ax: Axes | None = None,
 ) -> tuple[Figure, Axes]:
     """Compare uncertainty bands, shifted endpoint curves or MAVM support.
+
+    Support case indices select whole original curves. With no indices,
+    the diagnostic draws pointwise bounds.
 
     The bound pairs provide the scalar MAVM distances used to shift model
     support and draw the outer support band.
@@ -1798,18 +1810,20 @@ def plot_valid_mavm_diagnostic(
     fig, ax = _create_axes(ax, valid_plot_opts)
     options = ValidPlotOpts() if valid_plot_opts is None else valid_plot_opts
     if exp is not None and view is not EValidMAVMDiagnostic.MODEL_CORRECTION:
-        _plot_distribution_summary(
+        _plot_distribution_bounds(
             ax,
             exp,
+            exp_support_cases,
             color=options.exp_color,
             label=options.exp_label,
             options=options,
             linestyle=options.exp_linestyle,
             bounds_linestyle=options.exp_bounds_linestyle,
         )
-    _plot_distribution_summary(
+    _plot_distribution_bounds(
         ax,
         sim,
+        sim_support_cases,
         color=options.sim_color,
         label=options.sim_label,
         options=options,
@@ -1842,16 +1856,16 @@ def plot_valid_mavm_diagnostic(
         EValidMAVMDiagnostic.CORRECTION,
         EValidMAVMDiagnostic.MODEL_CORRECTION,
     ):
-        lower_cdf = ValidECDF(
+        lower_cdf = ECDF(
             bound_pairs.lower.model_quantiles - bound_pairs.lower.d_minus,
             bound_pairs.lower.model_probs,
         )
-        upper_cdf = ValidECDF(
+        upper_cdf = ECDF(
             bound_pairs.upper.model_quantiles + bound_pairs.upper.d_plus,
             bound_pairs.upper.model_probs,
         )
         probabilities = np.unique(
-            np.r_[lower_cdf.probabilities, upper_cdf.probabilities]
+            np.r_[lower_cdf.probs, upper_cdf.probs]
         )
         lower = _evaluate_ecdf_quantiles(lower_cdf, probabilities)
         upper = _evaluate_ecdf_quantiles(upper_cdf, probabilities)

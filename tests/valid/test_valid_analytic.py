@@ -410,18 +410,18 @@ def create_epistemic_case(sim: np.ndarray, exp: np.ndarray) -> vl.ValidCase:
 @pytest.mark.parametrize(
     "reduction, probability, lower, upper",
     [
-        (vl.EValidECDFReduce.KEEP, None, 1.0, 90.0),
-        (vl.EValidECDFReduce.MEAN, None, 4.0, 33.0),
-        (vl.EValidECDFReduce.MEDIAN, None, 3.0, 8.0),
-        (vl.EValidECDFReduce.QUANTILE, 0.0, 1.0, 4.0),
-        (vl.EValidECDFReduce.QUANTILE, 0.25, 2.5, 4.5),
-        (vl.EValidECDFReduce.QUANTILE, 0.5, 3.0, 8.0),
-        (vl.EValidECDFReduce.QUANTILE, 0.75, 5.0, 49.0),
-        (vl.EValidECDFReduce.QUANTILE, 1.0, 6.0, 90.0),
+        (vl.EECDFReduce.KEEP, None, 1.0, 90.0),
+        (vl.EECDFReduce.MEAN, None, 4.0, 33.0),
+        (vl.EECDFReduce.MEDIAN, None, 3.0, 8.0),
+        (vl.EECDFReduce.QUANTILE, 0.0, 1.0, 4.0),
+        (vl.EECDFReduce.QUANTILE, 0.25, 2.5, 4.5),
+        (vl.EECDFReduce.QUANTILE, 0.5, 3.0, 8.0),
+        (vl.EECDFReduce.QUANTILE, 0.75, 5.0, 49.0),
+        (vl.EECDFReduce.QUANTILE, 1.0, 6.0, 90.0),
     ],
 )
 def test_epis_bounds_nuisance_treatments_have_analytic_quantiles(
-    reduction: vl.EValidECDFReduce,
+    reduction: vl.EECDFReduce,
     probability: float | None,
     lower: float,
     upper: float,
@@ -439,10 +439,10 @@ def test_epis_bounds_nuisance_treatments_have_analytic_quantiles(
     bounds = vl.find_ecdf_epis_bounds(
         quantity, nuis_reduce=reduction, nuis_quantile=probability
     )
-    np.testing.assert_allclose(bounds.probabilities, [0.5, 1.0])
+    np.testing.assert_allclose(bounds.view.probs, [0.5, 1.0])
     np.testing.assert_allclose(bounds.lower, [lower, lower + 2], rtol=0, atol=1e-12)
     np.testing.assert_allclose(bounds.upper, [upper, upper + 2], rtol=0, atol=1e-12)
-    if reduction is vl.EValidECDFReduce.KEEP:
+    if reduction is vl.EECDFReduce.KEEP:
         np.testing.assert_array_equal(bounds.lower_indices[:, :2], [[0, 0], [0, 0]])
         np.testing.assert_array_equal(bounds.upper_indices[:, :2], [[0, 1], [0, 1]])
     else:
@@ -462,7 +462,7 @@ def test_avm_bounds_preserve_unequal_empirical_probability_mass() -> None:
     sim_bounds = vl.find_ecdf_epis_bounds(sim)
     exp_bounds = vl.find_ecdf_epis_bounds(exp)
     # The grid has interval weights [1/3,1/6,1/6,1/3], not four equal masses.
-    np.testing.assert_allclose(sim_bounds.probabilities, [1 / 3, 0.5, 2 / 3, 1.0])
+    np.testing.assert_allclose(sim_bounds.view.probs, [1 / 3, 0.5, 2 / 3, 1.0])
     np.testing.assert_array_equal(sim_bounds.lower, [0.0, 0.0, 3.0, 10.0])
     np.testing.assert_array_equal(sim_bounds.upper, [2.0, 3.0, 10.0, 20.0])
     supports = vl.calc_avm_over_epis_bounds(sim_bounds, exp_bounds)
@@ -695,7 +695,7 @@ def test_ranked_nuisance_cases_are_coherent_and_use_explicit_width_scores() -> N
     upper[0, 0] = [1.5, 3.5]  # Weighted width is 3; the unweighted mean is 2.5.
     sim_upper = np.repeat(original_width[..., None], 2, axis=-1)
     origin = np.empty((*upper.shape, 0), dtype=int)
-    supports = vl.ECDFSuppBounds(
+    supports = vl.ECDFMetricBounds(
         (vl.EValidResAxis.SIM_NUIS, vl.EValidResAxis.EXP_NUIS),
         probabilities,
         np.zeros_like(upper),
@@ -709,7 +709,7 @@ def test_ranked_nuisance_cases_are_coherent_and_use_explicit_width_scores() -> N
     )
     total = vl.rank_epis_nuisance_cases(supports)
     added = vl.rank_epis_nuisance_cases(
-        supports, score=vl.EValidNuisanceScore.ADDED_WIDTH
+        supports, score=vl.EECDFNuisanceScore.ADDED_WIDTH
     )
     np.testing.assert_array_equal(total.cases, [[0, 0], [0, 1], [1, 0], [1, 1]])
     np.testing.assert_allclose(total.scores, [3.0, 10.0, 4.0, 8.0])
@@ -797,7 +797,7 @@ def test_mavm_confidence_preserves_original_counts_before_nuisance_mean() -> Non
         (vl.EValidAxis.EPISTEMIC_NUIS, vl.EValidAxis.ALEATORY),
     )
     exp_bounds = vl.find_ecdf_epis_bounds(
-        exp, nuis_reduce=vl.EValidECDFReduce.MEAN
+        exp, nuis_reduce=vl.EECDFReduce.MEAN
     )
     # The mean quantile curve is [5,6,7,8] on intervals [1/3,1/6,1/6,1/3],
     # giving mean 6.5. Confidence shifts use the original counts two and three,
@@ -1068,30 +1068,27 @@ def test_avm_matches_hand_calculated_ecdf_rectangles(
 
 
 def test_crossing_cdfs_distinguish_pointwise_from_support_sum_bounds() -> None:
-    scenarios = [np.array([0.0, 10.0]), np.array([4.0, 5.0])]
-    pointwise = vl.calc_ecdf_summary(scenarios)
-    selected = vl.calc_ecdf_summary(
-        scenarios, bounds=vl.EValidECDFBounds.SUPPORT_SUM
+    scenarios = np.array([[0.0, 10.0], [4.0, 5.0]])
+    quantity = vl.ValidArray(
+        scenarios, (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY)
     )
-    np.testing.assert_allclose(pointwise.probabilities, [0.5, 1.0])
-    np.testing.assert_allclose(pointwise.lower, [0.0, 5.0])
-    np.testing.assert_allclose(pointwise.upper, [4.0, 10.0])
-    np.testing.assert_allclose(pointwise.nominal, [2.0, 7.5])
-    assert pointwise.lower_idx is None
-    assert pointwise.upper_idx is None
-    assert selected.lower_idx == 1
-    assert selected.upper_idx == 0
-    np.testing.assert_allclose(selected.lower, [4.0, 5.0])
-    np.testing.assert_allclose(selected.upper, [0.0, 10.0])
+    bounds = vl.find_ecdf_epis_bounds(quantity)
+    np.testing.assert_allclose(bounds.view.probs, [0.5, 1.0])
+    np.testing.assert_allclose(bounds.lower, [0.0, 5.0])
+    np.testing.assert_allclose(bounds.upper, [4.0, 10.0])
+    assert vl.select_ecdf_support_cases(bounds.view.samples) == (1, 0)
 
 
-def test_quantile_summary_preserves_duplicate_mass_and_unequal_counts() -> None:
-    samples = [np.array([0.0, 0.0, 2.0]), np.array([1.0, 3.0])]
-    summary = vl.calc_ecdf_summary(samples)
-    np.testing.assert_allclose(summary.probabilities, [0.5, 2.0 / 3.0, 1.0])
-    np.testing.assert_allclose(summary.lower, [0.0, 0.0, 2.0])
-    np.testing.assert_allclose(summary.upper, [1.0, 3.0, 3.0])
-    np.testing.assert_allclose(summary.nominal, [0.5, 1.5, 2.5])
+def test_quantile_bounds_preserve_duplicate_mass_and_unequal_counts() -> None:
+    samples = np.array([[0.0, 0.0, 2.0], [1.0, 3.0, np.nan]])
+    quantity = vl.ValidArray(
+        samples, (vl.EValidAxis.EPISTEMIC_TRANS, vl.EValidAxis.ALEATORY)
+    )
+    bounds = vl.find_ecdf_epis_bounds(quantity)
+    np.testing.assert_allclose(bounds.view.probs, [0.5, 2.0 / 3.0, 1.0])
+    np.testing.assert_allclose(bounds.lower, [0.0, 0.0, 2.0])
+    np.testing.assert_allclose(bounds.upper, [1.0, 3.0, 3.0])
+    np.testing.assert_allclose(bounds.view.quants.mean(axis=(0, 1, 2)), [0.5, 1.5, 2.5])
     cdf = vl.calc_ecdf(samples[0])
     np.testing.assert_allclose(
         vl.evaluate_ecdf_quantiles(cdf, np.array([0.0, 2.0 / 3.0, 1.0])),
@@ -1140,50 +1137,53 @@ def test_quantile_reductions_preserve_axes_and_use_nuisance_first() -> None:
     test_case = create_plot_epistemic_case()
     quantity = test_case.sim["length"]
     curves = vl.calc_ecdf_view(quantity)
-    assert curves.quantiles.shape == (3, 3, 1, 2)
-    np.testing.assert_array_equal(curves.probabilities, [0.5, 1.0])
-    np.testing.assert_array_equal(curves.quantiles[..., 0, :], quantity.data)
+    assert curves.quants.shape == (3, 3, 1, 2)
+    np.testing.assert_array_equal(curves.probs, [0.5, 1.0])
+    np.testing.assert_array_equal(curves.quants[..., 0, :], quantity.data)
     median_nuis = vl.calc_ecdf_view(
-        quantity, view=vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN)
+        quantity, view=vl.ECDFViewOpts(nuis_reduce=vl.EECDFReduce.MEDIAN)
     )
     np.testing.assert_array_equal(
-        median_nuis.quantiles[:, 0, 0], [[8.0, 10.0], [3.0, 5.0], [5.0, 7.0]]
+        median_nuis.quants[:, 0, 0], [[8.0, 10.0], [3.0, 5.0], [5.0, 7.0]]
     )
     median_both = vl.calc_ecdf_view(
         quantity,
-        view=vl.ValidECDFView(
-            nuis_reduce=vl.EValidECDFReduce.MEDIAN,
-            trans_reduce=vl.EValidECDFReduce.MEDIAN,
+        view=vl.ECDFViewOpts(
+            nuis_reduce=vl.EECDFReduce.MEDIAN,
+            trans_reduce=vl.EECDFReduce.MEDIAN,
         ),
     )
-    np.testing.assert_array_equal(median_both.quantiles, [[[[5.0, 7.0]]]])
+    np.testing.assert_array_equal(median_both.quants, [[[[5.0, 7.0]]]])
     mean_both = vl.calc_ecdf_view(
         quantity,
-        view=vl.ValidECDFView(
-            nuis_reduce=vl.EValidECDFReduce.MEAN,
-            trans_reduce=vl.EValidECDFReduce.MEAN,
+        view=vl.ECDFViewOpts(
+            nuis_reduce=vl.EECDFReduce.MEAN,
+            trans_reduce=vl.EECDFReduce.MEAN,
         ),
     )
-    np.testing.assert_allclose(mean_both.quantiles, [[[[5.0, 7.0]]]])
+    np.testing.assert_allclose(mean_both.quants, [[[[5.0, 7.0]]]])
 
 
 def test_selection_precedes_reduction_and_original_joint_overlays_are_preserved() -> (
     None
 ):
     quantity = create_plot_epistemic_case().sim["length"]
-    view = vl.ValidECDFView(
+    view = vl.ECDFViewOpts(
         trans_idxs=(2, 0),
         nuis_idxs=(1, 2),
-        nuis_reduce=vl.EValidECDFReduce.MEAN,
+        nuis_reduce=vl.EECDFReduce.MEAN,
         scenario_idxs=((0, 2), (2, 1)),
     )
     curves = vl.calc_ecdf_view(quantity, view=view)
-    np.testing.assert_array_equal(curves.quantiles[:, 0, 0], [[5.5, 7.5], [8.5, 10.5]])
-    assert curves.scenarios == (
+    np.testing.assert_array_equal(curves.quants[:, 0, 0], [[5.5, 7.5], [8.5, 10.5]])
+    assert tuple(curves.orig_epis_offsets[idx] for idx in curves.overlay_indices) == (
         (0, 2, vl.EEpisOffset.NOMINAL),
         (2, 1, vl.EEpisOffset.NOMINAL),
     )
-    np.testing.assert_array_equal(curves.scenario_quantiles, [[8.0, 10.0], [6.0, 8.0]])
+    original = curves.orig_quants.reshape(-1, curves.probs.size)
+    np.testing.assert_array_equal(
+        original[list(curves.overlay_indices)], [[8.0, 10.0], [6.0, 8.0]]
+    )
 
 
 def test_pointwise_ecdf_envelope_handles_crossing_distributions() -> None:

@@ -60,21 +60,21 @@ valid_case = vl.ValidCase(
 # -------------------------------------
 #
 # Find the pointwise envelope of each ECDF family. The bound-based AVM and
-# MAVM functions use those envelopes to produce ``ECDFSuppBounds``, which
+# MAVM functions use those envelopes to produce ``ECDFMetricBounds``, which
 # holds the support curves for plotting.
-sim_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
+sim_bounds: vl.ECDFEpisBounds = vl.find_ecdf_epis_bounds(
     valid_case.sim[observable_tag]
 )
 
-exp_bounds: vl.ValidECDFBounds = vl.find_ecdf_epis_bounds(
+exp_bounds: vl.ECDFEpisBounds = vl.find_ecdf_epis_bounds(
     valid_case.exp[observable_tag]
 )
 
-avm_bounds: vl.ECDFSuppBounds = vl.calc_avm_over_epis_bounds(
+avm_bounds: vl.ECDFMetricBounds = vl.calc_avm_over_epis_bounds(
     sim_bounds, exp_bounds
 )
 
-mavm_bounds: vl.ECDFSuppBounds = vl.calc_mavm_over_epis_bounds(
+mavm_bounds: vl.ECDFMetricBounds = vl.calc_mavm_over_epis_bounds(
     sim_bounds, exp_bounds, alpha=0.5
 )
 
@@ -90,11 +90,11 @@ valid_result: vl.ValidResult = vl.ValidEngine(
     [vl.MetricAVM(), vl.MetricMAVM(alpha=0.5)]
 ).run(valid_case)
 
-avm_original: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
+avm_original: vl.ECDFMetricBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.AVM
 )
 
-mavm_original: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
+mavm_original: vl.ECDFMetricBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
 

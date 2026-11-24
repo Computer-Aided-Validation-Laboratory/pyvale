@@ -108,7 +108,7 @@ for nn, pp in (
         valid_case,
         observable_tag,
         point_idxs=None,
-        nuisance_profile=vl.EValidECDFReduce.MEDIAN,
+        nuisance_profile=vl.EECDFReduce.MEDIAN,
     )
     ecdf_plot.figure.suptitle("All-case envelope vs. median nuisance profile")
     fig_file = (
@@ -118,8 +118,8 @@ for nn, pp in (
     ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 
 for nn, tt, rr, qq in (
-    ("mean", "mean", vl.EValidECDFReduce.MEAN, None),
-    ("q25", "25th-percentile", vl.EValidECDFReduce.QUANTILE, 0.25),
+    ("mean", "mean", vl.EECDFReduce.MEAN, None),
+    ("q25", "25th-percentile", vl.EECDFReduce.QUANTILE, 0.25),
 ):
     ecdf_plot = vl.plot_sim_exp_cdfs(
         valid_case,
@@ -147,7 +147,7 @@ for nn, tt, rr, qq in (
 #
 # Use the same median reduction on both sources. The KS overlay measures the
 # largest vertical gap between the selected ECDF bounds.
-median_view = vl.ValidECDFView(nuis_reduce=vl.EValidECDFReduce.MEDIAN)
+median_view = vl.ECDFViewOpts(nuis_reduce=vl.EECDFReduce.MEDIAN)
 for nn, tt, vv in (
     ("envelope", "all-case envelope", None),
     ("prof_median", "median nuisance profile", median_view),

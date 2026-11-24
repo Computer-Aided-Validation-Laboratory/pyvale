@@ -222,7 +222,7 @@ if not SHOW_PLOTS:
 #
 # The MAVM overlay spans nuisance pairs at fixed transferable indices. The AVM
 # overlay spans all original scenario pairs.
-supports: vl.ECDFSuppBounds = vl.profile_epis_nuisance_supports(
+supports: vl.ECDFMetricBounds = vl.profile_epis_nuisance_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.MAVM
 )
 
@@ -231,8 +231,8 @@ ecdf_plot: vl.ECDFPlot = vl.plot_sim_exp_cdfs(
     observable_tag,
     point_idxs=None,
     time_idx=2,
-    sim_view=vl.ValidECDFView(trans_idxs=(0,)),
-    exp_view=vl.ValidECDFView(trans_idxs=(0,)),
+    sim_view=vl.ECDFViewOpts(trans_idxs=(0,)),
+    exp_view=vl.ECDFViewOpts(trans_idxs=(0,)),
     valid_plot_opts=vl.ValidPlotOpts(sim_label="Sim Nuis Env", exp_label="Exp Nuis Env"),
 )
 
@@ -249,7 +249,7 @@ ecdf_plot.figure.savefig(output_path / fig_file, bbox_inches="tight")
 if not SHOW_PLOTS:
     plt.close(ecdf_plot.figure)
 
-avm_supports: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
+avm_supports: vl.ECDFMetricBounds = vl.find_metric_epis_supports(
     valid_case, valid_result, observable_tag, vl.EMetricType.AVM
 )
 
@@ -281,7 +281,7 @@ if not SHOW_PLOTS:
 # score describes a whole pair using either total support width or added
 # width. Select the first, median, and last ranked rows to inspect their
 # ECDFs.
-by_case: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
+by_case: vl.ECDFMetricBounds = vl.find_metric_epis_supports(
     valid_case,
     valid_result,
     observable_tag,
@@ -289,7 +289,7 @@ by_case: vl.ECDFSuppBounds = vl.find_metric_epis_supports(
     reduce_axes=(vl.EValidResAxis.SIM_TRANS, vl.EValidResAxis.EXP_TRANS),
 )
 
-for ss in vl.EValidNuisanceScore:
+for ss in vl.EECDFNuisanceScore:
     ranking: vl.ECDFNuisanceRank = vl.rank_epis_nuisance_cases(
         by_case, score=ss
     )
@@ -314,8 +314,8 @@ for ss in vl.EValidNuisanceScore:
             valid_case,
             observable_tag,
             time_idx=2,
-            sim_view=vl.ValidECDFView(nuis_idxs=(sim_nuis,)),
-            exp_view=vl.ValidECDFView(nuis_idxs=(exp_nuis,)),
+            sim_view=vl.ECDFViewOpts(nuis_idxs=(sim_nuis,)),
+            exp_view=vl.ECDFViewOpts(nuis_idxs=(exp_nuis,)),
             valid_plot_opts=vl.ValidPlotOpts(
                 sim_label=f"Sim Nuis {sim_nuis}",
                 exp_label=f"Exp Nuis {exp_nuis}",

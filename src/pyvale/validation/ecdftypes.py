@@ -16,32 +16,32 @@ from pyvale.validation.validtypes import EEpisOffset, EValidResAxis
 
 
 @dataclass(slots=True)
-class ValidECDF:
+class ECDF:
     """Borrow support/probabilities, each shaped (n_support,).
 
     Support and cumulative probabilities increase strictly; probabilities end
     at one. Arrays must remain unchanged while the ECDF is in use.
     """
 
-    quantiles: np.ndarray
-    probabilities: np.ndarray
+    quants: np.ndarray
+    probs: np.ndarray
 
 
-class EValidECDFReduce(Enum):
+class EECDFReduce(Enum):
     KEEP = auto()
     MEAN = auto()
     MEDIAN = auto()
     QUANTILE = auto()
 
 
-class EValidECDFCentre(Enum):
+class EECDFCentre(Enum):
     NONE = auto()
     MEAN = auto()
     MEDIAN = auto()
 
 
 @dataclass(slots=True)
-class ValidECDFView:
+class ECDFViewOpts:
     """Select scenarios before nuisance-first, then transferable quantile reduction.
 
     None index selections retain every index. scenario_idxs overlays original
@@ -50,83 +50,58 @@ class ValidECDFView:
     Offsets are selected separately by the plotting/calculation function.
     """
 
-    trans_reduce: EValidECDFReduce = EValidECDFReduce.KEEP
-    nuis_reduce: EValidECDFReduce = EValidECDFReduce.KEEP
+    trans_reduce: EECDFReduce = EECDFReduce.KEEP
+    nuis_reduce: EECDFReduce = EECDFReduce.KEEP
     trans_quantile: float | None = None
     nuis_quantile: float | None = None
     trans_idxs: tuple[int, ...] | None = None
     nuis_idxs: tuple[int, ...] | None = None
     bounds: bool = True
-    centre: EValidECDFCentre = EValidECDFCentre.NONE
+    centre: EECDFCentre = EECDFCentre.NONE
     scenario_idxs: tuple[tuple[int, int], ...] | None = ()
 
 
 @dataclass(slots=True)
-class ValidECDFViewData:
+class ECDFView:
     """Quantiles on a shared probability grid, retaining singleton reduced axes.
 
-    quantiles has axes (transferable, nuisance, offset, probability).
-    scenario_quantiles has axes (selected original scenario, probability).
-    scenarios preserves original joint indices and coherent offset labels.
+    quants has axes (transferable, nuisance, offset, probability).
+    orig_quants has the same axis order before reduction. orig_epis_offsets and
+    samples follow the flattened (transferable, nuisance, offset) order.
+    overlay_indices select rows in that order.
     """
 
-    probabilities: np.ndarray
-    quantiles: np.ndarray
-    scenario_quantiles: np.ndarray
-    scenarios: tuple[tuple[int, int, EEpisOffset], ...]
-    original_quantiles: np.ndarray
-    original_scenarios: tuple[tuple[int, int, EEpisOffset], ...]
+    probs: np.ndarray
+    quants: np.ndarray
+    orig_quants: np.ndarray
+    orig_epis_offsets: tuple[tuple[int, int, EEpisOffset], ...]
     samples: tuple[np.ndarray, ...]
+    overlay_indices: tuple[int, ...]
+    opts: ECDFViewOpts
 
 
 @dataclass(slots=True)
-class ValidECDFBounds:
-    """Pointwise quantile limits with original samples and reduction provenance.
+class ECDFEpisBounds:
+    """Pointwise quantile limits and their controlling epistemic indices.
 
-    Scenario index arrays have columns (transferable, nuisance, offset).
-    -1 identifies a synthetic mean/median/quantile axis rather than an original
-    scenario. data and view retain the information needed for confidence bounds.
+    Index columns are (transferable, nuisance, offset). A reduced axis has
+    index -1. The source view retains inputs for confidence calculations.
     """
 
-    probabilities: np.ndarray
     lower: np.ndarray
     upper: np.ndarray
     lower_indices: np.ndarray
     upper_indices: np.ndarray
-    data: ValidECDFViewData
-    view: ValidECDFView
+    view: ECDFView
 
 
-class EValidECDFBounds(Enum):
-    POINTWISE = auto()
-    SUPPORT_SUM = auto()
-
-
-@dataclass(slots=True)
-class ValidECDFSummary:
-    """Conditional quantile curves on a shared probability grid, each shaped (n,).
-
-    nominal is the arithmetic mean of conditional quantiles, not a pooled CDF.
-    SUPPORT_SUM selects whole scenarios and does not guarantee pointwise bounds.
-    Indices refer to input scenario order; pointwise bounds have no single index.
-    """
-
-    probabilities: np.ndarray
-    lower: np.ndarray
-    upper: np.ndarray
-    nominal: np.ndarray
-    bounds: EValidECDFBounds
-    lower_idx: int | None
-    upper_idx: int | None
-
-
-class EValidBoundAxis(Enum):
+class EECDFBoundAxis(Enum):
     SIM_BOUND = auto()
     EXP_BOUND = auto()
 
 
 @dataclass(slots=True)
-class ECDFSuppBounds:
+class ECDFMetricBounds:
     """Shifted quantile limits, with controlling original comparison indices.
 
     lower/upper and unshifted limits have shape ``(*retained_axes, probability)``.
@@ -135,12 +110,12 @@ class ECDFSuppBounds:
     """
 
     axes: tuple[EValidResAxis, ...]
-    probabilities: np.ndarray
+    probs: np.ndarray
     lower: np.ndarray
     upper: np.ndarray
     sim_lower: np.ndarray
     sim_upper: np.ndarray
-    index_axes: tuple[EValidResAxis | EValidBoundAxis, ...]
+    index_axes: tuple[EValidResAxis | EECDFBoundAxis, ...]
     lower_indices: np.ndarray
     upper_indices: np.ndarray
     selectors: dict[EValidResAxis, int]
@@ -148,7 +123,7 @@ class ECDFSuppBounds:
     metric: EMetricType | None = None
 
 
-class EValidNuisanceScore(Enum):
+class EECDFNuisanceScore(Enum):
     TOTAL_WIDTH = auto()
     ADDED_WIDTH = auto()
 
@@ -169,5 +144,5 @@ class ECDFNuisanceRank:
     scores: np.ndarray
     order: np.ndarray
     valid_counts: np.ndarray
-    score: EValidNuisanceScore
+    score: EECDFNuisanceScore
     selectors: dict[EValidResAxis, int] = field(default_factory=dict)
