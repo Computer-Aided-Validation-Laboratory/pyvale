@@ -159,7 +159,7 @@ print(f"{result.images=}")
 # %%
 # The first frame from both cameras is combined side by side below.
 #
-# .. image:: ../../../../_static/render3d_ex1d_riley_dicuq.png
+# .. image:: /_static/render3d_ex1d_riley_dicuq.png
 #    :alt: Riley stereo DIC render from both cameras
 #    :width: 900px
 #    :align: center

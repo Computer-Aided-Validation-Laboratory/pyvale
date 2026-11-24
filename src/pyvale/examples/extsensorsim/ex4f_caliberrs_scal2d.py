@@ -69,7 +69,7 @@ print(80*"-")
 print()
 
 # %%
-# .. image:: ../../../../_static/ext_ex4f_term_out_0.png
+# .. image:: /_static/ext_ex4f_term_out_0.png
 #    :alt: Terminal output.
 #    :width: 700px
 #    :align: center
@@ -141,7 +141,7 @@ sens.print_measurements(sens_array,sens_print,comp_print,time_print)
 print(80*"-")
 
 # %%
-# .. image:: ../../../../_static/ext_ex4f_term_out_1.png
+# .. image:: /_static/ext_ex4f_term_out_1.png
 #    :alt: Terminal output.
 #    :width: 700px
 #    :align: center
@@ -162,7 +162,7 @@ fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex4f_traces.png
+# .. image:: /_static/ext_ex4f_traces.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center

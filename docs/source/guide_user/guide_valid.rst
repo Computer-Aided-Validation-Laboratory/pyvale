@@ -1,22 +1,19 @@
 Validation
 ==========
 
-``pyvale.valid`` compares simulation and experimental observables on a shared
-physical domain. Import it as ``import pyvale.valid as valid``. A ``ValidCase`` has
-one ``ValidDomain`` and separate simulation and experimental dictionaries mapping
-observable tags to ``ValidArray`` objects.
-The domain records point coordinates, component order, evaluation times,
-measurement operator, field units, optional time and coordinate units, and a spatial ``coord_frame`` identifier.
-Arrays supplied directly must already use that physical support and those
-units. Assembly validates shapes and names; it does not register coordinates,
-convert units, interpolate, or pool runs.
+``pyvale.validation`` compares simulation predictions with experimental
+observations. A ``ValidCase`` joins three dictionaries by observable tag.
+``ValidObservable`` records geometry, component order, units, and any
+coordinates and evaluation times. The simulation and experiment dictionaries
+contain the corresponding ``ValidArray`` samples. Supply both arrays on the
+observable's physical support and in its declared units.
 
 Named axes
 ----------
 
 ``ValidArray`` names each dimension with ``EValidAxis``. Axes, when present, follow
-``POINT, COMPONENT, TIME, EPISTEMIC_TRANS, EPISTEMIC_NUIS, ALEATORY``. An absent
-physical axis has length one. Simulation and experiment may have different
+``POINT, COMPONENT, TIME, EPISTEMIC_TRANS, EPISTEMIC_NUIS, ALEATORY``. Omit a
+physical axis when its length is one. Simulation and experiment may have different
 uncertainty axis lengths. The final aleatory axis is contiguous for ordinary
 C-order arrays, so one conditional sample is a cheap slice. ``ValidArray`` preserves
 the original array or memory map; the caller controls its lifetime.
@@ -25,22 +22,22 @@ the original array or memory map; the caller controls its lifetime.
 observable units. For each conditional aleatory sample, the lower scenario
 subtracts ``lower`` from every sample value, and the upper scenario adds
 ``upper``. Magnitudes may be scalar or vary by named physical point, component,
-and time axes. A scenario represents one coherent choice over the domain. These
-scenarios can coexist with sampled epistemic axes. They do not imply that every
-pointwise envelope combination is a jointly attainable physical field.
+and time axes. A scenario represents one coherent choice across the observable.
+These scenarios can coexist with sampled epistemic axes.
 
 Basic workflow
 --------------
 
 .. code-block:: python
 
-   import pyvale.valid as valid
+   import pyvale.validation as vl
 
-   case = valid.ValidCase(domain, sim_data, exp_data)
-   engine = valid.ValidEngine([valid.MetricAVM(), valid.MetricMAVM()])
+   case = vl.ValidCase(observables=observables, sim=sim_arrays, exp=exp_arrays)
+   engine = vl.ValidEngine([vl.MetricAVM(), vl.MetricMAVM()])
    result = engine.run(case)
-   avm = result.get("temperature", valid.EMetricType.AVM)
-   maximum, indices = result.find_extreme("temperature", valid.EMetricType.AVM)
+   avm = result.metrics["temperature"][vl.EMetricType.AVM]
+   distances = avm.metric_vals[vl.EMetricOut.DISTANCE]
+   maximum, indices = result.find_extreme("temperature", vl.EMetricType.AVM)
 
 Metrics also work independently on one-dimensional NumPy samples through
 ``calc_avm_1d``, ``calc_mavm_1d``, ``calc_ks_1d``, and ``calc_cvm_1d`` or their
@@ -48,29 +45,26 @@ Metrics also work independently on one-dimensional NumPy samples through
 equal length. The distribution metrics accept unequal sample lengths. Missing
 values represented by NaN are omitted by the distribution kernels; a cell with
 no finite observations remains NaN in ``ValidResult``. The MAVM strategy defaults
-to the robust tie-aware mode. ``calc_mavm_1d`` retains its original mode default
-for direct callers, so select ``EMAVMMode.ROBUST`` explicitly for repeated data.
+to ``EMAVMDuplicates.INCLUDE``. Pass that option explicitly to
+``calc_mavm_1d`` for repeated values.
 
-``ValidResult`` keeps a labelled array for each observable and metric. It retains
-sampled epistemic and offset scenarios rather than reducing them. The MAVM
-field also stores directional ``d_plus`` and ``d_minus``. CDF diagnostics can
-be reconstructed from the ``ValidCase`` at a selected point and scenario with
-``plot_sim_exp_cdfs``. ``plot_sim_ecdfs`` computes a pointwise envelope over
-the supplied *coherent* scenario CDFs; crossing CDFs need not correspond to a
-single limiting scenario. Metric maps and time plots use domain metadata kept
-in ``ValidResult``.
+``ValidResult`` stores a ``MetricField`` for each observable and metric. The field
+records its axes and maps each output to a NumPy array. It retains sampled
+epistemic and offset scenarios. MAVM exposes ``D_PLUS`` and ``D_MINUS`` outputs.
+Use ``plot_sim_exp_cdfs`` to compare distributions from a ``ValidCase`` and
+``plot_sim_ecdfs`` for a pointwise envelope across simulation cases. Metric maps
+and time plots use observable metadata from the ``ValidResult``.
 
 Conversion and repeated experiments
 -----------------------------------
 
-``valid_from_sim`` samples a stream of indexed ``SimData`` runs through existing
-SensorSim ``IField`` objects. Each run index explicitly identifies its
-rectangular uncertainty coordinates. ``SensorData`` enables SensorSim's
-spatial averaging; precomputed MOOSE global variables may supply global mean or
-integral observables. ``valid_from_exp`` selects a single registered ``ExpData``
-acquisition for each observable. A steady window becomes aleatory observations;
-transient inputs require the domain's exact evaluation times. Separate
-acquisitions normally produce separate ``ValidCase`` objects.
+``sample_sim_sweep_for_valid`` samples ``SimData`` runs through SensorSim fields.
+Supply a flat list for one uncertainty axis or indexed run pairs for multiple
+axes. ``SensorData`` enables spatial averaging, and stored simulation global
+variables can supply mean or integral observables. ``assemble_exp_arrays``
+converts ``ExpData`` traces to validation arrays. Use a channel map for
+multi-channel acquisitions and a steady window to treat selected samples as
+aleatory observations. Transient inputs use the observable's evaluation times.
 
 ``concatenate_valid_cases`` joins compatible cases along the experimental aleatory
 axis, keeping complete transient traces together and recording source case IDs.
@@ -81,12 +75,12 @@ interim bridge until ``ExperimentSimulator`` emits ``ExpData`` directly.
 Examples and fixture
 --------------------
 
-The six scripts in ``src/pyvale/examples/valid`` each save diagnostic figures
-under ``pyvale-output``. The prepared ``plate_validation_2d.npz`` fixture uses
+The :doc:`validation examples </examples/examples_valid>` save diagnostic
+figures under ``pyvale-output``. The prepared ``plate_validation_2d.npz`` fixture uses
 the packaged 2D plate simulations ``case18_out.e`` and ``case18_d_out.e``. The
 latter scales both thermal conductivity and thermal expansion by 0.9. Its
 SensorSim measurement grids contain 12 thermocouples and 12 strain gauge
 locations, with six virtual experiments and five evaluation times. The
 regenerator is ``scripts/generate_validation_fixture.py`` and records its
-fixed NumPy noise seed in source. Ordinary examples and tests use the prepared
-fixture; they do not execute MOOSE.
+fixed NumPy noise seed in source. The plate quickstart uses the prepared fixture.
+The simulation sweep example runs MOOSE to generate its inputs.

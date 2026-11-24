@@ -134,7 +134,7 @@ cloud.plot(
 )
 
 # %%
-# .. image:: ../../../../_static/dic_ex09_3d.png
+# .. image:: /_static/dic_ex09_3d.png
 #    :alt: ROI
 #    :width: 100%
 #    :align: center

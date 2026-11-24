@@ -26,6 +26,11 @@ namespace util {
         ZNSSD
     };
 
+    enum class EOptimizer {
+        ICGN,
+        FALM
+    };
+
     enum class EShapeFunc {
         RIGID,
         AFFINE,
@@ -56,6 +61,12 @@ namespace util {
         FLOAT64
     };
 
+    enum class EResidualMode {
+        NONE,
+        DIRECT,
+        CORRECTED
+    };
+
     // Custom hash from above
     struct PairHash {
         std::size_t operator()(const std::pair<int, int>& p) const {
@@ -82,17 +93,13 @@ namespace util {
         int epi_distance_threshold;
         std::vector<int> rg_seeds;
         ECorrCrit corr_crit;
+        EOptimizer optimizer = EOptimizer::ICGN;
         EShapeFunc shape_func;
         EInterpRoutine interp_routine;
         EScanMethod scan_method;
         std::vector<std::string> basenames;
         std::vector<std::string> fullpaths;
-        bool fft_filter;
-        bool fft_save;
         EFFTPrecision fft_precision;
-        double fft_filter_threshold;
-        int fft_filter_radius;
-        double fft_filter_corr_power;
         unsigned int debug_level;
         bool stereo;
         bool incremental;
@@ -103,6 +110,7 @@ namespace util {
         std::vector<int> multiwindow_search_area;
         int image_filter_kernel = 0;
         double image_filter_sigma = 1.0;
+        EResidualMode residual_mode = EResidualMode::NONE;
     };
 
 

@@ -129,7 +129,7 @@ class EValidBoundAxis(Enum):
 class ECDFSuppBounds:
     """Shifted quantile limits, with controlling original comparison indices.
 
-    lower/upper and unshifted limits have shape (*retained_axes, probability).
+    lower/upper and unshifted limits have shape ``(*retained_axes, probability)``.
     Origin indices append an index_axes dimension; NaN limits have index -1.
     Probability grids exclude zero: the first quantile also applies down to zero.
     """
@@ -158,7 +158,7 @@ class ECDFNuisanceRank:
     """Whole-case ranking; widths never splice different nuisance cases together.
 
     case_axes identifies columns in cases. Scores and order have shape
-    (*retained_axes, n_cases). order contains row indices into cases, with -1
+    ``(*retained_axes, n_cases)``. order contains row indices into cases, with -1
     for missing ranks at the end. valid_counts gives the usable rank count per
     retained cell. Equal scores preserve canonical case order.
     """

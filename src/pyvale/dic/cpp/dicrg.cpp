@@ -16,7 +16,8 @@
 // Program Header files
 #include "./dicsubset.hpp"
 #include "./dicfourier.hpp"
-#include "./dicoptimizer.hpp"
+#include "./dicoptimizerfalm.hpp"
+#include "./dicoptimizerfactory.hpp"
 #include "./dicresults.hpp"
 #include "./dicrg.hpp"
 #include "../../commoncpp/dicsignalhandler.hpp"
@@ -105,7 +106,7 @@ namespace rg {
         }
     }
 
-    bool is_valid_point(const int ss_x, const int ss_y, const subset::Grid &ss_grid) {
+    bool is_valid_point(const int ss_x, const int ss_y, const SubsetGrid &ss_grid) {
 
         int x = ss_x / ss_grid.step;
         int y = ss_y / ss_grid.step;
@@ -113,13 +114,13 @@ namespace rg {
         int idx = y * ss_grid.num_ss_x + x;
 
         if ((ss_x % ss_grid.step) || (ss_y % ss_grid.step)){
-            std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
-            std::cerr << "Subset ss_step size: " << ss_grid.step << std::endl;
+            std::cerr << "Subset<double> coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
+            std::cerr << "Subset<double> ss_step size: " << ss_grid.step << std::endl;
             return false;
             exit(EXIT_FAILURE);
         }
         else if (ss_grid.mask[idx] == -1){
-            std::cerr << "Subset coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
+            std::cerr << "Subset<double> coordinates (" << ss_x << ", " << ss_y << ") are not a valid subset location." << std::endl;
             std::cerr << "subset mask index: " << idx << std::endl;
             return false;
             exit(EXIT_FAILURE);
@@ -129,7 +130,7 @@ namespace rg {
 
 
     bool check_convergence(const int x, const int y, const OptResult &res, std::string &msg, bool direct_neigh) {
-        if (!res.above_thresh) {
+        if (!res.valid_match) {
             std::ostringstream oss;
 
             oss << (direct_neigh
@@ -141,7 +142,7 @@ namespace rg {
                 << "cost: " << res.cost << "\n"
                 << "xtol: " << res.xtol << "\n"
                 << "ftol: " << res.ftol << "\n"
-                << "above_thresh: " << static_cast<unsigned>(res.above_thresh) << "\n"
+                << "valid_match: " << static_cast<unsigned>(res.valid_match) << "\n"
                 << "converged: " << static_cast<unsigned>(res.converged) << "\n"
                 << "iterations: " << res.iter;
             msg = oss.str();
@@ -149,9 +150,10 @@ namespace rg {
         }
         return true;
     }
+
 void retry_bad_points(const Interpolator &interp_ref,
                       const Interpolator &interp_def,
-                      const subset::Grid &ss_grid,
+                      const SubsetGrid &ss_grid,
                       const util::Config &conf,
                       const ResultArrays &results_ref,
                       ResultArrays &results_def,
@@ -160,7 +162,7 @@ void retry_bad_points(const Interpolator &interp_ref,
 
     for (int required_neigh = 4; required_neigh >= 2; --required_neigh) {
 
-        const std::vector<uint8_t> successful = results_def.above_thresh;
+        const std::vector<uint8_t> successful = results_def.valid_match;
         std::vector<int> retry_indices;
 
         for (int idx = 0; idx < ss_grid.num; ++idx) {
@@ -173,11 +175,11 @@ void retry_bad_points(const Interpolator &interp_ref,
 
         #pragma omp parallel
         {
-            subset::Pixels ss_def(ss_grid.size_x, ss_grid.size_y);
-            subset::Pixels ss_ref(ss_grid.size_x, ss_grid.size_y);
-            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter,
-                          conf.precision, conf.threshold,
-                          ss_grid.size_x*ss_grid.size_y);
+            Subset<double> ss_def(ss_grid.size_x, ss_grid.size_y);
+            Subset<double> ss_ref(ss_grid.size_x, ss_grid.size_y);
+            auto opt = make_optimizer(conf.optimizer, conf.shape_func, conf.corr_crit,
+                                      conf.max_iter, conf.precision, conf.threshold,
+                                      ss_grid.size_x * ss_grid.size_y);
 
             #pragma omp for
             for (int i = 0; i < static_cast<int>(retry_indices.size()); ++i) {
@@ -185,17 +187,14 @@ void retry_bad_points(const Interpolator &interp_ref,
                 const double cx = ss_grid.coords[2*idx];
                 const double cy = ss_grid.coords[2*idx+1];
 
-                subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                for (int px = 0; px < ss_ref.num_px; ++px) {
-                    ss_ref.x[px] -= cx;
-                    ss_ref.y[px] -= cy;
-                }
+                ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                ss_ref.shift_to_local_coordinates(cx, cy);
 
-                opt.average_params_from_neigh(results_def.p, successful,
-                                              ss_grid.neigh[idx]);
-                OptResult retry_res(opt.num_params);
+                opt->average_params_from_neigh(results_def.p, successful,
+                                               ss_grid.neigh[idx]);
+                OptResult retry_res(opt->num_params);
                 if (ss_ref.sum != 0) {
-                    retry_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                    retry_res = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def);
                 }
 
                 if (retry_res.cost > results_def.cost[idx]) {

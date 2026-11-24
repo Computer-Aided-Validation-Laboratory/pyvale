@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:05.064** total execution time for 67 files **from all galleries**:
+**00:03.972** total execution time for 84 files **from all galleries**:
 
 .. container::
 
@@ -41,19 +41,10 @@ Computation times
    * - :ref:`sphx_glr_examples_mooseherder_ex01b_quickstart_simdata.py` (``../../src/pyvale/examples/mooseherder/ex01b_quickstart_simdata.py``)
      - 00:00.341
      - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex02d_moose_modify_input_text.py` (``../../src/pyvale/examples/mooseherder/ex02d_moose_modify_input_text.py``)
-     - 00:00.326
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex02c_moose_multiple_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02c_moose_multiple_inputs.py``)
-     - 00:00.323
-     - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex02e_moose_mpi_solve.py` (``../../src/pyvale/examples/mooseherder/ex02e_moose_mpi_solve.py``)
      - 00:00.322
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex02f_moose_custom_installation.py` (``../../src/pyvale/examples/mooseherder/ex02f_moose_custom_installation.py``)
-     - 00:00.322
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex02b_moose_included_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02b_moose_included_inputs.py``)
      - 00:00.322
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex01a_quickstart_rabbitfem.py` (``../../src/pyvale/examples/mooseherder/ex01a_quickstart_rabbitfem.py``)
@@ -64,9 +55,6 @@ Computation times
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex03a_gmsh_geo.py` (``../../src/pyvale/examples/mooseherder/ex03a_gmsh_geo.py``)
      - 00:00.181
-     - 0.0
-   * - :ref:`sphx_glr_examples_mooseherder_ex03b_gmsh_python.py` (``../../src/pyvale/examples/mooseherder/ex03b_gmsh_python.py``)
-     - 00:00.122
      - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex03c_gmsh_custom_installation.py` (``../../src/pyvale/examples/mooseherder/ex03c_gmsh_custom_installation.py``)
      - 00:00.121
@@ -81,6 +69,12 @@ Computation times
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_basicsensorsim_ex3_experiment_simulator.py` (``../../src/pyvale/examples/basicsensorsim/ex3_experiment_simulator.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_dataio_ex01_load_exp_data.py` (``../../src/pyvale/examples/dataio/ex01_load_exp_data.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_dataio_ex02_load_prob_sim_data.py` (``../../src/pyvale/examples/dataio/ex02_load_prob_sim_data.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_dic_ex01_region_of_interest.py` (``../../src/pyvale/examples/dic/ex01_region_of_interest.py``)
@@ -111,6 +105,9 @@ Computation times
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_dic_ex10_dic_chal.py` (``../../src/pyvale/examples/dic/ex10_dic_chal.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_dic_ex11_crack_detection.py` (``../../src/pyvale/examples/dic/ex11_crack_detection.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_extsensorsim_ex1_byosimdata.py` (``../../src/pyvale/examples/extsensorsim/ex1_byosimdata.py``)
@@ -164,6 +161,24 @@ Computation times
    * - :ref:`sphx_glr_examples_extsensorsim_ex5b_expsim_thermmech3d.py` (``../../src/pyvale/examples/extsensorsim/ex5b_expsim_thermmech3d.py``)
      - 00:00.000
      - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex02b_moose_included_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02b_moose_included_inputs.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex02c_moose_multiple_inputs.py` (``../../src/pyvale/examples/mooseherder/ex02c_moose_multiple_inputs.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex02d_moose_modify_input_text.py` (``../../src/pyvale/examples/mooseherder/ex02d_moose_modify_input_text.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03b_gmsh_python.py` (``../../src/pyvale/examples/mooseherder/ex03b_gmsh_python.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03d_gmsh_plate3d.py` (``../../src/pyvale/examples/mooseherder/ex03d_gmsh_plate3d.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_mooseherder_ex03e_gmsh_monoblock.py` (``../../src/pyvale/examples/mooseherder/ex03e_gmsh_monoblock.py``)
+     - 00:00.000
+     - 0.0
    * - :ref:`sphx_glr_examples_mooseherder_ex04a_simsweep_mesh_and_solve.py` (``../../src/pyvale/examples/mooseherder/ex04a_simsweep_mesh_and_solve.py``)
      - 00:00.000
      - 0.0
@@ -215,9 +230,6 @@ Computation times
    * - :ref:`sphx_glr_examples_render3d_ex2f_blender_calibration_target.py` (``../../src/pyvale/examples/render3d/ex2f_blender_calibration_target.py``)
      - 00:00.000
      - 0.0
-   * - :ref:`sphx_glr_examples_renderuvs___init__.py` (``../../src/pyvale/examples/renderuvs/__init__.py``)
-     - 00:00.000
-     - 0.0
    * - :ref:`sphx_glr_examples_renderuvs_ex1a_uv_planar_axes.py` (``../../src/pyvale/examples/renderuvs/ex1a_uv_planar_axes.py``)
      - 00:00.000
      - 0.0
@@ -231,5 +243,44 @@ Computation times
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_renderuvs_ex1e_uv_transform.py` (``../../src/pyvale/examples/renderuvs/ex1e_uv_transform.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex00_valid_quickstart.py` (``../../src/pyvale/examples/validation/ex00_valid_quickstart.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex01_valid_scalar_metrics.py` (``../../src/pyvale/examples/validation/ex01_valid_scalar_metrics.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex02_valid_steady_state.py` (``../../src/pyvale/examples/validation/ex02_valid_steady_state.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex03_valid_transient.py` (``../../src/pyvale/examples/validation/ex03_valid_transient.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex04_valid_epistemic_bound_metrics.py` (``../../src/pyvale/examples/validation/ex04_valid_epistemic_bound_metrics.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex05_valid_nuisance_ecdf_profiles.py` (``../../src/pyvale/examples/validation/ex05_valid_nuisance_ecdf_profiles.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex06_valid_nuisance_metric_profiles.py` (``../../src/pyvale/examples/validation/ex06_valid_nuisance_metric_profiles.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex07_valid_epistemic_offsets.py` (``../../src/pyvale/examples/validation/ex07_valid_epistemic_offsets.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex08_valid_sim_sensor_sampling.py` (``../../src/pyvale/examples/validation/ex08_valid_sim_sensor_sampling.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex09_valid_sim_sweep_sampling.py` (``../../src/pyvale/examples/validation/ex09_valid_sim_sweep_sampling.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex10_valid_pulse25x_benchmark.py` (``../../src/pyvale/examples/validation/ex10_valid_pulse25x_benchmark.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex11_valid_sensorsim_import.py` (``../../src/pyvale/examples/validation/ex11_valid_sensorsim_import.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_validation_ex12_parallel_valid_ir_camera.py` (``../../src/pyvale/examples/validation/ex12_parallel_valid_ir_camera.py``)
      - 00:00.000
      - 0.0

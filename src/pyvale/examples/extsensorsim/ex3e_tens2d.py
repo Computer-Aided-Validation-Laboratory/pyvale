@@ -145,7 +145,7 @@ for kk in (norm_comp_keys+dev_comp_keys):
         pv_plot.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex3e_locs_strain_yy.png
+# .. image:: /_static/ext_ex3e_locs_strain_yy.png
 #    :alt: Virtual sensor location visualisation.
 #    :width: 800px
 #    :align: center
@@ -161,7 +161,7 @@ for kk in (norm_comp_keys+dev_comp_keys):
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex3e_traces_strain_yy.png
+# .. image:: /_static/ext_ex3e_traces_strain_yy.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center
