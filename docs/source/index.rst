@@ -90,6 +90,20 @@ Python 3.11+.
 
       :doc:`First example </examples/validation/ex00_valid_quickstart>` · :doc:`Examples </examples/examples_valid>`
 
+   .. grid-item-card:: Virtual Fields Method
+
+      .. image:: /_static/vfm_yield_strength.png
+         :alt: Identified yield strength in four slices of a synthetic tensile specimen
+         :height: 145px
+         :align: center
+         :target: examples/examples_vfm.html
+
+      Identify material properties from full-field strain and force measurements.
+
+      +++
+
+      :doc:`First example </examples/vfm/vfm_ex1_hom>` · :doc:`Examples </examples/examples_vfm>`
+
    .. grid-item-card:: Mooseherder
 
       .. image:: /_static/physics_simulation_field.png

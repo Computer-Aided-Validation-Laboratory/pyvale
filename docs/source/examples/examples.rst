@@ -48,6 +48,21 @@ quickstart and progresses to more detailed workflows.
 
       :doc:`Validation examples <examples_valid>`
 
+   .. grid-item-card:: Virtual Fields Method
+
+      .. image:: /_static/vfm_yield_strength.png
+         :alt: Identified yield strength in four slices of a synthetic tensile specimen
+         :height: 145px
+         :align: center
+         :target: examples_vfm.html
+
+      Identify homogeneous and spatially varying material properties from
+      a synthetic tensile experiment.
+
+      +++
+
+      :doc:`VFM examples <examples_vfm>`
+
    .. grid-item-card:: Physics Simulation
 
       Use Rabbit FEM and Mooseherder to run simulations, generate meshes,
@@ -75,5 +90,6 @@ quickstart and progresses to more detailed workflows.
    examples_renderuvs
    examples_ext_sensorsim
    examples_valid
+   examples_vfm
    examples_mooseherder
    examples_dataio

@@ -23,6 +23,7 @@ GROUPS = (
     ("examples_renderuvs", "renderuvs"),
     ("examples_ext_sensorsim", "extsensorsim"),
     ("examples_valid", "validation"),
+    ("examples_vfm", "vfm"),
     ("examples_mooseherder", "mooseherder"),
     ("examples_dataio", "dataio"),
 )
@@ -54,11 +55,12 @@ def test_example_groups_are_complete_and_ordered() -> None:
     """Every public example appears in its explicit filename order."""
     for group_name, source_name in GROUPS:
         group_path = DOCS_EXAMPLES_ROOT / f"{group_name}.rst"
-        documented = get_toctree_entries(group_path, f"{source_name}/ex")
+        example_prefix = "vfm_ex" if source_name == "vfm" else "ex"
+        documented = get_toctree_entries(group_path, f"{source_name}/{example_prefix}")
         source = tuple(
             f"{source_name}/{path.stem}"
             for path in sorted(
-                (EXAMPLES_ROOT / source_name).glob("ex*.py"),
+                (EXAMPLES_ROOT / source_name).glob(f"{example_prefix}*.py"),
                 key=get_example_order,
             )
         )

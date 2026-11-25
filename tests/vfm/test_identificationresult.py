@@ -1,0 +1,162 @@
+from pathlib import Path
+
+import numpy as np
+import yaml
+import numpy.testing as npt
+
+from pyvale.vfm.dof import DegreeOfFreedom
+from pyvale.vfm.metricequilibriumgap import EquilibriumGapVirtualFieldType
+from pyvale.vfm.identificationresult import _jsonify_value
+
+
+def test_jsonify_converts_str_enum_to_plain_yaml_scalar() -> None:
+    value = _jsonify_value(EquilibriumGapVirtualFieldType.TWO_AVERAGED)
+    assert type(value) is str
+    assert value == "two_averaged"
+    assert yaml.safe_dump({"value": value}) == "value: two_averaged\n"
+from pyvale.vfm.identificationresult import (
+    IdentificationHistory,
+    IdentificationResult,
+    ParameterisationSnapshot,
+    PhaseResult,
+    SolveResult,
+    load_identification_result,
+    snapshot_phase,
+    snapshot_refinement_action,
+    snapshot_refinement_policy,
+    summarise_parameterisation,
+)
+from pyvale.vfm.refinement import SliceMergeSplitAction, SliceMergeSplitRefinement
+from pyvale.vfm.spatialparamslicewise import (
+    SliceConfig,
+    SupportSlice,
+    SliceWiseSpatialParameterisation,
+)
+
+
+def test_identification_result_bundle_round_trips_maps_stress_and_history(
+    tmp_path: Path,
+) -> None:
+    parameter_maps = {
+        "yield_strength": np.array([[250.0, 275.0], [300.0, 325.0]]),
+        "hardening_modulus": np.full((2, 2), 7_000.0),
+    }
+    final_stress = np.arange(24, dtype=np.float64).reshape(2, 3, 2, 2)
+    parameterisation = SliceWiseSpatialParameterisation(
+        slice_config=SliceConfig(
+            axis="x",
+            boundaries=np.array([0.0, 1.0, 2.0]),
+        ),
+        values=[
+            DegreeOfFreedom(250.0, 100.0, 500.0),
+            DegreeOfFreedom(325.0, 100.0, 500.0),
+        ],
+    )
+    result = IdentificationResult(
+        parameter_maps=parameter_maps,
+        history=IdentificationHistory(
+            phases=[
+                PhaseResult(
+                    phase_index=0,
+                    solve_results=[SolveResult(accepted=False)],
+                    final_snapshot=snapshot_phase(
+                        {"yield_strength": [parameterisation]}
+                    ),
+                )
+            ]
+        ),
+        final_stress=final_stress,
+    )
+
+    result_file = result.save_to_yaml(tmp_path)
+    loaded = load_identification_result(result_file)
+
+    assert (tmp_path / "identification_result.yaml").is_file()
+    assert (tmp_path / "final_parameter_maps.npz").is_file()
+    assert (tmp_path / "final_identified_stress.npz").is_file()
+    npt.assert_allclose(
+        loaded.parameter_maps["yield_strength"],
+        parameter_maps["yield_strength"],
+    )
+    npt.assert_allclose(loaded.final_stress, final_stress)
+
+    loaded_snapshot = (
+        loaded.history.phases[0]
+        .spatial_parameterisations["yield_strength"][0]
+    )
+    assert loaded_snapshot.parameterisation is None
+    assert loaded_snapshot.parameterisation_type == "SliceWiseSpatialParameterisation"
+    assert loaded_snapshot.summary["kind"] == "slice_wise"
+    assert loaded_snapshot.summary["axis"] == "x"
+    assert loaded_snapshot.summary["boundaries"] == [0.0, 1.0, 2.0]
+    assert loaded.history.phases[0].solve_results[0].accepted is False
+
+
+def test_refinement_snapshots_avoid_runtime_support_graph() -> None:
+    support = SupportSlice(slice_config=SliceConfig(axis="x", num_slices=4))
+    policy = SliceMergeSplitRefinement(
+        target=support,
+        max_refinements=2,
+        merge_parameter_tolerance=0.05,
+        split_error_threshold=0.2,
+    )
+    action = SliceMergeSplitAction(
+        support=support,
+        refined_boundaries=np.array([0.0, 1.0, 2.0]),
+        policy=policy,
+    )
+
+    policy_snapshot = snapshot_refinement_policy(policy)
+    action_snapshot = snapshot_refinement_action(action)
+
+    assert policy_snapshot.type_name == "SliceMergeSplitRefinement"
+    assert policy_snapshot.options == {
+        "max_refinements": 2,
+        "merge_parameter_tolerance": 0.05,
+        "split_error_threshold": 0.2,
+    }
+    assert "target" not in policy_snapshot.options
+    assert action_snapshot.type_name == "SliceMergeSplitAction"
+    assert action_snapshot.options == {}
+
+
+def test_load_from_yaml_accepts_previous_parameter_map_file_layout(
+    tmp_path: Path,
+) -> None:
+    parameter_map = np.array([[1.0, 2.0], [3.0, 4.0]])
+    np.save(tmp_path / "parameter_map_yield_strength.npy", parameter_map)
+    (tmp_path / "identification_result.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "parameter_maps": {
+                    "yield_strength": "parameter_map_yield_strength.npy",
+                },
+                "history": {
+                    "phases": [
+                        {
+                            "spatial_parameterisations": {
+                                "yield_strength": [
+                                    {
+                                        "parameterisation": "LegacyType",
+                                        "dof_values": [1.0],
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = load_identification_result(tmp_path)
+
+    npt.assert_allclose(result.parameter_maps["yield_strength"], parameter_map)
+    snapshot: ParameterisationSnapshot = (
+        result.history.phases[0]
+        .spatial_parameterisations["yield_strength"][0]
+    )
+    assert snapshot.parameterisation_type == "LegacyType"
+    assert snapshot.dof_values == [1.0]
