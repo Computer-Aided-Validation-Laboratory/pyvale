@@ -5,8 +5,8 @@
 # ==============================================================================
 
 """
-Example 4: homogeneous SBVF followed by slicewise FRE
-=====================================================
+Homogeneous SBVF followed by slicewise FRE
+==========================================
 
 Run two identification phases in sequence with elastic modulus and Poisson's
 ratio fixed at known values. The first identifies homogeneous yield strength
@@ -20,13 +20,14 @@ from pprint import pprint
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 
 import pyvale.vfm as vfm
 from pyvale.examples.vfm.synthetic_rectangular_tensile import (
+    SyntheticTensileCase,
     build_synthetic_identification_parameters,
     build_synthetic_tensile_case,
 )
-from pyvale.vfm.postprocessing import compute_parameter_error_diagnostics
 
 
 # %%
@@ -39,16 +40,18 @@ saved_data_directory = Path.cwd() / "vfm_ex4_hom_slicewise_saved_data"
 
 # %%
 # Build one experiment and initial parameter set
-synthetic_case = build_synthetic_tensile_case()
-experiment_data = synthetic_case.experiment_data
-map_size = np.asarray(
+synthetic_case: SyntheticTensileCase = build_synthetic_tensile_case()
+experiment_data: vfm.ExperimentData = synthetic_case.experiment_data
+map_size: npt.NDArray[np.uint32] = np.asarray(
     experiment_data.specimen_geometry.x.shape,
     dtype=np.uint32,
 )
-parameters = build_synthetic_identification_parameters(
-    map_size,
-    material=synthetic_case.material,
-    initial_yield_strength=250.0,
+parameters: dict[str, vfm.ConstitutiveParameter] = (
+    build_synthetic_identification_parameters(
+        map_size,
+        material=synthetic_case.material,
+        initial_yield_strength=250.0,
+    )
 )
 
 # %%
@@ -93,7 +96,7 @@ slicewise_phase = vfm.IdentificationPhase(
 
 # %%
 # Run both phases and compare with the reference maps
-result = vfm.run_identification(
+result: vfm.IdentificationResult = vfm.run_identification(
     experiment_data,
     vfm.IdentificationConfig(
         constitutive_law=vfm.IsotropicVonMisesElastoplasticity(
@@ -106,22 +109,26 @@ result = vfm.run_identification(
 )
 
 if save_results_file:
-    result_file = result.save_to_yaml(
+    result_file: Path = result.save_to_yaml(
         saved_data_directory / "identification_result"
     )
     print(f"Saved identification result: {result_file}")
 
-phase_zero_snapshot = result.history.phases[0].spatial_parameterisations
-phase_zero_values = {
+phase_zero_snapshot: dict[str, list[vfm.ParameterisationSnapshot]] = (
+    result.history.phases[0].spatial_parameterisations
+)
+phase_zero_values: vfm.identificationresult.Summary = {
     name: phase_zero_snapshot[name][0].summary["value"]
     for name in ("yield_strength", "hardening_modulus")
 }
 print("phase 0 homogeneous estimates:")
 pprint(phase_zero_values, sort_dicts=False)
 
-errors = compute_parameter_error_diagnostics(
-    result.parameter_maps,
-    synthetic_case.known_parameter_maps,
+errors: vfm.postprocessing.ParameterErrorDiagnostics = (
+    vfm.postprocessing.compute_parameter_error_diagnostics(
+        result.parameter_maps,
+        synthetic_case.known_parameter_maps,
+    )
 )
 print("phase 1 final parameter errors:")
 pprint(errors.summary, sort_dicts=False)
@@ -129,13 +136,17 @@ print(f"completed phases: {len(result.history.phases)}")
 
 # %%
 # Compare the homogeneous and slicewise yield-strength results
-reference_yield = synthetic_case.known_parameter_maps["yield_strength"]
-phase_zero_yield = np.full_like(
+reference_yield: npt.NDArray[np.float64] = (
+    synthetic_case.known_parameter_maps["yield_strength"]
+)
+phase_zero_yield: npt.NDArray[np.float64] = np.full_like(
     reference_yield,
     phase_zero_values["yield_strength"],
 )
-phase_one_yield = result.parameter_maps["yield_strength"]
-yield_error_percent = errors.percent_error_maps["yield_strength"]
+phase_one_yield: npt.NDArray[np.float64] = result.parameter_maps["yield_strength"]
+yield_error_percent: npt.NDArray[np.float64] = (
+    errors.percent_error_maps["yield_strength"]
+)
 
 figure, axes = plt.subplots(
     2,

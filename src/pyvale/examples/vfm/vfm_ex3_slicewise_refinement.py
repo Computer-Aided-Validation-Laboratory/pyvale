@@ -5,8 +5,8 @@
 # ==============================================================================
 
 """
-Example 3: slicewise identification with refinement
-===================================================
+Slicewise identification with refinement
+========================================
 
 Start with an intentionally over-refined eight-slice representation. After the
 first independent solve, merge neighbouring slices with similar identified
@@ -18,13 +18,14 @@ from pprint import pprint
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 
 import pyvale.vfm as vfm
 from pyvale.examples.vfm.synthetic_rectangular_tensile import (
+    SyntheticTensileCase,
     build_synthetic_identification_parameters,
     build_synthetic_tensile_case,
 )
-from pyvale.vfm.postprocessing import compute_parameter_error_diagnostics
 
 
 # %%
@@ -37,15 +38,17 @@ saved_data_directory = Path.cwd() / "vfm_ex3_slicewise_refinement_saved_data"
 
 # %%
 # Build the synthetic four-region case
-synthetic_case = build_synthetic_tensile_case()
-experiment_data = synthetic_case.experiment_data
-map_size = np.asarray(
+synthetic_case: SyntheticTensileCase = build_synthetic_tensile_case()
+experiment_data: vfm.ExperimentData = synthetic_case.experiment_data
+map_size: npt.NDArray[np.uint32] = np.asarray(
     experiment_data.specimen_geometry.x.shape,
     dtype=np.uint32,
 )
-parameters = build_synthetic_identification_parameters(
-    map_size,
-    material=synthetic_case.material,
+parameters: dict[str, vfm.ConstitutiveParameter] = (
+    build_synthetic_identification_parameters(
+        map_size,
+        material=synthetic_case.material,
+    )
 )
 
 # %%
@@ -79,7 +82,7 @@ phase = vfm.IdentificationPhase(
 
 # %%
 # Run and inspect the refinement history
-result = vfm.run_identification(
+result: vfm.IdentificationResult = vfm.run_identification(
     experiment_data,
     vfm.IdentificationConfig(
         constitutive_law=vfm.IsotropicVonMisesElastoplasticity(
@@ -91,12 +94,12 @@ result = vfm.run_identification(
 )
 
 if save_results_file:
-    result_file = result.save_to_yaml(
+    result_file: Path = result.save_to_yaml(
         saved_data_directory / "identification_result"
     )
     print(f"Saved identification result: {result_file}")
 
-phase_result = result.history.phases[0]
+phase_result: vfm.PhaseResult = result.history.phases[0]
 print(f"solve count: {len(phase_result.solve_results)}")
 print(f"refinement events: {len(phase_result.refinement_events)}")
 for event in phase_result.refinement_events:
@@ -109,24 +112,32 @@ for event in phase_result.refinement_events:
         sort_dicts=False,
     )
 
-yield_snapshot = phase_result.spatial_parameterisations["yield_strength"][0]
+yield_snapshot: vfm.ParameterisationSnapshot = (
+    phase_result.spatial_parameterisations["yield_strength"][0]
+)
 print("final yield-strength support:")
 pprint(yield_snapshot.summary, sort_dicts=False)
 
-identified_slice_values = np.unique(
+identified_slice_values: npt.NDArray[np.float64] = np.unique(
     np.round(result.parameter_maps["yield_strength"], decimals=6)
 )
 print(f"identified yield strengths [MPa]: {identified_slice_values}")
 
 # %%
 # Compare the refined result with the reference map
-identified_yield = result.parameter_maps["yield_strength"]
-reference_yield = synthetic_case.known_parameter_maps["yield_strength"]
-parameter_errors = compute_parameter_error_diagnostics(
-    result.parameter_maps,
-    synthetic_case.known_parameter_maps,
+identified_yield: npt.NDArray[np.float64] = result.parameter_maps["yield_strength"]
+reference_yield: npt.NDArray[np.float64] = (
+    synthetic_case.known_parameter_maps["yield_strength"]
 )
-yield_error_percent = parameter_errors.percent_error_maps["yield_strength"]
+parameter_errors: vfm.postprocessing.ParameterErrorDiagnostics = (
+    vfm.postprocessing.compute_parameter_error_diagnostics(
+        result.parameter_maps,
+        synthetic_case.known_parameter_maps,
+    )
+)
+yield_error_percent: npt.NDArray[np.float64] = (
+    parameter_errors.percent_error_maps["yield_strength"]
+)
 
 figure, axes = plt.subplots(
     1,

@@ -85,7 +85,10 @@ from .refinement import (
 
 from .roi import VfmRegionOfInterest, convert_mask_to_physical_roi
 
+from . import postprocessing
+
 __all__ = [
+    "postprocessing",
     "run_identification",
     "IdentificationConfig",
     "IdentificationPhase",

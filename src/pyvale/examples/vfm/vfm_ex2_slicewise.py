@@ -5,8 +5,8 @@
 # ==============================================================================
 
 """
-Example 2: parallel slicewise identification and result analysis
-================================================================
+Parallel slicewise identification and result analysis
+=====================================================
 
 Identify a four-region yield-strength distribution with independent parallel
 slice solves. Then apply the same supported postprocessing pipeline used for
@@ -19,20 +19,13 @@ from pprint import pprint
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 
 import pyvale.vfm as vfm
 from pyvale.examples.vfm.synthetic_rectangular_tensile import (
+    SyntheticTensileCase,
     build_synthetic_identification_parameters,
     build_synthetic_tensile_case,
-)
-from pyvale.vfm.postprocessing import (
-    check_stress_against_saved,
-    compute_equilibrium_gap_diagnostics,
-    compute_force_reconstruction_diagnostics,
-    compute_parameter_error_diagnostics,
-    compute_plasticity_diagnostics,
-    compute_stress_from_result,
-    parameter_map_summary,
 )
 
 
@@ -49,15 +42,17 @@ saved_data_directory = Path.cwd() / "vfm_ex2_slicewise_saved_data"
 # -----------------------------------------
 # Only yield strength varies between the four longitudinal regions. Elastic
 # modulus, Poisson's ratio, and hardening modulus are treated as known.
-synthetic_case = build_synthetic_tensile_case()
-experiment_data = synthetic_case.experiment_data
-map_size = np.asarray(
+synthetic_case: SyntheticTensileCase = build_synthetic_tensile_case()
+experiment_data: vfm.ExperimentData = synthetic_case.experiment_data
+map_size: npt.NDArray[np.uint32] = np.asarray(
     experiment_data.specimen_geometry.x.shape,
     dtype=np.uint32,
 )
-parameters = build_synthetic_identification_parameters(
-    map_size,
-    material=synthetic_case.material,
+parameters: dict[str, vfm.ConstitutiveParameter] = (
+    build_synthetic_identification_parameters(
+        map_size,
+        material=synthetic_case.material,
+    )
 )
 
 # %%
@@ -84,7 +79,7 @@ phase = vfm.IdentificationPhase(
 constitutive_law = vfm.IsotropicVonMisesElastoplasticity(
     vfm.HardeningLinear(),
 )
-result = vfm.run_identification(
+result: vfm.IdentificationResult = vfm.run_identification(
     experiment_data,
     vfm.IdentificationConfig(
         constitutive_law=constitutive_law,
@@ -94,7 +89,7 @@ result = vfm.run_identification(
 )
 
 if save_results_file:
-    result_file = result.save_to_yaml(
+    result_file: Path = result.save_to_yaml(
         saved_data_directory / "identification_result"
     )
     print(f"Saved identification result: {result_file}")
@@ -104,36 +99,46 @@ if save_results_file:
 # ---------------------------------
 # These functions also support results reloaded from an on-disk result bundle.
 # EGI remains a diagnostic here; it is not used as an identification objective.
-stress = compute_stress_from_result(
+stress: npt.NDArray[np.float64] = vfm.postprocessing.compute_stress_from_result(
     experiment_data,
     result,
     constitutive_law,
 )
-stress_check = check_stress_against_saved(stress, result.final_stress)
-plasticity = compute_plasticity_diagnostics(
-    experiment_data,
-    constitutive_law,
-    result.parameter_maps,
+stress_check: vfm.postprocessing.StressCheckResult = (
+    vfm.postprocessing.check_stress_against_saved(stress, result.final_stress)
 )
-force_reconstruction = compute_force_reconstruction_diagnostics(
-    experiment_data,
-    stress,
-    axis="x",
-    num_slices=4,
+plasticity: vfm.postprocessing.PlasticityDiagnostics | None = (
+    vfm.postprocessing.compute_plasticity_diagnostics(
+        experiment_data,
+        constitutive_law,
+        result.parameter_maps,
+    )
 )
-equilibrium_gap = compute_equilibrium_gap_diagnostics(
-    experiment_data,
-    stress,
-    window_size=3,
+force_reconstruction: vfm.postprocessing.ForceReconstructionDiagnostics = (
+    vfm.postprocessing.compute_force_reconstruction_diagnostics(
+        experiment_data,
+        stress,
+        axis="x",
+        num_slices=4,
+    )
 )
-parameter_errors = compute_parameter_error_diagnostics(
-    result.parameter_maps,
-    synthetic_case.known_parameter_maps,
+equilibrium_gap: vfm.postprocessing.EquilibriumGapDiagnostics = (
+    vfm.postprocessing.compute_equilibrium_gap_diagnostics(
+        experiment_data,
+        stress,
+        window_size=3,
+    )
+)
+parameter_errors: vfm.postprocessing.ParameterErrorDiagnostics = (
+    vfm.postprocessing.compute_parameter_error_diagnostics(
+        result.parameter_maps,
+        synthetic_case.known_parameter_maps,
+    )
 )
 
-summary = {
+summary: dict[str, object] = {
     **stress_check.to_summary(),
-    **parameter_map_summary(result.parameter_maps),
+    **vfm.postprocessing.parameter_map_summary(result.parameter_maps),
     **force_reconstruction.to_summary(),
     **equilibrium_gap.to_summary(),
     **parameter_errors.summary,
@@ -142,7 +147,7 @@ if plasticity is not None:
     summary.update(plasticity.to_summary())
 pprint(summary, sort_dicts=False)
 
-solve_result = result.history.phases[0].solve_results[-1]
+solve_result: vfm.SolveResult = result.history.phases[0].solve_results[-1]
 print(
     "parallel solve: "
     f"workers={solve_result.details['parallel_workers']}, "
@@ -152,9 +157,13 @@ print(
 # %%
 # Compare the identified and reference yield maps
 # -----------------------------------------------
-identified_yield = result.parameter_maps["yield_strength"]
-reference_yield = synthetic_case.known_parameter_maps["yield_strength"]
-yield_error_percent = parameter_errors.percent_error_maps["yield_strength"]
+identified_yield: npt.NDArray[np.float64] = result.parameter_maps["yield_strength"]
+reference_yield: npt.NDArray[np.float64] = (
+    synthetic_case.known_parameter_maps["yield_strength"]
+)
+yield_error_percent: npt.NDArray[np.float64] = (
+    parameter_errors.percent_error_maps["yield_strength"]
+)
 
 figure, axes = plt.subplots(
     1,

@@ -6,8 +6,9 @@
 Your virtual engineering laboratory
 ====================================
 
-Design experiments, analyse measurements and iterate with evidence.
-Experiments are expensive make every measurement count.
+**Design experiments, analyse measurements and iterate with evidence.**
+
+PyVale is an open-source toolkit for simulation-driven experimental design and model validation. By bringing together physics simulations, virtual measurements and uncertainty quantification, PyVale enables engineers and researchers to explore, optimise and evaluate experiments before entering the laboratory. 
 
 .. tab-set::
 

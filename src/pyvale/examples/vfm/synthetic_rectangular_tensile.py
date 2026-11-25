@@ -13,20 +13,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.vfm.constparam import ConstitutiveParameter
-from pyvale.vfm.experimentdata import (
-    BoundaryConditions,
-    Edge,
-    EdgeConditions,
-    EEdgeCondition,
-    ExperimentData,
-    SpecimenGeometry,
-)
-from pyvale.vfm.roi import RoiDefinition, RoiShape, VfmRegionOfInterest
-from pyvale.vfm.slicewise_utils import (
-    SliceConfig,
-    resolve_cell_aligned_slice_boundaries,
-)
+import pyvale.vfm as vfm
 
 
 SYNTHETIC_PARAMETER_NAMES: tuple[str, ...] = (
@@ -75,7 +62,7 @@ class SyntheticTensileMaterial:
 class SyntheticTensileCase:
     """Synthetic experiment and its known reference solution."""
 
-    experiment_data: ExperimentData
+    experiment_data: vfm.ExperimentData
     known_parameter_maps: dict[str, npt.NDArray[np.float64]]
     known_stress: npt.NDArray[np.float64]
     prescribed_longitudinal_stress: npt.NDArray[np.float64]
@@ -110,7 +97,7 @@ def build_synthetic_tensile_case(
         thickness=thickness,
         num_slices=len(material.yield_strengths),
     )
-    stress_history = _resolve_prescribed_longitudinal_stress(
+    stress_history: npt.NDArray[np.float64] = _resolve_prescribed_longitudinal_stress(
         prescribed_longitudinal_stress
     )
 
@@ -129,10 +116,10 @@ def build_synthetic_tensile_case(
         dtype=np.float64,
     )
 
-    region_of_interest = VfmRegionOfInterest.from_definition(
-        RoiDefinition(
+    region_of_interest = vfm.VfmRegionOfInterest.from_definition(
+        vfm.roi.RoiDefinition(
             shapes=(
-                RoiShape(
+                vfm.roi.RoiShape(
                     shape_type="rectangle",
                     index=0,
                     is_cutting=False,
@@ -141,26 +128,28 @@ def build_synthetic_tensile_case(
             )
         )
     )
-    specimen_geometry = SpecimenGeometry(
+    specimen_geometry = vfm.SpecimenGeometry(
         x=x,
         y=y,
         pixel_area=pixel_area,
         thickness=float(thickness),
         region_of_interest=region_of_interest,
     )
-    slice_boundaries = resolve_cell_aligned_slice_boundaries(
-        specimen_geometry,
-        SliceConfig(
-            axis="x",
-            num_slices=len(material.yield_strengths),
-        ),
+    slice_boundaries: npt.NDArray[np.float64] = (
+        vfm.resolve_cell_aligned_slice_boundaries(
+            specimen_geometry,
+            vfm.SliceConfig(
+                axis="x",
+                num_slices=len(material.yield_strengths),
+            ),
+        )
     )
-    known_parameter_maps = _build_parameter_maps(
+    known_parameter_maps: dict[str, npt.NDArray[np.float64]] = _build_parameter_maps(
         x,
         slice_boundaries=slice_boundaries,
         material=material,
     )
-    strain = _build_uniaxial_strain_history(
+    strain: npt.NDArray[np.float64] = _build_uniaxial_strain_history(
         stress_history,
         known_parameter_maps["yield_strength"],
         material=material,
@@ -177,10 +166,10 @@ def build_synthetic_tensile_case(
         dtype=np.float64,
     )
 
-    experiment_data = ExperimentData(
+    experiment_data = vfm.ExperimentData(
         strain=strain,
         specimen_geometry=specimen_geometry,
-        boundary_conditions=BoundaryConditions(
+        boundary_conditions=vfm.BoundaryConditions(
             edge_conditions=_tensile_edge_conditions(),
             force=force,
         ),
@@ -201,29 +190,29 @@ def build_synthetic_identification_parameters(
     *,
     material: SyntheticTensileMaterial = SyntheticTensileMaterial(),
     initial_yield_strength: float = 250.0,
-) -> dict[str, ConstitutiveParameter]:
+) -> dict[str, vfm.ConstitutiveParameter]:
     """Return bounded starting parameters suitable for the synthetic case."""
 
     return {
-        "elastic_modulus": ConstitutiveParameter(
+        "elastic_modulus": vfm.ConstitutiveParameter(
             material.elastic_modulus,
             100_000.0,
             300_000.0,
             map_size,
         ),
-        "poissons_ratio": ConstitutiveParameter(
+        "poissons_ratio": vfm.ConstitutiveParameter(
             material.poissons_ratio,
             0.2,
             0.4,
             map_size,
         ),
-        "yield_strength": ConstitutiveParameter(
+        "yield_strength": vfm.ConstitutiveParameter(
             initial_yield_strength,
             100.0,
             500.0,
             map_size,
         ),
-        "hardening_modulus": ConstitutiveParameter(
+        "hardening_modulus": vfm.ConstitutiveParameter(
             material.hardening_modulus,
             1_000.0,
             20_000.0,
@@ -232,12 +221,12 @@ def build_synthetic_identification_parameters(
     }
 
 
-def _tensile_edge_conditions() -> EdgeConditions:
-    return EdgeConditions(
-        min_x_edge=Edge(EEdgeCondition.Fixed, EEdgeCondition.Free),
-        max_x_edge=Edge(EEdgeCondition.Traction, EEdgeCondition.Free),
-        min_y_edge=Edge(EEdgeCondition.Free, EEdgeCondition.Free),
-        max_y_edge=Edge(EEdgeCondition.Free, EEdgeCondition.Free),
+def _tensile_edge_conditions() -> vfm.EdgeConditions:
+    return vfm.EdgeConditions(
+        min_x_edge=vfm.Edge(vfm.EEdgeCondition.Fixed, vfm.EEdgeCondition.Free),
+        max_x_edge=vfm.Edge(vfm.EEdgeCondition.Traction, vfm.EEdgeCondition.Free),
+        min_y_edge=vfm.Edge(vfm.EEdgeCondition.Free, vfm.EEdgeCondition.Free),
+        max_y_edge=vfm.Edge(vfm.EEdgeCondition.Free, vfm.EEdgeCondition.Free),
     )
 
 

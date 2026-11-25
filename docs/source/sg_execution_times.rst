@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:03.972** total execution time for 85 files **from all galleries**:
+**00:03.972** total execution time for 89 files **from all galleries**:
 
 .. container::
 
@@ -285,5 +285,17 @@ Computation times
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_validation_ex12_parallel_valid_ir_camera.py` (``../../src/pyvale/examples/validation/ex12_parallel_valid_ir_camera.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_vfm_vfm_ex1_hom.py` (``../../src/pyvale/examples/vfm/vfm_ex1_hom.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_vfm_vfm_ex2_slicewise.py` (``../../src/pyvale/examples/vfm/vfm_ex2_slicewise.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_vfm_vfm_ex3_slicewise_refinement.py` (``../../src/pyvale/examples/vfm/vfm_ex3_slicewise_refinement.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_vfm_vfm_ex4_hom_slicewise.py` (``../../src/pyvale/examples/vfm/vfm_ex4_hom_slicewise.py``)
      - 00:00.000
      - 0.0
