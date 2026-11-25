@@ -7,7 +7,8 @@ import re
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS_ROOT = REPO_ROOT / "docs/source"
 EXAMPLE_GROUPS = (
-    "basicsensorsim", "dic", "render3d", "renderuvs", "extsensorsim", "mooseherder"
+    "basicsensorsim", "dic", "render3d", "renderuvs", "extsensorsim",
+    "validation", "mooseherder", "dataio",
 )
 
 

@@ -8,7 +8,7 @@
 
 """
 2D Strain and Deformation Gradient Calculations
----------------------------------------------
+-----------------------------------------------
 
 This example follows on from the previous one. It assumes that the DIC results
 have already been generated in the current working directory and are ready to

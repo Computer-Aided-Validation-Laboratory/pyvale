@@ -31,7 +31,6 @@
 namespace py = pybind11;
 
 /**
-<<<<<<< HEAD
  * @brief Runs DIC using images loaded from the configured file paths.
  *
  * @param img_roi_arr Boolean ROI mask.
@@ -47,7 +46,6 @@ void engine(const py::array_t<bool>& img_roi_arr,
             const common_util::SaveConfig& saveconf);
 
 /**
-<<<<<<< HEAD
  * @brief Runs DIC using images supplied in memory.
  *
  * @param images Reference and deformed images.

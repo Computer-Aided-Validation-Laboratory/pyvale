@@ -6,7 +6,7 @@ reference details; the :doc:`user guides <guide_user/guide_user>` and
 :doc:`examples <examples/examples>` explain the workflows.
 
 Load simulation and experimental data
-------------------------------------
+-------------------------------------
 
 Use ``pyvale.dataio`` for ``SimData``, experimental data containers, loaders,
 mesh conventions and conversions. ``pyvale.data`` retrieves demonstration data
@@ -41,7 +41,7 @@ tools. See :doc:`the Render guide <guide_user/guide_render>`.
    pyvale.render
 
 Analyse images and calibrate cameras
------------------------------------
+------------------------------------
 
 Use ``pyvale.dic`` for correlation, ``pyvale.calib`` for camera calibration and
 ``pyvale.strain`` for strain calculation. For a worked calibration, start with
@@ -55,7 +55,7 @@ Use ``pyvale.dic`` for correlation, ``pyvale.calib`` for camera calibration and
    pyvale.strain
 
 Run physics simulations and sweeps
----------------------------------
+----------------------------------
 
 Launch meshing and solver runs, organise parameter studies and load their results.
 
@@ -64,16 +64,25 @@ Launch meshing and solver runs, organise parameter studies and load their result
 
    pyvale.mooseherder
 
+Compare predictions with measurements
+-------------------------------------
+
+Use ``pyvale.validation`` to assemble validation cases and compare simulation
+and experimental observables. See the :doc:`Validation guide <guide_user/guide_valid>`.
+
+.. toctree::
+   :maxdepth: 1
+
+   pyvale.validation
+
 Supporting verification tools
 -----------------------------
 
 ``pyvale.verif`` provides analytic fields and mesh generators for checking
-numerical behaviour. These helpers are distinct from simulation-validation
-metrics and calibration workflows, which are under development. Unfinished
-validation packages and internal backend/native implementation modules are
-outside this public reference.
+numerical behaviour. ``pyvale.common`` provides build and environment metadata.
 
 .. toctree::
    :maxdepth: 1
 
    pyvale.verif
+   pyvale.common

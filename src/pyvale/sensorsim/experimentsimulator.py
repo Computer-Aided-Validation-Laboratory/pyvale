@@ -86,6 +86,10 @@ class ExpSimSaveKeys:
     perturbing the sensor positions.
     """
 
+    sens_pos: str | None = "sens_pos"
+    """Key for nominal sensor positions, shaped (sensor, xyz). None omits them."""
+
+
 @dataclass(slots=True)
 class ExpSimOpts:
     """Experiment simulation options dataclass specifying options for what data
@@ -236,6 +240,13 @@ class ExperimentSimulator:
             sens_vars.append((exp_keys.pert_sens_pos,"positions"))
 
         #-----------------------------------------------------------------------
+        nominal_positions: dict[str, np.ndarray] = {}
+        if exp_keys.sens_pos is not None:
+            for sensor_key, sensor_array in self._sens_dict.items():
+                positions = sensor_array.get_sensor_positions()
+                if positions is not None:
+                    nominal_positions[sensor_key] = positions.copy()
+
         # 1) para over sim_data/sens_array, run N per worker
         if (self._exp_sim_opts.workers is not None and
             self._exp_sim_opts.para == EExpSimPara.ALL):
@@ -257,7 +268,10 @@ class ExperimentSimulator:
                                             sens_vars)
 
         #-----------------------------------------------------------------------
-        # dict[tuple[str,...],shape=(n_sims,n_exps,n_sens,n_comps,n_time_steps)]
+        if exp_keys.sens_pos is not None:
+            for sim_key in self._sim_dict:
+                for sensor_key, positions in nominal_positions.items():
+                    exp_data[(sim_key, sensor_key, exp_keys.sens_pos)] = positions
         return exp_data
 
     #---------------------------------------------------------------------------

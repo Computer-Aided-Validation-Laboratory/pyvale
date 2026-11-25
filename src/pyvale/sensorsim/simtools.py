@@ -8,7 +8,7 @@
 manipulating simulation data.
 """
 
-from typing import Any
+from typing import Any, TypeVar
 import dataclasses
 import numpy as np
 
@@ -173,37 +173,69 @@ def get_deformed_nodes(
     return render_mesh.coords + render_mesh.displacements[timestep]
 
 
-def scale_length_units(scale: float,
-                       sim_data: SimData,
-                       disp_keys: tuple[str,...] | None = None,
-                       ) -> SimData:
-    """Used to scale the length units of a simulation. Commonly used to convert
-    SI units to mm for use with visualisation tools and rendering algorithms.
+_SimDataInput = TypeVar("_SimDataInput", SimData, list[SimData])
+
+
+def scale_length_units(
+    scale: float,
+    sim_data: _SimDataInput,
+    disp_keys: tuple[str, ...] | None = None,
+) -> _SimDataInput:
+    """Scale one simulation or a list of simulations in place.
+
+    Scale coordinates and the named nodal displacement fields. Return the
+    original SimData or list so callers can keep using the same objects.
+    """
+    simulations = sim_data if isinstance(sim_data, list) else [sim_data]
+    for simulation in simulations:
+        simulation.coords = simulation.coords * scale
+        if disp_keys is not None:
+            for cc in disp_keys:
+                simulation.node_vars[cc] = simulation.node_vars[cc] * scale
+    return sim_data
+
+
+def scale_nodal_fields(
+    scale: float,
+    sim_data: _SimDataInput,
+    *,
+    field_keys: tuple[str, ...],
+) -> _SimDataInput:
+    """Scale selected nodal fields in place, leaving coordinates unchanged.
 
     Parameters
     ----------
     scale : float
-        Scale multiplier used to scale the coordinates and displacement fields
-        if specified.
-    sim_data : SimData
-        Simulation dataclass that will be scaled.
-    disp_keys : tuple[str,...] | None, optional
-        Tuple of string keys for the displacement keys to be scaled, by default
-        None. If None then the displacements are not scaled.
+        Multiplier applied to each selected field.
+    sim_data : SimData or list of SimData
+        Simulation data to update.
+    field_keys : tuple of str
+        Nodal field names to scale in each simulation.
 
     Returns
     -------
-    SimData
-        Simulation dataclass with scaled length units.
+    SimData or list of SimData
+        The original simulation or list with the selected fields updated.
+
+    Raises
+    ------
+    KeyError
+        A selected field is absent from a simulation.
     """
-    sim_data.coords = sim_data.coords*scale
-
-    if disp_keys is not None:
-        for cc in disp_keys:
-            sim_data.node_vars[cc] = sim_data.node_vars[cc]*scale
-
+    simulations = sim_data if isinstance(sim_data, list) else [sim_data]
+    scaled_fields = []
+    for simulation in simulations:
+        node_vars = simulation.node_vars
+        if node_vars is None:
+            if field_keys:
+                raise KeyError(field_keys[0])
+            continue
+        scaled_fields.append(
+            (node_vars, {key: node_vars[key] * scale for key in field_keys})
+        )
+    for node_vars, fields in scaled_fields:
+        node_vars.update(fields)
     return sim_data
-
 
 
 def coords_to_2D(coords_3d: np.ndarray) -> np.ndarray:

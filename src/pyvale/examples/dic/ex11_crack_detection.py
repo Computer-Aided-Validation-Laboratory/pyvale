@@ -7,7 +7,7 @@
 #================================================================================
 r"""
 Crack Detection using the Gray Level Residual (GLR)
----------------------
+---------------------------------------------------
 
 In this example we'll look at identifying cracks in a 2D plate using the gray
 level residual (GLR) from a DIC analysis. The GLR is calculated as
@@ -47,9 +47,9 @@ Athanasios Kontogiannis , Nick Eleftheroglou and Dimitrios Zarouchas (2024):
 #
 #    * - **Reference**
 #      - **Deformed**
-#    * - .. image:: ../../../../_static/dic_ex11_ref.png
+#    * - .. image:: /_static/dic_ex11_ref.png
 #           :width: 100%
-#      - .. image:: ../../../../_static/dic_ex11_def.png
+#      - .. image:: /_static/dic_ex11_def.png
 #           :width: 100%
 
 # pyvale modules
@@ -106,7 +106,7 @@ plt.colorbar()
 plt.show()
 
 # %%
-# .. image:: ../../../../_static/dic_ex11_results.png
+# .. image:: /_static/dic_ex11_results.png
 #    :alt: Crack detection results
 #    :width: 100%
 #    :align: center

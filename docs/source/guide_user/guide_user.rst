@@ -40,12 +40,17 @@ Start with what you have
      - **Physics Simulation**
      - Physics fields and results from a collection of simulation cases.
 
+   * - Simulation predictions and experimental measurements
+     - **Validation**
+     - Validation metrics and uncertainty-aware distribution comparisons.
+
 Follow the relevant route:
 
 * **Simulate measurements:** :doc:`SensorSim guide <guide_sensorsim>` · :doc:`First example </examples/basicsensorsim/ex0_quickstart>`
 * **Analyse images:** :doc:`DIC guide </guide_user/guide_dic>` · :doc:`Examples </examples/examples_dic>`
 * **Generate camera images:** :doc:`Render guide <guide_render>` · :doc:`UV mapping </examples/examples_renderuvs>`
 * **Run solver sweeps:** :doc:`Mooseherder guide </guide_user/guide_mooseherder>` · :doc:`First simulation </examples/mooseherder/ex01a_quickstart_rabbitfem>`
+* **Compare predictions with measurements:** :doc:`Validation guide <guide_valid>` · :doc:`Validation examples </examples/examples_valid>`
 
 For geometry preparation, see :doc:`Geometry and meshing <guide_meshing>`.
 For importing and interpreting fields, see :doc:`Working with SimData <guide_simdata>`.
@@ -64,9 +69,9 @@ predictions and investigate uncertainty before collecting validation data.
 
 SensorSim, DIC and Render are available for measurement simulation and image
 analysis. Rabbit FEM and Mooseherder support physics simulations and parameter
-sweeps. Dedicated tools for sensor placement optimisation, simulation
-calibration and validation, and a workflow engine for reproducible experimental
-campaigns are under development. Today, you connect the modules in Python.
+sweeps. Use Validation to compare predictions with experimental measurements.
+Dedicated tools for sensor placement optimisation, simulation calibration and
+reproducible experimental campaigns are under development.
 
 Getting started
 ---------------
@@ -106,3 +111,4 @@ simulation runs, but the rabbit came first.
    guide_mooseherder
    guide_meshing
    guide_simdata
+   guide_valid

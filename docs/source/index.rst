@@ -35,6 +35,7 @@ Python 3.11+.
          :alt: Virtual sensor locations
          :height: 145px
          :align: center
+         :target: examples/basicsensorsim/ex0_quickstart.html
 
       Build virtual sensor arrays with realistic uncertainty. Run repeated experiments
       and inspect measurement distributions.
@@ -49,13 +50,14 @@ Python 3.11+.
          :alt: Stereo DIC reconstructed surface
          :height: 145px
          :align: center
+         :target: examples/dic/ex01_region_of_interest.html
 
       Analyse 2D and stereo images to recover shape, displacement and strain from
       synthetic or experimental images.
 
       +++
 
-      :doc:`First example </examples/dic/ex02_plate_with_hole>` · :doc:`User guide </guide_user/guide_dic>`
+      :doc:`First example </examples/dic/ex01_region_of_interest>` · :doc:`User guide </guide_user/guide_dic>`
 
    .. grid-item-card:: Render
 
@@ -63,6 +65,7 @@ Python 3.11+.
          :alt: Synthetic camera images generated with Riley
          :height: 145px
          :align: center
+         :target: examples/render3d/ex1a_riley_quickstart.html
 
       Render deforming meshes with Riley, integrated into PyVale. Configure cameras,
       textures, distortion and point spread functions; use optional Blender for path
@@ -72,12 +75,28 @@ Python 3.11+.
 
       :doc:`First example </examples/render3d/ex1a_riley_quickstart>` · :doc:`Examples </examples/examples_render3d>`
 
-   .. grid-item-card:: Physics Simulation
+   .. grid-item-card:: Validation
+
+      .. image:: /_static/val_ex10_fig03_mavm_support_envelope_TC3.png
+         :alt: MAVM support envelope for thermocouple TC3
+         :height: 145px
+         :align: center
+         :target: examples/validation/ex00_valid_quickstart.html
+
+      Compare simulation predictions with experimental measurements and quantify
+      discrepancies under uncertainty.
+
+      +++
+
+      :doc:`First example </examples/validation/ex00_valid_quickstart>` · :doc:`Examples </examples/examples_valid>`
+
+   .. grid-item-card:: Mooseherder
 
       .. image:: /_static/physics_simulation_field.png
          :alt: Raw Exodus temperature field on the undeformed finite element mesh; no sensors
          :height: 145px
          :align: center
+         :target: examples/mooseherder/ex01a_quickstart_rabbitfem.html
 
       Use Rabbit FEM through PyVale’s Mooseherder module to run thermo-mechanical finite
       element simulations, vary inputs and load results for virtual experiments.
@@ -85,6 +104,21 @@ Python 3.11+.
       +++
 
       :doc:`First example </examples/mooseherder/ex01a_quickstart_rabbitfem>` · :doc:`User guide </guide_user/guide_mooseherder>`
+
+   .. grid-item-card:: DataIO
+
+      .. image:: /_static/dataio_ex01_pulse253_tc3.png
+         :alt: Pulse253 CSV excerpt alongside the loaded TC3 temperature trace
+         :height: 145px
+         :align: center
+         :target: examples/dataio/ex01_load_exp_data.html
+
+      Load experimental sensor measurements and probabilistic simulation data for
+      analysis in PyVale.
+
+      +++
+
+      :doc:`First example </examples/dataio/ex01_load_exp_data>` · :doc:`Examples </examples/examples_dataio>`
 
 SensorSim, DIC and Render are ready for general use. In development: sensor
 placement optimisation, simulation calibration and validation, and a workflow
