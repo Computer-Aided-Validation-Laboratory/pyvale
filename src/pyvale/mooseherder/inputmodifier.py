@@ -85,8 +85,8 @@ class InputModifier:
         extract_var = var_line.strip()
         extract_var = extract_var.replace(self._end_chars, "")
         # Remove trailing comments should they exist
-        extract_var = extract_var.split(self._comment_chars)[0]  
-        
+        extract_var = extract_var.split(self._comment_chars)[0]
+
         var_key = ""
         var_val = ""
         if extract_var and extract_var.find("=") >= 0:

@@ -5,7 +5,7 @@
 # ==============================================================================
 
 """Gmsh: Mesh the packaged 3D plate with a hole
-==========================================
+============================================
 
 Use the existing case08 geometry from PyVale's registered data library. It
 extrudes a 100 x 150 mm plate with a 12.5 mm-radius hole through 5 mm thickness.

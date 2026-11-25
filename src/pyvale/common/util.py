@@ -5,8 +5,11 @@
 # ================================================================================
 
 import os
+import re
 import sys
 from datetime import datetime
+
+
 
 def print_pyvale_banner():
     print("                             #              ##            ####                  ")
@@ -107,3 +110,13 @@ def check_output_directory(output_basepath: str,
         # if user_input not in ("y", "yes", "Y", "YES"):
         #     print("Aborting to avoid overwriting data in output directory.")
         #     exit(0)
+
+
+def natural_sort_key(value: object) -> tuple[tuple[int, object], ...]:
+    """Key that sorts decimal numbers."""
+
+    text = os.fspath(value)
+    return tuple(
+        (1, int(part)) if part.isdigit() else (0, part.casefold())
+        for part in re.split(r"(\d+)", text)
+    )

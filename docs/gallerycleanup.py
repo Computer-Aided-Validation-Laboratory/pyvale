@@ -1,4 +1,4 @@
-"""Remove obsolete, generator-owned gallery pages before Sphinx-Gallery runs."""
+"""Prepare and clean up Sphinx-Gallery pages."""
 
 from pathlib import Path
 import re
@@ -116,7 +116,14 @@ def clean_gallery_docs(app: Sphinx) -> None:
         LOGGER.info("Removed %d obsolete generated gallery artifacts", len(removed))
 
 
-def setup(app: Sphinx) -> dict[str, bool]:
-    """Run cleanup before Sphinx-Gallery's builder-inited callback."""
+def use_gallery_code_links(_app: Sphinx, docname: str, source: list[str]) -> None:
+    """Let Sphinx-Gallery handle code links in the pages it generates."""
+    if docname.startswith("examples/") and GENERATED_MARKER in source[0][:350]:
+        source[0] = ".. autolink-skip:: file\n\n" + source[0]
+
+
+def setup(app: Sphinx) -> dict[str, bool | int]:
+    """Register gallery cleanup and select the gallery's code linker."""
     app.connect("builder-inited", clean_gallery_docs, priority=100)
-    return {"parallel_read_safe": True}
+    app.connect("source-read", use_gallery_code_links)
+    return {"env_version": 1, "parallel_read_safe": True}

@@ -39,6 +39,15 @@ quickstart and progresses to more detailed workflows.
       :doc:`Rendering examples <examples_render3d>` ·
       :doc:`UV mapping examples <examples_renderuvs>`
 
+   .. grid-item-card:: Validation
+
+      Compare simulation predictions with experimental measurements and
+      analyse uncertainty in validation metrics.
+
+      +++
+
+      :doc:`Validation examples <examples_valid>`
+
    .. grid-item-card:: Physics Simulation
 
       Use Rabbit FEM and Mooseherder to run simulations, generate meshes,
@@ -47,6 +56,14 @@ quickstart and progresses to more detailed workflows.
       +++
 
       :doc:`Simulation examples <examples_mooseherder>`
+
+   .. grid-item-card:: Data I/O
+
+      Load experimental sensor traces and probabilistic simulation samples.
+
+      +++
+
+      :doc:`Data I/O examples <examples_dataio>`
 
 .. toctree::
    :hidden:
@@ -57,4 +74,6 @@ quickstart and progresses to more detailed workflows.
    examples_render3d
    examples_renderuvs
    examples_ext_sensorsim
+   examples_valid
    examples_mooseherder
+   examples_dataio

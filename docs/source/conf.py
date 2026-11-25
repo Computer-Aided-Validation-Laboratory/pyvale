@@ -1,8 +1,9 @@
 import os
-from pathlib import Path
+import re
 import sys
-from sphinx_gallery.sorting import FileNameSortKey
 from importlib.metadata import version as get_version
+from pathlib import Path
+
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -148,7 +149,6 @@ safe_example_pattern = rf"/(?!({unsafe_example_pattern})\.py$)ex"
 # Scope execution while still generating all gallery pages.
 gallery_module = os.environ.get("PYVALE_DOCS_EXAMPLE_MODULE")
 if gallery_module:
-    import re
     safe_example_pattern = rf"/{re.escape(gallery_module)}/(?!({unsafe_example_pattern})\.py$)ex"
 
 sphinx_gallery_conf = {
@@ -159,7 +159,9 @@ sphinx_gallery_conf = {
         '../../src/pyvale/examples/render3d',
         '../../src/pyvale/examples/renderuvs',
         '../../src/pyvale/examples/extsensorsim',
+        '../../src/pyvale/examples/validation',
         '../../src/pyvale/examples/mooseherder',
+        '../../src/pyvale/examples/dataio',
     ],
     # Path to where to save gallery generated output.
     'gallery_dirs': [
@@ -168,7 +170,9 @@ sphinx_gallery_conf = {
         'examples/render3d',
         'examples/renderuvs',
         'examples/extsensorsim',
+        'examples/validation',
         'examples/mooseherder',
+        'examples/dataio',
     ],
     # Generate every example page, but only execute unattended examples.
     'filename_pattern': safe_example_pattern,
@@ -177,7 +181,7 @@ sphinx_gallery_conf = {
         r'(?:^|/)(?:__init__|_blender_example_tools|_riley_demo_tools|tools)\.py$'
     ),
     # Specify that examples should be ordered according to filename
-    'within_subsection_order': FileNameSortKey,
+    'within_subsection_order': 'FileNameSortKey',
     # Directory where function granular galleries are stored
     'backreferences_dir': 'examples/gen_modules/backreferences',
     # Modules for which function level galleries are created
