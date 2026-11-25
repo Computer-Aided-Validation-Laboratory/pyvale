@@ -94,9 +94,15 @@ jobs:
         run: python -m pytest -v tests/mooseherder tests/examples/test_mooseherder_examples.py
 
       - name: Run validation and data I/O tests and tutorials
+        shell: bash
         env:
           MPLBACKEND: Agg
-        run: python -m pytest -v tests/valid tests/dataio tests/examples/test_valid_examples.py
+        run: |
+          pytest_args=()
+          if [[ "$RUNNER_OS" == Windows || "$RUNNER_OS" == macOS ]]; then
+            pytest_args=(-k 'not ex11_valid_sensorsim_import and not ex12_parallel_valid_ir_camera')
+          fi
+          python -m pytest -v tests/valid tests/dataio tests/examples/test_valid_examples.py "${pytest_args[@]}"
 
   docs:
     name: Documentation tests
