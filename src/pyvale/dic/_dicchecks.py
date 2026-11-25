@@ -558,9 +558,9 @@ def _check_images(reference: np.ndarray | str | Path,
         fullpath.append(str(reference))
 
         if isinstance(deformed, Path):
-            files = sorted(glob.glob(str(deformed)))
+            files = sorted(glob.glob(str(deformed)), key=common_util.natural_sort_key)
         else:
-            files = sorted(deformed, key=lambda p: os.path.basename(p))
+            files = sorted(deformed, key=common_util.natural_sort_key)
 
         if not files:
             raise FileNotFoundError(f"No deformation images found: {deformed}")
