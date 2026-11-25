@@ -13,6 +13,7 @@
   <a href="https://github.com/Computer-Aided-Validation-Laboratory/pyvale/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Computer-Aided-Validation-Laboratory/pyvale" alt="MIT license"></a>
 </p>
 
+
 PyVale is a general purpose toolbox for simulation driven experimental design
 and experimental mechanics. Build virtual sensor arrays, generate realistic
 camera images, analyse DIC measurements, and feed what you learn into the next
@@ -20,6 +21,19 @@ experiment. Compare simulations with measurements under uncertainty and
 identify material properties from full-field strain and force data. Tools
 for sensor placement optimisation and experimental design are under active
 development.
+
+## Install
+
+PyVale supports Python 3.11 and newer. Most users will use Riley as their rendering engine for image simulation however, if you need path tracing then Blender integration requires Python 3.13 and the optional Blender dependencies.
+
+| Platform | Install commands |
+|:---|:---|
+| pip | `pip install pyvale` |
+| uv | `uv add pyvale` |
+| Blender tools | `pip install "pyvale[blender]"` |
+
+[**Installation guide**](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html) · [**Browse all examples**](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples.html) · [**Open the documentation**](https://computer-aided-validation-laboratory.github.io/pyvale/)
+
 
 ## PyVale Design Framework
 
@@ -97,18 +111,6 @@ identification.
 <p align="center">
   <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/vfm_yield_strength.png" alt="Identified yield strength in four slices of a synthetic tensile specimen" width="900">
 </p>
-
-## Install
-
-PyVale supports Python 3.11 and newer. Most users will use Riley as their rendering engine for image simulation however, if you need path tracing then Blender integration requires Python 3.13 and the optional Blender dependencies.
-
-| Platform | Install commands |
-|:---|:---|
-| pip | `pip install pyvale` |
-| uv | `uv add pyvale` |
-| Blender tools | `pip install "pyvale[blender]"` |
-
-[**Installation guide**](https://computer-aided-validation-laboratory.github.io/pyvale/install/install.html) · [**Browse all examples**](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples.html) · [**Open the documentation**](https://computer-aided-validation-laboratory.github.io/pyvale/)
 
 ## Acknowledgements
 
