@@ -749,8 +749,8 @@ def get_file_list(path0: Path, path1: Path):
         If either pattern resolves to no files.
     """
 
-    sorted_cam0 = sorted(glob.glob(str(path0)))
-    sorted_cam1 = sorted(glob.glob(str(path1)))
+    sorted_cam0 = sorted(glob.glob(str(path0)), key=common_util.natural_sort_key)
+    sorted_cam1 = sorted(glob.glob(str(path1)), key=common_util.natural_sort_key)
 
     if not sorted_cam0:
         raise FileNotFoundError(f"No cam0 found: {path0}")
