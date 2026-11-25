@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from __future__ import annotations
 
 import json
@@ -13,7 +19,7 @@ import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.hardening import (
     HardeningLinear,
     HardeningLudwik,
@@ -306,7 +312,7 @@ def _constructor_options(
 
 
 def compute_stress_from_result(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     result: IdentificationResult,
     constitutive_law: IConstitutiveLaw,
 ) -> npt.NDArray[np.float64]:
@@ -393,7 +399,7 @@ def check_stress_against_saved(
 
 
 def compute_plasticity_diagnostics(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     constitutive_law: IConstitutiveLaw,
     parameter_maps: dict[str, npt.NDArray[np.float64]],
 ) -> PlasticityDiagnostics | None:
@@ -431,7 +437,7 @@ def compute_plasticity_diagnostics(
 
 
 def compute_force_reconstruction_diagnostics(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     stress: npt.NDArray[np.float64],
     *,
     axis: Literal["x", "y"],
@@ -491,7 +497,7 @@ def compute_force_reconstruction_diagnostics(
 
 
 def compute_equilibrium_gap_diagnostics(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     stress: npt.NDArray[np.float64],
     *,
     window_size: int | tuple[int, int],
@@ -762,7 +768,7 @@ def parameter_label(name: str) -> str:
 
 
 def specimen_mask(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
 ) -> npt.NDArray[np.bool_]:
     return experiment_data.specimen_geometry.region_of_interest.sample_specimen_mask(
         experiment_data.specimen_geometry.x,
@@ -771,14 +777,14 @@ def specimen_mask(
 
 
 def masked_map(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     data: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     return np.where(specimen_mask(experiment_data), data, np.nan)
 
 
 def slice_values_to_grid(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     metric: SliceWiseForceReconstructionMetric,
     values: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
@@ -805,7 +811,7 @@ def plastic_parameter_names(
 
 
 def plot_map_collection(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     parameter_maps: dict[str, npt.NDArray[np.float64]],
     output_path: Path,
     title: str,
@@ -1017,7 +1023,7 @@ def plot_stress_strain_tiled(
 
 
 def plot_individual_maps(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     maps: dict[str, npt.NDArray[np.float64]],
     output_dir: Path,
     prefix: str,
@@ -1051,7 +1057,7 @@ def plot_individual_maps(
 
 def imshow_map(
     ax,
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     data: npt.NDArray[np.float64],
     *,
     cmap: str,
@@ -1082,7 +1088,7 @@ def imshow_map(
 
 
 def map_alpha(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     name: str,
     yielded_datapoints: npt.NDArray[np.bool_] | None,
     transparent_names: set[str] | None,

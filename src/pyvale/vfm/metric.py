@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -5,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 
 
@@ -38,7 +44,7 @@ class IMetric(ABC):
     @abstractmethod
     def initialise(
         self,
-        experiment_data: ExperimentData
+        experiment_data: VfmInputData
     ) -> None:
         """
         Perform one-off setup for the metric before evaluation,
@@ -46,7 +52,7 @@ class IMetric(ABC):
 
         Parameters
         ----------
-        experiment_data : ExperimentData
+        experiment_data : VfmInputData
             Measured DIC data
         """
         pass
@@ -58,7 +64,7 @@ class IMetric(ABC):
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> MetricResult:
         """
         Evaluate the metric for a given stress candidate.
@@ -73,7 +79,7 @@ class IMetric(ABC):
             Spatial dimensions ``(y, x)`` of the parameter maps
         spatial_parameterisations : dict[str, list[ISpatialParameterisation]]
             Current spatial parameterisations keyed by parameter name
-        experiment_data : ExperimentData
+        experiment_data : VfmInputData
             Measured DIC data
 
         Returns

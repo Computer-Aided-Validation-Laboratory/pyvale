@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 import copy
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -6,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.constparam import ConstitutiveParameter
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.normalisation import (
     denormalise_degrees_of_freedom,
     normalise_degrees_of_freedom,
@@ -230,7 +236,7 @@ class PhaseSpatialState:
         # copied candidate state.
         return PhaseSpatialState(copy.deepcopy(self.spatial_parameterisations))
 
-    def prepare(self, experiment_data: ExperimentData) -> None:
+    def prepare(self, experiment_data: VfmInputData) -> None:
         """Prepare any shared supports required by the phase runtime."""
 
         for support in self.supports:

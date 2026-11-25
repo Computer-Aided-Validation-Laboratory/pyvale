@@ -4,6 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+from .cameraloader import CameraLoaderColumn, CameraLoaderMatrix
 from .expdata import ExpData
 from .exploader import IExpLoader, load_exp_data
 from .loadopts import ExpLoadOpts, SimLoadOpts

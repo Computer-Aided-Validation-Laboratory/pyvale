@@ -12,6 +12,9 @@ Identify a four-region yield-strength distribution with independent parallel
 slice solves. Then apply the same supported postprocessing pipeline used for
 saved experimental results: stress verification, plasticity, force
 reconstruction, equilibrium-gap, and parameter-error diagnostics.
+
+See :doc:`vfm_ex0_input_data` for the strain, geometry, force,
+and time inputs to supply for your own experiment.
 """
 
 from pathlib import Path
@@ -47,7 +50,7 @@ SAVE_RESULTS_FILE = False
 # Only yield strength varies between the four longitudinal regions. Elastic
 # modulus, Poisson's ratio, and hardening modulus are treated as known.
 synthetic_case: SyntheticTensileCase = build_synthetic_tensile_case()
-experiment_data: vfm.ExperimentData = synthetic_case.experiment_data
+experiment_data: vfm.VfmInputData = synthetic_case.experiment_data
 map_size: npt.NDArray[np.uint32] = np.asarray(
     experiment_data.specimen_geometry.x.shape,
     dtype=np.uint32,

@@ -62,7 +62,7 @@ class SyntheticTensileMaterial:
 class SyntheticTensileCase:
     """Synthetic experiment and its known reference solution."""
 
-    experiment_data: vfm.ExperimentData
+    experiment_data: vfm.VfmInputData
     known_parameter_maps: dict[str, npt.NDArray[np.float64]]
     known_stress: npt.NDArray[np.float64]
     prescribed_longitudinal_stress: npt.NDArray[np.float64]
@@ -166,7 +166,7 @@ def build_synthetic_tensile_case(
         dtype=np.float64,
     )
 
-    experiment_data = vfm.ExperimentData(
+    experiment_data = vfm.VfmInputData(
         strain=strain,
         specimen_geometry=specimen_geometry,
         boundary_conditions=vfm.BoundaryConditions(

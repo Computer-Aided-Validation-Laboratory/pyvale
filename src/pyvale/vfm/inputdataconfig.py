@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -97,5 +103,5 @@ InputDataConfig = AnsysConfig | MooseConfig
 """
 Solver-specific input configuration, either an ``AnsysConfig`` or a
 ``MooseConfig``. Determines which loader ``process_input_data`` uses to
-produce the ``ExperimentData``.
+produce the ``VfmInputData``.
 """

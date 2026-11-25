@@ -18,7 +18,7 @@ from pyvale.examples.vfm.synthetic_rectangular_tensile import (
     build_synthetic_identification_parameters,
     build_synthetic_tensile_case,
 )
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.hardening import HardeningLinear
 from pyvale.vfm.identification import run_identification
 from pyvale.vfm.identificationconfig import IdentificationConfig, IdentificationPhase
@@ -251,7 +251,7 @@ def test_slicewise_identification_with_refinement_recovers_expected_distribution
 
 
 def _run_yield_identification(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     *,
     slice_config: SliceConfig,
     refinement_policy: bool = False,
@@ -318,7 +318,7 @@ def _load_known_maps_and_boundaries(
 
 
 def _assert_fre_zero_for_parameter_maps(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     parameter_maps: dict[str, np.ndarray],
     slice_config: SliceConfig,
 ) -> None:

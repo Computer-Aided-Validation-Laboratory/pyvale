@@ -10,7 +10,7 @@ from pyvale.vfm.experimentdata import (
     Edge,
     EdgeConditions,
     EEdgeCondition,
-    ExperimentData,
+    VfmInputData,
     SpecimenGeometry,
 )
 from pyvale.vfm.metricequilibriumgap import (
@@ -28,7 +28,7 @@ def _rectangle_experiment_data(
     forces: tuple[float, ...] = (10.0, -20.0, 40.0),
     thickness: float = 2.0,
     pixel_area: float = 0.5,
-) -> ExperimentData:
+) -> VfmInputData:
     x_coordinates, y_coordinates = np.meshgrid(
         np.arange(cols, dtype=np.float64),
         np.arange(rows, dtype=np.float64),
@@ -68,11 +68,11 @@ def _rectangle_experiment_data(
     )
     strain = np.zeros((len(forces), 3, rows, cols), dtype=np.float64)
     timesteps = np.arange(len(forces), dtype=np.float64)
-    return ExperimentData(strain, specimen_geometry, boundary_conditions, timesteps)
+    return VfmInputData(strain, specimen_geometry, boundary_conditions, timesteps)
 
 
 def _constant_stress(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     *,
     sigma_xx: float = 150.0,
     sigma_yy: float = 40.0,
@@ -88,7 +88,7 @@ def _constant_stress(
 
 
 def _stress_with_central_inclusion(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     *,
     scale: float = 4.0,
 ) -> np.ndarray:

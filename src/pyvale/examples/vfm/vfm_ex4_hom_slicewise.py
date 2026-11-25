@@ -13,6 +13,9 @@ ratio fixed at known values. The first identifies homogeneous yield strength
 and hardening modulus with SBVF. The second jointly refines homogeneous
 hardening modulus and a four-slice yield-strength representation using force
 reconstruction error.
+
+See :doc:`vfm_ex0_input_data` for the strain, geometry, force,
+and time inputs to supply for your own experiment.
 """
 
 from pathlib import Path
@@ -45,7 +48,7 @@ SAVE_RESULTS_FILE = False
 # %%
 # Build one experiment and initial parameter set
 synthetic_case: SyntheticTensileCase = build_synthetic_tensile_case()
-experiment_data: vfm.ExperimentData = synthetic_case.experiment_data
+experiment_data: vfm.VfmInputData = synthetic_case.experiment_data
 map_size: npt.NDArray[np.uint32] = np.asarray(
     experiment_data.specimen_geometry.x.shape,
     dtype=np.uint32,

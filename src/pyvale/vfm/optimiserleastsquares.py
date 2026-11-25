@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 import time
 
 import numpy as np
@@ -5,7 +11,7 @@ import numpy.typing as npt
 from scipy.optimize import least_squares
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.identificationresult import (
     OptimisationOutcome,
     SolveResult,
@@ -50,7 +56,7 @@ class OptimiserLeastSquares(IOptimiser):
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         metrics: list[IMetric],
         objective_function: IObjectiveFunction,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
         progress_callback=None,
     ) -> OptimisationOutcome:
         _ = progress_callback

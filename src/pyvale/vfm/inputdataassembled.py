@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 """Load solver-independent assembled strain-data bundles for VFM preparation."""
 
 from __future__ import annotations

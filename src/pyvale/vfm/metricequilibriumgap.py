@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.signal import correlate, correlate2d
 
-from pyvale.vfm.experimentdata import EEdgeCondition, ExperimentData
+from pyvale.vfm.experimentdata import EEdgeCondition, VfmInputData
 from pyvale.vfm.metric import MetricResult
 
 
@@ -147,7 +153,7 @@ class EquilibriumGapMetric:
 
     def initialise(
         self,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> None:
         """Precompute the equilibrium gap operator.
 
@@ -278,7 +284,7 @@ def _validate_window_definition(
 
 
 def _build_equilibrium_gap_operator(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     *,
     window_size: npt.NDArray[np.uint32],
     sliding_pitch: npt.NDArray[np.uint32],
@@ -826,7 +832,7 @@ def _shape_functions(
 
 
 def _extract_longitudinal_force(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
 ) -> npt.NDArray[np.float64]:
     force = np.asarray(experiment_data.boundary_conditions.force, dtype=np.float64)
     if force.ndim != 2 or force.shape[1] < 2:

@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from __future__ import annotations
 
 from copy import copy
@@ -8,7 +14,7 @@ import numpy.typing as npt
 
 from pyvale.vfm.constparam import ConstitutiveParameter
 from pyvale.vfm.dof import DegreeOfFreedom
-from pyvale.vfm.experimentdata import ExperimentData, SpecimenGeometry
+from pyvale.vfm.experimentdata import VfmInputData, SpecimenGeometry
 from pyvale.vfm import slicewise_utils
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 
@@ -53,7 +59,7 @@ class SupportSlice:
 
     def prepare(
         self,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> None:
         self.prepare_from_specimen_geometry(experiment_data.specimen_geometry)
 

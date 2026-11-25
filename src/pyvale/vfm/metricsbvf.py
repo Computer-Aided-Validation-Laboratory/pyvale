@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from copy import copy, deepcopy
 from dataclasses import dataclass, field
 
@@ -8,7 +14,7 @@ import numpy.typing as npt
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.experimentdata import (
     EEdgeCondition,
-    ExperimentData,
+    VfmInputData,
 )
 from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.normalisation import (
@@ -103,7 +109,7 @@ class MetricSBVF(IMetric):
 
     def initialise(
         self,
-        experiment_data: ExperimentData
+        experiment_data: VfmInputData
     ) -> None:
         x = experiment_data.specimen_geometry.x
         y = experiment_data.specimen_geometry.y
@@ -124,7 +130,7 @@ class MetricSBVF(IMetric):
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> MetricResult:
         if self._virtual_fields_mesh is None:
             raise RuntimeError(

@@ -182,7 +182,7 @@ sphinx_gallery_conf = {
     # Private helper modules support examples but are not gallery tutorials.
     'ignore_pattern': (
         r'(?:^|/)(?:__init__|_blender_example_tools|_riley_demo_tools|'
-        r'synthetic_rectangular_tensile|tools)\.py$'
+        r'_synthetic_dic_experiment|synthetic_rectangular_tensile|tools)\.py$'
     ),
     # Specify that examples should be ordered according to filename
     'within_subsection_order': 'FileNameSortKey',

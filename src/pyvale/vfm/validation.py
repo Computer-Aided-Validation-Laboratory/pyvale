@@ -1,6 +1,12 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 import numpy as np
 
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.identificationconfig import (
     IdentificationConfig,
     IdentificationPhase,
@@ -16,7 +22,7 @@ from pyvale.vfm.spatialparamslicewise import SliceWiseSpatialParameterisation
 
 
 def run_validation(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     identification_config: IdentificationConfig | None = None,
 ) -> None:
     """Validate the VFM inputs, reporting every problem found in one go.
@@ -28,7 +34,7 @@ def run_validation(
 
     Parameters
     ----------
-    experiment_data : ExperimentData
+    experiment_data : VfmInputData
         The measured full-field strain, geometry, boundary conditions and
         timesteps
     identification_config : IdentificationConfig | None, optional
@@ -54,7 +60,7 @@ def run_validation(
 
 
 def _collect_experiment_data_errors(
-    experiment_data: ExperimentData
+    experiment_data: VfmInputData
 ) -> list[str]:
     geometry = experiment_data.specimen_geometry
     boundary_conditions = experiment_data.boundary_conditions

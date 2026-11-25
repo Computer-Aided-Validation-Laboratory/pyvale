@@ -1,10 +1,16 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from abc import ABC, abstractmethod
 
 import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.identificationresult import OptimisationOutcome
 from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.objectivefunc import IObjectiveFunction
@@ -43,7 +49,7 @@ class IOptimiser(ABC):
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         metrics: list[IMetric],
         objective_function: IObjectiveFunction,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
         progress_callback=None,
     ) -> OptimisationOutcome | dict[str, list[ISpatialParameterisation]]:
         """
@@ -61,7 +67,7 @@ class IOptimiser(ABC):
             Virtual-work metrics to evaluate candidate stress fields
         objective_function : IObjectiveFunction
             Aggregates metric results into the quantity to be minimised
-        experiment_data : ExperimentData
+        experiment_data : VfmInputData
             Measured DIC data
         progress_callback
             Optional callable receiving lightweight progress events
@@ -82,7 +88,7 @@ def evaluate_candidate(
     phase_spatial_state: PhaseSpatialState,
     metrics: list[IMetric],
     objective_function: IObjectiveFunction,
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
 ) -> npt.NDArray[np.float64]:
     """
     Evaluate one candidate point in the design space.
@@ -105,7 +111,7 @@ def evaluate_candidate(
         Virtual-work metrics
     objective_function : IObjectiveFunction
         Vector objective
-    experiment_data : ExperimentData
+    experiment_data : VfmInputData
         Measured DIC data
 
     Returns
@@ -146,7 +152,7 @@ def evaluate_metrics(
     parameter_map_size: npt.NDArray[np.uint32],
     spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
     metrics: list[IMetric],
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
 ) -> list[MetricResult]:
     """Evaluate identification metrics for a supplied stress field."""
 

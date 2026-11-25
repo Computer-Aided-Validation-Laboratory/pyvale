@@ -9,11 +9,13 @@ data. Each example generates its tensile experiment in memory.
 Getting started
 ---------------
 
-Identify uniform material properties using sensitivity-based virtual fields.
+Prepare strain, geometry, and force inputs, then identify uniform material
+properties using sensitivity-based virtual fields.
 
 .. toctree::
    :maxdepth: 1
 
+   vfm/vfm_ex0_input_data
    vfm/vfm_ex1_hom
 
 Spatially varying properties

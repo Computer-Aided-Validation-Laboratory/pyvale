@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -9,7 +15,7 @@ import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.constparam import ConstitutiveParameter
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
 from pyvale.vfm.spatialparam import ISpatialParameterisation
 from pyvale.vfm.spatialparamslicewise import SliceConfig, SupportSlice
@@ -25,7 +31,7 @@ RefinementTarget = object | str | tuple[str, int]
 class RefinementContext:
     """Solved-state data available to phase-level refinement policies."""
 
-    experiment_data: ExperimentData
+    experiment_data: VfmInputData
     constitutive_law: IConstitutiveLaw
     constitutive_parameters: dict[str, ConstitutiveParameter]
     parameter_map_size: npt.NDArray[np.uint32]

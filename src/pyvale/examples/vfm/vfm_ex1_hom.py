@@ -11,6 +11,9 @@ Homogeneous SBVF identification
 Identify four homogeneous elastoplastic parameters from a small synthetic
 rectangular tensile test. The experiment is generated in memory, so this
 example requires no external input files.
+
+See :doc:`vfm_ex0_input_data` for the strain, geometry, force,
+and time inputs to supply for your own experiment.
 """
 
 import numpy as np
@@ -34,7 +37,7 @@ synthetic_case: SyntheticTensileCase = build_synthetic_tensile_case(
     length=12.0,
     material=SyntheticTensileMaterial(yield_strengths=(250.0,)),
 )
-experiment_data: vfm.ExperimentData = synthetic_case.experiment_data
+experiment_data: vfm.VfmInputData = synthetic_case.experiment_data
 map_size: npt.NDArray[np.uint32] = np.asarray(
     experiment_data.specimen_geometry.x.shape,
     dtype=np.uint32,

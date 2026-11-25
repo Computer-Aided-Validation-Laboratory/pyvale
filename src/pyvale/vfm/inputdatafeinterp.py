@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 """Interpolate FE centroid fields onto a regular grid for VFM preparation."""
 
 import csv

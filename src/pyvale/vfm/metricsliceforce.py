@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
-from pyvale.vfm.experimentdata import ExperimentData, SpecimenGeometry
+from pyvale.vfm.experimentdata import VfmInputData, SpecimenGeometry
 from pyvale.vfm.metric import IMetric, MetricResult
 from pyvale.vfm.slicewise_utils import SliceAreaPartition, SliceConfig, resolve_slice_partition
 from pyvale.vfm.spatialparam import ISpatialParameterisation
@@ -288,7 +294,7 @@ class SliceWiseForceReconstructionMetric(IMetric):
 
     def initialise(
         self,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> None:
         self.initialise_slice_partition(experiment_data.specimen_geometry)
 
@@ -298,7 +304,7 @@ class SliceWiseForceReconstructionMetric(IMetric):
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: npt.NDArray[np.uint32],
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> MetricResult:
         if self.slice_partition is None:
             raise RuntimeError("Slice partition has not been resolved.")
@@ -307,7 +313,7 @@ class SliceWiseForceReconstructionMetric(IMetric):
     def evaluate_local(
         self,
         stress: npt.NDArray[np.float64],
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
         local_slice_data: LocalSliceData,
     ) -> MetricResult:
         """Return the local slice residual plus weighting metadata."""
@@ -342,7 +348,7 @@ class SliceWiseForceReconstructionMetric(IMetric):
     def evaluate_force_recon_error(
         self,
         stress: npt.NDArray[np.float64],
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> ForceReconstructionErrorResult:
         if self.slice_partition is None:
             raise RuntimeError("Slice partition has not been resolved.")

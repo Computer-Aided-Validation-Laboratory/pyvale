@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 import enum
 from dataclasses import dataclass
 from pathlib import Path
@@ -119,7 +125,7 @@ def _calculate_timestep_deltas(
 
 
 @dataclass(slots=True)
-class ExperimentData:
+class VfmInputData:
     """
     Input data from a DIC experiment.
 
@@ -186,7 +192,7 @@ class ExperimentData:
     @classmethod
     def load_from_file(cls, experiment_data_file: str | Path) -> Self:
         """
-        Build an ``ExperimentData`` from a saved yaml file.
+        Build an ``VfmInputData`` from a saved yaml file.
         """
 
         experiment_data_file = Path(experiment_data_file)
@@ -260,7 +266,7 @@ class ExperimentData:
 
     def save_to_yaml(self, output_dir: str | Path):
         """
-        Save this ``ExperimentData`` into ``output_dir`` with an
+        Save this ``VfmInputData`` into ``output_dir`` with an
         ``experiment_data.yaml`` and sibling npy files.
         """
         output_dir = Path(output_dir)

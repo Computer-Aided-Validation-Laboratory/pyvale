@@ -8,7 +8,7 @@ from pyvale.vfm.experimentdata import (
     Edge,
     EdgeConditions,
     EEdgeCondition,
-    ExperimentData,
+    VfmInputData,
     SpecimenGeometry,
 )
 from pyvale.vfm.identification import PhaseRuntime, run_identification
@@ -73,7 +73,7 @@ class _DummyConstitutiveLaw(IConstitutiveLaw):
 class _DummyMetric(IMetric):
     def initialise(
         self,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> None:
         return
 
@@ -83,7 +83,7 @@ class _DummyMetric(IMetric):
         constitutive_law: IConstitutiveLaw,
         parameter_map_size: np.ndarray,
         spatial_parameterisations,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> MetricResult:
         return MetricResult(
             residual=stress[:, 0, :, :].reshape(-1),
@@ -104,7 +104,7 @@ class _DummySliceForceResult:
         self.weighted_temporal_rms = weighted_temporal_rms
 
 
-def _build_experiment_data() -> ExperimentData:
+def _build_experiment_data() -> VfmInputData:
     x_grid_1d = np.linspace(0.0, 1.0, 5)
     y_grid_1d = np.linspace(0.0, 1.0, 4)
     x_grid, y_grid = np.meshgrid(x_grid_1d, y_grid_1d)
@@ -143,7 +143,7 @@ def _build_experiment_data() -> ExperimentData:
     strain = np.zeros((3, 3, y_grid.shape[0], x_grid.shape[1]), dtype=np.float64)
     timesteps = np.array([0.0, 1.0, 2.0], dtype=np.float64)
 
-    return ExperimentData(
+    return VfmInputData(
         strain,
         specimen_geometry,
         boundary_conditions,
@@ -152,7 +152,7 @@ def _build_experiment_data() -> ExperimentData:
 
 
 def _build_refinement_context(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     parameter_maps: dict[str, np.ndarray],
 ) -> RefinementContext:
     parameter_map_size = np.array(

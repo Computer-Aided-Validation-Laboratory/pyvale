@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 from __future__ import annotations
 
 import copy
@@ -10,7 +16,7 @@ from scipy.optimize import least_squares
 
 from pyvale.vfm.constlaw import IConstitutiveLaw
 from pyvale.vfm.dof import DegreeOfFreedom
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.identificationresult import (
     OptimisationOutcome,
     SolveResult,
@@ -75,7 +81,7 @@ class SliceWiseIndependentLeastSquares(IOptimiser):
         spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
         metrics: list[IMetric],
         objective_function: IObjectiveFunction,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
         progress_callback=None,
     ) -> OptimisationOutcome:
 
@@ -384,7 +390,7 @@ def _build_slice_solve_data(
     parameter_map_size: npt.NDArray[np.uint32],
     spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
     slice_metric: SliceMetricType,
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
 ) -> LocalSliceData:
     """ Build all cached inputs needed to solve one slice independently.
 
@@ -599,7 +605,7 @@ def _evaluate_slice_candidate(
     constitutive_law: IConstitutiveLaw,
     objective_function: IObjectiveFunction,
     slice_metric: SliceMetricType,
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     local_slice_data: LocalSliceData,
 ) -> npt.NDArray[np.float64]:
     resolved_degrees_of_freedom = denormalise_degrees_of_freedom(

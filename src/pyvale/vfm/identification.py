@@ -1,3 +1,9 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
 import copy
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -7,7 +13,7 @@ import numpy as np
 
 from pyvale.vfm.constlaw import EIdentificationType, IConstitutiveLaw
 from pyvale.vfm.constparam import ConstitutiveParameter
-from pyvale.vfm.experimentdata import ExperimentData
+from pyvale.vfm.experimentdata import VfmInputData
 from pyvale.vfm.identificationconfig import IdentificationConfig
 from pyvale.vfm.identificationconfig import IdentificationPhase
 from pyvale.vfm.identificationresult import (
@@ -45,7 +51,7 @@ from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
 
 
 def run_identification(
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     identification_config: IdentificationConfig,
     *,
     input_source: str | Path | None = None,
@@ -60,7 +66,7 @@ def run_identification(
 
     Parameters
     ----------
-    experiment_data : ExperimentData
+    experiment_data : VfmInputData
         The measured full-field strain, geometry, boundary conditions and
         timesteps
     identification_config : IdentificationConfig
@@ -400,7 +406,7 @@ def run_identification(
 def _prepare_phase_constitutive_law(
     constitutive_law: IConstitutiveLaw,
     phase_runtime: "PhaseRuntime",
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
     parameter_map_size: np.ndarray,
     optimisation_newton_tolerance: float,
     cache_radial_return: bool,
@@ -597,7 +603,7 @@ def _apply_refinement_action(
     refinement_policy: IRefinementPolicy,
     action,
     context: RefinementContext,
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
 ) -> None:
     """Apply, prepare, and record one phase-local structural change."""
 
@@ -653,7 +659,7 @@ class PhaseRuntime:
 
     def prepare(
         self,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
     ) -> None:
         """Prepare shared supports and metrics for the current runtime state.
 
@@ -793,7 +799,7 @@ class PhaseRuntime:
         constitutive_law: IConstitutiveLaw,
         constitutive_parameters: dict[str, ConstitutiveParameter],
         parameter_map_size: np.ndarray,
-        experiment_data: ExperimentData,
+        experiment_data: VfmInputData,
         *,
         metrics: list[IMetric] | None = None,
         objective_function: object | None = None,
@@ -902,7 +908,7 @@ def _map_updated_supports(
 
 def prepare_phase_runtime(
     phase: IdentificationPhase,
-    experiment_data: ExperimentData,
+    experiment_data: VfmInputData,
 ) -> PhaseRuntime:
     """Prepare phase runtime once experiment data are available.
 
