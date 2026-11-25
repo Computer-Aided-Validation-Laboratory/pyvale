@@ -16,7 +16,10 @@
 PyVale is a general purpose toolbox for simulation driven experimental design
 and experimental mechanics. Build virtual sensor arrays, generate realistic
 camera images, analyse DIC measurements, and feed what you learn into the next
-experiment. The core **SensorSim**, **DIC**, and **Render** modules are ready for general use. Tools for sensor placement optimisation, experimental design, and simulation validation metrics are under active development.
+experiment. Compare simulations with measurements under uncertainty and
+identify material properties from full-field strain and force data. Tools
+for sensor placement optimisation and experimental design are under active
+development.
 
 ## PyVale Design Framework
 
@@ -27,6 +30,8 @@ PyVale connects experimental design, measurement simulation, data analysis simul
 | **SensorSim** | Virtual sensor arrays, uncertainty models, and repeated simulated experiments | [Examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_basics_sensorsim.html) · [Guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_sensorsim.html) |
 | **DIC** | Two dimensional and stereo correlation, shape reconstruction, displacement, and strain | [Examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_dic.html) · [Guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_dic.html) |
 | **Render** | Synthetic camera images, deforming meshes, and optical realism | [Examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_render3d.html) · [UV Examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_renderuvs.html) |
+| **Validation** | Simulation-to-experiment comparisons and validation metrics under uncertainty | [Examples](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_valid.html) · [Guide](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_valid.html) |
+| **VFM** | Identification of homogeneous and spatially varying material properties from strain and force histories | [Examples](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/tree/main/src/pyvale/examples/vfm) |
 
 ## Core Capabilities
 
@@ -65,6 +70,32 @@ scales.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/render3d_ex1d_riley_dicuq.png" alt="Riley render of a speckled plate with a hole" width="900">
+</p>
+
+### Validation · compare simulation with experiment
+
+Compare simulation predictions with experimental measurements under
+uncertainty. Use validation metrics to quantify discrepancies in scalar
+observables and time histories, then inspect where the predictions and
+measurements differ.
+
+[**Validation examples**](https://computer-aided-validation-laboratory.github.io/pyvale/examples/examples_valid.html) · [**User guide**](https://computer-aided-validation-laboratory.github.io/pyvale/guide_user/guide_valid.html)
+
+| Thermocouple validation envelope | Weighted temperature distributions |
+|:---:|:---:|
+| <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/val_ex10_fig03_mavm_support_envelope_TC3.png" alt="Validation metric support envelope for thermocouple TC3" width="520"> | <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/val_ex10_fig05_2_dextremes_wcdfs_TC3.png" alt="Weighted cumulative temperature distributions for thermocouple TC3" width="520"> |
+
+### VFM · identify material properties from full-field measurements
+
+Use the Virtual Fields Method to identify elastoplastic properties from
+full-field strain and measured force histories. Fit uniform properties or
+estimate how yield strength varies across a specimen using slice-wise
+identification.
+
+[**VFM examples**](https://github.com/Computer-Aided-Validation-Laboratory/pyvale/tree/main/src/pyvale/examples/vfm)
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Computer-Aided-Validation-Laboratory/pyvale/main/images/vfm_yield_strength.png" alt="Identified yield strength in four slices of a synthetic tensile specimen" width="900">
 </p>
 
 ## Install
