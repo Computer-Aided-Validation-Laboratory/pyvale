@@ -17,6 +17,7 @@ reconstruction, equilibrium-gap, and parameter-error diagnostics.
 from pathlib import Path
 from pprint import pprint
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -30,12 +31,15 @@ from pyvale.examples.vfm.synthetic_rectangular_tensile import (
 
 
 # %%
-# Optional saved output
-# ---------------------
-save_results_file = False
-save_figures = False
-saved_data_directory = Path.cwd() / "vfm_ex2_slicewise_saved_data"
+matplotlib.use("Agg")
 
+SHOW_PLOTS = False
+if SHOW_PLOTS:
+    plt.switch_backend("QtAgg")
+
+output_path = Path.cwd() / "pyvale-output" / "vfm_ex2_slicewise"
+output_path.mkdir(parents=True, exist_ok=True)
+SAVE_RESULTS_FILE = False
 
 # %%
 # Build a heterogeneous tensile experiment
@@ -88,9 +92,9 @@ result: vfm.IdentificationResult = vfm.run_identification(
     ),
 )
 
-if save_results_file:
+if SAVE_RESULTS_FILE:
     result_file: Path = result.save_to_yaml(
-        saved_data_directory / "identification_result"
+        output_path / "identification_result"
     )
     print(f"Saved identification result: {result_file}")
 
@@ -196,15 +200,15 @@ egi_axis.set_ylabel("y grid index")
 egi_colourbar = egi_figure.colorbar(egi_image, ax=egi_axis)
 egi_colourbar.set_label("Normalised equilibrium gap [-]")
 
-if save_figures:
-    figure_directory = saved_data_directory / "figures"
-    figure_directory.mkdir(parents=True, exist_ok=True)
-    figure_file = figure_directory / "yield_strength_comparison.png"
-    figure.savefig(figure_file, dpi=200)
-    print(f"Saved figure: {figure_file}")
-    egi_figure_file = figure_directory / "normalised_equilibrium_gap.png"
-    egi_figure.savefig(egi_figure_file, dpi=200)
-    print(f"Saved figure: {egi_figure_file}")
+figure_file = output_path / "yield_strength_comparison.png"
+figure.savefig(figure_file, dpi=200)
+print(f"Saved figure: {figure_file}")
+egi_figure_file = output_path / "normalised_equilibrium_gap.png"
+egi_figure.savefig(egi_figure_file, dpi=200)
+print(f"Saved figure: {egi_figure_file}")
 
-if "agg" not in plt.get_backend().lower():
+if SHOW_PLOTS:
     plt.show()
+else:
+    plt.close(figure)
+    plt.close(egi_figure)

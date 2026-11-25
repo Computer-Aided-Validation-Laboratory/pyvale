@@ -16,6 +16,7 @@ parameters and solve the refined four-slice representation again.
 from pathlib import Path
 from pprint import pprint
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -29,12 +30,15 @@ from pyvale.examples.vfm.synthetic_rectangular_tensile import (
 
 
 # %%
-# Optional saved output
-# ---------------------
-save_results_file = False
-save_figures = False
-saved_data_directory = Path.cwd() / "vfm_ex3_slicewise_refinement_saved_data"
+matplotlib.use("Agg")
 
+SHOW_PLOTS = False
+if SHOW_PLOTS:
+    plt.switch_backend("QtAgg")
+
+output_path = Path.cwd() / "pyvale-output" / "vfm_ex3_slicewise_refinement"
+output_path.mkdir(parents=True, exist_ok=True)
+SAVE_RESULTS_FILE = False
 
 # %%
 # Build the synthetic four-region case
@@ -93,13 +97,14 @@ result: vfm.IdentificationResult = vfm.run_identification(
     ),
 )
 
-if save_results_file:
+if SAVE_RESULTS_FILE:
     result_file: Path = result.save_to_yaml(
-        saved_data_directory / "identification_result"
+        output_path / "identification_result"
     )
     print(f"Saved identification result: {result_file}")
 
 phase_result: vfm.PhaseResult = result.history.phases[0]
+
 print(f"solve count: {len(phase_result.solve_results)}")
 print(f"refinement events: {len(phase_result.refinement_events)}")
 for event in phase_result.refinement_events:
@@ -157,12 +162,11 @@ for axis, (values, title, colour_map) in zip(axes, plots, strict=True):
     axis.set_ylabel("y grid index")
     figure.colorbar(image, ax=axis)
 
-if save_figures:
-    figure_directory = saved_data_directory / "figures"
-    figure_directory.mkdir(parents=True, exist_ok=True)
-    figure_file = figure_directory / "refined_yield_strength_comparison.png"
-    figure.savefig(figure_file, dpi=200)
-    print(f"Saved figure: {figure_file}")
+figure_file = output_path / "refined_yield_strength_comparison.png"
+figure.savefig(figure_file, dpi=200)
+print(f"Saved figure: {figure_file}")
 
-if "agg" not in plt.get_backend().lower():
+if SHOW_PLOTS:
     plt.show()
+else:
+    plt.close(figure)

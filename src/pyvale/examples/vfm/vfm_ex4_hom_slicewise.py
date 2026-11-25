@@ -18,6 +18,7 @@ reconstruction error.
 from pathlib import Path
 from pprint import pprint
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -31,12 +32,15 @@ from pyvale.examples.vfm.synthetic_rectangular_tensile import (
 
 
 # %%
-# Optional saved output
-# ---------------------
-save_results_file = False
-save_figures = False
-saved_data_directory = Path.cwd() / "vfm_ex4_hom_slicewise_saved_data"
+matplotlib.use("Agg")
 
+SHOW_PLOTS = False
+if SHOW_PLOTS:
+    plt.switch_backend("QtAgg")
+
+output_path = Path.cwd() / "pyvale-output" / "vfm_ex4_hom_slicewise"
+output_path.mkdir(parents=True, exist_ok=True)
+SAVE_RESULTS_FILE = False
 
 # %%
 # Build one experiment and initial parameter set
@@ -108,9 +112,9 @@ result: vfm.IdentificationResult = vfm.run_identification(
     ),
 )
 
-if save_results_file:
+if SAVE_RESULTS_FILE:
     result_file: Path = result.save_to_yaml(
-        saved_data_directory / "identification_result"
+        output_path / "identification_result"
     )
     print(f"Saved identification result: {result_file}")
 
@@ -167,12 +171,11 @@ for axis, (values, title, colour_map) in zip(axes.ravel(), plots, strict=True):
     axis.set_ylabel("y grid index")
     figure.colorbar(image, ax=axis)
 
-if save_figures:
-    figure_directory = saved_data_directory / "figures"
-    figure_directory.mkdir(parents=True, exist_ok=True)
-    figure_file = figure_directory / "yield_strength_phase_comparison.png"
-    figure.savefig(figure_file, dpi=200)
-    print(f"Saved figure: {figure_file}")
+figure_file = output_path / "yield_strength_phase_comparison.png"
+figure.savefig(figure_file, dpi=200)
+print(f"Saved figure: {figure_file}")
 
-if "agg" not in plt.get_backend().lower():
+if SHOW_PLOTS:
     plt.show()
+else:
+    plt.close(figure)
