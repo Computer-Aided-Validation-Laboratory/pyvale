@@ -67,6 +67,9 @@ jobs:
         with:
           name: pyvale-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
 
 
   build_sdist:
@@ -82,22 +85,36 @@ jobs:
         with:
           name: pyvale-sdist
           path: dist/*.tar.gz
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
 
   upload_pypi:
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
+      contents: read
       id-token: write
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@v4
         with:
           pattern: pyvale-*
           path: dist
           merge-multiple: true
 
-      # upload to pypi
+      - name: Verify published files and stage missing distributions
+        id: prepare_upload
+        run: |
+          has_missing=$(python scripts/prepare_pypi_upload.py "$GITHUB_REF_NAME" dist dist-to-publish)
+          echo "has_missing=$has_missing" >> "$GITHUB_OUTPUT"
+
       - uses: pypa/gh-action-pypi-publish@release/v1
-        #with:
-        #  repository-url: https://test.pypi.org/legacy/
+        if: steps.prepare_upload.outputs.has_missing == 'true'
+        with:
+          packages-dir: dist-to-publish/
