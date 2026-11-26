@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:03.972** total execution time for 85 files **from all galleries**:
+**00:03.972** total execution time for 91 files **from all galleries**:
 
 .. container::
 
@@ -75,6 +75,9 @@ Computation times
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_dataio_ex02_load_prob_sim_data.py` (``../../src/pyvale/examples/dataio/ex02_load_prob_sim_data.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_dataio_ex03_load_dic_exp_data.py` (``../../src/pyvale/examples/dataio/ex03_load_dic_exp_data.py``)
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_dic_ex01_region_of_interest.py` (``../../src/pyvale/examples/dic/ex01_region_of_interest.py``)
@@ -285,5 +288,20 @@ Computation times
      - 00:00.000
      - 0.0
    * - :ref:`sphx_glr_examples_validation_ex12_parallel_valid_ir_camera.py` (``../../src/pyvale/examples/validation/ex12_parallel_valid_ir_camera.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_vfm_vfm_ex0_input_data.py` (``../../src/pyvale/examples/vfm/vfm_ex0_input_data.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_vfm_vfm_ex1_hom.py` (``../../src/pyvale/examples/vfm/vfm_ex1_hom.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_vfm_vfm_ex2_slicewise.py` (``../../src/pyvale/examples/vfm/vfm_ex2_slicewise.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_vfm_vfm_ex3_slicewise_refinement.py` (``../../src/pyvale/examples/vfm/vfm_ex3_slicewise_refinement.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_examples_vfm_vfm_ex4_hom_slicewise.py` (``../../src/pyvale/examples/vfm/vfm_ex4_hom_slicewise.py``)
      - 00:00.000
      - 0.0

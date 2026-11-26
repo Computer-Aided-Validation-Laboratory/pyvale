@@ -6,8 +6,9 @@
 Your virtual engineering laboratory
 ====================================
 
-Design experiments, analyse measurements and iterate with evidence.
-Experiments are expensive make every measurement count.
+**Design experiments, analyse measurements and iterate with evidence.**
+
+PyVale is an open-source toolkit for simulation-driven experimental design and model validation. By bringing together physics simulations, virtual measurements and uncertainty quantification, PyVale enables engineers and researchers to explore, optimise and evaluate experiments before entering the laboratory. 
 
 .. tab-set::
 
@@ -89,6 +90,20 @@ Python 3.11+.
       +++
 
       :doc:`First example </examples/validation/ex00_valid_quickstart>` · :doc:`Examples </examples/examples_valid>`
+
+   .. grid-item-card:: Virtual Fields Method
+
+      .. image:: /_static/vfm_yield_strength.png
+         :alt: Identified yield strength in four slices of a synthetic tensile specimen
+         :height: 145px
+         :align: center
+         :target: examples/examples_vfm.html
+
+      Identify material properties from full-field strain and force measurements.
+
+      +++
+
+      :doc:`First example </examples/vfm/vfm_ex1_hom>` · :doc:`Examples </examples/examples_vfm>`
 
    .. grid-item-card:: Mooseherder
 

@@ -14,10 +14,10 @@ sensor placement optimisation, testing simulation validation metrics and
 virtually testing digital shadows/twins.
 """
 
-__version__ = "2026.11.1"
+__version__ = "2026.11.2"
 
 from .common import build_info
-from . import data, dataio, dic, mooseherder, render, sensorsim, strain
+from . import data, dataio, dic, mooseherder, render, sensorsim, strain, vfm
 
 __all__ = [
     "__version__",
@@ -29,4 +29,5 @@ __all__ = [
     "render",
     "sensorsim",
     "strain",
+    "vfm",
 ]

@@ -1,0 +1,334 @@
+from __future__ import annotations
+
+"""Regression tests for the slice-wise force metric and identification flow.
+
+The fixture is the deterministic, in-memory rectangular tensile case shared
+with the packaged VFM examples. It contains an analytical plane-stress strain
+history and requires no external files or machine-specific paths.
+"""
+
+import numpy as np
+import numpy.testing as npt
+import pytest
+
+from pyvale.vfm.constlaws import IsotropicVonMisesElastoplasticity
+from pyvale.examples.vfm.synthetic_rectangular_tensile import (
+    SYNTHETIC_PARAMETER_NAMES,
+    SyntheticTensileCase,
+    build_synthetic_identification_parameters,
+    build_synthetic_tensile_case,
+)
+from pyvale.vfm.experimentdata import VfmInputData
+from pyvale.vfm.hardening import HardeningLinear
+from pyvale.vfm.identification import run_identification
+from pyvale.vfm.identificationconfig import IdentificationConfig, IdentificationPhase
+from pyvale.vfm.metricsliceforce import SliceWiseForceReconstructionMetric
+from pyvale.vfm.objectivefuncvector import VectorWeightedObjective
+from pyvale.vfm.optimiserslicewiseindependent import SliceWiseIndependentLeastSquares
+from pyvale.vfm.refinement import SliceMergeSplitRefinement
+from pyvale.vfm.slicewise_utils import SliceConfig
+from pyvale.vfm.spatialparamknown import SpatialParameterisationKnown
+from pyvale.vfm.spatialparamslicewise import (
+    SliceWiseSpatialParameterisation,
+    SupportSlice,
+)
+
+
+YIELD_STRENGTH_ATOL = 1.0e-3
+FORCE_ATOL = 1.0e-5
+IDENTIFIED_FRE_RTOL = 1.0e-7
+IDENTIFIED_FORCE_ATOL = 1.0e-3
+
+
+@pytest.fixture(scope="module")
+def slicewise_case() -> SyntheticTensileCase:
+    """Build the portable in-memory rectangle slice-wise fixture."""
+
+    return build_synthetic_tensile_case()
+
+
+def test_slicewise_fre_is_zero_for_known_yield_distribution(
+    slicewise_case: SyntheticTensileCase,
+) -> None:
+    """Known maps should reconstruct the applied force in every slice.
+
+    The synthetic strain history is generated so that every material slice
+    reconstructs the same target x-stress at every load step. The area-based
+    force metric should therefore return numerical zero for the noiseless
+    fixture.
+    """
+
+    experiment_data = slicewise_case.experiment_data
+    constitutive_law = IsotropicVonMisesElastoplasticity(HardeningLinear())
+    known_maps, expected_boundaries = _load_known_maps_and_boundaries(slicewise_case)
+    stress = constitutive_law.calculate_stress(experiment_data.strain, known_maps)
+
+    metric = SliceWiseForceReconstructionMetric(
+        slice_config=SliceConfig(axis="x", num_slices=4),
+    )
+    metric.initialise(experiment_data)
+    assert metric.slice_partition is not None
+    npt.assert_allclose(
+        metric.slice_partition.boundaries,
+        expected_boundaries,
+        rtol=0.0,
+        atol=1.0e-10,
+    )
+
+    fre = metric.evaluate_force_recon_error(stress, experiment_data)
+    applied_force = fre.metric_result.additional_fields["applied_longitudinal_force"]
+
+    npt.assert_allclose(
+        fre.metric_result.additional_fields["reconstructed_force"],
+        np.broadcast_to(
+            applied_force[:, np.newaxis],
+            fre.metric_result.additional_fields["reconstructed_force"].shape,
+        ),
+        rtol=1.0e-10,
+        atol=FORCE_ATOL,
+    )
+    assert fre.weighted_spatiotemporal_rms < 1.0e-8
+
+
+def test_explicit_geometric_boundaries_are_cell_aligned_by_default(
+    slicewise_case: SyntheticTensileCase,
+) -> None:
+    """Explicit boundaries are intended geometry and are snapped to cells."""
+
+    experiment_data = slicewise_case.experiment_data
+    expected_maps, expected_boundaries = _load_known_maps_and_boundaries(slicewise_case)
+    intended_boundaries = np.linspace(
+        float(np.nanmin(experiment_data.specimen_geometry.x)),
+        float(np.nanmax(experiment_data.specimen_geometry.x)),
+        expected_boundaries.size,
+    )
+
+    metric = SliceWiseForceReconstructionMetric(
+        slice_config=SliceConfig(axis="x", boundaries=intended_boundaries),
+    )
+    metric.initialise(experiment_data)
+    assert metric.slice_partition is not None
+    npt.assert_allclose(
+        metric.slice_partition.boundaries,
+        expected_boundaries,
+        rtol=0.0,
+        atol=1.0e-10,
+    )
+
+    constitutive_law = IsotropicVonMisesElastoplasticity(HardeningLinear())
+    stress = constitutive_law.calculate_stress(experiment_data.strain, expected_maps)
+    fre = metric.evaluate_force_recon_error(stress, experiment_data)
+    assert fre.weighted_spatiotemporal_rms < 1.0e-8
+
+
+def test_slicewise_identification_recovers_four_slice_yield_distribution(
+    slicewise_case: SyntheticTensileCase,
+) -> None:
+    """Four x-slices should identify the four known yield strengths."""
+
+    experiment_data = slicewise_case.experiment_data
+    expected_maps, _ = _load_known_maps_and_boundaries(slicewise_case)
+    result = _run_yield_identification(
+        experiment_data,
+        slice_config=SliceConfig(axis="x", num_slices=4),
+    )
+
+    npt.assert_allclose(
+        result.parameter_maps["yield_strength"],
+        expected_maps["yield_strength"],
+        rtol=0.0,
+        atol=YIELD_STRENGTH_ATOL,
+    )
+    _assert_fre_zero_for_parameter_maps(
+        experiment_data,
+        result.parameter_maps,
+        SliceConfig(axis="x", num_slices=4),
+    )
+
+
+def test_slicewise_identification_recovers_columnwise_distribution(
+    slicewise_case: SyntheticTensileCase,
+) -> None:
+    """A one-slice-per-column support should recover the same step map.
+
+    This checks the high-resolution limit of the slice-wise support. Because
+    the support is snapped to support-cell edges, every datapoint cell has one
+    material owner and can be checked pointwise.
+    """
+
+    experiment_data = slicewise_case.experiment_data
+    num_columns = experiment_data.specimen_geometry.x.shape[1]
+    result = _run_yield_identification(
+        experiment_data,
+        slice_config=SliceConfig(axis="x", num_slices=num_columns),
+    )
+    expected_maps, _ = _load_known_maps_and_boundaries(slicewise_case)
+
+    npt.assert_allclose(
+        result.parameter_maps["yield_strength"],
+        expected_maps["yield_strength"],
+        rtol=0.0,
+        atol=YIELD_STRENGTH_ATOL,
+    )
+
+
+def test_slicewise_parallel_identification_matches_serial(
+    slicewise_case: SyntheticTensileCase,
+) -> None:
+    experiment_data = slicewise_case.experiment_data
+    slice_config = SliceConfig(axis="x", num_slices=4)
+
+    serial = _run_yield_identification(
+        experiment_data,
+        slice_config=slice_config,
+        parallel_workers=1,
+    )
+    parallel = _run_yield_identification(
+        experiment_data,
+        slice_config=slice_config,
+        parallel_workers=2,
+    )
+
+    for parameter_name in SYNTHETIC_PARAMETER_NAMES:
+        npt.assert_allclose(
+            parallel.parameter_maps[parameter_name],
+            serial.parameter_maps[parameter_name],
+            rtol=0.0,
+            atol=1.0e-12,
+        )
+
+    serial_solve = serial.history.phases[0].solve_results[-1]
+    parallel_solve = parallel.history.phases[0].solve_results[-1]
+    assert parallel_solve.details["parallel_workers"] == 2
+    assert [child.solve_iteration for child in parallel_solve.children] == [
+        child.solve_iteration for child in serial_solve.children
+    ]
+    npt.assert_allclose(
+        parallel_solve.final_dofs,
+        serial_solve.final_dofs,
+        rtol=0.0,
+        atol=1.0e-12,
+    )
+    npt.assert_allclose(
+        [child.final_objective["cost"] for child in parallel_solve.children],
+        [child.final_objective["cost"] for child in serial_solve.children],
+        rtol=0.0,
+        atol=1.0e-12,
+    )
+
+
+def test_slicewise_identification_with_refinement_recovers_expected_distribution(
+    slicewise_case: SyntheticTensileCase,
+) -> None:
+    """An over-refined eight-slice support should merge back to four slices."""
+
+    experiment_data = slicewise_case.experiment_data
+    expected_maps, expected_boundaries = _load_known_maps_and_boundaries(slicewise_case)
+    result = _run_yield_identification(
+        experiment_data,
+        slice_config=SliceConfig(axis="x", num_slices=8),
+        refinement_policy=True,
+    )
+
+    npt.assert_allclose(
+        result.parameter_maps["yield_strength"],
+        expected_maps["yield_strength"],
+        rtol=0.0,
+        atol=YIELD_STRENGTH_ATOL,
+    )
+
+    snapshot = result.history.phases[-1].spatial_parameterisations["yield_strength"][0]
+    refined_parameterisation = snapshot.parameterisation
+    assert isinstance(refined_parameterisation, SliceWiseSpatialParameterisation)
+    assert refined_parameterisation.slice_partition is not None
+    assert refined_parameterisation.slice_partition.num_slices == 4
+    npt.assert_allclose(
+        refined_parameterisation.slice_partition.boundaries,
+        expected_boundaries,
+        rtol=0.0,
+        atol=1.0e-10,
+    )
+
+
+def _run_yield_identification(
+    experiment_data: VfmInputData,
+    *,
+    slice_config: SliceConfig,
+    refinement_policy: bool = False,
+    parallel_workers: int = 1,
+):
+    """Run one phase of yield-strength identification on fixed E/nu/H maps."""
+
+    constitutive_law = IsotropicVonMisesElastoplasticity(HardeningLinear())
+    parameter_map_size = np.asarray(
+        experiment_data.specimen_geometry.x.shape,
+        dtype=np.uint32,
+    )
+    shared_support = SupportSlice(
+        slice_config=slice_config,
+    )
+
+    phase = IdentificationPhase(
+        spatial_parameterisations={
+            "elastic_modulus": [SpatialParameterisationKnown()],
+            "poissons_ratio": [SpatialParameterisationKnown()],
+            "yield_strength": [SliceWiseSpatialParameterisation(support=shared_support)],
+            "hardening_modulus": [SpatialParameterisationKnown()],
+        },
+        metrics=[SliceWiseForceReconstructionMetric(support=shared_support)],
+        objective_function=VectorWeightedObjective(),
+        optimiser=SliceWiseIndependentLeastSquares(
+            parallel_workers=parallel_workers
+        ),
+        refinement_policy=(
+            SliceMergeSplitRefinement(
+                target=shared_support,
+                merge_parameter_tolerance=0.04,
+                split_error_threshold=1.0,
+                max_refinements=1,
+            )
+            if refinement_policy
+            else None
+        ),
+    )
+
+    return run_identification(
+        experiment_data,
+        IdentificationConfig(
+            constitutive_law=constitutive_law,
+            parameters=build_synthetic_identification_parameters(
+                parameter_map_size
+            ),
+            phases=[phase],
+        ),
+    )
+
+
+def _load_known_maps_and_boundaries(
+    slicewise_case: SyntheticTensileCase,
+) -> tuple[dict[str, np.ndarray], np.ndarray]:
+    known_maps = {
+        name: np.asarray(values, dtype=np.float64)
+        for name, values in slicewise_case.known_parameter_maps.items()
+    }
+    return known_maps, np.asarray(
+        slicewise_case.slice_boundaries,
+        dtype=np.float64,
+    )
+
+
+def _assert_fre_zero_for_parameter_maps(
+    experiment_data: VfmInputData,
+    parameter_maps: dict[str, np.ndarray],
+    slice_config: SliceConfig,
+) -> None:
+    constitutive_law = IsotropicVonMisesElastoplasticity(HardeningLinear())
+    stress = constitutive_law.calculate_stress(experiment_data.strain, parameter_maps)
+    metric = SliceWiseForceReconstructionMetric(
+        slice_config=slice_config,
+    )
+    metric.initialise(experiment_data)
+    fre = metric.evaluate_force_recon_error(stress, experiment_data)
+    raw_residual = fre.metric_result.additional_fields["raw_residual"]
+    assert fre.weighted_spatiotemporal_rms < IDENTIFIED_FRE_RTOL
+    assert np.nanmax(np.abs(raw_residual)) < IDENTIFIED_FORCE_ATOL

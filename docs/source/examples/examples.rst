@@ -9,18 +9,16 @@ quickstart and progresses to more detailed workflows.
 .. grid:: 1 1 2 2
    :gutter: 3
 
-   .. grid-item-card:: SensorSim
+   .. grid-item-card:: Basic Sensor Simulation
 
       Build virtual sensor arrays, model measurement uncertainty and run
-      repeated experiments. Start with the basics, then explore custom data
-      and more detailed error models.
+      repeated experiments.
 
       +++
 
-      :doc:`Basic examples <examples_basics_sensorsim>` ·
-      :doc:`Extended examples <examples_ext_sensorsim>`
+      :doc:`Basic examples <examples_basics_sensorsim>`
 
-   .. grid-item-card:: Digital Image Correlation
+   .. grid-item-card:: DIC
 
       Define regions of interest, analyse 2D and stereo images, and calculate
       displacement and strain.
@@ -29,7 +27,7 @@ quickstart and progresses to more detailed workflows.
 
       :doc:`DIC examples <examples_dic>`
 
-   .. grid-item-card:: Render
+   .. grid-item-card:: Render 3D
 
       Generate synthetic camera images with Riley or Blender. Configure
       scenes, cameras and imaging effects, and control texture mapping.
@@ -38,6 +36,21 @@ quickstart and progresses to more detailed workflows.
 
       :doc:`Rendering examples <examples_render3d>` ·
       :doc:`UV mapping examples <examples_renderuvs>`
+
+   .. grid-item-card:: Virtual Fields Method
+
+      .. image:: /_static/vfm_yield_strength.png
+         :alt: Identified yield strength in four slices of a synthetic tensile specimen
+         :height: 145px
+         :align: center
+         :target: examples_vfm.html
+
+      Identify homogeneous and spatially varying material properties from
+      a synthetic tensile experiment.
+
+      +++
+
+      :doc:`VFM examples <examples_vfm>`
 
    .. grid-item-card:: Validation
 
@@ -48,7 +61,15 @@ quickstart and progresses to more detailed workflows.
 
       :doc:`Validation examples <examples_valid>`
 
-   .. grid-item-card:: Physics Simulation
+   .. grid-item-card:: Extended Sensor Simulation
+
+      Explore custom data and more detailed error models.
+
+      +++
+
+      :doc:`Extended examples <examples_ext_sensorsim>`
+
+   .. grid-item-card:: Mooseherder
 
       Use Rabbit FEM and Mooseherder to run simulations, generate meshes,
       orchestrate parameter sweeps and fit simulation parameters.
@@ -72,8 +93,8 @@ quickstart and progresses to more detailed workflows.
    examples_basics_sensorsim
    examples_dic
    examples_render3d
-   examples_renderuvs
-   examples_ext_sensorsim
+   examples_vfm
    examples_valid
+   examples_ext_sensorsim
    examples_mooseherder
    examples_dataio
