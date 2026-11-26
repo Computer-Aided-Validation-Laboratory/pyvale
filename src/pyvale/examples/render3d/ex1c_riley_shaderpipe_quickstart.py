@@ -78,7 +78,7 @@ render.Riley(config, output / "modulated").render(
 )
 
 # %%
-# .. image:: ../../../../_static/render3d_ex1c_riley_shaderpipe_quickstart.png
+# .. image:: /_static/render3d_ex1c_riley_shaderpipe_quickstart.png
 #    :alt: Direct checkerboard and checkerboard modulated by an intensity gradient
 #    :width: 750px
 #    :align: center

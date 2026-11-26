@@ -60,7 +60,7 @@ output = Path("pyvale-output") / "render3d_ex1b_riley_procedural_quickstart"
 render.Riley(config, output).render(render.Scene3D([mesh], [camera]))
 
 # %%
-# .. image:: ../../../../_static/render3d_ex1b_riley_procedural_quickstart.png
+# .. image:: /_static/render3d_ex1b_riley_procedural_quickstart.png
 #    :alt: Disk speckle rendered on a square plane
 #    :width: 750px
 #    :align: center
