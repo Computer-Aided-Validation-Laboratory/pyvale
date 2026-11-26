@@ -111,7 +111,7 @@ camera_1 = copy.deepcopy(camera_0)
 camera_1.pos_world = MATCHED_CAM1_POS
 camera_1.rot_world = rot_world_1
 
-output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1f_riley_stereocal"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1e_riley_stereocal"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 stereo_file_name = "stereo_data_opengl.csv"
@@ -155,7 +155,7 @@ print(f"{result.images=}")
 # %%
 # The first calibration pose from both cameras is combined side by side below.
 #
-# .. image:: ../../../../_static/render3d_ex1f_riley_stereocal.png
+# .. image:: ../../../../_static/render3d_ex1e_riley_stereocal.png
 #    :alt: Riley stereo calibration target from both cameras
 #    :width: 900px
 #    :align: center
