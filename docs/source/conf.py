@@ -1,6 +1,9 @@
 import os
-from sphinx_gallery.sorting import FileNameSortKey
+import re
+import sys
 from importlib.metadata import version as get_version
+from pathlib import Path
+
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -10,7 +13,7 @@ from importlib.metadata import version as get_version
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Pyvale'
+project = 'PyVale'
 copyright = '2025, The CAV Team'
 author = 'The CAV Team at United Kingdom Atomic Energy Authority (UKAEA)'
 release = get_version('pyvale')
@@ -18,6 +21,8 @@ version = release
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -28,6 +33,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_codeautolink',
     'sphinx_copybutton',
+    'gallerycleanup',
     'sphinx_gallery.gen_gallery',
     'sphinx.ext.mathjax',
     'breathe',
@@ -139,12 +145,12 @@ unsafe_example_names = (
     "ex11_dic_chal",
 )
 unsafe_example_pattern = "|".join(unsafe_example_names)
-safe_example_pattern = rf"/(?!({unsafe_example_pattern})\.py$)ex"
+safe_example_name = rf"(?!({unsafe_example_pattern})\.py$)(?:ex|vfm_ex)"
+safe_example_pattern = rf"/{safe_example_name}"
 # Scope execution while still generating all gallery pages.
 gallery_module = os.environ.get("PYVALE_DOCS_EXAMPLE_MODULE")
 if gallery_module:
-    import re
-    safe_example_pattern = rf"/{re.escape(gallery_module)}/(?!({unsafe_example_pattern})\.py$)ex"
+    safe_example_pattern = rf"/{re.escape(gallery_module)}/{safe_example_name}"
 
 sphinx_gallery_conf = {
     # Path to your example scripts
@@ -153,8 +159,11 @@ sphinx_gallery_conf = {
         '../../src/pyvale/examples/dic',
         '../../src/pyvale/examples/render3d',
         '../../src/pyvale/examples/renderuvs',
+        '../../src/pyvale/examples/vfm',
+        '../../src/pyvale/examples/validation',
         '../../src/pyvale/examples/extsensorsim',
         '../../src/pyvale/examples/mooseherder',
+        '../../src/pyvale/examples/dataio',
     ],
     # Path to where to save gallery generated output.
     'gallery_dirs': [
@@ -162,17 +171,21 @@ sphinx_gallery_conf = {
         'examples/dic',
         'examples/render3d',
         'examples/renderuvs',
+        'examples/vfm',
+        'examples/validation',
         'examples/extsensorsim',
         'examples/mooseherder',
+        'examples/dataio',
     ],
     # Generate every example page, but only execute unattended examples.
     'filename_pattern': safe_example_pattern,
     # Private helper modules support examples but are not gallery tutorials.
     'ignore_pattern': (
-        r'(?:^|/)(?:_blender_example_tools|_riley_demo_tools|tools)\.py$'
+        r'(?:^|/)(?:__init__|_blender_example_tools|_riley_demo_tools|'
+        r'_synthetic_dic_experiment|synthetic_rectangular_tensile|tools)\.py$'
     ),
     # Specify that examples should be ordered according to filename
-    'within_subsection_order': FileNameSortKey,
+    'within_subsection_order': 'FileNameSortKey',
     # Directory where function granular galleries are stored
     'backreferences_dir': 'examples/gen_modules/backreferences',
     # Modules for which function level galleries are created
@@ -214,7 +227,7 @@ myst_enable_extensions = [
 # -- Options for HTML output ------------------------------------------------
 
 html_theme = 'furo'
-html_title = "Pyvale: The Python Validation Engine"
+html_title = "PyVale: Your virtual engineering laboratory"
 html_favicon = "_static/pyvale_logo_badge.png"
 
 # Theme options

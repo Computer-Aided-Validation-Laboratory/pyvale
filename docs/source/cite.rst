@@ -17,13 +17,13 @@ When using the PyVale DIC module, please cite:
          Hirst, J., Sibson, L., Tayeb, A., Poole, B., Sampson, M., Bielajewa,
          W., ... & Fletcher, L. (2026). PYVALE: A Fast, Scalable, Open-Source
          2D Digital Image Correlation (DIC) Engine Capable of Handling
-         Gigapixel Images. *arXiv preprint arXiv:2601.12941*.
+         Gigapixel Images. *Experimental Mechanics*, 1-17.
 
    .. tab-item:: MLA
 
          Hirst, Joel, et al. "PYVALE: A Fast, Scalable, Open-Source 2D Digital
          Image Correlation (DIC) Engine Capable of Handling Gigapixel Images."
-         *arXiv preprint arXiv:2601.12941* (2026).
+         *Experimental Mechanics* (2026): 1-17.
 
    .. tab-item:: Bibtex
 
@@ -37,7 +37,9 @@ When using the PyVale DIC module, please cite:
                     Ben and Sampson, Megan and Bielajewa, Wiera and Atkinson,
                     Michael and Marsh, Alex and Spencer, Rory and Hamill, Rob
                     and others},
-            journal={arXiv preprint arXiv:2601.12941},
+            journal={Experimental Mechanics},
+            pages={1--17},
+            publisher={Springer},
             year={2026}
          }
 

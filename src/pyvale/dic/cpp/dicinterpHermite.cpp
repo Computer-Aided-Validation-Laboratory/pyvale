@@ -25,6 +25,9 @@ Hermite::Hermite(const Image &img) {
 
     common_util::Timer time("to init " + img.filename + " interp:", 3);
 
+    this->px_hori = img.width;
+    this->px_vert = img.height;
+
     // intitialise vars used globally within Interpolator.
     image.resize(px_hori*px_vert);
     if (img.type == PixelType::UINT8) {
@@ -45,6 +48,11 @@ Hermite::Hermite(const Image &img) {
     else if (img.type == PixelType::UINT32F) {
         for (size_t i = 0; i < img.data32f.size(); i++) {
             image[i] = static_cast<double>(img.data32f[i]);
+        }
+    }
+    else if (img.type == PixelType::FLOAT64) {
+        for (size_t i = 0; i < img.data64f.size(); i++) {
+            image[i] = img.data64f[i];
         }
     }
 

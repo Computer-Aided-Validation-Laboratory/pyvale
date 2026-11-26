@@ -7,6 +7,7 @@
 import os
 import glob
 from pathlib import Path
+import pyvale.common.util as common_util
 
 
 def check_strain_files(strain_files: str | Path | list[Path] | list[str]) -> list[str]:
@@ -42,7 +43,7 @@ def check_strain_files(strain_files: str | Path | list[Path] | list[str]) -> lis
     for pattern in patterns:
         files.extend(glob.glob(str(pattern)))
 
-    files = sorted(files)
+    files = sorted(files, key=common_util.natural_sort_key)
 
     if not files:
         raise FileNotFoundError(f"No DIC data found: {strain_files}")

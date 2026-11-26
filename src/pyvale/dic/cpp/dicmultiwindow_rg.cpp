@@ -24,7 +24,7 @@
 
 // Program Header files
 #include "./dicinterp.hpp"
-#include "./dicoptimizer.hpp"
+#include "./dicoptimizerfactory.hpp"
 #include "./dicutil.hpp"
 #include "./dicrg.hpp"
 #include "./dicsubset.hpp"
@@ -34,7 +34,7 @@
 
 void multiwindow_rg(const Interpolator &interp_ref,
                     const Interpolator &interp_def,
-                    std::vector<WindowLevel> &multiwindow,
+                    MultiwindowPyramid &pyramid,
                     const util::Config &conf,
                     const int img_num_ref,
                     const int img_num_def,
@@ -46,24 +46,15 @@ void multiwindow_rg(const Interpolator &interp_ref,
     const int px_vert = conf.px_vert;
 
     // subset information
-    const subset::Grid &ss_grid = multiwindow.back().layout;
+    const SubsetGrid &ss_grid = pyramid.back().grid;
     const int num_ss = ss_grid.num;
     const int ss_size_x = ss_grid.size_x;
     const int ss_size_y = ss_grid.size_y;
     const int ss_step = ss_grid.step;
 
-    // loop over the window sizes and calculate estimates for rigid
-    // displacement using FFTCC
-    for (int lvl = 0; lvl < multiwindow.size(); lvl++){
-        multiwindow[lvl].calc_rigid_displacements(multiwindow[std::max(0,lvl-1)],
-                                                    interp_ref,
-                                                    interp_def,
-                                                    img_num_ref, img_num_def,
-                                                    lvl, multiwindow.size(),
-                                                    conf.basenames,
-                                                    conf.fft_precision);
-        raise_on_interrupt();
-    }
+    pyramid.calc_rigid_displacements(interp_ref, interp_def,
+                                     img_num_ref, img_num_def,
+                                     conf.basenames, conf.fft_precision);
 
 
     // progress bar
@@ -89,11 +80,13 @@ void multiwindow_rg(const Interpolator &interp_ref,
         int tid = omp_get_thread_num();
 
         // Initialize ref and def subsets
-        subset::Pixels ss_def(ss_size_x, ss_size_y);
-        subset::Pixels ss_ref(ss_size_x, ss_size_y);
+        Subset<double> ss_def(ss_size_x, ss_size_y);
+        Subset<double> ss_ref(ss_size_x, ss_size_y);
 
         // Optimization parameters
-        Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
+        auto opt = make_optimizer(conf.optimizer, conf.shape_func, conf.corr_crit,
+                                  conf.max_iter, conf.precision, conf.threshold,
+                                  ss_size_x * ss_size_y);
 
         // TODO: for the seed location I'm going to overwride the max 
         // number of iterations to make sure we get a good convergence.
@@ -101,7 +94,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
         // the seed location is checked ahead of the main correlation run.
 
         // TODO: opt.seed_iter exposed to user.
-        opt.max_iter = 200;
+        opt->max_iter = 200;
 
         // ---------------------------------------------------------------------------------------------------------------------------
         // PROCESS THE SEED SUBSET 
@@ -136,16 +129,13 @@ void multiwindow_rg(const Interpolator &interp_ref,
 
 
                 // if the first image. Take the optimization parameters from rigid fourier
-                opt.copy_params_from_fft(idx, multiwindow.back().u, multiwindow.back().v);
+                opt->copy_params_from_fft(idx, pyramid.back().u, pyramid.back().v);
 
                 // Extract reference subset and solve for starting seed point
-                subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                for (int px = 0; px < ss_ref.num_px; px++) {
-                    ss_ref.x[px] -= cx;
-                    ss_ref.y[px] -= cy;
-                }
+                ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                ss_ref.shift_to_local_coordinates(cx, cy);
 
-                OptResult seed_res = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
+                OptResult seed_res = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def, true);
 
                 if (!rg::check_convergence(seed_x, seed_y, seed_res, error_message)) {
                     error_flag.store(true);
@@ -180,21 +170,18 @@ void multiwindow_rg(const Interpolator &interp_ref,
                     }
 
                     // fill the reference subset
-                    subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                    for (int px = 0; px < ss_ref.num_px; px++) {
-                        ss_ref.x[px] -= cx;
-                        ss_ref.y[px] -= cy;
-                    }
+                    ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                    ss_ref.shift_to_local_coordinates(cx, cy);
 
                     // perform optimization for seed point neighbours
-                    opt.copy_params_from_neigh(results_def.p,
+                    opt->copy_params_from_neigh(results_def.p,
                                                results_def.cost,
-                                               results_def.above_thresh,
+                                               results_def.valid_match,
                                                ss_grid.neigh[nidx],
                                                idx);
 
                     // perform optimization for seed point neighbours
-                    OptResult nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def, true);
+                    OptResult nres = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def, true);
 
                     if (!rg::check_convergence(seed_x, seed_y, nres, error_message, true)) {
                         error_flag.store(true);
@@ -228,7 +215,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
         #pragma omp barrier
 
         // TODO: reset seed location using the last computed point
-        opt.max_iter = conf.max_iter;
+        opt->max_iter = conf.max_iter;
 
         std::vector<rg::Point> temp_neigh;
         temp_neigh.reserve(4);
@@ -256,7 +243,7 @@ void multiwindow_rg(const Interpolator &interp_ref,
                     double cx = ss_grid.coords[nidx*2];
                     double cy = ss_grid.coords[nidx*2+1];
 
-                    OptResult nres(opt.num_params);
+                    OptResult nres(opt->num_params);
 
                     // if the subset is no longer active then skip
                     if (!ss_grid.active_ss[nidx]){
@@ -265,26 +252,23 @@ void multiwindow_rg(const Interpolator &interp_ref,
                     }
 
                     // fill the reference subset
-                    subset::fill_from_centre_coords(ss_ref, cx, cy, interp_ref);
-                    for (int px = 0; px < ss_ref.num_px; px++) {
-                        ss_ref.x[px] -= cx;
-                        ss_ref.y[px] -= cy;
-                    }
+                    ss_ref.fill_from_centre_coords( cx, cy, interp_ref);
+                    ss_ref.shift_to_local_coordinates(cx, cy);
 
-                    if (results_def.above_thresh[current.idx])
-                        opt.copy_params_from_neigh(results_def.p,
+                    if (results_def.valid_match[current.idx])
+                        opt->copy_params_from_neigh(results_def.p,
                                                    results_def.cost,
-                                                   results_def.above_thresh,
+                                                   results_def.valid_match,
                                                    ss_grid.neigh[nidx],
                                                    current.idx);
                     else
-                        opt.copy_params_from_fft(nidx, multiwindow.back().u, multiwindow.back().v);
+                        opt->copy_params_from_fft(nidx, pyramid.back().u, pyramid.back().v);
 
                     // optimize
-                    if (ss_ref.sum!=0) nres = opt.solve(cx, cy, ss_ref, ss_def, interp_def);
+                    if (ss_ref.sum!=0) nres = opt->solve(cx, cy, ss_ref, ss_def, interp_ref, interp_def);
 
-                    nres.u += results_ref.u[nidx];
-                    nres.v += results_ref.v[nidx];
+                        nres.u += results_ref.u[nidx];
+                        nres.v += results_ref.v[nidx];
 
                     // append results
                     results_def.append(nres, nidx);

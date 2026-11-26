@@ -1,0 +1,133 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2026 The Computer Aided Validation Team
+# ==============================================================================
+
+"""Input checks at public validation boundaries."""
+
+import numpy as np
+
+from pyvale.validation.arraychecks import _validate_real_array
+from pyvale.validation.constants import MAVM_DUPLICATE_TOLERANCE
+from pyvale.validation.ecdftypes import ECDF
+from pyvale.validation.validtypes import EMAVMDupes
+
+
+def _validate_finite_sample(values: np.ndarray, name: str) -> np.ndarray:
+    """Validate a conditional sample and omit missing observations.
+
+    Parameters
+    ----------
+    values : ndarray
+        One-dimensional observation array.
+    name : str
+        Input label used in exception messages.
+
+    Returns
+    -------
+    ndarray
+        Nonempty float64 sample of shape (n_present,), preserving the original
+        order.
+    """
+    array = _validate_real_array(values, name)
+
+    if array.ndim != 1:
+        raise ValueError(f"{name} must be one-dimensional; select axes explicitly.")
+
+    finite = np.asarray(array[~np.isnan(array)], dtype=np.float64)
+
+    if not len(finite):
+        raise ValueError(f"{name} needs at least one finite observation.")
+
+    return finite
+
+
+def _validate_unique_sample(values: np.ndarray, data_label: str) -> None:
+    """Reject repeated or near-repeated observations under the fullfield MAVM convention.
+
+    Parameters
+    ----------
+    values : ndarray
+        One-dimensional observation array.
+    data_label : str
+        Label identifying the source in duplicate-check errors.
+    """
+    sorted_values = np.sort(values)
+
+    if np.any(np.diff(sorted_values) <= MAVM_DUPLICATE_TOLERANCE):
+        raise ValueError(
+            f"REJECT MAVM duplicates requires unique {data_label} observations within "
+            f"MAVM_DUPLICATE_TOLERANCE={MAVM_DUPLICATE_TOLERANCE}. "
+            "Use duplicates=EMAVMDupes.INCLUDE for repeated observations."
+        )
+
+
+def _validate_mavm_config(alpha: float, duplicates: EMAVMDupes, tol: float) -> None:
+    """Check the confidence parameter, duplicate policy and integration tolerance.
+
+    Parameters
+    ----------
+    alpha : float
+        Experimental confidence parameter used in the Student's t quantile.
+    duplicates : EMAVMDupes
+        Duplicate handling and empirical-probability integration policy.
+    tol : float
+        Absolute area tolerance for signed contributions, in observation units.
+    """
+    if not isinstance(duplicates, EMAVMDupes):
+        raise TypeError("MAVM duplicates must be EMAVMDupes.")
+
+    if (
+        not isinstance(alpha, (int, float, np.integer, np.floating))
+        or isinstance(alpha, (bool, np.bool_))
+        or not np.isfinite(alpha)
+        or not 0 < alpha < 1
+    ):
+        raise ValueError("MAVM alpha must be between zero and one.")
+
+    if (
+        not isinstance(tol, (int, float, np.integer, np.floating))
+        or isinstance(tol, (bool, np.bool_))
+        or not np.isfinite(tol)
+        or tol < 0
+    ):
+        raise ValueError("MAVM tolerance must be finite and nonnegative.")
+
+
+def _validate_ecdf(cdf: ECDF) -> None:
+    """Validate support shape, strict ordering and cumulative probability mass.
+
+    Parameters
+    ----------
+    cdf : ECDF
+        Empirical distribution with matching one-dimensional support and probability
+        arrays.
+    """
+    if not isinstance(cdf, ECDF):
+        raise TypeError("Model CDFs must be ECDF records.")
+
+    _validate_real_array(cdf.quants, "quantiles", allow_nan=False)
+    _validate_real_array(cdf.probs, "probabilities", allow_nan=False)
+
+    if (
+        cdf.quants.ndim != 1
+        or not len(cdf.quants)
+        or cdf.quants.shape != cdf.probs.shape
+    ):
+        raise ValueError(
+            "ECDF support and probabilities need matching nonempty 1D shapes."
+        )
+
+    if np.any(cdf.quants[1:] <= cdf.quants[:-1]):
+        raise ValueError("ECDF support must increase strictly.")
+
+    if (
+        np.any(cdf.probs <= 0)
+        or np.any(cdf.probs > 1)
+        or np.any(cdf.probs[1:] <= cdf.probs[:-1])
+        or cdf.probs[-1] != 1
+    ):
+        raise ValueError(
+            "ECDF probabilities must increase strictly in (0, 1] and end at one."
+        )

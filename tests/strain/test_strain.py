@@ -108,10 +108,10 @@ def run_partial_window_test(
         print_level=0,
     )
 
-    dtype = np.dtype([("x", "i4"), ("y", "i4"), ("values", "f8", (13,))])
+    dtype = np.dtype([("x", "i4"), ("y", "i4"), ("values", "f8", (15,))])
     return np.stack(
         [
-            np.fromfile(path, dtype=dtype)["values"].reshape(11, 11, 13)
+            np.fromfile(path, dtype=dtype)["values"].reshape(11, 11, 15)
             for path in sorted(tmp_path.glob("*.dic3d"))
         ]
     )
@@ -265,7 +265,35 @@ def test_strain_deformations(
             err_msg=f"{attr} incorrect for {strain_formulation} / {deformation_type}"
         )
 
-def run_strain_test(window_element: int, output_path: Path):
+def test_principal_strains(tmp_path: Path):
+    """Principal strains are the descending eigenvalues of the in-plane tensor."""
+    F = np.array([[1.02, 0.03], [0.0, 1.01]])
+    _, _, Ux, Uy = generate_affine_displacement_grid(F)
+    input_data = dic.Results(
+        ss_x=np.meshgrid(np.linspace(0, 990, 100), np.linspace(0, 990, 100), indexing="ij")[0],
+        ss_y=np.meshgrid(np.linspace(0, 990, 100), np.linspace(0, 990, 100), indexing="ij")[1],
+        u_px=Ux,
+        v_px=Uy,
+    )
+
+    strain.calculate_2d(
+        input_data,
+        window_size=5,
+        window_element=9,
+        strain_formulation="GREEN",
+        output_basepath=tmp_path,
+        print_level=0,
+    )
+    result = strain.import_2d(tmp_path / "strain_*.csv")
+
+    expected_tensor = reference_strain(F, "GREEN")
+    expected_principal = np.linalg.eigvalsh(expected_tensor)[::-1]
+    np.testing.assert_allclose(result.eps1, expected_principal[0], rtol=1e-5, atol=1e-7)
+    np.testing.assert_allclose(result.eps2, expected_principal[1], rtol=1e-5, atol=1e-7)
+    assert np.all(result.eps1 >= result.eps2)
+
+
+def run_strain_test(window_element: int, optimizer: str, output_path: Path):
     ref0 = dataset.dic_plate_with_hole_cam0_ref()
     ref1 = dataset.dic_plate_with_hole_cam1_ref()
     def0 = dataset.dic_plate_with_hole_cam0_def()
@@ -291,6 +319,7 @@ def run_strain_test(window_element: int, output_path: Path):
         reference=ref0,
         deformed=def0,
         output_prefix="dic_2d_",
+        optimizer=optimizer,
         **common,
     )
 
@@ -309,6 +338,7 @@ def run_strain_test(window_element: int, output_path: Path):
         deformed=[def0, def1],
         calibration=calibration,
         output_prefix="dic_3d_",
+        optimizer=optimizer,
         **common,
     )
 
@@ -329,14 +359,16 @@ def run_strain_test(window_element: int, output_path: Path):
 
 
 @pytest.mark.parametrize("window_element", [4, 9])
-def test_strain_3d(window_element: int, tmp_path: Path):
-    _, strain_3d = run_strain_test(window_element, tmp_path)
+@pytest.mark.parametrize("optimizer", ["FALM", "ICGN"])
+def test_strain_3d(window_element: int, optimizer: str, tmp_path: Path):
+    _, strain_3d = run_strain_test(window_element, optimizer, tmp_path)
 
-    gold_path = (
-        Path(__file__).parent
-        / "gold"
-        / f"strain_3d_q{window_element}.npz"
-    )
+    if optimizer == "FALM":
+        gold_name = f"strain_3d_q{window_element}.npz"
+    else:
+        gold_name = f"strain_3d_{optimizer.lower()}_q{window_element}.npz"
+
+    gold_path = Path(__file__).parent / "gold" / gold_name
     assert gold_path.is_file(), f"Missing gold file: {gold_path}"
 
     gold = np.load(gold_path)
@@ -349,3 +381,47 @@ def test_strain_3d(window_element: int, tmp_path: Path):
             equal_nan=True,
             err_msg=f"Gold check failed for {field}, Q{window_element}",
         )
+
+
+@pytest.mark.parametrize("importer", [strain.import_2d, strain.import_3d])
+@pytest.mark.parametrize("layout", ["COLUMN", "MATRIX"])
+def test_strain_import_aligns_frames_with_missing_subsets(tmp_path, importer, layout):
+    """Missing/non-converged subsets are represented by NaN, not a stack error."""
+    header = ",".join(f"field_{i}" for i in range(17))
+    rows = [
+        np.array([[0, 0], [1, 0], [0, 1]], dtype=float),
+        np.array([[0, 1], [0, 0]], dtype=float),
+    ]
+
+    for frame, coordinates in enumerate(rows):
+        values = np.zeros((len(coordinates), 17), dtype=float)
+        values[:, :2] = coordinates
+        # Give each row a distinct value in the first imported field (x_mm).
+        values[:, 2] = frame * 10 + np.arange(len(coordinates))
+        values[:, 3:] = values[:, 2, None]
+        np.savetxt(
+            tmp_path / f"strain_{frame}.csv",
+            values,
+            delimiter=",",
+            header=header,
+            comments="",
+        )
+
+    result = importer(tmp_path / "strain_*.csv", layout=layout)
+
+    if layout == "COLUMN":
+        assert result.window_x.tolist() == [0, 0, 1]
+        assert result.window_y.tolist() == [0, 1, 0]
+        assert np.isnan(result.x_mm[1, 2])
+        np.testing.assert_allclose(result.x_mm[1, :2], [11, 10])
+    else:
+        assert result.window_x.shape == (2, 2)
+        assert result.window_y.shape == (2, 2)
+        assert np.isnan(result.x_mm[1, 0, 1])
+        np.testing.assert_allclose(result.x_mm[1, 0, 0], 11)
+        np.testing.assert_allclose(result.x_mm[1, 1, 0], 10)
+        assert result.eps1.shape == (2, 2, 2)
+        assert result.eps2.shape == (2, 2, 2)
+        assert np.isnan(result.eps1[1, 0, 1])
+        np.testing.assert_allclose(result.eps1[1, 0, 0], 11)
+        np.testing.assert_allclose(result.eps2[1, 1, 0], 10)

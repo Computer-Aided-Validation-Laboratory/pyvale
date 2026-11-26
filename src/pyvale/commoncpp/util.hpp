@@ -24,7 +24,7 @@
 // commoncpp header files
 #include "./defines.hpp"
 
-enum class PixelType { UINT8, UINT16, UINT32, UINT32F};
+enum class PixelType { UINT8, UINT16, UINT32, UINT32F, FLOAT64};
 
 struct Image {
     std::string filename;
@@ -35,6 +35,7 @@ struct Image {
     std::vector<uint16_t> data16;
     std::vector<uint32_t> data32;
     std::vector<float>    data32f;
+    std::vector<double>   data64f;
 };
 
 namespace common_util {
@@ -46,6 +47,9 @@ namespace common_util {
         bool binary;
         bool output_below_threshold;
         bool shape_params;
+        bool output_residual = false;
+        bool output_results = true;
+        int precision = 8;
     };
 
     std::string current_datetime_ms();

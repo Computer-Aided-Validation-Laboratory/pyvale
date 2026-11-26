@@ -57,7 +57,7 @@ if not output_path.is_dir():
     output_path.mkdir(parents=True, exist_ok=True)
 
 # %%
-# .. image:: ../../../../_static/dic_challenge_roi.png
+# .. image:: /_static/dic_challenge_roi.png
 #    :alt: Selected roi
 #    :width: 800px
 #    :align: center 
@@ -101,7 +101,7 @@ plt.tight_layout()
 plt.show()
 
 # %%
-# .. image:: ../../../../_static/dic_challenge_plot.png
+# .. image:: /_static/dic_challenge_plot.png
 #    :alt: DIC Comparison with ground truth
 #    :width: 600px
 #    :align: center

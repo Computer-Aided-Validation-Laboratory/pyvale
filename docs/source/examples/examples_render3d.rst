@@ -45,3 +45,8 @@ Build stereo scenes, deform them and render calibration targets.
    render3d/ex2d_blender_calibration
    render3d/ex2e_blender_stereo_deformation
    render3d/ex2f_blender_calibration_target
+
+.. toctree::
+   :hidden:
+
+   examples_renderuvs

@@ -4,6 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+from .cameraloader import CameraLoaderColumn, CameraLoaderMatrix
 from .expdata import ExpData
 from .exploader import IExpLoader, load_exp_data
 from .loadopts import ExpLoadOpts, SimLoadOpts
@@ -45,4 +46,11 @@ from .simsaver import (
                            SimDataSaveOpts,
                            save_array,
                            save_sim_data_to_arrays,
+)
+
+from .tensortools import (
+    EStrainShear,
+    assemble_strain_tensor,
+    calc_equivalent_strain,
+    calc_principal_strains,
 )

@@ -122,7 +122,7 @@ print(
 # %%
 # The tilted calibration plate is mapped using its rotated local surface plane.
 #
-# .. image:: ../../_static/renderuvs_ex1d_uv_arbitrary_plane.png
+# .. image:: /_static/renderuvs_ex1d_uv_arbitrary_plane.png
 #    :alt: Oblique three dimensional calibration plate with arbitrary plane UVs
 #    :width: 500px
 #    :align: center

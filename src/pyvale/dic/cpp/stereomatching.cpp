@@ -20,7 +20,8 @@
 #include "./stereomatching.hpp"
 #include "./stereoutil.hpp"
 #include "./dicsubset.hpp"
-#include "./dicoptimizer.hpp"
+#include "./dicoptimizerfalm.hpp"
+#include "./dicoptimizerfactory.hpp"
 #include "./dicinterp.hpp"
 #include "./dicrg.hpp"
 #include "./dicshapefunc.hpp"
@@ -36,7 +37,7 @@ void matching(const Image &img_l,
               const Image &img_r,
               const Interpolator &interp_l,
               const Interpolator &interp_r,
-              const subset::Grid &ss_grid,
+              const SubsetGrid &ss_grid,
               const util::Config &conf,
               const int img_num_def_l,
               const int img_num_def_r,
@@ -85,14 +86,16 @@ void matching(const Image &img_l,
             int tid = omp_get_thread_num();
 
             // Initialize ref and def subsets
-            subset::Pixels ss_r(ss_size_x, ss_size_y);
-            subset::Pixels ss_l(ss_size_x, ss_size_y);
+            Subset<double> ss_r(ss_size_x, ss_size_y);
+            Subset<double> ss_l(ss_size_x, ss_size_y);
 
             // Optimization parameters
-            Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
+            auto opt = make_optimizer(conf.optimizer, conf.shape_func, conf.corr_crit,
+                                      conf.max_iter, conf.precision, conf.threshold,
+                                      ss_size_x * ss_size_y);
 
             // TODO: opt.seed_iter exposed to user.
-            opt.max_iter = 200;
+            opt->max_iter = 200;
 
             // ---------------------------------------------------------------------------------------------------------------------------
             // PROCESS THE SEED SUBSET 
@@ -123,14 +126,14 @@ void matching(const Image &img_l,
 
                     // populate the subset for img k using shape function parameters
                     // that map subset in img k0 to k.
-                    opt.copy_params_from_neigh(results_l.p, idx);
-                    subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
+                    opt->copy_params_from_neigh(results_l.p, idx);
+                    ss_l.fill_from_shape_params( cx_ref_l, cy_ref_l, opt->p, interp_l, conf.shape_func);
 
                     // if the first image. Take the optimization parameters from rigid fourier
-                    get_initial_guess(opt.p, cx_def_l, cy_def_l, false);
+                    get_initial_guess(opt->p, cx_def_l, cy_def_l, false);
 
                     // run optimizer
-                    OptResult seed_res = opt.solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r, true);
+                    OptResult seed_res = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_l, interp_r, true);
             
                     if (!rg::check_convergence(cx_ref_l, cy_ref_l, seed_res, error_message)) {
                         error_flag.store(true);
@@ -185,13 +188,13 @@ void matching(const Image &img_l,
                         // fill the reference subset using the updated cx,cy and
                         // the shape function parameters for the correlation of
                         // the reference image
-                        opt.copy_params_from_neigh(results_l.p, nidx);
-                        subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
+                        opt->copy_params_from_neigh(results_l.p, nidx);
+                        ss_l.fill_from_shape_params( cx_ref_l, cy_ref_l, opt->p, interp_l, conf.shape_func);
 
                         // perform optimization for seed point neighbours
-                        opt.copy_params_from_neigh(results_r.p, idx);
+                        opt->copy_params_from_neigh(results_r.p, idx);
 
-                        OptResult nres = opt.solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r, true);
+                        OptResult nres = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_l, interp_r, true);
 
                         if (!rg::check_convergence(cx_def_l, cy_def_l, nres, error_message, true)) {
                             error_flag.store(true);
@@ -248,7 +251,7 @@ void matching(const Image &img_l,
             #pragma omp barrier
 
             // reset seed location using the last computed point
-            opt.max_iter = conf.max_iter;
+                opt->max_iter = conf.max_iter;
 
             std::vector<rg::Point> temp_neigh;
             temp_neigh.reserve(4);
@@ -284,20 +287,20 @@ void matching(const Image &img_l,
                         // fill the reference subset using the updated cx,cy and
                         // the shape function parameters for the correlation of
                         // the reference image
-                        opt.copy_params_from_neigh(results_l.p, nidx);
-                        subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
+                            opt->copy_params_from_neigh(results_l.p, nidx);
+                            ss_l.fill_from_shape_params( cx_ref_l, cy_ref_l, opt->p, interp_l, conf.shape_func);
 
                         // if the neighbouring subset had not met correlation threshold then try values from fft windowing
-                        if (results_r.above_thresh[current.idx])
-                            opt.copy_params_from_neigh(results_r.p, current.idx);
+                        if (results_r.valid_match[current.idx])
+                            opt->copy_params_from_neigh(results_r.p, current.idx);
                         else
-                            get_initial_guess(opt.p, cx_def_l, cy_def_l, false);
+                            get_initial_guess(opt->p, cx_def_l, cy_def_l, false);
 
                         // optimize
-                        OptResult nres = opt.solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_r);
+                            OptResult nres = opt->solve(cx_def_l, cy_def_l, ss_l, ss_r, interp_l, interp_r);
 
                         // add deformation from reference image to new results
-                        if (nres.above_thresh){
+                        if (nres.valid_match){
                             std::vector<double> pA(conf.num_params);
                             std::vector<double> pB = nres.p;
                             std::vector<double> pC(conf.num_params);
@@ -341,7 +344,7 @@ void matching(const Image &img_l,
         }
 
         // // TODO: build a list of subsets using openmp that have correlated poorly but have atleast
-        // // one immediate neighbour above_threshold
+        // // one immediate neighbour valid_matchold
         // std::vector<int> retry_indices;
         // #pragma omp parallel
         // {
@@ -349,10 +352,10 @@ void matching(const Image &img_l,
         //     #pragma omp for nowait
         //     for (int i = 0; i < num_ss; ++i) {
         //         // If the point was reached but failed threshold
-        //         if (computed_mask[i].load() == 1 && !results_r.above_thresh[i]) {
+        //         if (computed_mask[i].load() == 1 && !results_r.valid_match[i]) {
         //             // Check if any neighbor was successful
         //             for (int nidx : ss_grid.neigh[i]) {
-        //                 if (results_r.above_thresh[nidx]) {
+        //                 if (results_r.valid_match[nidx]) {
         //                     local_retry.push_back(i);
         //                     break;
         //                 }
@@ -368,8 +371,8 @@ void matching(const Image &img_l,
         //
         // #pragma omp parallel
         // {
-        //     subset::Pixels ss_r(ss_size_x, ss_size_y);
-        //     subset::Pixels ss_l(ss_size_x, ss_size_y);
+        //     Subset<double> ss_r(ss_size_x, ss_size_y);
+        //     Subset<double> ss_l(ss_size_x, ss_size_y);
         //     Optimizer opt(conf.shape_func, conf.corr_crit, conf.max_iter, conf.precision, conf.threshold, ss_size_x*ss_size_y);
         //
         //     #pragma omp for
@@ -380,7 +383,7 @@ void matching(const Image &img_l,
         //         int best_neigh = -1;
         //         double best_cost = -std::numeric_limits<double>::max();
         //         for (int nidx : ss_grid.neigh[idx]) {
-        //             if (results_r.above_thresh[nidx] && results_r.cost[nidx] > best_cost) {
+        //             if (results_r.valid_match[nidx] && results_r.cost[nidx] > best_cost) {
         //                 best_cost = results_r.cost[nidx];
         //                 best_neigh = nidx;
         //             }
@@ -394,7 +397,7 @@ void matching(const Image &img_l,
         //
         //             // Re-fill reference
         //             opt.copy_params_from_neigh(results_l.p, idx * conf.num_params);
-        //             subset::fill_from_shape_params(ss_l, cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
+        //             ss_l.fill_from_shape_params( cx_ref_l, cy_ref_l, opt.p, interp_l, conf.shape_func);
         //
         //             // Use best neighbor's converged parameters as the new starting point
         //             opt.copy_params_from_neigh(results_r.p, best_neigh * conf.num_params);
