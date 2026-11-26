@@ -899,6 +899,38 @@ def dic_ex10_dic_chal_roi() -> Path:
     """
     return _data_path("dic", "dic_ex10_dic_chal_roi.yaml")
 
+def dic_ex11_roi() -> Path:
+    """
+    Path to the region of interest definition for the DIC Challenge example.
+
+    Returns
+    -------
+    Path
+        Path to the DIC Challenge ROI definition file (``.yaml``).
+    """
+    return _data_path("dic", "dic_ex11_roi.yaml")
+
+def dic_ex11_ref() -> Path:
+    """
+    Path to the region of interest definition for the DIC Challenge example.
+
+    Returns
+    -------
+    Path
+        Path to the DIC Challenge ROI definition file (``.yaml``).
+    """
+    return _data_path("dic", "crack", "ex11_ref.tif")
+
+def dic_ex11_def() -> Path:
+    """
+    Path to the region of interest definition for the DIC Challenge example.
+
+    Returns
+    -------
+    Path
+        Path to the DIC Challenge ROI definition file (``.yaml``).
+    """
+    return _data_path("dic", "crack", "ex11_def.tif")
 
 def dic_calibration() -> Path:
     """Return the extracted DIC calibration image directory.

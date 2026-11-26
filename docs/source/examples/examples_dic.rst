@@ -16,3 +16,4 @@ DIC
    dic/ex08_stereo
    dic/ex09_stereo_platehole
    dic/ex10_dic_chal
+   dic/ex11_crack_detection

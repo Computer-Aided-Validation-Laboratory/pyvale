@@ -20,12 +20,12 @@ there is large deformation."""
 # correlations. The incremental DIC process as implemented in pyvale is best
 # highlighted in the image below
 #
-# .. image:: ../../../../_static/incremental_light.png
+# .. image:: /_static/incremental_light.png
 #    :alt: Incremental DIC
 #    :width: 100%
 #    :class: only-light
 #
-# .. image:: ../../../../_static/incremental_dark.png
+# .. image:: /_static/incremental_dark.png
 #    :alt: Incremental DIC
 #    :width: 100%
 #    :class: only-dark

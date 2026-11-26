@@ -9,15 +9,12 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build_docs:
     runs-on: ubuntu-latest
+    outputs:
+      artifact_name: ${{ steps.pages_artifact.outputs.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,14 +52,51 @@ jobs:
           make clean 
           make html
       
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      
+      - name: Name Pages artifact
+        id: pages_artifact
+        run: echo "name=github-pages-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          name: ${{ steps.pages_artifact.outputs.name }}
           path: 'docs/build/html'
-      
+          retention-days: 14
+
+  deploy_pages:
+    needs: build_docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Wait for the Pages artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_NAME: ${{ needs.build_docs.outputs.artifact_name }}
+        run: |
+          for delay in 0 2 4 8 16 30; do
+            sleep "$delay"
+            if available=$(gh api \
+              "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=$ARTIFACT_NAME" \
+              --jq '[.artifacts[] | select(.expired == false)] | length') \
+              && [[ "$available" == 1 ]]; then
+              exit 0
+            fi
+          done
+          echo "::error::Pages artifact $ARTIFACT_NAME is unavailable."
+          echo "Retry deployment once the artifact is visible, or rebuild if it has expired."
+          exit 1
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ needs.build_docs.outputs.artifact_name }}

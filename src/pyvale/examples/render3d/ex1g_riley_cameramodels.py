@@ -76,7 +76,7 @@ render.Riley(config, output).render(scene)
 # %%
 # From left to right, the reference, distorted, and distorted and blurred images.
 #
-# .. image:: ../../../../_static/render3d_ex1g_riley_cameramodels.png
+# .. image:: /_static/render3d_ex1g_riley_cameramodels.png
 #    :alt: Speckled sphere with lens distortion and anisotropic blur
 #    :width: 900px
 #    :align: center

@@ -23,6 +23,8 @@ EXAMPLES = (
     ("ex03a_gmsh_geo", "mooseherder_ex03a_mesh/mesh.msh"),
     ("ex03b_gmsh_python", "mooseherder_ex03b_mesh/mesh.msh"),
     ("ex03c_gmsh_custom_installation", "mooseherder_ex03c_mesh/plate.inp"),
+    ("ex03d_gmsh_plate3d", "mooseherder_ex03d_mesh/mesh.msh"),
+    ("ex03e_gmsh_monoblock", "mooseherder_ex03e_mesh/mesh.msh"),
     ("ex04a_simsweep_mesh_and_solve", "mooseherder_ex04a_case17/sweep_0001/sweep.json"),
     (
         "ex04b_simsweep_sequential_sweep",
@@ -54,6 +56,61 @@ def test_mooseherder_example(
         path.is_dir() and path.name.startswith("mooseherder_")
         for path in (directory / "pyvale-output").iterdir()
     )
+
+    if example.endswith(("ex03d_gmsh_plate3d.py", "ex03e_gmsh_monoblock.py")):
+        import gmsh
+        import numpy as np
+
+        gmsh.initialize()
+        try:
+            gmsh.option.setNumber("General.Terminal", 0)
+            gmsh.open(str(directory / "pyvale-output" / output))
+            _, coordinates, _ = gmsh.model.mesh.getNodes()
+            coordinates = np.asarray(coordinates).reshape(-1, 3)
+            material_names = {
+                gmsh.model.getPhysicalName(dimension, tag)
+                for dimension, tag in gmsh.model.getPhysicalGroups(3)
+            }
+            element_types, element_tags, _ = gmsh.model.mesh.getElements(3)
+            assert sum(len(tags) for tags in element_tags) > 0
+            if example.endswith("ex03d_gmsh_plate3d.py"):
+                np.testing.assert_allclose(coordinates.min(axis=0), 0, atol=1e-12)
+                np.testing.assert_allclose(
+                    coordinates.max(axis=0), [0.1, 0.15, 0.005], atol=1e-12
+                )
+                assert material_names == {"plate"}
+                boundary_names = {
+                    gmsh.model.getPhysicalName(dimension, tag)
+                    for dimension, tag in gmsh.model.getPhysicalGroups(2)
+                }
+                assert boundary_names == {"bc-base", "bc-top"}
+                assert all(
+                    gmsh.model.mesh.getElementProperties(int(kind))[0]
+                    == "Hexahedron 27"
+                    for kind in element_types
+                )
+            else:
+                np.testing.assert_allclose(
+                    coordinates.min(axis=0), [-0.0125, 0, 0], atol=1e-12
+                )
+                np.testing.assert_allclose(
+                    coordinates.max(axis=0), [0.0125, 0.033, 0.012], atol=1e-12
+                )
+                assert material_names == {"armour-w", "interlayer-cu", "pipe-cucrzr"}
+                assert all(
+                    gmsh.model.mesh.getElementProperties(int(kind))[0]
+                    == "Hexahedron 20"
+                    for kind in element_types
+                )
+            for _, physical_tag in gmsh.model.getPhysicalGroups(3):
+                entities = gmsh.model.getEntitiesForPhysicalGroup(3, physical_tag)
+                assert sum(
+                    len(tags)
+                    for entity in entities
+                    for tags in gmsh.model.mesh.getElements(3, int(entity))[1]
+                ) > 0
+        finally:
+            gmsh.finalize()
 
     if example.endswith("ex01b_quickstart_simdata.py"):
         import numpy as np

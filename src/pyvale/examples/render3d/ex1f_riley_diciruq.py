@@ -244,12 +244,12 @@ riley.save_stereo_pair(str(out_dir), "stereo_data_opengl.csv", left, right)
 )
 
 # %%
-# .. image:: ../../../../_static/render3d_ex1f_riley_diciruq.png
+# .. image:: /_static/render3d_ex1f_riley_diciruq.png
 #    :alt: Left and right stereo DIC frames
 #    :width: 750px
 #    :align: center
 #
-# .. image:: ../../../../_static/render3d_ex1f_riley_diciruq_ir.png
+# .. image:: /_static/render3d_ex1f_riley_diciruq_ir.png
 #    :alt: Infrared apparent temperature image for the same instant
 #    :width: 500px
 #    :align: center

@@ -43,16 +43,22 @@ Here :math:`u_r^k` and :math:`v_r^k` are stored as the stereo pixel displacement
 components. They describe where the matching right-image subset is relative to
 the original left-image subset grid.
 
-.. image:: guide_theory_dic_stereo_light.png
+.. image:: /_static/stereo_light.png
    :class: only-light
    :alt: Diagram (light)
 
-.. image:: guide_theory_dic_stereo_dark.png
+.. image:: /_static/stereo_dark.png
    :class: only-dark
    :alt: Diagram (dark)
 
 Camera Geometry
 ---------------
+
+For calibration parameters and file loading, see the
+:doc:`calibration API </pyvale.calib>`. The
+:doc:`stereo calibration example </examples/dic/ex07_calibration>` shows target
+detection and camera calibration from images.
+
 Stereo DIC needs a calibration for both cameras. Pyvale uses each camera's
 intrinsic matrix,
 

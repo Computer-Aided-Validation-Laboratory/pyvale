@@ -100,6 +100,10 @@ class SensorsPoint(ISensorArray):
         """
         return self._descriptor
 
+    def get_sensor_positions(self) -> np.ndarray | None:
+        """Return the configured sensor positions before perturbation."""
+        return self._sensor_data.positions
+
     def get_sample_times(self) -> np.ndarray:
         """Gets the times at which the sensors sample the given physical field.
         This is specified by the user in the SensorData object or defaults to

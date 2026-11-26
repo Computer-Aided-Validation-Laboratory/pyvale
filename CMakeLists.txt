@@ -1,6 +1,50 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(${SKBUILD_PROJECT_NAME} LANGUAGES CXX)
+project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
+
+# -----------------------------------------------------------------------------
+# Source revision metadata
+# -----------------------------------------------------------------------------
+find_package(Git QUIET)
+
+set(PYVALE_GIT_COMMIT "unknown")
+set(PYVALE_GIT_BRANCH "unknown")
+set(PYVALE_GIT_CLEAN 0)
+
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PYVALE_GIT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE PYVALE_GIT_COMMIT_RESULT)
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} branch --show-current
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PYVALE_GIT_BRANCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE PYVALE_GIT_BRANCH_RESULT)
+
+    if(PYVALE_GIT_BRANCH STREQUAL "")
+        set(PYVALE_GIT_BRANCH "unknown")
+    endif()
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} status --porcelain --untracked-files=all
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PYVALE_GIT_STATUS
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE PYVALE_GIT_STATUS_RESULT)
+
+    if(PYVALE_GIT_COMMIT_RESULT EQUAL 0 AND PYVALE_GIT_STATUS_RESULT EQUAL 0 AND
+       PYVALE_GIT_STATUS STREQUAL "")
+        set(PYVALE_GIT_CLEAN 1)
+    endif()
+endif()
 
 # ----------------------------
 # C++ standard
@@ -110,6 +154,10 @@ file(GLOB COMMON_SRC_FILES src/pyvale/commoncpp/*.cpp)
 pybind11_add_module(commoncpp MODULE ${COMMON_SRC_FILES})
 target_include_directories(commoncpp PRIVATE src/pyvale/commoncpp ${TIFF_INCLUDE_DIR})
 target_link_libraries(commoncpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
+target_compile_definitions(commoncpp PRIVATE
+    PYVALE_GIT_COMMIT="${PYVALE_GIT_COMMIT}"
+    PYVALE_GIT_BRANCH="${PYVALE_GIT_BRANCH}"
+    PYVALE_GIT_CLEAN=${PYVALE_GIT_CLEAN})
 apply_compile_flags(commoncpp)
 install(TARGETS commoncpp LIBRARY DESTINATION pyvale/commoncpp)
 
@@ -145,3 +193,36 @@ target_include_directories(strain_cpp PRIVATE src/pyvale/commoncpp src/pyvale/st
 target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(strain_cpp)
 install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)
+
+# ----------------------------
+# Validation Cython module
+# ----------------------------
+# The source uses Cython's pure-Python syntax, so the .py file remains an
+# importable fallback in source checkouts. Packaged builds install this compiled
+# extension with the same module name.
+execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
+    OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY
+)
+
+set(MAVM_CYTHON_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/pyvale/validation/cython/mavm.py)
+set(MAVM_CYTHON_GENERATED ${CMAKE_CURRENT_BINARY_DIR}/mavm_cython.c)
+
+add_custom_command(
+    OUTPUT ${MAVM_CYTHON_GENERATED}
+    COMMAND ${Python_EXECUTABLE} -m cython -3 -o ${MAVM_CYTHON_GENERATED}
+            ${MAVM_CYTHON_SOURCE}
+    DEPENDS ${MAVM_CYTHON_SOURCE}
+    COMMENT "Generating C source for pyvale.validation.cython.mavm"
+    VERBATIM
+)
+
+Python_add_library(mavm MODULE WITH_SOABI ${MAVM_CYTHON_GENERATED})
+target_include_directories(mavm PRIVATE ${NUMPY_INCLUDE_DIR})
+install(
+    TARGETS mavm
+    LIBRARY DESTINATION pyvale/validation/cython
+    RUNTIME DESTINATION pyvale/validation/cython
+)
