@@ -1,0 +1,90 @@
+#===============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+#===============================================================================
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+import numpy as np
+import numpy.typing as npt
+
+from pyvale.vfm.constlaw import IConstitutiveLaw
+from pyvale.vfm.experimentdata import VfmInputData
+from pyvale.vfm.spatialparam import ISpatialParameterisation
+
+
+@dataclass(slots=True)
+class MetricResult:
+    """
+    Result returned by a virtual-work metric evaluation.
+
+    Holds the residual vector that the objective function minimises, together
+    with any additional fields produced by the metric
+    """
+
+    residual: npt.NDArray[np.float64] | None = None
+    """Residual vector between internal and external virtual work"""
+
+    additional_fields: dict | None = None
+    """Optional fields keyed by name (metric-specific)"""
+
+
+class IMetric(ABC):
+    """
+    Interface (abstract base class) for a virtual-work metric.
+
+    A metric evaluates the discrepancy between a candidate stress field and
+    the measured boundary conditions using the virtual work principle.
+    Multiple metrics (e.g. for different virtual fields) may be
+    combined in an objective function
+    """
+
+    @abstractmethod
+    def initialise(
+        self,
+        experiment_data: VfmInputData
+    ) -> None:
+        """
+        Perform one-off setup for the metric before evaluation,
+        any expensive precomputation should be performed here.
+
+        Parameters
+        ----------
+        experiment_data : VfmInputData
+            Measured DIC data
+        """
+        pass
+
+    @abstractmethod
+    def evaluate(
+        self,
+        stress: npt.NDArray[np.float64],
+        constitutive_law: IConstitutiveLaw,
+        parameter_map_size: npt.NDArray[np.uint32],
+        spatial_parameterisations: dict[str, list[ISpatialParameterisation]],
+        experiment_data: VfmInputData,
+    ) -> MetricResult:
+        """
+        Evaluate the metric for a given stress candidate.
+
+        Parameters
+        ----------
+        stress : npt.NDArray[np.float64]
+            Candidate stress field, shape ``(timesteps, components, y, x)``
+        constitutive_law : IConstitutiveLaw
+            Constitutive law used to produce the stress
+        parameter_map_size : npt.NDArray[np.uint32]
+            Spatial dimensions ``(y, x)`` of the parameter maps
+        spatial_parameterisations : dict[str, list[ISpatialParameterisation]]
+            Current spatial parameterisations keyed by parameter name
+        experiment_data : VfmInputData
+            Measured DIC data
+
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            Metric value(s) per timestep or per spatial point
+        """
+        pass
