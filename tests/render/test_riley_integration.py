@@ -5,6 +5,7 @@
 # ============================================================================
 """Real Riley integration and golden-regression tests."""
 
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -174,6 +175,49 @@ def test_channels_multiframe_multicamera_matches_native(
     np.testing.assert_allclose(
         actual[:, 0, 8, 12], ((0.2, 0.4, 0.6), (0.3, 0.5, 0.7)),
     )
+
+
+def test_mixed_camera_batch_preserves_native_padding() -> None:
+    """Different camera extents and channels share Riley's padded stack."""
+    mesh = riley.Mesh(
+        riley.MeshType.tri3,
+        np.array(((-1., -1., 0.), (1., -1., 0.), (0., 1., 0.))),
+        np.array(((0, 1, 2),)),
+        None,
+        riley.MeshShaderSet(
+            rgb=riley.FunctionShader(riley.FuncShaderBuiltin.constant, channels=3),
+            ir=riley.FunctionShader(riley.FuncShaderBuiltin.constant),
+        ),
+    )
+    rgb = render.Camera(
+        pixels_num=np.array((24, 16)),
+        pixels_size=np.array((0.02, 0.02)),
+        pos_world=np.array((0., 0., 2.)),
+        rot_world=Rotation.identity(),
+        roi_cent_world=np.zeros(3),
+        focal_length=1.,
+        render_format=riley.RenderFormat.rgb,
+        background_value=-3.,
+    )
+    ir = replace(
+        rgb,
+        pixels_num=np.array((12, 20)),
+        render_format=riley.RenderFormat.ir,
+        background_value=-8.,
+    )
+    config = riley.RasterConfig(parallel=1, save_strategy=riley.SaveStrategy.memory)
+    images = render.Riley(config).render(render.Scene3D([mesh], [rgb, ir])).images
+    native = riley.raster(
+        mesh, [render.to_riley_camera(rgb), render.to_riley_camera(ir)], config,
+    )
+
+    assert images.shape == (1, 2, 20, 24, 3)
+    assert images.dtype == np.float64
+    assert images.flags.c_contiguous
+    np.testing.assert_array_equal(images, native.transpose(1, 0, 3, 4, 2))
+    np.testing.assert_array_equal(images[:, 0, 16:, :, :], -3.)
+    np.testing.assert_array_equal(images[:, 1, :, 12:, :], -8.)
+    np.testing.assert_array_equal(images[:, 1, :, :, 1:], -8.)
 
 
 def test_camera_settings_reach_riley() -> None:

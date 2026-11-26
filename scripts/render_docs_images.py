@@ -52,28 +52,33 @@ IMAGE_ARTIFACTS = (
         ("cam0_frame0_field0.bmp",),
     ),
     ImageArtifact(
-        "render3d_ex1b_riley_sphere200",
+        "render3d_ex1b_riley_procedural_quickstart",
         ("cam0_frame0_field0.bmp",),
     ),
     ImageArtifact(
-        "render3d_ex1c_riley_rabbits",
-        ("cam0_frame0_field0.bmp",),
+        "render3d_ex1c_riley_shaderpipe_quickstart",
+        ("direct/cam0_frame0_field0.bmp", "modulated/cam0_frame0_field0.bmp"),
     ),
     ImageArtifact(
-        "render3d_ex1d_riley_dicuq",
+        "render3d_ex1d_riley_dic_from_exodus",
         ("cam0_frame0_field0.bmp", "cam1_frame0_field0.bmp"),
     ),
     ImageArtifact(
-        "render3d_ex1e_riley_dic_from_exodus",
+        "render3d_ex1e_riley_stereocal",
         ("cam0_frame0_field0.bmp", "cam1_frame0_field0.bmp"),
     ),
     ImageArtifact(
-        "render3d_ex1f_riley_stereocal",
-        ("cam0_frame0_field0.bmp", "cam1_frame0_field0.bmp"),
+        "render3d_ex1f_riley_diciruq",
+        ("cam0_frame0_field0.tiff", "cam2_frame0_field0.tiff"),
     ),
     ImageArtifact(
-        "render3d_ex1g_riley_psf",
-        ("global_subpx_full/cam0_frame0_field0.bmp",),
+        "render3d_ex1f_riley_diciruq",
+        ("cam1_frame0_field0.tiff",),
+        "render3d_ex1f_riley_diciruq_ir",
+    ),
+    ImageArtifact(
+        "render3d_ex1g_riley_cameramodels",
+        ("cam0_frame0_field0.bmp", "cam1_frame0_field0.bmp", "cam2_frame0_field0.bmp"),
     ),
     ImageArtifact(
         "render3d_ex2a_blender_scene",

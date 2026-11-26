@@ -4,83 +4,28 @@
 # Copyright (C) 2026 Sceptical Rabbit (Lloyd Fletcher)
 # ==============================================================================
 
-"""Byte-level parity checks between pyvale examples and native Riley demos.
-
-Each case renders one packaged Riley demo natively and then runs the matching
-documented pyvale example, which rebuilds the same scene through the public
-render API. The rendered output trees must contain identical files with
-identical contents.
-"""
+"""Compare each packaged demo with the same scene routed through PyVale."""
 
 from __future__ import annotations
 
+import filecmp
 import importlib
-import runpy
 import shutil
+from collections import deque
 from collections.abc import Iterator
 from pathlib import Path
 
+import numpy as np
 import pytest
+import riley
+from riley.__main__ import _DEMO_FUNCS, _PROCEDURAL_DEMOS
 
-_ROOT = Path(__file__).resolve().parents[2]
-_EXAMPLES = _ROOT / "src" / "pyvale" / "examples" / "render3d"
-
-_CASES = (
-    pytest.param(
-        "demo00_quickstart",
-        "ex1a_riley_quickstart.py",
-        "out_riley_py/demo00_quickstart",
-        "pyvale-output/render3d_ex1a_riley_quickstart",
-        id="quickstart",
-    ),
-    pytest.param(
-        "demo01_sphere",
-        "ex1b_riley_sphere200.py",
-        "out_riley_py/demo01_sphere",
-        "pyvale-output/render3d_ex1b_riley_sphere200",
-        id="sphere",
-    ),
-    pytest.param(
-        "demo02a_rabbits_mono",
-        "ex1c_riley_rabbits.py",
-        "out_riley_py/demo02a_rabbits_mono",
-        "pyvale-output/render3d_ex1c_riley_rabbits",
-        id="rabbits-mono",
-    ),
-    pytest.param(
-        "demo03_dicuq",
-        "ex1d_riley_dicuq.py",
-        "out_riley_py/demo03_dicuq",
-        "pyvale-output/render3d_ex1d_riley_dicuq",
-        id="dicuq",
-    ),
-    pytest.param(
-        "demo03_dicuq_from_exodus",
-        "ex1e_riley_dic_from_exodus.py",
-        "out_riley_py/demo03_dicuq_from_exodus",
-        "pyvale-output/render3d_ex1e_riley_dic_from_exodus",
-        id="dicuq-from-exodus",
-    ),
-    pytest.param(
-        "demo04_stereocal",
-        "ex1f_riley_stereocal.py",
-        "out_riley_py/demo04_stereocal",
-        "pyvale-output/render3d_ex1f_riley_stereocal",
-        id="stereocal",
-    ),
-    pytest.param(
-        "demo06_featurezoo",
-        "ex1h_riley_feature_zoo.py",
-        "out_riley_py/demo06_featurezoo",
-        "pyvale-output/render3d_ex1h_riley_feature_zoo",
-        id="feature-zoo",
-    ),
-)
+from pyvale import render
 
 
 @pytest.fixture
 def demo_directories(tmp_path: Path) -> Iterator[tuple[Path, Path]]:
-    """Provide isolated native and pyvale roots, then remove renders."""
+    """Provide isolated working directories and clean up large demo outputs."""
     native_dir = tmp_path / "native"
     pyvale_dir = tmp_path / "pyvale"
     native_dir.mkdir()
@@ -91,49 +36,74 @@ def demo_directories(tmp_path: Path) -> Iterator[tuple[Path, Path]]:
 
 
 @pytest.mark.riley
-@pytest.mark.parametrize(
-    ("demo", "example", "native_out", "pyvale_out"),
-    _CASES,
-)
-def test_packaged_demo_matches_pyvale_example(
+@pytest.mark.parametrize("demo_name", sorted(_DEMO_FUNCS))
+def test_packaged_demo_parity(
     demo_directories: tuple[Path, Path],
     monkeypatch: pytest.MonkeyPatch,
-    demo: str,
-    example: str,
-    native_out: str,
-    pyvale_out: str,
+    demo_name: str,
 ) -> None:
-    """Render one demo natively and through the documented pyvale example."""
+    """Compare render files, calibration, metadata and any returned arrays."""
     native_dir, pyvale_dir = demo_directories
+    demo = importlib.import_module(_DEMO_FUNCS[demo_name])
+    args = ([],) if demo_name in _PROCEDURAL_DEMOS else ()
+    raster = riley.raster
+    native_images: deque[np.ndarray | None] = deque()
 
-    monkeypatch.chdir(native_dir)
-    importlib.import_module(f"riley.pydemos.{demo}").main()
+    def record_native(
+        meshes: riley.Mesh | list[riley.Mesh] | tuple[riley.Mesh, ...],
+        cameras: riley.Camera | list[riley.Camera] | tuple[riley.Camera, ...],
+        config: riley.RasterConfig,
+        out_dir: str | None = None,
+    ) -> np.ndarray | None:
+        images = raster(meshes, cameras, config, out_dir)
+        native_images.append(images)
+        return images
 
-    monkeypatch.chdir(pyvale_dir)
-    runpy.run_path(str(_EXAMPLES / example))
+    def render_through_pyvale(
+        meshes: riley.Mesh | list[riley.Mesh] | tuple[riley.Mesh, ...],
+        cameras: riley.Camera | list[riley.Camera] | tuple[riley.Camera, ...],
+        config: riley.RasterConfig,
+        out_dir: str | None = None,
+    ) -> np.ndarray | None:
+        scene_meshes = [meshes] if isinstance(meshes, riley.Mesh) else list(meshes)
+        scene_cameras = [cameras] if isinstance(cameras, riley.Camera) else list(cameras)
+        scene = render.Scene3D(scene_meshes, scene_cameras)
+        output_path = Path(out_dir) if out_dir is not None else None
+        with monkeypatch.context() as backend:
+            backend.setattr(riley, "raster", raster)
+            result = render.Riley(config, output_path).render(scene)
+        expected = native_images.popleft()
+        if expected is None:
+            assert result.images is None
+            return None
+        assert result.images is not None
+        assert result.images.dtype == expected.dtype
+        np.testing.assert_array_equal(result.images, expected.transpose(1, 0, 3, 4, 2))
+        # Preserve the layout the rest of the upstream demo expects.
+        return result.images.transpose(1, 0, 4, 2, 3)
 
-    _assert_same_tree(
-        native_dir / native_out,
-        pyvale_dir / pyvale_out,
+    with monkeypatch.context() as run:
+        run.chdir(native_dir)
+        run.setattr(riley, "raster", record_native)
+        demo.main(*args)
+
+        assert native_images, f"{demo_name} did not call riley.raster"
+
+        run.chdir(pyvale_dir)
+        run.setattr(riley, "raster", render_through_pyvale)
+        demo.main(*args)
+
+    assert not native_images, f"{demo_name} skipped a native raster call"
+
+    native_files = sorted(
+        path.relative_to(native_dir) for path in native_dir.rglob("*") if path.is_file()
     )
-
-
-def _assert_same_tree(native: Path, pyvale: Path) -> None:
-    """Require byte-identical render outputs in both output trees."""
-    assert native.is_dir(), f"native render output missing: {native}"
-    assert pyvale.is_dir(), f"pyvale render output missing: {pyvale}"
-
-    native_paths = sorted(
-        path.relative_to(native) for path in native.rglob("*")
+    pyvale_files = sorted(
+        path.relative_to(pyvale_dir) for path in pyvale_dir.rglob("*") if path.is_file()
     )
-    pyvale_paths = sorted(
-        path.relative_to(pyvale) for path in pyvale.rglob("*")
-    )
-    assert native_paths == pyvale_paths
-    for relative_path in native_paths:
-        native_path = native / relative_path
-        if native_path.is_file():
-            assert (
-                native_path.read_bytes()
-                == (pyvale / relative_path).read_bytes()
-            ), f"render output differs: {relative_path}"
+    assert native_files, f"{demo_name} produced no files"
+    assert native_files == pyvale_files
+    for relative_path in native_files:
+        assert filecmp.cmp(
+            native_dir / relative_path, pyvale_dir / relative_path, shallow=False,
+        ), f"render output differs: {relative_path}"
