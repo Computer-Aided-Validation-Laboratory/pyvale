@@ -22,6 +22,5 @@ This project follows the Computer Aided Validation Lab style guides which can be
 
 ## Riley rendering
 
-Riley 2026.11.2 is supplied by the sibling checkout at `../riley-raster`
-while its release is pending. See the [render examples](../src/pyvale/examples/render3d/README.md)
+PyVale installs its pinned Riley release from PyPI. See the [render examples](../src/pyvale/examples/render3d/README.md)
 for the current API and [testing guide](TESTING.md#riley-integration) for checks.

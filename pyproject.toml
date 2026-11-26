@@ -129,7 +129,3 @@ exclude = [
 [tool.uv]
 required-version = ">=0.9.17"
 #exclude-newer = "P30D"
-
-# Riley 2026.11.2 is developed alongside PyVale until its package release.
-[tool.uv.sources]
-riley-raster = { path = "../riley-raster", editable = true }
