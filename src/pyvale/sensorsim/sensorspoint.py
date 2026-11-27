@@ -210,7 +210,7 @@ class SensorsPoint(ISensorArray):
 
         return self._truth
 
-    def get_error_integrator(self) -> ErrIntegrator:
+    def get_error_integrator(self) -> ErrIntegrator | None:
         """Gets the error integrator allowing the user to interpret error
         sources in the error chain and to separate random and systematic error
         contributions.

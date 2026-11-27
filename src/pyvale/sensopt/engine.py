@@ -1,4 +1,10 @@
-"""Evaluate discrete placements on an engine-owned sensor array."""
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
+"""Evaluate discrete placements on engine-owned sensor arrays."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
@@ -8,14 +14,15 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.sensopt.designspace import DesignSpace, EDesignAxis
-from pyvale.sensopt.objective import IObjFunc
+from pyvale.sensopt.objective import IObjFunc, ObjTerm, ObjWeighted
 from pyvale.sensopt.optimiser import (
-    DiscreteOptimiser,
     EOptStopCond,
     Layout,
-    OptimiserExchange,
-    OptimiserGreedyBackward,
-    OptimiserGreedyForward,
+    OptDiscrete,
+    OptExchange,
+    OptExhaustive,
+    OptGreedyBackward,
+    OptGreedyForward,
     _search_backward,
     _search_exchange,
     _search_exhaustive,
@@ -43,7 +50,7 @@ _SUPPORTED_OUTPUTS = _MEASURED_OUTPUTS | frozenset(
 
 
 @dataclass(slots=True)
-class OptimisationResult:
+class OptResult:
     """Best layout found and the reason the optimiser stopped.
 
     Objective values have shape (objective,). An empty layout and score mean no
@@ -62,101 +69,168 @@ class OptimisationResult:
 
 @dataclass(slots=True, kw_only=True)
 class SensorOptEngine:
-    """Optimise one named array over discrete sites in an already-bound field.
+    """Optimise named arrays over discrete sites in already-bound fields.
 
-    The array's configured count is its inventory limit. Backward and exchange
-    searches use its configured positions as a starting layout. This implementation
-    evaluates one objective and one realisation per candidate. A seed controls
-    the working array's error models when the objective requests measurements.
+    Each array's configured count is its inventory limit. Backward and exchange
+    start at the configured positions. Each candidate gets one scalar score and
+    one realisation per active array. Unselected arrays are omitted from layouts.
     """
 
     sensor_arrays: Mapping[str, ISensorArray]
     design_space: DesignSpace
-    objectives: tuple[IObjFunc, ...]
-    optimiser: DiscreteOptimiser
+    objectives: tuple[IObjFunc, ...] | ObjWeighted
+    optimiser: OptDiscrete
     seed: int | None = None
 
-    def optimise(self) -> OptimisationResult:
+    def optimise(self) -> OptResult:
         """Search the configured design space without mutating any supplied array."""
-        if len(self.sensor_arrays) != 1 or len(self.objectives) != 1:
-            raise ValueError("This engine requires one sensor array and one objective.")
-
-        sensor_key, source_array = next(iter(self.sensor_arrays.items()))
-        if set(self.design_space.positions) != {sensor_key}:
-            raise ValueError("Position domains must match the supplied sensor array.")
-        if self.design_space.position_axes != {sensor_key: EDesignAxis.DISC}:
-            raise ValueError("This engine requires a discrete position domain.")
-        sites = np.asarray(self.design_space.positions[sensor_key], dtype=np.float64)
-        if sites.ndim != 2 or sites.shape[1] != 3 or not np.all(np.isfinite(sites)):
-            raise ValueError("Candidate sites must be finite and have shape (site, 3).")
-        if sites.shape[0] == 0 or np.unique(sites, axis=0).shape[0] != sites.shape[0]:
-            raise ValueError("The position domain must contain unique candidate sites.")
-
-        nominal_data = source_array.get_sensor_data()
-        positions = nominal_data.positions
-        if positions is None or positions.ndim != 2 or positions.shape[1] != 3:
-            raise ValueError(
-                "The supplied array must define nominal (sensor, 3) positions."
-            )
-        if not np.all(np.isfinite(positions)):
-            raise ValueError("The supplied array's nominal positions must be finite.")
-        inventory = positions.shape[0]
-        if inventory == 0:
-            raise ValueError("The supplied array must have at least one sensor.")
-        if nominal_data.angles is not None and len(nominal_data.angles) != 1:
-            raise ValueError("Discrete placement requires a shared sensor rotation.")
-
+        if not self.sensor_arrays:
+            raise ValueError("Supply at least one sensor array.")
+        if self.design_space.positions.keys() != self.sensor_arrays.keys():
+            raise ValueError("Position domains must match the supplied sensor arrays.")
+        if self.design_space.position_axes != dict.fromkeys(
+            self.sensor_arrays, EDesignAxis.DISC
+        ):
+            raise ValueError("This engine requires discrete position domains.")
         optimiser = self.optimiser
-        if not _is_integer(optimiser.max_iterations, minimum=1):
-            raise ValueError("max_iterations must be a positive integer.")
+        nominal_data: dict[str, SensorData] = {}
+        inventories: dict[str, int] = {}
+        array_sites: list[npt.NDArray[np.float64]] = []
+        site_keys: list[str] = []
+        installed_sites: list[int] = []
+        available_count = 0
+        for key, array in self.sensor_arrays.items():
+            sites = np.asarray(self.design_space.positions[key], dtype=np.float64)
+            if sites.ndim != 2 or sites.shape[1] != 3 or not np.all(np.isfinite(sites)):
+                raise ValueError(f"Candidate sites for {key!r} need finite XYZ rows.")
+            if len(sites) == 0 or len(np.unique(sites, axis=0)) != len(sites):
+                raise ValueError(f"The position domain for {key!r} needs unique sites.")
+            data = array.get_sensor_data()
+            positions = data.positions
+            if (
+                positions is None
+                or positions.ndim != 2
+                or positions.shape[1] != 3
+                or len(positions) == 0
+                or not np.all(np.isfinite(positions))
+            ):
+                raise ValueError(f"Array {key!r} must define finite nominal XYZ positions.")
+            if data.angles is not None and len(data.angles) != 1:
+                raise ValueError("Discrete placement requires a shared rotation per array.")
+            if isinstance(optimiser, (OptGreedyBackward, OptExchange)):
+                site_indices = {
+                    tuple(position): index for index, position in enumerate(sites)
+                }
+                array_installed: set[int] = set()
+                for position in positions:
+                    site_index = site_indices.get(tuple(position))
+                    if site_index is None or site_index in array_installed:
+                        raise ValueError(
+                            f"Installed positions for {key!r} must match distinct sites."
+                        )
+                    array_installed.add(site_index)
+                installed_sites.extend(len(site_keys) + index for index in array_installed)
+            nominal_data[key] = data
+            inventories[key] = len(positions)
+            available_count += min(len(sites), len(positions))
+            site_keys.extend([key] * len(sites))
+            array_sites.append(sites)
+
+        all_sites = np.concatenate(array_sites)
+        initial_sites: Layout = tuple(sorted(installed_sites))
+        if isinstance(optimiser, (OptExchange, OptExhaustive)):
+            limit = optimiser.max_iterations
+            if (limit is not None or isinstance(optimiser, OptExchange)) and (
+                not _is_integer(limit, minimum=1)
+            ):
+                raise ValueError("max_iterations must be a positive integer.")
         if self.seed is not None and not _is_integer(self.seed, minimum=0):
             raise ValueError("seed must be a nonnegative integer.")
 
-        if isinstance(optimiser, OptimiserGreedyForward):
+        if isinstance(optimiser, OptGreedyForward):
             if (optimiser.num_sensors is None) == (optimiser.target_objective is None):
                 raise ValueError(
                     "Specify exactly one of num_sensors and target_objective."
                 )
+            max_sensors = optimiser.max_sensors
+            if max_sensors is not None:
+                if optimiser.target_objective is None:
+                    raise ValueError("max_sensors requires target_objective.")
+                if not _is_integer(max_sensors, minimum=1) or max_sensors > available_count:
+                    raise ValueError("max_sensors must be within the available sensor count.")
+        if isinstance(optimiser, OptExhaustive):
+            if optimiser.num_sensors is None and optimiser.target_objective is None:
+                raise ValueError("Specify num_sensors or target_objective.")
+        if isinstance(optimiser, (OptGreedyForward, OptExhaustive)):
             target = optimiser.target_objective
             if target is not None and not np.isfinite(target):
                 raise ValueError("target_objective must be finite.")
-        if not isinstance(optimiser, OptimiserExchange):
+        if not isinstance(optimiser, OptExchange):
             count = optimiser.num_sensors
-            if count is None and not isinstance(optimiser, OptimiserGreedyForward):
+            if isinstance(optimiser, OptGreedyBackward) and count is None:
                 raise ValueError("This optimiser requires num_sensors.")
-            if count is not None:
+            if isinstance(optimiser, OptExhaustive) and isinstance(count, range):
+                if count.step != 1 or count.start >= count.stop:
+                    raise ValueError("num_sensors must be a nonempty range with step 1.")
+                if count.start < 1 or count.stop - 1 > available_count:
+                    raise ValueError(
+                        "num_sensors must be within the inventory and site count."
+                    )
+            elif count is not None:
                 if not _is_integer(count, minimum=1):
                     raise ValueError("num_sensors must be a positive integer.")
-                if count > min(len(sites), inventory):
+                if count > available_count:
                     raise ValueError(
                         "num_sensors must be within the inventory and site count."
                     )
 
-        initial_sites: Layout = ()
-        if isinstance(optimiser, (OptimiserGreedyBackward, OptimiserExchange)):
-            site_indices = {
-                tuple(position): index for index, position in enumerate(sites)
-            }
-            installed_sites: list[int] = []
-            for position in positions:
-                site_index = site_indices.get(tuple(position))
-                if site_index is None or site_index in installed_sites:
-                    raise ValueError(
-                        "Installed positions must match distinct candidate sites."
-                    )
-                installed_sites.append(site_index)
-            initial_sites = tuple(sorted(installed_sites))
+        if isinstance(self.objectives, ObjWeighted):
+            terms = self.objectives.terms
+            if any(not np.isfinite(term.weight) or term.weight < 0 for term in terms):
+                raise ValueError("Objective weights must be finite and nonnegative.")
+            terms = tuple(term for term in terms if term.weight > 0)
+            if not terms:
+                raise ValueError("A weighted objective requires a positive weight.")
+        else:
+            if len(self.objectives) != 1:
+                raise ValueError("Supply one objective or an ObjWeighted combination.")
+            terms = (ObjTerm(objective=self.objectives[0]),)
 
-        objective = self.objectives[0]
-        required_outputs = objective.get_required_outputs()
+        required_outputs = frozenset().union(
+            *(term.objective.get_required_outputs() for term in terms)
+        )
         if not required_outputs <= _SUPPORTED_OUTPUTS:
             raise ValueError("The objective requests an unsupported experiment output.")
-        working_array = source_array.copy_for_simulation(seed=self.seed)
+        array_seeds: list[int | None] = [self.seed] * len(self.sensor_arrays)
+        if self.seed is not None and len(self.sensor_arrays) > 1:
+            array_seeds = [
+                int(sequence.generate_state(1)[0])
+                for sequence in np.random.SeedSequence(self.seed).spawn(
+                    len(self.sensor_arrays)
+                )
+            ]
+        working_arrays = {
+            key: array.copy_for_simulation(seed=array_seed)
+            for (key, array), array_seed in zip(
+                self.sensor_arrays.items(), array_seeds, strict=True
+            )
+        }
+
+        def decode_layout(layout: Layout) -> dict[str, SensorData]:
+            sensor_indices: dict[str, list[int]] = {}
+            for index in layout:
+                sensor_indices.setdefault(site_keys[index], []).append(index)
+            return {
+                key: replace(nominal_data[key], positions=all_sites[indices])
+                for key, indices in sensor_indices.items()
+            }
 
         def score_layout(layout: Layout) -> float | None:
-            candidate_positions = sites[list(layout)]
-            candidate_data = replace(nominal_data, positions=candidate_positions)
-            sensor_data = {sensor_key: candidate_data}
+            sensor_data = decode_layout(layout)
+            for key, data in sensor_data.items():
+                assert data.positions is not None
+                if len(data.positions) > inventories[key]:
+                    return None
             for constraint in self.design_space.input_constraints:
                 residuals = constraint.eval(sensor_data)
                 if not np.all(np.isfinite(residuals)):
@@ -164,8 +238,13 @@ class SensorOptEngine:
                 if np.any(residuals > 0):
                     return None
 
-            experiment_data = {}
-            if required_outputs:
+            experiment_data: dict[
+                tuple[str, str, EExpSimKeys], npt.NDArray[np.float64]
+            ] = {}
+            for sensor_key, candidate_data in sensor_data.items():
+                if not required_outputs:
+                    break
+                working_array = working_arrays[sensor_key]
                 working_array.set_sensor_data(candidate_data)
                 measurements = None
                 if required_outputs & _MEASURED_OUTPUTS:
@@ -183,7 +262,8 @@ class SensorOptEngine:
                             if output is None:
                                 output = working_array.get_field().get_time_steps()
                         case EExpSimKeys.SENSOR_POSITIONS:
-                            output = candidate_positions
+                            assert candidate_data.positions is not None
+                            output = candidate_data.positions
                         case EExpSimKeys.SYSTEMATIC_ERROR | EExpSimKeys.RANDOM_ERROR:
                             if output_key is EExpSimKeys.SYSTEMATIC_ERROR:
                                 errors = working_array.get_errors_systematic()
@@ -202,49 +282,57 @@ class SensorOptEngine:
                         output_view
                     )
 
-            values = objective.eval(
-                sensor_data=sensor_data,
-                experiment_data=experiment_data,
-                scenario_keys=(_NOMINAL_SCENARIO,),
-            )
-            if not isinstance(values, np.ndarray) or values.shape not in ((), (1, 1)):
-                raise ValueError("An objective must return a scalar or a (1, 1) array.")
-            score = float(values.item())
+            score = 0.0
+            for term in terms:
+                values = term.objective.eval(
+                    sensor_data=sensor_data,
+                    experiment_data=experiment_data,
+                    scenario_keys=(_NOMINAL_SCENARIO,),
+                )
+                if not isinstance(values, np.ndarray) or values.shape not in ((), (1, 1)):
+                    raise ValueError("An objective must return a scalar or a (1, 1) array.")
+                value = float(values.item())
+                if not np.isfinite(value):
+                    raise ValueError("An objective must return a finite value.")
+                if term.normalisation is not None:
+                    value = term.normalisation.eval(value)
+                score += term.weight * value
             if not np.isfinite(score):
-                raise ValueError("The objective must return a finite value.")
+                raise ValueError("The combined objective score must be finite.")
             return score
 
-        if isinstance(optimiser, OptimiserGreedyForward):
+        if isinstance(optimiser, OptGreedyForward):
             search = _search_forward(
                 optimiser,
-                num_sites=len(sites),
-                inventory=inventory,
+                num_sites=len(all_sites),
+                inventory=available_count,
                 score_layout=score_layout,
             )
-        elif isinstance(optimiser, OptimiserGreedyBackward):
+        elif isinstance(optimiser, OptGreedyBackward):
             search = _search_backward(
                 optimiser, initial_sites=initial_sites, score_layout=score_layout
             )
-        elif isinstance(optimiser, OptimiserExchange):
+        elif isinstance(optimiser, OptExchange):
             search = _search_exchange(
                 optimiser,
                 initial_sites=initial_sites,
-                num_sites=len(sites),
+                num_sites=len(all_sites),
                 score_layout=score_layout,
             )
         else:
             search = _search_exhaustive(
-                optimiser, num_sites=len(sites), score_layout=score_layout
+                optimiser,
+                num_sites=len(all_sites),
+                inventory=available_count,
+                score_layout=score_layout,
             )
 
         selected_data: dict[str, SensorData] = {}
         objective_values = np.empty(0, dtype=np.float64)
         if search.layout is not None:
-            selected_data[sensor_key] = replace(
-                nominal_data, positions=sites[list(search.layout.sites)]
-            )
+            selected_data = decode_layout(search.layout.sites)
             objective_values = np.array([search.layout.objective], dtype=np.float64)
-        return OptimisationResult(
+        return OptResult(
             sensor_data=selected_data,
             objective_values=objective_values,
             stop_condition=search.stop_condition,

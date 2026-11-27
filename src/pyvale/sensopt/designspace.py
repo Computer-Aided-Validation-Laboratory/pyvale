@@ -1,3 +1,9 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
 """Position domains and geometry preprocessing for sensor placement."""
 
 from abc import ABC, abstractmethod
@@ -7,6 +13,7 @@ from enum import Enum, auto
 
 import numpy as np
 import numpy.typing as npt
+from scipy.spatial.distance import pdist
 
 from pyvale.dataio.simdata import EMeshType, SimData
 from pyvale.sensorsim.enums import EDim
@@ -26,6 +33,29 @@ class IConstraintInput(ABC):
     @abstractmethod
     def eval(self, sensor_data: Mapping[str, SensorData]) -> npt.NDArray[np.float64]:
         """Return constraint residuals. Each residual must be nonpositive."""
+
+
+@dataclass(slots=True, kw_only=True)
+class ConstraintSensorSeparation(IConstraintInput):
+    """Reject co-location and enforce an optional minimum distance.
+
+    Positions across all arrays must share a coordinate frame and units.
+    """
+
+    min_distance: float = 0.0
+
+    def eval(self, sensor_data: Mapping[str, SensorData]) -> npt.NDArray[np.float64]:
+        if not np.isfinite(self.min_distance) or self.min_distance < 0:
+            raise ValueError("min_distance must be finite and nonnegative.")
+        positions = [
+            data.positions for data in sensor_data.values() if data.positions is not None
+        ]
+        if not positions:
+            return np.empty(0, dtype=np.float64)
+        distances = pdist(np.concatenate(positions))
+        if self.min_distance == 0:
+            return (distances == 0).astype(np.float64)
+        return self.min_distance - distances
 
 
 @dataclass(slots=True, kw_only=True)

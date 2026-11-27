@@ -1,10 +1,15 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
 """Deterministic search algorithms for discrete sensor sites."""
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import Enum, auto
-from itertools import combinations, islice
-from math import comb
+from itertools import combinations
 
 
 class EOptStopCond(Enum):
@@ -13,6 +18,7 @@ class EOptStopCond(Enum):
     SENSOR_COUNT_REACHED = auto()
     OBJECTIVE_TARGET_REACHED = auto()
     INVENTORY_EXHAUSTED = auto()
+    SENSOR_LIMIT_REACHED = auto()
     NO_FEASIBLE_MOVE = auto()
     NO_IMPROVEMENT = auto()
     SEARCH_EXHAUSTED = auto()
@@ -20,43 +26,43 @@ class EOptStopCond(Enum):
 
 
 @dataclass(slots=True, kw_only=True)
-class OptimiserGreedyForward:
+class OptGreedyForward:
     """Add sites from an empty layout until a count or objective target is met."""
 
-    max_iterations: int
     num_sensors: int | None = None
     target_objective: float | None = None
+    max_sensors: int | None = None
 
 
 @dataclass(slots=True, kw_only=True)
-class OptimiserGreedyBackward:
+class OptGreedyBackward:
     """Remove sites from the installed layout until the target count is met."""
 
-    max_iterations: int
     num_sensors: int
 
 
 @dataclass(slots=True, kw_only=True)
-class OptimiserExchange:
+class OptExchange:
     """Improve the installed layout by swapping one site at a time."""
 
     max_iterations: int
 
 
 @dataclass(slots=True, kw_only=True)
-class OptimiserExhaustive:
-    """Test fixed-count combinations in candidate order."""
+class OptExhaustive:
+    """Test all permitted combinations unless an iteration limit is supplied.
 
-    max_iterations: int
-    num_sensors: int
+    Supply an exact count or an ascending range with step one. With a target
+    and no explicit count, search from one through the available inventory.
+    A target prefers the smallest qualifying layout, then the lowest score.
+    """
+
+    max_iterations: int | None = None
+    num_sensors: int | range | None = None
+    target_objective: float | None = None
 
 
-DiscreteOptimiser = (
-    OptimiserGreedyForward
-    | OptimiserGreedyBackward
-    | OptimiserExchange
-    | OptimiserExhaustive
-)
+OptDiscrete = OptGreedyForward | OptGreedyBackward | OptExchange | OptExhaustive
 Layout = tuple[int, ...]
 ScoreLayout = Callable[[Layout], float | None]
 
@@ -87,7 +93,7 @@ def _select_best_layout(
 
 
 def _search_forward(
-    optimiser: OptimiserGreedyForward,
+    optimiser: OptGreedyForward,
     *,
     num_sites: int,
     inventory: int,
@@ -96,7 +102,9 @@ def _search_forward(
     current_sites: Layout = ()
     best: _ScoredLayout | None = None
 
-    for iteration in range(1, optimiser.max_iterations + 1):
+    max_sensors = optimiser.max_sensors
+    count_limit = inventory if max_sensors is None else max_sensors
+    for iteration in range(1, count_limit + 1):
         moves = (
             tuple(sorted((*current_sites, site)))
             for site in range(num_sites)
@@ -122,18 +130,16 @@ def _search_forward(
                 return _SearchResult(
                     best, EOptStopCond.OBJECTIVE_TARGET_REACHED, iteration, True
                 )
-        if len(current_sites) == inventory:
-            return _SearchResult(
-                best, EOptStopCond.INVENTORY_EXHAUSTED, iteration, False
-            )
-
-    return _SearchResult(
-        best, EOptStopCond.ITERATION_LIMIT, optimiser.max_iterations, False
+    stop_condition = (
+        EOptStopCond.INVENTORY_EXHAUSTED
+        if max_sensors is None
+        else EOptStopCond.SENSOR_LIMIT_REACHED
     )
+    return _SearchResult(best, stop_condition, count_limit, False)
 
 
 def _search_backward(
-    optimiser: OptimiserGreedyBackward,
+    optimiser: OptGreedyBackward,
     *,
     initial_sites: Layout,
     score_layout: ScoreLayout,
@@ -145,7 +151,8 @@ def _search_backward(
             return _SearchResult(None, EOptStopCond.NO_FEASIBLE_MOVE, 0, False)
         return _SearchResult(best, EOptStopCond.SENSOR_COUNT_REACHED, 0, True)
 
-    for iteration in range(1, optimiser.max_iterations + 1):
+    num_removals = len(initial_sites) - optimiser.num_sensors
+    for iteration in range(1, num_removals + 1):
         moves = (
             current_sites[:index] + current_sites[index + 1 :]
             for index in range(len(current_sites))
@@ -155,18 +162,11 @@ def _search_backward(
             return _SearchResult(best, EOptStopCond.NO_FEASIBLE_MOVE, iteration, False)
         best = selected
         current_sites = selected.sites
-        if len(current_sites) == optimiser.num_sensors:
-            return _SearchResult(
-                best, EOptStopCond.SENSOR_COUNT_REACHED, iteration, True
-            )
-
-    return _SearchResult(
-        best, EOptStopCond.ITERATION_LIMIT, optimiser.max_iterations, False
-    )
+    return _SearchResult(best, EOptStopCond.SENSOR_COUNT_REACHED, num_removals, True)
 
 
 def _search_exchange(
-    optimiser: OptimiserExchange,
+    optimiser: OptExchange,
     *,
     initial_sites: Layout,
     num_sites: int,
@@ -199,18 +199,44 @@ def _search_exchange(
 
 
 def _search_exhaustive(
-    optimiser: OptimiserExhaustive,
+    optimiser: OptExhaustive,
     *,
     num_sites: int,
+    inventory: int,
     score_layout: ScoreLayout,
 ) -> _SearchResult:
-    total_combinations = comb(num_sites, optimiser.num_sensors)
-    num_iterations = min(total_combinations, optimiser.max_iterations)
-    layouts = combinations(range(num_sites), optimiser.num_sensors)
-    best = _select_best_layout(islice(layouts, num_iterations), score_layout)
-    stop_condition = (
-        EOptStopCond.SEARCH_EXHAUSTED
-        if num_iterations == total_combinations
-        else EOptStopCond.ITERATION_LIMIT
+    count = optimiser.num_sensors
+    if count is None:
+        counts = range(1, min(inventory, num_sites) + 1)
+    elif isinstance(count, range):
+        counts = count
+    else:
+        counts = (count,)
+    layouts = (
+        layout for count in counts for layout in combinations(range(num_sites), count)
     )
-    return _SearchResult(best, stop_condition, num_iterations, best is not None)
+    best: _ScoredLayout | None = None
+    qualifying: _ScoredLayout | None = None
+    target = optimiser.target_objective
+    num_iterations = 0
+    stop_condition = EOptStopCond.SEARCH_EXHAUSTED
+    for layout in layouts:
+        if optimiser.max_iterations == num_iterations:
+            stop_condition = EOptStopCond.ITERATION_LIMIT
+            break
+        num_iterations += 1
+        score = score_layout(layout)
+        if score is None:
+            continue
+        if best is None or score < best.objective:
+            best = _ScoredLayout(layout, score)
+        if target is not None and score <= target:
+            if qualifying is None or (
+                len(layout) == len(qualifying.sites) and score < qualifying.objective
+            ):
+                qualifying = _ScoredLayout(layout, score)
+
+    success = best is not None if target is None else qualifying is not None
+    return _SearchResult(
+        qualifying or best, stop_condition, num_iterations, success
+    )

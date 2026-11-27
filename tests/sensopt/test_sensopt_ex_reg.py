@@ -1,6 +1,14 @@
+# ==============================================================================
+# pyvale: the python validation engine
+# License: MIT
+# Copyright (C) 2025 The Computer Aided Validation Team
+# ==============================================================================
+
 """Regression tests for the first four sensor placement examples."""
 
-from collections.abc import Callable, Mapping
+import runpy
+from collections.abc import Mapping
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -11,16 +19,18 @@ import pyvale.dataio as io
 import pyvale.mooseherder as mh
 import pyvale.sensopt as opt
 import pyvale.sensorsim as sens
-from pyvale.examples.sensopt.ex01_greedy_placement import optimise_placement
-from pyvale.examples.sensopt.ex02_optimal_sensor_count import optimise_sensor_count
-from pyvale.examples.sensopt.ex03_sensor_removal import optimise_removal
-from pyvale.examples.sensopt.ex04_fixed_count_refinement import compare_optimisers
 from pyvale.verif import pointsensscalar
 
 
 @pytest.fixture(scope="module")
 def plate_simulation() -> io.SimData:
     return mh.ExodusLoader(dataset.mechanical_2d_path()).load_all_sim_data()
+
+
+@pytest.fixture
+def prepare_example_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.chdir(tmp_path)
+    return tmp_path / "pyvale-output"
 
 
 # Reference layouts and scores come from direct FE sampling followed by a
@@ -30,36 +40,36 @@ def plate_simulation() -> io.SimData:
     ("example", "expected_xy", "expected_objective", "stop_condition", "iterations"),
     [
         (
-            optimise_placement,
+            "ex01_greedy_placement",
             (
-                (100 / 3, 2700 / 19),
-                (40, 2700 / 19),
-                (140 / 3, 2700 / 19),
-                (160 / 3, 2700 / 19),
-                (60, 2700 / 19),
+                (100 / 3, 1200 / 19),
+                (100 / 3, 1350 / 19),
+                (200 / 3, 1350 / 19),
+                (100 / 3, 1500 / 19),
+                (200 / 3, 1500 / 19),
             ),
-            -0.3957312797885622,
+            -0.005886421993069738,
             opt.EOptStopCond.SENSOR_COUNT_REACHED,
             5,
         ),
         (
-            optimise_sensor_count,
+            "ex02_optimal_sensor_count",
             (
-                (1100 / 13, 150 / 17),
-                (1100 / 13, 600 / 17),
-                (1200 / 13, 1200 / 17),
-                (1100 / 13, 1800 / 17),
-                (1100 / 13, 1950 / 17),
-                (1100 / 13, 2400 / 17),
+                (1000 / 13, 150 / 17),
+                (1100 / 13, 1650 / 17),
+                (100 / 13, 1800 / 17),
+                (200 / 13, 1800 / 17),
+                (800 / 13, 1800 / 17),
+                (900 / 13, 1800 / 17),
             ),
-            0.046706516484125146,
+            0.0012266867750345644,
             opt.EOptStopCond.OBJECTIVE_TARGET_REACHED,
             6,
         ),
         (
-            optimise_removal,
-            ((25, 30), (75, 30), (75, 60), (25, 90), (75, 120)),
-            0.0782752608338788,
+            "ex03_sensor_removal",
+            ((50, 30), (75, 30), (50, 60), (50, 90), (50, 120)),
+            0.0007655738886931121,
             opt.EOptStopCond.SENSOR_COUNT_REACHED,
             7,
         ),
@@ -67,19 +77,21 @@ def plate_simulation() -> io.SimData:
     ids=("greedy-signal", "target-rmse", "backward-removal"),
 )
 def test_placement_examples_match_reference(
-    plate_simulation: io.SimData,
-    example: Callable[[io.SimData], opt.OptimisationResult],
+    prepare_example_output: Path,
+    example: str,
     expected_xy: tuple[tuple[float, float], ...],
     expected_objective: float,
     stop_condition: opt.EOptStopCond,
     iterations: int,
 ) -> None:
-    result = example(plate_simulation)
+    namespace = runpy.run_module(f"pyvale.examples.sensopt.{example}")
+    result = namespace["result"]
+    assert isinstance(result, opt.OptResult)
 
     expected_xyz = np.column_stack(
         (np.asarray(expected_xy), np.zeros(len(expected_xy)))
     )
-    positions = result.sensor_data["displacement"].positions
+    positions = result.sensor_data["strain"].positions
     assert positions is not None
     np.testing.assert_allclose(positions, expected_xyz, rtol=0, atol=1e-10)
     np.testing.assert_allclose(
@@ -88,28 +100,74 @@ def test_placement_examples_match_reference(
     assert result.stop_condition is stop_condition
     assert result.num_iterations == iterations
     assert result.success
+    image_path = prepare_example_output / f"sensopt_{example}" / "sensor_locations.png"
+    assert image_path.stat().st_size > 0
+    if example == "ex01_greedy_placement":
+        peak_result = namespace["results"]["peak_abs"]
+        peak_positions = peak_result.sensor_data["strain"].positions
+        assert not np.array_equal(positions, peak_positions)
+        assert (image_path.parent / "peak_abs_sensor_locations.png").is_file()
+        assert (image_path.parent / "final_mean_sensor_locations.png").is_file()
 
 
 @pytest.mark.data
 def test_exchange_example_matches_enumerated_optimum(
-    plate_simulation: io.SimData,
+    prepare_example_output: Path,
 ) -> None:
-    exchange, exhaustive = compare_optimisers(plate_simulation, seed=123)
-    expected_positions = np.array(
-        [[75.0, 30.0, 0.0], [75.0, 60.0, 0.0], [75.0, 120.0, 0.0]]
+    namespace = runpy.run_module("pyvale.examples.sensopt.ex04_fixed_count_refinement")
+    exchange = namespace["exchange"]
+    exhaustive = namespace["exhaustive"]
+    assert isinstance(exchange, opt.OptResult)
+    assert isinstance(exhaustive, opt.OptResult)
+    reference_layouts = (
+        (
+            exchange,
+            [[25.0, 30.0, 0.0], [75.0, 30.0, 0.0], [50.0, 120.0, 0.0]],
+            0.0007402701225393062,
+        ),
+        (
+            exhaustive,
+            [[50.0, 30.0, 0.0], [25.0, 120.0, 0.0], [75.0, 120.0, 0.0]],
+            0.0007402701223788911,
+        ),
     )
-    expected_rmse = 0.0736011970306538
-    for result in (exchange, exhaustive):
+    for result, expected_positions, expected_rmse in reference_layouts:
         np.testing.assert_array_equal(
-            result.sensor_data["displacement"].positions, expected_positions
+            result.sensor_data["strain"].positions, expected_positions
         )
         np.testing.assert_allclose(result.objective_values, [expected_rmse], rtol=1e-10)
         assert result.success
 
+    assert exhaustive.objective_values[0] <= exchange.objective_values[0]
     assert exchange.stop_condition is opt.EOptStopCond.NO_IMPROVEMENT
-    assert exchange.num_iterations == 4
+    assert exchange.num_iterations == 2
     assert exhaustive.stop_condition is opt.EOptStopCond.SEARCH_EXHAUSTED
     assert exhaustive.num_iterations == 220
+    exhaustive_results = namespace["exhaustive_results"]
+    range_result = exhaustive_results["exhaustive_range"]
+    target_result = exhaustive_results["exhaustive_target"]
+    for result in (range_result, target_result):
+        assert result.success
+        assert result.stop_condition is opt.EOptStopCond.SEARCH_EXHAUSTED
+        assert result.num_iterations == 298
+    np.testing.assert_array_equal(
+        range_result.sensor_data["strain"].positions,
+        exhaustive.sensor_data["strain"].positions,
+    )
+    target_positions = target_result.sensor_data["strain"].positions
+    assert target_positions is not None
+    assert target_positions.shape == (1, 3)
+    assert exhaustive.objective_values[0] < target_result.objective_values[0]
+    assert target_result.objective_values[0] <= namespace["target_rmse"]
+    output_path = prepare_example_output / "sensopt_ex04_fixed_count_refinement"
+    for name in namespace["results"]:
+        assert (output_path / f"{name}_sensor_locations.png").stat().st_size > 0
+    max_error_result = namespace["exhaustive_max_error"]
+    assert max_error_result.stop_condition is opt.EOptStopCond.SEARCH_EXHAUSTED
+    assert not np.array_equal(
+        exhaustive.sensor_data["strain"].positions,
+        max_error_result.sensor_data["strain"].positions,
+    )
 
 
 @pytest.mark.data
@@ -138,7 +196,7 @@ def analytic_array() -> sens.SensorsPoint:
     )
 
 
-def test_iteration_limit_returns_partial_layout(
+def test_sensor_limit_returns_partial_layout(
     analytic_array: sens.SensorsPoint,
 ) -> None:
     sites = np.array([[0.25, 0.25, 0.0], [0.5, 0.5, 0.0], [0.75, 0.75, 0.0]])
@@ -148,14 +206,14 @@ def test_iteration_limit_returns_partial_layout(
             positions={"temperature": sites},
             position_axes={"temperature": opt.EDesignAxis.DISC},
         ),
-        objectives=(opt.ObjSignal(sensor_keys=("temperature",)),),
-        optimiser=opt.OptimiserGreedyForward(num_sensors=2, max_iterations=1),
+        objectives=(opt.ObjSignalRMS(sensor_keys=("temperature",)),),
+        optimiser=opt.OptGreedyForward(target_objective=1.0, max_sensors=1),
     ).optimise()
 
     positions = result.sensor_data["temperature"].positions
     assert positions is not None
     assert positions.shape == (1, 3)
-    assert result.stop_condition is opt.EOptStopCond.ITERATION_LIMIT
+    assert result.stop_condition is opt.EOptStopCond.SENSOR_LIMIT_REACHED
     assert result.num_iterations == 1
     assert not result.success
 
@@ -177,6 +235,50 @@ class MeanMeasurement(opt.IObjFunc):
         return np.array(measurements.mean(), dtype=np.float64)
 
 
+@pytest.mark.parametrize(
+    (
+        "num_sensors",
+        "max_iterations",
+        "expected_count",
+        "expected_iterations",
+        "expected_stop",
+    ),
+    [
+        (None, None, 1, 6, opt.EOptStopCond.SEARCH_EXHAUSTED),
+        (range(1, 3), 4, 1, 4, opt.EOptStopCond.ITERATION_LIMIT),
+        (range(2, 3), None, 2, 3, opt.EOptStopCond.SEARCH_EXHAUSTED),
+        (2, None, 2, 3, opt.EOptStopCond.SEARCH_EXHAUSTED),
+    ],
+)
+def test_exhaustive_target_prefers_smallest_qualifying_layout(
+    analytic_array: sens.SensorsPoint,
+    num_sensors: int | range | None,
+    max_iterations: int | None,
+    expected_count: int,
+    expected_iterations: int,
+    expected_stop: opt.EOptStopCond,
+) -> None:
+    sites = np.array([[0.25, 0.25, 0.0], [0.5, 0.5, 0.0], [0.75, 0.75, 0.0]])
+    result = opt.SensorOptEngine(
+        sensor_arrays={"temperature": analytic_array},
+        design_space=opt.DesignSpace(
+            positions={"temperature": sites},
+            position_axes={"temperature": opt.EDesignAxis.DISC},
+        ),
+        objectives=(opt.ObjSignalRMS(sensor_keys=("temperature",)),),
+        optimiser=opt.OptExhaustive(
+            num_sensors=num_sensors, target_objective=0.0, max_iterations=max_iterations
+        ),
+    ).optimise()
+
+    positions = result.sensor_data["temperature"].positions
+    assert positions is not None
+    assert positions.shape == (expected_count, 3)
+    assert result.num_iterations == expected_iterations
+    assert result.stop_condition is expected_stop
+    assert result.success
+
+
 def test_seeded_search_leaves_caller_array_and_rng_intact(
     analytic_array: sens.SensorsPoint,
 ) -> None:
@@ -192,7 +294,7 @@ def test_seeded_search_leaves_caller_array_and_rng_intact(
             position_axes={"temperature": opt.EDesignAxis.DISC},
         ),
         objectives=(MeanMeasurement(),),
-        optimiser=opt.OptimiserExhaustive(num_sensors=1, max_iterations=2),
+        optimiser=opt.OptExhaustive(num_sensors=1),
         seed=123,
     )
 

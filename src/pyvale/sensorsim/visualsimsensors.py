@@ -305,16 +305,11 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
 
     pv_plot = create_pv_plotter(vis_opts)
 
-    if perturbed_sens_pos is not None:
-        sensor_pos_pert = perturbed_sens_pos
-    else:
-        # Can be None if there no field errors perturbing the sensor position
-        sensor_pos_pert = (
-            sensor_array
-            .get_error_integrator()
-            .get_sens_data_accumulated()
-            .positions
-        )
+    sensor_pos_pert = perturbed_sens_pos
+    if sensor_pos_pert is None and vis_opts.show_perturbed_pos:
+        error_integrator = sensor_array.get_error_integrator()
+        if error_integrator is not None:
+            sensor_pos_pert = error_integrator.get_sens_data_accumulated().positions
 
     if sensor_pos_pert is not None:
         pv_plot = add_sensor_points_pert(pv_plot,sensor_pos_pert,vis_opts)
