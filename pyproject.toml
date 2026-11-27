@@ -32,7 +32,7 @@ dependencies = [
   "shapely>=2.1.2",
   "h5py",
   "pooch>=1.8.2",
-  "riley-raster==2026.11.2",
+  "riley-raster==2026.11.3",
   "gmsh>=4.15.2",
   "rabbit-fem>=2026.11.0",
   "pymoo>=0.6.2",
