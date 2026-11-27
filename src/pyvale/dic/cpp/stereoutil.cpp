@@ -5,6 +5,7 @@
 // ================================================================================
 
 #define _USE_MATH_DEFINES
+#include <cassert>
 #include <cmath>
 
 // dic header files
