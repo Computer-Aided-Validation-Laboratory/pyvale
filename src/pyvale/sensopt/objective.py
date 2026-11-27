@@ -15,6 +15,7 @@ from math import log, log1p
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.sensopt.designspace import _calculate_sensor_cost
 from pyvale.sensopt.fieldrecon import FieldReconNearest, IFieldRecon
 from pyvale.sensorsim.enums import EExpSimKeys
 from pyvale.sensorsim.sensordata import SensorData
@@ -95,11 +96,18 @@ class ObjNormLog1p(IObjNormalisation):
 
 @dataclass(slots=True, kw_only=True)
 class ObjTerm:
-    """One objective, its optional fixed normalisation and its weight."""
+    """One objective, its optional fixed normalisation and its weight.
+
+    If no input array has selected sensors, use empty_score before normalising.
+    Built-in signal and reconstruction objectives supply their own sensor keys.
+    Custom objectives using empty_score must specify sensor_keys on the term.
+    """
 
     objective: IObjFunc
     weight: float = 1.0
     normalisation: IObjNormalisation | None = None
+    empty_score: float | None = None
+    sensor_keys: tuple[str, ...] | None = None
 
 
 @dataclass(slots=True, kw_only=True)
@@ -125,15 +133,7 @@ class ObjSensorCost(IObjFunc):
         experiment_data: ExperimentData,
         scenario_keys: tuple[str, ...],
     ) -> npt.NDArray[np.float64]:
-        cost = 0.0
-        for key, unit_cost in self.unit_costs.items():
-            if not np.isfinite(unit_cost) or unit_cost < 0:
-                raise ValueError("Sensor unit costs must be finite and nonnegative.")
-            if key in sensor_data:
-                positions = sensor_data[key].positions
-                if positions is None:
-                    raise ValueError(f"Sensor array {key!r} requires positions.")
-                cost += len(positions) * unit_cost
+        cost = _calculate_sensor_cost(sensor_data, self.unit_costs)
         return np.array(cost, dtype=np.float64)
 
 

@@ -4,7 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-"""Regression tests for the first four sensor placement examples."""
+"""Regression tests for the sensor placement examples."""
 
 import runpy
 from collections.abc import Mapping
@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 import pytest
+from scipy.spatial.distance import pdist
 
 import pyvale.data as dataset
 import pyvale.dataio as io
@@ -187,6 +188,85 @@ def test_candidate_filter_excludes_hole_and_exterior(
     )
 
 
+@pytest.mark.data
+@pytest.mark.parametrize(
+    ("example", "expected_counts", "expected_score", "expected_stop"),
+    [
+        (
+            "ex05_temperature_sensor_mix",
+            {"precision": 1, "economy": 2},
+            3.87348,
+            opt.EOptStopCond.SENSOR_COUNT_REACHED,
+        ),
+        (
+            "ex06_thermomechanical_placement",
+            {"temperature": 1, "displacement": 2},
+            9.49494,
+            opt.EOptStopCond.SEARCH_EXHAUSTED,
+        ),
+    ],
+)
+def test_joint_placement_examples(
+    prepare_example_output: Path,
+    example: str,
+    expected_counts: dict[str, int],
+    expected_score: float,
+    expected_stop: opt.EOptStopCond,
+) -> None:
+    namespace = runpy.run_module(f"pyvale.examples.sensopt.{example}")
+    result = namespace["result"]
+    assert isinstance(result, opt.OptResult)
+    assert result.success
+    assert result.stop_condition is expected_stop
+    np.testing.assert_allclose(result.objective_values, [expected_score], rtol=2e-6)
+    assert result.sensor_data.keys() == expected_counts.keys()
+
+    positions: list[npt.NDArray[np.float64]] = []
+    output_path = prepare_example_output / f"sensopt_{example}"
+    for key, count in expected_counts.items():
+        selected = result.sensor_data[key].positions
+        assert selected is not None
+        assert selected.shape == (count, 3)
+        positions.append(selected)
+        assert (output_path / f"{key}_sensor_locations.png").stat().st_size > 0
+    distances = pdist(np.concatenate(positions))
+    assert np.all(distances > 0)
+    assert np.all(distances >= namespace.get("minimum_spacing", 0.0))
+    if "budget" in namespace:
+        assert namespace["cost"] <= namespace["budget"]
+
+    for prefix, layout in namespace["layouts"].items():
+        if not prefix:
+            continue
+        assert layout.success
+        assert layout.stop_condition is opt.EOptStopCond.SENSOR_COUNT_REACHED
+        positions = [data.positions for data in layout.sensor_data.values()]
+        assert sum(len(selected) for selected in positions) == 3
+        distances = pdist(np.concatenate(positions))
+        assert np.all(distances > 0)
+        assert np.all(distances >= namespace.get("minimum_spacing", 0.0))
+        for key in layout.sensor_data:
+            assert (output_path / f"{prefix}{key}_sensor_locations.png").stat().st_size > 0
+
+    if "fixed_start_result" in namespace:
+        fixed_start = namespace["fixed_start_result"]
+        assert fixed_start.num_start_layouts == 1
+        assert fixed_start.num_iterations == 2
+        np.testing.assert_array_equal(
+            fixed_start.sensor_data["precision"].positions, namespace["sites"][:1]
+        )
+    else:
+        greedy_results = namespace["greedy_results"]
+        assert greedy_results["exhaustive_start"].num_start_layouts == (
+            len(namespace["sites"]) ** 2
+        )
+        assert greedy_results["random_start"].num_start_layouts == 12
+        assert greedy_results["exhaustive_start"].num_iterations == 1
+        assert greedy_results["random_start"].num_iterations == 1
+        assert greedy_results["empty_score"].num_start_layouts == 0
+        assert greedy_results["empty_score"].num_iterations == 3
+
+
 @pytest.fixture
 def analytic_array() -> sens.SensorsPoint:
     simulation = pointsensscalar.simdata_2d_analytic()
@@ -194,6 +274,118 @@ def analytic_array() -> sens.SensorsPoint:
     return pointsensscalar.sens_array_noerrs(
         simulation, sens.SensorData(positions=nominal_positions), sens.EDim.TWOD
     )
+
+
+class CountStartLayouts(opt.IConstraintInput):
+    def __init__(self) -> None:
+        self.layouts: list[tuple[float, ...]] = []
+
+    def eval(
+        self, sensor_data: Mapping[str, sens.SensorData]
+    ) -> npt.NDArray[np.float64]:
+        layout: list[float] = []
+        for key in ("first", "second"):
+            positions = sensor_data[key].positions
+            assert positions is not None
+            layout.extend(positions[:, 0].tolist())
+        self.layouts.append(tuple(layout))
+        return np.zeros(1, dtype=np.float64)
+
+
+def test_random_start_tests_distinct_layouts_and_repeats_with_seed(
+    analytic_array: sens.SensorsPoint,
+) -> None:
+    sites = np.array([[0.25, 0.25, 0.0], [0.5, 0.5, 0.0], [0.75, 0.75, 0.0]])
+    counter = CountStartLayouts()
+    engine = opt.SensorOptEngine(
+        sensor_arrays={"first": analytic_array, "second": analytic_array},
+        design_space=opt.DesignSpace(
+            positions={"first": sites, "second": sites},
+            position_axes=dict.fromkeys(("first", "second"), opt.EDesignAxis.DISC),
+            input_constraints=(counter, opt.ConstraintSensorSeparation()),
+        ),
+        objectives=(opt.ObjSensorCost(unit_costs={"first": 1.0, "second": 1.0}),),
+        optimiser=opt.OptGreedyForward(
+            num_sensors=3,
+            start=opt.OptStartRandom(
+                counts={"first": 2, "second": 1}, num_layouts=20
+            ),
+        ),
+        seed=123,
+    )
+    result = engine.optimise()
+    draws = counter.layouts.copy()
+    assert result.success
+    assert result.num_iterations == 0
+    assert result.num_start_layouts == len(draws) == len(set(draws)) == 9
+    counter.layouts.clear()
+    engine.optimise()
+    assert counter.layouts == draws
+
+
+def test_greedy_start_reports_infeasibility(
+    analytic_array: sens.SensorsPoint,
+) -> None:
+    sites = np.array([[0.25, 0.25, 0.0]])
+    engine = opt.SensorOptEngine(
+        sensor_arrays={"first": analytic_array, "second": analytic_array},
+        design_space=opt.DesignSpace(
+            positions={"first": sites, "second": sites},
+            position_axes=dict.fromkeys(("first", "second"), opt.EDesignAxis.DISC),
+            input_constraints=(opt.ConstraintSensorSeparation(),),
+        ),
+        objectives=(opt.ObjSensorCost(unit_costs={"first": 1.0, "second": 1.0}),),
+        optimiser=opt.OptGreedyForward(
+            num_sensors=2,
+            start=opt.OptStartExhaustive(counts={"first": 1, "second": 1}),
+        ),
+    )
+    result = engine.optimise()
+    assert result.stop_condition is opt.EOptStopCond.NO_FEASIBLE_START
+    assert result.num_start_layouts == 1
+    assert result.num_iterations == 0
+    assert not result.success
+
+    engine.optimiser = opt.OptGreedyForward(
+        num_sensors=2, start=opt.OptStartLayout(sites={"first": (0,), "second": (0,)})
+    )
+    with pytest.raises(ValueError, match="starting layout violates constraints"):
+        engine.optimise()
+
+
+@pytest.mark.parametrize(
+    ("sensor_keys", "expected"), [(("second",), 4.0), (("first", "second"), 0.0)]
+)
+def test_empty_score_is_used_only_when_all_term_arrays_are_empty(
+    analytic_array: sens.SensorsPoint,
+    sensor_keys: tuple[str, ...],
+    expected: float,
+) -> None:
+    sites = np.array([[0.25, 0.25, 0.0]])
+    result = opt.SensorOptEngine(
+        sensor_arrays={"first": analytic_array, "second": analytic_array},
+        design_space=opt.DesignSpace(
+            positions={"first": sites, "second": sites},
+            position_axes=dict.fromkeys(("first", "second"), opt.EDesignAxis.DISC),
+        ),
+        objectives=opt.ObjWeighted(
+            terms=(
+                opt.ObjTerm(
+                    objective=opt.ObjSensorCost(unit_costs={"second": 1.0}),
+                    sensor_keys=sensor_keys,
+                    empty_score=8.0,
+                    normalisation=opt.ObjNormAffine(gain=0.25),
+                    weight=2.0,
+                ),
+            )
+        ),
+        optimiser=opt.OptGreedyForward(
+            target_objective=8.0, start=opt.OptStartLayout(sites={"first": (0,)})
+        ),
+    ).optimise()
+    assert result.stop_condition is opt.EOptStopCond.OBJECTIVE_TARGET_REACHED
+    assert result.num_iterations == 0
+    np.testing.assert_array_equal(result.objective_values, [expected])
 
 
 def test_sensor_limit_returns_partial_layout(
@@ -207,7 +399,7 @@ def test_sensor_limit_returns_partial_layout(
             position_axes={"temperature": opt.EDesignAxis.DISC},
         ),
         objectives=(opt.ObjSignalRMS(sensor_keys=("temperature",)),),
-        optimiser=opt.OptGreedyForward(target_objective=1.0, max_sensors=1),
+        optimiser=opt.OptGreedyForward(target_objective=-1e100, max_sensors=1),
     ).optimise()
 
     positions = result.sensor_data["temperature"].positions
@@ -216,6 +408,63 @@ def test_sensor_limit_returns_partial_layout(
     assert result.stop_condition is opt.EOptStopCond.SENSOR_LIMIT_REACHED
     assert result.num_iterations == 1
     assert not result.success
+
+
+def test_weighted_objective_normalises_each_term_and_skips_zero_weights(
+    analytic_array: sens.SensorsPoint,
+) -> None:
+    sites = np.array([[0.25, 0.25, 0.0]])
+    first_cost = opt.ObjSensorCost(unit_costs={"first": 2.0})
+    combined_cost = opt.ObjSensorCost(unit_costs={"first": 2.0, "second": 4.0})
+    objective = opt.ObjWeighted(
+        terms=(
+            opt.ObjTerm(
+                objective=first_cost,
+                weight=2.0,
+                normalisation=opt.ObjNormAffine(gain=0.5, offset=1.0),
+            ),
+            opt.ObjTerm(
+                objective=combined_cost,
+                normalisation=opt.ObjNormLog(reference=3.0),
+            ),
+            opt.ObjTerm(
+                objective=combined_cost,
+                normalisation=opt.ObjNormLog1p(reference=2.0),
+            ),
+            opt.ObjTerm(
+                objective=opt.ObjSignalRMS(sensor_keys=("missing",)), weight=0.0
+            ),
+        )
+    )
+    result = opt.SensorOptEngine(
+        sensor_arrays={"first": analytic_array, "second": analytic_array},
+        design_space=opt.DesignSpace(
+            positions={"first": sites, "second": sites},
+            position_axes={"first": opt.EDesignAxis.DISC, "second": opt.EDesignAxis.DISC},
+        ),
+        objectives=objective,
+        optimiser=opt.OptExhaustive(num_sensors=2),
+    ).optimise()
+
+    assert result.success
+    np.testing.assert_allclose(result.objective_values, [4.0 + np.log(8.0)])
+
+
+@pytest.mark.parametrize(
+    ("distance", "minimum_distance", "feasible"),
+    [(0.0, 0.0, False), (1.0, 0.0, True), (1.0, 2.0, False), (2.0, 2.0, True)],
+)
+def test_separation_applies_across_arrays(
+    distance: float, minimum_distance: float, feasible: bool
+) -> None:
+    constraint = opt.ConstraintSensorSeparation(min_distance=minimum_distance)
+    residuals = constraint.eval(
+        {
+            "first": sens.SensorData(positions=np.array([[0.0, 0.0, 0.0]])),
+            "second": sens.SensorData(positions=np.array([[distance, 0.0, 0.0]])),
+        }
+    )
+    assert bool(np.all(residuals <= 0)) is feasible
 
 
 class MeanMeasurement(opt.IObjFunc):

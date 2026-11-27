@@ -6,7 +6,7 @@
 
 """Evaluate discrete placements on engine-owned sensor arrays."""
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from numbers import Integral
 
@@ -14,7 +14,15 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.sensopt.designspace import DesignSpace, EDesignAxis
-from pyvale.sensopt.objective import IObjFunc, ObjTerm, ObjWeighted
+from pyvale.sensopt.objective import (
+    IObjFunc,
+    ObjFieldRecon,
+    ObjSignal,
+    ObjSignalPeakAbs,
+    ObjSignalRMS,
+    ObjTerm,
+    ObjWeighted,
+)
 from pyvale.sensopt.optimiser import (
     EOptStopCond,
     Layout,
@@ -23,10 +31,16 @@ from pyvale.sensopt.optimiser import (
     OptExhaustive,
     OptGreedyBackward,
     OptGreedyForward,
+    OptStartExhaustive,
+    OptStartLayout,
+    _enumerate_starts,
+    _sample_starts,
+    _ScoredLayout,
     _search_backward,
     _search_exchange,
     _search_exhaustive,
     _search_forward,
+    _SearchResult,
 )
 from pyvale.sensorsim.enums import EExpSimKeys
 from pyvale.sensorsim.sensorarray import ISensorArray
@@ -53,11 +67,14 @@ _SUPPORTED_OUTPUTS = _MEASURED_OUTPUTS | frozenset(
 class OptResult:
     """Best layout found and the reason the optimiser stopped.
 
-    Objective values have shape (objective,). An empty layout and score mean no
-    feasible candidate was evaluated. Success means the layout met the requested
-    count or objective target, where applicable. An iteration-limited exchange or
+    Objective values contain the single score used for search. An empty layout
+    and score mean no feasible candidate was evaluated. Success means the layout
+    met the requested count or objective target. An iteration-limited exchange or
     exhaustive search can return a feasible layout with success and an incomplete
     search reported by the stop condition.
+
+    num_start_layouts counts layouts considered before greedy additions,
+    including rejected layouts. num_iterations counts the subsequent rounds.
     """
 
     sensor_data: dict[str, SensorData]
@@ -65,6 +82,7 @@ class OptResult:
     stop_condition: EOptStopCond
     num_iterations: int
     success: bool
+    num_start_layouts: int = 0
 
 
 @dataclass(slots=True, kw_only=True)
@@ -96,6 +114,7 @@ class SensorOptEngine:
         nominal_data: dict[str, SensorData] = {}
         inventories: dict[str, int] = {}
         array_sites: list[npt.NDArray[np.float64]] = []
+        site_domains: dict[str, range] = {}
         site_keys: list[str] = []
         installed_sites: list[int] = []
         available_count = 0
@@ -114,7 +133,7 @@ class SensorOptEngine:
                 or len(positions) == 0
                 or not np.all(np.isfinite(positions))
             ):
-                raise ValueError(f"Array {key!r} must define finite nominal XYZ positions.")
+                raise ValueError(f"Array {key!r} needs finite nominal XYZ positions.")
             if data.angles is not None and len(data.angles) != 1:
                 raise ValueError("Discrete placement requires a shared rotation per array.")
             if isinstance(optimiser, (OptGreedyBackward, OptExchange)):
@@ -129,10 +148,13 @@ class SensorOptEngine:
                             f"Installed positions for {key!r} must match distinct sites."
                         )
                     array_installed.add(site_index)
-                installed_sites.extend(len(site_keys) + index for index in array_installed)
+                installed_sites.extend(
+                    len(site_keys) + index for index in array_installed
+                )
             nominal_data[key] = data
             inventories[key] = len(positions)
             available_count += min(len(sites), len(positions))
+            site_domains[key] = range(len(site_keys), len(site_keys) + len(sites))
             site_keys.extend([key] * len(sites))
             array_sites.append(sites)
 
@@ -156,11 +178,17 @@ class SensorOptEngine:
             if max_sensors is not None:
                 if optimiser.target_objective is None:
                     raise ValueError("max_sensors requires target_objective.")
-                if not _is_integer(max_sensors, minimum=1) or max_sensors > available_count:
-                    raise ValueError("max_sensors must be within the available sensor count.")
-        if isinstance(optimiser, OptExhaustive):
-            if optimiser.num_sensors is None and optimiser.target_objective is None:
-                raise ValueError("Specify num_sensors or target_objective.")
+                if (
+                    not _is_integer(max_sensors, minimum=1)
+                    or max_sensors > available_count
+                ):
+                    raise ValueError("max_sensors must be within the available count.")
+        if (
+            isinstance(optimiser, OptExhaustive)
+            and optimiser.num_sensors is None
+            and optimiser.target_objective is None
+        ):
+            raise ValueError("Specify num_sensors or target_objective.")
         if isinstance(optimiser, (OptGreedyForward, OptExhaustive)):
             target = optimiser.target_objective
             if target is not None and not np.isfinite(target):
@@ -169,7 +197,7 @@ class SensorOptEngine:
             count = optimiser.num_sensors
             if isinstance(optimiser, OptGreedyBackward) and count is None:
                 raise ValueError("This optimiser requires num_sensors.")
-            if isinstance(optimiser, OptExhaustive) and isinstance(count, range):
+            if isinstance(count, range):
                 if count.step != 1 or count.start >= count.stop:
                     raise ValueError("num_sensors must be a nonempty range with step 1.")
                 if count.start < 1 or count.stop - 1 > available_count:
@@ -195,6 +223,23 @@ class SensorOptEngine:
             if len(self.objectives) != 1:
                 raise ValueError("Supply one objective or an ObjWeighted combination.")
             terms = (ObjTerm(objective=self.objectives[0]),)
+
+        empty_score_keys: list[tuple[str, ...]] = []
+        for term in terms:
+            if term.empty_score is None:
+                empty_score_keys.append(())
+                continue
+            if not np.isfinite(term.empty_score):
+                raise ValueError("empty_score must be finite.")
+            keys = term.sensor_keys
+            if keys is None and isinstance(
+                term.objective,
+                (ObjFieldRecon, ObjSignal, ObjSignalPeakAbs, ObjSignalRMS),
+            ):
+                keys = term.objective.sensor_keys
+            if not keys or not self.sensor_arrays.keys() >= set(keys):
+                raise ValueError("empty_score requires valid input sensor keys.")
+            empty_score_keys.append(keys)
 
         required_outputs = frozenset().union(
             *(term.objective.get_required_outputs() for term in terms)
@@ -283,15 +328,22 @@ class SensorOptEngine:
                     )
 
             score = 0.0
-            for term in terms:
-                values = term.objective.eval(
-                    sensor_data=sensor_data,
-                    experiment_data=experiment_data,
-                    scenario_keys=(_NOMINAL_SCENARIO,),
-                )
-                if not isinstance(values, np.ndarray) or values.shape not in ((), (1, 1)):
-                    raise ValueError("An objective must return a scalar or a (1, 1) array.")
-                value = float(values.item())
+            for term, keys in zip(terms, empty_score_keys, strict=True):
+                if term.empty_score is not None and not any(
+                    key in sensor_data for key in keys
+                ):
+                    value = term.empty_score
+                else:
+                    values = term.objective.eval(
+                        sensor_data=sensor_data,
+                        experiment_data=experiment_data,
+                        scenario_keys=(_NOMINAL_SCENARIO,),
+                    )
+                    if not isinstance(values, np.ndarray) or values.shape not in (
+                        (), (1, 1)
+                    ):
+                        raise ValueError("Return a scalar or a (1, 1) objective array.")
+                    value = float(values.item())
                 if not np.isfinite(value):
                     raise ValueError("An objective must return a finite value.")
                 if term.normalisation is not None:
@@ -301,13 +353,64 @@ class SensorOptEngine:
                 raise ValueError("The combined objective score must be finite.")
             return score
 
+        num_start_layouts = 0
         if isinstance(optimiser, OptGreedyForward):
-            search = _search_forward(
-                optimiser,
-                num_sites=len(all_sites),
-                inventory=available_count,
-                score_layout=score_layout,
-            )
+            start = optimiser.start
+            best_start: _ScoredLayout | None = None
+            if start is not None:
+                starts: Iterable[Layout]
+                if isinstance(start, OptStartLayout):
+                    counts = {key: len(indices) for key, indices in start.sites.items()}
+                else:
+                    counts = start.counts
+                count_limit = optimiser.num_sensors or optimiser.max_sensors
+                domains = _get_start_domains(
+                    counts, site_domains, inventories, count_limit
+                )
+
+                if isinstance(start, OptStartLayout):
+                    indices: list[int] = []
+                    for key, local_sites in start.sites.items():
+                        domain = site_domains[key]
+                        if any(
+                            not _is_integer(site, minimum=0) or site >= len(domain)
+                            for site in local_sites
+                        ) or len(set(local_sites)) != len(local_sites):
+                            raise ValueError(
+                                f"Invalid or duplicate starting sites for {key!r}."
+                            )
+                        indices.extend(domain[int(site)] for site in local_sites)
+                    starts = (tuple(sorted(indices)),)
+                elif isinstance(start, OptStartExhaustive):
+                    starts = _enumerate_starts(domains)
+                else:
+                    if not _is_integer(start.num_layouts, minimum=1):
+                        raise ValueError("num_layouts must be a positive integer.")
+                    random_seed = None if self.seed is None else int(self.seed)
+                    starts = _sample_starts(
+                        domains, int(start.num_layouts), random_seed
+                    )
+
+                for layout in starts:
+                    num_start_layouts += 1
+                    score = score_layout(layout)
+                    if score is not None and (
+                        best_start is None or score < best_start.objective
+                    ):
+                        best_start = _ScoredLayout(layout, score)
+
+            if start is not None and best_start is None:
+                if isinstance(start, OptStartLayout):
+                    raise ValueError("The starting layout violates constraints.")
+                search = _SearchResult(None, EOptStopCond.NO_FEASIBLE_START, 0, False)
+            else:
+                search = _search_forward(
+                    optimiser,
+                    num_sites=len(all_sites),
+                    inventory=available_count,
+                    score_layout=score_layout,
+                    start=best_start,
+                )
         elif isinstance(optimiser, OptGreedyBackward):
             search = _search_backward(
                 optimiser, initial_sites=initial_sites, score_layout=score_layout
@@ -338,7 +441,31 @@ class SensorOptEngine:
             stop_condition=search.stop_condition,
             num_iterations=search.num_iterations,
             success=search.success,
+            num_start_layouts=num_start_layouts,
         )
+
+
+def _get_start_domains(
+    counts: Mapping[str, int],
+    site_domains: Mapping[str, range],
+    inventories: Mapping[str, int],
+    count_limit: int | None,
+) -> tuple[tuple[range, int], ...]:
+    for key, count in counts.items():
+        if key not in site_domains:
+            raise ValueError(f"Unknown starting sensor array {key!r}.")
+        if not _is_integer(count, minimum=0) or count > min(
+            len(site_domains[key]), inventories[key]
+        ):
+            raise ValueError(f"Invalid starting count for {key!r}.")
+    total = sum(int(count) for count in counts.values())
+    if total == 0 or (count_limit is not None and total > count_limit):
+        raise ValueError("A start must select at least one sensor within the count limit.")
+    return tuple(
+        (domain, int(counts[key]))
+        for key, domain in site_domains.items()
+        if counts.get(key)
+    )
 
 
 def _is_integer(value: object, *, minimum: int) -> bool:

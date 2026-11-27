@@ -7,6 +7,7 @@
 """Experimental design through sensor placement optimisation."""
 
 from pyvale.sensopt.designspace import (
+    ConstraintSensorCost,
     ConstraintSensorSeparation,
     DesignSpace,
     EDesignAxis,
@@ -40,9 +41,13 @@ from pyvale.sensopt.optimiser import (
     OptExhaustive,
     OptGreedyBackward,
     OptGreedyForward,
+    OptStartExhaustive,
+    OptStartLayout,
+    OptStartRandom,
 )
 
 __all__ = [
+    "ConstraintSensorCost",
     "ConstraintSensorSeparation",
     "DesignSpace",
     "EDesignAxis",
@@ -72,6 +77,9 @@ __all__ = [
     "OptGreedyBackward",
     "OptGreedyForward",
     "OptResult",
+    "OptStartExhaustive",
+    "OptStartLayout",
+    "OptStartRandom",
     "SensorOptEngine",
     "SignalReduction",
     "filter_sensor_sites_in_mesh",

@@ -6,10 +6,12 @@
 
 """Deterministic search algorithms for discrete sensor sites."""
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import combinations
+from math import comb, prod
+from random import Random
 
 
 class EOptStopCond(Enum):
@@ -20,18 +22,42 @@ class EOptStopCond(Enum):
     INVENTORY_EXHAUSTED = auto()
     SENSOR_LIMIT_REACHED = auto()
     NO_FEASIBLE_MOVE = auto()
+    NO_FEASIBLE_START = auto()
     NO_IMPROVEMENT = auto()
     SEARCH_EXHAUSTED = auto()
     ITERATION_LIMIT = auto()
 
 
 @dataclass(slots=True, kw_only=True)
+class OptStartLayout:
+    """Use these exact candidate indices, local to each named array."""
+
+    sites: Mapping[str, tuple[int, ...]]
+
+
+@dataclass(slots=True, kw_only=True)
+class OptStartExhaustive:
+    """Find the best feasible starting layout at the specified array counts."""
+
+    counts: Mapping[str, int]
+
+
+@dataclass(slots=True, kw_only=True)
+class OptStartRandom:
+    """Test up to num_layouts distinct random starts at the given array counts."""
+
+    counts: Mapping[str, int]
+    num_layouts: int
+
+
+@dataclass(slots=True, kw_only=True)
 class OptGreedyForward:
-    """Add sites from an empty layout until a count or objective target is met."""
+    """Add sites to an optional starting layout until a count or target is met."""
 
     num_sensors: int | None = None
     target_objective: float | None = None
     max_sensors: int | None = None
+    start: OptStartLayout | OptStartExhaustive | OptStartRandom | None = None
 
 
 @dataclass(slots=True, kw_only=True)
@@ -98,13 +124,20 @@ def _search_forward(
     num_sites: int,
     inventory: int,
     score_layout: ScoreLayout,
+    start: _ScoredLayout | None = None,
 ) -> _SearchResult:
-    current_sites: Layout = ()
-    best: _ScoredLayout | None = None
+    current_sites = () if start is None else start.sites
+    best = start
+    target = optimiser.target_objective
+    if start is not None:
+        if len(current_sites) == optimiser.num_sensors:
+            return _SearchResult(start, EOptStopCond.SENSOR_COUNT_REACHED, 0, True)
+        if target is not None and start.objective <= target:
+            return _SearchResult(start, EOptStopCond.OBJECTIVE_TARGET_REACHED, 0, True)
 
-    max_sensors = optimiser.max_sensors
-    count_limit = inventory if max_sensors is None else max_sensors
-    for iteration in range(1, count_limit + 1):
+    count_limit = optimiser.num_sensors or optimiser.max_sensors or inventory
+    num_additions = count_limit - len(current_sites)
+    for iteration in range(1, num_additions + 1):
         moves = (
             tuple(sorted((*current_sites, site)))
             for site in range(num_sites)
@@ -124,7 +157,6 @@ def _search_forward(
         else:
             if best is None or selected.objective < best.objective:
                 best = selected
-            target = optimiser.target_objective
             assert target is not None
             if selected.objective <= target:
                 return _SearchResult(
@@ -132,10 +164,62 @@ def _search_forward(
                 )
     stop_condition = (
         EOptStopCond.INVENTORY_EXHAUSTED
-        if max_sensors is None
+        if optimiser.max_sensors is None
         else EOptStopCond.SENSOR_LIMIT_REACHED
     )
-    return _SearchResult(best, stop_condition, count_limit, False)
+    return _SearchResult(best, stop_condition, num_additions, False)
+
+
+def _enumerate_starts(
+    domains: tuple[tuple[range, int], ...], index: int = 0
+) -> Iterator[Layout]:
+    if index == len(domains):
+        yield ()
+        return
+    sites, count = domains[index]
+    for selection in combinations(sites, count):
+        for remaining in _enumerate_starts(domains, index + 1):
+            yield selection + remaining
+
+
+def _sample_starts(
+    domains: tuple[tuple[range, int], ...], num_layouts: int, seed: int | None
+) -> Iterator[Layout]:
+    pool_sizes = tuple(comb(len(sites), count) for sites, count in domains)
+    total = prod(pool_sizes)
+    rng = Random(seed)
+    # Sample ranks without replacement using a sparse partial shuffle.
+    swaps: dict[int, int] = {}
+    for remaining in range(total, total - min(num_layouts, total), -1):
+        draw = rng.randrange(remaining)
+        rank = swaps.get(draw, draw)
+        last = remaining - 1
+        swaps[draw] = swaps.pop(last, last)
+        if draw == last:
+            del swaps[draw]
+
+        selections: list[Layout] = []
+        for (sites, count), size in zip(
+            reversed(domains), reversed(pool_sizes), strict=True
+        ):
+            rank, local_rank = divmod(rank, size)
+            selections.append(_unrank_combination(sites, count, local_rank))
+        yield tuple(site for selection in reversed(selections) for site in selection)
+
+
+def _unrank_combination(sites: range, count: int, rank: int) -> Layout:
+    """Decode a lexicographic combination rank without storing the combinations."""
+    selected: list[int] = []
+    for index, site in enumerate(sites):
+        if count == 0:
+            break
+        block = comb(len(sites) - index - 1, count - 1)
+        if rank < block:
+            selected.append(site)
+            count -= 1
+        else:
+            rank -= block
+    return tuple(selected)
 
 
 def _search_backward(
@@ -230,11 +314,11 @@ def _search_exhaustive(
             continue
         if best is None or score < best.objective:
             best = _ScoredLayout(layout, score)
-        if target is not None and score <= target:
-            if qualifying is None or (
-                len(layout) == len(qualifying.sites) and score < qualifying.objective
-            ):
-                qualifying = _ScoredLayout(layout, score)
+        if target is not None and score <= target and (
+            qualifying is None
+            or (len(layout) == len(qualifying.sites) and score < qualifying.objective)
+        ):
+            qualifying = _ScoredLayout(layout, score)
 
     success = best is not None if target is None else qualifying is not None
     return _SearchResult(
