@@ -9,7 +9,8 @@ Quadratic bunny: one speckled bunny and six flying bunnies showcasing
 various materials
 ---------------------------------------------------------------
 
-This example uses a Gmsh 2 mesh of the simplified Stanford bunny.
+This example uses the Gmsh 2 mesh from ``pyvale.dataset`` of the simplified
+Stanford bunny.
 Its boundary is made entirely of quadratic ``TRI6`` elements. The example
 extracts that boundary to a VTK file in the output directory before rendering.
 
@@ -53,20 +54,22 @@ from pyvale.raytracer.rtpresets import MaterialPresets
 from pyvale.raytracer.rtscene import Scene
 
 # %%
-# Bundled Gmsh mesh, output directories and surface extraction
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# ``any_mesh_to_rtmesh`` could read the ``.msh`` file directly, but
-# it would write a ``temp.vtk`` file next to the bundled mesh on every call.
-# Extracting the quadratic surface explicitly keeps the data directory clean
-# and makes the VTK reusable for all of the bunnies below. The bunny's "up"
+# Gmsh mesh from pyvale.dataset, output directories and surface extraction
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# ``dataset.bunny_msh_path()`` supplies the original Gmsh 2 file. It contains
+# both a tetra10 volume and its tri6 boundary. ``any_mesh_to_rtmesh`` could
+# read the ``.msh`` file directly, but it would write a ``temp.vtk`` file next
+# to the packaged mesh on every call. Extracting the quadratic surface
+# explicitly keeps the data package clean and makes the VTK reusable for all
+# of the bunnies below. The bunny's "up"
 # direction is +Z in the source file, whereas the Feebee uses +Y as up, hence
 # the -90 degree tip about X below.
 
-bunny_gmsh_path = Path(__file__).resolve().parent / "data" / "bunny.msh"
+bunny_gmsh_path = dataset.bunny_msh_path()
 if not bunny_gmsh_path.is_file():
     raise FileNotFoundError(
         f"Gmsh bunny mesh not found at {bunny_gmsh_path}. "
-        "It should be bundled alongside this example."
+        "It should be packaged with pyvale.data."
     )
 
 base_out = Path.cwd() / "pyvale-output" / "raytracer" / "ex9_quadratic_bunny"

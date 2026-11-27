@@ -36,6 +36,7 @@ test-input/
 # Keep these as they are used for examples
 !src/pyvale/data/*.tiff
 !src/pyvale/data/*.e
+!src/pyvale/data/*.msh
 !reports/images/*.png
 !reports/images/*.svg
 !images/*.png

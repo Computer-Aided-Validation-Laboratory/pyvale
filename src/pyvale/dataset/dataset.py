@@ -142,6 +142,19 @@ def dic_pattern_5mpx_path() -> Path:
                 .joinpath("optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff"))
 
 
+def bunny_msh_path() -> Path:
+    """Path to a Gmsh 2 mesh of the simplified Stanford bunny.
+
+    The file contains 3430 quadratic tetrahedra (``TET10``) and their 1600
+    quadratic triangular boundary faces (``TRI6``).
+    Returns
+    -------
+    Path
+        Path to the ``bunny.msh`` file.
+    """
+    return Path(files("pyvale.data").joinpath("bunny.msh"))
+
+
 def thermal_2d_path() -> Path:
     """Path to a MOOSE simulation output in exodus format. This case is a
     thermal problem solving for a scalar temperature field. The geometry is
