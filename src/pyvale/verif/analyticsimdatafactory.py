@@ -12,6 +12,7 @@ analytic functions for the physical fields.
 import numpy as np
 import sympy
 import pyvale.mooseherder as mh
+import pyvale.dataio as io
 from pyvale.verif.analyticsimdatagenerator import (AnalyticData2D,
                                                    AnalyticSimDataGen)
 
@@ -36,12 +37,12 @@ def standard_case_2d(field_keys: tuple[str,...]) -> AnalyticData2D:
     return case_data
 
 
-def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
+def scalar_linear_2d() -> tuple[io.SimData,AnalyticSimDataGen]:
     """_summary_
 
     Returns
     -------
-    tuple[mh.SimData,AnalyticSimDataGenerator]
+    tuple[io.SimData,AnalyticSimDataGenerator]
         _description_
     """
     field_key = "temperature"
@@ -62,12 +63,12 @@ def scalar_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
     return (sim_data,data_gen)
 
 
-def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
+def scalar_quadratic_2d() -> tuple[io.SimData,AnalyticSimDataGen]:
     """_summary_
 
     Returns
     -------
-    tuple[mh.SimData,AnalyticSimDataGenerator]
+    tuple[io.SimData,AnalyticSimDataGenerator]
         _description_
     """
     field_key = "temperature"
@@ -86,7 +87,7 @@ def scalar_quadratic_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
     return (sim_data,data_gen)
 
 
-def vector_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
+def vector_linear_2d() -> tuple[io.SimData,AnalyticSimDataGen]:
     field_keys = ("disp_x","disp_y")
     case_data = standard_case_2d(field_keys)
 
@@ -105,7 +106,7 @@ def vector_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
     return (sim_data,data_gen)
 
 
-def tensor_linear_2d() -> tuple[mh.SimData,AnalyticSimDataGen]:
+def tensor_linear_2d() -> tuple[io.SimData,AnalyticSimDataGen]:
     field_keys = ("strain_xx","strain_yy","strain_xy")
     case_data = standard_case_2d(field_keys)
 

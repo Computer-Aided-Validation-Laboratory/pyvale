@@ -28,8 +28,8 @@ import numpy as np
 import pyvista as pv
 from scipy.spatial.transform import Rotation
 
-import pyvale.dataset as dataset
-from pyvale.dataset import EElemTest
+import pyvale.data as dataset
+from pyvale.data import EElemTest
 from pyvale.raytracer.rtcamera import Camera
 from pyvale.raytracer.rtmain import render_scene
 from pyvale.raytracer.rtmesh import (

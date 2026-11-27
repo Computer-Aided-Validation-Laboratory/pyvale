@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <algorithm>
 
-#include "../../../common_cpp/Eigen/Dense"
+#include "../../../commoncpp/Eigen/Dense"
 
 #include "../cpp/rtelemconstants.h"
 

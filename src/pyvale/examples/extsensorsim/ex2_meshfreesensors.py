@@ -25,11 +25,11 @@ mesh-free interpolation.
 import copy
 import time
 import numpy as np
-import pyvale as pyv
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
+import pyvale.mooseherder as mh
+import pyvale.dataio as io
 import pyvale.verif as verif
 
 
@@ -162,7 +162,7 @@ print(80*"-")
 # Example terminal output with timings and numerical comparison between
 # mesh-based and mesh-free virtual sensors:
 #
-# .. image:: ../../../../_static/ext_ex2_term_out.png
+# .. image:: /_static/ext_ex2_term_out.png
 #    :alt: Terminal output comparing mesh-based and mesh-free sensors.
 #    :width: 700px
 #    :align: center

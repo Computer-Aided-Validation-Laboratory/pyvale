@@ -21,8 +21,8 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-import pyvale.dataset as dataset
-from pyvale.dataset import EElemTest
+import pyvale.data as dataset
+from pyvale.data import EElemTest
 from pyvale.sensorsim.imagetools import ImageTools
 from pyvale.raytracer.rtblender import BlenderUnwrapper
 from pyvale.raytracer.rtcamera import Camera
@@ -48,7 +48,7 @@ from pyvale.raytracer.rtscene import Scene
 # %%
 # Output directory and texture loading
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Load the 5 MPix DIC speckle pattern bundled with ``pyvale.dataset`` as a 2D
+# Load the 5 MPix DIC speckle pattern bundled with ``pyvale.data`` as a 2D
 # greyscale NumPy array.
 
 out_dir = Path.cwd() / "pyvale-output" / "raytracer" / "ex3_texturing_and_samplers"

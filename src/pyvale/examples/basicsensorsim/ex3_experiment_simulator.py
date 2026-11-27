@@ -17,9 +17,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.dataset as dataset
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
+import pyvale.data as dataset
 
 #%%
 # 1. Load physics simulation data
@@ -34,11 +35,11 @@ sim_keys: set[str] = {"sim_nominal","sim_perturbed"}
 
 disp_keys = ("disp_x","disp_y","disp_z")
 
-sim_data_dict: dict[str,mh.SimData] = {}
+sim_data_dict: dict[str,io.SimData] = {}
 for ss,kk in zip(sim_paths,sim_keys):
-    sim_data: mh.SimData = mh.ExodusLoader(ss).load_all_sim_data()
+    sim_data: io.SimData = mh.ExodusLoader(ss).load_all_sim_data()
 
-    sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+    sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
                                                    sim_data=sim_data,
                                                    disp_keys=disp_keys)
     sim_data_dict[kk] = sim_data
@@ -122,7 +123,7 @@ strain_sens: sens.SensorsPoint = sens.SensorFactory.tensor_point(
     sim_data,
     strain_sens_data,
     norm_comp_keys=("strain_xx","strain_yy","strain_zz"),
-    dev_comp_keys=("strain_xy","strain_yz","strain_xz"),
+    dev_comp_keys=("strain_xy", "strain_xz", "strain_yz"),
     spatial_dims=sens.EDim.THREED,
     descriptor=sens.DescriptorFactory.strain(sens.EDim.THREED),
 )
@@ -239,7 +240,7 @@ print(80*"-")
 print()
 
 #%%
-# .. image:: ../../../../_static/basics_ex3_term_out_0.png
+# .. image:: /_static/basics_ex3_term_out_0.png
 #    :alt: Terminal output showing the simulated experiment data keys
 #    :width: 700px
 #    :align: center
@@ -277,7 +278,7 @@ print()
 print(80*"-")
 
 #%%
-# .. image:: ../../../../_static/basics_ex3_term_out_1.png
+# .. image:: /_static/basics_ex3_term_out_1.png
 #    :alt: Terminal output showing the simulated experiment data structures
 #    :width: 700px
 #    :align: center
@@ -320,7 +321,7 @@ else:
 # %%
 # Visualisation of the virtual temperature sensor locations:
 #
-# .. image:: ../../../../_static/basics_ex3_temp_locs.png
+# .. image:: /_static/basics_ex3_temp_locs.png
 #    :alt: Visualisation of the virtual temperature sensor locations
 #    :width: 800px
 #    :align: center
@@ -338,7 +339,7 @@ else:
 # %%
 # Visualisation of the virtual strain sensor locations:
 #
-# .. image:: ../../../../_static/basics_ex3_strain_locs.png
+# .. image:: /_static/basics_ex3_strain_locs.png
 #    :alt: Visualisation of the virtual strain sensor locations
 #    :width: 800px
 #    :align: center
@@ -365,7 +366,7 @@ fig.savefig(save_fig,dpi=300,bbox_inches="tight")
 # Virtual temperature sensor traces over all simulated experiments for the
 # nominal input simulation:
 #
-# .. image:: ../../../../_static/basics_ex3_traces_temp.png
+# .. image:: /_static/basics_ex3_traces_temp.png
 #    :alt: Simulated temperature sensor traces.
 #    :width: 500px
 #    :align: center
@@ -388,7 +389,7 @@ for ii,kk in enumerate(strain_plot_keys):
 # Virtual strain sensor traces over all simulated experiments for the perturbed
 # input simulation:
 #
-# .. image:: ../../../../_static/basics_ex3_traces_strain_yy.png
+# .. image:: /_static/basics_ex3_traces_strain_yy.png
 #    :alt: Simulated strain sensor traces.
 #    :width: 500px
 #    :align: center

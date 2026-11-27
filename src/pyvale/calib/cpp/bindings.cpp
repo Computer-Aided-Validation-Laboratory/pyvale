@@ -17,6 +17,35 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(calibcpp, m) {
 
-    m.def("stereo_calibration", &stereo_calibration, "stereo_calibration");
+    py::add_ostream_redirect(m, "ostream_redirect");
+
+    py::class_<CamIntrinsics>(m, "CamIntrinsics")
+        .def(py::init<>())
+        .def_readwrite("fx", &CamIntrinsics::fx)
+        .def_readwrite("fy", &CamIntrinsics::fy)
+        .def_readwrite("fs", &CamIntrinsics::fs)
+        .def_readwrite("cx", &CamIntrinsics::cx)
+        .def_readwrite("cy", &CamIntrinsics::cy)
+        .def_readwrite("distortion", &CamIntrinsics::distortion);
+
+
+    py::class_<Calib>(m, "Calib")
+        .def(py::init<>())
+        .def_readwrite("cam0", &Calib::cam0)
+        .def_readwrite("cam1", &Calib::cam1)
+        .def_readwrite("rotation", &Calib::rotation)
+        .def_readwrite("translation", &Calib::translation);
+
+    py::class_<StereoCalibResult>(m, "StereoCalibResult")
+        .def_readonly("calib", &StereoCalibResult::calib)
+        .def_readonly("errors_cam0", &StereoCalibResult::errors_cam0)
+        .def_readonly("errors_cam1", &StereoCalibResult::errors_cam1);
+
+    py::enum_<ReprojError>(m, "ReprojError")
+        .value("RMSE", ReprojError::RMSE)
+        .value("MEAN", ReprojError::MEAN)
+        .value("MSE",  ReprojError::MSE);
+
+    m.def("calibrate_stereo", &calibrate_stereo, "Run stereo bundle adjustment and return calibrated parameters and per-image errors.");
 }
 

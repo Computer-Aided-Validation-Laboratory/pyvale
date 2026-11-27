@@ -1,13 +1,57 @@
 cmake_minimum_required(VERSION 3.15)
-cmake_policy(SET CMP0148 NEW)
 
-project(${SKBUILD_PROJECT_NAME} LANGUAGES CXX)
+project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
+
+# -----------------------------------------------------------------------------
+# Source revision metadata
+# -----------------------------------------------------------------------------
+find_package(Git QUIET)
+
+set(PYVALE_GIT_COMMIT "unknown")
+set(PYVALE_GIT_BRANCH "unknown")
+set(PYVALE_GIT_CLEAN 0)
+
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PYVALE_GIT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE PYVALE_GIT_COMMIT_RESULT)
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} branch --show-current
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PYVALE_GIT_BRANCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE PYVALE_GIT_BRANCH_RESULT)
+
+    if(PYVALE_GIT_BRANCH STREQUAL "")
+        set(PYVALE_GIT_BRANCH "unknown")
+    endif()
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} status --porcelain --untracked-files=all
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PYVALE_GIT_STATUS
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE PYVALE_GIT_STATUS_RESULT)
+
+    if(PYVALE_GIT_COMMIT_RESULT EQUAL 0 AND PYVALE_GIT_STATUS_RESULT EQUAL 0 AND
+       PYVALE_GIT_STATUS STREQUAL "")
+        set(PYVALE_GIT_CLEAN 1)
+    endif()
+endif()
 
 # ----------------------------
 # C++ standard
 # ----------------------------
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ----------------------------
 # Ensure CMAKE_BUILD_TYPE and install config
@@ -23,11 +67,27 @@ message(STATUS "CMake install config name: ${CMAKE_INSTALL_CONFIG_NAME}")
 # ----------------------------
 # Dependencies
 # ----------------------------
+find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
+set(PYBIND11_FINDPYTHON ON)
+find_package(pybind11 CONFIG REQUIRED)
+message(STATUS "Python executable: ${Python_EXECUTABLE}")
+message(STATUS "Python version: ${Python_VERSION}")
+message(STATUS "Python SOABI: ${Python_SOABI}")
 
-find_package(pybind11 REQUIRED)
 find_package(OpenMP REQUIRED)
-# All below is for nanobind when installed through Pip or Conda
-find_package(Python 3.11 COMPONENTS Interpreter Development REQUIRED)
+message(STATUS "OpenMP_FOUND = ${OpenMP_FOUND}")
+message(STATUS "OpenMP_CXX_FOUND = ${OpenMP_CXX_FOUND}")
+message(STATUS "OpenMP_CXX_VERSION = ${OpenMP_CXX_VERSION}")
+message(STATUS "OpenMP_CXX_FLAGS = ${OpenMP_CXX_FLAGS}")
+message(STATUS "OpenMP_CXX_LIBRARIES = ${OpenMP_CXX_LIBRARIES}")
+
+#find_package(OpenCV REQUIRED)
+find_package(TIFF REQUIRED)
+message(STATUS "TIFF_FOUND = ${TIFF_FOUND}")
+message(STATUS "TIFF_INCLUDE_DIR = ${TIFF_INCLUDE_DIR}")
+message(STATUS "TIFF_LIBRARIES = ${TIFF_LIBRARIES}")
+
+# nanobind for the ray tracer module
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
@@ -70,7 +130,7 @@ endif()
 function(apply_compile_flags target_name)
     if(MSVC)
         # Windows (MSVC)
-        target_compile_options(${target_name} PRIVATE /std:c++17 /openmp)
+        target_compile_options(${target_name} PRIVATE /openmp)
         if(CMAKE_BUILD_TYPE STREQUAL "Debug")
             message(STATUS "Applying MSVC debug flags for ${target_name}")
             target_compile_options(${target_name} PRIVATE /Od /Zi)
@@ -80,7 +140,7 @@ function(apply_compile_flags target_name)
         endif()
     else()
         # Linux / macOS
-        target_compile_options(${target_name} PRIVATE -std=c++17 -fopenmp)
+        target_compile_options(${target_name} PRIVATE -fopenmp)
         if(CMAKE_BUILD_TYPE STREQUAL "Debug")
             message(STATUS "Applying debug flags for ${target_name}")
             target_compile_options(${target_name} PRIVATE -O0 -g)
@@ -96,24 +156,28 @@ endfunction()
 # ----------------------------
 # COMMON_CPP module
 # ----------------------------
-file(GLOB COMMON_SRC_FILES src/pyvale/common_cpp/*.cpp)
+file(GLOB COMMON_SRC_FILES src/pyvale/commoncpp/*.cpp)
 
-pybind11_add_module(common_cpp MODULE ${COMMON_SRC_FILES})
-target_include_directories(common_cpp PRIVATE src/pyvale/common_cpp)
-target_link_libraries(common_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
-apply_compile_flags(common_cpp)
-install(TARGETS common_cpp LIBRARY DESTINATION pyvale/common_cpp)
+pybind11_add_module(commoncpp MODULE ${COMMON_SRC_FILES})
+target_include_directories(commoncpp PRIVATE src/pyvale/commoncpp ${TIFF_INCLUDE_DIR})
+target_link_libraries(commoncpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
+target_compile_definitions(commoncpp PRIVATE
+    PYVALE_GIT_COMMIT="${PYVALE_GIT_COMMIT}"
+    PYVALE_GIT_BRANCH="${PYVALE_GIT_BRANCH}"
+    PYVALE_GIT_CLEAN=${PYVALE_GIT_CLEAN})
+apply_compile_flags(commoncpp)
+install(TARGETS commoncpp LIBRARY DESTINATION pyvale/commoncpp)
 
 # ----------------------------
 # DIC module
 # ----------------------------
 file(GLOB DIC_SRC_FILES src/pyvale/dic/cpp/*.cpp)
 
-pybind11_add_module(dic2dcpp MODULE ${DIC_SRC_FILES} ${COMMON_SRC_FILES})
-target_include_directories(dic2dcpp PRIVATE src/pyvale/common_cpp src/pyvale/dic)
-target_link_libraries(dic2dcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
-apply_compile_flags(dic2dcpp)
-install(TARGETS dic2dcpp LIBRARY DESTINATION pyvale/dic)
+pybind11_add_module(diccpp MODULE ${DIC_SRC_FILES} ${COMMON_SRC_FILES})
+target_include_directories(diccpp PRIVATE src/pyvale/commoncpp src/pyvale/dic ${TIFF_INCLUDE_DIR})
+target_link_libraries(diccpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
+apply_compile_flags(diccpp)
+install(TARGETS diccpp LIBRARY DESTINATION pyvale/dic)
 
 # ----------------------------
 # DIC Calibration
@@ -121,8 +185,8 @@ install(TARGETS dic2dcpp LIBRARY DESTINATION pyvale/dic)
 file(GLOB CALIB_SRC_FILES src/pyvale/calib/cpp/*.cpp)
 
 pybind11_add_module(calibcpp MODULE ${CALIB_SRC_FILES} ${COMMON_SRC_FILES})
-target_include_directories(calibcpp PRIVATE src/pyvale/common_cpp src/pyvale/calib)
-target_link_libraries(calibcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+target_include_directories(calibcpp PRIVATE src/pyvale/commoncpp src/pyvale/calib ${TIFF_INCLUDE_DIR})
+target_link_libraries(calibcpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(calibcpp)
 install(TARGETS calibcpp LIBRARY DESTINATION pyvale/calib)
 
@@ -132,8 +196,8 @@ install(TARGETS calibcpp LIBRARY DESTINATION pyvale/calib)
 file(GLOB STRAIN_SRC_FILES src/pyvale/strain/cpp/*.cpp)
 
 pybind11_add_module(strain_cpp MODULE ${STRAIN_SRC_FILES} ${COMMON_SRC_FILES})
-target_include_directories(strain_cpp PRIVATE src/pyvale/common_cpp src/pyvale/strain)
-target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
+target_include_directories(strain_cpp PRIVATE src/pyvale/commoncpp src/pyvale/strain ${TIFF_INCLUDE_DIR})
+target_link_libraries(strain_cpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen ${TIFF_LIBRARIES})
 apply_compile_flags(strain_cpp)
 install(TARGETS strain_cpp LIBRARY DESTINATION pyvale/strain)
 
@@ -144,7 +208,39 @@ file(GLOB RAYTRACER_SRC_FILES src/pyvale/raytracer/cpp/*.cpp)
 file(GLOB SOBOL_SRC_FILES src/pyvale/raytracer/cpp/sobol/*.cpp)
 
 nanobind_add_module(rtmaincpp MODULE ${RAYTRACER_SRC_FILES} ${SOBOL_SRC_FILES})
-target_include_directories(rtmaincpp PRIVATE src/pyvale/common_cpp src/pyvale/raytracer)
+target_include_directories(rtmaincpp PRIVATE src/pyvale/commoncpp src/pyvale/raytracer)
 target_link_libraries(rtmaincpp PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen)
 apply_compile_flags(rtmaincpp)
 install(TARGETS rtmaincpp LIBRARY DESTINATION pyvale/raytracer)
+
+# Validation Cython module
+# ----------------------------
+# The source uses Cython's pure-Python syntax, so the .py file remains an
+# importable fallback in source checkouts. Packaged builds install this compiled
+# extension with the same module name.
+execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
+    OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY
+)
+
+set(MAVM_CYTHON_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/pyvale/validation/cython/mavm.py)
+set(MAVM_CYTHON_GENERATED ${CMAKE_CURRENT_BINARY_DIR}/mavm_cython.c)
+
+add_custom_command(
+    OUTPUT ${MAVM_CYTHON_GENERATED}
+    COMMAND ${Python_EXECUTABLE} -m cython -3 -o ${MAVM_CYTHON_GENERATED}
+            ${MAVM_CYTHON_SOURCE}
+    DEPENDS ${MAVM_CYTHON_SOURCE}
+    COMMENT "Generating C source for pyvale.validation.cython.mavm"
+    VERBATIM
+)
+
+Python_add_library(mavm MODULE WITH_SOABI ${MAVM_CYTHON_GENERATED})
+target_include_directories(mavm PRIVATE ${NUMPY_INCLUDE_DIR})
+install(
+    TARGETS mavm
+    LIBRARY DESTINATION pyvale/validation/cython
+    RUNTIME DESTINATION pyvale/validation/cython
+)

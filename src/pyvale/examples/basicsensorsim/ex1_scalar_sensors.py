@@ -41,15 +41,16 @@ import matplotlib.pyplot as plt
 
 # pyvale imports
 import pyvale.sensorsim as sens
+import pyvale.dataio as io
 import pyvale.mooseherder as mh
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 
 
 #%%
 # 1. Load physics simulation data
 # -------------------------------
 # Here we load a MOOSE finite element simulation dataset that comes packaged
-# with `pyvale` in exodus (*.e) format. `pyvale` loads simulations into a
+# with `pyvale` in exodus (``*.e``) format. `pyvale` loads simulations into a
 # `SimData` object  which contains the nodal coordinates, simulation time steps,
 # the nodal physics variables and optionally the element connectivity tables.
 #
@@ -57,15 +58,15 @@ import pyvale.dataset as dataset
 # as our visualisation tools are based on unit scaling by default.
 
 data_path: Path = dataset.thermal_3d_path()
-sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
-sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
                                                
 #%%
 # .. note::
-#   You can load your own exodus (*.e) file here by changing the path or you can
+#   You can load your own exodus (``*.e``) file here by changing the path or you can
 #   load your own simulation data from delimited plain text files or numpy npy
 #   files. See the advanced example 'Bring your own simulation data'.
 
@@ -135,7 +136,7 @@ sens_array.set_error_chain(err_chain)
 # are resampled. However, if we call `.get_measurements()` then we are returned
 # the previously simulated values. Throughout `pyvale` methods prefixed with
 # `get` can be expected to return previous values if they exist whereas `sim`
-# or `calc `methods will actually perform a simulation or calculation.
+# or `calc` methods will actually perform a simulation or calculation.
 measurements: np.ndarray = sens_array.sim_measurements()
 
 truth: np.ndarray = sens_array.get_truth()
@@ -165,7 +166,7 @@ print("\n"+80*"-")
 
 # %%
 #
-# .. image:: ../../../../_static/basics_ex1_term_out.png
+# .. image:: /_static/basics_ex1_term_out.png
 #    :alt: Terminal output showing the simulated measurements
 #    :width: 700px
 #    :align: center
@@ -213,7 +214,7 @@ else:
 
 # %%
 #
-# .. image:: ../../../../_static/basics_ex1_locs.png
+# .. image:: /_static/basics_ex1_locs.png
 #    :alt: Simulated temperature sensor locations.
 #    :width: 800px
 #    :align: center
@@ -234,7 +235,7 @@ fig.savefig(save_traces, dpi=300, bbox_inches="tight")
 
 # %%
 #
-# .. image:: ../../../../_static/basics_ex1_traces.png
+# .. image:: /_static/basics_ex1_traces.png
 #    :alt: Simulated temperature sensor traces.
 #    :width: 500px
 #    :align: center

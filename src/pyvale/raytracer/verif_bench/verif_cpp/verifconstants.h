@@ -13,7 +13,7 @@
 #include <cstddef>
 #include <cstddef>
 
-#include "../../../common_cpp/Eigen/Dense"
+#include "../../../commoncpp/Eigen/Dense"
 
 using Vec3f = Eigen::Vector3d;
 using MatXf = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;

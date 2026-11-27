@@ -7,7 +7,7 @@
 #ifndef RTEIGENCONST_H
 #define RTEIGENCONST_H
 
-#include "../../common_cpp/Eigen/Dense"
+#include "../../commoncpp/Eigen/Dense"
 #include <iostream>
 #include "rtelemconstants.h"
 

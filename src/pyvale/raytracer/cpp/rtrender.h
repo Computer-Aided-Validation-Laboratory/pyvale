@@ -34,8 +34,8 @@
 #include "rtsobolsampler.h"
 
 // commmon header files
-#include "../../common_cpp/progressbar.hpp"
-//#include "../../common_cpp/dicsignalhandler.hpp" in the future
+#include "../../commoncpp/progressbar.hpp"
+//#include "../../commoncpp/dicsignalhandler.hpp" in the future
 
 // ================================================================================
 // Enums for output render configuration - must match Python API

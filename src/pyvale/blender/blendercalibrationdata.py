@@ -15,3 +15,4 @@ class CalibrationData:
     plunge_step: int = 5
     x_limit: float | None = None
     y_limit: float | None = None
+    max_images: int | None = None

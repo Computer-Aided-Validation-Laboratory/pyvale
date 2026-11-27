@@ -6,12 +6,15 @@
 
 
 // STD library Header files
-#include <atomic>
-#include <iostream>
+#include <iomanip>
 #include <cstring>
-#include <omp.h>
+#include <stdexcept>
 #include <vector>
 #include <signal.h>
+#include <memory>
+#include <algorithm>
+#include <numeric>
+#include <functional>
 
 // pybind header files
 #include <pybind11/pybind11.h>
@@ -19,196 +22,561 @@
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
 
-// common_cpp header files
-#include "../../common_cpp/dicsignalhandler.hpp"
-#include "../../common_cpp/defines.hpp"
-#include "../../common_cpp/util.hpp"
+// commoncpp header files
+#include "../../commoncpp/dicsignalhandler.hpp"
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/util.hpp"
 
 // DIC Header files
-#include "./dicinterpolator.hpp"
-#include "./dicoptimizer.hpp"
-#include "./dicscanmethod.hpp"
+#include "./dicinterpfactory.hpp"
 #include "./dicutil.hpp"
-#include "./dicfourier.hpp"
-#include "./dicshapefunc.hpp"
 #include "./dicresults.hpp"
-#include "dicsubset.hpp"
+#include "./dicsubset.hpp"
+#include "./dicroiupdate.hpp"
+#include "./dicmain.hpp"
+#include "./dicengine.hpp"
+#include "./dicmultiwindow_rg.hpp"
+#include "./dicmultiwindow_only.hpp"
+#include "./dicsinglewindow_rg.hpp"
+#include "./dicrasterscan.hpp"
+#include "./dicfilter.hpp"
+#include "./dicresidual.hpp"
+
+// stereo header files
+#include "./stereoutil.hpp"
 
 // cuda Header files
 //#include "../cuda/malloc.hpp"
 
 namespace py = pybind11;
 
+void engine(const py::array_t<bool>& img_roi_arr,
+            const Calib &calib,
+            const util::Config &conf,
+            const MultiwindowConfig &mwconf,
+            const common_util::SaveConfig &saveconf){
 
-void DICengine(const py::array_t<double>& img_stack_arr,
-               const py::array_t<bool>&   img_roi_arr, 
-               util::Config &conf,
-               common_util::SaveConfig &saveconf){
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
 
-    // Register signal handler for Ctrl+C and set debug_level
+        Image image = read_img(conf.fullpaths.at(image_index));
+
+        if (conf.image_filter_kernel > 1)
+            apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
+
+        return make_interp(conf.interp_routine, image);
+
+    });
+}
+
+void engine_images(const std::vector<Image>& images,
+                   const py::array_t<bool>& img_roi_arr,
+                   const Calib &calib,
+                   const util::Config &conf,
+                   const MultiwindowConfig &mwconf,
+                   const common_util::SaveConfig &saveconf){
+
+    const size_t expected_images = conf.stereo
+        ? static_cast<size_t>(2 * (conf.num_def_img + 1))
+        : static_cast<size_t>(conf.num_def_img + 1);
+
+    if (images.size() != expected_images) {
+        throw std::runtime_error("Image array count does not match DIC config.");
+    }
+
+    for (size_t i = 0; i < images.size(); ++i) {
+        if (images[i].width != static_cast<uint32_t>(conf.px_hori) ||
+            images[i].height != static_cast<uint32_t>(conf.px_vert)) {
+            throw std::runtime_error("Image array dimensions do not match DIC config.");
+        }
+    }
+
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
+
+        Image image = images.at(image_index);
+        if (conf.image_filter_kernel > 1)
+            apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
+        return make_interp(conf.interp_routine, image);
+
+    });
+}
+
+std::shared_ptr<InMemoryResults> engine_results(
+    const py::array_t<bool>& img_roi_arr,
+    const Calib &calib,
+    const util::Config& conf,
+    const MultiwindowConfig &mwconf,
+    const common_util::SaveConfig& saveconf) {
+    std::shared_ptr<InMemoryResults> results;
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
+        Image image = read_img(conf.fullpaths.at(image_index));
+        if (conf.image_filter_kernel > 1)
+            apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
+        return make_interp(conf.interp_routine, image);
+    }, &results, saveconf.output_results);
+    return results;
+}
+
+std::shared_ptr<InMemoryResults> engine_images_results(
+    const std::vector<Image>& images,
+    const py::array_t<bool>& img_roi_arr,
+    const Calib &calib,
+    const util::Config& conf,
+    const MultiwindowConfig &mwconf,
+    const common_util::SaveConfig& saveconf) {
+    const size_t expected_images = conf.stereo
+        ? static_cast<size_t>(2 * (conf.num_def_img + 1))
+        : static_cast<size_t>(conf.num_def_img + 1);
+    if (images.size() != expected_images)
+        throw std::runtime_error("Image array count does not match DIC config.");
+    for (const auto &image : images) {
+        if (image.width != static_cast<uint32_t>(conf.px_hori) ||
+            image.height != static_cast<uint32_t>(conf.px_vert))
+            throw std::runtime_error("Image array dimensions do not match DIC config.");
+    }
+
+    std::shared_ptr<InMemoryResults> results;
+    engine_impl(img_roi_arr, calib, conf, mwconf, saveconf, [&](int image_index) {
+        Image image = images.at(image_index);
+        if (conf.image_filter_kernel > 1)
+            apply_filter(image, conf.image_filter_kernel, conf.image_filter_sigma);
+        return make_interp(conf.interp_routine, image);
+    }, &results, saveconf.output_results);
+    return results;
+}
+
+void engine_impl(const py::array_t<bool>& img_roi_arr,
+                 const Calib &calib,
+                 const util::Config &conf,
+                 const MultiwindowConfig &mwconf,
+                 const common_util::SaveConfig &saveconf,
+                 const std::function<std::unique_ptr<Interpolator>(int)> &interp_factory,
+                 std::shared_ptr<InMemoryResults> *memory_results,
+                 const bool write_to_disk){
+
+
     signal(SIGINT, signalHandler);
     g_debug_level = conf.debug_level;
 
-    // ------------------------------------------------------------------------
-    // Initialisation
-    // ------------------------------------------------------------------------
     if (g_debug_level>0){
-    TITLE("Config");
-    INFO_OUT("Width of Images: ", conf.px_hori << " [px]");
-    INFO_OUT("Height of Images: ", conf.px_vert << " [px]");
-    INFO_OUT("Number of Deformed Images: ", conf.num_def_img);
-    INFO_OUT("Max number of solver iterations: ", conf.max_iter);
-    INFO_OUT("Correlation Criterion: ", conf.corr_crit);
-    INFO_OUT("Shape Function: ", conf.shape_func);
-    INFO_OUT("Interpolation Routine: ", conf.interp_routine);
-    INFO_OUT("FFT MAD outlier removal enabled: ", conf.fft_mad);
-    INFO_OUT("FFT MAD scale: ", conf.fft_mad_scale);
-    INFO_OUT("Image Scan Method: ", conf.scan_method);
-    INFO_OUT("Optimization Precision:", conf.precision);
-    INFO_OUT("Correlation Cutoff Threshold:", conf.threshold);
-    INFO_OUT("Estimate for Max Displacement:", conf.max_disp << " [px]");
-    INFO_OUT("Subset Size:", conf.ss_size << " [px]");
-    INFO_OUT("Subset Step:", conf.ss_step << " [px]" );
-    INFO_OUT("Number of OMP threads:", omp_get_max_threads());
-    INFO_OUT("Debug level: ", conf.debug_level);
-    if (conf.scan_method.find("RG") != std::string::npos)INFO_OUT("Reliability Guided Seed central px location: ", "(" 
-                                         << conf.rg_seed.first+conf.ss_size/2 << ", " << conf.rg_seed.second+conf.ss_size/2 << ") [px] " )
+        common_util::title("Starting Correlation");
     }
 
-    // get raw pointers
-    bool* img_roi = static_cast<bool*>(img_roi_arr.request().ptr);
-    double* img_stack = static_cast<double*>(img_stack_arr.request().ptr);
+    const bool *img_roi = img_roi_arr.data();
 
-    // ------------------------------------------------------------------------
-    // get a list of ss coordinates within RIO;
-    // ------------------------------------------------------------------------
-    std::vector<subset::Grid> ss_grids;
-    std::vector<int> ss_sizes, ss_steps;
-    util::gen_size_and_step_vector(ss_sizes, ss_steps, conf.ss_size, conf.ss_step, conf.max_disp);
-    fourier::init(ss_grids, ss_sizes, ss_steps, img_roi, conf);
+    MultiwindowPyramid multiwindow_l;
+    SubsetGrid ss_grid_l;
+    SubsetGrid ss_grid_l_0;
+
+    ss_grid_l = build_initial_grid(img_roi,
+                                   conf,
+                                   mwconf,
+                                   saveconf,
+                                   multiwindow_l);
+    ss_grid_l_0 = ss_grid_l;
+
+    if (memory_results != nullptr) {
+        const std::size_t num_frames = conf.stereo
+            ? static_cast<std::size_t>(conf.num_def_img + 1)
+            : static_cast<std::size_t>(conf.num_def_img);
+        *memory_results = std::make_shared<InMemoryResults>(
+            num_frames, static_cast<std::size_t>(ss_grid_l.num), conf.stereo);
+        (*memory_results)->set_coordinates(ss_grid_l_0);
+    }
 
 
     // resize the results based on subset information
-    OptResultArrays result_arrays(conf.num_def_img, ss_grids.back().num,
-                               conf.num_params, saveconf.at_end);
+    ResultArrays results_def_l(ss_grid_l.num, conf.num_params, false);
 
 
-    // set relevent shape function
-    shapefunc::set(conf.shape_func);
+    std::unique_ptr<Interpolator> interp_ref_l;
+    std::unique_ptr<Interpolator> interp_ref_r;
+    std::unique_ptr<Interpolator> interp_def_l;
+    std::unique_ptr<Interpolator> interp_def_r;
+    interp_ref_l = interp_factory(0); // image 0
 
-    // set cost function to use in optimization
-    optimizer::set_cost_function(conf.corr_crit);
+
+    ResultArrays results_ref_l(ss_grid_l.num, conf.num_params, false);
+    ResultArrays results_ref_r;
+    ResultArrays results_def_r;
+    stereo::Geometry stereo_geom;
+
+    auto [basenames_l, basenames_r] = stereo::split_basenames(conf);
 
 
+    if (conf.stereo){
+
+        // resize the results based on subset information
+        results_ref_r = ResultArrays(ss_grid_l.num, conf.num_params, true);
+        results_def_r = ResultArrays(ss_grid_l.num, conf.num_params, true);
+
+        // sort out intrinsic and extrinsic matrices into struct
+        stereo_geom = stereo::compute_stereo_geometry(calib);
+
+        // Reconstruct the supplied stereo reference pair before processing any
+        // deformed images. Physical displacements must be measured from this
+        // geometry, rather than from the first deformed image pair.
+        const int img_num_ref_r = conf.num_def_img + 1;
+        interp_ref_r = interp_factory(img_num_ref_r);
+        singlewindow_rg(*interp_ref_l,
+                        *interp_ref_r,
+                        ss_grid_l_0,
+                        conf,
+                        0,
+                        img_num_ref_r,
+                        results_ref_l,
+                        results_ref_r,
+                        "stereo",
+                        stereo_geom.F);
+
+        stereo::pixel_to_world(ss_grid_l_0,
+                               calib,
+                               results_ref_l,
+                               results_ref_r,
+                               results_ref_r,
+                               stereo_geom.K0,
+                               stereo_geom.K1,
+                               stereo_geom.R,
+                               conf.ss_size,
+                               true);
+
+        // The temporal part of this output is the supplied reference image
+        // compared with itself. It is not a correlation result, but it is a
+        // valid zero-displacement datum for the first saved frame.
+        std::fill(results_ref_l.conv.begin(), results_ref_l.conv.end(), 1);
+        std::fill(results_ref_l.valid_match.begin(), results_ref_l.valid_match.end(), 1);
+        std::fill(results_ref_l.cost.begin(), results_ref_l.cost.end(), 1.0);
+
+        if (memory_results != nullptr) {
+            (*memory_results)->store_stereo_frame(
+                0, results_ref_l, results_ref_r, ss_grid_l_0, saveconf);
+        }
+        if (write_to_disk) {
+            results_ref_l.write_to_disk_stereo(
+                results_ref_r, saveconf, ss_grid_l_0, basenames_l[0]);
+        }
+    }
+
+
+    int img_num_ref_l = 0;
 
     // -----------------------------------------------------------------------
     // loop over deformed images and perform DIC
     // -----------------------------------------------------------------------
-    if (g_debug_level>0){
-        std::cout << std::endl;
-        TITLE("Starting Correlation")
-    }
-    common_util::Timer timer("DIC Engine:");
-
-    // pointer to reference image at start of stack
-    double *img_ref = img_stack;
-    
-    // pointer to hold the reference interpolator (will be created once)
-    Interpolator* interp_ref = nullptr;
-
-    // loop over deformed images. They start at index 1 in the stack
     for (int img_num = 1; img_num < conf.num_def_img+1; img_num++){
 
-        // pointer to starting location of deformed image in memory
-        int num_px_in_image = conf.px_hori * conf.px_vert;
-        double *img_def = img_stack + img_num*num_px_in_image;
+        int img_num_def_l = img_num;
+        int img_num_def_r = conf.num_def_img+1+img_num;
 
-        // define our interpolator for the reference image
-        Interpolator interp_def(img_def, conf.px_hori, conf.px_vert);
+        // interpolator for the L image
+        interp_def_l = interp_factory(img_num_def_l);
 
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        // raster scan
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        if (conf.scan_method=="IMAGE_SCAN") 
-            scanmethod::image(img_ref, interp_def, ss_grids[0], conf, img_num, result_arrays);
-
-
-
-
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        // multiwindow FFTCC + reliability Guided
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        else if (conf.scan_method=="MULTIWINDOW_RG")
-            scanmethod::multiwindow_reliability_guided(img_ref, img_def, interp_def, ss_grids, conf, img_num, result_arrays);
-
-
-
-
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        // singlewindow FFTCC + reliability Guided
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        else if (conf.scan_method=="SINGLEWINDOW_RG"){
-            if (!interp_ref) interp_ref = new Interpolator(img_ref, conf.px_hori, conf.px_vert);
-            scanmethod::singlewindow_incremental_reliability_guided(img_ref, img_def, *interp_ref, interp_def, ss_grids, conf, 0, img_num, result_arrays);
+        // interpolator for the R image
+        if (conf.stereo) {
+            interp_def_r = interp_factory(img_num_def_r);
         }
 
+        switch (conf.scan_method) {
+            case util::EScanMethod::RASTER: {
+                // ----------------------------------------------------------------------------------------
+                // raster scan
+                // ----------------------------------------------------------------------------------------
+                if (conf.stereo) 
+                    throw std::invalid_argument("Unsupported scan method");
+
+                if (conf.incremental)
+                    throw std::invalid_argument("Raster scan does not support incremental DIC");
+
+                results_def_l.reset();
+                results_def_r.reset();
+
+                raster(*interp_ref_l,
+                       *interp_def_l,
+                       ss_grid_l,
+                       conf, 0,
+                       img_num,
+                       results_def_l);
+                break;
+            }
+
+            case util::EScanMethod::MULTIWINDOW: {
+                // ----------------------------------------------------------------------------------------
+                // multiwindow FFTCC
+                // ----------------------------------------------------------------------------------------
+                bool update_ref = conf.incremental && should_update_ref(img_num_def_l,
+                                                                        results_def_l,
+                                                                        conf);
+                if (update_ref) {
+                    img_num_ref_l = img_num_def_l - 1;
+                    results_ref_l = results_def_l;
+                    interp_ref_l = interp_factory(img_num_ref_l);
+
+                    std::unique_ptr<bool[]> roi_updated(propagate_roi(img_roi,
+                                                                      results_def_l,
+                                                                      conf,
+                                                                      ss_grid_l));
+
+                    // Update the active finest-level grid before rebuilding the pyramid.
+                    if (img_num_def_l > 1){
+                        for (int i = 0; i < ss_grid_l.num; i++) {
+                            if (!results_ref_l.valid_match[i]) {
+                                ss_grid_l.active_ss[i] = false;
+                            }
+                        }
+                        ss_grid_l.active_total = std::count(ss_grid_l.active_ss.begin(),
+                                                            ss_grid_l.active_ss.end(), true);
+                    }
+
+                    multiwindow_l.rebuild_for_new_reference(roi_updated.get(),
+                                                            ss_grid_l,
+                                                            results_ref_l.u,
+                                                            results_ref_l.v,
+                                                            conf,
+                                                            mwconf,
+                                                            saveconf,
+                                                            mwconf.overlap.size() - 1);
+
+                }
 
 
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        // multi window FFTCC ONLY
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        else if (conf.scan_method=="MULTIWINDOW")
-            scanmethod::multiwindow(img_ref, img_def, interp_def, ss_grids, conf, img_num, result_arrays);
+                results_def_l.reset();
+                results_def_r.reset();
+
+                multiwindow_only(*interp_ref_l, 
+                                 *interp_def_l,
+                                 multiwindow_l, 
+                                 conf,
+                                 img_num_ref_l, 
+                                 img_num_def_l, 
+                                 results_ref_l, 
+                                 results_def_l);
+                break;
+            }
+
+            case util::EScanMethod::SINGLEWINDOW_RG: {
+                // ----------------------------------------------------------------------------------------
+                // singlewindow FFTCC + RG
+                // ----------------------------------------------------------------------------------------
+                if (conf.incremental && should_update_ref(img_num_def_l, results_def_l, conf)) {
+
+                    // update left image vars
+                    img_num_ref_l = img_num_def_l - 1;
+                    results_ref_l = results_def_l;
+                    interp_ref_l = interp_factory(img_num_ref_l);
+
+                    // update right image vars
+                    if (conf.stereo)
+                        results_ref_r = results_def_r;
+
+                    // Step 1: update active flags on ss_grid_l
+                    if (img_num_def_l > 1){
+                        for (int i = 0; i < ss_grid_l.num; i++) {
+                            if (!results_ref_l.valid_match[i]) {
+                                ss_grid_l.active_ss[i] = false;
+                            }
+                        }
+                        ss_grid_l.active_total = std::count(ss_grid_l.active_ss.begin(),
+                                                            ss_grid_l.active_ss.end(), true);
+                    }
+
+                    for (int i = 0; i < ss_grid_l.num; i++) {
+                        if (ss_grid_l.active_ss[i]) {
+                            ss_grid_l.coords[2*i]   += results_ref_l.u[i];
+                            ss_grid_l.coords[2*i+1] += results_ref_l.v[i];
+                        }
+                    }
 
 
+                }
+
+                results_def_l.reset();
+                results_def_r.reset();
+
+                singlewindow_rg(*interp_ref_l, 
+                                *interp_def_l,
+                                ss_grid_l, 
+                                conf, 
+                                img_num_ref_l, 
+                                img_num_def_l,
+                                results_ref_l, 
+                                results_def_l);
+
+                if (conf.stereo) {
+
+                    singlewindow_rg(*interp_ref_l,
+                                    *interp_def_r,
+                                    ss_grid_l,
+                                    conf,
+                                    img_num_ref_l,
+                                    img_num_def_r,
+                                    results_ref_l,
+                                    results_def_r,
+                                    "stereo",
+                                    stereo_geom.F,
+                                    results_def_l);
+
+                    stereo::pixel_to_world(ss_grid_l_0,
+                                        calib,
+                                        results_def_l,
+                                        results_ref_r,
+                                        results_def_r,
+                                        stereo_geom.K0,
+                                        stereo_geom.K1,
+                                        stereo_geom.R,
+                                        conf.ss_size,
+                                        false);
+                }
+                break;
+            }
+
+            case util::EScanMethod::MULTIWINDOW_RG: {
+                // ----------------------------------------------------------------------------------------
+                // multiwindow FFTCC + reliability Guided
+                // ----------------------------------------------------------------------------------------
+                bool update_ref = conf.incremental && should_update_ref(img_num_def_l,
+                                                                        results_def_l,
+                                                                        conf);
+                if (update_ref) {
+
+                    // update left image vars
+                    img_num_ref_l = img_num_def_l - 1;
+                    results_ref_l = results_def_l;
+                    interp_ref_l = interp_factory(img_num_ref_l);
+
+                    // update right image vars
+                    if (conf.stereo)
+                        results_ref_r = results_def_r;
 
 
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        // singlewindow FFTCC + reliability Guided + Incremental Updating
-        // -------------------------------------------------------------------------------------------------------------------------------------------
-        else if (conf.scan_method=="SINGLEWINDOW_RG_INCREMENTAL"){
-            double *img_prev = nullptr;
-            int img_num_prev = img_num-1;
-            img_prev = img_stack + img_num_prev*num_px_in_image;
-            Interpolator interp_ref_inc(img_prev, conf.px_hori, conf.px_vert);
-            scanmethod::singlewindow_incremental_reliability_guided(img_prev, img_def, interp_ref_inc, interp_def, ss_grids, conf, img_num_prev, img_num, result_arrays);
+                    std::unique_ptr<bool[]> roi_updated(propagate_roi(img_roi,
+                                                                      results_def_l,
+                                                                      conf,
+                                                                      ss_grid_l));
+
+                    // Update the active finest-level grid before rebuilding the pyramid.
+                    if (img_num_def_l > 1){
+                        for (int i = 0; i < ss_grid_l.num; i++) {
+                            if (!results_ref_l.valid_match[i]) {
+                                ss_grid_l.active_ss[i] = false;
+                            }
+                        }
+                        ss_grid_l.active_total = std::count(ss_grid_l.active_ss.begin(),
+                                                            ss_grid_l.active_ss.end(), true);
+                    }
+
+                    multiwindow_l.rebuild_for_new_reference(roi_updated.get(),
+                                                            ss_grid_l,
+                                                            results_ref_l.u,
+                                                            results_ref_l.v,
+                                                            conf,
+                                                            mwconf,
+                                                            saveconf,
+                                                            mwconf.overlap.size() - 1);
+
+                }
+
+                results_def_l.reset();
+                results_def_r.reset();
+
+                multiwindow_rg(*interp_ref_l, 
+                               *interp_def_l,
+                               multiwindow_l, 
+                               conf, 
+                               img_num_ref_l, 
+                               img_num_def_l,
+                               results_ref_l, 
+                               results_def_l);
+
+                // multiwindow_rg_stereo(*interp_ref_l, 
+                //                       *interp_def_l,
+                //                       *interp_def_r,
+                //                       multiwindow_l, 
+                //                       conf, 
+                //                       img_num_ref_l, 
+                //                       img_num_def_l,
+                //                       results_ref_l, 
+                //                       results_ref_r, 
+                //                       results_def_l,
+                //                       results_def_r,
+                //                       stereo_geom.F);
+
+
+                // ------------------------------------------------------------
+                // stereo
+                // ------------------------------------------------------------
+                if (conf.stereo) {
+
+                    singlewindow_rg(*interp_ref_l,
+                                    *interp_def_r,
+                                    multiwindow_l.back().grid,
+                                    conf,
+                                    img_num_ref_l,
+                                    img_num_def_r,
+                                    results_ref_l,
+                                    results_def_r,
+                                    "stereo",
+                                    stereo_geom.F,
+                                    results_def_l);
+
+                    stereo::pixel_to_world(ss_grid_l_0,
+                                        calib,
+                                        results_def_l,
+                                        results_ref_r,
+                                        results_def_r,
+                                        stereo_geom.K0,
+                                        stereo_geom.K1,
+                                        stereo_geom.R,
+                                        conf.ss_size,
+                                        false);
+                }
+                break;
+            }
+
+            default:
+                throw std::invalid_argument("Unsupported scan method");
         }
 
+        const std::size_t memory_frame = conf.stereo
+            ? static_cast<std::size_t>(img_num)
+            : static_cast<std::size_t>(img_num - 1);
 
+        if (memory_results != nullptr) {
+            if (conf.stereo) {
+                (*memory_results)->store_stereo_frame(
+                    memory_frame, results_def_l, results_def_r, ss_grid_l, saveconf);
+            }
+            else {
+                (*memory_results)->store_frame(
+                    memory_frame, results_def_l, ss_grid_l, saveconf);
+            }
+        }
 
+        if (write_to_disk) {
+            if (!conf.stereo) {
+                results_def_l.write_to_disk_2d(
+                    saveconf, ss_grid_l, basenames_l[img_num]);
+            }
+            else {
+                results_def_l.write_to_disk_stereo(
+                    results_def_r, saveconf, ss_grid_l, basenames_l[img_num]);
+            }
+        }
 
-
-        if (!saveconf.at_end)
-            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
+        write_residual_maps(*interp_ref_l,
+                            *interp_def_l,
+                            conf.stereo ? interp_ref_r.get() : nullptr,
+                            conf.stereo ? interp_def_r.get() : nullptr,
+                            ss_grid_l,
+                            results_def_l,
+                            conf.stereo ? &results_def_r : nullptr,
+                            conf.stereo ? &results_ref_r : nullptr,
+                            img_roi,
+                            conf,
+                            saveconf,
+                            basenames_l[img_num],
+                            conf.stereo ? basenames_r[img_num] : std::string{});
 
         if (stop_request) break;
     }
 
-    if (saveconf.at_end)
-        for (int img_num = 1; img_num < conf.num_def_img+1; img_num++)
-            result_arrays.write_to_disk(img_num, saveconf, ss_grids.back(), conf.num_def_img, conf.filenames);
-
-
-    if (interp_ref) delete interp_ref;
-
-    // TODO: don't have shifts as a global var. Should probably make fourier
-    // stuff a class at some point in the future
-    fourier::shifts.clear();
-    fourier::shifts.shrink_to_fit();
+    raise_on_interrupt();
 }
-
-
-void build_info(){
-        //std::cout << "Buld Information:" << std::endl;
-        //INFO_OUT("- g++ version:", CPUCOMP);
-        //INFO_OUT("- Co
-        //INFO_OUT("- Git SHA:", GITINFO);
-        //INFO_OUT("- Number of dirty files:", GITDIRTY);
-        //INFO_OUT("- Compiled on Machine:", HOSTNAME);
-        //INFO_OUT("- Compiled on OS:", OSNAME);
-        //INFO_OUT("- Compiled at:", BUILDTIME);
-        //std::cout << std::endl;
-}
-
-
-

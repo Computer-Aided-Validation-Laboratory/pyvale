@@ -9,14 +9,14 @@ Quadratic bunny: one speckled bunny and six flying bunnies showcasing
 various materials
 ---------------------------------------------------------------
 
-This example uses the Gmsh 2 mesh from ``pyvale.dataset`` of the simplified
+This example uses the Gmsh 2 mesh from ``pyvale.data`` of the simplified
 Stanford bunny.
 Its boundary is made entirely of quadratic ``TRI6`` elements. The example
 extracts that boundary to a VTK file in the output directory before rendering.
 
 1. **Speckled bunny**: one upright bunny is UV-unwrapped with
    ``BlenderUnwrapper``, textured with the speckle pattern bundled in
-   ``pyvale.dataset``, and shaded as a diffuse surface.
+   ``pyvale.data``, and shaded as a diffuse surface.
 2. **Flying bunnies**: six upright bunnies at various depths, rotations
    and sizes, showcasing a speckled surface, specular copper and tungsten,
    refractive honey, and unlit cyan and pink bunnies.
@@ -28,7 +28,7 @@ import meshio
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 from pyvale.sensorsim.imagetools import ImageTools
 from pyvale.raytracer.rtblender import BlenderUnwrapper
 from pyvale.raytracer.rtcamera import Camera
@@ -54,7 +54,7 @@ from pyvale.raytracer.rtpresets import MaterialPresets
 from pyvale.raytracer.rtscene import Scene
 
 # %%
-# Gmsh mesh from pyvale.dataset, output directories and surface extraction
+# Gmsh mesh from pyvale.data, output directories and surface extraction
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # ``dataset.bunny_msh_path()`` supplies the original Gmsh 2 file. It contains
 # both a tetra10 volume and its tri6 boundary. ``any_mesh_to_rtmesh`` could

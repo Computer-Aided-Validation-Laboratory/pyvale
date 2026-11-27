@@ -3,48 +3,51 @@
 MacOS
 ######
 
-Configuring Python3.11
-***********************
-To be compatible with ``bpy`` (the Blender python interface), ``pyvale`` requires python 3.11. 
+Configuring Python
+******************
+
+``pyvale`` supports Python 3.11 and newer. The optional Blender backend
+requires Python 3.13 and ``pip install "pyvale[blender]"``.
 Homebrew is a free and open-source commonly used package manager for macOS that often simplifies the process of installing, updating, and managing software. 
 
 Install via Homebrew
-=========
+=====================
 Simple installation instructions for Homebrew itself be found at `<https://brew.sh/>`_.
 
-After you have homebrew setup, you can install python3.11 with:
+After you have homebrew setup, you can install python3.13 with:
 
 .. code-block::
    
-    brew install python@3.11
+    brew install python@3.13
 
 To verify the installation you can try the command:
 
 .. code-block::
 
-   which python3.11
+   which python3.13
 
 Install via Python.org
 ======================
 
-To install python3.11 from `<https://python.org>`_ hover over the “Downloads” link in the navigation. Select macOS.
-You'll then need to select 3.11.9 (or whatever the latest version of 3.11 is).
+To install python3.13 from `<https://python.org>`_ hover over the “Downloads” link in the navigation. Select macOS.
+You'll then need to select 3.13 (or whatever the latest version of 3.13 is).
 This should download the installer which you can then run through.
 
 If you have multiple python version the above instructions should put python in
-location ``/Library/Frameworks/Python.framework/Versions/3.11/bin/``. In that
-folder there should be a ``python3``, which is really a link to ``python3.11``.
+location ``/Library/Frameworks/Python.framework/Versions/3.13/bin/``. In that
+folder there should be a ``python3``, which is really a link to ``python3.13``.
 
 
 Virtual Environment
 ********************
 
 We recommend installing ``pyvale`` in a virtual environment using ``venv`` or ``pyvale`` can be installed into an existing environment of your choice. 
-To create a specific virtual environment for ``pyvale`` first open a terminal Then navigate to the folder you want to install the environment in (using ``cd``) and use:
+To create a virtual environment for ``pyvale`` first open a terminal, navigate
+to the folder in which to install it (using ``cd``), and use:
 
 .. code-block:: batch
 
-   python3.11 -m venv pyvale-env
+   python -m venv pyvale-env
 
 This will create a virtual environment called 'pyvale-env' in a folder of the same name. To activate the virtual environment from your current location type this into your terminal:
 
@@ -55,7 +58,7 @@ This will create a virtual environment called 'pyvale-env' in a folder of the sa
 If this has worked you should see '(pyvale-env)' at the start of your command prompt line showing the environmen is activated. If you ever need to activate the environment in a new command prompt you just need to run the 'activate' script again from the folder you are currently in.
 
 Virtual Environments in VSCode
-------------------------------
+===============================
 
 To use you virtual environment in VSCode to run some of the examples you will need to make sure you have selected your virtual environment as your python interpreter. 
 To do this first open the folder that you want to work from which should be the same folde that contains your virtual environment folder (that is the pyvale-env folder). 
@@ -71,7 +74,8 @@ Installation from PyPI
 
    pip install pyvale
 
-You should now be able to start a python 3.11 interpreter in your terminal using (again make sure your pyvale-env is active):
+You should now be able to start a Python interpreter in your terminal using
+(again make sure your pyvale-env is active):
 
 .. code-block:: bash
 
@@ -93,33 +97,34 @@ Installation from Source
 This will only be needed if you want an editable installation of ``pyvale`` for most applications users will want to use the PyPI version above.
 
 Dependencies
-^^^^^^^^^^^^
+============
 
 Apple has disabled OpenMP for the default C/C++ compilers shipped with Xcode. 
-Therefore, it's reccomended you install either ``gcc`` OR``llvm`` AND ``libomp`` using the homebrew (`https://brew.sh/`_) package manager. 
+Therefore, it's reccomended you install either ``gcc`` OR ``llvm`` + ``libomp`` using the homebrew (`https://brew.sh/`_) package manager. 
+You'll also need to install `libtiff <https://libtiff.gitlab.io/libtiff/>`_ as a dependency for ``pyvale``.
 For ``gcc`` you can install it via homebrew with the command:
 
 .. code-block:: bash
 
-   brew install gcc
+   brew install gcc libtiff
 
 You'll then need to ensure that the new compilers installed via homebrew are
 used during the build process:
 
 .. code-block:: bash
 
-   export CC=/opt/homebrew/opt/gcc/bin/gcc-15
-   export CXX=/opt/homebrew/opt/gcc/bin/g++-15
+   export CC=$(brew --prefix gcc)/bin/gcc-15
+   export CXX=$(brew --prefix gcc)/bin/g++-15
 
-You might need to change the number at the end depending on which version of
-``gcc`` you have installed.
+**You may need to change the number at the end depending on which version of
+``gcc`` you have installed.**
 
 Alternatively, if you want to use ``llvm`` and ``libomp`` you can install them
 with
 
 .. code-block:: bash
 
-   brew install llvm libomp
+   brew install llvm libomp libtiff
 
 
 You'll then need to ensure that the new compilers installed via homebrew are
@@ -127,17 +132,17 @@ used during the build process:
 
 .. code-block:: bash
 
-   export CC=/opt/homebrew/opt/llvm/bin/clang
-   export CXX=/opt/homebrew/opt/llvm/bin/clang++
+  export CC=$(brew --prefix llvm)/bin/clang
+  export CXX=$(brew --prefix llvm)/bin/clang++
 
 Clone and Install the Github Repository
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+=======================================
 
 Clone ``pyvale`` to your local system using git along with submodules using:
 
 .. code-block:: bash
 
-   git clone git@github.com:Computer-Aided-Validation-Laboratory/pyvale.git
+   git clone https://github.com/Computer-Aided-Validation-Laboratory/pyvale.git
 
 For this case it is normally easier to keep your virtual environment stored in the ``pyvale`` folder so create a virtual environment there first. Then, ensure you virtual environment is activated and run the following commmand from the ``pyvale`` folder:
 
@@ -153,6 +158,4 @@ Now check that you can import pyvale in the interpreter:
    import pyvale
 
 If there are no errors then everything has worked and you can now move on to looking at some of our examples to get you started in the basics section.
-
-
 

@@ -22,10 +22,10 @@
 //#include <chrono>
 #include <valgrind/callgrind.h>
 
-// common_cpp header files
-#include "../../common_cpp/Eigen/Dense"
-#include "../../common_cpp/util.hpp"
-//#include "../../common_cpp/dicsignalhandler.hpp" // In the future when nanobind cooperates
+// commoncpp header files
+#include "../../commoncpp/Eigen/Dense"
+#include "../../commoncpp/util.hpp"
+//#include "../../commoncpp/dicsignalhandler.hpp" // In the future when nanobind cooperates
 
 // raytracer header files
 #include "rteigentypes.h"

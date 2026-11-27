@@ -16,8 +16,7 @@ import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 #still required to make latex work.
 import pyvista as pv
 
-import pyvale.mooseherder as mh
-
+from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.sensorspoint import SensorsPoint
 from pyvale.sensorsim.fieldconverter import (simdata_to_pyvista_vis,
                                    simdata_to_pyvista_interp)
@@ -171,7 +170,7 @@ def add_sensor_points_pert(pv_plot: pv.Plotter,
     return pv_plot
 
 
-def plot_sim_mesh(sim_data: mh.SimData,
+def plot_sim_mesh(sim_data: SimData,
                   elem_dims: int,
                   vis_opts: VisOptsSimSensors | None = None,
                   ) -> pv.Plotter:
@@ -180,7 +179,7 @@ def plot_sim_mesh(sim_data: mh.SimData,
 
     Parameters
     ----------
-    sim_data : mh.SimData
+    sim_data : SimData
         Sim data object containing the mesh to plot.
     elem_dims : int
         Number of dimensions for the elements to be plotted.
@@ -208,7 +207,7 @@ def plot_sim_mesh(sim_data: mh.SimData,
     return pv_plot
 
 
-def plot_sim_data(sim_data: mh.SimData,
+def plot_sim_data(sim_data: SimData,
                   component: str,
                   elem_dims: int,
                   time_step: int = -1,
@@ -219,7 +218,7 @@ def plot_sim_data(sim_data: mh.SimData,
 
     Parameters
     ----------
-    sim_data : mh.SimData
+    sim_data : SimData
         simulation data object containing the mesh and field data to show.
     component : str
         String key for accessing the nodal field to visualise in the sim data

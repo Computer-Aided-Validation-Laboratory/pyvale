@@ -12,7 +12,7 @@ from global_utils import *
 from convergence_common import *
 
 from pyvale.sensorsim.imagetools import ImageTools
-from pyvale.dataset.dataset import dic_pattern_5mpx_path
+from pyvale.data.dataset import dic_pattern_5mpx_path
 import os
 from pyvale.raytracer.rtmesh import *
 from pyvale.raytracer.rtmeshvisuals import *

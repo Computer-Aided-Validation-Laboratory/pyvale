@@ -18,8 +18,8 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-import pyvale.dataset as dataset
-from pyvale.dataset import EElemTest
+import pyvale.data as dataset
+from pyvale.data import EElemTest
 from pyvale.sensorsim.imagetools import ImageTools
 from pyvale.raytracer.rtblender import BlenderUnwrapper
 from pyvale.raytracer.rtcamera import Camera

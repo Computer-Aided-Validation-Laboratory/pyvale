@@ -19,7 +19,7 @@ Test case: 3D mechanical plate with a central hole loaded in tension.
 from pathlib import Path
 import numpy as np
 
-import pyvale.dataset as dataset
+import pyvale.data as dataset
 from pyvale.raytracer.rtcamera import Camera
 from pyvale.raytracer.rtmain import render_scene
 from pyvale.raytracer.rtmesh import (

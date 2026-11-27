@@ -22,8 +22,8 @@
 #include <vector>
 #include <chrono>
 
-// common_cpp header files
-#include "../../common_cpp/Eigen/Dense"
+// commoncpp header files
+#include "../../commoncpp/Eigen/Dense"
 
 // raytracer header files
 #include "rteigentypes.h"

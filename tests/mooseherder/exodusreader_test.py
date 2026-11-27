@@ -4,14 +4,16 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 #===============================================================================
 
-from pathlib import Path
+from collections.abc import Iterator
 from dataclasses import fields
-import pytest
+from pathlib import Path
+
 import numpy as np
 import numpy.typing as npt
+import pytest
+
+from pyvale.dataio.simdata import SimData
 from pyvale.mooseherder.exodusloader import ExodusLoader
-from pyvale.mooseherder.simdata import SimData
-import tests.mooseherder.herdchecker as hc
 
 NUM_TIME_STEPS = 4
 NUM_NODES = 441
@@ -59,11 +61,12 @@ GLO_VAR_NAMES = ('avg_yy_stress',
 
 @pytest.fixture
 def exodus_path() -> Path:
-    return hc.OUTPUT_GOLD_PATH / 'moose-mech-outtest_out.e'
+    return (Path(__file__).resolve().parent / "output_gold") / 'moose-mech-outtest_out.e'
 
 @pytest.fixture
-def reader(exodus_path: Path) -> ExodusLoader:
-    return ExodusLoader(exodus_path)
+def reader(exodus_path: Path) -> Iterator[ExodusLoader]:
+    with ExodusLoader(exodus_path) as loader:
+        yield loader
 
 
 def test_init_reader(reader: ExodusLoader,
@@ -304,7 +307,9 @@ def check_sim_data(data: SimData) -> None:
 
     assert tuple(data.connect.keys()) == CONNECT_NAMES
     for cc in data.connect:
-        assert data.connect[cc].shape == (NODES_PER_ELEM,NUM_ELEMS_PER_BLOCK)
+        assert data.connect[cc].shape == (NUM_ELEMS_PER_BLOCK,NODES_PER_ELEM)
+        assert np.min(data.connect[cc]) >= 0
+        assert np.max(data.connect[cc]) < NUM_NODES
 
     assert len(data.side_sets.keys()) == NUM_SIDESETS*2
     for ss in data.side_sets:
@@ -324,4 +329,3 @@ def check_sim_data(data: SimData) -> None:
     assert tuple(data.glob_vars.keys()) == GLO_VAR_NAMES
     for gg in data.glob_vars:
         data.glob_vars[gg].shape == (NUM_TIME_STEPS,)
-

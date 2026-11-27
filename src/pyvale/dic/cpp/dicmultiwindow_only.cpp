@@ -1,0 +1,139 @@
+// ================================================================================
+// pyvale: the python validation engine
+// License: MIT
+// Copyright (C) 2025 The Computer Aided Validation Team
+// ================================================================================
+
+
+// STD library Header files
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <atomic>
+#include <cstring>
+#include <omp.h>
+#include <csignal>
+#include <optional>
+#include <chrono>
+
+// commoncpp headers
+#include "../../commoncpp/defines.hpp"
+#include "../../commoncpp/progressbar.hpp"
+#include "../../commoncpp/dicsignalhandler.hpp"
+
+
+// Program Header files
+#include "./dicinterp.hpp"
+#include "./dicutil.hpp"
+#include "./dicsubset.hpp"
+#include "./dicresults.hpp"
+#include "./dicmultiwindow_util.hpp"
+
+
+void multiwindow_only(const Interpolator &interp_ref,
+                      const Interpolator &interp_def,
+                      MultiwindowPyramid &pyramid,
+                      const util::Config &conf,
+                      const int img_num_ref,
+                      const int img_num_def,
+                      const ResultArrays &results_ref,
+                      ResultArrays &results_def){
+
+    pyramid.calc_rigid_displacements(interp_ref, interp_def,
+                                     img_num_ref, img_num_def,
+                                     conf.basenames, conf.fft_precision);
+
+    const SubsetGrid &ss_grid = pyramid.back().grid;
+    const int nsizes = pyramid.size();
+    const int last_size = nsizes-1;
+
+    #pragma omp parallel shared(stop_request, results_ref, results_def, pyramid, ss_grid, conf, interp_ref, interp_def)
+    {
+
+        Subset<double> ss_ref(ss_grid.size_x, ss_grid.size_y);
+        Subset<double> ss_def(ss_grid.size_x, ss_grid.size_y);
+
+        // get number of subsets and the size for the smalllest window size
+        const int num_ss  = pyramid[last_size].grid.num;
+
+
+
+        #pragma omp for
+        for (int ss = 0; ss < num_ss; ss++){
+
+            // exit the main DIC loop when ctrl+C is hit
+            if (stop_request){
+                continue;
+            }
+
+            // append fourier results to master result vectors
+            OptResult res(conf.num_params);
+
+            // Keep inactive subsets at their reset/default result state, matching
+            // multiwindow_rg and calc_rigid_displacements.
+            if (!ss_grid.active_ss[ss]) {
+                results_def.append(res, ss);
+                continue;
+            }
+
+            res.u    = pyramid.back().u[ss];
+            res.p[0] = pyramid.back().u[ss];
+            res.v    = pyramid.back().v[ss];
+            res.p[1] = pyramid.back().v[ss];
+
+            // get the reference subset
+            const double cx_img0 = ss_grid.coords[ss*2];
+            const double cy_img0 = ss_grid.coords[ss*2+1];
+
+            // get the reference subset
+            ss_ref.fill_from_centre_coords( cx_img0, cy_img0, interp_ref);
+            ss_def.fill_from_shape_params( cx_img0, cy_img0, res.p, interp_def, util::EShapeFunc::RIGID);
+
+            // calculate zncc value
+            double zncc = 0.0;
+            double mean_def = 0.0;
+            double mean_ref = 0.0;
+
+            for (int i = 0; i < ss_def.num_px; ++i) {
+                mean_ref += ss_ref.vals[i];
+                mean_def += ss_def.vals[i];
+            }
+
+            mean_ref /= ss_ref.num_px;
+            mean_def /= ss_def.num_px;
+
+            double sum_squared_ref = 0.0;
+            double sum_squared_def = 0.0;
+            for (int i = 0; i < ss_def.num_px; ++i) {
+                sum_squared_ref += (ss_ref.vals[i] - mean_ref) * (ss_ref.vals[i] - mean_ref);
+                sum_squared_def += (ss_def.vals[i] - mean_def) * (ss_def.vals[i] - mean_def);
+            }
+
+            // Bail out if either subset is degenerate (uniform/zero intensity)
+            if (sum_squared_def < 1e-12 || sum_squared_ref < 1e-12) {
+                zncc = 0.0;
+            }
+            else {
+                const double inv_sum_squared = 1.0 / sqrt(sum_squared_ref*sum_squared_def);
+
+                for (int i = 0; i < ss_def.num_px; ++i) {
+                    const double def_norm = (ss_def.vals[i] - mean_def);
+                    const double ref_norm = (ss_ref.vals[i] - mean_ref);
+                    zncc += ref_norm*def_norm; 
+                }
+                zncc *= inv_sum_squared;
+            }
+
+            res.cost = zncc;
+            res.converged=true;
+
+            if (zncc>=conf.threshold)
+                res.valid_match=true;
+
+            res.u += results_ref.u[ss];
+            res.v += results_ref.v[ss];
+
+            results_def.append(res, ss);
+        }
+    }
+}

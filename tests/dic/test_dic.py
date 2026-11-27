@@ -7,263 +7,937 @@ license: mit
 copyright (c) 2024 the computer aided validation team
 ================================================================================
 """
+from collections.abc import Generator
+import glob
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
+from pathlib import Path
+import shutil
+
+os.environ["OMP_NUM_THREADS"] = "1"
 
 from PIL import Image
 import numpy as np
+import pytest
 import pyvale.dic as dic
-import pyvale.dataset as pyv_data
-from pathlib import Path
-
-test_dir = os.path.dirname(__file__)
-
-ref_pattern = pyv_data.dic_plate_rigid_ref()
-def_pattern = pyv_data.dic_plate_rigid_def()
-def_pattern_25px = pyv_data.dic_plate_rigid_def_25px()
-def_pattern_50px = pyv_data.dic_plate_rigid_def_50px()
-def_large = [def_pattern_25px, def_pattern_50px]
-
-roi = dic.RegionOfInterest(ref_image=ref_pattern)
-roi.rect_region(x=200, y=200, size_x=200, size_y=200)
+import pyvale.data as dataset
+import pyvale.calib as calib
 
 
+TEST_DIR = Path(__file__).resolve().parent
 
-true_file_00_5 = os.path.abspath(os.path.join(test_dir, "./reference/ref_00_50.csv"))
-true_file_01_0 = os.path.abspath(os.path.join(test_dir, "./reference/ref_01_00.csv"))
-true_file_25_0 = os.path.abspath(os.path.join(test_dir, "./reference/ref_25_00.csv"))
-true_file_50_0 = os.path.abspath(os.path.join(test_dir, "./reference/ref_50_00.csv"))
+ref0 = dataset.dic_plate_rigid_cam0_ref()
+ref1 = dataset.dic_plate_rigid_cam1_ref()
+def0 = dataset.dic_plate_rigid_cam0_def_small()
+def1 = dataset.dic_plate_rigid_cam1_def_small()
 
-true_00_5 = np.loadtxt(true_file_00_5, skiprows=1, delimiter=',')
-true_01_0 = np.loadtxt(true_file_01_0, skiprows=1, delimiter=',')
-true_25_0 = np.loadtxt(true_file_25_0, skiprows=1, delimiter=',')
-true_50_0 = np.loadtxt(true_file_50_0, skiprows=1, delimiter=',')
+ref0_hydro = dataset.dic_plate_with_hydro_cam0_ref()
+ref1_hydro = dataset.dic_plate_with_hydro_cam1_ref()
+def0_hydro = dataset.dic_plate_with_hydro_cam0_def()
+def1_hydro = dataset.dic_plate_with_hydro_cam1_def()
+
+def0_25px = dataset.dic_plate_rigid_cam0_def_25px()
+def0_50px = dataset.dic_plate_rigid_cam0_def_50px()
 
 
+calib_rigid_file = TEST_DIR / "calib_rigid.txt"
+calib_rigid = calib.loadtxt(calib_rigid_file)
+
+calib_hole_file = TEST_DIR / "calib_hole.txt"
+calib_hole = calib.loadtxt(calib_hole_file)
 
 
-# Create a deformed image where intensities are scaled/offset
-ref_image = Image.open(ref_pattern)
-files = list(def_pattern.parent.glob(def_pattern.name))
-files = sorted(files)
-def_image = Image.open(files[0])
+def_large = [def0_25px, def0_50px]
+
+roi_rigid = dic.RegionOfInterest(ref_image=ref0)
+roi_hydro = dic.RegionOfInterest(ref_image=ref0)
+roi_rigid.rect_boundary(left=5,right=100,bottom=100,top=5)
+roi_hydro.rect_boundary(left=10,right=10,bottom=10,top=10)
+
+seed = [50,200]
+
+# ------------------------------------------------------------------------------
+# Images
+# ------------------------------------------------------------------------------
+
+ref_image = Image.open(ref0)
+
+if isinstance(def0, list):
+    files = sorted(def0)
+else:
+    files = sorted(def0.parent.glob(def0.name))
+
 ref_arr = np.array(ref_image)
+
+# First deformed image used for intensity scaling tests
+def_image = Image.open(files[2]) # 0.8 px displacement
 def_arr = np.array(def_image)
+
 original_dtype = def_arr.dtype
+
 scale = 0.5
 offset = 50
-def_arr = def_arr.astype(np.float32)
-def_arr_scaled = def_arr * scale
-def_arr_scaled_offset = def_arr * scale + offset
-def_arr = def_arr.astype(original_dtype)
-def_arr_scaled = def_arr_scaled.astype(original_dtype)
-def_arr_scaled_offset = def_arr_scaled_offset.astype(original_dtype)
+
+def_arr_float = def_arr.astype(np.float32)
+
+def_arr_scaled = (def_arr_float * scale).astype(original_dtype)
+def_arr_scaled_offset = (def_arr_float * scale + offset).astype(original_dtype)
+
+# ------------------------------------------------------------------------------
+# Ground truth displacements
+# ------------------------------------------------------------------------------
+u = [0.0, 0.4, 0.8, 1.0]
 
 
-def test_ssd_rigid():
-    dic.calculate_2d(reference=ref_arr,
-                     deformed=def_arr,
-                     roi_mask=roi.mask,
-                     seed=[250,250],
-                     subset_size=31,
-                     subset_step=15,
-                     max_displacement=2,
-                     correlation_criteria="SSD",
-                     shape_function="AFFINE",
-                     method="MULTIWINDOW_RG",
-                     output_basepath=test_dir,
-                     output_prefix="test_ssd_rigid_")
+# ------------------------------------------------------------------------------
+# Fixtures
+# ------------------------------------------------------------------------------
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_ssd_rigid_def_img_0000.csv"))
-    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
-    np.testing.assert_allclose(true_00_5[:, :6], output_data_00_5[:, :6], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
+def _clean_dir_contents(path: Path) -> None:
+    if not path.is_dir():
+        return
+    for item in path.glob("*"):
+        if item.is_file() or item.is_symlink():
+            item.unlink(missing_ok=True)
+        elif item.is_dir():
+            shutil.rmtree(item, ignore_errors=True)
 
-    os.remove(output_file_00_5)
 
-def test_nssd_scaled_image_rigid():
-    dic.calculate_2d(reference=ref_arr,
-                     deformed=def_arr_scaled,
-                     roi_mask=roi.mask,
-                     seed=[250,250],
-                     subset_size=31,
-                     subset_step=15,
-                     max_displacement=2,
-                     correlation_criteria="NSSD",
-                     shape_function="AFFINE",
-                     method="MULTIWINDOW_RG",
-                     output_basepath=test_dir,
-                     output_prefix="test_nssd_scaled_image_rigid_")
+@pytest.fixture
+def dic_temp_dir(tmp_path: Path) -> Generator[Path, None, None]:
+    """Provide a clean temporary output directory before and after each test."""
+    _clean_dir_contents(tmp_path)
+    yield tmp_path
+    _clean_dir_contents(tmp_path)
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_nssd_scaled_image_rigid_def_img_0000.csv"))
-    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
-    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
-    os.remove(output_file_00_5)
 
-def test_znssd_scaled_offset_image_rigid():
-    dic.calculate_2d(reference=ref_arr,
-                     deformed=def_arr_scaled_offset,
-                     roi_mask=roi.mask,
-                     seed=[250,250],
-                     subset_size=31,
-                     subset_step=15,
-                     max_displacement=2,
-                     correlation_criteria="ZNSSD",
-                     shape_function="AFFINE",
-                     method="MULTIWINDOW_RG",
-                     output_basepath=test_dir,
-                     output_prefix="test_znssd_scaled_offset_image_rigid_")
+@pytest.fixture(params=["FALM", "ICGN"])
+def optimizer(request: pytest.FixtureRequest) -> str:
+    return request.param
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_znssd_scaled_offset_image_rigid_def_img_0000.csv"))
-    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
-    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
-    os.remove(output_file_00_5)
 
-def test_image_scan_znssd_affine():
-    dic.calculate_2d(reference=ref_pattern,
-                     deformed=def_pattern,
-                     roi_mask=roi.mask,
-                     seed=[250,250],
-                     subset_size=31,
-                     subset_step=15,
-                     max_displacement=2,
-                     correlation_criteria="ZNSSD",
-                     interpolation_routine="BICUBIC",
-                     shape_function="AFFINE",
-                     method="IMAGE_SCAN",
-                     output_basepath=test_dir,
-                     output_prefix="test_image_scan_znssd_affine_")
+@pytest.fixture(autouse=True)
+def clean_repo_dic_dir() -> Generator[None, None, None]:
+    """Purge any stale CSV outputs in tests/dic before and after every test."""
+    patterns = ("test_*.csv", "dic_results_*.csv", "test_fft_*.csv")
+    for pattern in patterns:
+        for f in TEST_DIR.glob(pattern):
+            f.unlink(missing_ok=True)
+    yield
+    for pattern in patterns:
+        for f in TEST_DIR.glob(pattern):
+            f.unlink(missing_ok=True)
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_affine_plate_rigid_def0000.csv"))
-    output_file_01_0 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_affine_plate_rigid_def0001.csv"))
-    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
-    output_data_01_0 = np.loadtxt(output_file_01_0, skiprows=1, delimiter=',')
 
-    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
+# ------------------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------------------
 
-    np.testing.assert_allclose(true_01_0[:, :7], output_data_01_0[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 1.0px")
+def validate_col(
+    csv_file: str | Path,
+    gt: float,
+    col: int,
+    rtol: float,
+    atol: float,
+) -> None:
+    dic_data = np.loadtxt(csv_file, skiprows=1, delimiter=",")
+    gt_u = np.full(dic_data.shape[0], gt)
 
-    os.remove(output_file_00_5)
-    os.remove(output_file_01_0)
+    np.testing.assert_allclose(
+        gt_u,
+        dic_data[:, col],
+        rtol=rtol,
+        atol=atol,
+        err_msg=f"Displacement mismatch for {gt} px",
+    )
 
-def test_image_scan_znssd_rigid():
-    dic.calculate_2d(reference=ref_pattern,
-                     deformed=def_pattern,
-                     roi_mask=roi.mask,
-                     seed=[250,250],
-                     subset_size=31,
-                     subset_step=15,
-                     max_displacement=2,
-                     correlation_criteria="ZNSSD",
-                     interpolation_routine="BICUBIC",
-                     shape_function="RIGID",
-                     method="IMAGE_SCAN",
-                     output_basepath=test_dir,
-                     output_prefix="test_image_scan_znssd_rigid_")
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_rigid_plate_rigid_def0000.csv"))
-    output_file_01_0 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_znssd_rigid_plate_rigid_def0001.csv"))
-    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
-    output_data_01_0 = np.loadtxt(output_file_01_0, skiprows=1, delimiter=',')
+def validate(
+    output_pattern: str | Path,
+    gt: list[float],
+    atol: float,
+    rtol: float = 0.0,
+    atol_stereo: float = 0.001,
+    stereo: bool = False,
+) -> None:
+    output_files = sorted(glob.glob(str(output_pattern)))
 
-    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
+    if stereo:
+        # Stereo output include reconstructed ref img.
+        output_files.sort(key=lambda file: ("ref_img" not in Path(file).name, file))
 
-    np.testing.assert_allclose(true_01_0[:, :7], output_data_01_0[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 1.0px")
+    assert len(output_files) == len(gt), (
+        f"Expected {len(gt)} output files but found {len(output_files)}"
+    )
 
-    os.remove(output_file_00_5)
-    os.remove(output_file_01_0)
+    for gt_i, output_file in zip(gt, output_files):
+        # check horizontal displacement PIXELS
+        validate_col(output_file, gt_i, 2, rtol, atol)
 
-def test_image_scan_nssd_affine():
-    dic.calculate_2d(reference=ref_pattern,
-                     deformed=def_pattern,
-                     roi_mask=roi.mask,
-                     seed=[250,250],
-                     subset_size=31,
-                     subset_step=15,
-                     max_displacement=2,
-                     correlation_criteria="NSSD",
-                     interpolation_routine="BICUBIC",
-                     shape_function="AFFINE",
-                     method="IMAGE_SCAN",
-                     output_basepath=test_dir,
-                     output_prefix="test_image_scan_nssd_affine_")
+        # check vertical displacement PIXELS
+        validate_col(output_file, -1.0 * gt_i, 3, rtol, atol)
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_nssd_affine_plate_rigid_def0000.csv"))
-    output_file_01_0 = os.path.abspath(os.path.join(test_dir, "./test_image_scan_nssd_affine_plate_rigid_def0001.csv"))
-    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
-    output_data_01_0 = np.loadtxt(output_file_01_0, skiprows=1, delimiter=',')
+        if stereo:
+            # check horizontal displacement MM
+            validate_col(output_file, -0.01 * gt_i, 13, rtol, atol_stereo)
 
-    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
+            # check vertical displacement MM
+            validate_col(output_file, 0.01 * gt_i, 14, rtol, atol_stereo)
 
-    np.testing.assert_allclose(true_01_0[:, :7], output_data_01_0[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 1.0px")
 
-    os.remove(output_file_00_5)
-    os.remove(output_file_01_0)
+def validate_hydro(
+    output_pattern: str | Path,
+    gt: list[float],
+    atol: float,
+    rtol: float = 0.0,
+) -> None:
+    output_files = sorted(glob.glob(str(output_pattern)))
 
-def test_rg_znssd_affine():
-    dic.calculate_2d(reference=ref_pattern,
-                     deformed=def_pattern,
-                     roi_mask=roi.mask,
-                     seed=[250,250],
-                     subset_size=31,
-                     subset_step=15,
-                     max_displacement=2,
-                     correlation_criteria="ZNSSD",
-                     interpolation_routine="BICUBIC",
-                     shape_function="AFFINE",
-                     method="MULTIWINDOW_RG",
-                     output_basepath=test_dir,
-                     output_prefix="test_rg_znssd_affine_")
+    assert len(output_files) == len(gt), (
+        f"Expected {len(gt)} output files but found {len(output_files)}"
+    )
 
-    output_file_00_5 = os.path.abspath(os.path.join(test_dir, "./test_rg_znssd_affine_plate_rigid_def0000.csv"))
-    output_file_01_0 = os.path.abspath(os.path.join(test_dir, "./test_rg_znssd_affine_plate_rigid_def0001.csv"))
-    output_data_00_5 = np.loadtxt(output_file_00_5, skiprows=1, delimiter=',')
-    output_data_01_0 = np.loadtxt(output_file_01_0, skiprows=1, delimiter=',')
+    for edge_disp, output_file in zip(gt, output_files):
+        dic_data = np.loadtxt(output_file, skiprows=1, delimiter=",")
 
-    np.testing.assert_allclose(true_00_5[:, :7], output_data_00_5[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 0.5px")
+        x = dic_data[:, 0]
+        y = dic_data[:, 1]
+        u = dic_data[:, 2]
+        v = dic_data[:, 3]
 
-    np.testing.assert_allclose(true_01_0[:, :7], output_data_01_0[:, :7], rtol=0.005, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 1.0px")
+        cx = (249.0) / 2.0
+        cy = (399.0) / 2.0
+        width = 999.0
+        height = 1499.0
 
-    os.remove(output_file_00_5)
-    os.remove(output_file_01_0)
+        u_gt = 2.0 * edge_disp * (x - cx) / width
+        v_gt = 2.0 * edge_disp * (y - cy) / height
 
-def test_fft_large():
-    dic.calculate_2d(reference=ref_pattern,
-                     deformed=def_large,
-                     roi_mask=roi.mask,
-                     seed=[250,250],
-                     subset_size=31,
-                     subset_step=15,
-                     max_displacement=100,
-                     correlation_criteria="ZNSSD",
-                     interpolation_routine="BICUBIC",
-                     shape_function="RIGID",
-                     method="MULTIWINDOW",
-                     output_basepath=test_dir,
-                     output_prefix="test_fft_")
+        np.testing.assert_allclose(
+            u,
+            u_gt,
+            rtol=rtol,
+            atol=atol,
+            err_msg=f"Horizontal displacement mismatch ({edge_disp} px)",
+        )
+        np.testing.assert_allclose(
+            v,
+            v_gt,
+            rtol=rtol,
+            atol=atol,
+            err_msg=f"Vertical displacement mismatch ({edge_disp} px)",
+        )
 
-    output_file_25_0 = os.path.abspath(os.path.join(test_dir, "./test_fft_plate_rigid_def_25px.csv"))
-    output_file_50_0 = os.path.abspath(os.path.join(test_dir, "./test_fft_plate_rigid_def_50px.csv"))
-    output_data_25_0 = np.loadtxt(output_file_25_0, skiprows=1, delimiter=',')
-    output_data_50_0 = np.loadtxt(output_file_50_0, skiprows=1, delimiter=',')
 
-    np.testing.assert_allclose(true_25_0[:, :6], output_data_25_0[:, :6], rtol=0.01, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 25px")
+def test_2d_returned_results_match_saved_text_results(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    """The in-memory result should contain the same values as text output."""
+    output_prefix = "test_in_memory_"
 
-    np.testing.assert_allclose(true_50_0[:, :6], output_data_50_0[:, :6], rtol=0.01, atol=1e-6,
-                               err_msg="Results from test Do not match ground truth displacement of 50px")
+    common_args = dict(
+        reference=ref0,
+        deformed=def0,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="RASTER",
+        output_basepath=dic_temp_dir,
+        output_prefix=output_prefix,
+        output_below_threshold=True,
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+    dic.calculate_2d(**common_args, output_results=False)
+    returned = dic.calculate_2d(
+        **common_args,
+        output_results=True,
+        layout="column",
+    )
 
-    os.remove(output_file_25_0)
-    os.remove(output_file_50_0)
+    output_files = sorted(dic_temp_dir.glob(f"{output_prefix}*.csv"))
+    input_files = sorted(files)
+    assert len(output_files) == len(input_files)
+    assert returned.filenames == [file.name for file in input_files]
 
+    for frame, output_file in enumerate(output_files):
+        saved = np.loadtxt(output_file, skiprows=1, delimiter=",")
+        np.testing.assert_allclose(saved[:, 0], returned.ss_x)
+        np.testing.assert_allclose(saved[:, 1], returned.ss_y)
+        np.testing.assert_allclose(saved[:, 2], returned.u_px[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 3], returned.v_px[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 4], returned.mag_px[frame], equal_nan=True)
+        np.testing.assert_array_equal(saved[:, 5], returned.converged[frame])
+        np.testing.assert_allclose(saved[:, 6], returned.cost[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 7], returned.ftol[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 8], returned.xtol[frame], equal_nan=True)
+        np.testing.assert_allclose(saved[:, 9], returned.niter[frame], equal_nan=True)
+
+
+# ------------------------------------------------------------------------------
+# SSD
+# ------------------------------------------------------------------------------
+
+def test_2d_ssd_rigid(dic_temp_dir: Path, optimizer: str) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def0,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="SSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_ssd_rigid_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    output_files = dic_temp_dir / "test_ssd_rigid_*.csv"
+    validate(output_pattern=output_files, gt=u, atol=0.01)
+
+
+# ------------------------------------------------------------------------------
+# NSSD
+# ------------------------------------------------------------------------------
+
+def test_2d_nssd_scaled_image_rigid(dic_temp_dir: Path, optimizer: str) -> None:
+    dic.calculate_2d(
+        reference=ref_arr,
+        deformed=def_arr_scaled,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="NSSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_2d_nssd_scaled_image_rigid_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    output_file = (
+        dic_temp_dir
+        / "test_2d_nssd_scaled_image_rigid_def_img_0000.csv"
+    )
+
+    validate(output_pattern=output_file, gt=[0.8], atol=0.01, stereo=False)
+
+
+# ------------------------------------------------------------------------------
+# ZNSSD
+# ------------------------------------------------------------------------------
+
+def test_2d_znssd_scaled_offset_image_rigid(
+    dic_temp_dir: Path,
+    optimizer: str,
+) -> None:
+    dic.calculate_2d(
+        reference=ref_arr,
+        deformed=def_arr_scaled_offset,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_2d_znssd_scaled_offset_image_rigid_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    output_file = (
+        dic_temp_dir
+        / "test_2d_znssd_scaled_offset_image_rigid_def_img_0000.csv"
+    )
+
+    validate(output_pattern=output_file, gt=[0.8], atol=0.01, stereo=False)
+
+
+# ------------------------------------------------------------------------------
+# Raster ZNSSD Affine
+# ------------------------------------------------------------------------------
+
+def test_2d_image_scan_znssd_affine(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def0,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="RASTER",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_2d_image_scan_znssd_affine_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_2d_image_scan_znssd_affine_*.csv",
+        u,
+        atol=0.01,
+    )
+
+
+# ------------------------------------------------------------------------------
+# Raster ZNSSD Rigid
+# ------------------------------------------------------------------------------
+
+def test_2d_image_scan_znssd_rigid(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def0,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="RIGID",
+        method="RASTER",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_2d_image_scan_znssd_rigid_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_2d_image_scan_znssd_rigid_*.csv",
+        u,
+        atol=0.01,
+    )
+
+
+# ------------------------------------------------------------------------------
+# Raster NSSD
+# ------------------------------------------------------------------------------
+
+def test_2d_image_scan_nssd_affine(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def0,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="NSSD",
+        shape_function="AFFINE",
+        method="RASTER",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_2d_image_scan_nssd_affine_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_2d_image_scan_nssd_affine_*.csv",
+        u,
+        atol=0.01,
+    )
+
+
+# ------------------------------------------------------------------------------
+# Multiwindow RG
+# ------------------------------------------------------------------------------
+
+def test_2d_rg_znssd_affine(dic_temp_dir: Path, optimizer: str) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def0,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_2d_rg_znssd_affine_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_2d_rg_znssd_affine_*.csv",
+        u,
+        atol=0.01,
+    )
+
+# ------------------------------------------------------------------------------
+# Multiwindow RG
+# ------------------------------------------------------------------------------
+
+def test_2d_rg_znssd_quad(dic_temp_dir: Path, optimizer: str) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def0,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="QUAD",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_2d_rg_znssd_quad_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_2d_rg_znssd_quad_*.csv",
+        u,
+        atol=0.01,
+    )
+
+# ------------------------------------------------------------------------------
+# singlewindow RG
+# ------------------------------------------------------------------------------
+
+def test_2d_singlewindow_znssd_affine(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def0,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_2d_rg_znssd_affine_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_2d_rg_znssd_affine_*.csv",
+        u,
+        atol=0.01,
+    )
+
+# ------------------------------------------------------------------------------
+# Large displacement FFT with mutlwindow
+# ------------------------------------------------------------------------------
+
+def test_2d_multiwindow_fft_large(dic_temp_dir: Path, optimizer: str) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def_large,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=32,
+        subset_step=16,
+        max_displacement=100,
+        correlation_criteria="ZNSSD",
+        shape_function="RIGID",
+        method="MULTIWINDOW",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_fft_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    outputs = [
+        ("test_fft_rigid_cam0_frame25.csv", 25.0),
+        ("test_fft_rigid_cam0_frame50.csv", 50.0),
+    ]
+
+    for filename, disp in outputs:
+        output_file = dic_temp_dir / filename
+        validate(output_file, [disp], atol=0.01)
+
+# ------------------------------------------------------------------------------
+# Large displacement FFT with mutlwindow
+# ------------------------------------------------------------------------------
+
+def test_2d_multiwindow_rg_fft_large(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def_large,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=100,
+        correlation_criteria="ZNSSD",
+        shape_function="RIGID",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_fft_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    outputs = [
+        ("test_fft_rigid_cam0_frame25.csv", 25.0),
+        ("test_fft_rigid_cam0_frame50.csv", 50.0),
+    ]
+
+    for filename, disp in outputs:
+        output_file = dic_temp_dir / filename
+        validate(output_file, [disp], atol=0.01)
+
+# ------------------------------------------------------------------------------
+# Large displacement FFT with singlewindow
+# ------------------------------------------------------------------------------
+
+def test_2d_singlewindow_fft_large(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    dic.calculate_2d(
+        reference=ref0,
+        deformed=def_large,
+        roi_mask=roi_rigid.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=100,
+        correlation_criteria="ZNSSD",
+        shape_function="RIGID",
+        method="SINGLEWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_fft_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    outputs = [
+        ("test_fft_rigid_cam0_frame25.csv", 25.0),
+        ("test_fft_rigid_cam0_frame50.csv", 50.0),
+    ]
+
+    for filename, disp in outputs:
+        output_file = dic_temp_dir / filename
+        validate(output_file, [disp], atol=0.01)
+
+
+# ------------------------------------------------------------------------------
+# Multiwindow RG
+# ------------------------------------------------------------------------------
+
+def test_2d_hydro_rg_znssd_affine(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    dic.calculate_2d(
+        reference=ref0_hydro,
+        deformed=def0_hydro,
+        roi_mask=roi_hydro.mask,
+        seed=seed,
+        subset_size=21,
+        subset_step=10,
+        max_displacement=2,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_hydro_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate_hydro(
+        dic_temp_dir / "test_hydro_*.csv",
+        u,
+        atol=0.005,
+    )
+
+# ------------------------------------------------------------------------------
+# Multiwindow RG
+# ------------------------------------------------------------------------------
+
+def test_2d_hydro_rg_znssd_quad(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    dic.calculate_2d(
+        reference=ref0_hydro,
+        deformed=def0_hydro,
+        roi_mask=roi_hydro.mask,
+        seed=seed,
+        subset_size=21,
+        subset_step=10,
+        max_displacement=2,
+        correlation_criteria="ZNSSD",
+        shape_function="QUAD",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_hydro_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate_hydro(
+        dic_temp_dir / "test_hydro_*.csv",
+        u,
+        atol=0.008,  # more noise for quad
+    )
+
+# ------------------------------------------------------------------------------
+# STEREO
+# ------------------------------------------------------------------------------
+
+def test_3d_rg_znssd_affine(dic_temp_dir: Path, optimizer: str) -> None:
+    dic.calculate_3d(
+        reference=[ref0, ref1],
+        deformed=[def0, def1],
+        roi_mask=roi_rigid.mask,
+        calibration=calib_hole,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_3d_rg_znssd_affine_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_3d_rg_znssd_affine_*.csv",
+        u,
+        atol=0.01,
+        atol_stereo=0.0001,
+        stereo=True,
+    )
+
+
+def test_3d_rg_znssd_affine_incremental(
+    dic_temp_dir: Path, optimizer: str
+) -> None:
+    dic.calculate_3d(
+        reference=[ref0, ref1],
+        deformed=[def0, def1],
+        roi_mask=roi_rigid.mask,
+        calibration=calib_hole,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        incremental_update="IMAGE",
+        incremental_update_value=1,
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_3d_rg_znssd_incremental_affine_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_3d_rg_znssd_incremental_affine*.csv",
+        gt=u,
+        stereo=True,
+        atol=0.01,
+        atol_stereo=0.0001,
+    )
+
+
+def test_3d_rg_znssd_quad(dic_temp_dir: Path, optimizer: str) -> None:
+    dic.calculate_3d(
+        reference=[ref0, ref1],
+        deformed=[def0, def1],
+        roi_mask=roi_rigid.mask,
+        calibration=calib_hole,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="QUAD",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_3d_rg_znssd_quad_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_3d_rg_znssd_quad_*.csv",
+        gt=u,
+        stereo=True,
+        atol=0.01,
+        atol_stereo=0.0005,
+    )
+
+
+def test_f32_support(dic_temp_dir: Path, optimizer: str) -> None:
+    np.random.seed(100)
+    ref_arr = np.random.uniform(0, 200, size=(400, 400)).astype(np.float32)
+    def_arr = np.roll(ref_arr, 1, axis=1)
+    def_arr = np.roll(def_arr, -1, axis=0)
+
+    roi = dic.RegionOfInterest(ref_arr)
+    roi.rect_boundary(10, 10, 10, 10)
+
+    dic.calculate_2d(
+        reference=ref_arr,
+        deformed=def_arr,
+        roi_mask=roi.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=10,
+        output_basepath=dic_temp_dir,
+        output_prefix="test_f32_support_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_f32_support*.csv",
+        gt=[1.0],
+        stereo=False,
+        atol=0.001,
+        atol_stereo=0.00001,
+    )
+
+
+@pytest.mark.parametrize("interpolation_routine", ["BSPLINE", "HERMITE"])
+def test_f64_support_with_filter(
+    dic_temp_dir: Path,
+    interpolation_routine: str,
+    optimizer: str,
+) -> None:
+    np.random.seed(100)
+    ref_arr = np.random.uniform(0, 200, size=(400, 400)).astype(np.float64)
+    def_arr = np.roll(ref_arr, 1, axis=1)
+    def_arr = np.roll(def_arr, -1, axis=0)
+
+    roi = dic.RegionOfInterest(ref_arr)
+    roi.rect_boundary(10, 10, 10, 10)
+
+    dic.calculate_2d(
+        reference=ref_arr,
+        deformed=def_arr,
+        roi_mask=roi.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=10,
+        interpolation_routine=interpolation_routine,
+        method="RASTER",
+        output_basepath=dic_temp_dir,
+        output_prefix=f"test_f64_{interpolation_routine.lower()}_filter_",
+        image_filter_kernel=5,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / f"test_f64_{interpolation_routine.lower()}_filter_*.csv",
+        gt=[1.0],
+        stereo=False,
+        atol=0.01,
+        atol_stereo=0.00001,
+    )
+
+
+@pytest.mark.parametrize("fft_precision", ["F32", "F64"])
+def test_f64_support_with_fft(
+    dic_temp_dir: Path,
+    fft_precision: str,
+    optimizer: str,
+) -> None:
+    np.random.seed(100)
+    ref_arr = np.random.uniform(0, 200, size=(400, 400)).astype(np.float64)
+    def_arr = np.roll(ref_arr, 1, axis=1)
+    def_arr = np.roll(def_arr, -1, axis=0)
+
+    roi = dic.RegionOfInterest(ref_arr)
+    roi.rect_boundary(10, 10, 10, 10)
+
+    dic.calculate_2d(
+        reference=ref_arr,
+        deformed=def_arr,
+        roi_mask=roi.mask,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=10,
+        method="MULTIWINDOW_RG",
+        fft_precision=fft_precision,
+        output_basepath=dic_temp_dir,
+        output_prefix=f"test_f64_fft_{fft_precision.lower()}_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / f"test_f64_fft_{fft_precision.lower()}_*.csv",
+        gt=[1.0],
+        stereo=False,
+        atol=0.01,
+        atol_stereo=0.00001,
+    )
+
+
+def test_f64_stereo_support(dic_temp_dir: Path, optimizer: str) -> None:
+    reference = [
+        np.asarray(Image.open(path), dtype=np.float64)
+        for path in (ref0, ref1)
+    ]
+    deformed = [
+        np.stack([np.asarray(Image.open(path), dtype=np.float64) for path in paths])
+        for paths in (def0, def1)
+    ]
+
+    dic.calculate_3d(
+        reference=reference,
+        deformed=deformed,
+        roi_mask=roi_rigid.mask,
+        calibration=calib_hole,
+        seed=seed,
+        subset_size=31,
+        subset_step=15,
+        max_displacement=60,
+        correlation_criteria="ZNSSD",
+        shape_function="AFFINE",
+        method="MULTIWINDOW_RG",
+        output_basepath=dic_temp_dir,
+        output_prefix="test_f64_stereo_",
+        image_filter_kernel=1,
+        optimizer=optimizer,
+    )
+
+    validate(
+        dic_temp_dir / "test_f64_stereo_*.csv",
+        u,
+        atol=0.01,
+        atol_stereo=0.0001,
+        stereo=True,
+    )
 

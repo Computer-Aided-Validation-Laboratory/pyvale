@@ -7,7 +7,8 @@
 import numpy as np
 from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator
-import pyvale.mooseherder as mh
+
+from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.simtools import (coords_to_2D)
 from pyvale.sensorsim.fieldinterp import (IFieldInterp,
                                           interp_to_sample_time)
@@ -24,14 +25,14 @@ class FieldInterpPoints(IFieldInterp):
                  "_interp_funcs","_coords")
 
     def __init__(self,
-                 sim_data: mh.SimData,
+                 sim_data: SimData,
                  comp_keys: tuple[str,...],
                  spatial_dims: EDim,
                  ) -> None:
         """
         Parameters
         ----------
-        sim_data : mh.SimData
+        sim_data : SimData
             Simulation data object containing the physical field(s) that the
             virtual sensors will sample.
         comp_keys : tuple[str,...]

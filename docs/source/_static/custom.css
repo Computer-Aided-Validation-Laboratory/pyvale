@@ -9,3 +9,7 @@
     color: #0066cc !important; /* Monokai-style cyan */
 }
 
+.code-scroll {
+  max-height: 400px;
+  overflow: auto;
+}

@@ -21,9 +21,10 @@ import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.dataset as dataset
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
+import pyvale.data as dataset
 
 
 #%%
@@ -31,14 +32,10 @@ import pyvale.dataset as dataset
 # -------------------------------
 
 data_path: Path = dataset.mechanical_2d_path()
-sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
 disp_keys = ("disp_x","disp_y")
 strain_keys = ("strain_xx","strain_yy","strain_xy")
-
-sim_data: mh.SimData  = sens.scale_length_units(scale=1000.0,
-                                                sim_data=sim_data,
-                                                disp_keys=disp_keys)
 
 #%%
 # 2. Build virtual sensor arrays
@@ -174,7 +171,7 @@ else:
 # %%
 # Virtual sensor locations:
 #
-# .. image:: ../../../../_static/ext_ex4c_locs.png
+# .. image:: /_static/ext_ex4c_locs.png
 #    :alt: Visualisation of virtual sensor locations.
 #    :width: 800px
 #    :align: center
@@ -201,7 +198,7 @@ for ff in disp_keys:
 # %%
 # Non-rotated sensors, y displacement:
 #
-# .. image:: ../../../../_static/ext_ex4c_traces_norot_disp_y.png
+# .. image:: /_static/ext_ex4c_traces_norot_disp_y.png
 #    :alt: Non-rotated sensor traces for the y displacement.
 #    :width: 600px
 #    :align: center
@@ -209,7 +206,7 @@ for ff in disp_keys:
 # %%
 # Rotated sensors, x displacement:
 #
-# .. image:: ../../../../_static/ext_ex4c_traces_rot_disp_x.png
+# .. image:: /_static/ext_ex4c_traces_rot_disp_x.png
 #    :alt: Rotated sensor traces for the x displacement.
 #    :width: 600px
 #    :align: center

@@ -22,9 +22,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.dataset as dataset
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
+import pyvale.data as dataset
 
 #%%
 # 1. Load physics simulation data
@@ -35,13 +36,13 @@ sim_keys: set[str] = {"sim_nominal","sim_perturbed"}
 
 disp_keys = ("disp_x","disp_y","disp_z")
 strain_norm_keys = ("strain_xx","strain_yy","strain_zz")
-strain_dev_keys = ("strain_xy","strain_yz","strain_xz")
+strain_dev_keys = ("strain_xy", "strain_xz", "strain_yz")
 
-sim_data_dict: dict[str,mh.SimData] = {}
+sim_data_dict: dict[str,io.SimData] = {}
 for ss,kk in zip(sim_paths,sim_keys):
-    sim_data: mh.SimData = mh.ExodusLoader(ss).load_all_sim_data()
+    sim_data: io.SimData = mh.ExodusLoader(ss).load_all_sim_data()
 
-    sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+    sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
                                                    sim_data=sim_data,
                                                    disp_keys=disp_keys)
     sim_data_dict[kk] = sim_data
@@ -182,7 +183,7 @@ print(80*"-")
 print()
 
 # %%
-# .. image:: ../../../../_static/ext_ex5b_term_out_0.png
+# .. image:: /_static/ext_ex5b_term_out_0.png
 #    :alt: Terminal output showing the simulated experiment times
 #    :width: 700px
 #    :align: center
@@ -200,7 +201,7 @@ print(80*"-")
 print()
 
 # %%
-# .. image:: ../../../../_static/ext_ex5b_term_out_1.png
+# .. image:: /_static/ext_ex5b_term_out_1.png
 #    :alt: Terminal output showing the simulated experiment data keys
 #    :width: 700px
 #    :align: center
@@ -232,7 +233,7 @@ print()
 print(80*"-")
 
 # %%
-# .. image:: ../../../../_static/ext_ex5b_term_out_2.png
+# .. image:: /_static/ext_ex5b_term_out_2.png
 #    :alt: Terminal output showing the simulated experiment data structures
 #    :width: 700px
 #    :align: center
@@ -265,7 +266,7 @@ else:
 # %%
 # Visualisation of the virtual temperature sensor locations:
 #
-# .. image:: ../../../../_static/ext_ex5b_temp_locs.png
+# .. image:: /_static/ext_ex5b_temp_locs.png
 #    :alt: Visualisation of the virtual temperature sensor locations
 #    :width: 800px
 #    :align: center
@@ -290,7 +291,7 @@ else:
 # %%
 # Visualisation of the virtual strain sensor locations:
 #
-# .. image:: ../../../../_static/ext_ex5b_strain_locs.png
+# .. image:: /_static/ext_ex5b_strain_locs.png
 #    :alt: Visualisation of the virtual strain sensor locations
 #    :width: 800px
 #    :align: center
@@ -312,14 +313,14 @@ for kk in sim_data_dict:
 # %%
 # Simulated temperatures traces for input physics simulation 0:
 #
-# .. image:: ../../../../_static/ext_ex5b_traces_sim0_temp.png
+# .. image:: /_static/ext_ex5b_traces_sim0_temp.png
 #    :alt: Simulated temperature sensor traces for input simulation 0.
 #    :width: 600px
 #    :align: center
 #
 # Simulated temperature traces for input physics simulation 1:
 #
-# .. image:: ../../../../_static/ext_ex5b_traces_sim1_temp.png
+# .. image:: /_static/ext_ex5b_traces_sim1_temp.png
 #    :alt: Simulated temperature sensor traces for input simulation 1.
 #    :width: 600px
 #    :align: center
@@ -342,14 +343,14 @@ for key_sim in sim_data_dict:
 # %%
 # Simulated strain traces for input physics simulation 0:
 #
-# .. image:: ../../../../_static/ext_ex5b_traces_sim0_strain_yy.png
+# .. image:: /_static/ext_ex5b_traces_sim0_strain_yy.png
 #    :alt: Simulated strain sensor traces form input simulation 0.
 #    :width: 600px
 #    :align: center
 #
 # Simulated strain traces for input physics simulation 1:
 #
-# .. image:: ../../../../_static/ext_ex5b_traces_sim1_strain_yy.png
+# .. image:: /_static/ext_ex5b_traces_sim1_strain_yy.png
 #    :alt: Simulated strain sensor traces form input simulation 1.
 #    :width: 600px
 #    :align: center

@@ -1,0 +1,45 @@
+- type: RectROI
+  pos:
+  - 34
+  - 37
+  size:
+  - 433
+  - 588
+  add: true
+- type: RectROI
+  pos:
+  - 322
+  - 53
+  size:
+  - 123
+  - 225
+  add: false
+- type: CircleROI
+  pos:
+  - 371
+  - 536
+  size:
+  - 133
+  - 133
+  add: false
+- type: PolyLineROI
+  points:
+  - - 158
+    - 422
+  - - 85
+    - 482
+  - - 88
+    - 584
+  - - 222
+    - 586
+  - - 227
+    - 480
+  add: false
+- type: SeedROI
+  pos:
+  - 108
+  - 145
+  size:
+  - 41
+  - 41
+  add: true

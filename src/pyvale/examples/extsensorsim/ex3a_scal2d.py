@@ -23,17 +23,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.dataset as dataset
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
+import pyvale.data as dataset
 
 #%%
 # 1. Load physics simulation data
 # -------------------------------
 
 data_path: Path = dataset.thermal_2d_path()
-sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
-sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
+sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: io.SimData = sens.scale_length_units(scale=1000.0,
                                                sim_data=sim_data,
                                                disp_keys=None)
 
@@ -125,7 +126,7 @@ pv_plot = sens.plot_point_sensors_on_sim(sens_array,
                                          comp_key="temperature")
 
 # %%
-# .. image:: ../../../../_static/ext_ex3a_locs.png
+# .. image:: /_static/ext_ex3a_locs.png
 #    :alt: Virtual sensor location visualisation.
 #    :width: 800px
 #    :align: center
@@ -144,7 +145,7 @@ fig.savefig(output_path/"ext_ex3a_traces.png",dpi=300,bbox_inches="tight")
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex3a_traces.png
+# .. image:: /_static/ext_ex3a_traces.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center

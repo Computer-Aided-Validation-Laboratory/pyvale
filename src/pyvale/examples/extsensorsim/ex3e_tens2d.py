@@ -23,9 +23,10 @@ import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 
 # pyvale imports
-import pyvale.mooseherder as mh
 import pyvale.sensorsim as sens
-import pyvale.dataset as dataset
+import pyvale.dataio as io
+import pyvale.mooseherder as mh
+import pyvale.data as dataset
 
 
 #%%
@@ -33,15 +34,11 @@ import pyvale.dataset as dataset
 # -------------------------------
 
 data_path: Path = dataset.mechanical_2d_path()
-sim_data: mh.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
+sim_data: io.SimData = mh.ExodusLoader(data_path).load_all_sim_data()
 
 disp_keys = ("disp_x","disp_y")
 norm_comp_keys = ("strain_xx","strain_yy")
 dev_comp_keys = ("strain_xy",)
-
-sim_data: mh.SimData = sens.scale_length_units(scale=1000.0,
-                                               sim_data=sim_data,
-                                               disp_keys=("disp_x","disp_y"))
 
 #%%
 # 2. Build virtual sensor arrays
@@ -148,7 +145,7 @@ for kk in (norm_comp_keys+dev_comp_keys):
         pv_plot.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex3e_locs_strain_yy.png
+# .. image:: /_static/ext_ex3e_locs_strain_yy.png
 #    :alt: Virtual sensor location visualisation.
 #    :width: 800px
 #    :align: center
@@ -164,7 +161,7 @@ for kk in (norm_comp_keys+dev_comp_keys):
 # plt.show()
 
 # %%
-# .. image:: ../../../../_static/ext_ex3e_traces_strain_yy.png
+# .. image:: /_static/ext_ex3e_traces_strain_yy.png
 #    :alt: Simulated sensor traces.
 #    :width: 600px
 #    :align: center

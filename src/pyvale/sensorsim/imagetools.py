@@ -21,6 +21,28 @@ class EImageType(Enum):
 
 class ImageTools:
     @staticmethod
+    def edge_function(vert_a: np.ndarray,
+                      vert_b: np.ndarray,
+                      vert_c: np.ndarray) -> np.ndarray:
+        """Calculate the signed 2D edge function for a point or point array."""
+        return ((vert_c[0] - vert_a[0]) * (vert_b[1] - vert_a[1])
+                - (vert_c[1] - vert_a[1]) * (vert_b[0] - vert_a[0]))
+
+    @staticmethod
+    def elem_bound_box_low(coord_min: np.ndarray) -> np.ndarray:
+        """Return lower integer element bounds clipped to image index zero."""
+        return np.maximum(np.floor(coord_min).astype(np.int32), 0)
+
+    @staticmethod
+    def elem_bound_box_high(coord_max: np.ndarray,
+                            image_px: int) -> np.ndarray:
+        """Return upper integer element bounds clipped to the image extent."""
+        return np.minimum(
+            np.ceil(coord_max).astype(np.int32),
+            image_px * np.ones_like(coord_max, dtype=np.int32),
+        )
+
+    @staticmethod
     def load_image_rgb(im_path: Path) -> np.ndarray:
         return mplim.imread(im_path).astype(np.float64)
 
@@ -133,5 +155,4 @@ def _image_to_uint(image: np.ndarray, bits: int) -> np.ndarray:
 
     warnings.warn(f"Number of bits={bits} should be between 0 and 32, defaulting to 16 bits.")
     return image.astype(np.uint16)
-
 

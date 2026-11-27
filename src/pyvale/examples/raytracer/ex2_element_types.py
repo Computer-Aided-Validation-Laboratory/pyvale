@@ -24,8 +24,8 @@ import numpy as np
 import pyvista as pv
 from scipy.spatial.transform import Rotation
 
-import pyvale.dataset as dataset
-from pyvale.dataset import EElemTest
+import pyvale.data as dataset
+from pyvale.data import EElemTest
 from pyvale.raytracer.rtcamera import Camera
 from pyvale.raytracer.rtmain import render_scene
 from pyvale.raytracer.rtmesh import (
@@ -69,7 +69,7 @@ scene.add_camera(camera)
 # %%
 # Loading Exodus SimData meshes across element types
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# ``pyvale.dataset.element_case_output_path`` provides 3D cube simulations for
+# ``pyvale.data.element_case_output_path`` provides 3D cube simulations for
 # each supported volume element family. ``simdata_to_rtmesh`` automatically
 # extracts the corresponding surface element type (``TRI3``, ``QUAD4``,
 # ``QUAD8``, ``QUAD9``, or ``TRI6``).
