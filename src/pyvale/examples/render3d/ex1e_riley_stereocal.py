@@ -62,7 +62,7 @@ mesh = render.meshes3d_from_simdata(
         riley.EElemType.TRI3, riley.EConnectAxis.ROW, 0,
         riley.ENodeOrder.RILEY,
     )},
-    shaders={"connect": shader},
+    shaders={"connect": riley.MeshShaderSet(mono=shader)},
     displacement_keys=("disp_x", "disp_y", "disp_z"),
 )["connect"]
 
@@ -111,7 +111,7 @@ camera_1 = copy.deepcopy(camera_0)
 camera_1.pos_world = MATCHED_CAM1_POS
 camera_1.rot_world = rot_world_1
 
-output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1f_riley_stereocal"
+output_dir = Path.cwd() / "pyvale-output" / "render3d_ex1e_riley_stereocal"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 stereo_file_name = "stereo_data_opengl.csv"
@@ -126,12 +126,19 @@ camera_0, camera_1 = riley.load_stereo_pair(str(output_dir), stereo_file_name)
 # 5. Configure and build the renderer
 # ------------------------------------------------------------
 
+for cam in (camera_0, camera_1):
+    cam.output_files = (riley.ImageSaveOpts(
+        format=riley.ImageFormat.bmp, file_bits=8,
+        scaling=riley.ScaleStrategy.auto,
+    ),)
+
 config = riley.RasterConfig(
     parallel=4,
     save_strategy=riley.SaveStrategy.disk,
-    save_scaling=riley.ScaleStrategy.auto,
+
 )
-config.background_value = 128.0
+for cam in (camera_0, camera_1):
+    cam.background_value = 128.0
 
 renderer = render.Riley(config, output_dir)
 
@@ -148,7 +155,7 @@ print(f"{result.images=}")
 # %%
 # The first calibration pose from both cameras is combined side by side below.
 #
-# .. image:: /_static/render3d_ex1f_riley_stereocal.png
+# .. image:: /_static/render3d_ex1e_riley_stereocal.png
 #    :alt: Riley stereo calibration target from both cameras
 #    :width: 900px
 #    :align: center

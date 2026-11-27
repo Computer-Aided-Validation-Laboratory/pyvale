@@ -95,6 +95,17 @@ The vector, tensor, and combined sensor-simulation generators are
 is committed under `tests/mooseherder/output_gold/`; no dedicated generator is
 currently provided, so update it only from an independently reviewed run.
 
+## Riley integration
+
+The current Riley API is demonstrated in the
+[render examples](../src/pyvale/examples/render3d/README.md). Run
+`python -m pytest tests/riley` to run all packaged Riley CLI demos at their
+default settings against both native Riley and `pyvale.render`. The suite
+compares output files byte for byte and checks any returned arrays after
+axis conversion. `tests/render` checks conversion of shared PyVale meshes
+and cameras, channel order and padding, and save strategies.
+
+
 ## Module-specific conditions and skips
 
 ### Blender

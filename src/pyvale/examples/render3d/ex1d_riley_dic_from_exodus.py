@@ -7,8 +7,8 @@
 """
 Riley: DIC UQ from Exodus
 ================================================================================
-Here we render the same plate with a hole in tension from the last example but 
-we load the data from an exodus file and generate the UVs using Riley's tools.
+Load a finite-element simulation of a plate with a hole from an Exodus file,
+project speckle texture coordinates, and render a distorted stereo DIC pair.
 """
 
 import copy
@@ -59,7 +59,7 @@ uvs = render.uv_project_planar_centered(
     span=0.8,
     plane=uv_plane,
 )
-surface_mesh.shader = riley.TextureShader(uvs=uvs, texture=texture)
+surface_mesh.shader = riley.MeshShaderSet(mono=riley.TextureShader(uvs=uvs, texture=texture))
 
 # To save time we only render the first and last frame. If you want to render
 # all frames comment this out.
@@ -134,13 +134,13 @@ config = riley.RasterConfig(
     save_strategy=riley.SaveStrategy.disk,
 )
 
-config.background_value = 128.0
+for cam in cameras:
+    cam.background_value = 128.0
 config.tile_size_max = 128
-config.save_scaling = riley.ScaleStrategy.none
 
 output_dir = (
     Path.cwd() / "pyvale-output"
-    / "render3d_ex1e_riley_dic_from_exodus"
+    / "render3d_ex1d_riley_dic_from_exodus"
 )
 
 renderer = render.Riley(config, output_dir)
@@ -175,7 +175,7 @@ print(f"{result.images=}")
 # %%
 # The first frame from both cameras is combined side by side below.
 #
-# .. image:: /_static/render3d_ex1e_riley_dic_from_exodus.png
+# .. image:: /_static/render3d_ex1d_riley_dic_from_exodus.png
 #    :alt: Riley stereo DIC render loaded from Exodus data
 #    :width: 900px
 #    :align: center

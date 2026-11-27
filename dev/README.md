@@ -19,3 +19,8 @@ GPU compute programming must be AMD compatible due to the clusters we are target
 ## Style Guides
 This project follows the Computer Aided Validation Lab style guides which can be found [here](https://github.com/Computer-Aided-Validation-Laboratory/styleguides).
 
+
+## Riley rendering
+
+PyVale installs its pinned Riley release from PyPI. See the [render examples](../src/pyvale/examples/render3d/README.md)
+for the current API and [testing guide](TESTING.md#riley-integration) for checks.

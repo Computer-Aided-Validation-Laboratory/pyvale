@@ -8,7 +8,7 @@
 from dataclasses import dataclass
 
 import numpy as np
-from riley import EElemType
+from riley import EElemType, NormalType
 
 _SURFACE_TYPES = frozenset(
     (EElemType.TRI3, EElemType.TRI6, EElemType.QUAD4,
@@ -31,7 +31,9 @@ class Mesh3D:
         Zero based element connectivity table with shape
         ``(num_elements, nodes_per_element)`` and dtype ``uintp`` or ``int_``.
     shader : object
-        Backend owned material or shader definition.
+        Backend owned material; Riley requires riley.MeshShaderSet.
+    normal_type : riley.NormalType, optional
+        Riley mesh normal calculation, exact by default.
     displacements : np.ndarray or None, optional
         Nodal displacements array with shape
         ``(num_frames, num_nodes, 3)`` and dtype ``float64`` representing
@@ -43,6 +45,7 @@ class Mesh3D:
     connectivity: np.ndarray
     shader: object
     displacements: np.ndarray | None = None
+    normal_type: NormalType = NormalType.exact
 
     def __post_init__(self) -> None:
         """Convert array data to contiguous arrays with renderer dtypes."""
