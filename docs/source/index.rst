@@ -62,7 +62,7 @@ Python 3.11+.
 
    .. grid-item-card:: Render
 
-      .. image:: /_static/render3d_ex1d_riley_dicuq.png
+      .. image:: /_static/render3d_ex1d_riley_dic_from_exodus.png
          :alt: Synthetic camera images generated with Riley
          :height: 145px
          :align: center

@@ -98,8 +98,7 @@ currently provided, so update it only from an independently reviewed run.
 ## Riley integration
 
 The current Riley API is demonstrated in the
-[render examples](../src/pyvale/examples/render3d/README.md). Use the local sibling
-checkout at `../riley-raster` for the unreleased dependency. Run
+[render examples](../src/pyvale/examples/render3d/README.md). Run
 `python -m pytest tests/riley` to run all packaged Riley CLI demos at their
 default settings against both native Riley and `pyvale.render`. The suite
 compares output files byte for byte and checks any returned arrays after
