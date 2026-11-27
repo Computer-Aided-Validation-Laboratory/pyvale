@@ -14,3 +14,16 @@ class EDim(Enum):
     TWOD = 2
     THREED = 3
 
+
+class EExpSimKeys(Enum):
+    """Kinds of experiment outputs and their stable storage labels."""
+
+    MEASUREMENT = "meas"
+    TRUTH = "truth"
+    SYSTEMATIC_ERROR = "sys_errs"
+    RANDOM_ERROR = "rand_errs"
+    SENSOR_TIMES = "sens_times"
+    SENSOR_POSITIONS = "sens_pos"
+    PERTURBED_SENSOR_TIMES = "pert_sens_times"
+    PERTURBED_SENSOR_POSITIONS = "pert_sens_pos"
+

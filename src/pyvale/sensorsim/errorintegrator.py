@@ -91,10 +91,15 @@ class ErrIntegrator:
             self._err_int_opts = err_int_opts
 
         self.set_error_chain(err_chain)
-        self._meas_shape = meas_shape
+        self.set_sensor_data(sensor_data_initial, measurement_shape=meas_shape)
 
-        self._sens_data_initial = copy.deepcopy(sensor_data_initial)
-        self._sens_data_accumulated = copy.deepcopy(sensor_data_initial)
+    def set_sensor_data(
+        self, sensor_data: SensorData, *, measurement_shape: tuple[int, int, int]
+    ) -> None:
+        """Reset perturbations and errors for a new nominal layout and output shape."""
+        self._meas_shape = measurement_shape
+        self._sens_data_initial = copy.deepcopy(sensor_data)
+        self._sens_data_accumulated = copy.deepcopy(sensor_data)
 
         if self._err_int_opts.store_all_errs:
             self._sens_data_by_chain = []
@@ -104,9 +109,9 @@ class ErrIntegrator:
             self._sens_data_by_chain = None
             self._errs_by_chain = None
 
-        self._errs_systematic = np.zeros(meas_shape)
-        self._errs_random = np.zeros(meas_shape)
-        self._errs_total = np.zeros(meas_shape)
+        self._errs_systematic = np.zeros(measurement_shape)
+        self._errs_random = np.zeros(measurement_shape)
+        self._errs_total = np.zeros(measurement_shape)
 
 
     def reseed_error_chain(self, seed: int | None = None) -> None:
@@ -120,8 +125,11 @@ class ErrIntegrator:
             Integer seed for the random number generator, by default None. If 
             None then the seed is generated using OS entropy (see numpy docs).
         """    
-        for ee in self._err_chain:
-            ee.reseed(seed)
+        seed_sequence = np.random.SeedSequence(seed)
+        for error, child in zip(
+            self._err_chain, seed_sequence.spawn(len(self._err_chain))
+        ):
+            error.reseed(int(child.generate_state(1, dtype=np.uint64)[0]))
 
     def set_error_chain(self, err_chain: list[IErrSimulator]) -> None:
         """Sets the error chain that will be looped over to calculate the sensor

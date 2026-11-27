@@ -7,6 +7,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from pyvale.sensorsim.field import IField
+from pyvale.sensorsim.sensordata import SensorData
 
 
 #TODO: when cameras, line, area and volume sensors are implemented this will 
@@ -47,6 +48,18 @@ class ISensorArray(ABC):
     Without an error integrator this class can be used for interpolating
     simulated physical fields quickly using finite element shape functions.
     """
+
+    @abstractmethod
+    def get_sensor_data(self) -> SensorData:
+        """Return an independent copy of the nominal configuration."""
+
+    @abstractmethod
+    def set_sensor_data(self, sensor_data: SensorData) -> None:
+        """Replace the nominal configuration and invalidate derived outputs."""
+
+    @abstractmethod
+    def copy_for_simulation(self, *, seed: int | None = None) -> "ISensorArray":
+        """Copy configuration and mutable state, optionally reseeding the copy."""
 
     @abstractmethod
     def get_sensor_positions(self) -> np.ndarray | None:

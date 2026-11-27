@@ -4,6 +4,8 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+import copy
+
 import numpy as np
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.sensorarray import ISensorArray
@@ -99,6 +101,36 @@ class SensorsPoint(ISensorArray):
             visualisations and plots.
         """
         return self._descriptor
+
+    def get_sensor_data(self) -> SensorData:
+        """Return a copy of the nominal sensor configuration."""
+        return copy.deepcopy(self._sensor_data)
+
+    def set_sensor_data(self, sensor_data: SensorData) -> None:
+        """Apply a nominal configuration and clear outputs from the old layout."""
+        positions = sensor_data.positions
+        if positions is None or positions.ndim != 2 or positions.shape[1] != 3:
+            raise ValueError("Sensor positions must have shape (num_sensors, 3).")
+
+        updated_data = copy.deepcopy(sensor_data)
+        self._clear_cached_outputs()
+        self._sensor_data = updated_data
+        if self._error_integrator is not None:
+            self._error_integrator.set_sensor_data(
+                updated_data, measurement_shape=self.get_measurement_shape()
+            )
+
+    def copy_for_simulation(self, *, seed: int | None = None) -> "SensorsPoint":
+        """Return an independent working array, preserving field and error links."""
+        working_array = copy.deepcopy(self)
+        working_array.set_sensor_data(self._sensor_data)
+        if seed is not None and working_array._error_integrator is not None:
+            working_array._error_integrator.reseed_error_chain(seed)
+        return working_array
+
+    def _clear_cached_outputs(self) -> None:
+        self._truth = None
+        self._measurements = None
 
     def get_sensor_positions(self) -> np.ndarray | None:
         """Return the configured sensor positions before perturbation."""

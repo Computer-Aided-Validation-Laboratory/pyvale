@@ -17,7 +17,7 @@ virtually testing digital shadows/twins.
 __version__ = "2026.11.2"
 
 from .common import build_info
-from . import data, dataio, dic, mooseherder, render, sensorsim, strain, vfm
+from . import data, dataio, dic, mooseherder, render, sensorsim, sensopt, strain, vfm
 
 __all__ = [
     "__version__",
@@ -28,6 +28,7 @@ __all__ = [
     "mooseherder",
     "render",
     "sensorsim",
+    "sensopt",
     "strain",
     "vfm",
 ]

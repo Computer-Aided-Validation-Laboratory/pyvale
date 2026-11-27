@@ -8,9 +8,12 @@
 NOTE: This module is a feature under developement.
 """
 
+import copy
+
 import numpy as np
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.sensorarray import ISensorArray
+from pyvale.sensorsim.sensordata import SensorData
 from pyvale.sensorsim.errorintegrator import ErrIntegrator
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
@@ -46,6 +49,39 @@ class CameraBasic2D(ISensorArray):
 
     #---------------------------------------------------------------------------
     # Accessors
+    def get_sensor_data(self) -> SensorData:
+        """Return a copy of the nominal sensor configuration."""
+        return copy.deepcopy(self._sensor_data)
+
+    def set_sensor_data(self, sensor_data: SensorData) -> None:
+        """Apply a nominal configuration and clear outputs from the old layout."""
+        positions = sensor_data.positions
+        if positions is None or positions.ndim != 2 or positions.shape[1] != 3:
+            raise ValueError("Sensor positions must have shape (num_sensors, 3).")
+
+        if positions.shape != self._sensor_data.positions.shape:
+            raise ValueError("The new layout must preserve the camera's pixel count.")
+
+        updated_data = copy.deepcopy(sensor_data)
+        self._clear_cached_outputs()
+        self._sensor_data = updated_data
+        if self._error_integrator is not None:
+            self._error_integrator.set_sensor_data(
+                updated_data, measurement_shape=self.get_measurement_shape()
+            )
+
+    def copy_for_simulation(self, *, seed: int | None = None) -> "CameraBasic2D":
+        """Return an independent working array, preserving field and error links."""
+        working_array = copy.deepcopy(self)
+        working_array.set_sensor_data(self._sensor_data)
+        if seed is not None and working_array._error_integrator is not None:
+            working_array._error_integrator.reseed_error_chain(seed)
+        return working_array
+
+    def _clear_cached_outputs(self) -> None:
+        self._truth = None
+        self._measurements = None
+
     def get_sensor_positions(self) -> np.ndarray | None:
         """Return the configured sensor positions before perturbation."""
         return self._sensor_data.positions
