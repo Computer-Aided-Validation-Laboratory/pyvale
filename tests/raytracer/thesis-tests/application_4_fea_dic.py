@@ -21,12 +21,15 @@ The output for each case is written to::
         dic3d_rtimage_{0,1}_cam0.csv pyvale stereo DIC results
         dic3d_summary.csv           DIC summary for the deformed frame
         dic3d_displacement.png      u, v, w and |d| maps
+        dic3d_displacement_fea_limits.png
+                                    optional plot using the FEA frame colour limits
 
 Usage::
 
     /home/wiera/anaconda3/envs/pyvale/bin/python application_4_fea_dic.py
     ... application_4_fea_dic.py --cases air_diffuse pipe
     ... application_4_fea_dic.py --cases water --force
+    ... application_4_fea_dic.py --cases air_diffuse --plot-limits fea
 
 The dot detector is relaxed relative to the pyvale default because the
 rendered targets are small (the dots are about 15--27 px across).  The light
@@ -73,6 +76,7 @@ import pyvale.calib.calibdotdetect as calibdotdetect
 BASE_TEST_DIR = Path(__file__).resolve().parent.parent / "thesis-output"
 CASE_NAMES = ("air_diffuse", "pipe", "water")
 CASE_BASE_DIR = "app4_fea/ssaa_2_8"
+FEA_DIRNAME = "fea"
 THESIS_DATA_DIR = Path(__file__).resolve().parent.parent / "thesis-data"
 CAL_TARGET_ACCESS = THESIS_DATA_DIR / "texture/cal_target-simple.tiff"
 PLATE_COORDS_ACCESS = (
@@ -240,7 +244,7 @@ PLATE_CENTRE_Z_MM = float(PLATE_CENTRE_WORLD_MM[2])
 
 PLATE_INNER_MARGIN_PX = 12.0   # keep subsets away from the plate edge
 IMAGE_EDGE_MARGIN_PX = 12.0    # keep subsets away from the image edge
-HOLE_EXCLUSION_FACTOR = 1.5    # hole radius multiplier before subset margin
+HOLE_EXCLUSION_FACTOR = 1.0    # hole radius multiplier before subset margin
 EPI_MARGIN_PX = 20             # extra epipolar search beyond the disparity
 SEED_ERODE_EXTRA_PX = 5        # extra erosion used to choose a valid seed
 
@@ -652,13 +656,25 @@ def build_roi(ref_image: np.ndarray,
     subset_half = subset_size // 2
 
     x_min_pad = 0
+    x_max_pad = 0
+    y_min_pad = 0
+    y_max_pad = 0
     match case:
         case "air_diffuse":
-            x_min_pad = 180
+            x_min_pad = 210
+            x_max_pad = 10
+            y_min_pad = 30
+            y_max_pad = 30
         case "pipe":
-            x_min_pad = 100
+            x_min_pad = 140
+            x_max_pad = 10
+            y_min_pad = 30
+            y_max_pad = 30
         case "water":
-            x_min_pad = 50
+            x_min_pad = 180
+            x_max_pad = 120
+            y_min_pad = 50
+            y_max_pad = 50
         case _:
             x_min_pad = 0
 
@@ -673,15 +689,15 @@ def build_roi(ref_image: np.ndarray,
     x_max = int(np.floor(min(
         centre_x + half_width - PLATE_INNER_MARGIN_PX,
         width - 1 - IMAGE_EDGE_MARGIN_PX,
-    )))
+    ))) + x_max_pad # move right x boundary more to the right
     y_min = int(np.ceil(max(
         centre_y - half_height + PLATE_INNER_MARGIN_PX,
         IMAGE_EDGE_MARGIN_PX,
-    )))
+    ))) - y_min_pad
     y_max = int(np.floor(min(
         centre_y + half_height - PLATE_INNER_MARGIN_PX,
         height - 1 - IMAGE_EDGE_MARGIN_PX,
-    )))
+    ))) + y_max_pad
 
     if x_min >= x_max or y_min >= y_max:
         raise RuntimeError(
@@ -694,6 +710,10 @@ def build_roi(ref_image: np.ndarray,
 
     # Exclude the circular hole.  The multiplier and subset margin keep the
     # correlation windows away from the hole edge and its refraction blur.
+    if case == "water":
+        HOLE_EXCLUSION_FACTOR = 1.4
+    else:
+        HOLE_EXCLUSION_FACTOR = 1.0
     hole_exclusion_px = (
         HOLE_EXCLUSION_FACTOR * hole_radius_px + subset_half + 5.0
     )
@@ -873,6 +893,7 @@ def run_dic(case_dir: Path,
         output_prefix="dic3d_",
         num_threads=num_threads,
         print_level=print_level,
+        partial_subset=0.5
     )
 
     result_files = _dic_result_files(out_dir)
@@ -1115,7 +1136,62 @@ def plot_calibration_residuals(case: str,
     _save_figure(fig, out_dir / "calibration_residuals.png")
 
 
-def plot_dic_results(case: str, out_dir: Path) -> None:
+def _find_fea_minmax_file(case_dir: Path) -> Path | None:
+    """Locate the FEA frame min/max CSV written by application_4_fea.py."""
+    pattern = "fea_frame_*_minmax.csv"
+    candidates = sorted((case_dir / FEA_DIRNAME).glob(pattern))
+    if not candidates:
+        # application_4_fea.py may write to a case directory without the
+        # render-suffix used by this analysis (for example app4_fea/<case>/
+        # rather than app4_fea/ssaa_2_8/<case>/).
+        fallback_dir = case_dir.parent.parent / case_dir.name / FEA_DIRNAME
+        candidates = sorted(fallback_dir.glob(pattern))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda path: path.stat().st_mtime)
+
+
+def load_fea_limits(case_dir: Path) -> tuple[
+        dict[str, tuple[float, float]], float, int, Path] | None:
+    """
+    Read the front-face min/max records for the FEA frame used for rendering.
+
+    Returns component limits, the FEA displacement scale factor, the frame
+    index and the source CSV.  Components are the same u, v, w, |d| names used
+    in the DIC plot.
+    """
+    path = _find_fea_minmax_file(case_dir)
+    if path is None:
+        return None
+
+    limits: dict[str, tuple[float, float]] = {}
+    frame_scale = 1.0
+    with open(path, newline="") as file:
+        for row in csv.DictReader(file):
+            if row.get("region") != "front_face":
+                continue
+            component = row.get("component")
+            if component not in {"u", "v", "w", "magnitude"}:
+                continue
+            limits[component] = (float(row["min_mm"]), float(row["max_mm"]))
+            frame_scale = float(row.get("frame_scale", frame_scale))
+
+    required = {"u", "v", "w", "magnitude"}
+    if not required.issubset(limits):
+        missing = ", ".join(sorted(required - set(limits)))
+        print(f"  FEA limits file is missing components ({missing}): {path}")
+        return None
+
+    try:
+        frame_index = int(path.stem.split("_")[2])
+    except (IndexError, ValueError):
+        frame_index = -1
+    return limits, frame_scale, frame_index, path
+
+
+def plot_dic_results(case: str,
+                     out_dir: Path,
+                     plot_limits: str = "dic") -> None:
     files = _dic_result_files(out_dir)
     if not files:
         return
@@ -1137,15 +1213,30 @@ def plot_dic_results(case: str, out_dir: Path) -> None:
     w = stereo.w_mm[frame]
     magnitude = np.sqrt(u * u + v * v + w * w)
 
+    fea_limits = None
+    fea_frame_scale = None
+    fea_frame_index = None
+    if plot_limits == "fea":
+        loaded = load_fea_limits(out_dir.parent)
+        if loaded is None:
+            print("  --plot-limits fea: no FEA frame min/max CSV found; "
+                  "using DIC limits instead")
+            plot_limits = "dic"
+        else:
+            fea_limits, fea_frame_scale, fea_frame_index, fea_path = loaded
+            print(f"  Plot colour limits: FEA frame {fea_frame_index} "
+                  f"from {fea_path}")
+
     components = [
-        (r"$u$", u, r"$u$ [mm]", True),
-        (r"$v$", v, r"$v$ [mm]", True),
-        (r"$w$", w, r"$w$ [mm]", True),
-        (r"$|\mathbf{d}|$", magnitude, r"$|\mathbf{d}|$ [mm]", False),
+        (r"$u$", u, r"$u$ [mm]", True, "u"),
+        (r"$v$", v, r"$v$ [mm]", True, "v"),
+        (r"$w$", w, r"$w$ [mm]", True, "w"),
+        (r"$|\mathbf{d}|$", magnitude, r"$|\mathbf{d}|$ [mm]", False,
+         "magnitude"),
     ]
 
     fig, axes = plt.subplots(2, 2, figsize=FIGURE_SIZE_DOUBLE_CMAP)
-    for ax, (label, values, colorbar_label, diverging) in zip(
+    for ax, (label, values, colorbar_label, diverging, component) in zip(
             axes.ravel(), components):
         masked = np.ma.masked_invalid(values)
         finite_values = np.asarray(masked.compressed())
@@ -1155,14 +1246,25 @@ def plot_dic_results(case: str, out_dir: Path) -> None:
             ax.set_axis_off()
             continue
 
-        if diverging:
+        if fea_limits is not None:
+            fea_min, fea_max = fea_limits[component]
+            if diverging:
+                limit = max(abs(fea_min), abs(fea_max), 1e-6)
+                vmin, vmax = -limit, limit
+            else:
+                vmin = 0.0
+                vmax = max(fea_max, 1e-6)
+        elif diverging:
             limit = float(np.max(np.abs(finite_values)))
             limit = max(limit, 1e-6)
             vmin, vmax = -limit, limit
-            cmap = CMAP_DIC_FEA
         else:
             vmin = 0.0
             vmax = max(float(np.max(finite_values)), 1e-6)
+
+        if diverging:
+            cmap = CMAP_DIC_FEA
+        else:
             cmap = "viridis"
 
         image = ax.pcolor(results.ss_x, results.ss_y, masked,
@@ -1176,9 +1278,21 @@ def plot_dic_results(case: str, out_dir: Path) -> None:
         colorbar = fig.colorbar(image, ax=ax, fraction=0.05, pad=0.03)
         colorbar.set_label(colorbar_label)
 
-    fig.suptitle(f"Stereo DIC: {case.replace('_', r'\_')}, deformed frame")
-    fig.tight_layout()
-    _save_figure(fig, out_dir / "dic3d_displacement.png")
+    title = f"Stereo DIC: {case.replace('_', r'\_')}, deformed frame"
+    if fea_limits is not None:
+        title += (f"\nColour limits: FEA frame {fea_frame_index} "
+                  f"(displacement x{fea_frame_scale:.3f})")
+    fig.suptitle(title)
+    if fea_limits is not None:
+        fig.tight_layout(rect=(0, 0, 1, 0.93))
+    else:
+        fig.tight_layout()
+
+    if plot_limits == "fea":
+        output_path = out_dir / "dic3d_displacement_fea_limits.png"
+    else:
+        output_path = out_dir / "dic3d_displacement.png"
+    _save_figure(fig, output_path)
 
 
 # ================================================================================
@@ -1188,6 +1302,7 @@ def plot_dic_results(case: str, out_dir: Path) -> None:
 DIC_OUTPUT_PATTERNS = (
     "dic3d_*.csv",
     "dic3d_displacement.png",
+    "dic3d_displacement_fea_limits.png",
     "roi_mask.txt",
     "roi_overlay.png",
     "seed.txt",
@@ -1287,7 +1402,7 @@ def process_case(case: str,
                    dic_row(case, summary, roi, epi_search_px, error))
 
     if summary is not None and not args.no_plots:
-        plot_dic_results(case, out_dir)
+        plot_dic_results(case, out_dir, plot_limits=args.plot_limits)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -1365,6 +1480,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--no-plots",
         action="store_true",
         help="Skip the matplotlib figures",
+    )
+    parser.add_argument(
+        "--plot-limits",
+        choices=("dic", "fea"),
+        default="dic",
+        help=(
+            "Colour limits for the displacement plot: 'dic' uses the actual "
+            "DIC data range (default); 'fea' uses the front-face min/max "
+            "records from the FEA frame written by application_4_fea.py. "
+            "The FEA version is saved as dic3d_displacement_fea_limits.png."
+        ),
     )
     parser.add_argument(
         "--print-level",

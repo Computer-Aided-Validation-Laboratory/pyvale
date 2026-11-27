@@ -275,3 +275,5 @@ src/pyvale/raytracer/verif_bench/bench
 
 
 !tests/raytracer/thesis-data/plate_hole/platehole3d_2mr_63f/*.csv
+tests/raytracer/thesis-output/app4_fea/ssaa_2_2
+tests/raytracer/thesis-output/app4_fea/ssaa_2_8

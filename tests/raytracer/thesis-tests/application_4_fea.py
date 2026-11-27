@@ -806,6 +806,7 @@ def plate_stereo_test(test_case: TestCaseApp,
 
         # SceneVisualiser([object, water, pipe], cam0)
         # SceneVisualiser([water, pipe], cam0)
+        SceneVisualiser([object, pipe])
 
         out_dir = test_dir(case_dir, STEREODIC_DIRNAME)
         render_stereo_dic(scene, out_dir, render_height, render_width,
