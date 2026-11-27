@@ -22,43 +22,34 @@ _RILEY_EXAMPLES = (
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(
-        "render3d/ex1b_riley_sphere200.py",
-        "pyvale-output/render3d_ex1b_riley_sphere200/"
+        "render3d/ex1b_riley_procedural_quickstart.py",
+        "pyvale-output/render3d_ex1b_riley_procedural_quickstart/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(
-        "render3d/ex1c_riley_rabbits.py",
-        "pyvale-output/render3d_ex1c_riley_rabbits/"
+        "render3d/ex1c_riley_shaderpipe_quickstart.py",
+        "pyvale-output/render3d_ex1c_riley_shaderpipe_quickstart/"
+        "modulated/cam0_frame0_field0.bmp",
+    ),
+    pytest.param(
+        "render3d/ex1d_riley_dic_from_exodus.py",
+        "pyvale-output/render3d_ex1d_riley_dic_from_exodus/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(
-        "render3d/ex1d_riley_dicuq.py",
-        "pyvale-output/render3d_ex1d_riley_dicuq/cam0_frame0_field0.bmp",
-    ),
-    pytest.param(
-        "render3d/ex1e_riley_dic_from_exodus.py",
-        "pyvale-output/render3d_ex1e_riley_dic_from_exodus/"
+        "render3d/ex1e_riley_stereocal.py",
+        "pyvale-output/render3d_ex1e_riley_stereocal/"
         "cam0_frame0_field0.bmp",
     ),
     pytest.param(
-        "render3d/ex1f_riley_stereocal.py",
-        "pyvale-output/render3d_ex1f_riley_stereocal/"
-        "cam0_frame0_field0.bmp",
+        "render3d/ex1f_riley_diciruq.py",
+        "pyvale-output/render3d_ex1f_riley_diciruq/"
+        "cam1_frame0_field0.tiff",
     ),
     pytest.param(
-        "render3d/ex1g_riley_psf.py",
-        "pyvale-output/render3d_ex1g_riley_psf/global_subpx_full/"
-        "cam0_frame0_field0.bmp",
-    ),
-    pytest.param(
-        "render3d/ex1h_riley_feature_zoo.py",
-        "pyvale-output/render3d_ex1h_riley_feature_zoo/mono-u8/"
-        "cam0_frame0_field0.bmp",
-    ),
-    pytest.param(
-        "render3d/ex2d_blender_calibration.py",
-        "pyvale-output/render3d_ex2d_blender_calibration/calibration/"
-        "calibration.yaml",
+        "render3d/ex1g_riley_cameramodels.py",
+        "pyvale-output/render3d_ex1g_riley_cameramodels/"
+        "cam2_frame0_field0.bmp",
     ),
 )
 
@@ -77,6 +68,11 @@ _BLENDER_EXAMPLES = (
         "render3d/ex2c_blender_stereo.py",
         "pyvale-output/render3d_ex2c_blender_stereo/images/"
         "blenderimage_0_1.tiff",
+    ),
+    pytest.param(
+        "render3d/ex2d_blender_calibration.py",
+        "pyvale-output/render3d_ex2d_blender_calibration/calibration/"
+        "calibration.yaml",
     ),
     pytest.param(
         "render3d/ex2e_blender_stereo_deformation.py",

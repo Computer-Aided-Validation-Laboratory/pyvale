@@ -20,8 +20,11 @@ class RenderResult:
     images : np.ndarray or None
         Image stack with shape
         ``(num_frames, num_cameras, height, width, num_channels)``
-        and dtype ``uint8`` or ``float32``. ``None`` is used by file only
-        backends.
+        with a backend-specific dtype. Riley returns ``float64`` images; when
+        camera image sizes or channel counts differ, Riley pads to the largest
+        height, width and channel count with each camera's background value.
+        Use ``images[:, camera_index, :height, :width, :channels]`` to select
+        that camera's rendered pixels. ``None`` indicates no in-memory output.
     output_paths : tuple[Path, ...], optional
         Paths written by a backend that persists rendered images.
     """

@@ -162,10 +162,10 @@ for variant_name, projection_plane, mesh_rotation, camera_rotation in variants:
         element_type=oriented_mesh.element_type,
         coords=oriented_mesh.coords,
         connectivity=oriented_mesh.connectivity,
-        shader=riley.TextureShader(
+        shader=riley.MeshShaderSet(mono=riley.TextureShader(
             uvs=mapping.uvs,
             texture=mapping.texture[None, :, :],
-        ),
+        )),
     )
 
     render_uv_example(textured_mesh, camera, output_dir / variant_name)
@@ -228,10 +228,10 @@ speckled_mesh = render.Mesh3D(
     element_type=speckle_mesh.element_type,
     coords=speckle_mesh.coords,
     connectivity=speckle_mesh.connectivity,
-    shader=riley.TextureShader(
+    shader=riley.MeshShaderSet(mono=riley.TextureShader(
         uvs=speckle_mapping.uvs,
         texture=speckle_mapping.texture[None, :, :],
-    ),
+    )),
 )
 
 render_uv_example(speckled_mesh, speckle_camera, output_dir / "speckle")
