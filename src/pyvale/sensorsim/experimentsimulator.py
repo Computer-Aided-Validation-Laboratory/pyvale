@@ -202,6 +202,8 @@ class ExperimentSimulator:
                                     reading = array.get_errors_systematic()
                                 case EExpSimKeys.RANDOM_ERROR:
                                     reading = array.get_errors_random()
+                                case _:
+                                    raise ValueError(f"Unsupported measured output {output!r}.")
                             outputs[output][index] = 0.0 if reading is None else reading
                 if EExpSimKeys.TRUTH in required_outputs:
                     truth = array.get_truth()

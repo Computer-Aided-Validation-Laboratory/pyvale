@@ -16,7 +16,7 @@ from typing import TypeAlias
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.sensopt.designspace import IConstrainInp
+from pyvale.sensoropt.designspace import IConstrainInp
 from pyvale.sensorsim.sensordata import SensorData
 
 

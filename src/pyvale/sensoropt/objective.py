@@ -15,9 +15,9 @@ from math import log, log1p
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.sensopt.designspace import _calculate_sensor_cost
-from pyvale.sensopt.evalstrat import EvalStrat
-from pyvale.sensopt.fieldrecon import FieldReconNearest, IFieldRecon
+from pyvale.sensoropt.designspace import _calculate_sensor_cost
+from pyvale.sensoropt.evalstrat import EvalStrat
+from pyvale.sensoropt.fieldrecon import FieldReconNearest, IFieldRecon
 from pyvale.sensorsim.enums import EExpSimKeys
 from pyvale.sensorsim.sensordata import SensorData
 
@@ -376,8 +376,11 @@ class ObjFieldRecon(IObjFunc):
     """Score reconstruction at user-supplied target coordinates.
 
     Reference values are keyed by scenario and have shape (target, time).
+    Provide explicit target_values or select a nodal reference_field.
+    Ensemble references compare each reconstruction with a common pointwise
+    mean or median. Reference weights apply only to the mean.
     Each target and time has equal weight. Losses have shape
-    (scenario, realisation), in the units of the selected component.
+    (sim_scenario, virtual_exp), in the units of the selected component.
     """
 
     target_positions: npt.NDArray[np.float64]

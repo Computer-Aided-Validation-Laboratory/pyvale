@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum, auto
+from numbers import Integral
 
 import numpy as np
 import numpy.typing as npt
@@ -18,11 +19,47 @@ from pyvale.dataio.simdata import SimData
 
 
 class ISimSampler(ABC):
-    """Draw an input physics simulation using the supplied random generator."""
+    """Configure and draw one batch of physics scenarios per optimisation."""
+
+    num_sim_scenarios: int
 
     @abstractmethod
-    def sample(self, *, rng: np.random.Generator) -> SimData:
-        """Return one complete simulation scenario."""
+    def sample(self, *, rng: np.random.Generator) -> tuple[SimData, ...]:
+        """Return num_sim_scenarios cases in draw order."""
+
+
+@dataclass(slots=True, kw_only=True)
+class SimSamplerLibrary(ISimSampler):
+    """Sample a named library uniformly or using relative case weights.
+
+    With replacement, a case may appear several times in a batch. Each draw
+    counts equally in subsequent evaluation reductions by default.
+    """
+
+    library: Mapping[str, SimData]
+    num_sim_scenarios: int
+    weights: Mapping[str, float] | None = None
+    replace: bool = True
+
+    def sample(self, *, rng: np.random.Generator) -> tuple[SimData, ...]:
+        count = self.num_sim_scenarios
+        if not isinstance(count, Integral) or isinstance(count, bool) or count < 1:
+            raise ValueError("num_sim_scenarios must be a positive integer.")
+        if not self.library:
+            raise ValueError("The simulation library must contain at least one case.")
+
+        keys = tuple(self.library)
+        weights = _get_scenario_weights(self.weights, keys)
+        eligible = len(keys) if weights is None else np.count_nonzero(weights)
+        if not self.replace and count > eligible:
+            raise ValueError(
+                "Too few eligible library cases to sample without replacement."
+            )
+        probabilities = None if weights is None else weights / weights.sum()
+        indices = rng.choice(
+            len(keys), size=int(count), replace=self.replace, p=probabilities
+        )
+        return tuple(self.library[keys[index]] for index in indices)
 
 
 class ESampling(Enum):
@@ -80,19 +117,24 @@ class EvalStrat:
             reduced_axes.add(step.axis)
             axis = step.axis.value
             if step.weights is not None and (
-                step.axis is not EEvalAxis.SIM_SCENARIO or step.method is not EEvalReduce.MEAN
+                step.axis is not EEvalAxis.SIM_SCENARIO
+                or step.method is not EEvalReduce.MEAN
             ):
                 raise ValueError("Weights require a mean over SIM_SCENARIO.")
             match step.method:
                 case EEvalReduce.MEAN:
                     weights = _get_scenario_weights(step.weights, scenario_keys)
-                    losses = np.average(losses, axis=axis, weights=weights, keepdims=True)
+                    losses = np.average(
+                        losses, axis=axis, weights=weights, keepdims=True
+                    )
                 case EEvalReduce.MAX:
                     losses = np.max(losses, axis=axis, keepdims=True)
                 case EEvalReduce.MEDIAN:
                     losses = np.median(losses, axis=axis, keepdims=True)
                 case _:
-                    raise ValueError(f"Unsupported evaluation reduction {step.method!r}.")
+                    raise ValueError(
+                        f"Unsupported evaluation reduction {step.method!r}."
+                    )
         return losses
 
 
@@ -105,5 +147,7 @@ def _get_scenario_weights(
         raise ValueError("Scenario weights must match the simulation scenario keys.")
     values = np.array([weights[key] for key in scenario_keys], dtype=np.float64)
     if not np.all(np.isfinite(values)) or np.any(values < 0) or not np.any(values > 0):
-        raise ValueError("Scenario weights must be finite, nonnegative and not all zero.")
+        raise ValueError(
+            "Scenario weights must be finite, nonnegative and not all zero."
+        )
     return values / np.max(values)

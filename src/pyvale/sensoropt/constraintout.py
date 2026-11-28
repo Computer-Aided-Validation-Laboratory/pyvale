@@ -12,8 +12,13 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.sensopt.designspace import IConstrainOut
-from pyvale.sensopt.objective import EErrMetric, ExperimentData, IObjFunc, _reduce_error
+from pyvale.sensoropt.designspace import IConstrainOut
+from pyvale.sensoropt.objective import (
+    EErrMetric,
+    ExperimentData,
+    IObjFunc,
+    _reduce_error,
+)
 from pyvale.sensorsim.enums import EExpSimKeys
 from pyvale.sensorsim.sensordata import SensorData
 

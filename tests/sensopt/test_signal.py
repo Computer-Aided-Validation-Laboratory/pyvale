@@ -8,7 +8,7 @@
 
 import numpy as np
 
-import pyvale.sensopt as opt
+import pyvale.sensoropt as opt
 import pyvale.sensorsim as sens
 
 

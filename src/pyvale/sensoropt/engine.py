@@ -14,10 +14,10 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.dataio.simdata import SimData
-from pyvale.sensopt.constraintout import ConstrainObjVal
-from pyvale.sensopt.designspace import DesignSpace, EDesignAxis
-from pyvale.sensopt.evalstrat import ESampling, ISimSampler
-from pyvale.sensopt.objective import (
+from pyvale.sensoropt.constraintout import ConstrainObjVal
+from pyvale.sensoropt.designspace import DesignSpace, EDesignAxis
+from pyvale.sensoropt.evalstrat import ESampling, ISimSampler
+from pyvale.sensoropt.objective import (
     IObjFunc,
     ObjFieldRecon,
     ObjSignal,
@@ -27,7 +27,7 @@ from pyvale.sensopt.objective import (
     ObjTerm,
     ObjWeighted,
 )
-from pyvale.sensopt.optimiser import (
+from pyvale.sensoropt.optimiser import (
     EOptStopCond,
     Layout,
     OptDiscrete,
@@ -46,7 +46,7 @@ from pyvale.sensopt.optimiser import (
     _search_forward,
     _SearchResult,
 )
-from pyvale.sensopt.simscenario import _prepare_objective
+from pyvale.sensoropt.simscenario import _prepare_objective
 from pyvale.sensorsim.experimentsimulator import ExperimentSimulator
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.sensordata import SensorData
@@ -91,7 +91,6 @@ class SensorOptEngine:
     optimiser: OptDiscrete
     seed: int | None = None
     sim_scenarios: Mapping[str, SimData] | ISimSampler | None = None
-    num_sim_scenarios: int | None = None
     num_virtual_exps: int = 1
     sampling: ESampling = ESampling.NESTED
 
@@ -222,23 +221,23 @@ class SensorOptEngine:
         if not _is_integer(self.num_virtual_exps, minimum=1):
             raise ValueError("num_virtual_exps must be a positive integer.")
         if not isinstance(self.sampling, ESampling):
-            raise ValueError("sampling must be an ESampling member.")
+            raise TypeError("sampling must be an ESampling member.")
         if self.sampling is ESampling.PAIRED and self.num_virtual_exps != 1:
             raise ValueError("PAIRED sampling requires num_virtual_exps=1.")
         sim_scenarios: dict[str, SimData] = {}
         physics_seed = np.random.SeedSequence(self.seed)
         source = self.sim_scenarios
         if isinstance(source, ISimSampler):
-            count = self.num_sim_scenarios
-            if count is None or not _is_integer(count, minimum=1):
+            count = source.num_sim_scenarios
+            if not _is_integer(count, minimum=1):
                 raise ValueError("A sampler requires a positive num_sim_scenarios.")
             rng = np.random.default_rng(physics_seed.spawn(1)[0])
-            sim_scenarios = {f"sample_{index}": source.sample(rng=rng) for index in range(count)}
-            if not all(isinstance(case, SimData) for case in sim_scenarios.values()):
-                raise ValueError("The simulation sampler must return SimData.")
+            cases = source.sample(rng=rng)
+            if len(cases) != count or not all(isinstance(case, SimData) for case in cases):
+                raise ValueError("The sampler must return num_sim_scenarios SimData cases.")
+            keys = (f"sample_{index}" for index in range(count))
+            sim_scenarios = dict(zip(keys, cases, strict=True))
         else:
-            if self.num_sim_scenarios is not None:
-                raise ValueError("num_sim_scenarios requires an ISimSampler.")
             if source is not None:
                 if not source:
                     raise ValueError("Supply at least one named simulation scenario.")
@@ -299,7 +298,7 @@ class SensorOptEngine:
         scenario_arrays: dict[str, dict[str, ISensorArray]] = {}
         num_streams = len(scenario_keys) * len(self.sensor_arrays)
         array_seeds: list[int | None] = [self.seed] * num_streams
-        if self.seed is not None and (num_streams > 1 or isinstance(source, ISimSampler)):
+        if num_streams > 1 or isinstance(source, ISimSampler):
             array_seeds = [
                 int(sequence.generate_state(1)[0])
                 for sequence in physics_seed.spawn(num_streams)

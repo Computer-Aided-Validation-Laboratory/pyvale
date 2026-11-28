@@ -20,7 +20,7 @@ import pyvista as pv
 import pyvale.data as dataset
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
-import pyvale.sensopt as opt
+import pyvale.sensoropt as opt
 import pyvale.sensorsim as sens
 
 # %%

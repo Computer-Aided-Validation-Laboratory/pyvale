@@ -6,8 +6,8 @@
 
 """Experimental design through sensor placement optimisation."""
 
-from pyvale.sensopt.constraintout import ConstrainMeasErr, ConstrainObjVal
-from pyvale.sensopt.designspace import (
+from pyvale.sensoropt.constraintout import ConstrainMeasErr, ConstrainObjVal
+from pyvale.sensoropt.designspace import (
     ConstrainChannCount,
     ConstrainSensCost,
     ConstrainSensSep,
@@ -17,17 +17,18 @@ from pyvale.sensopt.designspace import (
     IConstrainOut,
     filter_sensor_sites_in_mesh,
 )
-from pyvale.sensopt.engine import OptResult, SensorOptEngine
-from pyvale.sensopt.evalstrat import (
+from pyvale.sensoropt.engine import OptResult, SensorOptEngine
+from pyvale.sensoropt.evalstrat import (
     EEvalAxis,
     EEvalReduce,
     ESampling,
     EvalReduction,
     EvalStrat,
     ISimSampler,
+    SimSamplerLibrary,
 )
-from pyvale.sensopt.fieldrecon import FieldReconLinear, FieldReconNearest, IFieldRecon
-from pyvale.sensopt.objective import (
+from pyvale.sensoropt.fieldrecon import FieldReconLinear, FieldReconNearest, IFieldRecon
+from pyvale.sensoropt.objective import (
     EErrMetric,
     EReconRef,
     ESignalAxis,
@@ -48,7 +49,7 @@ from pyvale.sensopt.objective import (
     ObjWeighted,
     SignalReduction,
 )
-from pyvale.sensopt.optimiser import (
+from pyvale.sensoropt.optimiser import (
     EOptStopCond,
     OptExchange,
     OptExhaustive,
@@ -58,7 +59,7 @@ from pyvale.sensopt.optimiser import (
     OptStartLayout,
     OptStartRandom,
 )
-from pyvale.sensopt.sites import (
+from pyvale.sensoropt.sites import (
     ConstrainSensSites,
     SensSiteAll,
     SensSiteAny,
@@ -77,9 +78,9 @@ __all__ = [
     "ConstrainSensSites",
     "DesignSpace",
     "EDesignAxis",
+    "EErrMetric",
     "EEvalAxis",
     "EEvalReduce",
-    "EErrMetric",
     "EOptStopCond",
     "EReconRef",
     "ESampling",
@@ -123,5 +124,6 @@ __all__ = [
     "SensSiteSelector",
     "SensorOptEngine",
     "SignalReduction",
+    "SimSamplerLibrary",
     "filter_sensor_sites_in_mesh",
 ]

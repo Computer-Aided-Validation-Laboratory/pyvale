@@ -18,7 +18,7 @@ from scipy.spatial.distance import pdist
 import pyvale.data as dataset
 import pyvale.dataio as io
 import pyvale.mooseherder as mh
-import pyvale.sensopt as opt
+import pyvale.sensoropt as opt
 import pyvale.sensorsim as sens
 from pyvale.verif import pointsensscalar
 
