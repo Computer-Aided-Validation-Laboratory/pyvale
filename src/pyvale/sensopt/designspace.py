@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum, auto
+from numbers import Integral
 
 import numpy as np
 import numpy.typing as npt
@@ -27,7 +28,7 @@ class EDesignAxis(Enum):
     DISC = auto()
 
 
-class IConstraintInput(ABC):
+class IConstrainInp(ABC):
     """Feasibility condition on the proposed layout before sensor simulation."""
 
     @abstractmethod
@@ -36,7 +37,7 @@ class IConstraintInput(ABC):
 
 
 @dataclass(slots=True, kw_only=True)
-class ConstraintSensorSeparation(IConstraintInput):
+class ConstrainSensSep(IConstrainInp):
     """Reject co-location and enforce an optional minimum distance.
 
     Positions across all arrays must share a coordinate frame and units.
@@ -74,7 +75,7 @@ def _calculate_sensor_cost(
 
 
 @dataclass(slots=True, kw_only=True)
-class ConstraintSensorCost(IConstraintInput):
+class ConstrainSensCost(IConstrainInp):
     """Enforce a budget for the configured per-array unit costs."""
 
     unit_costs: Mapping[str, float]
@@ -88,6 +89,41 @@ class ConstraintSensorCost(IConstraintInput):
 
 
 @dataclass(slots=True, kw_only=True)
+class ConstrainChannCount(IConstrainInp):
+    """Limit DAQ channels using explicit per-sensor hardware channel counts.
+
+    Unselected arrays consume zero channels. Each selected array must have a
+    configured count. Use zero channels for hardware that consumes none.
+    """
+
+    channels_per_sensor: Mapping[str, int]
+    max_channels: int
+
+    def eval(self, sensor_data: Mapping[str, SensorData]) -> npt.NDArray[np.float64]:
+        if not isinstance(self.max_channels, Integral) or (
+            isinstance(self.max_channels, bool) or self.max_channels < 0
+        ):
+            raise ValueError("max_channels must be a nonnegative integer.")
+        for key, count in self.channels_per_sensor.items():
+            if not isinstance(count, Integral) or isinstance(count, bool) or count < 0:
+                raise ValueError(
+                    f"Channel count for {key!r} must be a nonnegative integer."
+                )
+
+        used_channels = 0
+        for key, data in sensor_data.items():
+            positions = data.positions
+            if positions is None:
+                raise ValueError(f"Sensor array {key!r} requires positions.")
+            if len(positions) == 0:
+                continue
+            if key not in self.channels_per_sensor:
+                raise ValueError(f"Specify channels_per_sensor for array {key!r}.")
+            used_channels += len(positions) * int(self.channels_per_sensor[key])
+        return np.array([used_channels - int(self.max_channels)], dtype=np.float64)
+
+
+@dataclass(slots=True, kw_only=True)
 class DesignSpace:
     """Candidate positions and input constraints for the named sensor arrays.
 
@@ -97,7 +133,7 @@ class DesignSpace:
 
     positions: Mapping[str, npt.NDArray[np.float64]]
     position_axes: Mapping[str, EDesignAxis]
-    input_constraints: tuple[IConstraintInput, ...] = ()
+    input_constraints: tuple[IConstrainInp, ...] = ()
 
 
 def filter_sensor_sites_in_mesh(

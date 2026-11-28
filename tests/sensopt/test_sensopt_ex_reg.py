@@ -276,7 +276,7 @@ def analytic_array() -> sens.SensorsPoint:
     )
 
 
-class CountStartLayouts(opt.IConstraintInput):
+class CountStartLayouts(opt.IConstrainInp):
     def __init__(self) -> None:
         self.layouts: list[tuple[float, ...]] = []
 
@@ -302,7 +302,7 @@ def test_random_start_tests_distinct_layouts_and_repeats_with_seed(
         design_space=opt.DesignSpace(
             positions={"first": sites, "second": sites},
             position_axes=dict.fromkeys(("first", "second"), opt.EDesignAxis.DISC),
-            input_constraints=(counter, opt.ConstraintSensorSeparation()),
+            input_constraints=(counter, opt.ConstrainSensSep()),
         ),
         objectives=(opt.ObjSensorCost(unit_costs={"first": 1.0, "second": 1.0}),),
         optimiser=opt.OptGreedyForward(
@@ -332,7 +332,7 @@ def test_greedy_start_reports_infeasibility(
         design_space=opt.DesignSpace(
             positions={"first": sites, "second": sites},
             position_axes=dict.fromkeys(("first", "second"), opt.EDesignAxis.DISC),
-            input_constraints=(opt.ConstraintSensorSeparation(),),
+            input_constraints=(opt.ConstrainSensSep(),),
         ),
         objectives=(opt.ObjSensorCost(unit_costs={"first": 1.0, "second": 1.0}),),
         optimiser=opt.OptGreedyForward(
@@ -457,7 +457,7 @@ def test_weighted_objective_normalises_each_term_and_skips_zero_weights(
 def test_separation_applies_across_arrays(
     distance: float, minimum_distance: float, feasible: bool
 ) -> None:
-    constraint = opt.ConstraintSensorSeparation(min_distance=minimum_distance)
+    constraint = opt.ConstrainSensSep(min_distance=minimum_distance)
     residuals = constraint.eval(
         {
             "first": sens.SensorData(positions=np.array([[0.0, 0.0, 0.0]])),
@@ -465,6 +465,32 @@ def test_separation_applies_across_arrays(
         }
     )
     assert bool(np.all(residuals <= 0)) is feasible
+
+
+@pytest.mark.parametrize(
+    ("max_channels", "expected_residual"), [(4, 1.0), (5, 0.0), (6, -1.0)]
+)
+def test_channel_limit_counts_hardware_channels(
+    max_channels: int, expected_residual: float
+) -> None:
+    constraint = opt.ConstrainChannCount(
+        channels_per_sensor={"temperature": 1, "rosette": 3, "unused": 8},
+        max_channels=max_channels,
+    )
+    residuals = constraint.eval(
+        {
+            "temperature": sens.SensorData(positions=np.zeros((2, 3))),
+            "rosette": sens.SensorData(positions=np.zeros((1, 3))),
+            "empty": sens.SensorData(positions=np.empty((0, 3))),
+        }
+    )
+    np.testing.assert_array_equal(residuals, [expected_residual])
+
+
+def test_channel_limit_rejects_unconfigured_selected_array() -> None:
+    constraint = opt.ConstrainChannCount(channels_per_sensor={}, max_channels=5)
+    with pytest.raises(ValueError, match="channels_per_sensor"):
+        constraint.eval({"rosette": sens.SensorData(positions=np.zeros((1, 3)))})
 
 
 class MeanMeasurement(opt.IObjFunc):

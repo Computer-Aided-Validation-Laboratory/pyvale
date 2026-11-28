@@ -89,8 +89,8 @@ design_space: opt.DesignSpace = opt.DesignSpace(
     positions={key: sites for key in sensor_arrays},
     position_axes={key: opt.EDesignAxis.DISC for key in sensor_arrays},
     input_constraints=(
-        opt.ConstraintSensorSeparation(),
-        opt.ConstraintSensorCost(unit_costs=unit_costs, budget=budget),
+        opt.ConstrainSensSep(),
+        opt.ConstrainSensCost(unit_costs=unit_costs, budget=budget),
     ),
 )
 

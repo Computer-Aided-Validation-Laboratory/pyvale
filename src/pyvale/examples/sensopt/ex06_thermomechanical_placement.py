@@ -108,7 +108,7 @@ minimum_spacing: float = 0.3 * min(
 design_space: opt.DesignSpace = opt.DesignSpace(
     positions={key: sites for key in sensor_arrays},
     position_axes={key: opt.EDesignAxis.DISC for key in sensor_arrays},
-    input_constraints=(opt.ConstraintSensorSeparation(min_distance=minimum_spacing),),
+    input_constraints=(opt.ConstrainSensSep(min_distance=minimum_spacing),),
 )
 result: opt.OptResult = opt.SensorOptEngine(
     sensor_arrays=sensor_arrays,
