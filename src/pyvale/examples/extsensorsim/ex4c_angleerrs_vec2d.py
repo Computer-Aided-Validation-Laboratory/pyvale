@@ -58,11 +58,14 @@ sens_data_norot = sens.SensorData(positions=sens_pos,
                                   angles=sens_angles_norot)
 
 
-sens_array_norot: sens.SensorsPoint = sens.SensorFactory.vector_point(
+sens_array_norot_field = sens.FieldVector(
     sim_data,
-    sens_data_norot,
     comp_keys=disp_keys,
     spatial_dims=sens.EDim.TWOD,
+)
+sens_array_norot: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data_norot,
+    field=sens_array_norot_field,
     descriptor=sens.DescriptorFactory.displacement(),
 )
 
@@ -88,11 +91,14 @@ sens_data_rot = sens.SensorData(positions=sens_pos,
                                 sample_times=sample_times,
                                 angles=sens_angles_rot)
 
-sens_array_rot: sens.SensorsPoint = sens.SensorFactory.vector_point(
+sens_array_rot_field = sens.FieldVector(
     sim_data,
-    sens_data_rot,
     comp_keys=disp_keys,
     spatial_dims=sens.EDim.TWOD,
+)
+sens_array_rot: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data_rot,
+    field=sens_array_rot_field,
     descriptor=sens.DescriptorFactory.displacement(),
 )
 

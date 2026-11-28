@@ -59,12 +59,15 @@ target_positions: np.ndarray = cast(np.ndarray, sim_data.coords)
 nodal_fields: dict[str, np.ndarray] = cast(dict[str, np.ndarray], sim_data.node_vars)
 target_strain: np.ndarray = nodal_fields[strain_key]
 strain_data: sens.SensorData = sens.SensorData(positions=sites[:3])
-strain: sens.SensorsPoint = sens.SensorFactory.tensor_point(
+strain_field = sens.FieldTensor(
     sim_data,
-    strain_data,
     norm_comp_keys=norm_comp_keys,
     dev_comp_keys=dev_comp_keys,
     spatial_dims=sens.EDim.TWOD,
+)
+strain: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=strain_data,
+    field=strain_field,
     descriptor=sens.DescriptorFactory.strain(sens.EDim.TWOD),
 )
 sensor_arrays: dict[str, sens.ISensorArray] = {"strain": strain}

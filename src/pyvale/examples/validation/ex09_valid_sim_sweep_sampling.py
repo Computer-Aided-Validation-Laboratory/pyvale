@@ -99,15 +99,18 @@ sens.scale_nodal_fields(1.0e3, list(sims.values()), field_keys=strain_keys)
 
 sensor_data = sens.SensorData(positions=sens_coords, sample_times=sens_times)
 
-strain_sensors: sens.SensorsPoint = sens.SensorFactory.tensor_point(
+strain_sensors_field = sens.FieldTensor(
     exp_sim,
-    sensor_data,
     norm_comp_keys=strain_norm_keys,
     dev_comp_keys=strain_dev_keys,
     spatial_dims=sens.EDim.THREED,
+)
+strain_sensors: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sensor_data,
+    field=strain_sensors_field,
     descriptor=sens.SensorDescriptor(
         name="Strain",
-        symbol=r"\varepsilon",
+        symbol="\\varepsilon",
         units="mε",
         tag="SG",
         components=("xx", "yy", "zz", "xy", "xz", "yz"),

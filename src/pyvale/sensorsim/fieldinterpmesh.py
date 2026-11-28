@@ -13,8 +13,7 @@ from pyvale.dataio.meshconv import enforce_mesh_convention
 from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.enums import EDim
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
-from pyvale.sensorsim.fieldinterp import interp_to_sample_time
-from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
+from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler, interp_to_sample_time
 
 
 class FieldInterpMesh(IFieldSampler):

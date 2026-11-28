@@ -9,10 +9,14 @@ NOTE: this module is a feature under developement.
 """
 
 from typing import Any
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
+
 from pyvale.sensorsim.camera import CameraBasic2D
+from pyvale.sensorsim.sensorarray import resolve_sample_times
 from pyvale.sensorsim.visualopts import PlotOptsGeneral
+
 
 # TODO: this only works for a 2D camera, maybe this should be deprecated
 def plot_measurement_image(camera: CameraBasic2D,
@@ -40,7 +44,8 @@ def plot_measurement_image(camera: CameraBasic2D,
     fig.colorbar(cset,
                  label=descriptor.create_label_flat(comp_ind))
 
-    title = f"Time: {camera.get_sample_times()[time_step]}s"
+    sample_times = resolve_sample_times(camera.get_sensor_data(), camera.get_field())
+    title = f"Time: {sample_times[time_step]}s"
     ax.set_title(title,fontsize=plot_opts.font_head_size)
     ax.set_xlabel(r"x ($px$)",
                 fontsize=plot_opts.font_ax_size, fontname=plot_opts.font_name)

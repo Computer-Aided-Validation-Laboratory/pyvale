@@ -69,11 +69,14 @@ temp_sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(4,1,1),
 temp_sens_data = sens.SensorData(positions=temp_sens_pos,
                                  sample_times=sample_times)
 
-temp_sens: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+temp_sens_field = sens.FieldScalar(
     sim_data,
-    temp_sens_data,
     comp_key="temperature",
     spatial_dims=sens.EDim.TWOD,
+)
+temp_sens: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=temp_sens_data,
+    field=temp_sens_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 
@@ -115,11 +118,14 @@ sens_angles: tuple[Rotation] = (
 disp_sens_data = sens.SensorData(positions=disp_sens_pos,
                                  sample_times=sample_times)
 
-disp_sens: sens.SensorsPoint = sens.SensorFactory.vector_point(
+disp_sens_field = sens.FieldVector(
     sim_data,
-    disp_sens_data,
     comp_keys=disp_keys,
     spatial_dims=sens.EDim.TWOD,
+)
+disp_sens: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=disp_sens_data,
+    field=disp_sens_field,
     descriptor=sens.DescriptorFactory.displacement(),
 )
 

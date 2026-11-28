@@ -60,11 +60,14 @@ def test_joint_search_against_independent_position_times_product() -> None:
         np.array([0.0, 0.75, 1.0]),
         np.array([0.25, 0.5, 0.75]),  # Does not cover the score window.
     )
-    array = sens.SensorFactory.scalar_point(
+    array_field = sens.FieldScalar(
         sim_data,
-        sens.SensorData(positions=sites[:2]),
         comp_key="temperature",
         spatial_dims=sens.EDim.TWOD,
+    )
+    array = sens.SensorsPoint(
+        sensor_data=sens.SensorData(positions=sites[:2]),
+        field=array_field,
     )
     engine = opt.SensorOptEngine(
         sensor_arrays={"temperature": array},

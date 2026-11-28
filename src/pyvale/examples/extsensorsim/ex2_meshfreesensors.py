@@ -87,22 +87,28 @@ sens_data = sens.SensorData(positions=sens_pos,
 # times slower than the mesh-based case.
 
 start_time = time.perf_counter()
-tc_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+tc_array_field = sens.FieldScalar(
     sim_data,
-    sens_data,
     comp_key="temperature",
     spatial_dims=sens.EDim.TWOD,
+)
+tc_array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=tc_array_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 mesh_time = (time.perf_counter() - start_time)*1000.0
 
 
 start_time = time.perf_counter()
-tc_array_nomesh: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+tc_array_nomesh_field = sens.FieldScalar(
     sim_data_nomesh,
-    sens_data,
     comp_key="temperature",
     spatial_dims=sens.EDim.TWOD,
+)
+tc_array_nomesh: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=tc_array_nomesh_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 

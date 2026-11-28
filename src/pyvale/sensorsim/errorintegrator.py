@@ -99,20 +99,25 @@ class ErrIntegrator:
         self, sensor_data: SensorData, *, measurement_shape: tuple[int, int, int]
     ) -> None:
         """Reset perturbations and errors for a new nominal layout and output shape."""
-        self._meas_shape = measurement_shape
-        self._sens_data_initial = copy.deepcopy(sensor_data)
-        self._sens_data_accumulated = copy.deepcopy(sensor_data)
+        initial_data = copy.deepcopy(sensor_data)
+        accumulated_data = copy.deepcopy(sensor_data)
+        systematic_errors = np.zeros(measurement_shape)
+        random_errors = np.zeros(measurement_shape)
+        total_errors = np.zeros(measurement_shape)
 
+        errors_by_chain = None
         if self._err_int_opts.store_all_errs:
-            self._sens_data_by_chain = []
-            self._errs_by_chain = np.zeros((len(self._err_chain),) + self._meas_shape)
-        else:
-            self._sens_data_by_chain = None
-            self._errs_by_chain = None
+            chain_shape = (len(self._err_chain), *measurement_shape)
+            errors_by_chain = np.zeros(chain_shape)
 
-        self._errs_systematic = np.zeros(measurement_shape)
-        self._errs_random = np.zeros(measurement_shape)
-        self._errs_total = np.zeros(measurement_shape)
+        self._meas_shape = measurement_shape
+        self._sens_data_initial = initial_data
+        self._sens_data_accumulated = accumulated_data
+        self._errs_by_chain = errors_by_chain
+        self._sens_data_by_chain = [] if errors_by_chain is not None else None
+        self._errs_systematic = systematic_errors
+        self._errs_random = random_errors
+        self._errs_total = total_errors
 
     def reseed_error_chain(self, seed: int | None = None) -> None:
         """Iterates through the error chain and calls the reseed method for all

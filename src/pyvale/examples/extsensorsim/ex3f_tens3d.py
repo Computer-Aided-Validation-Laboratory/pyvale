@@ -75,12 +75,15 @@ descriptor = sens.SensorDescriptor(name="Strain",
                                    tag="SG",
                                    components=('xx','yy','zz','xy','yz','xz'))
 
-sens_array: sens.SensorsPoint = sens.SensorFactory.tensor_point(
+sens_array_field = sens.FieldTensor(
     sim_data,
-    sens_data,
     norm_comp_keys=norm_comp_keys,
     dev_comp_keys=dev_comp_keys,
     spatial_dims=sens.EDim.THREED,
+)
+sens_array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=sens_array_field,
     descriptor=descriptor,
 )
 

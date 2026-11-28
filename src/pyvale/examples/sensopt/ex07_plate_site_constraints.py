@@ -54,13 +54,16 @@ nodal_fields: dict[str, np.ndarray] = cast(dict[str, np.ndarray], sim_data.node_
 # 2. Define sensor inventory and exclude the right-hand strain hotspot
 # -------------------------------------------------------------------
 
-strain: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+strain_field = sens.FieldScalar(
     sim_data,
-    sens.SensorData(positions=sites[:4]),
     comp_key=strain_key,
     spatial_dims=sens.EDim.TWOD,
+)
+strain: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens.SensorData(positions=sites[:4]),
+    field=strain_field,
     descriptor=sens.SensorDescriptor(
-        name="Strain", symbol=r"\varepsilon", tag="SG", components=("yy",)
+        name="Strain", symbol="\\varepsilon", tag="SG", components=("yy",)
     ),
 )
 

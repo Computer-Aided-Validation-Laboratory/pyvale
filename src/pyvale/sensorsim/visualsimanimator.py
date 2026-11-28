@@ -10,18 +10,25 @@ visualisation of virtual sensor locations on the simulation mesh using pyvista.
 """
 
 import numpy as np
+
 #import vtk #NOTE: has to be here to fix latex bug in pyvista/vtk
 # See: https://github.com/pyvista/pyvista/discussions/2928
 #NOTE: causes output to console to be suppressed unfortunately
 import pyvista as pv
+
+from pyvale.sensorsim.sensorarray import resolve_sample_times
 from pyvale.sensorsim.sensorspoint import SensorsPoint
-from pyvale.sensorsim.visualopts import VisOptsSimSensors, VisOptsAnimation
-from pyvale.sensorsim.visualtools import (create_pv_plotter,
-                                get_colour_lims,
-                                set_animation_writer)
-from pyvale.sensorsim.visualsimsensors import (add_sensor_points_nom,
-                                     add_sensor_points_pert,
-                                     add_sim_field)
+from pyvale.sensorsim.visualopts import VisOptsAnimation, VisOptsSimSensors
+from pyvale.sensorsim.visualsimsensors import (
+    add_sensor_points_nom,
+    add_sensor_points_pert,
+    add_sim_field,
+)
+from pyvale.sensorsim.visualtools import (
+    create_pv_plotter,
+    get_colour_lims,
+    set_animation_writer,
+)
 
 
 def animate_sim_with_sensors(sensor_array: SensorsPoint,
@@ -63,7 +70,10 @@ def animate_sim_with_sensors(sensor_array: SensorsPoint,
         anim_opts = VisOptsAnimation()
 
     if time_steps is None:
-        time_steps = np.arange(0,sensor_array.get_sample_times().shape[0])
+        sample_times = resolve_sample_times(
+            sensor_array.get_sensor_data(), sensor_array.get_field()
+        )
+        time_steps = np.arange(len(sample_times))
 
     sim_data = sensor_array._field.get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(

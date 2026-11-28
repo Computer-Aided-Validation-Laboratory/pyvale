@@ -65,11 +65,14 @@ temp_sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
 temp_sens_data = sens.SensorData(positions=temp_sens_pos,
                                  sample_times=sample_times)
 
-temp_sens: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+temp_sens_field = sens.FieldScalar(
     sim_data,
-    temp_sens_data,
     comp_key="temperature",
     spatial_dims=sens.EDim.THREED,
+)
+temp_sens: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=temp_sens_data,
+    field=temp_sens_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 
@@ -119,12 +122,15 @@ strain_sens_pos: np.ndarray = sens.gen_pos_grid_inside(num_sensors=(1,4,1),
 strain_sens_data = sens.SensorData(positions=strain_sens_pos,
                                    sample_times=sample_times)
 
-strain_sens: sens.SensorsPoint = sens.SensorFactory.tensor_point(
+strain_sens_field = sens.FieldTensor(
     sim_data,
-    strain_sens_data,
-    norm_comp_keys=("strain_xx","strain_yy","strain_zz"),
+    norm_comp_keys=("strain_xx", "strain_yy", "strain_zz"),
     dev_comp_keys=("strain_xy", "strain_xz", "strain_yz"),
     spatial_dims=sens.EDim.THREED,
+)
+strain_sens: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=strain_sens_data,
+    field=strain_sens_field,
     descriptor=sens.DescriptorFactory.strain(sens.EDim.THREED),
 )
 

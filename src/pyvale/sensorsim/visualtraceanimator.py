@@ -4,12 +4,18 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import matplotlib.pyplot as plt
+import numpy as np
+
+from pyvale.sensorsim.sensorarray import resolve_sample_times
 from pyvale.sensorsim.sensorspoint import SensorsPoint
-from pyvale.sensorsim.visualopts import VisOptsSimSensors, VisOptsAnimation
-from pyvale.sensorsim.visualopts import PlotOptsGeneral, TraceOptsSensor
+from pyvale.sensorsim.visualopts import (
+    PlotOptsGeneral,
+    TraceOptsSensor,
+    VisOptsAnimation,
+    VisOptsSimSensors,
+)
 
 
 def animate_trace_with_sensors(sensor_array: SensorsPoint,
@@ -21,7 +27,9 @@ def animate_trace_with_sensors(sensor_array: SensorsPoint,
                             ):
 
 
-    samp_time = sensor_array.get_sample_times()
+    samp_time = resolve_sample_times(
+        sensor_array.get_sensor_data(), sensor_array.get_field()
+    )
     num_sens = sensor_array._sensor_data.positions.shape[0]
 
     if trace_opts is None:
@@ -34,7 +42,7 @@ def animate_trace_with_sensors(sensor_array: SensorsPoint,
         plot_opts = PlotOptsGeneral()
 
     if time_steps is None:
-        time_steps = np.arange(0,sensor_array.get_sample_times().shape[0])
+        time_steps = np.arange(len(samp_time))
 
     if trace_opts.sensors_to_plot is None:
         #sensors_to_plot = trace_opts.sensors_to_plot

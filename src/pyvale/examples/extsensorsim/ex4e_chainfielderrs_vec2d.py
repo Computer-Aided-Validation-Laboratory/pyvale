@@ -63,11 +63,14 @@ sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times,
                             angles=sens_angles)
 
-sens_array: sens.SensorsPoint = sens.SensorFactory.vector_point(
+sens_array_field = sens.FieldVector(
     sim_data,
-    sens_data,
     comp_keys=disp_keys,
     spatial_dims=sens.EDim.TWOD,
+)
+sens_array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=sens_array_field,
     descriptor=sens.DescriptorFactory.displacement(),
 )
 
@@ -92,7 +95,10 @@ angle_offset = np.zeros_like(sens_pos)
 angle_offset[:,0] = 1.0 # only rotate about z in 2D
 angle_error_data = sens.ErrFieldData(ang_offset_zyx=angle_offset)
 
-time_offset = 2.0*np.ones_like(sens_array.get_sample_times())
+sample_times = sens.resolve_sample_times(
+    sens_array.get_sensor_data(), sens_array.get_field()
+)
+time_offset = 2.0 * np.ones_like(sample_times)
 time_error_data = sens.ErrFieldData(time_offset=time_offset)
 
 #%%

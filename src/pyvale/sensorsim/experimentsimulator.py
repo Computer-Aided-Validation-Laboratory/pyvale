@@ -21,7 +21,8 @@ import numpy.typing as npt
 from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.enums import EExpSimKeys
 from pyvale.sensorsim.exceptions import ExpSimError
-from pyvale.sensorsim.sensorarray import ISensorArray
+from pyvale.sensorsim.field import build_sim_data_sampler
+from pyvale.sensorsim.sensorarray import ISensorArray, resolve_sample_times
 from pyvale.sensorsim.sensordata import SensorData
 
 
@@ -221,10 +222,9 @@ class ExperimentSimulator:
                     )
 
                 if EExpSimKeys.SENSOR_TIMES in required_outputs:
-                    times = data.sample_times
-                    if times is None:
-                        times = array.get_field().get_time_steps()
-                    outputs[EExpSimKeys.SENSOR_TIMES] = times
+                    outputs[EExpSimKeys.SENSOR_TIMES] = resolve_sample_times(
+                        data, array.get_field()
+                    )
 
                 if EExpSimKeys.SENSOR_POSITIONS in required_outputs:
                     if data.positions is None:
@@ -334,7 +334,7 @@ class ExperimentSimulator:
         nominal_positions: dict[str, np.ndarray] = {}
         if exp_keys.sens_pos is not None:
             for sensor_key, sensor_array in self._sens_dict.items():
-                positions = sensor_array.get_sensor_positions()
+                positions = sensor_array.get_sensor_data().positions
                 if positions is not None:
                     nominal_positions[sensor_key] = positions.copy()
 
@@ -409,7 +409,7 @@ class ExperimentSimulator:
                 product(self._sim_dict.items(), self._sens_dict.items())
             ):
                 time_key = (key_sim,key_sens,time_str_key)
-                exp_data[time_key] = sens_array.get_sample_times()
+                exp_data[time_key] = _get_sim_sample_times(sens_array, sim_data)
 
                 args = (
                     num_exp,
@@ -479,7 +479,9 @@ class ExperimentSimulator:
             product(self._sim_dict.items(), self._sens_dict.items())
         ):
             # Pre-alloc numpy arrays for simulated measurements.
-            exp_shape = (num_exp,) + sens_array.get_measurement_shape()
+            num_sensors, num_components, _ = sens_array.get_measurement_shape()
+            num_sample_times = len(_get_sim_sample_times(sens_array, sim_data))
+            exp_shape = (num_exp, num_sensors, num_components, num_sample_times)
             for kk, mm in sens_funcs:
                 exp_data[(key_sim,key_sens,kk)] = (
                     np.empty(exp_shape,dtype=np.float64)
@@ -487,7 +489,11 @@ class ExperimentSimulator:
 
             # Pre-alloc numpy arrays for perturbed sensor data
             err_int = sens_array.get_error_integrator()
-            init_sens_data = err_int.get_sens_data_accumulated()
+            init_sens_data = (
+                sens_array.get_sensor_data()
+                if err_int is None
+                else err_int.get_sens_data_accumulated()
+            )
             for kk, vv in sens_vars:
                 attr = getattr(init_sens_data,vv)
                 if attr is not None:
@@ -502,7 +508,7 @@ class ExperimentSimulator:
                product(self._sim_dict.items(), self._sens_dict.items())
             ):
                 time_key = (key_sim,key_sens,time_str_key)
-                exp_data[time_key] = sens_array.get_sample_times()
+                exp_data[time_key] = _get_sim_sample_times(sens_array, sim_data)
 
                 for ee in range(num_exp):
 
@@ -572,7 +578,7 @@ class ExperimentSimulator:
         ):
 
             time_key = (key_sim,key_sens,time_str_key)
-            exp_data[time_key] = sens_array.get_sample_times()
+            exp_data[time_key] = _get_sim_sample_times(sens_array, sim_data)
 
             exp_res = _run_all_sims(num_exp,
                                     key_sim,
@@ -587,6 +593,26 @@ class ExperimentSimulator:
         return exp_data
 
 #-------------------------------------------------------------------------------
+def _get_sim_sample_times(sens_array: ISensorArray, sim_data: SimData) -> np.ndarray:
+    times = sens_array.get_sensor_data().sample_times
+    if times is None:
+        times = sim_data.time
+    if times is None:
+        raise ValueError("A scenario needs default or configured sample times.")
+
+    return times
+
+
+def _bind_sim_data(sens_array: ISensorArray, sim_data: SimData) -> None:
+    field = sens_array.get_field()
+    sampler = build_sim_data_sampler(
+        sim_data,
+        comp_keys=field.get_all_components(),
+        spatial_dims=field.get_spatial_dims(),
+    )
+    sens_array.set_field_sampler(sampler)
+
+
 def _run_one_sim(
     sim_key: str,
     sens_key: str,
@@ -622,16 +648,21 @@ def _run_one_sim(
     """
     # NOTE: need to reseed the error chain otherwise each worker inherits the
     # same random seed producing the same simulations.
+    _bind_sim_data(sens_array, sim_data)
     err_int = sens_array.get_error_integrator()
-    err_int.reseed_error_chain()
-    sens_array.set_sim_data(sim_data)
+    if err_int is not None:
+        err_int.reseed_error_chain()
 
     sim_exp = {}
     for kk, mm in sens_funcs:
         bound_func = getattr(sens_array, mm)
         sim_exp[(sim_key, sens_key, kk)] = bound_func()
 
-    pert_sens_data = err_int.get_sens_data_accumulated()
+    pert_sens_data = (
+        sens_array.get_sensor_data()
+        if err_int is None
+        else err_int.get_sens_data_accumulated()
+    )
     for kk, vv in sens_vars:
         attr = getattr(pert_sens_data, vv)
         if attr is not None:
@@ -681,9 +712,10 @@ def _run_all_sims(
 
     # NOTE: need to reseed the error chain otherwise each worker inherits the
     # same random seed producing the same simulations.
+    _bind_sim_data(sens_array, sim_data)
     err_int = sens_array.get_error_integrator()
-    err_int.reseed_error_chain()
-    sens_array.set_sim_data(sim_data)
+    if err_int is not None:
+        err_int.reseed_error_chain()
 
     exp_shape = (num_exp,) + sens_array.get_measurement_shape()
 
@@ -697,7 +729,11 @@ def _run_all_sims(
         sim_exp[(sim_key, sens_key, kk)] = np.empty(exp_shape, dtype=np.float64)
 
     # Pre-alloc numpy arrays for perturbed sensor data
-    init_sens_data = err_int.get_sens_data_accumulated()
+    init_sens_data = (
+        sens_array.get_sensor_data()
+        if err_int is None
+        else err_int.get_sens_data_accumulated()
+    )
     for kk, vv in sens_vars:
         attr = getattr(init_sens_data, vv)
 
@@ -712,7 +748,11 @@ def _run_all_sims(
             # might be different for storing SensorData arrays
             sim_exp[(sim_key, sens_key, kk)][ee] = bound_func()
 
-        pert_sens_data = err_int.get_sens_data_accumulated()
+        pert_sens_data = (
+            sens_array.get_sensor_data()
+            if err_int is None
+            else err_int.get_sens_data_accumulated()
+        )
         for kk, vv in sens_vars:
             attr = getattr(pert_sens_data, vv)
             if attr is not None:

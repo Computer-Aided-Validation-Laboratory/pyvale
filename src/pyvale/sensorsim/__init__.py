@@ -24,11 +24,11 @@ from .fieldvector import *
 from .fieldtensor import *
 from .fieldconverter import *
 from .fieldtransform import *
-from .fieldinterp import *
 from .fieldsampleanalytic import FieldSampleAnalytic as FieldSampleAnalytic
 from .fieldsampleanalytic import FieldSampleBounds as FieldSampleBounds
 from .fieldsamplerinterface import FieldFunc as FieldFunc
 from .fieldsamplerinterface import IFieldSampler as IFieldSampler
+from .fieldsamplerinterface import interp_to_sample_time as interp_to_sample_time
 from .fieldinterpmesh import *
 from .fieldinterppoints import *
 
@@ -40,7 +40,6 @@ from .integratorfactory import *
 from .sensordescriptor import *
 from .sensortools import *
 from .sensorarray import *
-from .sensorfactory import *
 from .sensorspoint import *
 from .sensordata import *
 

@@ -55,11 +55,14 @@ sens_data = sens.SensorData(positions=sensor_positions,
                             sample_times=sample_times)
 
 
-sens_array: sens.SensorsPoint = sens.SensorFactory.vector_point(
+sens_array_field = sens.FieldVector(
     sim_data,
-    sens_data,
     comp_keys=disp_keys,
     spatial_dims=sens.EDim.THREED,
+)
+sens_array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=sens_array_field,
     descriptor=sens.DescriptorFactory.displacement(),
 )
 

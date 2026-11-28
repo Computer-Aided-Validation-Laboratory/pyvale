@@ -99,11 +99,14 @@ sens_data = sens.SensorData(positions=sens_pos,
 # want our sensors to sample from in the `SimData` object. Our simulation is 3D
 # so we specify that here and we add a descriptor (optional) that will be used
 # to set the axes labels, symbols and units on our visualisations.
-sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+sens_array_field = sens.FieldScalar(
     sim_data,
-    sens_data,
     comp_key="temperature",
     spatial_dims=sens.EDim.THREED,
+)
+sens_array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=sens_array_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 

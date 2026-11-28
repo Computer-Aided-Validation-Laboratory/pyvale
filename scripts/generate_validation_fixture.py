@@ -114,19 +114,25 @@ def main() -> None:
     times = np.linspace(0.0, float(nominal.time[-1]), 5)
     sensor_data = sens.SensorData(positions=coords, sample_times=times)
 
-    temp = sens.SensorFactory.scalar_point(
+    temp_field = sens.FieldScalar(
         nominal,
-        sensor_data,
-        "temperature",
-        sens.EDim.TWOD,
+        comp_key="temperature",
+        spatial_dims=sens.EDim.TWOD,
+    )
+    temp = sens.SensorsPoint(
+        sensor_data=sensor_data,
+        field=temp_field,
         descriptor=sens.DescriptorFactory.temperature(),
     )
-    strain = sens.SensorFactory.tensor_point(
+    strain_field = sens.FieldTensor(
         nominal,
-        sensor_data,
         norm_comp_keys=("strain_xx", "strain_yy"),
         dev_comp_keys=("strain_xy",),
         spatial_dims=sens.EDim.TWOD,
+    )
+    strain = sens.SensorsPoint(
+        sensor_data=sensor_data,
+        field=strain_field,
     )
     # Zero stochastic error keeps SensorSim's output deterministic. The
     # measurement noise below uses a fixed seed and known physical units.

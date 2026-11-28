@@ -48,11 +48,14 @@ sites: np.ndarray = sens.gen_pos_grid_inside(
     y_lims=(0.0, 7.5),
     z_lims=(0.0, 0.0),
 )
-array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+array_field = sens.FieldScalar(
     sim_scenarios["nominal"],
-    sens.SensorData(positions=sites[:3]),
     comp_key="temperature",
     spatial_dims=sens.EDim.TWOD,
+)
+array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens.SensorData(positions=sites[:3]),
+    field=array_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 array.set_error_chain([sens.ErrRandGen(sens.GenNormal(std=0.5, seed=123))])

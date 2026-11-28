@@ -4,17 +4,19 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+from typing import Self
+
 import numpy as np
 import pyvista as pv
 from scipy.spatial.transform import Rotation
 
 from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.enums import EDim
-from pyvale.sensorsim.field import IField, _bind_field_source
+from pyvale.sensorsim.field import IField, _bind_field_source, _get_sampler_sim_data
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_vis
 from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
 
-#TODO: cythonise these transformations
+# TODO: cythonise these transformations
 from pyvale.sensorsim.fieldtransform import (
     transform_tensor_2d,
     transform_tensor_2d_batch,
@@ -25,19 +27,20 @@ from pyvale.sensorsim.fieldtransform import (
 # TODO:
 # - Checking to ensure normal and dev components are consistent
 
+
 class FieldTensor(IField):
     """Class for sampling (interpolating) tensor fields from simulations to
-    provide sensor values at specified locations and times. Supports 
-    interpolation of mesh-based data (with a connectivity table) and point 
+    provide sensor values at specified locations and times. Supports
+    interpolation of mesh-based data (with a connectivity table) and point
     clouds.
 
     Implements the `IField` interface.
     """
+
     __slots__ = (
         "_dev_comp_keys",
         "_norm_comp_keys",
         "_sampler",
-        "_sim_data",
         "_spatial_dims",
         "_visualiser",
     )
@@ -72,26 +75,21 @@ class FieldTensor(IField):
         self._dev_comp_keys = dev_comp_keys
         self._spatial_dims = spatial_dims
 
-        self._set_field_source(field_source)
-
-    def _set_field_source(self, source: SimData | IFieldSampler) -> None:
-        sampler, sim_data = _bind_field_source(
-            source, self.get_all_components(), self._spatial_dims
+        self._sampler = _bind_field_source(
+            field_source, self.get_all_components(), spatial_dims
         )
-        self._sampler = sampler
-        self._sim_data = sim_data
         self._visualiser: pv.UnstructuredGrid | pv.PolyData | None = None
 
-    def set_field_sampler(self, sampler: IFieldSampler) -> None:
-        self._set_field_source(sampler)
-
-    def set_sim_data(self, sim_data: SimData) -> None:
-        self._set_field_source(sim_data)
+    def with_sampler(self, sampler: IFieldSampler) -> Self:
+        return type(self)(
+            field_source=sampler,
+            norm_comp_keys=self._norm_comp_keys,
+            dev_comp_keys=self._dev_comp_keys,
+            spatial_dims=self._spatial_dims,
+        )
 
     def get_sim_data(self) -> SimData:
-        if self._sim_data is None:
-            raise ValueError("This field sampler has no simulation data.")
-        return self._sim_data
+        return _get_sampler_sim_data(self._sampler)
 
     def get_time_steps(self) -> np.ndarray:
         return self._sampler.get_time_steps()
@@ -105,6 +103,10 @@ class FieldTensor(IField):
 
     def get_all_components(self) -> tuple[str, ...]:
         return self._norm_comp_keys + self._dev_comp_keys
+
+    def get_spatial_dims(self) -> EDim:
+        """Return the spatial dimensions used for tensor rotations."""
+        return self._spatial_dims
 
     def get_component_index(self, comp_key: str) -> int:
         return self.get_all_components().index(comp_key)

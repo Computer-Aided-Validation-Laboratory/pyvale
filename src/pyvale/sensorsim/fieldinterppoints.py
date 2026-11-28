@@ -10,8 +10,7 @@ from scipy.spatial import Delaunay
 
 from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.enums import EDim
-from pyvale.sensorsim.fieldinterp import interp_to_sample_time
-from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
+from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler, interp_to_sample_time
 from pyvale.sensorsim.simtools import coords_to_2D
 
 

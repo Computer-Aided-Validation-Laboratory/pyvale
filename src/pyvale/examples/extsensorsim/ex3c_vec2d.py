@@ -62,11 +62,14 @@ descriptor = sens.SensorDescriptor(name="Disp.",
                                    tag="DS",
                                    components=("x","y","z"))
 
-sens_array: sens.SensorsPoint = sens.SensorFactory.vector_point(
+sens_array_field = sens.FieldVector(
     sim_data,
-    sens_data,
     comp_keys=disp_keys,
     spatial_dims=sens.EDim.TWOD,
+)
+sens_array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=sens_array_field,
     descriptor=descriptor,
 )
 

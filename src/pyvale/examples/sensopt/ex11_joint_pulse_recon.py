@@ -36,11 +36,14 @@ schedules = tuple(
     )
     for time in target_times[16:23]
 )
-array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+array_field = sens.FieldScalar(
     plate,
-    sens.SensorData(positions=sites[:3]),
     comp_key="temperature",
     spatial_dims=sens.EDim.TWOD,
+)
+array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens.SensorData(positions=sites[:3]),
+    field=array_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 

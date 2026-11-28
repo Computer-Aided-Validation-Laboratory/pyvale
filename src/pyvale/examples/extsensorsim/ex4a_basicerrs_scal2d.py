@@ -79,11 +79,14 @@ sample_times = np.linspace(0.0,np.max(sim_data.time),50)
 sens_data = sens.SensorData(positions=sens_pos,
                             sample_times=sample_times)
 
-sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+sens_array_field = sens.FieldScalar(
     sim_data,
-    sens_data,
     comp_key="temperature",
     spatial_dims=sens.EDim.THREED,
+)
+sens_array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=sens_array_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 

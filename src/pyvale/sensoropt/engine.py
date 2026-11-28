@@ -51,6 +51,7 @@ from pyvale.sensoropt.optimiser import (
 from pyvale.sensoropt.sampletimes import _validate_sample_times
 from pyvale.sensoropt.simscenario import _prepare_objective
 from pyvale.sensorsim.experimentsimulator import ExperimentSimulator
+from pyvale.sensorsim.field import build_sim_data_sampler
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.sensordata import SensorData
 
@@ -354,7 +355,13 @@ class SensorOptEngine:
                 for key, array in self.sensor_arrays.items():
                     working_array = array.copy_for_simulation(seed=next(seeds))
                     if scenario_key in sim_scenarios:
-                        working_array.set_sim_data(sim_scenarios[scenario_key])
+                        field = working_array.get_field()
+                        sampler = build_sim_data_sampler(
+                            sim_scenarios[scenario_key],
+                            comp_keys=field.get_all_components(),
+                            spatial_dims=field.get_spatial_dims(),
+                        )
+                        working_array.set_field_sampler(sampler)
                     arrays[key] = working_array
 
                 scenario_arrays[scenario_key] = arrays

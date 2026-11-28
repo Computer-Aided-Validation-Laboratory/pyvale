@@ -60,11 +60,14 @@ descriptor = sens.SensorDescriptor(name="Temperature",
                                    units = r"^{\circ}C",
                                    tag = "TC")
 
-sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+sens_array_field = sens.FieldScalar(
     sim_data,
-    sens_data,
     comp_key="temperature",
     spatial_dims=sens.EDim.THREED,
+)
+sens_array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=sens_array_field,
     descriptor=descriptor,
 )
 

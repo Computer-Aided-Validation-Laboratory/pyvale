@@ -52,13 +52,16 @@ sites: np.ndarray = sens.gen_pos_grid_inside(
 )
 sites = opt.filter_sensor_sites_in_mesh(sites, sim_data)
 strain_data: sens.SensorData = sens.SensorData(positions=sites[:5])
-strain: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+strain_field = sens.FieldScalar(
     sim_data,
-    strain_data,
     comp_key=strain_key,
     spatial_dims=sens.EDim.TWOD,
+)
+strain: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=strain_data,
+    field=strain_field,
     descriptor=sens.SensorDescriptor(
-        name="Strain", symbol=r"\varepsilon", tag="SG", components=("yy",)
+        name="Strain", symbol="\\varepsilon", tag="SG", components=("yy",)
     ),
 )
 sensor_arrays: dict[str, sens.ISensorArray] = {"strain": strain}

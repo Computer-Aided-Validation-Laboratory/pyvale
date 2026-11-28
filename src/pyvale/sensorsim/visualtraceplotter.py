@@ -6,14 +6,15 @@
 
 import math
 from typing import Any
-import numpy as np
-import matplotlib.pyplot as plt
-from pyvale.sensorsim.sensorspoint import SensorsPoint
-from pyvale.sensorsim.visualopts import (PlotOptsGeneral,
-                                         TraceOptsSensor)
-from pyvale.sensorsim.plotting_logs import logger
-from pyvale.sensorsim.logger import Logger
 
+import matplotlib.pyplot as plt
+import numpy as np
+
+from pyvale.sensorsim.logger import Logger
+from pyvale.sensorsim.plotting_logs import logger
+from pyvale.sensorsim.sensorarray import resolve_sample_times
+from pyvale.sensorsim.sensorspoint import SensorsPoint
+from pyvale.sensorsim.visualopts import PlotOptsGeneral, TraceOptsSensor
 
 
 def subplot_calc(total_sensors: range | None,
@@ -108,7 +109,9 @@ def plot_time_traces(sensor_array: SensorsPoint,
     mylogger.put_error()
     logger.info(f"Starting plotting process")
     field = sensor_array._field
-    samp_time = sensor_array.get_sample_times()
+    samp_time = resolve_sample_times(
+        sensor_array.get_sensor_data(), sensor_array.get_field()
+    )
     measurements = sensor_array.get_measurements()
     num_sens = sensor_array._sensor_data.positions.shape[0]
     descriptor = sensor_array._descriptor

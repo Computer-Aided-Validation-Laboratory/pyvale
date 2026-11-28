@@ -71,11 +71,14 @@ sens_data = sens.SensorData(positions=sens_pos,
 #%%
 # We have added spatial averaging to our sensor data so we can now create
 # our sensor array as we have done in previous examples.
-sens_array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+sens_array_field = sens.FieldScalar(
     sim_data,
-    sens_data,
     comp_key="temperature",
     spatial_dims=sens.EDim.TWOD,
+)
+sens_array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=sens_array_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 

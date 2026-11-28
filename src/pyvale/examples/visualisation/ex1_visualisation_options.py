@@ -41,11 +41,14 @@ sens_pos = sens.gen_pos_grid_inside(n_sens,x_lims,y_lims,z_lims)
 sens_data = sens.SensorData(positions=sens_pos)
 field_key: str = "temperature"
 
-sens_array = sens.SensorFactory.scalar_point(
+sens_array_field = sens.FieldScalar(
     sim_data,
-    sens_data,
     comp_key=field_key,
     spatial_dims=sens.EDim.TWOD,
+)
+sens_array = sens.SensorsPoint(
+    sensor_data=sens_data,
+    field=sens_array_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 

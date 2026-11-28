@@ -658,7 +658,7 @@ def test_seeded_search_leaves_caller_array_and_rng_intact(
     analytic_array.set_error_chain([sens.ErrRandGen(sens.GenNormal(std=1.0, seed=456))])
     previous_measurements = analytic_array.sim_measurements().copy()
     untouched_copy = analytic_array.copy_for_simulation()
-    nominal_positions = analytic_array.get_sensor_positions()
+    nominal_positions = analytic_array.get_sensor_data().positions
     assert nominal_positions is not None
     engine = opt.SensorOptEngine(
         sensor_arrays={"temperature": analytic_array},
@@ -684,7 +684,7 @@ def test_seeded_search_leaves_caller_array_and_rng_intact(
     )
 
     np.testing.assert_array_equal(
-        analytic_array.get_sensor_positions(), nominal_positions
+        analytic_array.get_sensor_data().positions, nominal_positions
     )
     np.testing.assert_array_equal(
         analytic_array.get_measurements(), previous_measurements

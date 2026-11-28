@@ -54,18 +54,24 @@ target_positions: np.ndarray = cast(np.ndarray, sim_data.coords)
 # 2. Define the two sensor arrays and the weighted reconstruction score
 # --------------------------------------------------------------------
 
-temperature: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+temperature_field = sens.FieldScalar(
     sim_data,
-    sens.SensorData(positions=sites[:2]),
     comp_key="temperature",
     spatial_dims=sens.EDim.TWOD,
+)
+temperature: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens.SensorData(positions=sites[:2]),
+    field=temperature_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
-displacement: sens.SensorsPoint = sens.SensorFactory.vector_point(
+displacement_field = sens.FieldVector(
     sim_data,
-    sens.SensorData(positions=sites[:2]),
     comp_keys=displacement_components,
     spatial_dims=sens.EDim.TWOD,
+)
+displacement: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens.SensorData(positions=sites[:2]),
+    field=displacement_field,
     descriptor=sens.DescriptorFactory.displacement(),
 )
 sensor_arrays: dict[str, sens.SensorsPoint] = {

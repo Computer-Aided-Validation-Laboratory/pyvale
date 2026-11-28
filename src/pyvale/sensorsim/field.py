@@ -5,6 +5,7 @@
 # ==============================================================================
 
 from abc import ABC, abstractmethod
+from typing import Self
 
 import numpy as np
 import pyvista as pv
@@ -24,26 +25,17 @@ class IField(ABC):
     """
 
     @abstractmethod
-    def set_field_sampler(self, sampler: IFieldSampler) -> None:
-        """Replace the source while retaining field components and coordinates."""
+    def with_sampler(self, sampler: IFieldSampler) -> Self:
+        """Return a new field with the same components and a replacement sampler."""
 
     @abstractmethod
-    def set_sim_data(self,sim_data: SimData) -> None:
-        """Sets the SimData object that will be interpolated to obtain sensor 
-        values. The purpose of this is to be able to apply the same sensor array 
-        to an array of different simulations.
-
-        Parameters
-        ----------
-        sim_data : SimData
-            Mooseherder SimData object. Contains a mesh and a simulated
-            physical field.
-        """
+    def get_spatial_dims(self) -> EDim:
+        """Return the spatial dimensions used by the field."""
 
     @abstractmethod
     def get_sim_data(self) -> SimData:
-        """Gets the simulation data object associated with this field. Used by 
-        pyvale visualisation tools to display simulation data with simulated 
+        """Gets the simulation data object associated with this field. Used by
+        pyvale visualisation tools to display simulation data with simulated
         sensor values.
 
         Returns
@@ -75,7 +67,7 @@ class IField(ABC):
         """
 
     @abstractmethod
-    def get_all_components(self) -> tuple[str,...]:
+    def get_all_components(self) -> tuple[str, ...]:
         """Gets the string keys for the component of the physical field. For
         example: a scalar field might just have ('temperature',) whereas a
         vector field might have ('disp_x','disp_y','disp_z').
@@ -88,9 +80,9 @@ class IField(ABC):
         """
 
     @abstractmethod
-    def get_component_index(self,comp_key: str) -> int:
+    def get_component_index(self, comp_key: str) -> int:
         """Gets the index for a component of the physical field. Used for
-        getting the index of a component in the sensor measurement array based 
+        getting the index of a component in the sensor measurement array based
         on its string key.
 
         Parameters
@@ -139,19 +131,41 @@ class IField(ABC):
 
 def _bind_field_source(
     source: SimData | IFieldSampler, comp_keys: tuple[str, ...], spatial_dims: EDim
-) -> tuple[IFieldSampler, SimData | None]:
+) -> IFieldSampler:
     """Build or validate a sampler against the field's component layout."""
+
     if isinstance(source, SimData):
-        if source.connect is None:
-            source = FieldInterpPoints(source, comp_keys, spatial_dims)
-        else:
-            source = FieldInterpMesh(source, comp_keys, spatial_dims)
+        source = build_sim_data_sampler(
+            source, comp_keys=comp_keys, spatial_dims=spatial_dims
+        )
+
     if source.get_num_components() != len(comp_keys):
         raise ValueError(
             "Sampler component count must match the field's component keys."
         )
-    if isinstance(source, (FieldInterpMesh, FieldInterpPoints)):
-        if source.get_component_keys() != comp_keys:
-            raise ValueError("Sampler component keys and order must match the field.")
-        return source, source.get_sim_data()
-    return source, None
+
+    if (
+        isinstance(source, (FieldInterpMesh, FieldInterpPoints))
+        and source.get_component_keys() != comp_keys
+    ):
+        raise ValueError("Sampler component keys and order must match the field.")
+
+    return source
+
+
+def _get_sampler_sim_data(sampler: IFieldSampler) -> SimData:
+    """Get the data owned by a simulation-backed sampler."""
+    if isinstance(sampler, (FieldInterpMesh, FieldInterpPoints)):
+        return sampler.get_sim_data()
+
+    raise ValueError("This field sampler has no simulation data.")
+
+
+def build_sim_data_sampler(
+    sim_data: SimData, *, comp_keys: tuple[str, ...], spatial_dims: EDim
+) -> IFieldSampler:
+    """Construct a sampler for the requested components of a simulation."""
+    if sim_data.connect is None:
+        return FieldInterpPoints(sim_data, comp_keys, spatial_dims)
+
+    return FieldInterpMesh(sim_data, comp_keys, spatial_dims)

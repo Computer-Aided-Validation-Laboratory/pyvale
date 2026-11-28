@@ -5,16 +5,21 @@
 # ==============================================================================
 
 import copy
+from typing import Self
 
 import numpy as np
 
-from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.errorintegrator import ErrIntegrator, ErrIntOpts
 from pyvale.sensorsim.errorsimulator import IErrSimulator
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
 from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
-from pyvale.sensorsim.sensorarray import ISensorArray
+from pyvale.sensorsim.sensorarray import (
+    ISensorArray,
+    _get_measurement_shape,
+    _prepare_array_configuration,
+    _resolve_sensor_descriptor,
+)
 from pyvale.sensorsim.sensordata import SensorData
 from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 
@@ -81,13 +86,11 @@ class SensorsPoint(ISensorArray):
             Contains descriptive information about the sensor array for display
             and visualisations, by default None.
         """
-        self._sensor_data = sensor_data
+        self._sensor_data = copy.deepcopy(sensor_data)
         self._field = field
         self._error_integrator = None
 
-        self._descriptor = SensorDescriptor()
-        if descriptor is not None:
-            self._descriptor = descriptor
+        self._descriptor = _resolve_sensor_descriptor(field, descriptor)
 
         self._truth = None
         self._measurements = None
@@ -110,75 +113,40 @@ class SensorsPoint(ISensorArray):
 
     def set_sensor_data(self, sensor_data: SensorData) -> None:
         """Apply a nominal configuration and clear outputs from the old layout."""
-        positions = sensor_data.positions
-        if positions is None or positions.ndim != 2 or positions.shape[1] != 3:
-            raise ValueError("Sensor positions must have shape (num_sensors, 3).")
-
-        updated_data = copy.deepcopy(sensor_data)
-        self._clear_cached_outputs()
-        self._sensor_data = updated_data
-
-        if self._error_integrator is not None:
-            self._error_integrator.set_sensor_data(
-                updated_data, measurement_shape=self.get_measurement_shape()
-            )
+        self._apply_configuration(sensor_data=sensor_data, field=self._field)
 
     def set_field_sampler(self, sampler: IFieldSampler) -> None:
-        """Swap the sampler and reset cached samples and error histories."""
-        self._field.set_field_sampler(sampler)
-        self.set_sensor_data(self._sensor_data)
+        """Install a replacement field and refresh measurement and error state."""
+        field = self._field.with_sampler(sampler)
+        self._apply_configuration(sensor_data=self._sensor_data, field=field)
 
-    def set_sim_data(self, sim_data: SimData) -> None:
-        """Refresh the sampler and cached outputs for a new simulation."""
-        self._field.set_sim_data(sim_data)
-        self.set_sensor_data(self._sensor_data)
+    def _apply_configuration(self, *, sensor_data: SensorData, field: IField) -> None:
+        updated_data, error_integrator = _prepare_array_configuration(
+            sensor_data=sensor_data,
+            field=field,
+            previous_field=self._field,
+            error_integrator=self._error_integrator,
+        )
 
-    def copy_for_simulation(self, *, seed: int | None = None) -> "SensorsPoint":
+        self._sensor_data = updated_data
+        self._field = field
+        self._error_integrator = error_integrator
+        self._truth = None
+        self._measurements = None
+
+    def copy_for_simulation(self, *, seed: int | None = None) -> Self:
         """Return an independent working array, preserving field and error links."""
         working_array = copy.deepcopy(self)
         working_array.set_sensor_data(self._sensor_data)
 
         if seed is not None and working_array._error_integrator is not None:
             working_array._error_integrator.reseed_error_chain(seed)
+
         return working_array
 
-    def _clear_cached_outputs(self) -> None:
-        self._truth = None
-        self._measurements = None
-
-    def get_sensor_positions(self) -> np.ndarray | None:
-        """Return the configured sensor positions before perturbation."""
-        return self._sensor_data.positions
-
-    def get_sample_times(self) -> np.ndarray:
-        """Gets the times at which the sensors sample the given physical field.
-        This is specified by the user in the SensorData object or defaults to
-        the time steps in the underlying simulation if unspecified.
-
-        Returns
-        -------
-        np.ndarray
-            Sample times with shape: (num_time_steps,)
-        """
-        if self._sensor_data.sample_times is None:
-            return self._field.get_time_steps()
-
-        return self._sensor_data.sample_times
-
-    def get_measurement_shape(self) -> tuple[int,int,int]:
-        """Gets the shape of the sensor measurement array. shape=(num_sensors,
-        num_field_components,num_time_steps)
-
-        Returns
-        -------
-        tuple[int,int,int]
-            Shape of the measurement array. shape=(num_sensors,
-            num_field_components,num_time_steps)
-        """
-
-        return (self._sensor_data.positions.shape[0],
-                len(self._field.get_all_components()),
-                self.get_sample_times().shape[0])
+    def get_measurement_shape(self) -> tuple[int, int, int]:
+        """Return the (sensor, component, time) measurement shape."""
+        return _get_measurement_shape(self._sensor_data, self._field)
 
     def get_field(self) -> IField:
         """Gets a reference to the physical field that this sensor array

@@ -54,11 +54,14 @@ sensor_arrays: dict[str, sens.SensorsPoint] = {}
 unit_costs: dict[str, float] = {"precision": 3.0, "economy": 1.0}
 biases: dict[str, float] = {"precision": 0.0, "economy": 8.0}
 for sensor_key, bias in biases.items():
-    array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+    array_field = sens.FieldScalar(
         sim_data,
-        sens.SensorData(positions=sites[:2]),
         comp_key=temperature_key,
         spatial_dims=sens.EDim.TWOD,
+    )
+    array: sens.SensorsPoint = sens.SensorsPoint(
+        sensor_data=sens.SensorData(positions=sites[:2]),
+        field=array_field,
         descriptor=sens.DescriptorFactory.temperature(),
     )
     array.set_error_chain([sens.ErrSysOffset(offset=bias)])

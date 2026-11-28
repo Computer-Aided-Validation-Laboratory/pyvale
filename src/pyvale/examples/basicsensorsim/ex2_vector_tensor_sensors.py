@@ -70,11 +70,14 @@ disp_sens_data = sens.SensorData(positions=sens_pos,
                                  sample_times=sample_times,
                                  angles=sens_angles)
 
-disp_sens: sens.SensorsPoint = sens.SensorFactory.vector_point(
+disp_sens_field = sens.FieldVector(
     sim_data,
-    disp_sens_data,
     comp_keys=disp_keys,
     spatial_dims=sens.EDim.TWOD,
+)
+disp_sens: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=disp_sens_data,
+    field=disp_sens_field,
     descriptor=sens.DescriptorFactory.displacement(),
 )
 
@@ -95,12 +98,15 @@ strain_sens_data = sens.SensorData(positions=sens_pos,
                                    sample_times=sample_times,
                                    angles=sens_angles)
 
-strain_sens: sens.SensorsPoint = sens.SensorFactory.tensor_point(
+strain_sens_field = sens.FieldTensor(
     sim_data,
-    strain_sens_data,
     norm_comp_keys=strain_norm_keys,
     dev_comp_keys=strain_dev_keys,
     spatial_dims=sens.EDim.TWOD,
+)
+strain_sens: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=strain_sens_data,
+    field=strain_sens_field,
     descriptor=sens.DescriptorFactory.strain(sens.EDim.TWOD),
 )
 

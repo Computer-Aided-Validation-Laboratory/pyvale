@@ -27,11 +27,14 @@ def make_data() -> tuple[sens.ISensorArray,str]:
     sens_data = sens.SensorData(positions=sens_pos)
 
     field_key = "temperature"
-    sens_array = sens.SensorFactory.scalar_point(
+    sens_array_field = sens.FieldScalar(
         sim_data,
-        sens_data,
         comp_key=field_key,
         spatial_dims=sens.EDim.THREED,
+    )
+    sens_array = sens.SensorsPoint(
+        sensor_data=sens_data,
+        field=sens_array_field,
         descriptor=sens.DescriptorFactory.temperature(),
     )
 

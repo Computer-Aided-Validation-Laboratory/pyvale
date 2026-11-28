@@ -26,11 +26,14 @@ from pyvale.examples.sensopt.thermal_pulse import build_thermal_pulse
 # ------------------------------------------------------
 
 plate: io.SimData = build_thermal_pulse()
-array: sens.SensorsPoint = sens.SensorFactory.scalar_point(
+array_field = sens.FieldScalar(
     plate,
-    sens.SensorData(positions=np.array([[3.75, 4.5, 0.0]])),
     comp_key="temperature",
     spatial_dims=sens.EDim.TWOD,
+)
+array: sens.SensorsPoint = sens.SensorsPoint(
+    sensor_data=sens.SensorData(positions=np.array([[3.75, 4.5, 0.0]])),
+    field=array_field,
     descriptor=sens.DescriptorFactory.temperature(),
 )
 

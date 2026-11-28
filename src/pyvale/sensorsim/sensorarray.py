@@ -5,17 +5,23 @@
 # ==============================================================================
 
 from abc import ABC, abstractmethod
+from copy import deepcopy
+from typing import Self
 
 import numpy as np
 
-from pyvale.dataio.simdata import SimData
+from pyvale.sensorsim.errorintegrator import ErrIntegrator
 from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
+from pyvale.sensorsim.fieldscalar import FieldScalar
+from pyvale.sensorsim.fieldtensor import FieldTensor
+from pyvale.sensorsim.fieldvector import FieldVector
 from pyvale.sensorsim.sensordata import SensorData
+from pyvale.sensorsim.sensordescriptor import DescriptorFactory, SensorDescriptor
 
 
-#TODO: when cameras, line, area and volume sensors are implemented this will 
-# need to be refactored. 
+# TODO: when cameras, line, area and volume sensors are implemented this will
+# need to be refactored.
 class ISensorArray(ABC):
     """Interface (abstract base class) for an array of sensors of the same
     type sampling a given physical field.
@@ -66,19 +72,11 @@ class ISensorArray(ABC):
         """Replace the field sampler and invalidate derived outputs."""
 
     @abstractmethod
-    def set_sim_data(self, sim_data: SimData) -> None:
-        """Bind new simulation data and invalidate derived outputs."""
+    def copy_for_simulation(self, *, seed: int | None = None) -> Self:
+        """Copy mutable simulation state, optionally reseeding the copy."""
 
     @abstractmethod
-    def copy_for_simulation(self, *, seed: int | None = None) -> "ISensorArray":
-        """Copy configuration and mutable state, optionally reseeding the copy."""
-
-    @abstractmethod
-    def get_sensor_positions(self) -> np.ndarray | None:
-        """Return nominal positions with shape (sensor, xyz), if defined."""
-
-    @abstractmethod
-    def get_measurement_shape(self) -> tuple[int,int,int]:
+    def get_measurement_shape(self) -> tuple[int, int, int]:
         """Abstract method. Gets the shape of the measurement array:
         shape=(num_sensors,num_field_components,num_time_steps).
 
@@ -197,3 +195,66 @@ class ISensorArray(ABC):
             (num_sensors,num_field_components,num_time_steps)
         """
 
+
+def _resolve_sensor_descriptor(
+    field: IField, descriptor: SensorDescriptor | None
+) -> SensorDescriptor:
+    """Use an explicit descriptor or build a default for the field type."""
+    if descriptor is not None:
+        return descriptor
+
+    if isinstance(field, FieldScalar):
+        return DescriptorFactory.scalar()
+
+    if isinstance(field, FieldVector):
+        return DescriptorFactory.vector()
+
+    if isinstance(field, FieldTensor):
+        return DescriptorFactory.tensor(field.get_spatial_dims())
+
+    return SensorDescriptor()
+
+
+def resolve_sample_times(sensor_data: SensorData, field: IField) -> np.ndarray:
+    """Use the configured acquisition times or the field sampler's defaults."""
+    if sensor_data.sample_times is not None:
+        return sensor_data.sample_times
+
+    return field.get_time_steps()
+
+
+def _get_measurement_shape(
+    sensor_data: SensorData, field: IField
+) -> tuple[int, int, int]:
+    positions = sensor_data.positions
+    if positions is None or positions.ndim != 2 or positions.shape[1] != 3:
+        raise ValueError("Sensor positions must have shape (num_sensors, 3).")
+
+    sample_times = resolve_sample_times(sensor_data, field)
+    if sample_times.ndim != 1:
+        raise ValueError("Sensor sample times must be one-dimensional.")
+
+    return len(positions), len(field.get_all_components()), len(sample_times)
+
+
+def _prepare_array_configuration(
+    *,
+    sensor_data: SensorData,
+    field: IField,
+    previous_field: IField,
+    error_integrator: ErrIntegrator | None,
+) -> tuple[SensorData, ErrIntegrator | None]:
+    """Validate a layout and prepare error buffers before committing the update."""
+    measurement_shape = _get_measurement_shape(sensor_data, field)
+    updated_data = deepcopy(sensor_data)
+
+    if error_integrator is not None:
+        if field is not previous_field:
+            # Redirect references to the old field while preserving generator state.
+            error_integrator = deepcopy(error_integrator, {id(previous_field): field})
+
+        error_integrator.set_sensor_data(
+            updated_data, measurement_shape=measurement_shape
+        )
+
+    return updated_data, error_integrator

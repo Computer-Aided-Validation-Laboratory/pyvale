@@ -15,7 +15,7 @@ import numpy as np
 
 from pyvale.dataio.expdata import ExpData
 from pyvale.dataio.simdata import SimData
-from pyvale.sensorsim.field import IField
+from pyvale.sensorsim.field import IField, build_sim_data_sampler
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
 from pyvale.sensorsim.sensordata import SensorData
 from pyvale.validation.arraychecks import _validate_real_array
@@ -311,8 +311,14 @@ def sample_sim_sweep_for_valid(
 
         seen.add(selection_idx)
 
-        for field in distinct_fields.values():
-            field.set_sim_data(sim_data)
+        bound_fields: dict[int, IField] = {}
+        for field_id, field in distinct_fields.items():
+            sampler = build_sim_data_sampler(
+                sim_data,
+                comp_keys=field.get_all_components(),
+                spatial_dims=field.get_spatial_dims(),
+            )
+            bound_fields[field_id] = field.with_sampler(sampler)
 
         for name, observable in observables.items():
             if observable.geometry is EValidGeometry.GLOBAL:
@@ -320,7 +326,7 @@ def sample_sim_sweep_for_valid(
             else:
                 sensor = None if sensor_data is None else sensor_data.get(name)
                 sampled = sample_field_for_valid(
-                    fields[name], observable, sensor_data=sensor
+                    bound_fields[id(fields[name])], observable, sensor_data=sensor
                 )
 
             arrays[name].data[
