@@ -5,10 +5,16 @@
 # ==============================================================================
 
 from abc import ABC, abstractmethod
+
 import numpy as np
-from scipy.spatial.transform import Rotation
 import pyvista as pv
+from scipy.spatial.transform import Rotation
+
 from pyvale.dataio.simdata import SimData
+from pyvale.sensorsim.enums import EDim
+from pyvale.sensorsim.fieldinterpmesh import FieldInterpMesh
+from pyvale.sensorsim.fieldinterppoints import FieldInterpPoints
+from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
 
 
 class IField(ABC):
@@ -16,6 +22,10 @@ class IField(ABC):
     fields from simulations to provide sensor values at specified locations and
     times.
     """
+
+    @abstractmethod
+    def set_field_sampler(self, sampler: IFieldSampler) -> None:
+        """Replace the source while retaining field components and coordinates."""
 
     @abstractmethod
     def set_sim_data(self,sim_data: SimData) -> None:
@@ -45,7 +55,7 @@ class IField(ABC):
 
     @abstractmethod
     def get_time_steps(self) -> np.ndarray:
-        """Gets a 1D array of time steps from the simulation data.
+        """Gets the sampler's default 1D array of time steps.
 
         Returns
         -------
@@ -54,12 +64,12 @@ class IField(ABC):
         """
 
     @abstractmethod
-    def get_visualiser(self) -> pv.UnstructuredGrid:
-        """Gets a pyvista unstructured grid object for visualisation purposes.
+    def get_visualiser(self) -> pv.UnstructuredGrid | pv.PolyData:
+        """Gets the display geometry when the sampler is backed by SimData.
 
         Returns
         -------
-        pv.UnstructuredGrid
+        pv.UnstructuredGrid or pv.PolyData
             Pyvista unstructured grid object containing only a mesh without any
             physical field data attached.
         """
@@ -95,11 +105,12 @@ class IField(ABC):
         """
 
     @abstractmethod
-    def sample_field(self,
-                    points: np.ndarray,
-                    times: np.ndarray | None = None,
-                    angles: tuple[Rotation,...] | None = None,
-                    ) -> np.ndarray:
+    def sample_field(
+        self,
+        points: np.ndarray,
+        times: np.ndarray | None = None,
+        angles: tuple[Rotation, ...] | None = None,
+    ) -> np.ndarray:
         """Samples (interpolates) the simulation field at the specified
         positions, times, and angles.
 
@@ -109,9 +120,8 @@ class IField(ABC):
             Spatial points to be sampled with the rows indicating the point
             number of the columns indicating the X,Y and Z coordinates.
         times : np.ndarray | None, optional
-            Times to sample the underlying simulation. If None then the
-            simulation time steps are used and no temporal interpolation is
-            performed, by default None.
+            Times to sample the underlying field. If None the sampler's
+            default times are used.
         angles : tuple[Rotation,...] | None, optional
             Angles to rotate the sampled values into with rotations specified
             with respect to the simulation world coordinates. If a single
@@ -125,3 +135,23 @@ class IField(ABC):
             An array of sampled (interpolated) values with the following
             dimensions: shape=(num_points,num_components,num_time_steps).
         """
+
+
+def _bind_field_source(
+    source: SimData | IFieldSampler, comp_keys: tuple[str, ...], spatial_dims: EDim
+) -> tuple[IFieldSampler, SimData | None]:
+    """Build or validate a sampler against the field's component layout."""
+    if isinstance(source, SimData):
+        if source.connect is None:
+            source = FieldInterpPoints(source, comp_keys, spatial_dims)
+        else:
+            source = FieldInterpMesh(source, comp_keys, spatial_dims)
+    if source.get_num_components() != len(comp_keys):
+        raise ValueError(
+            "Sampler component count must match the field's component keys."
+        )
+    if isinstance(source, (FieldInterpMesh, FieldInterpPoints)):
+        if source.get_component_keys() != comp_keys:
+            raise ValueError("Sampler component keys and order must match the field.")
+        return source, source.get_sim_data()
+    return source, None

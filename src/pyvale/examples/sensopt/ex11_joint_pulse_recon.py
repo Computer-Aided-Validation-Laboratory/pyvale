@@ -68,7 +68,8 @@ result: opt.OptResult = opt.SensorOptEngine(
 ).optimise()
 selected: sens.SensorData = result.sensor_data["temperature"]
 print(
-    f"Selected times {selected.sample_times}, whole-pulse RMSE {result.objective_values[0]:.4f}"
+    f"Selected times {selected.sample_times}, "
+    f"whole-pulse RMSE {result.objective_values[0]:.4f}"
 )
 print(selected.positions)
 

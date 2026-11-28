@@ -9,7 +9,7 @@
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from enum import Enum, auto
-from itertools import combinations
+from itertools import chain, combinations
 from math import comb, prod
 from random import Random
 
@@ -118,6 +118,7 @@ def _select_best_layout(
     layouts: Iterable[Layout], score_layout: ScoreLayout
 ) -> _ScoredLayout | None:
     best: _ScoredLayout | None = None
+
     for layout in layouts:
         objective = score_layout(layout)
         if objective is not None and (best is None or objective < best.objective):
@@ -136,6 +137,7 @@ def _search_forward(
     current_sites = () if start is None else start.sites
     best = start
     target = optimiser.target_objective
+
     if start is not None:
         if len(current_sites) == optimiser.num_sensors:
             return _SearchResult(start, EOptStopCond.SENSOR_COUNT_REACHED, 0, True)
@@ -144,6 +146,7 @@ def _search_forward(
 
     count_limit = optimiser.num_sensors or optimiser.max_sensors or inventory
     num_additions = count_limit - len(current_sites)
+
     for iteration in range(1, num_additions + 1):
         moves = (
             tuple(sorted((*current_sites, site)))
@@ -151,6 +154,7 @@ def _search_forward(
             if site not in current_sites
         )
         selected = _select_best_layout(moves, score_layout)
+
         if selected is None:
             return _SearchResult(best, EOptStopCond.NO_FEASIBLE_MOVE, iteration, False)
 
@@ -211,7 +215,7 @@ def _sample_starts(
         ):
             rank, local_rank = divmod(rank, size)
             selections.append(_unrank_combination(sites, count, local_rank))
-        yield tuple(site for selection in reversed(selections) for site in selection)
+        yield tuple(chain.from_iterable(reversed(selections)))
 
 
 def _unrank_combination(sites: range, count: int, rank: int) -> Layout:
@@ -249,6 +253,7 @@ def _search_backward(
             for index in range(len(current_sites))
         )
         selected = _select_best_layout(moves, score_layout)
+
         if selected is None:
             return _SearchResult(best, EOptStopCond.NO_FEASIBLE_MOVE, iteration, False)
         best = selected
@@ -274,6 +279,7 @@ def _search_exchange(
             for index in range(len(current_sites))
         )
         selected = _select_best_layout(moves, score_layout)
+
         if selected is None and best is None:
             return _SearchResult(None, EOptStopCond.NO_FEASIBLE_MOVE, iteration, False)
         if selected is None or (
@@ -303,31 +309,39 @@ def _search_exhaustive(
         counts = count
     else:
         counts = (count,)
-    layouts = (
-        layout for count in counts for layout in combinations(range(num_sites), count)
+    layouts = chain.from_iterable(
+        combinations(range(num_sites), count) for count in counts
     )
+
     best: _ScoredLayout | None = None
     qualifying: _ScoredLayout | None = None
     target = optimiser.target_objective
     num_iterations = 0
     stop_condition = EOptStopCond.SEARCH_EXHAUSTED
+
     for layout in layouts:
         if optimiser.max_iterations == num_iterations:
             stop_condition = EOptStopCond.ITERATION_LIMIT
             break
         num_iterations += 1
+
         score = score_layout(layout)
         if score is None:
             continue
         if best is None or score < best.objective:
             best = _ScoredLayout(layout, score)
-        if target is not None and score <= target and (
-            qualifying is None
-            or (len(layout) == len(qualifying.sites) and score < qualifying.objective)
+        if (
+            target is not None
+            and score <= target
+            and (
+                qualifying is None
+                or (
+                    len(layout) == len(qualifying.sites)
+                    and score < qualifying.objective
+                )
+            )
         ):
             qualifying = _ScoredLayout(layout, score)
 
     success = best is not None if target is None else qualifying is not None
-    return _SearchResult(
-        qualifying or best, stop_condition, num_iterations, success
-    )
+    return _SearchResult(qualifying or best, stop_condition, num_iterations, success)

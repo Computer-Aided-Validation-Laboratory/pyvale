@@ -25,8 +25,12 @@ from .fieldtensor import *
 from .fieldconverter import *
 from .fieldtransform import *
 from .fieldinterp import *
+from .fieldsampleanalytic import FieldSampleAnalytic as FieldSampleAnalytic
+from .fieldsampleanalytic import FieldSampleBounds as FieldSampleBounds
+from .fieldsamplerinterface import FieldFunc as FieldFunc
+from .fieldsamplerinterface import IFieldSampler as IFieldSampler
 from .fieldinterpmesh import *
-from .fieldinterppoints import*
+from .fieldinterppoints import *
 
 from .integratorspatial import *
 from .integratorquadrature import *

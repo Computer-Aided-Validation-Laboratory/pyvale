@@ -4,31 +4,35 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
+from typing import cast
+
 import numpy as np
 import pyvista as pv
 
+from pyvale.dataio.meshconv import enforce_mesh_convention
 from pyvale.dataio.simdata import SimData
-from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
-from pyvale.sensorsim.fieldinterp import (IFieldInterp,
-                                          interp_to_sample_time)
 from pyvale.sensorsim.enums import EDim
+from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_interp
+from pyvale.sensorsim.fieldinterp import interp_to_sample_time
+from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
 
 
-class FieldInterpMesh(IFieldInterp):
+class FieldInterpMesh(IFieldSampler):
     """Class for interpolating mesh-based simulation fields to the virtual
     sensor locations and sample times. Note that mesh-based data includes a
     connectivity table in the underlying `SimData` object.
 
-    Implements the `IFieldInterp` interface.
+    Implements the `IFieldSampler` interface.
     """
 
-    __slots__ = ("_sim_time_steps","_comp_keys","_pyvista_interp")
+    __slots__ = ("_comp_keys", "_pyvista_interp", "_sim_data", "_sim_time_steps")
 
-    def __init__(self,
-                 sim_data: SimData,
-                 comp_keys: tuple[str,...],
-                 spatial_dims: EDim,
-                 ) -> None:
+    def __init__(
+        self,
+        sim_data: SimData,
+        comp_keys: tuple[str, ...],
+        spatial_dims: EDim,
+    ) -> None:
         """
         Parameters
         ----------
@@ -43,29 +47,41 @@ class FieldInterpMesh(IFieldInterp):
             the simulation to determine the underlying element types in the
             mesh.
         """
+        sim_data = enforce_mesh_convention(sim_data)
+        if sim_data.time is None:
+            raise ValueError("Mesh field sampling requires simulation time steps.")
+        self._sim_data = sim_data
         self._sim_time_steps = sim_data.time
         self._comp_keys = comp_keys
-        self._pyvista_interp = simdata_to_pyvista_interp(sim_data,
-                                                         self._comp_keys,
-                                                         spatial_dims)
+        self._pyvista_interp = simdata_to_pyvista_interp(
+            sim_data, self._comp_keys, spatial_dims
+        )
 
-    def interp_field(self,
-                     points: np.ndarray,
-                     sample_times: np.ndarray | None = None,
-                     ) -> np.ndarray:
-        return sample_pyvista_grid(self._comp_keys,
-                                   self._pyvista_interp,
-                                   self._sim_time_steps,
-                                   points,
-                                   sample_times)
+    def get_time_steps(self) -> np.ndarray:
+        return self._sim_time_steps
+
+    def get_num_components(self) -> int:
+        return len(self._comp_keys)
+
+    def get_component_keys(self) -> tuple[str, ...]:
+        return self._comp_keys
+
+    def get_sim_data(self) -> SimData:
+        return self._sim_data
+
+    def sample(self, points: np.ndarray, times: np.ndarray | None = None) -> np.ndarray:
+        return sample_pyvista_grid(
+            self._comp_keys, self._pyvista_interp, self._sim_time_steps, points, times
+        )
 
 
-def sample_pyvista_grid(comp_keys: tuple[str,...],
-                        pyvista_interp: pv.UnstructuredGrid,
-                        sim_time_steps: np.ndarray,
-                        points: np.ndarray,
-                        sample_times: np.ndarray | None = None
-                        ) -> np.ndarray:
+def sample_pyvista_grid(
+    comp_keys: tuple[str, ...],
+    pyvista_interp: pv.UnstructuredGrid,
+    sim_time_steps: np.ndarray,
+    points: np.ndarray,
+    sample_times: np.ndarray | None = None,
+) -> np.ndarray:
     """Function for sampling (interpolating) a pyvista grid object containing
     simulated field data. The pyvista sample method uses VTK to perform the
     spatial interpolation using the element shape functions. If the sampling
@@ -102,19 +118,16 @@ def sample_pyvista_grid(comp_keys: tuple[str,...],
         num_field_comp_keys,num_time_steps).
     """
     pv_points = pv.PolyData(points)
-    sample_data = pv_points.sample(pyvista_interp)
+    sample_data = cast(pv.PolyData, pv_points.sample(pyvista_interp))
 
     n_comps = len(comp_keys)
-    (n_sensors,n_time_steps) = np.array(sample_data[comp_keys[0]]).shape
-    sample_at_sim_time = np.empty((n_sensors,n_comps,n_time_steps))
+    (n_sensors, n_time_steps) = np.array(sample_data[comp_keys[0]]).shape
+    sample_at_sim_time = np.empty((n_sensors, n_comps, n_time_steps))
 
-    for ii,cc in enumerate(comp_keys):
-        sample_at_sim_time[:,ii,:] = np.array(sample_data[cc])
+    for ii, cc in enumerate(comp_keys):
+        sample_at_sim_time[:, ii, :] = np.array(sample_data[cc])
 
     if sample_times is None:
         return sample_at_sim_time
 
-    return interp_to_sample_time(sample_at_sim_time,
-                                 sim_time_steps,
-                                 sample_times)
-
+    return interp_to_sample_time(sample_at_sim_time, sim_time_steps, sample_times)

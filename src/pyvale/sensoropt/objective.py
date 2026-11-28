@@ -95,7 +95,8 @@ class ObjNormLog1p(IObjNormalisation):
     def eval(self, score: float) -> float:
         if not np.isfinite(self.reference) or self.reference <= 0 or score < 0:
             raise ValueError(
-                "Log1p normalisation requires a nonnegative score and positive reference."
+                "Log1p normalisation requires a nonnegative score and a "
+                "positive reference."
             )
         return log1p(score / self.reference)
 
@@ -214,8 +215,10 @@ class ObjSignal(IObjFunc):
             axes.remove(ESignalAxis.TIME)
 
         steps: list[tuple[tuple[int, ...], bool, ESignalReduce]] = []
+
         for reduction in self.reductions:
             named_axes = reduction.axis
+
             if isinstance(named_axes, ESignalAxis):
                 named_axes = (named_axes,)
             if not named_axes or len(set(named_axes)) != len(named_axes):
@@ -228,12 +231,15 @@ class ObjSignal(IObjFunc):
             )
             for axis in named_axes:
                 axes.remove(axis)
+
         if axes:
             raise ValueError("Reduce all signal axes or select a single time sample.")
 
         losses: list[npt.NDArray[np.float64]] = []
+
         for scenario_key in scenario_keys:
             histories: list[npt.NDArray[np.float64]] = []
+
             for sensor_key in self.sensor_keys:
                 output_key = (scenario_key, sensor_key, EExpSimKeys.TRUTH)
                 if output_key not in experiment_data:
@@ -244,6 +250,7 @@ class ObjSignal(IObjFunc):
                 if self.time_index is not None:
                     truth = truth[..., self.time_index]
                 histories.append(truth)
+
             if not histories:
                 raise ValueError(
                     "Signal scoring requires at least one selected sensor."
@@ -267,6 +274,7 @@ class ObjSignal(IObjFunc):
                     _reduce_signal(history, axes=indices, method=method)
                     for history in histories
                 ]
+
             losses.append(-histories[0])
 
         return np.stack(losses, axis=0)
@@ -425,6 +433,7 @@ class ObjFieldRecon(IObjFunc):
         first_key = active_keys[0]
 
         positions: list[npt.NDArray[np.float64]] = []
+
         for key in active_keys:
             sensor_positions = sensor_data[key].positions
             if sensor_positions is None:
@@ -437,6 +446,7 @@ class ObjFieldRecon(IObjFunc):
             reconstructor = FieldReconNearest()
 
         losses: list[npt.NDArray[np.float64]] = []
+
         for scenario_key in scenario_keys:
             if len(active_keys) > 1:
                 times = experiment_data[
@@ -467,6 +477,7 @@ class ObjFieldRecon(IObjFunc):
                 target_positions=self.target_positions,
             )
             predicted = np.moveaxis(nodal_values, 0, 1)
+
             if self.target_times is not None:
                 target_times = _validate_sample_times(self.target_times)
                 acquired = _validate_sample_times(

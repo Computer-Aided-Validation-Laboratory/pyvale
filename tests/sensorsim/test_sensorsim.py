@@ -310,7 +310,7 @@ def test_degenerate_delaunay_invariants() -> None:
         spatial_dims=sens.EDim.TWOD,
     )
     # Check evaluation on nodes
-    sample_nodes = field_interp.interp_field(sim_data.coords)
+    sample_nodes = field_interp.sample(sim_data.coords)
     assert not np.isnan(sample_nodes).any()
     # Check evaluation on interior points
     sens_grid = sens.gen_pos_grid_inside(
@@ -319,6 +319,6 @@ def test_degenerate_delaunay_invariants() -> None:
         y_lims=(0.0, 7.5),
         z_lims=(0.0, 0.0),
     )
-    sample_grid = field_interp.interp_field(sens_grid)
+    sample_grid = field_interp.sample(sens_grid)
     assert not np.isnan(sample_grid).any()
 

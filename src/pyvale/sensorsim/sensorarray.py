@@ -5,8 +5,12 @@
 # ==============================================================================
 
 from abc import ABC, abstractmethod
+
 import numpy as np
+
+from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.field import IField
+from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
 from pyvale.sensorsim.sensordata import SensorData
 
 
@@ -58,6 +62,14 @@ class ISensorArray(ABC):
         """Replace the nominal configuration and invalidate derived outputs."""
 
     @abstractmethod
+    def set_field_sampler(self, sampler: IFieldSampler) -> None:
+        """Replace the field sampler and invalidate derived outputs."""
+
+    @abstractmethod
+    def set_sim_data(self, sim_data: SimData) -> None:
+        """Bind new simulation data and invalidate derived outputs."""
+
+    @abstractmethod
     def copy_for_simulation(self, *, seed: int | None = None) -> "ISensorArray":
         """Copy configuration and mutable state, optionally reseeding the copy."""
 
@@ -82,7 +94,6 @@ class ISensorArray(ABC):
             Shape of the measurement array as (num_sensors,
             num_field_components,num_time_steps)
         """
-        pass
 
     @abstractmethod
     def get_field(self) -> IField:
@@ -94,7 +105,6 @@ class ISensorArray(ABC):
         IField
             A field object interface.
         """
-        pass
 
     @abstractmethod
     def get_truth(self) -> np.ndarray:
@@ -108,7 +118,6 @@ class ISensorArray(ABC):
             Array of ground truth sensor values. shape=(num_sensors,
             num_field_components,num_time_steps).
         """
-        pass
 
     @abstractmethod
     def get_errors_systematic(self) -> np.ndarray | None:
@@ -123,7 +132,6 @@ class ISensorArray(ABC):
             ,num_field_components,num_time_steps). Returns None if no error
             integrator has been set.
         """
-        pass
 
     @abstractmethod
     def get_errors_random(self) -> np.ndarray | None:
@@ -138,7 +146,6 @@ class ISensorArray(ABC):
             ,num_field_components,num_time_steps). Returns None if no error
             integrator has been set.
         """
-        pass
 
     @abstractmethod
     def get_errors_total(self) -> np.ndarray | None:
@@ -153,7 +160,6 @@ class ISensorArray(ABC):
             ,num_field_components,num_time_steps). Returns None if no error
             integrator has been set.
         """
-        pass
 
     @abstractmethod
     def sim_measurements(self) -> np.ndarray:
@@ -172,7 +178,6 @@ class ISensorArray(ABC):
             The calculated measurements for this sensor array with shape:
             (num_sensors,num_field_components,num_time_steps)
         """
-        pass
 
     @abstractmethod
     def get_measurements(self) -> np.ndarray:
@@ -191,5 +196,4 @@ class ISensorArray(ABC):
             The calculated measurements for this sensor array with shape:
             (num_sensors,num_field_components,num_time_steps)
         """
-        pass
 

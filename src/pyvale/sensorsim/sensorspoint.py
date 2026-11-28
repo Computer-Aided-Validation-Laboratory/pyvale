@@ -7,14 +7,16 @@
 import copy
 
 import numpy as np
-from pyvale.sensorsim.field import IField
-from pyvale.sensorsim.sensorarray import ISensorArray
-from pyvale.sensorsim.errorintegrator import (ErrIntegrator,
-                                              ErrIntOpts)
+
+from pyvale.dataio.simdata import SimData
+from pyvale.sensorsim.errorintegrator import ErrIntegrator, ErrIntOpts
 from pyvale.sensorsim.errorsimulator import IErrSimulator
-from pyvale.sensorsim.sensordescriptor import SensorDescriptor
-from pyvale.sensorsim.sensordata import SensorData
+from pyvale.sensorsim.field import IField
 from pyvale.sensorsim.fieldsampler import sample_field_with_sensor_data
+from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
+from pyvale.sensorsim.sensorarray import ISensorArray
+from pyvale.sensorsim.sensordata import SensorData
+from pyvale.sensorsim.sensordescriptor import SensorDescriptor
 
 
 class SensorsPoint(ISensorArray):
@@ -115,15 +117,27 @@ class SensorsPoint(ISensorArray):
         updated_data = copy.deepcopy(sensor_data)
         self._clear_cached_outputs()
         self._sensor_data = updated_data
+
         if self._error_integrator is not None:
             self._error_integrator.set_sensor_data(
                 updated_data, measurement_shape=self.get_measurement_shape()
             )
 
+    def set_field_sampler(self, sampler: IFieldSampler) -> None:
+        """Swap the sampler and reset cached samples and error histories."""
+        self._field.set_field_sampler(sampler)
+        self.set_sensor_data(self._sensor_data)
+
+    def set_sim_data(self, sim_data: SimData) -> None:
+        """Refresh the sampler and cached outputs for a new simulation."""
+        self._field.set_sim_data(sim_data)
+        self.set_sensor_data(self._sensor_data)
+
     def copy_for_simulation(self, *, seed: int | None = None) -> "SensorsPoint":
         """Return an independent working array, preserving field and error links."""
         working_array = copy.deepcopy(self)
         working_array.set_sensor_data(self._sensor_data)
+
         if seed is not None and working_array._error_integrator is not None:
             working_array._error_integrator.reseed_error_chain(seed)
         return working_array
@@ -221,7 +235,6 @@ class SensorsPoint(ISensorArray):
             The error integrator.
         """
         return self._error_integrator
-
 
     def set_error_chain(self,
                         err_chain: list[IErrSimulator] | None,

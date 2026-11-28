@@ -4,45 +4,7 @@
 # Copyright (C) 2025 The Computer Aided Validation Team
 # ==============================================================================
 
-from abc import ABC, abstractmethod
 import numpy as np
-
-
-class IFieldInterp(ABC):
-    """Interface (abstract base class) for allowing different methods of field
-    interpolation. Nominally this includes mesh-based and mesh-free
-    interpolation methods.
-    """
-
-    @abstractmethod
-    def interp_field(self,
-                    points: np.ndarray,
-                    sample_times: np.ndarray | None = None,
-                    ) -> np.ndarray:
-        """Invokes the field interpolation algorithm at the given points and 
-        sample times. Spatial interpolation is performed first at existing data 
-        time steps. If the sample times are the same as the underlying data no 
-        temporal interpolation is performed otherwise linear interpolation is 
-        performed between time steps for each point in space.
-
-        Parameters
-        ----------
-        points : np.ndarray
-            Array of points to spatially interpolate the physical field to.
-        sample_times : np.ndarray | None, optional
-            Vector of times at which to sample the underlying physical field,
-            by default None. If this is None then no temporal interpolation is
-            performed and the points returned correspond to the input simulation
-            time steps.
-
-        Returns
-        -------
-        np.ndarray
-            Simulated measurement array intepolated from the simulation data to
-            the desired sensor locations and sample times with shape=(
-            num_sensors,num_field_components,num_sample_times).
-        """
-        pass
 
 
 def interp_to_sample_time(sample_at_sim_time: np.ndarray,

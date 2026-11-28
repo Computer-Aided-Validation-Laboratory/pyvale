@@ -84,9 +84,7 @@ design_space: opt.DesignSpace = opt.DesignSpace(
     position_axes={"strain": opt.EDesignAxis.DISC},
 )
 target_rmse: float = 1.25e-3  # 1250 microstrain
-optimiser: opt.OptGreedyForward = opt.OptGreedyForward(
-    target_objective=target_rmse
-)
+optimiser: opt.OptGreedyForward = opt.OptGreedyForward(target_objective=target_rmse)
 engine: opt.SensorOptEngine = opt.SensorOptEngine(
     sensor_arrays=sensor_arrays,
     seed=seed,

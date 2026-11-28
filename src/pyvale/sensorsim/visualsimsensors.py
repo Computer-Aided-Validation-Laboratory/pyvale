@@ -258,13 +258,14 @@ def plot_sim_data(sim_data: SimData,
     return pv_plot
 
 
-def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
-                              comp_key: str,
-                              time_step: int = -1,
-                              perturbed_sens_pos: np.ndarray | None = None,
-                              vis_opts: VisOptsSimSensors | None = None,
-                              image_save_opts: VisOptsImageSave | None = None,
-                              ) -> pv.Plotter:
+def plot_point_sensors_on_sim(
+    sensor_array: SensorsPoint,
+    comp_key: str,
+    time_step: int = -1,
+    perturbed_sens_pos: np.ndarray | None = None,
+    vis_opts: VisOptsSimSensors | None = None,
+    image_save_opts: VisOptsImageSave | None = None,
+) -> pv.Plotter:
     """Creates a visualisation of the virtual sensor locations on the simulation
     mesh showing the underlying field the sensors are sampling at the specified
     time step.
@@ -281,7 +282,7 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
     perturbed_sens_pos: np.ndarray, optional
         Array of perturbed sensor position to plot with shape=(num_sensors,coord
         [X,Y,Z]), by default None. If None then perturbed sensor positions are
-        taken from the sensor array itself, if available. 
+        taken from the sensor array itself, if available.
     vis_opts : VisOptsSimSensors | None, optional
         Dataclass containing options for controlling the appearance of the
         virtual sensors, by default None. If None then a default options
@@ -300,8 +301,8 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
 
     sim_data = sensor_array.get_field().get_sim_data()
     vis_opts.colour_bar_lims = get_colour_lims(
-        sim_data.node_vars[comp_key][:,time_step],
-        vis_opts.colour_bar_lims)
+        sim_data.node_vars[comp_key][:, time_step], vis_opts.colour_bar_lims
+    )
 
     pv_plot = create_pv_plotter(vis_opts)
 
@@ -312,26 +313,17 @@ def plot_point_sensors_on_sim(sensor_array: SensorsPoint,
             sensor_pos_pert = error_integrator.get_sens_data_accumulated().positions
 
     if sensor_pos_pert is not None:
-        pv_plot = add_sensor_points_pert(pv_plot,sensor_pos_pert,vis_opts)
+        pv_plot = add_sensor_points_pert(pv_plot, sensor_pos_pert, vis_opts)
 
-    
-    sensor_pos_nom = sensor_array._sensor_data.positions   
+    sensor_pos_nom = sensor_array._sensor_data.positions
     descriptor = sensor_array.get_descriptor()
-    pv_plot = add_sensor_points_nom(pv_plot,
-                                    sensor_pos_nom,
-                                    descriptor,
-                                    vis_opts)
+    pv_plot = add_sensor_points_nom(pv_plot, sensor_pos_nom, descriptor, vis_opts)
 
-    (pv_plot,_) = add_sim_field(pv_plot,
-                                sensor_array,
-                                comp_key,
-                                time_step,
-                                vis_opts)
+    (pv_plot, _) = add_sim_field(pv_plot, sensor_array, comp_key, time_step, vis_opts)
 
     pv_plot.camera_position = vis_opts.camera_position
 
     if image_save_opts is not None:
-        save_pv_image(pv_plot,image_save_opts)
+        save_pv_image(pv_plot, image_save_opts)
 
     return pv_plot
-

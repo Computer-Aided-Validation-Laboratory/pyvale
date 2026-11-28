@@ -281,7 +281,9 @@ def test_joint_placement_examples(
         assert np.all(distances > 0)
         assert np.all(distances >= namespace.get("minimum_spacing", 0.0))
         for key in layout.sensor_data:
-            assert (output_path / f"{prefix}{key}_sensor_locations.png").stat().st_size > 0
+            assert (
+                output_path / f"{prefix}{key}_sensor_locations.png"
+            ).stat().st_size > 0
 
     if "fixed_start_result" in namespace:
         fixed_start = namespace["fixed_start_result"]
@@ -342,9 +344,7 @@ def test_random_start_tests_distinct_layouts_and_repeats_with_seed(
         objectives=(opt.ObjSensorCost(unit_costs={"first": 1.0, "second": 1.0}),),
         optimiser=opt.OptGreedyForward(
             num_sensors=3,
-            start=opt.OptStartRandom(
-                counts={"first": 2, "second": 1}, num_layouts=20
-            ),
+            start=opt.OptStartRandom(counts={"first": 2, "second": 1}, num_layouts=20),
         ),
         seed=123,
     )
@@ -475,7 +475,10 @@ def test_weighted_objective_normalises_each_term_and_skips_zero_weights(
         sensor_arrays={"first": analytic_array, "second": analytic_array},
         design_space=opt.DesignSpace(
             positions={"first": sites, "second": sites},
-            position_axes={"first": opt.EDesignAxis.DISC, "second": opt.EDesignAxis.DISC},
+            position_axes={
+                "first": opt.EDesignAxis.DISC,
+                "second": opt.EDesignAxis.DISC,
+            },
         ),
         objectives=objective,
         optimiser=opt.OptExhaustive(num_sensors=2),
@@ -616,9 +619,10 @@ def test_output_constraints_request_histories_and_reject_cheaper_layout(
     assert result.sensor_data.keys() == {"precision"}
     np.testing.assert_array_equal(result.objective_values, [2.0])
 
-    design.output_constraints = (*design.output_constraints, opt.ConstrainObjVal(
-        objective=costs, max_value=1.5
-    ))
+    design.output_constraints = (
+        *design.output_constraints,
+        opt.ConstrainObjVal(objective=costs, max_value=1.5),
+    )
     assert not engine.optimise().success
 
 

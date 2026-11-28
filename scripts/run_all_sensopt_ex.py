@@ -59,7 +59,8 @@ def run_examples() -> int:
             failed_examples.append(example.name)
 
     print(
-        f"\n{len(examples) - len(failed_examples)} passed, {len(failed_examples)} failed"
+        f"\n{len(examples) - len(failed_examples)} passed, "
+        f"{len(failed_examples)} failed"
     )
     if failed_examples:
         print("Failed examples " + ", ".join(failed_examples))

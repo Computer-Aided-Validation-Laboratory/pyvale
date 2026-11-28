@@ -6,10 +6,10 @@
 
 import copy
 from dataclasses import dataclass
+
 import numpy as np
-from pyvale.sensorsim.errorsimulator import (IErrSimulator,
-                                              EErrType,
-                                              EErrDep)
+
+from pyvale.sensorsim.errorsimulator import EErrDep, EErrType, IErrSimulator
 from pyvale.sensorsim.sensordata import SensorData
 
 
@@ -63,11 +63,13 @@ class ErrIntegrator:
                  "_sens_data_by_chain","_err_int_opts","_sens_data_accumulated",
                  "_sens_data_initial")
 
-    def __init__(self,
-                 err_chain: list[IErrSimulator],
-                 sensor_data_initial: SensorData,
-                 meas_shape: tuple[int,int,int],
-                 err_int_opts: ErrIntOpts | None = None) -> None:
+    def __init__(
+        self,
+        err_chain: list[IErrSimulator],
+        sensor_data_initial: SensorData,
+        meas_shape: tuple[int, int, int],
+        err_int_opts: ErrIntOpts | None = None,
+    ) -> None:
         """
         Parameters
         ----------
@@ -103,8 +105,7 @@ class ErrIntegrator:
 
         if self._err_int_opts.store_all_errs:
             self._sens_data_by_chain = []
-            self._errs_by_chain = np.zeros((len(self._err_chain),)+ \
-                                               self._meas_shape)
+            self._errs_by_chain = np.zeros((len(self._err_chain),) + self._meas_shape)
         else:
             self._sens_data_by_chain = None
             self._errs_by_chain = None
@@ -113,18 +114,17 @@ class ErrIntegrator:
         self._errs_random = np.zeros(measurement_shape)
         self._errs_total = np.zeros(measurement_shape)
 
-
     def reseed_error_chain(self, seed: int | None = None) -> None:
         """Iterates through the error chain and calls the reseed method for all
-        errors in the chain. Used for reseeding multi-processed simulations 
+        errors in the chain. Used for reseeding multi-processed simulations
         where all workers inherit the same seed from the main process.
 
         Parameters
         ----------
         seed : int | None, optional
-            Integer seed for the random number generator, by default None. If 
+            Integer seed for the random number generator, by default None. If
             None then the seed is generated using OS entropy (see numpy docs).
-        """    
+        """
         seed_sequence = np.random.SeedSequence(seed)
         for error, child in zip(
             self._err_chain, seed_sequence.spawn(len(self._err_chain))

@@ -111,16 +111,19 @@ class EvalStrat:
             raise ValueError("Losses must have shape (sim_scenario, virtual_exp).")
 
         reduced_axes: set[EEvalAxis] = set()
+
         for step in self.reductions:
             if step.axis in reduced_axes:
                 raise ValueError("Each evaluation axis can be reduced only once.")
             reduced_axes.add(step.axis)
+
             axis = step.axis.value
             if step.weights is not None and (
                 step.axis is not EEvalAxis.SIM_SCENARIO
                 or step.method is not EEvalReduce.MEAN
             ):
                 raise ValueError("Weights require a mean over SIM_SCENARIO.")
+
             match step.method:
                 case EEvalReduce.MEAN:
                     weights = _get_scenario_weights(step.weights, scenario_keys)
@@ -135,6 +138,7 @@ class EvalStrat:
                     raise ValueError(
                         f"Unsupported evaluation reduction {step.method!r}."
                     )
+
         return losses
 
 
@@ -143,8 +147,10 @@ def _get_scenario_weights(
 ) -> npt.NDArray[np.float64] | None:
     if weights is None:
         return None
+
     if set(weights) != set(scenario_keys):
         raise ValueError("Scenario weights must match the simulation scenario keys.")
+
     values = np.array([weights[key] for key in scenario_keys], dtype=np.float64)
     if not np.all(np.isfinite(values)) or np.any(values < 0) or not np.any(values > 0):
         raise ValueError(

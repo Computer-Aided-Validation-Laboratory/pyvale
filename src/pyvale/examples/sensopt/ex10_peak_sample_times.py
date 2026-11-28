@@ -65,7 +65,8 @@ for name, schedules in schedule_sets.items():
     results[name] = result
     selected = result.sensor_data["temperature"]
     print(
-        f"{name}: sample times {selected.sample_times}, peak {-result.objective_values[0]:.3f}"
+        f"{name}: sample times {selected.sample_times}, "
+        f"peak {-result.objective_values[0]:.3f}"
     )
 
 # %%

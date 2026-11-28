@@ -11,32 +11,32 @@ themselves.
 """
 
 from pyvale.dataio.simdata import SimData
-from pyvale.sensorsim.fieldscalar import FieldScalar
-from pyvale.sensorsim.fieldvector import FieldVector
-from pyvale.sensorsim.fieldtensor import FieldTensor
-from pyvale.sensorsim.sensordescriptor import (DescriptorFactory,
-                                               SensorDescriptor)
-from pyvale.sensorsim.sensorspoint import SensorsPoint, SensorData
 from pyvale.sensorsim.enums import EDim
+from pyvale.sensorsim.fieldsamplerinterface import IFieldSampler
+from pyvale.sensorsim.fieldscalar import FieldScalar
+from pyvale.sensorsim.fieldtensor import FieldTensor
+from pyvale.sensorsim.fieldvector import FieldVector
+from pyvale.sensorsim.sensordescriptor import DescriptorFactory, SensorDescriptor
+from pyvale.sensorsim.sensorspoint import SensorData, SensorsPoint
 
 
 class SensorFactory:
     @staticmethod
-    def scalar_point(sim_data: SimData,
-                     sensor_data: SensorData,
-                     comp_key: str,
-                     spatial_dims: EDim,
-                     descriptor: SensorDescriptor | None = None
-                     ) -> SensorsPoint:
+    def scalar_point(
+        field_source: SimData | IFieldSampler,
+        sensor_data: SensorData,
+        comp_key: str,
+        spatial_dims: EDim,
+        descriptor: SensorDescriptor | None = None,
+    ) -> SensorsPoint:
         """Helper function to assemble a scalar field point sensor array object
         based on the input simulation data, sensor data and specified physical
         field.
 
         Parameters
         ----------
-        sim_data : SimData
-            Simulation data object containing the physical field that the v
-            virtual sensor array will sample.
+        field_source : SimData or IFieldSampler
+            Simulation data or a sampler supplying the physical field.
         sensor_data : SensorData
             Sensor data object specifying the sensor array parameters such as
             the sensor positions and sampling times.
@@ -61,29 +61,27 @@ class SensorFactory:
         if descriptor is None:
             descriptor = DescriptorFactory.scalar()
 
-        s_field = FieldScalar(sim_data,comp_key,spatial_dims)
+        s_field = FieldScalar(field_source, comp_key, spatial_dims)
 
-        sens_array = SensorsPoint(sensor_data,
-                                      s_field,
-                                      descriptor)
+        sens_array = SensorsPoint(sensor_data, s_field, descriptor)
         return sens_array
 
     @staticmethod
-    def vector_point(sim_data: SimData,
-                     sensor_data: SensorData,
-                     comp_keys: tuple[str,...],
-                     spatial_dims: EDim,
-                     descriptor: SensorDescriptor | None = None,
-                     ) -> SensorsPoint:
-        """"Helper function to assemble a vector field point sensor array object
+    def vector_point(
+        field_source: SimData | IFieldSampler,
+        sensor_data: SensorData,
+        comp_keys: tuple[str, ...],
+        spatial_dims: EDim,
+        descriptor: SensorDescriptor | None = None,
+    ) -> SensorsPoint:
+        """ "Helper function to assemble a vector field point sensor array object
         based on the input simulation data, sensor data and specified physical
         field.
 
         Parameters
         ----------
-        sim_data : SimData
-            Simulation data object containing the physical field that the v
-            virtual sensor array will sample.
+        field_source : SimData or IFieldSampler
+            Simulation data or a sampler supplying the physical field.
         sensor_data : SensorData
             Sensor data object specifying the sensor array parameters such as
             the sensor positions and sampling times.
@@ -110,31 +108,27 @@ class SensorFactory:
         if descriptor is None:
             descriptor = DescriptorFactory.vector()
 
-        disp_field = FieldVector(sim_data,
-                                 comp_keys,
-                                 spatial_dims)
-        sens_array = SensorsPoint(sensor_data,
-                                      disp_field,
-                                      descriptor)
+        disp_field = FieldVector(field_source, comp_keys, spatial_dims)
+        sens_array = SensorsPoint(sensor_data, disp_field, descriptor)
         return sens_array
 
     @staticmethod
-    def tensor_point(sim_data: SimData,
-                     sensor_data: SensorData,
-                     norm_comp_keys: tuple[str,...],
-                     dev_comp_keys: tuple[str,...],
-                     spatial_dims: EDim,
-                     descriptor: SensorDescriptor | None = None,
-                     ) -> SensorsPoint:
+    def tensor_point(
+        field_source: SimData | IFieldSampler,
+        sensor_data: SensorData,
+        norm_comp_keys: tuple[str, ...],
+        dev_comp_keys: tuple[str, ...],
+        spatial_dims: EDim,
+        descriptor: SensorDescriptor | None = None,
+    ) -> SensorsPoint:
         """Helper function to assemble a tensor field point sensor array object
         based on the input simulation data, sensor data and specified physical
         field.
 
         Parameters
         ----------
-        sim_data : SimData
-            Simulation data object containing the physical field that the v
-            virtual sensor array will sample.
+        field_source : SimData or IFieldSampler
+            Simulation data or a sampler supplying the physical field.
         sensor_data : SensorData
             Sensor data object specifying the sensor array parameters such as
             the sensor positions and sampling times.
@@ -164,15 +158,9 @@ class SensorFactory:
         if descriptor is None:
             descriptor = DescriptorFactory.tensor(spatial_dims)
 
-        strain_field = FieldTensor(sim_data,
-                                   norm_comp_keys,
-                                   dev_comp_keys,
-                                   spatial_dims)
-        sens_array = SensorsPoint(sensor_data,
-                                      strain_field,
-                                      descriptor)
+        strain_field = FieldTensor(
+            field_source, norm_comp_keys, dev_comp_keys, spatial_dims
+        )
+        sens_array = SensorsPoint(sensor_data, strain_field, descriptor)
 
         return sens_array
-
-
-

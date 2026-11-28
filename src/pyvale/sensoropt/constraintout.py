@@ -76,7 +76,9 @@ class ConstrainMeasErr(IConstrainOut):
         scenario_keys: tuple[str, ...],
     ) -> npt.NDArray[np.float64]:
         if not self.sensor_keys:
-            raise ValueError("Specify at least one array for the measurement error limit.")
+            raise ValueError(
+                "Specify at least one array for the measurement error limit."
+            )
         if not np.isfinite(self.max_error) or self.max_error < 0:
             raise ValueError("max_error must be finite and nonnegative.")
 
@@ -87,9 +89,17 @@ class ConstrainMeasErr(IConstrainOut):
             for scenario in scenario_keys:
                 measured = experiment_data[scenario, key, EExpSimKeys.MEASUREMENT]
                 truth = experiment_data[scenario, key, EExpSimKeys.TRUTH]
-                if measured.ndim != 4 or measured.size == 0 or measured.shape != truth.shape:
-                    raise ValueError("Measurement and truth must have matching 4D histories.")
-                error = _reduce_error(measured - truth, metric=self.metric, axes=(1, 2, 3))
+                if (
+                    measured.ndim != 4
+                    or measured.size == 0
+                    or measured.shape != truth.shape
+                ):
+                    raise ValueError(
+                        "Measurement and truth must have matching 4D histories."
+                    )
+                error = _reduce_error(
+                    measured - truth, metric=self.metric, axes=(1, 2, 3)
+                )
                 residuals.append(error - self.max_error)
         if not residuals:
             return np.ones(1, dtype=np.float64)

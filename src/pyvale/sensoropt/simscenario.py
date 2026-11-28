@@ -14,7 +14,7 @@ import numpy.typing as npt
 
 from pyvale.dataio.simdata import SimData
 from pyvale.sensoropt.evalstrat import _get_scenario_weights
-from pyvale.sensoropt.objective import EReconRef, IObjFunc, ObjFieldRecon, ObjSpec
+from pyvale.sensoropt.objective import EReconRef, IObjFunc, ObjFieldRecon
 from pyvale.sensoropt.sampletimes import _validate_sample_times
 from pyvale.sensorsim.enums import EDim
 from pyvale.sensorsim.fieldscalar import FieldScalar
@@ -22,21 +22,17 @@ from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.sensordata import SensorData
 
 
-class _ScheduleMismatch(ValueError):
-    """The selected acquisition schedule cannot support this objective."""
-
-
 def _prepare_objective(
-    objective: IObjFunc | ObjSpec,
+    objective: IObjFunc,
     *,
     sim_scenarios: Mapping[str, SimData],
     sensor_arrays: Mapping[str, ISensorArray],
     nominal_data: Mapping[str, SensorData],
     nominal_key: str,
     time_search_keys: frozenset[str] = frozenset(),
-) -> IObjFunc:
-    if isinstance(objective, ObjSpec):
-        objective = objective.objective
+) -> IObjFunc | str:
+    """Prepare the objective or explain why the schedule cannot support it."""
+
     if not isinstance(objective, ObjFieldRecon):
         return objective
 
@@ -96,15 +92,11 @@ def _prepare_objective(
             if any(
                 not np.array_equal(first_times, times) for times in acquired_times[1:]
             ):
-                raise _ScheduleMismatch(
-                    "Pooled reconstruction requires matching sample times."
-                )
+                return "Pooled reconstruction requires matching sample times."
             if target_times is not None and (
                 target_times[0] < first_times[0] or target_times[-1] > first_times[-1]
             ):
-                raise _ScheduleMismatch(
-                    "Acquired times must cover the target time window."
-                )
+                return "Acquired times must cover the target time window."
             if field_key is None:
                 continue
             if simulation.node_vars is None or field_key not in simulation.node_vars:
@@ -115,14 +107,10 @@ def _prepare_objective(
             if simulation.time is None or (
                 times[0] < simulation.time[0] or times[-1] > simulation.time[-1]
             ):
-                raise _ScheduleMismatch(
-                    "Reference times must be inside the simulation window."
-                )
+                return "Reference times must be inside the simulation window."
             if mode is not EReconRef.SIM_SCENARIO:
                 if common_times is not None and not np.array_equal(times, common_times):
-                    raise _ScheduleMismatch(
-                        "Ensemble references require matching scenario sample times."
-                    )
+                    return "Ensemble references require matching scenario sample times."
                 common_times = times
             if (
                 simulation.coords is not None

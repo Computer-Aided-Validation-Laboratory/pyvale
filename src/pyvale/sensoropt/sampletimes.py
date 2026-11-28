@@ -12,6 +12,8 @@ from numbers import Integral
 import numpy as np
 import numpy.typing as npt
 
+_ENDPOINT_ROUNDING_ULPS = 4
+
 
 def _validate_sample_times(times: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     schedule = np.asarray(times, dtype=np.float64)
@@ -63,20 +65,26 @@ def gen_sample_times_from_periods(
         raise ValueError("Periods must be a nonempty array of finite positive values.")
 
     schedules: list[npt.NDArray[np.float64]] = []
+
     for period in periods:
         steps = (stop - start) / period
         if not np.isfinite(steps):
             raise ValueError(
                 "The time window contains too many samples for this period."
             )
+
         nearest_step = np.rint(steps)
         # Snap a mathematically on-grid endpoint affected by division roundoff.
-        on_grid = abs(steps - nearest_step) <= 4 * np.spacing(steps)
+        on_grid = abs(steps - nearest_step) <= _ENDPOINT_ROUNDING_ULPS * np.spacing(
+            steps
+        )
         num_intervals = int(nearest_step) if on_grid else int(np.floor(steps))
         schedule = start + np.arange(num_intervals + 1, dtype=np.float64) * period
         if on_grid and num_intervals:
             schedule[-1] = stop
+
         schedules.append(_validate_sample_times(schedule))
+
     return tuple(schedules)
 
 
@@ -89,6 +97,7 @@ def gen_sample_times_from_freqs(
     frequencies = np.asarray(frequencies, dtype=np.float64)
     if not np.all(np.isfinite(frequencies)) or np.any(frequencies <= 0):
         raise ValueError("Frequencies must be finite and positive.")
+
     with np.errstate(over="ignore"):
         periods = np.reciprocal(frequencies)
     return gen_sample_times_from_periods(periods=periods, time_window=time_window)

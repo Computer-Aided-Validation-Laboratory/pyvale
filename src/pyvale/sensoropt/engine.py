@@ -49,7 +49,7 @@ from pyvale.sensoropt.optimiser import (
     _SearchResult,
 )
 from pyvale.sensoropt.sampletimes import _validate_sample_times
-from pyvale.sensoropt.simscenario import _prepare_objective, _ScheduleMismatch
+from pyvale.sensoropt.simscenario import _prepare_objective
 from pyvale.sensorsim.experimentsimulator import ExperimentSimulator
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.sensordata import SensorData
@@ -105,6 +105,7 @@ class SensorOptEngine:
         """Search the configured design space without mutating any supplied array."""
         if not self.sensor_arrays:
             raise ValueError("Supply at least one sensor array.")
+        # Position and time domains
         optimiser = self.optimiser
         fixed_layout = isinstance(optimiser, OptFixedLayout)
         if not fixed_layout:
@@ -116,6 +117,7 @@ class SensorOptEngine:
                 self.sensor_arrays, EDesignAxis.DISC
             ):
                 raise ValueError("This engine requires discrete position domains.")
+
         time_domains: dict[str, tuple[npt.NDArray[np.float64], ...]] = {}
         for key, schedules in self.design_space.sample_times.items():
             if key not in self.sensor_arrays or not schedules:
@@ -124,6 +126,7 @@ class SensorOptEngine:
                 _validate_sample_times(times) for times in schedules
             )
         time_search_keys = frozenset(time_domains)
+
         nominal_data: dict[str, SensorData] = {}
         inventories: dict[str, int] = {}
         array_sites: list[npt.NDArray[np.float64]] = []
@@ -131,6 +134,7 @@ class SensorOptEngine:
         site_keys: list[str] = []
         installed_sites: list[int] = []
         available_count = 0
+
         for key, array in self.sensor_arrays.items():
             data = array.get_sensor_data()
             positions = data.positions
@@ -142,6 +146,7 @@ class SensorOptEngine:
                 or not np.all(np.isfinite(positions))
             ):
                 raise ValueError(f"Array {key!r} needs finite nominal XYZ positions.")
+
             if fixed_layout:
                 sites = positions
                 installed_sites.extend(
@@ -165,21 +170,26 @@ class SensorOptEngine:
                 raise ValueError(
                     "Discrete placement requires a shared rotation per array."
                 )
+
             if isinstance(optimiser, (OptGreedyBackward, OptExchange)):
                 site_indices = {
                     tuple(position): index for index, position in enumerate(sites)
                 }
                 array_installed: set[int] = set()
+
                 for position in positions:
                     site_index = site_indices.get(tuple(position))
                     if site_index is None or site_index in array_installed:
                         raise ValueError(
-                            f"Installed positions for {key!r} must match distinct sites."
+                            f"Installed positions for {key!r} must match "
+                            "distinct sites."
                         )
                     array_installed.add(site_index)
+
                 installed_sites.extend(
                     len(site_keys) + index for index in array_installed
                 )
+
             nominal_data[key] = data
             inventories[key] = len(positions)
             available_count += min(len(sites), len(positions))
@@ -189,6 +199,7 @@ class SensorOptEngine:
 
         all_sites = np.concatenate(array_sites)
         initial_sites: Layout = tuple(sorted(installed_sites))
+
         if isinstance(optimiser, (OptExchange, OptExhaustive)):
             limit = optimiser.max_iterations
             if (limit is not None or isinstance(optimiser, OptExchange)) and (
@@ -243,6 +254,7 @@ class SensorOptEngine:
                         "num_sensors must be within the inventory and site count."
                     )
 
+        # Objectives and shared simulation outputs
         if isinstance(self.objectives, ObjWeighted):
             terms = self.objectives.terms
             if any(not np.isfinite(term.weight) or term.weight < 0 for term in terms):
@@ -261,9 +273,11 @@ class SensorOptEngine:
             raise TypeError("sampling must be an ESampling member.")
         if self.sampling is ESampling.PAIRED and self.num_virtual_exps != 1:
             raise ValueError("PAIRED sampling requires num_virtual_exps=1.")
+
         sim_scenarios: dict[str, SimData] = {}
         physics_seed = np.random.SeedSequence(self.seed)
         source = self.sim_scenarios
+
         if isinstance(source, ISimSampler):
             count = source.num_sim_scenarios
             if not _is_integer(count, minimum=1):
@@ -278,11 +292,11 @@ class SensorOptEngine:
                 )
             keys = (f"sample_{index}" for index in range(count))
             sim_scenarios = dict(zip(keys, cases, strict=True))
-        else:
-            if source is not None:
-                if not source:
-                    raise ValueError("Supply at least one named simulation scenario.")
-                sim_scenarios = dict(source)
+        elif source is not None:
+            if not source:
+                raise ValueError("Supply at least one named simulation scenario.")
+
+            sim_scenarios = dict(source)
 
         scenario_keys = tuple(sim_scenarios) or (_NOMINAL_SCENARIO,)
         objective_specs = tuple(
@@ -296,6 +310,7 @@ class SensorOptEngine:
             for term in terms
         )
         empty_score_keys: list[tuple[str, ...]] = []
+
         for term, objective in zip(terms, objectives, strict=True):
             if term.empty_score is None:
                 empty_score_keys.append(())
@@ -319,27 +334,32 @@ class SensorOptEngine:
                 for constraint in self.design_space.output_constraints
             ),
         )
+
         scenario_arrays: dict[str, dict[str, ISensorArray]] = {}
         num_streams = len(scenario_keys) * len(self.sensor_arrays)
         array_seeds: list[int | None] = [self.seed] * num_streams
+
         if num_streams > 1 or isinstance(source, ISimSampler):
             array_seeds = [
                 int(sequence.generate_state(1)[0])
                 for sequence in physics_seed.spawn(num_streams)
             ]
+
         if required_outputs:
             seeds = iter(array_seeds)
+
             for scenario_key in scenario_keys:
                 arrays: dict[str, ISensorArray] = {}
+
                 for key, array in self.sensor_arrays.items():
                     working_array = array.copy_for_simulation(seed=next(seeds))
                     if scenario_key in sim_scenarios:
-                        working_array.get_field().set_sim_data(
-                            sim_scenarios[scenario_key]
-                        )
+                        working_array.set_sim_data(sim_scenarios[scenario_key])
                     arrays[key] = working_array
+
                 scenario_arrays[scenario_key] = arrays
 
+        # Spatial search for one combination of array schedules
         def search_schedule(
             scheduled_data: Mapping[str, SensorData],
             resolved_objectives: tuple[IObjFunc, ...],
@@ -356,10 +376,12 @@ class SensorOptEngine:
 
             def score_layout(layout: Layout) -> float | None:
                 sensor_data = decode_layout(layout)
+
                 for key, data in sensor_data.items():
                     assert data.positions is not None
                     if len(data.positions) > inventories[key]:
                         return None
+
                 for constraint in self.design_space.input_constraints:
                     residuals = constraint.eval(sensor_data)
                     if not np.all(np.isfinite(residuals)):
@@ -373,6 +395,7 @@ class SensorOptEngine:
                     num_virtual_exps=self.num_virtual_exps,
                     required_outputs=required_outputs,
                 )
+
                 for constraint in output_constraints:
                     residuals = constraint.eval(
                         sensor_data=sensor_data,
@@ -385,6 +408,7 @@ class SensorOptEngine:
                         return None
 
                 score = 0.0
+
                 for term, keys, objective, spec in zip(
                     terms,
                     empty_score_keys,
@@ -413,7 +437,8 @@ class SensorOptEngine:
                             (len(scenario_keys), self.num_virtual_exps),
                         ):
                             raise ValueError(
-                                "An objective must return a scalar or a loss per experiment."
+                                "An objective must return a scalar or a loss "
+                                "per experiment."
                             )
                         if spec is not None:
                             values = spec.eval_strat.reduce(
@@ -424,19 +449,24 @@ class SensorOptEngine:
                                 "Use EvalStrat to reduce the objective to one score."
                             )
                         value = float(values.item())
+
                     if not np.isfinite(value):
                         raise ValueError("An objective must return a finite value.")
                     if term.normalisation is not None:
                         value = term.normalisation.eval(value)
                     score += term.weight * value
+
                 if not np.isfinite(score):
                     raise ValueError("The combined objective score must be finite.")
+
                 return score
 
             num_start_layouts = 0
+
             if isinstance(optimiser, OptGreedyForward):
                 start = optimiser.start
                 best_start: _ScoredLayout | None = None
+
                 if start is not None:
                     starts: Iterable[Layout]
                     if isinstance(start, OptStartLayout):
@@ -524,9 +554,11 @@ class SensorOptEngine:
 
             selected_data: dict[str, SensorData] = {}
             objective_values = np.empty(0, dtype=np.float64)
+
             if search.layout is not None:
                 selected_data = decode_layout(search.layout.sites)
                 objective_values = np.array([search.layout.objective], dtype=np.float64)
+
             return OptResult(
                 sensor_data=selected_data,
                 objective_values=objective_values,
@@ -536,21 +568,23 @@ class SensorOptEngine:
                 num_start_layouts=num_start_layouts,
             )
 
-        def prepare(
-            objective: IObjFunc, scheduled_data: Mapping[str, SensorData]
-        ) -> IObjFunc:
-            return _prepare_objective(
-                objective,
-                sim_scenarios=sim_scenarios,
-                sensor_arrays=self.sensor_arrays,
-                nominal_data=scheduled_data,
-                nominal_key=_NOMINAL_SCENARIO,
-                time_search_keys=time_search_keys,
-            )
+        # Compare the best layouts across schedules
+        constraints = self.design_space.output_constraints
+        objectives_to_prepare = list(objectives)
+
+        for constraint in constraints:
+            if isinstance(constraint, ConstrainObjVal):
+                objectives_to_prepare.append(constraint.objective)
+
+        stops_on_target = (
+            isinstance(optimiser, (OptGreedyForward, OptExhaustive))
+            and optimiser.target_objective is not None
+        )
 
         selected_result: OptResult | None = None
         num_iterations = 0
         num_start_layouts = 0
+
         for schedules in product(*time_domains.values()):
             chosen_times = dict(zip(time_domains, schedules, strict=True))
             scheduled_data = {
@@ -559,45 +593,73 @@ class SensorOptEngine:
                 )
                 for key, data in nominal_data.items()
             }
-            if any(
-                times[0] < native_times[0] or times[-1] > native_times[-1]
-                for key, times in chosen_times.items()
-                for native_times in (
-                    (case.time for case in sim_scenarios.values())
-                    if sim_scenarios
-                    else (self.sensor_arrays[key].get_field().get_time_steps(),)
-                )
-                if native_times is not None
-            ):
+            schedule_in_window = True
+
+            for key, times in chosen_times.items():
+                if sim_scenarios:
+                    native_grids = tuple(case.time for case in sim_scenarios.values())
+                else:
+                    field = self.sensor_arrays[key].get_field()
+                    native_grids = (field.get_time_steps(),)
+
+                for native_times in native_grids:
+                    if native_times is None:
+                        continue
+
+                    if times[0] < native_times[0] or times[-1] > native_times[-1]:
+                        schedule_in_window = False
+                        break
+
+                if not schedule_in_window:
+                    break
+
+            if not schedule_in_window:
                 continue
 
-            try:
-                resolved = tuple(
-                    prepare(objective, scheduled_data) for objective in objectives
+            prepared: list[IObjFunc] = []
+
+            for objective in objectives_to_prepare:
+                outcome = _prepare_objective(
+                    objective,
+                    sim_scenarios=sim_scenarios,
+                    sensor_arrays=self.sensor_arrays,
+                    nominal_data=scheduled_data,
+                    nominal_key=_NOMINAL_SCENARIO,
+                    time_search_keys=time_search_keys,
                 )
-                output_constraints = tuple(
-                    replace(
-                        constraint,
-                        objective=prepare(constraint.objective, scheduled_data),
-                    )
-                    if isinstance(constraint, ConstrainObjVal)
-                    else constraint
-                    for constraint in self.design_space.output_constraints
-                )
-            except _ScheduleMismatch:
-                if not time_domains:
-                    raise
+
+                if isinstance(outcome, str):
+                    if not time_domains:
+                        raise ValueError(outcome)
+                    break
+
+                prepared.append(outcome)
+
+            if len(prepared) != len(objectives_to_prepare):
                 continue
-            candidate = search_schedule(scheduled_data, resolved, output_constraints)
+
+            resolved = tuple(prepared[: len(objectives)])
+            constraint_objectives = iter(prepared[len(objectives) :])
+            output_constraints: list[IConstrainOut] = []
+
+            for constraint in constraints:
+                if isinstance(constraint, ConstrainObjVal):
+                    constraint = replace(
+                        constraint, objective=next(constraint_objectives)
+                    )
+
+                output_constraints.append(constraint)
+
+            candidate = search_schedule(
+                scheduled_data, resolved, tuple(output_constraints)
+            )
             num_iterations += candidate.num_iterations
             num_start_layouts += candidate.num_start_layouts
+
             if selected_result is None or _prefer_schedule(
                 candidate,
                 selected_result,
-                target_mode=(
-                    isinstance(optimiser, (OptGreedyForward, OptExhaustive))
-                    and optimiser.target_objective is not None
-                ),
+                target_mode=stops_on_target,
             ):
                 selected_result = candidate
 
@@ -609,6 +671,7 @@ class SensorOptEngine:
                 num_iterations=0,
                 success=False,
             )
+
         return replace(
             selected_result,
             num_iterations=num_iterations,

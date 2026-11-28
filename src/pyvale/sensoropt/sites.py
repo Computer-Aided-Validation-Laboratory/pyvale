@@ -94,6 +94,7 @@ class ConstrainSensSites(IConstrainInp):
             or not np.all(np.isfinite(grid))
         ):
             raise ValueError("grid_xyz must be finite with shape (nx, ny, nz, 3).")
+
         self._default_mask = (
             None if default is None else _compile_site_mask(default, grid)
         )
@@ -106,14 +107,17 @@ class ConstrainSensSites(IConstrainInp):
 
     def eval(self, sensor_data: Mapping[str, SensorData]) -> npt.NDArray[np.float64]:
         residuals: list[npt.NDArray[np.float64]] = []
+
         for key, data in sensor_data.items():
             mask = self._array_masks.get(key, self._default_mask)
             if mask is None:
                 continue
+
             positions = data.positions
             if positions is None:
                 raise ValueError(f"Sensor array {key!r} requires positions.")
             residuals.append((~mask(positions)).astype(np.float64))
+
         if not residuals:
             return np.empty(0, dtype=np.float64)
         return np.concatenate(residuals)
@@ -145,6 +149,7 @@ def _compile_site_mask(
             raise ValueError("grid_xyz is required for SensSiteGridIdxs.")
         grid_indices: list[npt.NDArray[np.intp]] = []
         axes = (selector.x, selector.y, selector.z)
+
         for indices, size in zip(axes, grid.shape[:3], strict=True):
             if indices is None:
                 grid_indices.append(np.arange(size, dtype=np.intp))
@@ -157,6 +162,7 @@ def _compile_site_mask(
             ):
                 raise ValueError("Site grid indices must be integers within the grid.")
             grid_indices.append(np.asarray(indices, dtype=np.intp))
+
         selector = grid[np.ix_(*grid_indices)].reshape(-1, 3)
 
     if isinstance(selector, np.ndarray):
@@ -189,6 +195,7 @@ def _compile_site_mask(
         raise TypeError("Unsupported site selector.")
     if not selector.selectors:
         raise ValueError("SensSiteAll and SensSiteAny require at least one selector.")
+
     masks = tuple(_compile_site_mask(child, grid) for child in selector.selectors)
     match_all = isinstance(selector, SensSiteAll)
 

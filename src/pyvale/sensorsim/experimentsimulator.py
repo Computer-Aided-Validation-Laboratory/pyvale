@@ -14,15 +14,15 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import product
 from multiprocessing.pool import Pool
+
 import numpy as np
 import numpy.typing as npt
 
-from pyvale.sensorsim.enums import EExpSimKeys
-from pyvale.sensorsim.sensordata import SensorData
-
 from pyvale.dataio.simdata import SimData
-from pyvale.sensorsim.sensorarray import ISensorArray
+from pyvale.sensorsim.enums import EExpSimKeys
 from pyvale.sensorsim.exceptions import ExpSimError
+from pyvale.sensorsim.sensorarray import ISensorArray
+from pyvale.sensorsim.sensordata import SensorData
 
 
 class EExpSimPara(enum.Enum):
@@ -159,7 +159,6 @@ class ExperimentSimulator:
         else:
             self._save_keys = exp_save_keys
 
-
     @staticmethod
     def collect_virtual_exps(
         *,
@@ -177,23 +176,30 @@ class ExperimentSimulator:
         if num_virtual_exps < 1:
             raise ValueError("num_virtual_exps must be positive.")
         if not required_outputs <= _VIRTUAL_EXP_OUTPUTS:
-            raise ValueError("Requested a virtual experiment output that is unsupported.")
+            raise ValueError(
+                "Requested a virtual experiment output that is unsupported."
+            )
+
         histories: dict[tuple[str, str, EExpSimKeys], npt.NDArray[np.float64]] = {}
         if not required_outputs:
             return histories
 
         measured_outputs = required_outputs & _MEASURED_OUTPUTS
+
         for scenario, arrays in scenario_arrays.items():
             for key, data in sensor_data.items():
                 array = arrays[key]
                 array.set_sensor_data(data)
                 outputs: dict[EExpSimKeys, npt.NDArray[np.float64]] = {}
+
                 if measured_outputs:
                     shape = (num_virtual_exps, *array.get_measurement_shape())
                     for output in measured_outputs:
                         outputs[output] = np.empty(shape, dtype=np.float64)
+
                     for index in range(num_virtual_exps):
                         measurement = array.sim_measurements()
+
                         for output in measured_outputs:
                             match output:
                                 case EExpSimKeys.MEASUREMENT:
@@ -203,26 +209,33 @@ class ExperimentSimulator:
                                 case EExpSimKeys.RANDOM_ERROR:
                                     reading = array.get_errors_random()
                                 case _:
-                                    raise ValueError(f"Unsupported measured output {output!r}.")
+                                    raise ValueError(
+                                        f"Unsupported measured output {output!r}."
+                                    )
                             outputs[output][index] = 0.0 if reading is None else reading
+
                 if EExpSimKeys.TRUTH in required_outputs:
                     truth = array.get_truth()
                     outputs[EExpSimKeys.TRUTH] = np.broadcast_to(
                         truth, (num_virtual_exps, *truth.shape)
                     )
+
                 if EExpSimKeys.SENSOR_TIMES in required_outputs:
                     times = data.sample_times
                     if times is None:
                         times = array.get_field().get_time_steps()
                     outputs[EExpSimKeys.SENSOR_TIMES] = times
+
                 if EExpSimKeys.SENSOR_POSITIONS in required_outputs:
                     if data.positions is None:
                         raise ValueError(f"Sensor array {key!r} requires positions.")
                     outputs[EExpSimKeys.SENSOR_POSITIONS] = data.positions
+
                 for output, values in outputs.items():
                     view = values.view()
                     view.setflags(write=False)
                     histories[scenario, key, output] = view
+
         return histories
 
     def get_exp_save_keys(self) -> ExpSimSaveKeys:
@@ -574,14 +587,15 @@ class ExperimentSimulator:
         return exp_data
 
 #-------------------------------------------------------------------------------
-def _run_one_sim(sim_key: str,
-                 sens_key: str,
-                 sim_data: SimData,
-                 sens_array: ISensorArray,
-                 sens_funcs: list[tuple[str,str]],
-                 sens_vars: list[tuple[str,str]],
-                 ) -> dict[tuple[str,...],np.ndarray]:
-    """Helper function for parallelisation of simulated experiments using the 
+def _run_one_sim(
+    sim_key: str,
+    sens_key: str,
+    sim_data: SimData,
+    sens_array: ISensorArray,
+    sens_funcs: list[tuple[str, str]],
+    sens_vars: list[tuple[str, str]],
+) -> dict[tuple[str, ...], np.ndarray]:
+    """Helper function for parallelisation of simulated experiments using the
     `SPLIT` strategy to run a single simulation per worker.
 
     Parameters
@@ -600,7 +614,7 @@ def _run_one_sim(sim_key: str,
     sens_vars : list[tuple[str,str]]
         String data key and variable name as a string for the perturbed sensor
         data to extract from the simulation.
-        
+
     Returns
     -------
     dict[tuple[str,...],np.ndarray]
@@ -610,32 +624,33 @@ def _run_one_sim(sim_key: str,
     # same random seed producing the same simulations.
     err_int = sens_array.get_error_integrator()
     err_int.reseed_error_chain()
-    sens_array.get_field().set_sim_data(sim_data)
+    sens_array.set_sim_data(sim_data)
 
     sim_exp = {}
     for kk, mm in sens_funcs:
-        bound_func = getattr(sens_array,mm)
-        sim_exp[(sim_key,sens_key,kk)] = bound_func()
+        bound_func = getattr(sens_array, mm)
+        sim_exp[(sim_key, sens_key, kk)] = bound_func()
 
     pert_sens_data = err_int.get_sens_data_accumulated()
     for kk, vv in sens_vars:
-        attr = getattr(pert_sens_data,vv)
+        attr = getattr(pert_sens_data, vv)
         if attr is not None:
-            sim_exp[(sim_key,sens_key,kk)] = attr
+            sim_exp[(sim_key, sens_key, kk)] = attr
 
     # RETURN: dict[str,np.array.shape=(n_sens,n_comps,n_time_steps)]
     return sim_exp
 
 
-def _run_all_sims(num_exp: int,
-                  sim_key: str,
-                  sens_key: str,
-                  sim_data: SimData,
-                  sens_array: ISensorArray,
-                  sens_funcs: list[tuple[str,str]],
-                  sens_vars: list[tuple[str,str]]
-                  ) -> dict[tuple[str,...],np.ndarray]:
-    """Helper function for parallelisation of virtual experiments using the 
+def _run_all_sims(
+    num_exp: int,
+    sim_key: str,
+    sens_key: str,
+    sim_data: SimData,
+    sens_array: ISensorArray,
+    sens_funcs: list[tuple[str, str]],
+    sens_vars: list[tuple[str, str]],
+) -> dict[tuple[str, ...], np.ndarray]:
+    """Helper function for parallelisation of virtual experiments using the
     `ALL` strategy where all `num_exp` experiments are run on a single worker.
 
     Parameters
@@ -668,40 +683,40 @@ def _run_all_sims(num_exp: int,
     # same random seed producing the same simulations.
     err_int = sens_array.get_error_integrator()
     err_int.reseed_error_chain()
-    sens_array.get_field().set_sim_data(sim_data)
+    sens_array.set_sim_data(sim_data)
 
-    exp_shape = (num_exp,)+sens_array.get_measurement_shape()
+    exp_shape = (num_exp,) + sens_array.get_measurement_shape()
 
     # Get the bound functions for this sensor array once before the sim loop
     # and pre-alloc numpy arrays
-    bound_sens_funcs = [] # List of tuples to guarantee execution order
+    bound_sens_funcs = []  # List of tuples to guarantee execution order
     sim_exp = {}
     for kk, mm in sens_funcs:
-        bound_sens_funcs.append((kk,getattr(sens_array,mm)))
+        bound_sens_funcs.append((kk, getattr(sens_array, mm)))
 
-        sim_exp[(sim_key,sens_key,kk)] = np.empty(exp_shape,dtype=np.float64)
+        sim_exp[(sim_key, sens_key, kk)] = np.empty(exp_shape, dtype=np.float64)
 
     # Pre-alloc numpy arrays for perturbed sensor data
     init_sens_data = err_int.get_sens_data_accumulated()
     for kk, vv in sens_vars:
-        attr = getattr(init_sens_data,vv)
+        attr = getattr(init_sens_data, vv)
 
         if attr is not None:
             shape = (num_exp,) + attr.shape
-            sim_exp[(sim_key,sens_key,kk)] = np.empty(shape,dtype=np.float64)
+            sim_exp[(sim_key, sens_key, kk)] = np.empty(shape, dtype=np.float64)
 
     # Simulation loop, first bound func is always `sim_measurements`
     for ee in range(num_exp):
         for kk, bound_func in bound_sens_funcs:
             # NOTE: array broadcast here, array is normally 4D: [ee,:,:,:] but
             # might be different for storing SensorData arrays
-            sim_exp[(sim_key,sens_key,kk)][ee] = bound_func()
+            sim_exp[(sim_key, sens_key, kk)][ee] = bound_func()
 
         pert_sens_data = err_int.get_sens_data_accumulated()
         for kk, vv in sens_vars:
-            attr = getattr(pert_sens_data,vv)
+            attr = getattr(pert_sens_data, vv)
             if attr is not None:
-                sim_exp[(sim_key,sens_key,kk)][ee] = attr
+                sim_exp[(sim_key, sens_key, kk)][ee] = attr
 
     # RETURN: dict[tuple[str,str,str],
     # np.array.shape=(n_exps,n_sens,n_comps,n_time_steps)]

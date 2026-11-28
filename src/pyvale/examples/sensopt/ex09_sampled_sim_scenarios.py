@@ -138,7 +138,8 @@ for sampling, (num_sim_scenarios, num_virtual_exps) in budgets.items():
     ).optimise()
     results[sampling] = result
     print(
-        f"{sampling.name}: {num_sim_scenarios} scenarios × {num_virtual_exps} experiments, "
+        f"{sampling.name}: {num_sim_scenarios} scenarios × "
+        f"{num_virtual_exps} experiments, "
         f"estimated expected RMSE {result.objective_values[0]:.6f}"
     )
     save_dual_blob_layout(
