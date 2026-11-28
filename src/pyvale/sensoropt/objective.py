@@ -18,6 +18,7 @@ import numpy.typing as npt
 from pyvale.sensoropt.designspace import _calculate_sensor_cost
 from pyvale.sensoropt.evalstrat import EvalStrat
 from pyvale.sensoropt.fieldrecon import FieldReconNearest, IFieldRecon
+from pyvale.sensoropt.sampletimes import _validate_sample_times
 from pyvale.sensorsim.enums import EExpSimKeys
 from pyvale.sensorsim.sensordata import SensorData
 
@@ -65,7 +66,9 @@ class ObjNormAffine(IObjNormalisation):
 
     def eval(self, score: float) -> float:
         if not np.isfinite(self.gain) or self.gain <= 0 or not np.isfinite(self.offset):
-            raise ValueError("Affine normalisation requires positive gain and finite parameters.")
+            raise ValueError(
+                "Affine normalisation requires positive gain and finite parameters."
+            )
         return self.gain * score + self.offset
 
 
@@ -77,7 +80,9 @@ class ObjNormLog(IObjNormalisation):
 
     def eval(self, score: float) -> float:
         if not np.isfinite(self.reference) or self.reference <= 0 or score <= 0:
-            raise ValueError("Log normalisation requires a positive score and reference.")
+            raise ValueError(
+                "Log normalisation requires a positive score and reference."
+            )
         return log(score) - log(self.reference)
 
 
@@ -240,7 +245,9 @@ class ObjSignal(IObjFunc):
                     truth = truth[..., self.time_index]
                 histories.append(truth)
             if not histories:
-                raise ValueError("Signal scoring requires at least one selected sensor.")
+                raise ValueError(
+                    "Signal scoring requires at least one selected sensor."
+                )
 
             for indices, pool_positions, method in steps:
                 if pool_positions and len(histories) > 1:
@@ -377,6 +384,8 @@ class ObjFieldRecon(IObjFunc):
 
     Reference values are keyed by scenario and have shape (target, time).
     Provide explicit target_values or select a nodal reference_field.
+    If target_times is omitted, score at the acquired times. Otherwise interpolate
+    the spatial reconstruction linearly onto target_times without extrapolation.
     Ensemble references compare each reconstruction with a common pointwise
     mean or median. Reference weights apply only to the mean.
     Each target and time has equal weight. Losses have shape
@@ -392,6 +401,7 @@ class ObjFieldRecon(IObjFunc):
     reference_field: str | None = None
     reference_mode: EReconRef = EReconRef.SIM_SCENARIO
     reference_weights: Mapping[str, float] | None = None
+    target_times: npt.NDArray[np.float64] | None = None
 
     def get_required_outputs(self) -> frozenset[EExpSimKeys]:
         return frozenset({EExpSimKeys.MEASUREMENT, EExpSimKeys.SENSOR_TIMES})
@@ -404,12 +414,15 @@ class ObjFieldRecon(IObjFunc):
         scenario_keys: tuple[str, ...],
     ) -> npt.NDArray[np.float64]:
         if self.target_values is None:
-            raise ValueError("Reference field values must be resolved before evaluation.")
+            raise ValueError(
+                "Reference field values must be resolved before evaluation."
+            )
         active_keys: tuple[str, ...] = tuple(
             key for key in self.sensor_keys if key in sensor_data
         )
         if not active_keys:
             raise ValueError("Field reconstruction requires an active sensor array.")
+        first_key = active_keys[0]
 
         positions: list[npt.NDArray[np.float64]] = []
         for key in active_keys:
@@ -427,13 +440,16 @@ class ObjFieldRecon(IObjFunc):
         for scenario_key in scenario_keys:
             if len(active_keys) > 1:
                 times = experiment_data[
-                    scenario_key, active_keys[0], EExpSimKeys.SENSOR_TIMES
+                    scenario_key, first_key, EExpSimKeys.SENSOR_TIMES
                 ]
                 for key in active_keys[1:]:
                     if not np.array_equal(
-                        times, experiment_data[scenario_key, key, EExpSimKeys.SENSOR_TIMES]
+                        times,
+                        experiment_data[scenario_key, key, EExpSimKeys.SENSOR_TIMES],
                     ):
-                        raise ValueError("Pooled reconstruction requires matching sample times.")
+                        raise ValueError(
+                            "Pooled reconstruction requires matching sample times."
+                        )
             measurements: npt.NDArray[np.float64] = np.concatenate(
                 [
                     experiment_data[scenario_key, key, EExpSimKeys.MEASUREMENT]
@@ -451,6 +467,30 @@ class ObjFieldRecon(IObjFunc):
                 target_positions=self.target_positions,
             )
             predicted = np.moveaxis(nodal_values, 0, 1)
+            if self.target_times is not None:
+                target_times = _validate_sample_times(self.target_times)
+                acquired = _validate_sample_times(
+                    experiment_data[scenario_key, first_key, EExpSimKeys.SENSOR_TIMES]
+                )
+                if len(acquired) != predicted.shape[-1]:
+                    raise ValueError(
+                        "Acquired times must match the measurement time axis."
+                    )
+                if target_times[0] < acquired[0] or target_times[-1] > acquired[-1]:
+                    raise ValueError(
+                        "Acquired times must cover the target time window."
+                    )
+                if len(acquired) > 1 and not np.array_equal(acquired, target_times):
+                    right = np.searchsorted(acquired, target_times).clip(
+                        1, len(acquired) - 1
+                    )
+                    left = right - 1
+                    weight = (target_times - acquired[left]) / (
+                        acquired[right] - acquired[left]
+                    )
+                    predicted = (1.0 - weight) * predicted[
+                        ..., left
+                    ] + weight * predicted[..., right]
             reference = self.target_values[scenario_key]
             if reference.shape != predicted.shape[1:]:
                 raise ValueError(

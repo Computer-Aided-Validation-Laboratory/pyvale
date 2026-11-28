@@ -88,7 +88,14 @@ class OptExhaustive:
     target_objective: float | None = None
 
 
-OptDiscrete = OptGreedyForward | OptGreedyBackward | OptExchange | OptExhaustive
+@dataclass(slots=True, kw_only=True)
+class OptFixedLayout:
+    """Keep every array at its configured positions and search sample times."""
+
+
+OptDiscrete = (
+    OptGreedyForward | OptGreedyBackward | OptExchange | OptExhaustive | OptFixedLayout
+)
 Layout = tuple[int, ...]
 ScoreLayout = Callable[[Layout], float | None]
 

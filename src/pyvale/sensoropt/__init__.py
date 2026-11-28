@@ -53,11 +53,17 @@ from pyvale.sensoropt.optimiser import (
     EOptStopCond,
     OptExchange,
     OptExhaustive,
+    OptFixedLayout,
     OptGreedyBackward,
     OptGreedyForward,
     OptStartExhaustive,
     OptStartLayout,
     OptStartRandom,
+)
+from pyvale.sensoropt.sampletimes import (
+    gen_sample_time_combinations,
+    gen_sample_times_from_freqs,
+    gen_sample_times_from_periods,
 )
 from pyvale.sensoropt.sites import (
     ConstrainSensSites,
@@ -110,6 +116,7 @@ __all__ = [
     "ObjWeighted",
     "OptExchange",
     "OptExhaustive",
+    "OptFixedLayout",
     "OptGreedyBackward",
     "OptGreedyForward",
     "OptResult",
@@ -126,4 +133,7 @@ __all__ = [
     "SignalReduction",
     "SimSamplerLibrary",
     "filter_sensor_sites_in_mesh",
+    "gen_sample_time_combinations",
+    "gen_sample_times_from_freqs",
+    "gen_sample_times_from_periods",
 ]

@@ -15,10 +15,15 @@ import numpy.typing as npt
 from pyvale.dataio.simdata import SimData
 from pyvale.sensoropt.evalstrat import _get_scenario_weights
 from pyvale.sensoropt.objective import EReconRef, IObjFunc, ObjFieldRecon, ObjSpec
+from pyvale.sensoropt.sampletimes import _validate_sample_times
 from pyvale.sensorsim.enums import EDim
 from pyvale.sensorsim.fieldscalar import FieldScalar
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.sensordata import SensorData
+
+
+class _ScheduleMismatch(ValueError):
+    """The selected acquisition schedule cannot support this objective."""
 
 
 def _prepare_objective(
@@ -28,6 +33,7 @@ def _prepare_objective(
     sensor_arrays: Mapping[str, ISensorArray],
     nominal_data: Mapping[str, SensorData],
     nominal_key: str,
+    time_search_keys: frozenset[str] = frozenset(),
 ) -> IObjFunc:
     if isinstance(objective, ObjSpec):
         objective = objective.objective
@@ -45,7 +51,21 @@ def _prepare_objective(
     references = objective.target_values
     if (field_key is None) == (references is None):
         raise ValueError("Specify exactly one of target_values and reference_field.")
-    if field_key is not None:
+    target_times = (
+        None
+        if objective.target_times is None
+        else _validate_sample_times(objective.target_times)
+    )
+    if (
+        references is not None
+        and target_times is None
+        and time_search_keys.intersection(objective.sensor_keys)
+    ):
+        raise ValueError(
+            "Explicit target_values need target_times when searching sample times."
+        )
+
+    if field_key is not None or target_times is not None:
         if (
             not objective.sensor_keys
             or not set(objective.sensor_keys) <= sensor_arrays.keys()
@@ -55,52 +75,71 @@ def _prepare_objective(
         cases = sim_scenarios or {
             nominal_key: sensor_arrays[first_key].get_field().get_sim_data()
         }
-        references = {}
+        field_references: dict[str, npt.NDArray[np.float64]] = {}
         common_times: npt.NDArray[np.float64] | None = None
         for scenario_key, simulation in cases.items():
-            if simulation.node_vars is None or field_key not in simulation.node_vars:
-                raise ValueError(
-                    f"Scenario {scenario_key!r} has no field {field_key!r}."
-                )
-            times = nominal_data[first_key].sample_times
-            if times is None:
-                times = simulation.time
-            if times is None:
-                raise ValueError(
-                    f"Scenario {scenario_key!r} has no reference sample times."
-                )
-            for key in objective.sensor_keys[1:]:
-                other_times = nominal_data[key].sample_times
-                if other_times is None:
-                    other_times = (
+            acquired_times: list[npt.NDArray[np.float64]] = []
+            for key in objective.sensor_keys:
+                times = nominal_data[key].sample_times
+                if times is None:
+                    times = (
                         simulation.time
                         if sim_scenarios
                         else sensor_arrays[key].get_field().get_time_steps()
                     )
-                if other_times is None or not np.array_equal(times, other_times):
+                if times is None:
                     raise ValueError(
-                        "Reference field requires matching sensor sample times."
+                        f"Scenario {scenario_key!r} has no acquisition times."
                     )
+                acquired_times.append(times)
+            first_times = acquired_times[0]
+            if any(
+                not np.array_equal(first_times, times) for times in acquired_times[1:]
+            ):
+                raise _ScheduleMismatch(
+                    "Pooled reconstruction requires matching sample times."
+                )
+            if target_times is not None and (
+                target_times[0] < first_times[0] or target_times[-1] > first_times[-1]
+            ):
+                raise _ScheduleMismatch(
+                    "Acquired times must cover the target time window."
+                )
+            if field_key is None:
+                continue
+            if simulation.node_vars is None or field_key not in simulation.node_vars:
+                raise ValueError(
+                    f"Scenario {scenario_key!r} has no field {field_key!r}."
+                )
+            times = first_times if target_times is None else target_times
+            if simulation.time is None or (
+                times[0] < simulation.time[0] or times[-1] > simulation.time[-1]
+            ):
+                raise _ScheduleMismatch(
+                    "Reference times must be inside the simulation window."
+                )
             if mode is not EReconRef.SIM_SCENARIO:
                 if common_times is not None and not np.array_equal(times, common_times):
-                    raise ValueError(
+                    raise _ScheduleMismatch(
                         "Ensemble references require matching scenario sample times."
                     )
                 common_times = times
             if (
                 simulation.coords is not None
-                and simulation.time is not None
                 and np.array_equal(objective.target_positions, simulation.coords)
                 and np.array_equal(times, simulation.time)
             ):
-                references[scenario_key] = simulation.node_vars[field_key]
+                field_references[scenario_key] = simulation.node_vars[field_key]
             else:
                 field = FieldScalar(
                     simulation, field_key, EDim(simulation.num_spat_dims)
                 )
-                references[scenario_key] = field.sample_field(
+                field_references[scenario_key] = field.sample_field(
                     objective.target_positions, times
                 )[:, 0, :]
+
+        if field_key is not None:
+            references = field_references
 
     assert references is not None
     if not set(scenario_keys) <= references.keys():

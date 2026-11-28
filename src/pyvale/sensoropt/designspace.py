@@ -177,12 +177,18 @@ class DesignSpace:
 
     Each discrete position domain is shaped (site, xyz) in the field's coordinate
     system and units. The row order breaks ties during search.
+    Each entry in sample_times supplies complete candidate schedules for one
+    array. A schedule is a strictly increasing 1D array shared by that array.
+    Omit an array to use its configured times.
     """
 
-    positions: Mapping[str, npt.NDArray[np.float64]]
-    position_axes: Mapping[str, EDesignAxis]
+    positions: Mapping[str, npt.NDArray[np.float64]] = field(default_factory=dict)
+    position_axes: Mapping[str, EDesignAxis] = field(default_factory=dict)
     input_constraints: tuple[IConstrainInp, ...] = ()
     output_constraints: tuple[IConstrainOut, ...] = ()
+    sample_times: Mapping[str, tuple[npt.NDArray[np.float64], ...]] = field(
+        default_factory=dict
+    )
 
 
 def filter_sensor_sites_in_mesh(
