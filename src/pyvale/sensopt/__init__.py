@@ -6,6 +6,7 @@
 
 """Experimental design through sensor placement optimisation."""
 
+from pyvale.sensopt.constraintout import ConstrainMeasErr, ConstrainObjVal
 from pyvale.sensopt.designspace import (
     ConstrainChannCount,
     ConstrainSensCost,
@@ -13,12 +14,22 @@ from pyvale.sensopt.designspace import (
     DesignSpace,
     EDesignAxis,
     IConstrainInp,
+    IConstrainOut,
     filter_sensor_sites_in_mesh,
 )
 from pyvale.sensopt.engine import OptResult, SensorOptEngine
+from pyvale.sensopt.evalstrat import (
+    EEvalAxis,
+    EEvalReduce,
+    ESampling,
+    EvalReduction,
+    EvalStrat,
+    ISimSampler,
+)
 from pyvale.sensopt.fieldrecon import FieldReconLinear, FieldReconNearest, IFieldRecon
 from pyvale.sensopt.objective import (
     EErrMetric,
+    EReconRef,
     ESignalAxis,
     ESignalReduce,
     ExperimentData,
@@ -32,6 +43,7 @@ from pyvale.sensopt.objective import (
     ObjSignal,
     ObjSignalPeakAbs,
     ObjSignalRMS,
+    ObjSpec,
     ObjTerm,
     ObjWeighted,
     SignalReduction,
@@ -46,24 +58,44 @@ from pyvale.sensopt.optimiser import (
     OptStartLayout,
     OptStartRandom,
 )
+from pyvale.sensopt.sites import (
+    ConstrainSensSites,
+    SensSiteAll,
+    SensSiteAny,
+    SensSiteBounds,
+    SensSiteGridIdxs,
+    SensSiteNot,
+    SensSiteSelector,
+)
 
 __all__ = [
     "ConstrainChannCount",
+    "ConstrainMeasErr",
+    "ConstrainObjVal",
     "ConstrainSensCost",
     "ConstrainSensSep",
+    "ConstrainSensSites",
     "DesignSpace",
     "EDesignAxis",
+    "EEvalAxis",
+    "EEvalReduce",
     "EErrMetric",
     "EOptStopCond",
+    "EReconRef",
+    "ESampling",
     "ESignalAxis",
     "ESignalReduce",
+    "EvalReduction",
+    "EvalStrat",
     "ExperimentData",
     "FieldReconLinear",
     "FieldReconNearest",
     "IConstrainInp",
+    "IConstrainOut",
     "IFieldRecon",
     "IObjFunc",
     "IObjNormalisation",
+    "ISimSampler",
     "ObjFieldRecon",
     "ObjNormAffine",
     "ObjNormLog",
@@ -72,6 +104,7 @@ __all__ = [
     "ObjSignal",
     "ObjSignalPeakAbs",
     "ObjSignalRMS",
+    "ObjSpec",
     "ObjTerm",
     "ObjWeighted",
     "OptExchange",
@@ -82,6 +115,12 @@ __all__ = [
     "OptStartExhaustive",
     "OptStartLayout",
     "OptStartRandom",
+    "SensSiteAll",
+    "SensSiteAny",
+    "SensSiteBounds",
+    "SensSiteGridIdxs",
+    "SensSiteNot",
+    "SensSiteSelector",
     "SensorOptEngine",
     "SignalReduction",
     "filter_sensor_sites_in_mesh",

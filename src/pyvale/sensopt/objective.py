@@ -16,6 +16,7 @@ import numpy as np
 import numpy.typing as npt
 
 from pyvale.sensopt.designspace import _calculate_sensor_cost
+from pyvale.sensopt.evalstrat import EvalStrat
 from pyvale.sensopt.fieldrecon import FieldReconNearest, IFieldRecon
 from pyvale.sensorsim.enums import EExpSimKeys
 from pyvale.sensorsim.sensordata import SensorData
@@ -95,6 +96,14 @@ class ObjNormLog1p(IObjNormalisation):
 
 
 @dataclass(slots=True, kw_only=True)
+class ObjSpec:
+    """Pair an objective with its evaluation strategy."""
+
+    objective: IObjFunc
+    eval_strat: EvalStrat
+
+
+@dataclass(slots=True, kw_only=True)
 class ObjTerm:
     """One objective, its optional fixed normalisation and its weight.
 
@@ -103,7 +112,7 @@ class ObjTerm:
     Custom objectives using empty_score must specify sensor_keys on the term.
     """
 
-    objective: IObjFunc
+    objective: IObjFunc | ObjSpec
     weight: float = 1.0
     normalisation: IObjNormalisation | None = None
     empty_score: float | None = None
@@ -333,11 +342,33 @@ class ObjSignalPeakAbs(IObjFunc):
 
 
 class EErrMetric(Enum):
-    """Error metric over target points and sample times."""
+    """Metrics for reducing errors over observation axes."""
 
     RMSE = auto()
     MAE = auto()
     MAX_ERR = auto()  # Maximum absolute error.
+
+
+class EReconRef(Enum):
+    """Reference field used to score an individual reconstruction."""
+
+    SIM_SCENARIO = auto()
+    MEAN_SCENARIO = auto()
+    MEDIAN_SCENARIO = auto()
+
+
+def _reduce_error(
+    error: npt.NDArray[np.float64], *, metric: EErrMetric, axes: tuple[int, ...]
+) -> npt.NDArray[np.float64]:
+    match metric:
+        case EErrMetric.RMSE:
+            return np.sqrt(np.mean(np.square(error), axis=axes))
+        case EErrMetric.MAE:
+            return np.mean(np.abs(error), axis=axes)
+        case EErrMetric.MAX_ERR:
+            return np.max(np.abs(error), axis=axes)
+        case _:
+            raise ValueError(f"Unsupported error metric {metric!r}.")
 
 
 @dataclass(slots=True, kw_only=True)
@@ -350,11 +381,14 @@ class ObjFieldRecon(IObjFunc):
     """
 
     target_positions: npt.NDArray[np.float64]
-    target_values: Mapping[str, npt.NDArray[np.float64]]
+    target_values: Mapping[str, npt.NDArray[np.float64]] | None = None
     sensor_keys: tuple[str, ...]
     component_index: int
     metric: EErrMetric = EErrMetric.RMSE
     reconstructor: IFieldRecon | None = None
+    reference_field: str | None = None
+    reference_mode: EReconRef = EReconRef.SIM_SCENARIO
+    reference_weights: Mapping[str, float] | None = None
 
     def get_required_outputs(self) -> frozenset[EExpSimKeys]:
         return frozenset({EExpSimKeys.MEASUREMENT, EExpSimKeys.SENSOR_TIMES})
@@ -366,6 +400,8 @@ class ObjFieldRecon(IObjFunc):
         experiment_data: ExperimentData,
         scenario_keys: tuple[str, ...],
     ) -> npt.NDArray[np.float64]:
+        if self.target_values is None:
+            raise ValueError("Reference field values must be resolved before evaluation.")
         active_keys: tuple[str, ...] = tuple(
             key for key in self.sensor_keys if key in sensor_data
         )
@@ -417,18 +453,8 @@ class ObjFieldRecon(IObjFunc):
                 raise ValueError(
                     "Reference values must match the target and time axes."
                 )
-            error = predicted - reference
-            match self.metric:
-                case EErrMetric.RMSE:
-                    loss = np.sqrt(np.mean(np.square(error), axis=(1, 2)))
-                case EErrMetric.MAE:
-                    loss = np.mean(np.abs(error), axis=(1, 2))
-                case EErrMetric.MAX_ERR:
-                    loss = np.max(np.abs(error), axis=(1, 2))
-                case _:
-                    raise ValueError(
-                        f"Unsupported reconstruction metric {self.metric!r}."
-                    )
-            losses.append(loss)
+            losses.append(
+                _reduce_error(predicted - reference, metric=self.metric, axes=(1, 2))
+            )
 
         return np.stack(losses, axis=0)

@@ -8,16 +8,17 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
+from itertools import combinations_with_replacement
 from numbers import Integral
 
 import numpy as np
 import numpy.typing as npt
-from scipy.spatial.distance import pdist
+from scipy.spatial.distance import cdist, pdist
 
 from pyvale.dataio.simdata import EMeshType, SimData
-from pyvale.sensorsim.enums import EDim
+from pyvale.sensorsim.enums import EDim, EExpSimKeys
 from pyvale.sensorsim.fieldconverter import simdata_to_pyvista_vis
 from pyvale.sensorsim.sensordata import SensorData
 
@@ -36,6 +37,24 @@ class IConstrainInp(ABC):
         """Return constraint residuals. Each residual must be nonpositive."""
 
 
+class IConstrainOut(ABC):
+    """Feasibility condition on a layout's simulated outputs."""
+
+    @abstractmethod
+    def get_required_outputs(self) -> frozenset[EExpSimKeys]:
+        """Declare which experiment outputs this constraint reads."""
+
+    @abstractmethod
+    def eval(
+        self,
+        *,
+        sensor_data: Mapping[str, SensorData],
+        experiment_data: Mapping[tuple[str, str, EExpSimKeys], npt.NDArray[np.float64]],
+        scenario_keys: tuple[str, ...],
+    ) -> npt.NDArray[np.float64]:
+        """Return finite residuals. Each residual must be nonpositive."""
+
+
 @dataclass(slots=True, kw_only=True)
 class ConstrainSensSep(IConstrainInp):
     """Reject co-location and enforce an optional minimum distance.
@@ -44,19 +63,48 @@ class ConstrainSensSep(IConstrainInp):
     """
 
     min_distance: float = 0.0
+    pair_distances: Mapping[tuple[str, str], float] = field(default_factory=dict)
 
     def eval(self, sensor_data: Mapping[str, SensorData]) -> npt.NDArray[np.float64]:
         if not np.isfinite(self.min_distance) or self.min_distance < 0:
             raise ValueError("min_distance must be finite and nonnegative.")
-        positions = [
-            data.positions for data in sensor_data.values() if data.positions is not None
-        ]
+        positions = {
+            key: data.positions
+            for key, data in sensor_data.items()
+            if data.positions is not None
+        }
+        overrides: dict[tuple[str, str], float] = {}
+        for (first, second), distance in self.pair_distances.items():
+            if not np.isfinite(distance) or distance < 0:
+                raise ValueError("Pair distances must be finite and nonnegative.")
+            pair = (first, second) if first <= second else (second, first)
+            if pair in overrides and overrides[pair] != distance:
+                raise ValueError(f"Conflicting separation distances for {pair!r}.")
+            overrides[pair] = distance
+
         if not positions:
             return np.empty(0, dtype=np.float64)
-        distances = np.asarray(pdist(np.concatenate(positions)), dtype=np.float64)
-        if self.min_distance == 0:
-            return (distances == 0).astype(np.float64)
-        return self.min_distance - distances
+        if not overrides:
+            distances = np.asarray(
+                pdist(np.concatenate(list(positions.values()))), dtype=np.float64
+            )
+            if self.min_distance == 0:
+                return (distances == 0).astype(np.float64)
+            return self.min_distance - distances
+
+        residuals: list[npt.NDArray[np.float64]] = []
+        for first, second in combinations_with_replacement(sorted(positions), 2):
+            if first == second:
+                pair_distances = pdist(positions[first])
+            else:
+                pair_distances = cdist(positions[first], positions[second]).ravel()
+            distances = np.asarray(pair_distances, dtype=np.float64)
+            minimum = overrides.get((first, second), self.min_distance)
+            if minimum == 0:
+                residuals.append((distances == 0).astype(np.float64))
+            else:
+                residuals.append(minimum - distances)
+        return np.concatenate(residuals)
 
 
 def _calculate_sensor_cost(
@@ -134,6 +182,7 @@ class DesignSpace:
     positions: Mapping[str, npt.NDArray[np.float64]]
     position_axes: Mapping[str, EDesignAxis]
     input_constraints: tuple[IConstrainInp, ...] = ()
+    output_constraints: tuple[IConstrainOut, ...] = ()
 
 
 def filter_sensor_sites_in_mesh(

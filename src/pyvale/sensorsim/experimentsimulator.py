@@ -10,10 +10,15 @@ of input simulation cases and sensor arrays.
 """
 
 import enum
+from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import product
 from multiprocessing.pool import Pool
 import numpy as np
+import numpy.typing as npt
+
+from pyvale.sensorsim.enums import EExpSimKeys
+from pyvale.sensorsim.sensordata import SensorData
 
 from pyvale.dataio.simdata import SimData
 from pyvale.sensorsim.sensorarray import ISensorArray
@@ -109,6 +114,14 @@ class ExpSimOpts:
     """
 
 
+_MEASURED_OUTPUTS = frozenset({
+    EExpSimKeys.MEASUREMENT, EExpSimKeys.SYSTEMATIC_ERROR, EExpSimKeys.RANDOM_ERROR,
+})
+_VIRTUAL_EXP_OUTPUTS = _MEASURED_OUTPUTS | frozenset({
+    EExpSimKeys.TRUTH, EExpSimKeys.SENSOR_TIMES, EExpSimKeys.SENSOR_POSITIONS,
+})
+
+
 class ExperimentSimulator:
     """An experiment simulator for running Monte-Carlo simulation by applying a
     dictionary of sensor arrays to a dictionary of simulations over a given
@@ -146,6 +159,69 @@ class ExperimentSimulator:
         else:
             self._save_keys = exp_save_keys
 
+
+    @staticmethod
+    def collect_virtual_exps(
+        *,
+        scenario_arrays: Mapping[str, Mapping[str, ISensorArray]],
+        sensor_data: Mapping[str, SensorData],
+        num_virtual_exps: int,
+        required_outputs: frozenset[EExpSimKeys],
+    ) -> dict[tuple[str, str, EExpSimKeys], npt.NDArray[np.float64]]:
+        """Collect histories from already-bound working arrays in scenario order.
+
+        Resets layout data before sampling and advances each array's existing RNG.
+        Truth is nominal and broadcast over virtual experiments. The positional
+        and time outputs describe the nominal layout and have no experiment axis.
+        """
+        if num_virtual_exps < 1:
+            raise ValueError("num_virtual_exps must be positive.")
+        if not required_outputs <= _VIRTUAL_EXP_OUTPUTS:
+            raise ValueError("Requested a virtual experiment output that is unsupported.")
+        histories: dict[tuple[str, str, EExpSimKeys], npt.NDArray[np.float64]] = {}
+        if not required_outputs:
+            return histories
+
+        measured_outputs = required_outputs & _MEASURED_OUTPUTS
+        for scenario, arrays in scenario_arrays.items():
+            for key, data in sensor_data.items():
+                array = arrays[key]
+                array.set_sensor_data(data)
+                outputs: dict[EExpSimKeys, npt.NDArray[np.float64]] = {}
+                if measured_outputs:
+                    shape = (num_virtual_exps, *array.get_measurement_shape())
+                    for output in measured_outputs:
+                        outputs[output] = np.empty(shape, dtype=np.float64)
+                    for index in range(num_virtual_exps):
+                        measurement = array.sim_measurements()
+                        for output in measured_outputs:
+                            match output:
+                                case EExpSimKeys.MEASUREMENT:
+                                    reading = measurement
+                                case EExpSimKeys.SYSTEMATIC_ERROR:
+                                    reading = array.get_errors_systematic()
+                                case EExpSimKeys.RANDOM_ERROR:
+                                    reading = array.get_errors_random()
+                            outputs[output][index] = 0.0 if reading is None else reading
+                if EExpSimKeys.TRUTH in required_outputs:
+                    truth = array.get_truth()
+                    outputs[EExpSimKeys.TRUTH] = np.broadcast_to(
+                        truth, (num_virtual_exps, *truth.shape)
+                    )
+                if EExpSimKeys.SENSOR_TIMES in required_outputs:
+                    times = data.sample_times
+                    if times is None:
+                        times = array.get_field().get_time_steps()
+                    outputs[EExpSimKeys.SENSOR_TIMES] = times
+                if EExpSimKeys.SENSOR_POSITIONS in required_outputs:
+                    if data.positions is None:
+                        raise ValueError(f"Sensor array {key!r} requires positions.")
+                    outputs[EExpSimKeys.SENSOR_POSITIONS] = data.positions
+                for output, values in outputs.items():
+                    view = values.view()
+                    view.setflags(write=False)
+                    histories[scenario, key, output] = view
+        return histories
 
     def get_exp_save_keys(self) -> ExpSimSaveKeys:
         """Gets the experiment simulation data keys.

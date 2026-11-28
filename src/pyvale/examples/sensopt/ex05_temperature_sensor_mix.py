@@ -86,8 +86,8 @@ objective: opt.ObjWeighted = opt.ObjWeighted(
     ),
 )
 design_space: opt.DesignSpace = opt.DesignSpace(
-    positions={key: sites for key in sensor_arrays},
-    position_axes={key: opt.EDesignAxis.DISC for key in sensor_arrays},
+    positions=dict.fromkeys(sensor_arrays, sites),
+    position_axes=dict.fromkeys(sensor_arrays, opt.EDesignAxis.DISC),
     input_constraints=(
         opt.ConstrainSensSep(),
         opt.ConstrainSensCost(unit_costs=unit_costs, budget=budget),

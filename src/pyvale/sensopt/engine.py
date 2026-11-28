@@ -13,13 +13,17 @@ from numbers import Integral
 import numpy as np
 import numpy.typing as npt
 
+from pyvale.dataio.simdata import SimData
+from pyvale.sensopt.constraintout import ConstrainObjVal
 from pyvale.sensopt.designspace import DesignSpace, EDesignAxis
+from pyvale.sensopt.evalstrat import ESampling, ISimSampler
 from pyvale.sensopt.objective import (
     IObjFunc,
     ObjFieldRecon,
     ObjSignal,
     ObjSignalPeakAbs,
     ObjSignalRMS,
+    ObjSpec,
     ObjTerm,
     ObjWeighted,
 )
@@ -42,25 +46,12 @@ from pyvale.sensopt.optimiser import (
     _search_forward,
     _SearchResult,
 )
-from pyvale.sensorsim.enums import EExpSimKeys
+from pyvale.sensopt.simscenario import _prepare_objective
+from pyvale.sensorsim.experimentsimulator import ExperimentSimulator
 from pyvale.sensorsim.sensorarray import ISensorArray
 from pyvale.sensorsim.sensordata import SensorData
 
 _NOMINAL_SCENARIO = "nominal"
-_MEASURED_OUTPUTS = frozenset(
-    {
-        EExpSimKeys.MEASUREMENT,
-        EExpSimKeys.RANDOM_ERROR,
-        EExpSimKeys.SYSTEMATIC_ERROR,
-    }
-)
-_SUPPORTED_OUTPUTS = _MEASURED_OUTPUTS | frozenset(
-    {
-        EExpSimKeys.TRUTH,
-        EExpSimKeys.SENSOR_POSITIONS,
-        EExpSimKeys.SENSOR_TIMES,
-    }
-)
 
 
 @dataclass(slots=True)
@@ -91,14 +82,18 @@ class SensorOptEngine:
 
     Each array's configured count is its inventory limit. Backward and exchange
     start at the configured positions. Each candidate gets one scalar score and
-    one realisation per active array. Unselected arrays are omitted from layouts.
+    virtual experiments for each simulation scenario. Unselected arrays are omitted.
     """
 
     sensor_arrays: Mapping[str, ISensorArray]
     design_space: DesignSpace
-    objectives: tuple[IObjFunc, ...] | ObjWeighted
+    objectives: tuple[IObjFunc | ObjSpec, ...] | ObjWeighted
     optimiser: OptDiscrete
     seed: int | None = None
+    sim_scenarios: Mapping[str, SimData] | ISimSampler | None = None
+    num_sim_scenarios: int | None = None
+    num_virtual_exps: int = 1
+    sampling: ESampling = ESampling.NESTED
 
     def optimise(self) -> OptResult:
         """Search the configured design space without mutating any supplied array."""
@@ -224,8 +219,64 @@ class SensorOptEngine:
                 raise ValueError("Supply one objective or an ObjWeighted combination.")
             terms = (ObjTerm(objective=self.objectives[0]),)
 
+        if not _is_integer(self.num_virtual_exps, minimum=1):
+            raise ValueError("num_virtual_exps must be a positive integer.")
+        if not isinstance(self.sampling, ESampling):
+            raise ValueError("sampling must be an ESampling member.")
+        if self.sampling is ESampling.PAIRED and self.num_virtual_exps != 1:
+            raise ValueError("PAIRED sampling requires num_virtual_exps=1.")
+        sim_scenarios: dict[str, SimData] = {}
+        physics_seed = np.random.SeedSequence(self.seed)
+        source = self.sim_scenarios
+        if isinstance(source, ISimSampler):
+            count = self.num_sim_scenarios
+            if count is None or not _is_integer(count, minimum=1):
+                raise ValueError("A sampler requires a positive num_sim_scenarios.")
+            rng = np.random.default_rng(physics_seed.spawn(1)[0])
+            sim_scenarios = {f"sample_{index}": source.sample(rng=rng) for index in range(count)}
+            if not all(isinstance(case, SimData) for case in sim_scenarios.values()):
+                raise ValueError("The simulation sampler must return SimData.")
+        else:
+            if self.num_sim_scenarios is not None:
+                raise ValueError("num_sim_scenarios requires an ISimSampler.")
+            if source is not None:
+                if not source:
+                    raise ValueError("Supply at least one named simulation scenario.")
+                sim_scenarios = dict(source)
+
+        scenario_keys = tuple(sim_scenarios) or (_NOMINAL_SCENARIO,)
+        objective_specs = tuple(
+            term.objective if isinstance(term.objective, ObjSpec) else None
+            for term in terms
+        )
+        resolved_objectives = tuple(
+            _prepare_objective(
+                term.objective,
+                sim_scenarios=sim_scenarios,
+                sensor_arrays=self.sensor_arrays,
+                nominal_data=nominal_data,
+                nominal_key=_NOMINAL_SCENARIO,
+            )
+            for term in terms
+        )
+        output_constraints = tuple(
+            replace(
+                constraint,
+                objective=_prepare_objective(
+                    constraint.objective,
+                    sim_scenarios=sim_scenarios,
+                    sensor_arrays=self.sensor_arrays,
+                    nominal_data=nominal_data,
+                    nominal_key=_NOMINAL_SCENARIO,
+                ),
+            )
+            if isinstance(constraint, ConstrainObjVal)
+            else constraint
+            for constraint in self.design_space.output_constraints
+        )
+
         empty_score_keys: list[tuple[str, ...]] = []
-        for term in terms:
+        for term, objective in zip(terms, resolved_objectives, strict=True):
             if term.empty_score is None:
                 empty_score_keys.append(())
                 continue
@@ -233,33 +284,36 @@ class SensorOptEngine:
                 raise ValueError("empty_score must be finite.")
             keys = term.sensor_keys
             if keys is None and isinstance(
-                term.objective,
+                objective,
                 (ObjFieldRecon, ObjSignal, ObjSignalPeakAbs, ObjSignalRMS),
             ):
-                keys = term.objective.sensor_keys
+                keys = objective.sensor_keys
             if not keys or not self.sensor_arrays.keys() >= set(keys):
                 raise ValueError("empty_score requires valid input sensor keys.")
             empty_score_keys.append(keys)
 
         required_outputs = frozenset().union(
-            *(term.objective.get_required_outputs() for term in terms)
+            *(objective.get_required_outputs() for objective in resolved_objectives),
+            *(constraint.get_required_outputs() for constraint in output_constraints),
         )
-        if not required_outputs <= _SUPPORTED_OUTPUTS:
-            raise ValueError("The objective requests an unsupported experiment output.")
-        array_seeds: list[int | None] = [self.seed] * len(self.sensor_arrays)
-        if self.seed is not None and len(self.sensor_arrays) > 1:
+        scenario_arrays: dict[str, dict[str, ISensorArray]] = {}
+        num_streams = len(scenario_keys) * len(self.sensor_arrays)
+        array_seeds: list[int | None] = [self.seed] * num_streams
+        if self.seed is not None and (num_streams > 1 or isinstance(source, ISimSampler)):
             array_seeds = [
                 int(sequence.generate_state(1)[0])
-                for sequence in np.random.SeedSequence(self.seed).spawn(
-                    len(self.sensor_arrays)
-                )
+                for sequence in physics_seed.spawn(num_streams)
             ]
-        working_arrays = {
-            key: array.copy_for_simulation(seed=array_seed)
-            for (key, array), array_seed in zip(
-                self.sensor_arrays.items(), array_seeds, strict=True
-            )
-        }
+        if required_outputs:
+            seeds = iter(array_seeds)
+            for scenario_key in scenario_keys:
+                arrays: dict[str, ISensorArray] = {}
+                for key, array in self.sensor_arrays.items():
+                    working_array = array.copy_for_simulation(seed=next(seeds))
+                    if scenario_key in sim_scenarios:
+                        working_array.get_field().set_sim_data(sim_scenarios[scenario_key])
+                    arrays[key] = working_array
+                scenario_arrays[scenario_key] = arrays
 
         def decode_layout(layout: Layout) -> dict[str, SensorData]:
             sensor_indices: dict[str, list[int]] = {}
@@ -283,66 +337,45 @@ class SensorOptEngine:
                 if np.any(residuals > 0):
                     return None
 
-            experiment_data: dict[
-                tuple[str, str, EExpSimKeys], npt.NDArray[np.float64]
-            ] = {}
-            for sensor_key, candidate_data in sensor_data.items():
-                if not required_outputs:
-                    break
-                working_array = working_arrays[sensor_key]
-                working_array.set_sensor_data(candidate_data)
-                measurements = None
-                if required_outputs & _MEASURED_OUTPUTS:
-                    measurements = working_array.sim_measurements()
-
-                for output_key in required_outputs:
-                    match output_key:
-                        case EExpSimKeys.MEASUREMENT:
-                            assert measurements is not None
-                            output = measurements[np.newaxis, ...]
-                        case EExpSimKeys.TRUTH:
-                            output = working_array.get_truth()[np.newaxis, ...]
-                        case EExpSimKeys.SENSOR_TIMES:
-                            output = candidate_data.sample_times
-                            if output is None:
-                                output = working_array.get_field().get_time_steps()
-                        case EExpSimKeys.SENSOR_POSITIONS:
-                            assert candidate_data.positions is not None
-                            output = candidate_data.positions
-                        case EExpSimKeys.SYSTEMATIC_ERROR | EExpSimKeys.RANDOM_ERROR:
-                            if output_key is EExpSimKeys.SYSTEMATIC_ERROR:
-                                errors = working_array.get_errors_systematic()
-                            else:
-                                errors = working_array.get_errors_random()
-                            if errors is None:
-                                assert measurements is not None
-                                errors = np.zeros_like(measurements)
-                            output = errors[np.newaxis, ...]
-                        case _:
-                            raise ValueError("Unsupported experiment output.")
-
-                    output_view = output.view()
-                    output_view.setflags(write=False)
-                    experiment_data[_NOMINAL_SCENARIO, sensor_key, output_key] = (
-                        output_view
-                    )
+            experiment_data = ExperimentSimulator.collect_virtual_exps(
+                scenario_arrays=scenario_arrays,
+                sensor_data=sensor_data,
+                num_virtual_exps=self.num_virtual_exps,
+                required_outputs=required_outputs,
+            )
+            for constraint in output_constraints:
+                residuals = constraint.eval(
+                    sensor_data=sensor_data,
+                    experiment_data=experiment_data,
+                    scenario_keys=scenario_keys,
+                )
+                if not np.all(np.isfinite(residuals)):
+                    raise ValueError("Output constraint residuals must be finite.")
+                if np.any(residuals > 0):
+                    return None
 
             score = 0.0
-            for term, keys in zip(terms, empty_score_keys, strict=True):
+            for term, keys, objective, spec in zip(
+                terms, empty_score_keys, resolved_objectives, objective_specs, strict=True
+            ):
                 if term.empty_score is not None and not any(
                     key in sensor_data for key in keys
                 ):
                     value = term.empty_score
                 else:
-                    values = term.objective.eval(
+                    values = objective.eval(
                         sensor_data=sensor_data,
                         experiment_data=experiment_data,
-                        scenario_keys=(_NOMINAL_SCENARIO,),
+                        scenario_keys=scenario_keys,
                     )
-                    if not isinstance(values, np.ndarray) or values.shape not in (
-                        (), (1, 1)
-                    ):
-                        raise ValueError("Return a scalar or a (1, 1) objective array.")
+                    if not isinstance(values, np.ndarray) or not np.all(np.isfinite(values)):
+                        raise ValueError("An objective must return finite values in an array.")
+                    if values.shape not in ((), (len(scenario_keys), self.num_virtual_exps)):
+                        raise ValueError("An objective must return a scalar or a loss per experiment.")
+                    if spec is not None:
+                        values = spec.eval_strat.reduce(values, scenario_keys=scenario_keys)
+                    if values.shape not in ((), (1, 1)):
+                        raise ValueError("Use EvalStrat to reduce the objective to one score.")
                     value = float(values.item())
                 if not np.isfinite(value):
                     raise ValueError("An objective must return a finite value.")

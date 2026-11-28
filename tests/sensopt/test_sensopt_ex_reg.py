@@ -172,6 +172,41 @@ def test_exchange_example_matches_enumerated_optimum(
 
 
 @pytest.mark.data
+def test_plate_exclusion_compares_signal_and_reconstruction(
+    prepare_example_output: Path,
+) -> None:
+    example = "ex07_plate_site_constraints"
+    namespace = runpy.run_module(f"pyvale.examples.sensopt.{example}")
+    results = namespace["results"]
+    output_path = prepare_example_output / f"sensopt_{example}"
+
+    np.testing.assert_allclose(
+        [
+            -results["peak_signal", "unrestricted"].objective_values[0],
+            -results["peak_signal", "excluded"].objective_values[0],
+        ],
+        [0.0181307, 0.0134850],
+        rtol=5e-6,
+    )
+    for design in ("unrestricted", "excluded"):
+        np.testing.assert_allclose(
+            results["field_recon", design].objective_values, [0.0012925], rtol=5e-5
+        )
+    for (objective, design), result in results.items():
+        assert result.success
+        assert result.stop_condition is opt.EOptStopCond.SENSOR_COUNT_REACHED
+        positions = result.sensor_data["strain"].positions
+        assert positions is not None
+        assert positions.shape == (1 if objective == "peak_signal" else 4, 3)
+        residuals = namespace["site_constraint"].eval(result.sensor_data)
+        if design == "excluded":
+            assert np.all(residuals <= 0)
+        elif objective == "peak_signal":
+            assert np.any(residuals > 0)
+        assert (output_path / f"{objective}_{design}.png").stat().st_size > 0
+
+
+@pytest.mark.data
 def test_candidate_filter_excludes_hole_and_exterior(
     plate_simulation: io.SimData,
 ) -> None:
@@ -552,6 +587,65 @@ def test_exhaustive_target_prefers_smallest_qualifying_layout(
     assert result.num_iterations == expected_iterations
     assert result.stop_condition is expected_stop
     assert result.success
+
+
+def test_output_constraints_request_histories_and_reject_cheaper_layout(
+    analytic_array: sens.SensorsPoint,
+) -> None:
+    biased = analytic_array.copy_for_simulation()
+    biased.set_error_chain([sens.ErrSysOffset(offset=2.0)])
+    sites = np.array([[0.25, 0.25, 0.0]])
+    arrays = {"economy": biased, "precision": analytic_array}
+    costs = opt.ObjSensorCost(unit_costs={"economy": 1.0, "precision": 2.0})
+    design = opt.DesignSpace(
+        positions=dict.fromkeys(arrays, sites),
+        position_axes=dict.fromkeys(arrays, opt.EDesignAxis.DISC),
+        output_constraints=(
+            opt.ConstrainMeasErr(sensor_keys=tuple(arrays), max_error=1.0),
+            opt.ConstrainObjVal(objective=costs, max_value=2.0),
+        ),
+    )
+    engine = opt.SensorOptEngine(
+        sensor_arrays=arrays,
+        design_space=design,
+        objectives=(costs,),
+        optimiser=opt.OptExhaustive(num_sensors=1),
+    )
+    result = engine.optimise()
+    assert result.success
+    assert result.sensor_data.keys() == {"precision"}
+    np.testing.assert_array_equal(result.objective_values, [2.0])
+
+    design.output_constraints = (*design.output_constraints, opt.ConstrainObjVal(
+        objective=costs, max_value=1.5
+    ))
+    assert not engine.optimise().success
+
+
+@pytest.mark.parametrize(
+    ("metric", "expected"),
+    [
+        (opt.EErrMetric.RMSE, np.sqrt(5.0)),
+        (opt.EErrMetric.MAE, 2.0),
+        (opt.EErrMetric.MAX_ERR, 3.0),
+    ],
+)
+def test_measurement_constraint_reduces_each_realisation(
+    metric: opt.EErrMetric, expected: float
+) -> None:
+    constraint = opt.ConstrainMeasErr(
+        sensor_keys=("strain",), max_error=2.0, metric=metric
+    )
+    measured = np.array([[[[1.0, -3.0]]], [[[2.0, 2.0]]]])
+    residuals = constraint.eval(
+        sensor_data={"strain": sens.SensorData(positions=np.zeros((1, 3)))},
+        experiment_data={
+            ("nominal", "strain", sens.EExpSimKeys.MEASUREMENT): measured,
+            ("nominal", "strain", sens.EExpSimKeys.TRUTH): np.zeros_like(measured),
+        },
+        scenario_keys=("nominal",),
+    )
+    np.testing.assert_allclose(residuals, [expected - 2.0, 0.0])
 
 
 def test_seeded_search_leaves_caller_array_and_rng_intact(
